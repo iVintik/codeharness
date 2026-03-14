@@ -1,8 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags: ['v*']
+  release:
+    types: [published]
 
 jobs:
   test:
@@ -18,29 +18,24 @@ jobs:
       - name: Run tests
         run: bats tests/*.bats
 
-  release:
+  marketplace:
+    name: Update Claude marketplace
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
 
-      - name: Extract version from tag
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
-
-      - name: Verify tag matches plugin.json
+      - name: Read plugin metadata
+        id: meta
         run: |
-          plugin_version=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
-          tag_version="${{ steps.version.outputs.version }}"
-          if [ "$plugin_version" != "$tag_version" ]; then
-            echo "::error::Tag v${tag_version} doesn't match plugin.json version ${plugin_version}"
-            exit 1
-          fi
+          echo "name=$(jq -r .name .claude-plugin/plugin.json)" >> "$GITHUB_OUTPUT"
+          echo "version=$(jq -r .version .claude-plugin/plugin.json)" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          generate_release_notes: true
-          name: "v${{ steps.version.outputs.version }}"
+      - name: Dispatch marketplace update
+        run: |
+          gh api repos/iVintik/private-claude-marketplace/dispatches \
+            -f event_type=plugin-release \
+            -f 'client_payload[plugin]=${{ steps.meta.outputs.name }}' \
+            -f 'client_payload[version]=${{ steps.meta.outputs.version }}'
+        env:
+          GH_TOKEN: ${{ secrets.MARKETPLACE_TOKEN }}

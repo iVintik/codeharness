@@ -25,16 +25,16 @@ PROJECT_ROOT="$BATS_TEST_DIRNAME/.."
     [[ -f "$PROJECT_ROOT/ralph/AGENTS.md" ]]
 }
 
-@test "hooks/AGENTS.md exists" {
-    [[ -f "$PROJECT_ROOT/hooks/AGENTS.md" ]]
+@test "hooks/AGENTS.txt exists" {
+    [[ -f "$PROJECT_ROOT/hooks/AGENTS.txt" ]]
 }
 
-@test "commands/AGENTS.md exists" {
-    [[ -f "$PROJECT_ROOT/commands/AGENTS.md" ]]
+@test "commands/AGENTS.txt exists" {
+    [[ -f "$PROJECT_ROOT/commands/AGENTS.txt" ]]
 }
 
-@test "knowledge/AGENTS.md exists" {
-    [[ -f "$PROJECT_ROOT/knowledge/AGENTS.md" ]]
+@test "knowledge/AGENTS.txt exists" {
+    [[ -f "$PROJECT_ROOT/knowledge/AGENTS.txt" ]]
 }
 
 @test "templates/AGENTS.md exists" {
@@ -49,21 +49,21 @@ PROJECT_ROOT="$BATS_TEST_DIRNAME/.."
     [[ $lines -le 100 ]]
 }
 
-@test "hooks/AGENTS.md does not exceed 100 lines" {
+@test "hooks/AGENTS.txt does not exceed 100 lines" {
     local lines
-    lines=$(wc -l < "$PROJECT_ROOT/hooks/AGENTS.md")
+    lines=$(wc -l < "$PROJECT_ROOT/hooks/AGENTS.txt")
     [[ $lines -le 100 ]]
 }
 
-@test "commands/AGENTS.md does not exceed 100 lines" {
+@test "commands/AGENTS.txt does not exceed 100 lines" {
     local lines
-    lines=$(wc -l < "$PROJECT_ROOT/commands/AGENTS.md")
+    lines=$(wc -l < "$PROJECT_ROOT/commands/AGENTS.txt")
     [[ $lines -le 100 ]]
 }
 
-@test "knowledge/AGENTS.md does not exceed 100 lines" {
+@test "knowledge/AGENTS.txt does not exceed 100 lines" {
     local lines
-    lines=$(wc -l < "$PROJECT_ROOT/knowledge/AGENTS.md")
+    lines=$(wc -l < "$PROJECT_ROOT/knowledge/AGENTS.txt")
     [[ $lines -le 100 ]]
 }
 
@@ -91,12 +91,12 @@ PROJECT_ROOT="$BATS_TEST_DIRNAME/.."
     grep -q "Testing" "$PROJECT_ROOT/ralph/AGENTS.md"
 }
 
-@test "hooks/AGENTS.md has Key Files section" {
-    grep -q "Key Files" "$PROJECT_ROOT/hooks/AGENTS.md"
+@test "hooks/AGENTS.txt has Key Files section" {
+    grep -q "Key Files" "$PROJECT_ROOT/hooks/AGENTS.txt"
 }
 
-@test "hooks/AGENTS.md has Conventions section" {
-    grep -q "Conventions" "$PROJECT_ROOT/hooks/AGENTS.md"
+@test "hooks/AGENTS.txt has Conventions section" {
+    grep -q "Conventions" "$PROJECT_ROOT/hooks/AGENTS.txt"
 }
 
 # ─── AGENTS.md references actual files ────────────────────────────────────
@@ -113,6 +113,6 @@ PROJECT_ROOT="$BATS_TEST_DIRNAME/.."
     grep -q "verify_gates.sh" "$PROJECT_ROOT/ralph/AGENTS.md"
 }
 
-@test "hooks/AGENTS.md references hooks.json" {
-    grep -q "hooks.json" "$PROJECT_ROOT/hooks/AGENTS.md"
+@test "hooks/AGENTS.txt references hooks.json" {
+    grep -q "hooks.json" "$PROJECT_ROOT/hooks/AGENTS.txt"
 }

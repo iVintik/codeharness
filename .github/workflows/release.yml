@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install BATS
+        run: |
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
+          sudo /tmp/bats/install.sh /usr/local
+
+      - name: Run tests
+        run: bats tests/*.bats
+
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches plugin.json
+        run: |
+          plugin_version=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          tag_version="${{ steps.version.outputs.version }}"
+          if [ "$plugin_version" != "$tag_version" ]; then
+            echo "::error::Tag v${tag_version} doesn't match plugin.json version ${plugin_version}"
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          name: "v${{ steps.version.outputs.version }}"

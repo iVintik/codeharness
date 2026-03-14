@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install BATS
+        run: |
+          git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
+          sudo /tmp/bats/install.sh /usr/local
+
+      - name: Run tests
+        run: bats tests/*.bats
+
+  validate-plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate plugin.json
+        run: |
+          if ! python3 -c "import json; json.load(open('.claude-plugin/plugin.json'))"; then
+            echo "::error::plugin.json is not valid JSON"
+            exit 1
+          fi
+
+      - name: Check required plugin fields
+        run: |
+          python3 -c "
+          import json, sys
+          p = json.load(open('.claude-plugin/plugin.json'))
+          missing = [f for f in ['name', 'version', 'description'] if f not in p]
+          if missing:
+              print(f'::error::Missing required fields: {missing}')
+              sys.exit(1)
+          print(f'Plugin: {p[\"name\"]} v{p[\"version\"]}')
+          "
+
+      - name: Validate shell scripts
+        run: |
+          errors=0
+          for f in ralph/*.sh; do
+            if ! bash -n "$f"; then
+              echo "::error file=$f::Syntax error in $f"
+              errors=$((errors + 1))
+            fi
+          done
+          exit $errors

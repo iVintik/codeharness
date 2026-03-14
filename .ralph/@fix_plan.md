@@ -227,19 +227,19 @@
   > So that autonomous execution has fresh context per iteration with crash recovery.
   > AC: Given Ralph's core loop (~500 lines bash) is vendored into `ralph/ralph.sh`, When `/harness-run` is executed, Then `ralph.sh` starts the external loop process, And each iteration spawns a fresh `claude --plugin-dir ./codeharness` instance, And the Claude Code driver at `ralph/drivers/claude-code.sh` handles instance lifecycle, And the loop supports: max iterations, timeout, crash recovery, rate limiting
   > Spec: specs/planning-artifacts/epics.md#story-6-1
-- [ ] Story 6.2: BMAD→Ralph Task Bridge
+- [x] Story 6.2: BMAD→Ralph Task Bridge
   > As a developer
   > I want codeharness to bridge BMAD stories to Ralph execution tasks with verification requirements
   > So that the Ralph loop knows what to build and what to verify for each story.
   > AC: Given a BMAD sprint plan with stories exists, When `ralph/bridge.sh` converts stories to tasks, Then each task includes: story ID, title, acceptance criteria, verification requirements, Showboat proof expectations, observability setup requirements, And tasks are ordered according to story sequence in the sprint plan, And the bridge produces `ralph/progress.txt` for tracking
   > Spec: specs/planning-artifacts/epics.md#story-6-2
-- [ ] Story 6.3: Verification Gates in Loop
+- [x] Story 6.3: Verification Gates in Loop
   > As a developer
   > I want the Ralph loop to enforce verification gates per story
   > So that stories aren't marked done without Showboat proof.
   > AC: Given the Ralph loop is executing a story, When the agent signals story completion, Then the Stop hook checks: Showboat proof exists, `showboat verify` passes, tests pass, coverage 100%, And if all gates pass: story marked done, loop picks next task, And if gates fail: agent iterates (fix → re-verify), iteration count incremented, And verification state tracked across iterations (FR47)
   > Spec: specs/planning-artifacts/epics.md#story-6-3
-- [ ] Story 6.4: Loop Termination & Progress
+- [x] Story 6.4: Loop Termination & Progress
   > As a developer
   > I want the Ralph loop to terminate gracefully and report progress
   > So that I know when the sprint is done or why it stopped.
@@ -248,38 +248,38 @@
 ### Documentation System
 > Goal: Project documentation follows the OpenAI harness pattern — per-subsystem AGENTS.md files, exec-plans tracking story lifecycle (active→completed), doc-gardener subagent keeping everything fresh with quality grades.
 
-- [ ] Story 7.1: Per-Subsystem AGENTS.md Generation
+- [x] Story 7.1: Per-Subsystem AGENTS.md Generation
   > As an agent
   > I want to create per-subsystem AGENTS.md files when creating new modules
   > So that future agents have local, minimal context for each part of the codebase.
   > AC: Given the agent creates a new module or subsystem directory, When the module contains source files, Then the agent creates `{module}/AGENTS.md` with: module purpose, key exports, dependencies, conventions, And the AGENTS.md does not exceed 100 lines (NFR24), And content beyond 100 lines is placed in referenced docs (progressive disclosure), And the knowledge file `knowledge/documentation-patterns.md` teaches the agent the AGENTS.md format
   > Spec: specs/planning-artifacts/epics.md#story-7-1
-- [ ] Story 7.2: Exec-Plan Lifecycle
+- [x] Story 7.2: Exec-Plan Lifecycle
   > As a developer
   > I want exec-plan files to track each story from active to completed
   > So that there's a clear record of what was worked on and what was verified.
   > AC: Given a sprint starts with BMAD stories, When exec-plans are generated, Then one file per story is created in `docs/exec-plans/active/{story-id}.md` derived from the BMAD story definition, And each exec-plan contains: story summary, ACs, progress log section, verification status
   > AC: Given a story passes verification, When the story is marked complete, Then the exec-plan is moved from `active/` to `completed/`, And verification summary and Showboat proof link are appended (UX-DR18)
   > Spec: specs/planning-artifacts/epics.md#story-7-2
-- [ ] Story 7.3: Doc-Gardener Subagent
+- [x] Story 7.3: Doc-Gardener Subagent
   > As a developer
   > I want a doc-gardener subagent that scans for stale documentation
   > So that docs stay fresh without manual oversight.
   > AC: Given the doc-gardener is triggered (during retro or on-demand), When it scans the project, Then it finds: AGENTS.md files referencing deleted functions/modules, docs not updated since corresponding code changed, missing AGENTS.md for modules above complexity threshold, stale exec-plans in `active/` for completed stories, And it opens fix-up tasks for each finding, And scan completes within 60 seconds (NFR23)
   > Spec: specs/planning-artifacts/epics.md#story-7-3
-- [ ] Story 7.4: Quality Score & Tech Debt Tracker
+- [x] Story 7.4: Quality Score & Tech Debt Tracker
   > As a developer
   > I want the doc-gardener to produce quality grades and track documentation debt
   > So that I can see doc health at a glance and prioritize fixes.
   > AC: Given the doc-gardener has completed a scan, When it generates reports, Then `docs/quality/quality-score.md` is created/updated with per-area grades (e.g., "auth: A, routes: C, utils: F"), And `docs/exec-plans/tech-debt-tracker.md` is updated with new documentation debt items, And both files have "DO NOT EDIT MANUALLY" headers (NFR27), And reports reference BMAD planning artifacts by relative path, not copies (NFR25)
   > Spec: specs/planning-artifacts/epics.md#story-7-4
-- [ ] Story 7.5: Design-Doc Validation at Epic Completion
+- [x] Story 7.5: Design-Doc Validation at Epic Completion
   > As a developer
   > I want the harness to validate architectural documentation when an epic completes
   > So that architecture docs stay current as the codebase evolves.
   > AC: Given all stories in an epic are verified, When epic completion is checked, Then the system validates: ARCHITECTURE.md reflects decisions made during the epic, And any new architectural decisions are documented in the architecture doc, And if validation fails: epic cannot be marked complete until docs are updated
   > Spec: specs/planning-artifacts/epics.md#story-7-5
-- [ ] Story 7.6: DB Schema Generation
+- [x] Story 7.6: DB Schema Generation
   > As a developer
   > I want the harness to auto-generate a database schema document
   > So that agents always have current schema reference without manual maintenance.
@@ -288,37 +288,37 @@
 ### Sprint Lifecycle & Reporting
 > Goal: Sprints have full lifecycle — mandatory retrospectives analyzing verification effectiveness, test trends, and doc health. `/harness-status` shows everything at a glance. Retro produces actionable follow-up stories.
 
-- [ ] Story 8.1: Harness Status Command
+- [x] Story 8.1: Harness Status Command
   > As a developer
   > I want `/harness-status` to show harness health, sprint progress, and verification state at a glance
   > So that I always know where things stand without digging through files.
   > AC: Given the harness is initialized, When user runs `/harness-status`, Then output follows the `git status` model (UX-DR10): health line → enforcement config → sprint progress table → next action hint, And health line shows: stack status, Docker status, Victoria health, And enforcement line shows: `frontend:ON database:ON api:ON observability:ON`, And sprint progress shows per-story `[PASS]`/`[    ]` with story titles, And next action hint shows: current story or `→ Run /harness-run`, And status lines stay under 100 characters (UX-DR14)
   > Spec: specs/planning-artifacts/epics.md#story-8-1
-- [ ] Story 8.2: Verification Log
+- [x] Story 8.2: Verification Log
   > As a developer
   > I want the harness to maintain a verification log across the sprint
   > So that I can see the full history of what was verified and how many iterations it took.
   > AC: Given stories are being verified during a sprint, When verification events occur, Then each event is appended to the verification log in state file: story ID, timestamp, pass/fail, iteration count, And the log persists across sessions, And `/harness-status` summarizes the log (total verified, pass rate, avg iterations)
   > Spec: specs/planning-artifacts/epics.md#story-8-2
-- [ ] Story 8.3: Mandatory Retrospective Trigger
+- [x] Story 8.3: Mandatory Retrospective Trigger
   > As a developer
   > I want the harness to automatically trigger a retrospective after sprint completion
   > So that every sprint produces improvement insights.
   > AC: Given all stories in a sprint are verified (or max iterations reached), When the sprint completes, Then a mandatory retrospective is triggered automatically, And the retro has access to: verification log, coverage data, doc-gardener output, And retro cannot be skipped — it's part of sprint completion
   > Spec: specs/planning-artifacts/epics.md#story-8-3
-- [ ] Story 8.4: Retro Report Generation
+- [x] Story 8.4: Retro Report Generation
   > As a developer
   > I want the retrospective to produce a structured report with verification, testing, and doc analysis
   > So that I have actionable insights for the next sprint.
   > AC: Given the retrospective is triggered with sprint data, When the retro report is generated, Then it includes: sprint summary (stories completed, iterations, duration), And verification effectiveness section (pass rates, common failure patterns, iteration counts per story), And test analysis section (coverage trends per story, flaky tests detected, tests that never failed), And doc health section (quality grades, stale doc count, doc-gardener findings) (UX-DR16), And report completes within 30 seconds (NFR20)
   > Spec: specs/planning-artifacts/epics.md#story-8-4
-- [ ] Story 8.5: Test Coverage Report
+- [x] Story 8.5: Test Coverage Report
   > As a developer
   > I want a per-sprint test coverage report with trends and deltas
   > So that I can see how coverage evolved across the sprint.
   > AC: Given a sprint has completed, When the coverage report is generated, Then `docs/quality/test-coverage.md` is created/updated, And it shows: baseline coverage at sprint start, final coverage, per-story deltas, And file has "DO NOT EDIT MANUALLY" header (NFR27)
   > Spec: specs/planning-artifacts/epics.md#story-8-5
-- [ ] Story 8.6: Retro Follow-up Story Generation
+- [x] Story 8.6: Retro Follow-up Story Generation
   > As a developer
   > I want the retrospective to convert findings into actionable follow-up stories
   > So that improvements are tracked and don't get lost.
@@ -327,43 +327,43 @@
 ### Brownfield Onboarding
 > Goal: User can bring an existing project to full harness compliance. `/harness-onboard` scans the project, generates an onboarding epic, and executes it through the normal Ralph loop — the harness bootstraps itself.
 
-- [ ] Story 9.1: Codebase Scan & Analysis
+- [x] Story 9.1: Codebase Scan & Analysis
   > As a developer
   > I want `/harness-onboard` to scan my existing project and produce an analysis report
   > So that I understand the gap between current state and full harness compliance.
   > AC: Given the harness is initialized in an existing project, When user runs `/harness-onboard`, Then the onboarder subagent scans: project structure, modules/subsystems, dependencies, And detects: source file count per module, existing test files, existing documentation (README, ARCHITECTURE.md, inline docs), And output shows project scan results following UX-DR15 format
   > Spec: specs/planning-artifacts/epics.md#story-9-1
-- [ ] Story 9.2: Coverage Gap Analysis
+- [x] Story 9.2: Coverage Gap Analysis
   > As a developer
   > I want the onboarding to analyze test coverage gaps and estimate effort
   > So that I know how much work is needed to reach 100% coverage.
   > AC: Given the onboarder has scanned the codebase, When coverage analysis runs, Then it runs the stack's coverage tool and identifies: uncovered files with line counts, partially covered files with uncovered line ranges, And estimates effort per module (lines to cover), And prioritizes by risk (core business logic first, utilities last), And output shows: `[INFO] Coverage: {X}% (target: 100%)` with per-file breakdown
   > Spec: specs/planning-artifacts/epics.md#story-9-2
-- [ ] Story 9.3: Documentation Audit
+- [x] Story 9.3: Documentation Audit
   > As a developer
   > I want the onboarding to audit existing documentation quality and freshness
   > So that I know what docs need updating or creating.
   > AC: Given the onboarder has scanned the codebase, When doc audit runs, Then it assesses: README existence and freshness, ARCHITECTURE.md existence, per-module AGENTS.md existence (0/N modules), inline doc coverage (JSDoc/docstrings as % of exports), And produces a doc quality report with freshness assessment per file, And identifies: stale docs (last updated > N days before code changed), missing docs
   > Spec: specs/planning-artifacts/epics.md#story-9-3
-- [ ] Story 9.4: AGENTS.md & Architecture Generation
+- [x] Story 9.4: AGENTS.md & Architecture Generation
   > As a developer
   > I want the onboarding to generate AGENTS.md files and ARCHITECTURE.md from actual code
   > So that the project has documentation infrastructure without me writing it manually.
   > AC: Given the onboarder has analyzed the codebase, When documentation generation runs, Then root `AGENTS.md` is generated from actual project structure (not template — reflects real modules, real build commands), And if no ARCHITECTURE.md exists: a draft is generated from code analysis (module dependencies, data flow, key patterns detected), And if ARCHITECTURE.md exists: freshness is validated, And `docs/` structure is scaffolded with `index.md` mapping to existing project docs
   > Spec: specs/planning-artifacts/epics.md#story-9-4
-- [ ] Story 9.5: Onboarding Epic Generation
+- [x] Story 9.5: Onboarding Epic Generation
   > As a developer
   > I want the onboarding to produce an epic with stories for reaching full compliance
   > So that I have a clear, executable plan instead of a vague todo list.
   > AC: Given the onboarder has completed analysis, coverage gap, and doc audit, When the onboarding epic is generated, Then it contains: one coverage story per uncovered module (grouped by module, ordered by risk), architecture doc story (if missing/stale), per-module AGENTS.md story, doc freshness/inline docs story, And each story has acceptance criteria in Given/When/Then format, And stories are sized for single agent sessions, And the epic is written in BMAD format compatible with the Ralph bridge
   > Spec: specs/planning-artifacts/epics.md#story-9-5
-- [ ] Story 9.6: Onboarding Plan Review & Approval
+- [x] Story 9.6: Onboarding Plan Review & Approval
   > As a developer
   > I want to review and approve the onboarding plan before execution
   > So that I control what gets done and in what order.
   > AC: Given the onboarding epic has been generated, When the plan is presented to the user, Then it shows: total stories, estimated effort, module-by-module breakdown, And user can: approve as-is, reorder stories, remove stories, add stories, And only after explicit approval does the plan become executable
   > Spec: specs/planning-artifacts/epics.md#story-9-6
-- [ ] Story 9.7: Onboarding Execution & Compliance Tracking
+- [x] Story 9.7: Onboarding Execution & Compliance Tracking
   > As a developer
   > I want the approved onboarding plan to execute through the normal Ralph loop with compliance tracking
   > So that the onboarding is verified the same way as any sprint.
@@ -372,14 +372,14 @@
 ### Standalone Mode
 > Goal: Users without BMAD can use codeharness with any task list — markdown checklist, JSON, or plain text. Verification works the same, any methodology benefits from the harness.
 
-- [ ] Story 10.1: Standalone Task List Support
+- [x] Story 10.1: Standalone Task List Support
   > As a developer
   > I want to use codeharness without BMAD by providing my own task list
   > So that the harness works with any methodology, not just BMAD.
   > AC: Given no `_bmad/` directory exists and BMAD is not installed, When user provides a task list as markdown checklist, JSON task list, or plain text (one task per line), Then the system parses the task list into verification-trackable tasks, And each task can be verified via `/harness-verify`, And `/harness-status` shows task progress
   > AC: Given BMAD is not installed, When user runs `/harness-init`, Then BMAD installation is skipped (no error), And harness components (Victoria, hooks, docs/) still set up, And output shows `[INFO] BMAD: not installed (standalone mode)`
   > Spec: specs/planning-artifacts/epics.md#story-10-1
-- [ ] Story 10.2: Manual Verification Trigger
+- [x] Story 10.2: Manual Verification Trigger
   > As a developer
   > I want to trigger verification manually via `/harness-verify` for any development work
   > So that I can use the verification pipeline outside of autonomous loops.

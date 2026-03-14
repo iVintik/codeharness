@@ -11,7 +11,7 @@ Trigger verification for the current story or a specified story.
 If a story ID is provided as argument, use it. Otherwise:
 
 1. Check the current exec-plan in `docs/exec-plans/active/` for the story in progress
-2. Check `.ralph/progress.txt` if running in Ralph loop
+2. Check `ralph/progress.json` if running in Ralph loop
 3. Ask the user: "Which story should I verify?"
 
 ## Step 2: Spawn Verifier Subagent

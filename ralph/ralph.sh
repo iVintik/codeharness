@@ -566,6 +566,23 @@ main() {
             0)
                 consecutive_failures=0
                 update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "completed" "success"
+
+                # ── Verification gates ──
+                if [[ -n "$current_task" ]]; then
+                    local project_root
+                    project_root="$(pwd)"
+                    log_status "INFO" "Checking verification gates for $current_task..."
+
+                    if "$SCRIPT_DIR/verify_gates.sh" \
+                        --story-id "$current_task" \
+                        --project-dir "$project_root" \
+                        --progress "$PROGRESS_FILE" 2>&1; then
+                        log_status "SUCCESS" "Story $current_task verified — moving to next task"
+                    else
+                        log_status "INFO" "Story $current_task gates not yet satisfied — will iterate"
+                    fi
+                fi
+
                 sleep 5  # Brief pause between iterations
                 ;;
             2)
@@ -604,10 +621,38 @@ main() {
     local total=${counts%% *}
     local completed=${counts##* }
 
+    # Calculate verification pass rate
+    local verified=0
+    local total_iterations=0
+    if [[ -f "$PROGRESS_FILE" ]]; then
+        verified=$(jq '[.tasks[] | select(.status == "complete")] | length' "$PROGRESS_FILE" 2>/dev/null || echo "0")
+        total_iterations=$(jq '[.tasks[].iterations // 0] | add // 0' "$PROGRESS_FILE" 2>/dev/null || echo "0")
+    fi
+    local pass_rate="N/A"
+    if [[ $total -gt 0 ]]; then
+        pass_rate="$((verified * 100 / total))%"
+    fi
+
     log_status "SUCCESS" "Ralph loop finished"
     log_status "INFO" "  Iterations: $loop_count"
     log_status "INFO" "  Tasks completed: $completed/$total"
+    log_status "INFO" "  Verification pass rate: $pass_rate"
+    log_status "INFO" "  Total verify iterations: $total_iterations"
     log_status "INFO" "  API calls: $(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")"
+
+    # Write final summary to status file
+    update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "final_summary" \
+        "$(if [[ $completed -eq $total && $total -gt 0 ]]; then echo "completed"; else echo "stopped"; fi)" \
+        "completed:$completed/$total,pass_rate:$pass_rate"
+
+    # Mandatory retrospective — cannot be skipped
+    log_status "INFO" "Triggering mandatory sprint retrospective..."
+    if [[ -f "$SCRIPT_DIR/retro.sh" ]]; then
+        local project_root
+        project_root="$(pwd)"
+        "$SCRIPT_DIR/retro.sh" --project-dir "$project_root" 2>&1 || \
+            log_status "WARN" "Retro report generation failed"
+    fi
 }
 
 # ─── CLI Parsing ─────────────────────────────────────────────────────────────

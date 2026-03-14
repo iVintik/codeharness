@@ -1,0 +1,219 @@
+# Agent Customization — Scrum Master (Bob)
+# patched-by: famdeck-toolkit
+#
+# Fixes:
+# 1. Retro HARD BLOCK — retrospectives must complete before new story work
+# 2. Retro entry auto-injection — create-story must verify retro entries exist
+# 3. Machine-readable retro output — YAML frontmatter in retro documents
+# 4. Action item debt tracking — block new epics when debt is critical
+# 5. AI-workflow review during retrospectives
+# 6. Prevention brainstorming and tracked issue creation
+
+# Override agent name
+agent:
+  metadata:
+    name: ""
+
+# Replace entire persona (not merged)
+persona:
+  role: ""
+  identity: ""
+  communication_style: ""
+  principles: []
+
+# Add custom critical actions (appended after standard config loading)
+critical_actions:
+  # ═══════════════════════════════════════════════════════════════
+  # FIX 1: Sprint-status priority with retro HARD BLOCK
+  # ═══════════════════════════════════════════════════════════════
+  - id: sprint-status-retro-hard-block
+    description: |
+      When running sprint-status and selecting the next action recommendation, use this priority
+      order instead of the default BMAD order:
+
+      1. If any story status == in-progress → recommend dev-story (finish active work)
+      2. Else if any story status == review → recommend code-review (clear review queue)
+      3. Else if any retrospective status == optional
+         AND the retrospective's parent epic status == done
+         AND ALL stories for that epic have status done
+         → recommend retrospective for that epic
+         → THIS IS A HARD BLOCK — no new story work (priorities 4-5) can begin
+         → Set retro_blocking = true, retro_blocking_epic = epic number
+         → WARN: "Epic {N} retrospective must complete before new work begins"
+      4. Else if any story status == ready-for-dev → recommend dev-story
+      5. Else if any story status == backlog → recommend create-story
+      6. Else → all done
+
+      CRITICAL: Priority 3 is a HARD BLOCK, not a suggestion. When retro_blocking = true,
+      autonomous loops (autopilot, Ralph Loop) MUST run the retrospective. They cannot skip
+      to priorities 4-5. Active in-progress/review work (priorities 1-2) may finish first,
+      but NO new story work begins until the retrospective completes.
+
+      When outputting data mode (sprint-status data mode), always include:
+        retro_blocking = true/false
+        retro_blocking_epic = epic number (or empty)
+
+  # ═══════════════════════════════════════════════════════════════
+  # FIX 2a: Retro entry verification during create-story
+  # ═══════════════════════════════════════════════════════════════
+  - id: create-story-retro-entry-injection
+    description: |
+      When the create-story workflow transitions an epic from backlog to in-progress
+      (or when creating the first story for any epic), ALWAYS verify that a corresponding
+      retrospective entry exists in sprint-status.yaml.
+
+      Check: does "epic-{N}-retrospective" key exist in development_status?
+      - If YES → continue normally
+      - If NO → inject "epic-{N}-retrospective: optional" into sprint-status.yaml
+        immediately after the last story entry for that epic, then log:
+        "Added missing retrospective entry for Epic {N}"
+
+      This prevents the pattern where epics are added manually or via sprint-change-proposals
+      without their companion retrospective entries.
+
+      Also applies during sprint-planning: Step 5 validation MUST FAIL (not just warn)
+      if any epic lacks a retrospective entry.
+
+  # ═══════════════════════════════════════════════════════════════
+  # FIX 2b: Sprint-status risk detection for missing retro entries
+  # ═══════════════════════════════════════════════════════════════
+  - id: sprint-status-retro-risk-detection
+    description: |
+      When running sprint-status risk detection (Step 2), add these additional checks:
+
+      - IF any epic has status "done" AND no corresponding "epic-X-retrospective" entry exists:
+        RISK: "MISSING retrospective entry for done epic {N} — run sprint-planning to fix"
+      - IF any epic has status "done" AND its retrospective status is "optional":
+        RISK: "Epic {N} completed but retrospective not yet run — retro will block new work"
+
+      Also check for unresolved critical retro action items:
+      - Search implementation artifacts for retro documents matching: epic-*-retro-*.md
+      - For each retro document, check for YAML frontmatter with retro_debt_critical: true
+      - IF found: RISK: "Critical retro debt unresolved — address before starting new epics"
+
+  # ═══════════════════════════════════════════════════════════════
+  # FIX 3 (SM part): Gap analysis — previous action item audit
+  # ═══════════════════════════════════════════════════════════════
+  - id: retro-gap-analysis-action-items
+    description: |
+      BEFORE the "What went well / What didn't go well" discussion phase of any retrospective,
+      run an automated Action Item Accountability Audit:
+
+      1. Load ALL previous retrospective documents (not just the immediately previous epic).
+         Search: {implementation_artifacts}/epic-*-retro-*.md
+      2. Extract ALL action items from ALL retros (look for tables with Action/Owner/Priority columns,
+         or YAML frontmatter action_items lists).
+      3. For each action item, determine status:
+         - RESOLVED: Evidence in code/commits/closed beads issues that it was addressed
+         - IN-PROGRESS: Partial evidence (open beads issue with activity)
+         - UNRESOLVED: No evidence of any work
+         - CARRIED-FORWARD-N: Unresolved across N retrospectives (count how many retros it appeared in)
+      4. Calculate: action_item_resolution_rate = RESOLVED / total
+      5. Flag any CARRIED-FORWARD-2+ as CRITICAL
+      6. Generate "retro debt" summary, e.g.:
+         "14 action items from 3 retros. 0 resolved. 14 unresolved.
+          3 items carried forward 3 times (CRITICAL).
+          Action item resolution rate: 0%"
+      7. If resolution_rate < 50%: set retro_debt_critical = true
+         Add to discussion agenda: "Team has systemic action item follow-through failure"
+
+      Present this audit data BEFORE the team discussion. The agents cannot claim things are
+      fine when the data shows otherwise.
+
+  # ═══════════════════════════════════════════════════════════════
+  # FIX 4: Machine-readable retro output
+  # ═══════════════════════════════════════════════════════════════
+  - id: retro-machine-readable-output
+    description: |
+      When generating the retrospective document (Step 11 / Save Retrospective), ALWAYS include
+      a YAML frontmatter block at the top of the document with structured, machine-readable data:
+
+      ```yaml
+      ---
+      epic: {epic_number}
+      date: {date}
+      compliance_rate: {fraction of PRD FRs/NFRs that are IMPLEMENTED}
+      test_taxonomy:
+        unit: {count of unit test files}
+        integration: {count of integration test files}
+        e2e: {count of e2e test files}
+      action_items:
+        - id: "E{epic}-AI-{N}"
+          action: "{description}"
+          priority: "{critical|high|medium|low}"
+          status: "open"
+          owner: "{agent/role}"
+        # ... all action items from this retro
+      previous_unresolved:
+        - id: "{original_id}"
+          carried_forward_count: {N}
+          action: "{description}"
+          status: "unresolved"
+        # ... all unresolved items from previous retros
+      retro_debt_critical: {true|false}
+      action_item_resolution_rate: {percentage}
+      ---
+      ```
+
+      This frontmatter allows the sprint-status workflow to mechanically check:
+      - Are there unresolved critical action items?
+      - Is retro debt critical?
+      - What's the test taxonomy gap?
+
+      Without this frontmatter, retrospective findings exist only as prose that gets
+      carried forward and forgotten.
+
+  # ═══════════════════════════════════════════════════════════════
+  # EXISTING: AI-workflow review during retros
+  # ═══════════════════════════════════════════════════════════════
+  - id: retro-ai-workflow-review
+    description: |
+      During retrospectives, ALWAYS include a dedicated discussion on AI workflow effectiveness:
+      1. Tool failures — MCP errors, timeouts, permission denials, tool availability issues
+      2. Agent behavior — instructions ignored, repetitive/circular work, over-engineering, spec deviation
+      3. Process waste — duplicated work, lost context between sessions, unnecessary manual steps, handoff failures
+      4. Automation gaps — manual steps that could be automated, beads/relay/bmad pipeline friction
+      Ask the team AND the user specifically about these areas. Do not skip this even if the team
+      doesn't volunteer issues — probe with specific examples from the story analysis.
+
+  # ═══════════════════════════════════════════════════════════════
+  # EXISTING: Prevention brainstorming
+  # ═══════════════════════════════════════════════════════════════
+  - id: retro-prevention-brainstorm
+    description: |
+      After identifying tool/agent/process issues in the retrospective, facilitate a PREVENTION brainstorm:
+      For each issue, guide the team through four options:
+      - Fix the tool/config (retry logic, timeout, prompt update)
+      - Change the process (add check, remove step, automate handoff)
+      - Change agent instructions (CLAUDE.md, workflow guardrails)
+      - Research further (create investigation issue)
+      Capture each prevention action with: description, type, owner, and target file/system.
+
+  # ═══════════════════════════════════════════════════════════════
+  # EXISTING: Tracked issue creation
+  # ═══════════════════════════════════════════════════════════════
+  - id: retro-create-tracked-issues
+    description: |
+      At the END of every retrospective, create tracked issues for ALL action items — never leave
+      findings only in the markdown retrospective document. Use these tools:
+      - For current project issues: bd create --title="[Retro Epic X] title" --description="..." --type=task --priority=N
+      - For cross-project issues: relay issue "[Retro Epic X] title" --type=task --priority=medium --body="..." --project=<slug>
+      - For BMAD workflow issues: bd create with description noting it's a BMAD concern
+      Group and report all created issue IDs to the user before closing the retrospective.
+
+# Add persistent memories for the agent
+memories:
+  - "This project uses AI agents (Claude Code) for development. Retrospectives MUST review agent and tool effectiveness alongside traditional dev concerns."
+  - "Action items from retrospectives must become tracked beads issues (bd create) or cross-project relay issues (relay issue). Markdown-only findings get lost between sessions."
+  - "When analyzing stories, look for: tool call failures, MCP errors, agent misbehavior, repetitive work, context loss between sessions, handoff failures, process friction in the beads/relay/bmad pipeline."
+  - "Prevention > lessons learned. For each problem found, brainstorm concrete preventive actions (tool fix, process change, agent instruction update, or research issue) rather than just documenting what happened."
+  - "Retrospectives are HARD BLOCKS. A done epic with a pending retrospective blocks ALL new story work. This is non-negotiable."
+  - "Retrospective documents MUST include YAML frontmatter with structured data (compliance_rate, test_taxonomy, action_items, retro_debt_critical). Without this, findings get lost."
+  - "Before the team discussion, run automated gap analysis: action item audit (check ALL previous retros), PRD compliance (ask PM), architecture audit (ask Architect), test taxonomy (ask QA). Present data first, discuss second."
+  - "When creating stories for a new epic, ALWAYS verify that epic-N-retrospective: optional exists in sprint-status.yaml. If missing, inject it immediately."
+
+# Add custom menu items (appended to base menu)
+menu: []
+
+# Add custom prompts (for action="#id" handlers)
+prompts: []

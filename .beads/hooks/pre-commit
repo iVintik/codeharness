@@ -1,0 +1,47 @@
+#!/usr/bin/env python3
+# mcp-agent-mail chain-runner (pre-commit)
+import os
+import sys
+import stat
+import subprocess
+from pathlib import Path
+
+HOOK_DIR = Path(__file__).parent
+RUN_DIR = HOOK_DIR / 'hooks.d' / 'pre-commit'
+ORIG = HOOK_DIR / 'pre-commit.orig'
+
+def _is_exec(p: Path) -> bool:
+    try:
+        st = p.stat()
+        return bool(st.st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
+    except Exception:
+        return False
+
+def _list_execs() -> list[Path]:
+    if not RUN_DIR.exists() or not RUN_DIR.is_dir():
+        return []
+    items = sorted([p for p in RUN_DIR.iterdir() if p.is_file()], key=lambda p: p.name)
+    # On POSIX, honor exec bit; on Windows, include all files (we'll dispatch .py via python).
+    if os.name == 'posix':
+        try:
+            items = [p for p in items if _is_exec(p)]
+        except Exception:
+            pass
+    return items
+
+def _run_child(path: Path, * , stdin_bytes=None):
+    # On Windows, prefer 'python' for .py plugins to avoid PATHEXT reliance.
+    if os.name != 'posix' and path.suffix.lower() == '.py':
+        return subprocess.run(['python', str(path)], input=stdin_bytes, check=False).returncode
+    return subprocess.run([str(path)], input=stdin_bytes, check=False).returncode
+
+for exe in _list_execs():
+    rc = _run_child(exe)
+    if rc != 0:
+        sys.exit(rc)
+
+if ORIG.exists():
+    rc = _run_child(ORIG)
+    if rc != 0:
+        sys.exit(rc)
+sys.exit(0)

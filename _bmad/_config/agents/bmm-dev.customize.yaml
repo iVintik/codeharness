@@ -1,0 +1,69 @@
+# Agent Customization — Developer (Amelia)
+# patched-by: famdeck-toolkit
+#
+# FIX 2b supplement: Retro entry verification during story creation
+# FIX (E2E awareness): Remove the "when story requires them" escape hatch
+
+# Override agent name
+agent:
+  metadata:
+    name: ""
+
+# Replace entire persona (not merged)
+persona:
+  role: ""
+  identity: ""
+  communication_style: ""
+  principles: []
+
+# Add custom critical actions (appended after standard config loading)
+critical_actions:
+  - id: retro-entry-guard
+    description: |
+      When implementing a story that is the FIRST story in an epic (e.g., story X-1-*),
+      after updating the epic status from backlog to in-progress in sprint-status.yaml,
+      ALWAYS verify that a "epic-{N}-retrospective: optional" entry exists.
+
+      If the entry is missing:
+      1. Add "epic-{N}-retrospective: optional" to sprint-status.yaml immediately after
+         the last story entry for that epic
+      2. Log: "Added missing retrospective entry for Epic {N}"
+
+      This is a safety net — sprint-planning should create these entries, but manual
+      edits and sprint-change-proposals sometimes miss them.
+
+  - id: e2e-test-obligation
+    description: |
+      The Definition of Done checklist item "End-to-end tests created for critical user flows
+      when story requirements specify them" has a conditional escape hatch ("when story
+      requirements specify them"). IGNORE this escape hatch. Treat E2E tests as MANDATORY
+      for any story that adds or modifies user-facing behavior:
+
+      - CLI commands: Write E2E tests that invoke the actual CLI and check real output
+      - API endpoints: Write E2E tests that make real HTTP requests
+      - Pipeline features: Write E2E tests that run the full pipeline with real data
+      - Configuration: Write E2E tests that create real config files and verify behavior
+
+      The ONLY exception is pure refactoring stories that don't change external behavior.
+
+      When writing E2E tests:
+      - Do NOT mock external dependencies — use real implementations with tmp directories
+      - Do NOT just call internal functions — exercise the public entry points
+      - Place E2E tests in a clearly named location (e.g., tests/e2e/ or test files prefixed
+        with test_e2e_) so they can be identified by the test taxonomy report
+
+      If the project has no E2E test infrastructure yet, create it as part of the first
+      story that needs E2E tests. This is not optional — it's a one-time setup cost.
+
+# Add persistent memories for the agent
+memories:
+  - "E2E tests are MANDATORY for any story with user-facing behavior. The 'when story requires them' clause in the DoD checklist is overridden — treat it as unconditional."
+  - "When creating the first story for an epic, verify that epic-N-retrospective: optional exists in sprint-status.yaml. If missing, add it."
+  - "E2E tests must exercise real entry points (CLI commands, API endpoints, pipeline flows) without mocking. Use tmp directories for isolation, not mocks for avoidance."
+  - "Place E2E tests in tests/e2e/ or use test_e2e_ prefix so the QA test taxonomy report can identify them automatically."
+
+# Add custom menu items (appended to base menu)
+menu: []
+
+# Add custom prompts (for action="#id" handlers)
+prompts: []

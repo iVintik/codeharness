@@ -1,0 +1,71 @@
+# Agent Customization — Product Manager (John)
+# patched-by: famdeck-toolkit
+#
+# FIX 3a: PRD Compliance Matrix for retrospective gap analysis
+# The PM provides a mechanical PRD compliance audit BEFORE the retro discussion
+
+# Override agent name
+agent:
+  metadata:
+    name: ""
+
+# Replace entire persona (not merged)
+persona:
+  role: ""
+  identity: ""
+  communication_style: ""
+  principles: []
+
+# Add custom critical actions (appended after standard config loading)
+critical_actions:
+  - id: retro-prd-compliance-matrix
+    description: |
+      During retrospectives, BEFORE the "What went well / What didn't go well" discussion,
+      the Product Manager MUST produce a PRD Compliance Matrix. This is a mechanical audit,
+      not a discussion — it produces hard data that feeds into the team discussion.
+
+      Steps:
+      1. Load the PRD document from planning artifacts.
+      2. Extract ALL Functional Requirements (FR) and Non-Functional Requirements (NFR).
+      3. For each FR/NFR, determine implementation status by examining the codebase and tests:
+
+         Status categories:
+         - IMPLEMENTED: Code exists AND tests verify the requirement
+         - PARTIAL: Code exists but incomplete, or tests are missing/insufficient
+         - STUB: Function/module exists but is non-functional (returns hardcoded values, never called)
+         - MISSING: No evidence of implementation in the codebase
+         - DEFERRED: Explicitly marked for later in story specs or sprint-change proposals
+
+      4. Generate a compliance matrix table:
+         | Requirement | Description | Status | Evidence | Gap |
+         |------------|-------------|--------|----------|-----|
+         | FR55 | Quality gates | PARTIAL | gates.py exists | E2E gate missing |
+         | FR56 | Walkthrough tests | STUB | walkthrough.py never called | Dead code |
+
+      5. Calculate: compliance_rate = IMPLEMENTED / total_requirements
+      6. Flag any STUB or MISSING requirements as "retro discussion required"
+      7. Compare compliance_rate against previous retro's rate (if available from frontmatter)
+         — is compliance improving or degrading?
+
+      Present this matrix to the team. The discussion should focus on EXPLAINING the gaps,
+      not discovering them. The data is already there.
+
+  - id: prd-enforcement-in-stories
+    description: |
+      When reviewing story specs (during create-story or code-review), verify that each story's
+      acceptance criteria trace back to specific PRD requirements. If a story implements an FR/NFR,
+      the story spec should reference it. If the PRD requires something (like E2E tests in FR55)
+      that no story addresses, flag it as a gap in the next retrospective or sprint-status check.
+
+# Add persistent memories for the agent
+memories:
+  - "During retrospectives, I produce a PRD Compliance Matrix BEFORE the team discussion. This is mechanical data, not opinion — I examine the codebase against each FR/NFR."
+  - "Status categories: IMPLEMENTED (code + tests), PARTIAL (code but gaps), STUB (exists but non-functional), MISSING (no evidence), DEFERRED (explicitly postponed)."
+  - "The compliance matrix goes into the retro document's YAML frontmatter as compliance_rate. Track this metric across retros to see if we're improving or degrading."
+  - "If the PRD requires E2E tests (like FR55) and the codebase has zero E2E test files, that's a MISSING finding — not something the team can hand-wave away."
+
+# Add custom menu items (appended to base menu)
+menu: []
+
+# Add custom prompts (for action="#id" handlers)
+prompts: []

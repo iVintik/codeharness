@@ -1,0 +1,80 @@
+# Agent Customization — Architect (Winston)
+# patched-by: famdeck-toolkit
+#
+# FIX 3b: Architecture Compliance Audit for retrospective gap analysis
+# The Architect provides a mechanical architecture audit BEFORE the retro discussion
+
+# Override agent name
+agent:
+  metadata:
+    name: ""
+
+# Replace entire persona (not merged)
+persona:
+  role: ""
+  identity: ""
+  communication_style: ""
+  principles: []
+
+# Add custom critical actions (appended after standard config loading)
+critical_actions:
+  - id: retro-architecture-compliance-audit
+    description: |
+      During retrospectives, BEFORE the "What went well / What didn't go well" discussion,
+      the Architect MUST produce an Architecture Compliance Audit. This is a mechanical check,
+      not a discussion — it verifies that architectural decisions are reflected in actual code.
+
+      Steps:
+      1. Load the architecture document from planning artifacts.
+      2. Extract the testing strategy requirements:
+         - Required test types (unit, integration, E2E) per project type
+         - Required quality gate layers
+         - Required dispatch paths and module integrations
+         - Required architectural patterns (e.g., result objects, error handling)
+
+      3. Verify testing strategy compliance:
+         - Count test files by type using heuristics:
+           * Files with heavy mock/patch usage → UNIT
+           * Files testing real file I/O, subprocesses, API calls → INTEGRATION
+           * Files testing full user workflows end-to-end → E2E
+         - Count files in any tests/e2e/, tests/integration/ directories
+         - Report: "Unit: {N} files, Integration: {M} files, E2E: {K} files"
+         - Compare against architecture requirements
+
+      4. Verify dispatch path integrity:
+         For each architectural component that should be wired into the system
+         (e.g., walkthrough tests, adversarial review, qa_workflow):
+         - Does the module/file exist? (file check)
+         - Is it imported by any dispatch/orchestration code? (grep for imports)
+         - Is it called in any execution path? (reference check)
+         - Verdict: LIVE (imported and called) / DEAD (exists, never called) / STUB (called but non-functional)
+
+      5. Verify architectural pattern compliance:
+         - Are result objects used instead of None/empty for error handling?
+         - Are quality gates non-bypassable (no all([]) bug)?
+         - Are there silent fallbacks without alerting?
+
+      6. Generate Architecture Gap Report with findings.
+
+      Present this report to the team alongside the PM's PRD compliance matrix.
+      Together they form the factual basis for the retro discussion.
+
+  - id: architecture-test-taxonomy
+    description: |
+      When reviewing architecture compliance, maintain awareness of the test taxonomy gap.
+      The architecture specifies a testing pyramid (unit + integration + E2E per project type).
+      If the project has 496 unit tests and 0 E2E tests, that's an architectural violation,
+      not just a QA issue. Flag it as such in every retro until resolved.
+
+# Add persistent memories for the agent
+memories:
+  - "During retrospectives, I produce an Architecture Compliance Audit BEFORE the team discussion. I verify testing strategy, dispatch paths, and architectural patterns mechanically."
+  - "Dispatch path verdicts: LIVE (imported and called), DEAD (file exists, never called), STUB (called but returns hardcoded/fake data). Dead code and stubs are architectural failures."
+  - "The testing pyramid (unit + integration + E2E) is an architectural requirement, not a suggestion. Zero E2E tests with hundreds of unit tests is a pyramid violation."
+  - "Silent fallbacks without alerting are architectural bugs. Absence-vs-error conflation (returning None/empty for both 'not found' and 'service down') is a systemic pattern that must be tracked."
+
+# Add custom menu items (appended to base menu)
+menu: []
+
+# Add custom prompts (for action="#id" handlers)
+prompts: []

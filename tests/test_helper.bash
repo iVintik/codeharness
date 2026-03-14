@@ -2,6 +2,15 @@
 # Test helper for codeharness bats tests
 # Sets up isolated test environment per test
 
+# Portable in-place sed (macOS uses -i '', Linux uses -i)
+sed_i() {
+    if sed --version 2>/dev/null | grep -q GNU; then
+        sed -i "$@"
+    else
+        sed -i '' "$@"
+    fi
+}
+
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 RALPH_DIR="$PROJECT_ROOT/ralph"
 

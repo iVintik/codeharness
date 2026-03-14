@@ -100,7 +100,7 @@ result: pass
 # Proof
 EOF
     # Set tests_passed but not coverage
-    sed -i '' 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
 
     run bash "$VERIFY_SH" \
         --story-id "1.1" \
@@ -120,9 +120,9 @@ result: pass
 # Proof
 EOF
     # Set all flags to true
-    sed -i '' 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
 
     run bash "$VERIFY_SH" \
         --story-id "1.1" \
@@ -141,9 +141,9 @@ result: pass
 ---
 # Proof
 EOF
-    sed -i '' 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
 
     bash "$VERIFY_SH" \
         --story-id "1.1" \
@@ -163,9 +163,9 @@ result: pass
 ---
 # Proof
 EOF
-    sed -i '' 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
 
     bash "$VERIFY_SH" \
         --story-id "1.1" \
@@ -218,9 +218,9 @@ result: pass
 ---
 # Proof
 EOF
-    sed -i '' 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
 
     bash "$VERIFY_SH" \
         --story-id "1.1" \

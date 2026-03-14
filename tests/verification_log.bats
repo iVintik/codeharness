@@ -116,9 +116,9 @@ story_id: "1.1"
 result: pass
 ---
 EOF
-    sed -i '' 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
-    sed -i '' 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/tests_passed: false/tests_passed: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/coverage_met: false/coverage_met: true/' "$TEST_DIR/.claude/codeharness.local.md"
+    sed_i 's/verification_run: false/verification_run: true/' "$TEST_DIR/.claude/codeharness.local.md"
 
     bash "$VERIFY_GATES_SH" \
         --story-id "1.1" \

@@ -13,6 +13,15 @@
 
 set -e
 
+# Portable in-place sed (macOS uses -i '', Linux uses -i)
+sed_i() {
+    if sed --version 2>/dev/null | grep -q GNU; then
+        sed -i "$@"
+    else
+        sed -i '' "$@"
+    fi
+}
+
 # ─── Arguments ────────────────────────────────────────────────────────────
 
 STORY_ID=""
@@ -192,14 +201,10 @@ if [[ $GATES_PASSED -eq $GATES_TOTAL ]]; then
     fi
 
     # Reset session flags for the next story
-    sed -i '' 's/tests_passed: true/tests_passed: false/' "$STATE_FILE" 2>/dev/null || \
-    sed -i 's/tests_passed: true/tests_passed: false/' "$STATE_FILE" 2>/dev/null || true
-    sed -i '' 's/coverage_met: true/coverage_met: false/' "$STATE_FILE" 2>/dev/null || \
-    sed -i 's/coverage_met: true/coverage_met: false/' "$STATE_FILE" 2>/dev/null || true
-    sed -i '' 's/verification_run: true/verification_run: false/' "$STATE_FILE" 2>/dev/null || \
-    sed -i 's/verification_run: true/verification_run: false/' "$STATE_FILE" 2>/dev/null || true
-    sed -i '' 's/logs_queried: true/logs_queried: false/' "$STATE_FILE" 2>/dev/null || \
-    sed -i 's/logs_queried: true/logs_queried: false/' "$STATE_FILE" 2>/dev/null || true
+    sed_i 's/tests_passed: true/tests_passed: false/' "$STATE_FILE"
+    sed_i 's/coverage_met: true/coverage_met: false/' "$STATE_FILE"
+    sed_i 's/verification_run: true/verification_run: false/' "$STATE_FILE"
+    sed_i 's/logs_queried: true/logs_queried: false/' "$STATE_FILE"
 
     # Move exec-plan from active to completed (if exec-plans exist)
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -8,6 +8,15 @@
 
 set -e
 
+# Portable in-place sed (macOS uses -i '', Linux uses -i)
+sed_i() {
+    if sed --version 2>/dev/null | grep -q GNU; then
+        sed -i "$@"
+    else
+        sed -i '' "$@"
+    fi
+}
+
 # ─── CLI ──────────────────────────────────────────────────────────────────
 
 ACTION=""
@@ -214,11 +223,8 @@ do_complete() {
 COMPLETION
 
     # Update status in the file
-    sed -i '' "s/\*\*Status:\*\* .*/\*\*Status:\*\* complete/" "$active_file" 2>/dev/null || \
-    sed -i "s/\*\*Status:\*\* .*/\*\*Status:\*\* complete/" "$active_file" 2>/dev/null || true
-
-    sed -i '' "s/\*\*Verified:\*\* No/\*\*Verified:\*\* Yes/" "$active_file" 2>/dev/null || \
-    sed -i "s/\*\*Verified:\*\* No/\*\*Verified:\*\* Yes/" "$active_file" 2>/dev/null || true
+    sed_i "s/\*\*Status:\*\* .*/\*\*Status:\*\* complete/" "$active_file"
+    sed_i "s/\*\*Verified:\*\* No/\*\*Verified:\*\* Yes/" "$active_file"
 
     # Move to completed
     mv "$active_file" "$completed_file"

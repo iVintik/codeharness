@@ -1,6 +1,6 @@
 # Specs Index
 
-Generated: 2026-03-14T14:06:17.527Z
+Generated: 2026-03-14T14:11:33.855Z
 Total: 8 files (335 KB)
 
 ## Reading Order

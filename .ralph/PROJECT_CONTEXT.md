@@ -1,4 +1,4 @@
-# project — Project Context
+# codeharness — Project Context
 
 ## Project Goals
 

@@ -1,13 +1,13 @@
 ---
 name: 'step-05-adversarial-review'
-description: 'Construct diff and invoke adversarial review skill'
+description: 'Construct diff and invoke adversarial review task'
 
 nextStepFile: './step-06-resolve-findings.md'
 ---
 
 # Step 5: Adversarial Code Review
 
-**Goal:** Construct diff of all changes, invoke adversarial review skill, present findings.
+**Goal:** Construct diff of all changes, invoke adversarial review task, present findings.
 
 ---
 
@@ -57,15 +57,21 @@ Merge all changes into `{diff_output}`.
 
 ### 2. Invoke Adversarial Review
 
-With `{diff_output}` constructed, invoke the `bmad-review-adversarial-general` skill. If possible, use information asymmetry: invoke the skill in a separate subagent or process with read access to the project, but no context except the `{diff_output}`.
+With `{diff_output}` constructed, load and follow the review task. If possible, use information asymmetry: load this step, and only it, in a separate subagent or process with read access to the project, but no context except the `{diff_output}`.
 
-Pass `{diff_output}` as the content to review. The skill should return a list of findings.
+```xml
+<invoke-task>Review {diff_output} using {project-root}/_bmad/core/tasks/review-adversarial-general.xml</invoke-task>
+```
+
+**Platform fallback:** If task invocation not available, load the task file and follow its instructions inline, passing `{diff_output}` as the content.
+
+The task should: review `{diff_output}` and return a list of findings.
 
 ---
 
 ### 3. Process Findings
 
-Capture the findings from the skill output.
+Capture the findings from the task output.
 **If zero findings:** HALT - this is suspicious. Re-analyze or request user guidance.
 Evaluate severity (Critical, High, Medium, Low) and validity (real, noise, undecided).
 DO NOT exclude findings based on severity or validity unless explicitly asked to do so.
@@ -77,7 +83,7 @@ If TodoWrite or similar tool is available, turn each finding into a TODO, includ
 
 ## NEXT STEP
 
-With findings in hand, read fully and follow: `{project-root}/_bmad/bmm/workflows/bmad-quick-flow/quick-dev/steps/step-06-resolve-findings.md` for user to choose resolution approach.
+With findings in hand, read fully and follow: `step-06-resolve-findings.md` for user to choose resolution approach.
 
 ---
 
@@ -85,7 +91,7 @@ With findings in hand, read fully and follow: `{project-root}/_bmad/bmm/workflow
 
 - Diff constructed from baseline_commit
 - New files included in diff
-- Skill invoked with diff as input
+- Task invoked with diff as input
 - Findings received
 - Findings processed into TODOs or table and presented to user
 
@@ -93,6 +99,6 @@ With findings in hand, read fully and follow: `{project-root}/_bmad/bmm/workflow
 
 - Missing baseline_commit (can't construct accurate diff)
 - Not including new untracked files in diff
-- Invoking skill without providing diff input
+- Invoking task without providing diff input
 - Accepting zero findings without questioning
-- Presenting fewer findings than the review skill returned without explicit instruction to do so
+- Presenting fewer findings than the review task returned without explicit instruction to do so

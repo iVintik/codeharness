@@ -1,0 +1,27 @@
+{
+  "hooks": [
+    {
+      "event": "SessionStart",
+      "script": "hooks/session-start.sh",
+      "description": "Verify harness health at session start"
+    },
+    {
+      "event": "PreToolUse",
+      "tool_name": "Bash",
+      "script": "hooks/pre-commit-gate.sh",
+      "description": "Block commits without quality gates passing"
+    },
+    {
+      "event": "PostToolUse",
+      "tool_name": "Write",
+      "script": "hooks/post-write-check.sh",
+      "description": "Prompt for OTLP instrumentation verification after code changes"
+    },
+    {
+      "event": "PostToolUse",
+      "tool_name": "Bash",
+      "script": "hooks/post-test-verify.sh",
+      "description": "Prompt agent to query VictoriaLogs after test runs"
+    }
+  ]
+}

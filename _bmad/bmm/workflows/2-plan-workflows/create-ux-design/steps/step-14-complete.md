@@ -82,7 +82,7 @@ Update the main workflow status file:
 
 ### 3. Suggest Next Steps
 
-UX Design complete. Invoke the `bmad-help` skill.
+UX Design complete. Read fully and follow: `_bmad/core/tasks/help.md` with argument `Create UX`.
 
 ### 5. Final Completion Confirmation
 

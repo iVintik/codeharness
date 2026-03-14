@@ -12,8 +12,8 @@ workflowFile: '{workflow_path}/workflow.md'
 outputFile: '{planning_artifacts}/epics.md'
 
 # Task References
-advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.md'
-partyModeWorkflow: '{project-root}/_bmad/core/workflows/bmad-party-mode/workflow.md'
+advancedElicitationTask: '{project-root}/_bmad/core/workflows/advanced-elicitation/workflow.xml'
+partyModeWorkflow: '{project-root}/_bmad/core/workflows/party-mode/workflow.md'
 
 # Template References
 epicsTemplate: '{workflow_path}/templates/epics-template.md'
@@ -66,10 +66,8 @@ Load {outputFile} and review:
 
 - Approved epics_list from Step 2
 - FR coverage map
-- All requirements (FRs, NFRs, additional, **UX Design requirements if present**)
+- All requirements (FRs, NFRs, additional)
 - Template structure at the end of the document
-
-**UX Design Integration**: If UX Design Requirements (UX-DRs) were extracted in Step 1, ensure they are visible during story creation. UX-DRs must be covered by stories — either within existing epics (e.g., accessibility fixes for a feature epic) or in a dedicated "Design System / UX Polish" epic.
 
 ### 2. Explain Story Creation Approach
 
@@ -148,7 +146,6 @@ Display:
 - Epic goal statement
 - FRs covered by this epic
 - Any NFRs or additional requirements relevant
-- Any UX Design Requirements (UX-DRs) relevant to this epic
 
 #### B. Story Breakdown
 
@@ -210,7 +207,6 @@ After all epics and stories are generated:
 - Verify the document follows template structure exactly
 - Ensure all placeholders are replaced
 - Confirm all FRs are covered
-- **Confirm all UX Design Requirements (UX-DRs) are covered by at least one story** (if UX document was an input)
 - Check formatting consistency
 
 ## TEMPLATE STRUCTURE COMPLIANCE:

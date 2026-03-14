@@ -1,0 +1,10 @@
+{
+  "name": "codeharness",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code plugin — makes autonomous coding agents produce software that actually works",
+  "scripts": {
+    "test": "bats tests/",
+    "test:ralph": "bats tests/test_ralph_loop.bats"
+  }
+}

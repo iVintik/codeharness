@@ -64,9 +64,15 @@ export function findModules(dir: string, threshold?: number): string[] {
       return;
     }
 
-    // Skip node_modules, .git, and hidden directories
+    // Skip node_modules, .git, hidden directories, and build output directories
     const dirName = current.split('/').pop() ?? '';
-    if (dirName === 'node_modules' || dirName === '.git' || (dirName.startsWith('.') && current !== root)) {
+    if (
+      dirName === 'node_modules' ||
+      dirName === '.git' ||
+      dirName === 'dist' ||
+      dirName === 'coverage' ||
+      (dirName.startsWith('.') && current !== root)
+    ) {
       return;
     }
 

@@ -265,8 +265,8 @@ export function parseCoverageReport(dir: string, format: string): number {
 }
 
 function parseVitestCoverage(dir: string): number {
-  const reportPath = join(dir, 'coverage', 'coverage-summary.json');
-  if (!existsSync(reportPath)) {
+  const reportPath = findCoverageSummary(dir);
+  if (!reportPath) {
     warn('Coverage report not found at coverage/coverage-summary.json');
     return 0;
   }

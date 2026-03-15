@@ -1,6 +1,6 @@
 {
   "name": "codeharness",
-  "version": "0.1.0",
+  "version": "0.6.1",
   "type": "module",
   "private": true,
   "description": "Claude Code plugin — makes autonomous coding agents produce software that actually works",

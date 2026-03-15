@@ -15,6 +15,7 @@ import {
   syncAll,
   readSprintStatus,
   updateSprintStatus,
+  appendOnboardingEpicToSprint,
 } from '../beads-sync.js';
 import type { BeadsIssue } from '../beads.js';
 
@@ -720,5 +721,103 @@ describe('sprint-status.yaml integration', () => {
       'utf-8',
     );
     expect(content).toContain('3-1-test-story: done');
+  });
+});
+
+// ─── appendOnboardingEpicToSprint ────────────────────────────────────────────
+
+describe('appendOnboardingEpicToSprint', () => {
+  it('appends onboarding epic with correct epic number', () => {
+    createSprintStatusFile(`development_status:
+  epic-0: done
+  0-1-first-story: done
+  epic-0-retrospective: done
+
+  epic-1: done
+  1-1-second-story: done
+  epic-1-retrospective: done
+`);
+
+    const result = appendOnboardingEpicToSprint(
+      [
+        { title: 'Create ARCHITECTURE.md' },
+        { title: 'Add test coverage for src/lib' },
+      ],
+      testDir,
+    );
+
+    expect(result.epicNumber).toBe(2);
+    expect(result.storyKeys).toHaveLength(2);
+    expect(result.storyKeys[0]).toMatch(/^2-1-create-architecture-md/);
+    expect(result.storyKeys[1]).toMatch(/^2-2-add-test-coverage-for-src-lib/);
+
+    const content = readFileSync(
+      join(testDir, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml'),
+      'utf-8',
+    );
+    expect(content).toContain('epic-2: backlog');
+    expect(content).toContain('2-1-create-architecture-md: backlog');
+    expect(content).toContain('2-2-add-test-coverage-for-src-lib: backlog');
+    expect(content).toContain('epic-2-retrospective: optional');
+  });
+
+  it('returns epicNumber 0 when no existing epics', () => {
+    createSprintStatusFile(`development_status:
+`);
+
+    const result = appendOnboardingEpicToSprint(
+      [{ title: 'Create ARCHITECTURE.md' }],
+      testDir,
+    );
+
+    expect(result.epicNumber).toBe(0);
+    expect(result.storyKeys[0]).toMatch(/^0-1-create-architecture-md/);
+  });
+
+  it('returns -1 when sprint-status.yaml missing', () => {
+    const result = appendOnboardingEpicToSprint(
+      [{ title: 'Test' }],
+      testDir,
+    );
+
+    expect(result.epicNumber).toBe(-1);
+    expect(result.storyKeys).toHaveLength(0);
+  });
+
+  it('preserves existing content when appending', () => {
+    createSprintStatusFile(`# project header
+development_status:
+  epic-0: done
+  0-1-first-story: done
+  epic-0-retrospective: done
+`);
+
+    appendOnboardingEpicToSprint(
+      [{ title: 'New Story' }],
+      testDir,
+    );
+
+    const content = readFileSync(
+      join(testDir, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml'),
+      'utf-8',
+    );
+    // Existing content preserved
+    expect(content).toContain('# project header');
+    expect(content).toContain('epic-0: done');
+    expect(content).toContain('0-1-first-story: done');
+    // New content appended
+    expect(content).toContain('epic-1: backlog');
+  });
+
+  it('slugifies story titles correctly', () => {
+    createSprintStatusFile(`development_status:
+`);
+
+    const result = appendOnboardingEpicToSprint(
+      [{ title: 'Create src/commands/AGENTS.md' }],
+      testDir,
+    );
+
+    expect(result.storyKeys[0]).toMatch(/^0-1-create-src-commands-agents-md/);
   });
 });

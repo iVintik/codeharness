@@ -175,6 +175,86 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// ─── Onboarding Epic → Sprint Status ────────────────────────────────────────
+
+/**
+ * Determines the next epic number by scanning existing epic-N entries.
+ */
+function nextEpicNumber(statuses: Record<string, string>): number {
+  let max = -1;
+  for (const key of Object.keys(statuses)) {
+    const match = key.match(/^epic-(\d+)$/);
+    if (match) {
+      const n = parseInt(match[1], 10);
+      if (n > max) max = n;
+    }
+  }
+  return max + 1;
+}
+
+/**
+ * Converts an onboarding story title to a sprint-status story key slug.
+ * e.g. "Create ARCHITECTURE.md" → "create-architecture-md"
+ */
+function slugify(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
+}
+
+export interface OnboardingStoryEntry {
+  title: string;
+  key?: string;
+}
+
+/**
+ * Appends an onboarding epic with stories to sprint-status.yaml.
+ * Creates entries like:
+ *   epic-10: backlog
+ *   10-1-create-architecture-md: backlog
+ *   10-2-add-test-coverage-for-src-lib: backlog
+ *   epic-10-retrospective: optional
+ *
+ * Returns the epic number and story keys created.
+ */
+export function appendOnboardingEpicToSprint(
+  stories: OnboardingStoryEntry[],
+  dir?: string,
+): { epicNumber: number; storyKeys: string[] } {
+  const root = dir ?? process.cwd();
+  const filePath = join(root, SPRINT_STATUS_PATH);
+
+  if (!existsSync(filePath)) {
+    warn(`sprint-status.yaml not found at ${filePath}, cannot append onboarding epic`);
+    return { epicNumber: -1, storyKeys: [] };
+  }
+
+  const statuses = readSprintStatus(dir);
+  const epicNum = nextEpicNumber(statuses);
+  const storyKeys: string[] = [];
+
+  const lines: string[] = [''];
+  lines.push(`  epic-${epicNum}: backlog`);
+
+  for (let i = 0; i < stories.length; i++) {
+    const slug = slugify(stories[i].title);
+    const storyKey = `${epicNum}-${i + 1}-${slug}`;
+    storyKeys.push(storyKey);
+    lines.push(`  ${storyKey}: backlog`);
+  }
+
+  lines.push(`  epic-${epicNum}-retrospective: optional`);
+  lines.push('');
+
+  const content = readFileSync(filePath, 'utf-8');
+  const updated = content.trimEnd() + '\n' + lines.join('\n');
+  writeFileSync(filePath, updated, 'utf-8');
+
+  return { epicNumber: epicNum, storyKeys };
+}
+
 // ─── Sync Functions ─────────────────────────────────────────────────────────
 
 /**

@@ -1,7 +1,7 @@
 ---
-harness_version: "0.1.0"
+harness_version: 0.1.0
 initialized: true
-stack: "nodejs"
+stack: nodejs
 enforcement:
   frontend: true
   database: false
@@ -17,6 +17,10 @@ session_flags:
   verification_run: false
 verification_log: []
 ---
+
+
+
+
 
 # codeharness State
 

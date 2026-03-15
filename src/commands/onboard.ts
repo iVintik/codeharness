@@ -29,6 +29,7 @@ import {
   getOnboardingProgress,
 } from '../lib/onboard-checks.js';
 import { saveScanCache, loadValidCache } from '../lib/scan-cache.js';
+import { appendOnboardingEpicToSprint } from '../lib/beads-sync.js';
 
 // ─── Shared state for passing results between phases ─────────────────────────
 
@@ -257,6 +258,15 @@ export function registerOnboardCommand(program: Command): void {
         const results = importOnboardingEpic(epicPath, { listIssues, createIssue });
         const created = results.filter(r => r.status === 'created').length;
         ok(`Onboarding: ${created} stories imported into beads`);
+
+        // Append to sprint-status.yaml so harness-run can execute them
+        const sprintResult = appendOnboardingEpicToSprint(
+          epic.stories.map(s => ({ title: s.title })),
+        );
+        if (sprintResult.epicNumber >= 0) {
+          ok(`Onboarding epic ${sprintResult.epicNumber} added to sprint-status.yaml (${sprintResult.storyKeys.length} stories)`);
+        }
+
         info('Ready to run: codeharness run');
       } else {
         info('Plan saved to ralph/onboarding-epic.md \u2014 edit and re-run when ready');
@@ -342,6 +352,15 @@ export function registerOnboardCommand(program: Command): void {
         const results = importOnboardingEpic(epicPath, { listIssues, createIssue });
         const created = results.filter(r => r.status === 'created').length;
         ok(`Onboarding: ${created} stories imported into beads`);
+
+        // Append to sprint-status.yaml so harness-run can execute them
+        const sprintResult = appendOnboardingEpicToSprint(
+          epic.stories.map(s => ({ title: s.title })),
+        );
+        if (sprintResult.epicNumber >= 0) {
+          ok(`Onboarding epic ${sprintResult.epicNumber} added to sprint-status.yaml (${sprintResult.storyKeys.length} stories)`);
+        }
+
         info('Ready to run: codeharness run');
       } else {
         info('Plan saved to ralph/onboarding-epic.md \u2014 edit and re-run when ready');

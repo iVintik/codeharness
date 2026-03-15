@@ -4,53 +4,61 @@ description: Scan an existing project and generate an onboarding plan to bring i
 
 # Harness Onboard
 
-Scan an existing project for harness compliance gaps and generate an executable onboarding plan.
+Scan an existing project for harness compliance gaps and generate an executable onboarding plan that integrates into sprint-status.yaml for autonomous execution via `/harness-run`.
 
-## Step 1: Run Codebase Scan
+## Step 1: Build the CLI
 
-```bash
-bash ralph/onboard.sh scan --project-dir .
-```
-
-Review the scan results: modules, source files, test coverage, documentation status.
-
-## Step 2: Coverage Gap Analysis
+Ensure the CLI is up to date before scanning:
 
 ```bash
-bash ralph/onboard.sh coverage --project-dir .
+npm run build
 ```
 
-Identifies modules without tests and estimates effort.
+If the build fails, fix the errors before proceeding.
 
-## Step 3: Documentation Audit
+## Step 2: Run Full Onboarding Scan
+
+Run the comprehensive TypeScript scanner with `--force-scan` and `--auto-approve`:
 
 ```bash
-bash ralph/onboard.sh audit --project-dir .
+node dist/index.js onboard epic --force-scan --auto-approve
 ```
 
-Checks README, ARCHITECTURE.md, per-module AGENTS.md, and freshness.
+This runs ALL phases:
+1. **Codebase scan** — modules, source files, artifacts
+2. **Coverage gap analysis** — per-module and per-file coverage against thresholds
+3. **Documentation audit** — README, ARCHITECTURE.md, AGENTS.md per module, staleness
+4. **Extended gap detection** — verification proofs, observability, per-file coverage floor
+5. **Epic generation** — creates `ralph/onboarding-epic.md` with prioritized stories
+6. **Beads import** — imports stories into issue tracker
+7. **Sprint integration** — appends onboarding epic + stories to `sprint-status.yaml`
 
-## Step 4: Generate Onboarding Epic
+Review the CLI output for the scan findings and story count.
 
-```bash
-bash ralph/onboard.sh epic --project-dir . --output ralph/onboarding-epic.md
+## Step 3: Verify Sprint Integration
+
+Read `_bmad-output/implementation-artifacts/sprint-status.yaml` and confirm:
+- A new `epic-N` entry was added with status `backlog`
+- Story entries matching the onboarding findings were added with status `backlog`
+- An `epic-N-retrospective: optional` entry exists
+
+If the entries are missing (e.g., because the harness isn't initialized), manually append them using the Edit tool based on the stories in `ralph/onboarding-epic.md`.
+
+## Step 4: Present Summary
+
+Print a summary:
+```
+[OK] Onboarding scan complete
+  Findings: {N} stories across {categories}
+  Epic: epic-{N} added to sprint-status.yaml
+  Ready for: /harness-run
 ```
 
-Creates a BMAD-compatible epic with stories for reaching compliance.
+List each story with its type (coverage/docs/verification/observability) so the user can review.
 
-## Step 5: Present Plan for Review
+## Step 5: Handle Edge Cases
 
-Show the user the generated epic and ask for approval:
-- Total stories and estimated scope
-- Module-by-module breakdown
-- User can approve, reorder, or remove stories
-
-Only proceed to execution after explicit user approval.
-
-## Step 6: Execute (after approval)
-
-Convert the approved epic to Ralph tasks and run:
-```bash
-bash ralph/bridge.sh --epics ralph/onboarding-epic.md --output ralph/progress.json
-bash ralph/ralph.sh --plugin-dir . --progress ralph/progress.json
-```
+- **Harness not initialized:** Run `codeharness init` first, then re-run onboard.
+- **No gaps found:** Report that the project is compliant. No stories created.
+- **Previous onboarding exists:** The scanner deduplicates against existing beads issues. Only new gaps generate stories.
+- **sprint-status.yaml missing:** Create the file with the standard header before appending.

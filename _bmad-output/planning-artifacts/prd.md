@@ -496,9 +496,15 @@ No formal migration command. `codeharness onboard` handles existing projects inc
 - FR68: System can generate a verification summary per story (pass/fail per AC, evidence links)
 - FR69: System can maintain a verification log across the sprint
 
+### Retrospective Integration & GitHub Issue Loop
+
+- FR71: System can auto-create beads issues and GitHub issues from retrospective findings (`codeharness retro-import --epic N`)
+- FR72: System can import GitHub issues with `sprint-candidate` label into beads (`codeharness github-import`)
+- FR73: System can create cross-project harness issues from retro findings (user's project repo + codeharness repo, configurable via `retro_issue_targets`)
+- FR74: Sprint planning workflow consumes retro action items and GitHub-imported issues via beads (`bd ready`)
+
 ### Out of Scope (Explicitly Excluded)
 
-- Retrospective automation (Phase 2 — `codeharness retro`)
 - Go stack support (Phase 2)
 - Multi-platform drivers beyond Claude Code (Phase 2)
 - Structural constraint generation (Phase 3)

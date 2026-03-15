@@ -390,6 +390,44 @@ codeharness verify --story <story-id>
 
 **Rationale:** Onboarding is the first sprint. Flows through same pipeline as all other work.
 
+### Decision 10: GitHub Integration & Retro Issue Loop
+
+**Decision:** Retro findings flow through beads (universal store) with optional GitHub issue creation. GitHub issues feed back into beads for sprint planning.
+
+**`gh` CLI dependency:** External — not bundled. Detected at runtime via `which gh`. If unavailable, GitHub operations are skipped with warning. Beads import always proceeds.
+
+**Retro finding flow:**
+```
+codeharness retro-import --epic N
+  ├── Read epic-N-retrospective.md
+  ├── Extract action items from markdown table
+  ├── Classify each: project | harness | tool:<name>
+  ├── For each item:
+  │   ├── bd createOrFind with [gap:retro:epic-N-item-M] dedup
+  │   └── gh issue create (if retro_issue_targets configured)
+  └── Report: "Imported N items, skipped M (existing)"
+```
+
+**GitHub import flow:**
+```
+codeharness github-import [--repo owner/repo] [--label sprint-candidate]
+  ├── gh issue list --label sprint-candidate --json
+  ├── For each issue:
+  │   └── bd createOrFind with [source:github:owner/repo#N] dedup
+  └── Report: "Imported N issues, skipped M (existing)"
+```
+
+**Config schema (codeharness.local.md frontmatter):**
+```yaml
+retro_issue_targets:
+  - repo: auto                          # auto-detect from git remote
+    labels: ["retro-finding", "sprint-candidate"]
+  - repo: iVintik/codeharness           # always harness repo
+    labels: ["user-retro", "auto-filed"]
+```
+
+**Rationale:** Beads remains the universal store (per Decision 3). GitHub issues are an external source/destination, not a replacement for beads. The `retro_issue_targets` config makes cross-project issue creation pluggable without hardcoding repos.
+
 ### Decision Impact Analysis
 
 **Implementation sequence:**

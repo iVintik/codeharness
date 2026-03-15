@@ -6,6 +6,7 @@ import {
   reviewEnforcementPatch,
   retroEnforcementPatch,
   sprintBeadsPatch,
+  sprintPlanningRetroPatch,
   PATCH_TEMPLATES,
 } from '../bmad-patches.js';
 
@@ -128,9 +129,55 @@ describe('sprintBeadsPatch', () => {
   });
 });
 
+describe('sprintPlanningRetroPatch', () => {
+  it('returns non-empty string', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content.length).toBeGreaterThan(0);
+  });
+
+  it('contains retrospective action items heading', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('Retrospective Action Items');
+  });
+
+  it('instructs scanning for retrospective files', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('epic-N-retrospective.md');
+    expect(content).toContain('_bmad-output/implementation-artifacts/');
+  });
+
+  it('instructs surfacing unresolved action items', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('unresolved');
+    expect(content).toContain('action items');
+  });
+
+  it('contains integration checklist items', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('- [ ]');
+    expect(content).toContain('scanned');
+    expect(content).toContain('incorporated');
+  });
+
+  it('is well-formed markdown with headings and list items', () => {
+    const content = sprintPlanningRetroPatch();
+    // Should have at least one heading
+    expect(content).toMatch(/^##/m);
+    // Should have checklist items
+    expect(content).toMatch(/- \[ \]/);
+  });
+});
+
 describe('PATCH_TEMPLATES', () => {
-  it('contains all 5 patch names', () => {
-    const expected = ['story-verification', 'dev-enforcement', 'review-enforcement', 'retro-enforcement', 'sprint-beads'];
+  it('contains all 6 patch names', () => {
+    const expected = [
+      'story-verification',
+      'dev-enforcement',
+      'review-enforcement',
+      'retro-enforcement',
+      'sprint-beads',
+      'sprint-retro',
+    ];
     for (const name of expected) {
       expect(PATCH_TEMPLATES).toHaveProperty(name);
     }
@@ -149,5 +196,6 @@ describe('PATCH_TEMPLATES', () => {
     expect(PATCH_TEMPLATES['review-enforcement']).toBe(reviewEnforcementPatch);
     expect(PATCH_TEMPLATES['retro-enforcement']).toBe(retroEnforcementPatch);
     expect(PATCH_TEMPLATES['sprint-beads']).toBe(sprintBeadsPatch);
+    expect(PATCH_TEMPLATES['sprint-retro']).toBe(sprintPlanningRetroPatch);
   });
 });

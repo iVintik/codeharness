@@ -198,11 +198,11 @@ describe('applyAllPatches', () => {
     }
   }
 
-  it('applies all 5 patches to workflow files', () => {
+  it('applies all 6 patches to workflow files', () => {
     createBmadWorkflowFiles(testDir);
 
     const results = applyAllPatches(testDir);
-    expect(results).toHaveLength(5);
+    expect(results).toHaveLength(6);
     for (const r of results) {
       expect(r.applied).toBe(true);
       expect(r.updated).toBe(false);
@@ -215,7 +215,7 @@ describe('applyAllPatches', () => {
     applyAllPatches(testDir);
     const results = applyAllPatches(testDir);
 
-    expect(results).toHaveLength(5);
+    expect(results).toHaveLength(6);
     for (const r of results) {
       expect(r.applied).toBe(true);
       expect(r.updated).toBe(true);
@@ -250,7 +250,7 @@ describe('applyAllPatches', () => {
     const results = applyAllPatches(testDir);
     consoleSpy.mockRestore();
 
-    expect(results).toHaveLength(5);
+    expect(results).toHaveLength(6);
     for (const r of results) {
       expect(r.applied).toBe(false);
       expect(r.error).toContain('File not found');

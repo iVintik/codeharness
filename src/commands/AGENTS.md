@@ -15,14 +15,15 @@ Bridges BMAD epics/stories into the Beads task store. Parses a BMAD epics markdo
 - **Subcommands:** none; requires `--epics <path>`, supports `--dry-run`
 
 ### run.ts
-Executes the autonomous coding loop by spawning the Ralph shell script. Reads sprint status to find ready stories, generates a prompt file, and launches Ralph with configurable iteration limits, timeouts, and retry counts.
-- **Key deps:** `lib/beads-sync` (sprint status), `templates/ralph-prompt` (prompt generation)
+Executes the autonomous coding loop by spawning the Ralph shell script. Resolves ralph.sh path, reads sprint status to find ready stories, generates Ralph prompt, and launches Ralph with configurable iteration limits, timeouts, and retry counts.
+- **Key deps:** `lib/beads-sync` (sprint status), `lib/output`, `templates/ralph-prompt` (prompt generation)
+- **Exports:** `resolveRalphPath()`, `resolvePluginDir()`, `countStoriesByStatus()`, `registerRunCommand(program)`
 - **Subcommands:** none (single action with many options)
 
 ### verify.ts
-Runs the verification pipeline on a completed story. Parses acceptance criteria from the story file, checks preconditions, creates a proof document skeleton, optionally runs Showboat verification, updates state, closes the Beads issue, and moves the exec-plan to completed.
-- **Key deps:** `lib/verify-parser`, `lib/verify`, `lib/doc-health` (exec-plan completion)
-- **Subcommands:** none; requires `--story <id>`
+Runs the verification pipeline on completed work. Two modes: (1) story verification via `--story <id>` — parses acceptance criteria, checks preconditions, creates proof document, optionally runs Showboat, updates state, closes Beads issue, moves exec-plan to completed; (2) retrospective verification via `--retro --epic <n>` — checks that `epic-N-retrospective.md` exists, marks it done in sprint-status.yaml.
+- **Key deps:** `lib/verify-parser`, `lib/verify`, `lib/doc-health` (exec-plan completion), `lib/beads-sync` (sprint status for retro)
+- **Flags:** `--story <id>` (story mode), `--retro` + `--epic <n>` (retro mode)
 
 ### status.ts
 Displays current harness status and health. Shows version, stack, enforcement settings, Docker/observability state (mode-aware: local-shared, remote-direct, remote-routed), Beads summary, onboarding progress, session flags, coverage, and verification log. Supports `--check` for pass/fail health checks.
@@ -30,9 +31,10 @@ Displays current harness status and health. Shows version, stack, enforcement se
 - **Subcommands:** none; supports `--check-docker`, `--check`
 
 ### onboard.ts
-Onboards an existing codebase into the harness. Scans for modules, analyzes coverage gaps, audits documentation, generates an onboarding epic with stories, filters already-tracked gaps, and imports approved stories into Beads and sprint-status.yaml.
-- **Key deps:** `lib/scanner`, `lib/epic-generator`, `lib/beads`, `lib/onboard-checks`, `lib/scan-cache`, `lib/beads-sync`
-- **Subcommands:** `scan`, `coverage`, `audit`, `epic` (also runs all phases when invoked without subcommand)
+Onboards an existing codebase into the harness. Scans modules, analyzes coverage/observability gaps, audits documentation, generates an onboarding epic, and imports approved stories into Beads and sprint-status.yaml. Tracks shared state across phases.
+- **Key deps:** `lib/scanner`, `lib/epic-generator`, `lib/beads`, `lib/onboard-checks`, `lib/scan-cache`, `lib/beads-sync`, `lib/output`
+- **Exports:** `getLastScanResult()`, `getLastCoverageResult()`, `getLastAuditResult()`, `registerOnboardCommand(program)`
+- **Subcommands:** `scan`, `coverage`, `audit`, `epic` (runs all when invoked without subcommand)
 
 ### teardown.ts
 Removes the harness from a project. Stops Docker containers (mode-aware), removes BMAD patches, cleans OTLP instrumented scripts from package.json, deletes state file and .harness/ cache. Preserves .beads/, _bmad/, and docs/ by default.
@@ -63,6 +65,11 @@ Scans documentation for freshness and quality issues. Checks whether AGENTS.md f
 Manages the shared observability stack (Docker-based). Starts, stops, and shows status of the VictoriaMetrics/OTel Collector stack. Mode-aware: handles local-shared, remote-direct, and remote-routed configurations.
 - **Key deps:** `lib/docker` (stack lifecycle), `lib/state`, `lib/stack-path`
 - **Subcommands:** `start`, `stop`, `status`
+
+### retro-import.ts
+Imports retrospective action items as beads issues. Parses `epic-N-retrospective.md` for action item tables, classifies each item (harness/tool/project), derives priority, creates or deduplicates beads issues using gap-ids.
+- **Key deps:** `lib/retro-parser` (parsing, classification, priority), `lib/beads` (createOrFindIssue, buildGapId), `lib/output`
+- **Subcommands:** none; requires `--epic <n>`, supports `--json`
 
 ### query.ts
 Queries observability data (logs, metrics, traces) scoped to the current project. Automatically injects service_name filtering into LogsQL and PromQL queries. Resolves endpoints from state (local or remote).

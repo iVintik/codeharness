@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
@@ -26,6 +26,10 @@ vi.mock('../../lib/output.js', () => ({
   jsonOutput: vi.fn(),
 }));
 
+vi.mock('../../lib/beads-sync.js', () => ({
+  updateSprintStatus: vi.fn(),
+}));
+
 import { registerVerifyCommand } from '../verify.js';
 import {
   checkPreconditions,
@@ -37,12 +41,14 @@ import {
 } from '../../lib/verify.js';
 import { parseStoryACs } from '../../lib/verify-parser.js';
 import { ok, fail, warn, jsonOutput } from '../../lib/output.js';
+import { updateSprintStatus } from '../../lib/beads-sync.js';
 
 let testDir: string;
 let originalCwd: string;
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  vi.clearAllMocks();
   testDir = mkdtempSync(join(tmpdir(), 'ch-verify-cmd-test-'));
   originalCwd = process.cwd();
   process.chdir(testDir);
@@ -75,14 +81,16 @@ async function runVerify(args: string[]): Promise<void> {
   }
 }
 
-// ─── Tests ──────────────────────────────────────────────────────────────────
+// ─── Story Verification Tests ────────────────────────────────────────────────
 
-describe('verify command', () => {
-  it('requires --story argument', async () => {
+describe('verify command — story mode', () => {
+  it('fails when no --story and no --retro provided', async () => {
     await runVerify([]);
-    // Commander enforces requiredOption — will throw or fail
-    // The command won't run without --story, so no mocks should be called
-    expect(checkPreconditions).not.toHaveBeenCalled();
+    expect(fail).toHaveBeenCalledWith(
+      expect.stringContaining('--story is required when --retro is not set'),
+      expect.any(Object),
+    );
+    expect(process.exitCode).toBe(1);
   });
 
   it('fails when story file not found', async () => {
@@ -325,5 +333,112 @@ describe('verify command', () => {
       }),
     );
     expect(process.exitCode).toBe(1);
+  });
+});
+
+// ─── Retro Verification Tests ───────────────────────────────────────────────
+
+describe('verify command — retro mode', () => {
+  it('succeeds when retro file exists and updates sprint status', async () => {
+    // Create retro file
+    const storyDir = join(testDir, '_bmad-output', 'implementation-artifacts');
+    writeFileSync(
+      join(storyDir, 'epic-5-retrospective.md'),
+      '# Epic 5 Retrospective\n\n## Action Items\n\n| Item | Status |\n|------|--------|\n| Fix tests | Done |\n',
+    );
+
+    await runVerify(['--retro', '--epic', '5']);
+
+    expect(updateSprintStatus).toHaveBeenCalledWith('epic-5-retrospective', 'done', expect.any(String));
+    expect(ok).toHaveBeenCalledWith('Epic 5 retrospective: marked done');
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('fails when retro file does not exist', async () => {
+    await runVerify(['--retro', '--epic', '99']);
+
+    expect(fail).toHaveBeenCalledWith(expect.stringContaining('epic-99-retrospective.md not found'));
+    expect(process.exitCode).toBe(1);
+    expect(updateSprintStatus).not.toHaveBeenCalled();
+  });
+
+  it('outputs JSON when retro file exists and --json is set', async () => {
+    const storyDir = join(testDir, '_bmad-output', 'implementation-artifacts');
+    writeFileSync(
+      join(storyDir, 'epic-3-retrospective.md'),
+      '# Epic 3 Retrospective\n',
+    );
+
+    await runVerify(['--retro', '--epic', '3', '--json']);
+
+    expect(jsonOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'ok',
+        epic: 3,
+        retroFile: expect.stringContaining('epic-3-retrospective.md'),
+      }),
+    );
+  });
+
+  it('outputs JSON when retro file is missing and --json is set', async () => {
+    await runVerify(['--retro', '--epic', '99', '--json']);
+
+    expect(jsonOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'fail',
+        epic: 99,
+        retroFile: 'epic-99-retrospective.md',
+        message: expect.stringContaining('not found'),
+      }),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('fails when --retro is set but --epic is missing', async () => {
+    await runVerify(['--retro']);
+
+    expect(fail).toHaveBeenCalledWith(
+      expect.stringContaining('--epic is required with --retro'),
+      expect.any(Object),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('fails when --epic is not a valid number', async () => {
+    await runVerify(['--retro', '--epic', 'abc']);
+
+    expect(fail).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid epic number'),
+      expect.any(Object),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('fails when --epic is 0 (invalid epic number)', async () => {
+    await runVerify(['--retro', '--epic', '0']);
+
+    expect(fail).toHaveBeenCalledWith(
+      expect.stringContaining('Invalid epic number'),
+      expect.any(Object),
+    );
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('warns but succeeds when updateSprintStatus throws', async () => {
+    const storyDir = join(testDir, '_bmad-output', 'implementation-artifacts');
+    writeFileSync(
+      join(storyDir, 'epic-7-retrospective.md'),
+      '# Epic 7 Retrospective\n',
+    );
+
+    vi.mocked(updateSprintStatus).mockImplementation(() => {
+      throw new Error('disk full');
+    });
+
+    await runVerify(['--retro', '--epic', '7']);
+
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to update sprint status'));
+    expect(ok).toHaveBeenCalledWith('Epic 7 retrospective: marked done');
+    expect(process.exitCode).toBeUndefined();
   });
 });

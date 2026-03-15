@@ -183,7 +183,9 @@ All stories in the current epic are done.
        prompt: "Run /retrospective for Epic {N}. All stories are complete. Review the epic's work, extract lessons learned, and produce the retrospective document. Do NOT ask the user any questions — proceed autonomously."
        subagent_type: "general-purpose"
      ```
-   - After retrospective completes, verify `epic-{N}-retrospective` status changed to `done`
+   - After retrospective completes:
+     a. Update `epic-{N}-retrospective` status to `done` in sprint-status.yaml (use Edit tool — do NOT rely on the retro agent to do this)
+     b. Verify the update was applied
 
 2. Update `epic-{N}` status to `done` in sprint-status.yaml (use Edit tool)
 

@@ -113,6 +113,30 @@ export function sprintBeadsPatch(): string {
 }
 
 /**
+ * Patch for sprint-planning workflow: surface unresolved retrospective action items.
+ * Target: _bmad/bmm/workflows/4-implementation/sprint-planning/instructions.md
+ */
+export function sprintPlanningRetroPatch(): string {
+  return `## Retrospective Action Items Review
+
+### Unresolved Action Items from Previous Retrospectives
+
+Before starting sprint planning, review all completed retrospectives for unresolved action items:
+
+1. **Scan for retrospective files:** Look for all \`epic-N-retrospective.md\` files in \`_bmad-output/implementation-artifacts/\`
+2. **Extract action items:** For each retrospective file found, locate the action items table (typically under "Action Items" or "Improvements" heading)
+3. **Identify unresolved items:** Filter for action items that are NOT marked as completed/done
+4. **Surface during planning:** Present unresolved items to the team before selecting stories for the sprint
+
+### Integration with Sprint Planning
+
+- [ ] All \`epic-N-retrospective.md\` files scanned for action items
+- [ ] Unresolved action items listed and reviewed
+- [ ] Relevant action items incorporated into sprint goals or new stories
+- [ ] Recurring issues from multiple retros flagged for systemic fixes`;
+}
+
+/**
  * Maps patch names to their template functions.
  */
 export const PATCH_TEMPLATES: Record<string, () => string> = {
@@ -121,4 +145,5 @@ export const PATCH_TEMPLATES: Record<string, () => string> = {
   'review-enforcement': reviewEnforcementPatch,
   'retro-enforcement': retroEnforcementPatch,
   'sprint-beads': sprintBeadsPatch,
+  'sprint-retro': sprintPlanningRetroPatch,
 };

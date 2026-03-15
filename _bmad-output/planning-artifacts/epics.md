@@ -204,6 +204,10 @@ FR67: Epic 7 — codeharness status command
 FR68: Epic 7 — per-story verification summary
 FR69: Epic 7 — sprint verification log
 FR70: Epic 0 — in-session sprint execution via `/harness-run` skill
+FR71: Epic 11 — retro findings → beads issues + GitHub issues
+FR72: Epic 11 — GitHub issues → beads import
+FR73: Epic 11 — cross-project harness issue creation from retro
+FR74: Epic 11 — sprint planning consumes retro + GitHub issues
 
 ## Epic List
 
@@ -1587,3 +1591,210 @@ So that I can cleanly uninstall the harness without losing my project code or ta
 - Update `knowledge/observability-querying.md`: all LogQL, PromQL, and Jaeger queries must include `service.name` filter
 - Update `status.ts` endpoint display to include service-scoped query URLs
 - Consider adding `codeharness query logs "error"` shorthand that auto-applies service.name filter
+
+---
+
+### Epic 11: Retrospective Integration & GitHub Issue Loop
+
+Retrospective findings become actionable work items through beads and GitHub issues. Retro action items are classified (project/harness/tool), imported to beads with dedup gap-ids, and optionally pushed to GitHub repos. GitHub issues with `sprint-candidate` labels can be imported back into beads for sprint planning triage. Sprint planning consumes both retro findings and GitHub issues through the existing `bd ready` pipeline.
+
+**FRs covered:** FR71, FR72, FR73, FR74
+
+**Stories:**
+- 11-1: Fix retro status lifecycle
+- 11-2: Retro finding classification & beads import
+- 11-3: GitHub issue creation from retro findings
+- 11-4: GitHub issue import to beads
+- 11-5: Sprint planning retro & issue integration
+
+## Epic 11: Retrospective Integration & GitHub Issue Loop
+
+### Story 11.1: Fix Retro Status Lifecycle
+
+**As a** developer using codeharness,
+**I want** retrospective status to update from `optional` to `done` when a retro is completed,
+**So that** sprint-status.yaml accurately reflects which epics have had retrospectives.
+
+**Scope:** Fix harness-run Step 5 to explicitly update retro status. Add `--retro` flag to `codeharness verify` to mark a retro complete. Patch sprint-planning to read previous retro action items.
+
+#### Acceptance Criteria
+
+**Given** all stories in an epic are `done`
+**When** the harness-run skill executes Step 5 (epic completion)
+**Then** the retrospective agent is invoked
+**And** `epic-N-retrospective` status is updated to `done` in sprint-status.yaml by the harness-run skill itself (not delegated to the retro agent)
+
+**Given** a user runs `codeharness verify --retro --epic N`
+**When** `epic-N-retrospective.md` exists in implementation-artifacts
+**Then** the status is updated to `done` in sprint-status.yaml
+**And** the CLI prints `[OK] Epic N retrospective: marked done`
+
+**Given** sprint planning is invoked for a new sprint
+**When** previous epics have completed retrospectives
+**Then** unresolved action items from those retros are surfaced during planning
+
+#### Technical Notes
+
+- harness-run.md already has the structure in Step 5 — the fix is making the status update explicit (Edit tool, not relying on retro agent)
+- `verify.ts` needs a new `--retro` + `--epic` flag branch
+- Sprint planning patch reads `epic-N-retrospective.md` files, extracts action items table
+
+---
+
+### Story 11.2: Retro Finding Classification & Beads Import
+
+**As a** developer,
+**I want** retro findings to automatically become beads issues,
+**So that** action items don't get lost between sprints.
+
+**Scope:** New CLI command `codeharness retro-import --epic N`. Parses retro markdown, extracts action items, classifies each, creates beads issues with dedup gap-ids.
+
+#### Acceptance Criteria
+
+**Given** `epic-N-retrospective.md` exists with an "Action Items" table
+**When** the user runs `codeharness retro-import --epic N`
+**Then** each action item is parsed: number, description, target epic, owner
+**And** each is classified as `project` | `harness` | `tool:<name>` based on content analysis
+
+**Given** action items are classified
+**When** beads issues are created
+**Then** each has gap-id `[gap:retro:epic-N-item-M]` for dedup
+**And** type is `task`, priority derived from action item urgency
+**And** description includes the original retro context
+
+**Given** `retro-import` is run twice for the same epic
+**When** issues with matching gap-ids already exist in beads
+**Then** no duplicate issues are created
+**And** CLI prints `[INFO] Skipping existing: {title}`
+
+**Given** the `--json` flag is passed
+**When** the command completes
+**Then** output is JSON: `{"imported": N, "skipped": M, "issues": [...]}`
+
+#### Technical Notes
+
+- New file: `src/commands/retro-import.ts` — Commander.js registration
+- New file: `src/lib/retro-parser.ts` — markdown parsing, action item extraction, classification
+- Uses existing `beads.ts` `createOrFindIssue()` with gap-ids
+- Classification heuristics: "harness" or "codeharness" in text → `harness`; tool names (showboat, ralph, beads) → `tool:<name>`; everything else → `project`
+
+---
+
+### Story 11.3: GitHub Issue Creation from Retro Findings
+
+**As a** developer,
+**I want** retro findings to create GitHub issues on the appropriate repos,
+**So that** findings are tracked in the project's issue tracker and visible to collaborators.
+
+**Scope:** After beads import, create GitHub issues via `gh issue create`. Project findings → project repo. Harness findings → codeharness repo. Configurable via `retro_issue_targets` in state file.
+
+#### Acceptance Criteria
+
+**Given** retro findings have been imported to beads (Story 11.2 completed)
+**When** `codeharness retro-import --epic N` runs with `retro_issue_targets` configured
+**Then** project-classified findings create issues on the project repo (auto-detected from git remote)
+**And** harness-classified findings create issues on `iVintik/codeharness` repo
+**And** each issue body includes the retro context, epic number, and source project name
+
+**Given** a GitHub issue with the same gap-id already exists on the target repo
+**When** `retro-import` runs
+**Then** no duplicate issue is created
+**And** CLI prints `[INFO] GitHub issue exists: owner/repo#N`
+
+**Given** `gh` CLI is not installed or not authenticated
+**When** `retro-import` attempts GitHub issue creation
+**Then** beads import still succeeds
+**And** GitHub creation is skipped with `[WARN] gh CLI not available — skipping GitHub issue creation`
+
+**Given** `retro_issue_targets` is not configured in state file
+**When** `retro-import` runs
+**Then** only beads import happens (no GitHub issues)
+**And** CLI prints `[INFO] No retro_issue_targets configured — skipping GitHub issues`
+
+#### Technical Notes
+
+- New file: `src/lib/github.ts` — wraps `gh issue create`, `gh issue list`, `gh issue search`
+- Uses `execFileSync('gh', [...])` pattern matching `beads.ts`
+- Idempotency: search existing issues with `gh issue list --search "gap:retro:epic-N-item-M"` before creating
+- `retro_issue_targets` config lives in `codeharness.local.md` YAML frontmatter
+- Labels auto-created if user has write access (try `gh label create`, ignore failure)
+
+---
+
+### Story 11.4: GitHub Issue Import to Beads
+
+**As a** developer,
+**I want** to import GitHub issues labeled `sprint-candidate` into beads,
+**So that** external issues appear in my sprint planning backlog.
+
+**Scope:** New CLI command `codeharness github-import [--repo owner/repo] [--label sprint-candidate]`. Queries GitHub, creates beads issues with dedup.
+
+#### Acceptance Criteria
+
+**Given** GitHub issues exist with label `sprint-candidate` on the project repo
+**When** the user runs `codeharness github-import`
+**Then** each issue is imported as a beads issue
+**And** each has gap-id `[source:github:owner/repo#N]` for dedup
+**And** GitHub labels are mapped to beads type: `bug` label → type=bug, `enhancement` → type=story, default → type=task
+
+**Given** a beads issue with matching gap-id already exists
+**When** `github-import` runs
+**Then** no duplicate is created
+**And** CLI prints `[INFO] Skipping existing: owner/repo#N — {title}`
+
+**Given** `--repo` is not specified
+**When** the command runs
+**Then** the repo is auto-detected from `git remote get-url origin`
+
+**Given** `gh` CLI is not installed
+**When** the command runs
+**Then** it fails with `[FAIL] gh CLI not found. Install: https://cli.github.com/`
+
+**Given** the `--json` flag is passed
+**When** the command completes
+**Then** output is JSON: `{"imported": N, "skipped": M, "issues": [...]}`
+
+#### Technical Notes
+
+- New file: `src/commands/github-import.ts` — Commander.js registration
+- Uses `src/lib/github.ts` for `gh` CLI interaction
+- Uses existing `beads.ts` `createOrFindIssue()` with `[source:github:...]` gap-ids
+- Priority mapping: GitHub `priority:high` label → priority 1, `priority:low` → priority 3, default → priority 2
+- Auto-detect repo: `git remote get-url origin` → parse `owner/repo` from URL
+
+---
+
+### Story 11.5: Sprint Planning Retro & Issue Integration
+
+**As a** developer starting a new sprint,
+**I want** sprint planning to show retro action items and GitHub issues alongside existing beads backlog,
+**So that** I have a complete picture of available work during triage.
+
+**Scope:** Patch BMAD sprint-planning workflow to: read latest retro action items, run `codeharness github-import`, present combined backlog via `bd ready`.
+
+#### Acceptance Criteria
+
+**Given** previous epics have retrospectives with unresolved action items
+**When** sprint planning is invoked
+**Then** the planning workflow reads all `epic-N-retrospective.md` files
+**And** surfaces action items that haven't been addressed in subsequent epics
+
+**Given** the project has `retro_issue_targets` configured
+**When** sprint planning runs
+**Then** it executes `codeharness github-import` to pull labeled issues
+**And** newly imported issues appear in the `bd ready` backlog
+
+**Given** both retro findings and GitHub issues exist in beads
+**When** the planner presents the backlog
+**Then** issues are shown with their source (retro vs GitHub vs manual)
+**And** the planner can triage all sources uniformly
+
+#### Technical Notes
+
+- New BMAD patch: `templates/bmad-patches/sprint-planning-retro-patch.md`
+- Patch adds steps before existing `bd ready` triage:
+  1. Scan `_bmad-output/implementation-artifacts/epic-*-retrospective.md` for unresolved items
+  2. Run `codeharness retro-import` for any retros not yet imported
+  3. Run `codeharness github-import` to pull latest labeled issues
+  4. Present combined `bd ready` output
+- Uses marker-based patching per Architecture Decision 7

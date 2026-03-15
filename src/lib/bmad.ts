@@ -40,6 +40,7 @@ export const PATCH_TARGETS: Record<string, string> = {
   'review-enforcement': 'bmm/workflows/4-implementation/code-review/checklist.md',
   'retro-enforcement': 'bmm/workflows/4-implementation/retrospective/instructions.md',
   'sprint-beads': 'bmm/workflows/4-implementation/sprint-planning/checklist.md',
+  'sprint-retro': 'bmm/workflows/4-implementation/sprint-planning/instructions.md',
 };
 
 /**
@@ -129,12 +130,11 @@ export function installBmad(dir?: string): BmadInstallResult {
     status: 'installed',
     version,
     patches_applied: [],
-    bmalph_detected: false,
   };
 }
 
 /**
- * Applies all 5 harness patches to BMAD workflow files.
+ * Applies all harness patches to BMAD workflow files.
  * Handles missing target files gracefully with warnings.
  * Returns array of results per patch.
  */

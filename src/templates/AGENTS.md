@@ -17,9 +17,18 @@ string literals (no external template files loaded at runtime).
 
 BMAD workflow patch content. Each function returns a markdown snippet
 injected into BMAD workflow files by the patch engine
-(`src/lib/patch-engine.ts`). Covers story, dev-story, code-review,
-retrospective, and sprint-planning workflows. Exports
-`PATCH_TEMPLATES` map consumed by `src/lib/bmad.ts`.
+(`src/lib/patch-engine.ts`). Six patches covering story, dev-story,
+code-review, retrospective, and sprint-planning (beads + retro action
+items) workflows. Exports `PATCH_TEMPLATES` map (6 entries) consumed
+by `src/lib/bmad.ts`.
+
+Patch functions:
+- `storyVerificationPatch()` — verification/docs/testing requirements for story template
+- `devEnforcementPatch()` — observability, docs, test enforcement for dev-story checklist
+- `reviewEnforcementPatch()` — Showboat proof, AGENTS.md freshness, coverage for code-review
+- `retroEnforcementPatch()` — verification effectiveness, doc health, test quality for retrospective
+- `sprintBeadsPatch()` — beads issue status and sprint readiness for sprint-planning checklist
+- `sprintPlanningRetroPatch()` — surfaces unresolved retrospective action items in sprint-planning instructions
 
 ### docker-compose.ts
 

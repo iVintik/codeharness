@@ -151,7 +151,6 @@ beforeEach(() => {
     status: 'installed',
     version: '6.0.0',
     patches_applied: [],
-    bmalph_detected: false,
   });
   mockApplyAllPatches.mockReturnValue([
     { patchName: 'story-verification', targetFile: 'template.md', applied: true, updated: false },

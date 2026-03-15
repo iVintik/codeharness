@@ -12,7 +12,6 @@ import {
   isBmadInstalled,
   installBmad,
   detectBmadVersion,
-  detectBmalph,
   applyAllPatches,
   BmadError,
   PATCH_TARGETS,
@@ -126,41 +125,6 @@ describe('detectBmadVersion', () => {
     writeFileSync(join(testDir, '_bmad', 'package.json'), JSON.stringify({ name: 'bmad' }));
 
     expect(detectBmadVersion(testDir)).toBeNull();
-  });
-});
-
-describe('detectBmalph', () => {
-  it('detects .ralph/.ralphrc', () => {
-    mkdirSync(join(testDir, '.ralph'), { recursive: true });
-    writeFileSync(join(testDir, '.ralph', '.ralphrc'), 'config');
-
-    const result = detectBmalph(testDir);
-    expect(result.detected).toBe(true);
-    expect(result.files).toContain('.ralph/.ralphrc');
-  });
-
-  it('detects .ralph/ directory with contents', () => {
-    mkdirSync(join(testDir, '.ralph'), { recursive: true });
-    writeFileSync(join(testDir, '.ralph', 'config.yaml'), 'data');
-    writeFileSync(join(testDir, '.ralph', 'state.json'), '{}');
-
-    const result = detectBmalph(testDir);
-    expect(result.detected).toBe(true);
-    expect(result.files).toContain('.ralph/config.yaml');
-    expect(result.files).toContain('.ralph/state.json');
-  });
-
-  it('returns detected=false when no bmalph artifacts', () => {
-    const result = detectBmalph(testDir);
-    expect(result.detected).toBe(false);
-    expect(result.files).toEqual([]);
-  });
-
-  it('handles .ralph directory that cannot be read', () => {
-    // Don't create .ralph at all — detected=false
-    const result = detectBmalph(testDir);
-    expect(result.detected).toBe(false);
-    expect(result.files).toEqual([]);
   });
 });
 

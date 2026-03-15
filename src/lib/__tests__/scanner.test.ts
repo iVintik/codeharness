@@ -96,33 +96,13 @@ describe('scanCodebase', () => {
     expect(low.modules.length).toBeGreaterThan(high.modules.length);
   });
 
-  it('detects bmalph artifacts', () => {
+  it('detects BMAD artifacts', () => {
     createFile('src/a.ts', 'code');
-    createFile('.ralph/.ralphrc', 'config');
     createFile('_bmad/config.md', 'bmad config');
 
     const result = scanCodebase(testDir, { minModuleSize: 1 });
-    expect(result.artifacts.hasBmalph).toBe(true);
     expect(result.artifacts.hasBmad).toBe(true);
-    expect(result.artifacts.bmalpthFiles).toContain('.ralph/.ralphrc');
-    // _bmad is preserved, not flagged as bmalph
     expect(result.artifacts.bmadPath).toBe('_bmad');
-  });
-
-  it('detects root .ralphrc as bmalph artifact', () => {
-    createFile('.ralphrc', 'config');
-
-    const result = scanCodebase(testDir, { minModuleSize: 1 });
-    expect(result.artifacts.hasBmalph).toBe(true);
-    expect(result.artifacts.bmalpthFiles).toContain('.ralphrc');
-  });
-
-  it('reports hasBmalph=false when no bmalph artifacts exist', () => {
-    createFile('src/a.ts', 'code');
-
-    const result = scanCodebase(testDir, { minModuleSize: 1 });
-    expect(result.artifacts.hasBmalph).toBe(false);
-    expect(result.artifacts.bmalpthFiles).toHaveLength(0);
   });
 
   it('parent-grouping: subdirectory below threshold not a standalone module', () => {

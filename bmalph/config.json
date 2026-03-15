@@ -1,9 +1,0 @@
-{
-  "name": "codeharness",
-  "description": "Code harness project",
-  "createdAt": "2026-03-14T14:08:50.636Z",
-  "platform": "claude-code",
-  "upstreamVersions": {
-    "bmadCommit": "aa573bdb"
-  }
-}

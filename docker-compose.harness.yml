@@ -39,20 +39,6 @@ services:
       timeout: 3s
       retries: 3
 
-  # TRACES_START — included only if tracing enforcement enabled
-  victoria-traces:
-    image: victoriametrics/victoria-metrics:v1.106.1
-    container_name: codeharness-traces
-    ports:
-      - "14268:14268"
-    volumes:
-      - vtraces-data:/storage
-    command:
-      - "-storageDataPath=/storage"
-    networks:
-      - codeharness-net
-  # TRACES_END
-
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.114.0
     container_name: codeharness-otel
@@ -72,7 +58,6 @@ services:
 volumes:
   vlogs-data:
   vmetrics-data:
-  vtraces-data:
 
 networks:
   codeharness-net:

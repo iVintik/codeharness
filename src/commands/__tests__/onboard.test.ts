@@ -105,9 +105,7 @@ const mockScanResult = {
   totalSourceFiles: 20,
   artifacts: {
     hasBmad: false,
-    hasBmalph: false,
     bmadPath: null,
-    bmalpthFiles: [],
   },
 };
 
@@ -228,24 +226,6 @@ describe('onboard command', () => {
     expect(scanCodebase).toHaveBeenCalledWith(
       expect.any(String),
       { minModuleSize: 5 },
-    );
-  });
-
-  it('warns when bmalph artifacts detected', async () => {
-    vi.mocked(scanCodebase).mockReturnValue({
-      ...mockScanResult,
-      artifacts: {
-        hasBmad: true,
-        hasBmalph: true,
-        bmadPath: '_bmad',
-        bmalpthFiles: ['.ralph/.ralphrc'],
-      },
-    });
-
-    await runOnboardCmd([]);
-
-    expect(warn).toHaveBeenCalledWith(
-      'bmalph artifacts detected \u2014 will be flagged for cleanup',
     );
   });
 

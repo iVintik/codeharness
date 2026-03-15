@@ -10,7 +10,7 @@ import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollect
 import { installAllDependencies, CriticalDependencyError } from '../lib/deps.js';
 import { instrumentProject, configureOtlpEnvVars } from '../lib/otlp.js';
 import { initBeads, isBeadsInitialized, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../lib/beads.js';
-import { isBmadInstalled, installBmad, applyAllPatches, detectBmalph, detectBmadVersion, BmadError } from '../lib/bmad.js';
+import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, BmadError } from '../lib/bmad.js';
 import { getComposeFilePath } from '../lib/stack-path.js';
 import type { HarnessState } from '../lib/state.js';
 import type { DependencyResult } from '../lib/deps.js';
@@ -54,7 +54,6 @@ interface InitResult {
     status: 'installed' | 'already-installed' | 'patched' | 'failed';
     version: string | null;
     patches_applied: string[];
-    bmalph_detected: boolean;
     error?: string;
   };
   otlp?: OtlpResult;
@@ -359,7 +358,6 @@ export function registerInitCommand(program: Command): void {
             status: 'already-installed',
             version,
             patches_applied: patchNames,
-            bmalph_detected: false,
           };
 
           if (!isJson) {
@@ -374,7 +372,6 @@ export function registerInitCommand(program: Command): void {
             status: installResult.status,
             version: installResult.version,
             patches_applied: patchNames,
-            bmalph_detected: false,
           };
 
           if (!isJson) {
@@ -382,21 +379,12 @@ export function registerInitCommand(program: Command): void {
           }
         }
 
-        // Detect bmalph
-        const bmalpResult = detectBmalph(projectDir);
-        if (bmalpResult.detected && result.bmad) {
-          result.bmad.bmalph_detected = true;
-          if (!isJson) {
-            warn('bmalph detected — superseded files noted for cleanup');
-          }
-        }
       } catch (err) {
         if (err instanceof BmadError) {
           result.bmad = {
             status: 'failed',
             version: null,
             patches_applied: [],
-            bmalph_detected: false,
             error: err.message,
           };
           if (!isJson) {

@@ -375,14 +375,12 @@ function rebuildEpicSummary(epic: OnboardingEpic): void {
   const docStories = epic.stories.filter(
     s => s.type === 'agents-md' || s.type === 'architecture' || s.type === 'doc-freshness',
   ).length;
-  const cleanupStories = epic.stories.filter(s => s.type === 'bmalph-cleanup').length;
   const verificationStories = epic.stories.filter(s => s.type === 'verification').length;
   const observabilityStories = epic.stories.filter(s => s.type === 'observability').length;
   epic.summary = {
     totalStories: epic.stories.length,
     coverageStories,
     docStories,
-    cleanupStories,
     verificationStories,
     observabilityStories,
   };
@@ -412,9 +410,6 @@ function runAudit(): DocAuditResult {
 
 function printScanOutput(result: ScanResult): void {
   info(`Scan: ${result.totalSourceFiles} source files across ${result.modules.length} modules`);
-  if (result.artifacts.hasBmalph) {
-    warn('bmalph artifacts detected \u2014 will be flagged for cleanup');
-  }
 }
 
 function printCoverageOutput(result: CoverageGapReport): void {

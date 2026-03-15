@@ -25,9 +25,7 @@ export interface ModuleInfo {
 
 export interface DetectedArtifacts {
   hasBmad: boolean;
-  hasBmalph: boolean;
   bmadPath: string | null;
-  bmalpthFiles: string[];
 }
 
 export interface ScanResult {
@@ -186,59 +184,15 @@ function countModuleFiles(
 // ─── Artifact Detection (Task 1.5) ──────────────────────────────────────────
 
 /**
- * Detects BMAD and bmalph artifacts in the project.
+ * Detects BMAD artifacts in the project.
  */
 function detectArtifacts(dir: string): DetectedArtifacts {
   const bmadPath = join(dir, '_bmad');
   const hasBmad = existsSync(bmadPath);
 
-  const bmalpthFiles: string[] = [];
-
-  // Check for .ralph directory
-  const ralphDir = join(dir, '.ralph');
-  if (existsSync(ralphDir)) {
-    try {
-      const stat = statSync(ralphDir);
-      if (stat.isDirectory()) {
-        // Check for .ralphrc inside
-        const ralphrc = join(ralphDir, '.ralphrc');
-        if (existsSync(ralphrc)) {
-          bmalpthFiles.push('.ralph/.ralphrc');
-        }
-        // Also flag other files in .ralph/
-        try {
-          const entries = readdirSync(ralphDir);
-          for (const entry of entries) {
-            const entryPath = join(ralphDir, entry);
-            try {
-              const entryStat = statSync(entryPath);
-              if (entryStat.isFile() && entry !== '.ralphrc') {
-                bmalpthFiles.push(`.ralph/${entry}`);
-              }
-            } catch {
-              // skip
-            }
-          }
-        } catch {
-          // skip
-        }
-      }
-    } catch {
-      // skip
-    }
-  }
-
-  // Check for root .ralphrc
-  const rootRalphrc = join(dir, '.ralphrc');
-  if (existsSync(rootRalphrc)) {
-    bmalpthFiles.push('.ralphrc');
-  }
-
   return {
     hasBmad,
-    hasBmalph: bmalpthFiles.length > 0,
     bmadPath: hasBmad ? relative(dir, bmadPath) || '_bmad' : null,
-    bmalpthFiles,
   };
 }
 

@@ -19,7 +19,7 @@ import type { ScanResult, CoverageGapReport, DocAuditResult } from './scanner.js
 export interface OnboardingStory {
   key: string;
   title: string;
-  type: 'coverage' | 'agents-md' | 'architecture' | 'doc-freshness' | 'bmalph-cleanup' | 'verification' | 'observability';
+  type: 'coverage' | 'agents-md' | 'architecture' | 'doc-freshness' | 'verification' | 'observability';
   module?: string;
   storyKey?: string;
   acceptanceCriteria: string[];
@@ -29,7 +29,6 @@ export interface EpicSummary {
   totalStories: number;
   coverageStories: number;
   docStories: number;
-  cleanupStories: number;
   verificationStories: number;
   observabilityStories: number;
 }
@@ -50,7 +49,6 @@ const PRIORITY_BY_TYPE: Record<OnboardingStory['type'], number> = {
   'agents-md': 3,
   architecture: 3,
   'doc-freshness': 3,
-  'bmalph-cleanup': 4,
 };
 
 // ─── Epic Generation ────────────────────────────────────────────────────────
@@ -133,26 +131,11 @@ export function generateOnboardingEpic(
     storyNum++;
   }
 
-  // bmalph cleanup story
-  if (scan.artifacts.hasBmalph) {
-    const fileList = scan.artifacts.bmalpthFiles.join(', ');
-    stories.push({
-      key: `0.${storyNum}`,
-      title: 'Clean up bmalph artifacts',
-      type: 'bmalph-cleanup',
-      acceptanceCriteria: [
-        `**Given** bmalph artifacts found: ${fileList}\n**When** the agent cleans up\n**Then** all bmalph artifacts are removed or migrated`,
-      ],
-    });
-    storyNum++;
-  }
-
   // Build summary
   const coverageStories = stories.filter(s => s.type === 'coverage').length;
   const docStories = stories.filter(
     s => s.type === 'agents-md' || s.type === 'architecture' || s.type === 'doc-freshness',
   ).length;
-  const cleanupStories = stories.filter(s => s.type === 'bmalph-cleanup').length;
   const verificationStories = stories.filter(s => s.type === 'verification').length;
   const observabilityStories = stories.filter(s => s.type === 'observability').length;
 
@@ -164,7 +147,6 @@ export function generateOnboardingEpic(
       totalStories: stories.length,
       coverageStories,
       docStories,
-      cleanupStories,
       verificationStories,
       observabilityStories,
     },
@@ -201,8 +183,6 @@ export function writeOnboardingEpic(epic: OnboardingEpic, outputPath: string): v
       lines.push("As a developer, I want an ARCHITECTURE.md documenting the project's architecture.");
     } else if (story.type === 'doc-freshness') {
       lines.push('As a developer, I want up-to-date documentation reflecting the current codebase.');
-    } else if (story.type === 'bmalph-cleanup') {
-      lines.push('As a developer, I want legacy bmalph artifacts cleaned up.');
     } else if (story.type === 'verification') {
       lines.push(`As a developer, I want verification proof for ${story.storyKey} to ensure it's properly documented.`);
     } else if (story.type === 'observability') {
@@ -233,8 +213,8 @@ export function writeOnboardingEpic(epic: OnboardingEpic, outputPath: string): v
  * Returns a human-readable summary string for the epic.
  */
 export function formatEpicSummary(epic: OnboardingEpic): string {
-  const { totalStories, coverageStories, docStories, cleanupStories, verificationStories, observabilityStories } = epic.summary;
-  return `Onboarding plan: ${totalStories} stories (${coverageStories} coverage, ${docStories} documentation, ${cleanupStories} cleanup, ${verificationStories} verification, ${observabilityStories} observability)`;
+  const { totalStories, coverageStories, docStories, verificationStories, observabilityStories } = epic.summary;
+  return `Onboarding plan: ${totalStories} stories (${coverageStories} coverage, ${docStories} documentation, ${verificationStories} verification, ${observabilityStories} observability)`;
 }
 
 // ─── Interactive Approval ───────────────────────────────────────────────────
@@ -334,7 +314,6 @@ function getPriorityFromTitle(title: string): number {
   if (title.startsWith('Create ') && title.endsWith('AGENTS.md')) return PRIORITY_BY_TYPE['agents-md'];
   if (title === 'Create ARCHITECTURE.md') return PRIORITY_BY_TYPE.architecture;
   if (title === 'Update stale documentation') return PRIORITY_BY_TYPE['doc-freshness'];
-  if (title === 'Clean up bmalph artifacts') return PRIORITY_BY_TYPE['bmalph-cleanup'];
   if (title.startsWith('Create verification proof for ')) return PRIORITY_BY_TYPE.verification;
   if (title === 'Configure OTLP instrumentation' || title === 'Start Docker observability stack') return PRIORITY_BY_TYPE.observability;
   return 3; // default
@@ -364,10 +343,6 @@ function getGapIdFromTitle(title: string): string | null {
   // doc-freshness
   if (title === 'Update stale documentation') {
     return '[gap:docs:stale-docs]';
-  }
-  // bmalph-cleanup
-  if (title === 'Clean up bmalph artifacts') {
-    return '[gap:docs:bmalph-cleanup]';
   }
   // verification: "Create verification proof for <key>"
   if (title.startsWith('Create verification proof for ')) {

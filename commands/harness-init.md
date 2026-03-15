@@ -139,20 +139,16 @@ The observability stack could not start. Check Docker logs.
 
 ### Check for existing BMAD
 
-1. If `_bmad/` directory exists AND `bmalph/` directory exists:
-   - This is a bmalph installation. Preserve artifacts.
-   - Output: `[OK] BMAD: migrated from bmalph, harness patches applied`
-
-2. If `_bmad/` directory exists but NO `bmalph/`:
+1. If `_bmad/` directory exists:
    - This is an existing BMAD installation. Preserve user content.
    - Output: `[OK] BMAD: existing installation detected, harness patches applied`
 
-3. If NO `_bmad/` directory:
+2. If NO `_bmad/` directory:
    - Install BMAD: run `npx bmad-method init`
    - Must complete within 60 seconds (NFR18)
    - Output: `[OK] BMAD: installed (v6.x), harness patches applied`
 
-4. If the user is running in standalone mode (no BMAD desired):
+3. If the user is running in standalone mode (no BMAD desired):
    - Skip BMAD installation entirely
    - Output: `[INFO] BMAD: not installed (standalone mode)`
    - Continue to next step
@@ -305,7 +301,7 @@ Harness Init — codeharness v0.1.0
 [OK] Showboat: installed
 [OK] agent-browser: {installed|skipped}
 [OK] OTLP instrumentation: {installed|skipped}
-[OK] BMAD: {installed|existing|migrated|standalone}
+[OK] BMAD: {installed|existing|standalone}
 [OK] Documentation scaffold: {created|updated|preserved}
 [OK] Hooks: 4 registered (session-start, pre-commit, post-write, post-test)
 [OK] Enforcement configured: frontend:{ON|OFF} database:{ON|OFF} api:{ON|OFF} observability:ON

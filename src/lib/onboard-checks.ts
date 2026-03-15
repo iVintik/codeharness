@@ -249,8 +249,6 @@ export function storyToGapId(story: OnboardingStory): string {
       return buildGapId('docs', 'ARCHITECTURE.md');
     case 'doc-freshness':
       return buildGapId('docs', 'stale-docs');
-    case 'bmalph-cleanup':
-      return buildGapId('docs', 'bmalph-cleanup');
     case 'verification':
       return buildGapId('verification', story.storyKey!);
     case 'observability':

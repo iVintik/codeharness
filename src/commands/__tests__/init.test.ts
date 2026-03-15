@@ -79,7 +79,6 @@ vi.mock('../../lib/bmad.js', () => ({
     status: 'installed',
     version: '6.0.0',
     patches_applied: [],
-    bmalph_detected: false,
   })),
   applyAllPatches: vi.fn(() => [
     { patchName: 'story-verification', targetFile: 'template.md', applied: true, updated: false },
@@ -88,7 +87,6 @@ vi.mock('../../lib/bmad.js', () => ({
     { patchName: 'retro-enforcement', targetFile: 'instructions.md', applied: true, updated: false },
     { patchName: 'sprint-beads', targetFile: 'checklist.md', applied: true, updated: false },
   ]),
-  detectBmalph: vi.fn(() => ({ detected: false, files: [] })),
   detectBmadVersion: vi.fn(() => '6.0.0'),
   BmadError: class BmadError extends Error {
     command: string;
@@ -117,12 +115,11 @@ import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollect
 import { installAllDependencies, CriticalDependencyError } from '../../lib/deps.js';
 import { instrumentProject } from '../../lib/otlp.js';
 import { isBeadsInitialized, initBeads, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../../lib/beads.js';
-import { isBmadInstalled, installBmad, applyAllPatches, detectBmalph, detectBmadVersion, BmadError } from '../../lib/bmad.js';
+import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, BmadError } from '../../lib/bmad.js';
 
 const mockIsBmadInstalled = vi.mocked(isBmadInstalled);
 const mockInstallBmad = vi.mocked(installBmad);
 const mockApplyAllPatches = vi.mocked(applyAllPatches);
-const mockDetectBmalph = vi.mocked(detectBmalph);
 const mockDetectBmadVersion = vi.mocked(detectBmadVersion);
 
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);
@@ -163,7 +160,6 @@ beforeEach(() => {
     { patchName: 'retro-enforcement', targetFile: 'instructions.md', applied: true, updated: false },
     { patchName: 'sprint-beads', targetFile: 'checklist.md', applied: true, updated: false },
   ]);
-  mockDetectBmalph.mockReturnValue({ detected: false, files: [] });
   mockDetectBmadVersion.mockReturnValue('6.0.0');
   mockStartSharedStack.mockReturnValue({
     started: true,
@@ -975,7 +971,7 @@ describe('init command — BMAD installation', () => {
       status: 'installed',
       version: '6.0.0',
       patches_applied: [],
-      bmalph_detected: false,
+
     });
   });
 
@@ -1021,30 +1017,8 @@ describe('init command — BMAD installation', () => {
       status: 'installed',
       version: '6.0.0',
       patches_applied: [],
-      bmalph_detected: false,
+
     });
-  });
-
-  it('detects bmalph and prints warning', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockDetectBmalph.mockReturnValue({ detected: true, files: ['.ralph/.ralphrc'] });
-
-    const { stdout } = await runCli(['init']);
-    expect(stdout).toContain('[WARN] bmalph detected');
-
-    mockDetectBmalph.mockReturnValue({ detected: false, files: [] });
-  });
-
-  it('JSON output includes bmalph_detected when bmalph found', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockDetectBmalph.mockReturnValue({ detected: true, files: ['.ralph/.ralphrc'] });
-
-    const { stdout } = await runCli(['--json', 'init']);
-    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
-    const parsed = JSON.parse(jsonLine!);
-    expect(parsed.bmad.bmalph_detected).toBe(true);
-
-    mockDetectBmalph.mockReturnValue({ detected: false, files: [] });
   });
 
   it('re-throws non-BmadError errors from BMAD init', async () => {
@@ -1066,7 +1040,7 @@ describe('init command — BMAD installation', () => {
       status: 'installed',
       version: '6.0.0',
       patches_applied: [],
-      bmalph_detected: false,
+
     });
   });
 
@@ -1077,7 +1051,7 @@ describe('init command — BMAD installation', () => {
       status: 'installed',
       version: null,
       patches_applied: [],
-      bmalph_detected: false,
+
     });
 
     const { stdout } = await runCli(['init']);
@@ -1088,7 +1062,7 @@ describe('init command — BMAD installation', () => {
       status: 'installed',
       version: '6.0.0',
       patches_applied: [],
-      bmalph_detected: false,
+
     });
   });
 });

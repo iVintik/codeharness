@@ -186,10 +186,6 @@ describe('storyToGapId', () => {
     expect(storyToGapId(story)).toBe('[gap:docs:stale-docs]');
   });
 
-  it('maps bmalph-cleanup type to [gap:docs:bmalph-cleanup]', () => {
-    const story = makeStory({ type: 'bmalph-cleanup' });
-    expect(storyToGapId(story)).toBe('[gap:docs:bmalph-cleanup]');
-  });
 });
 
 // ─── filterTrackedGaps ──────────────────────────────────────────────────────
@@ -212,7 +208,6 @@ describe('filterTrackedGaps', () => {
     const stories = [
       makeStory({ key: '0.1', type: 'coverage', module: 'src/lib' }),
       makeStory({ key: '0.2', type: 'architecture' }),
-      makeStory({ key: '0.3', type: 'bmalph-cleanup' }),
     ];
     const existingIssues: BeadsIssue[] = [
       makeBeadsIssue({
@@ -232,8 +227,7 @@ describe('filterTrackedGaps', () => {
 
     const result = filterTrackedGaps(stories, { listIssues: mockList });
 
-    expect(result.untracked).toHaveLength(1);
-    expect(result.untracked[0].type).toBe('bmalph-cleanup');
+    expect(result.untracked).toHaveLength(0);
     expect(result.trackedCount).toBe(2);
   });
 

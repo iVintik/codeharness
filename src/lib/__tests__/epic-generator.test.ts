@@ -42,9 +42,7 @@ function makeScanResult(overrides: Partial<ScanResult> = {}): ScanResult {
     totalSourceFiles: 20,
     artifacts: {
       hasBmad: false,
-      hasBmalph: false,
       bmadPath: null,
-      bmalpthFiles: [],
     },
     ...overrides,
   };
@@ -79,7 +77,7 @@ function makeEpic(overrides: Partial<OnboardingEpic> = {}): OnboardingEpic {
     title: 'Onboarding Epic: Bring Project to Harness Compliance',
     generatedAt: '2026-03-15T10:00:00Z',
     stories: [],
-    summary: { totalStories: 0, coverageStories: 0, docStories: 0, cleanupStories: 0, verificationStories: 0, observabilityStories: 0 },
+    summary: { totalStories: 0, coverageStories: 0, docStories: 0, verificationStories: 0, observabilityStories: 0 },
     ...overrides,
   };
 }
@@ -115,7 +113,6 @@ describe('generateOnboardingEpic', () => {
     expect(epic.summary.totalStories).toBe(0);
     expect(epic.summary.coverageStories).toBe(0);
     expect(epic.summary.docStories).toBe(0);
-    expect(epic.summary.cleanupStories).toBe(0);
   });
 
   it('generates coverage stories for modules below 100%', () => {
@@ -193,32 +190,6 @@ describe('generateOnboardingEpic', () => {
     expect(epic.summary.docStories).toBe(1);
   });
 
-  it('generates bmalph-cleanup story when bmalph artifacts found', () => {
-    mkdirSync(join(testDir, 'src/lib'), { recursive: true });
-    mkdirSync(join(testDir, 'src/commands'), { recursive: true });
-    writeFileSync(join(testDir, 'src/lib/AGENTS.md'), '# Agents', 'utf-8');
-    writeFileSync(join(testDir, 'src/commands/AGENTS.md'), '# Agents', 'utf-8');
-
-    const scan = makeScanResult({
-      artifacts: {
-        hasBmad: true,
-        hasBmalph: true,
-        bmadPath: '_bmad',
-        bmalpthFiles: ['.ralph/.ralphrc'],
-      },
-    });
-    const coverage = makeCoverageReport();
-    const audit = makeAuditResult();
-
-    const epic = generateOnboardingEpic(scan, coverage, audit, testDir);
-
-    const cleanupStories = epic.stories.filter(s => s.type === 'bmalph-cleanup');
-    expect(cleanupStories).toHaveLength(1);
-    expect(cleanupStories[0].title).toBe('Clean up bmalph artifacts');
-    expect(cleanupStories[0].acceptanceCriteria[0]).toContain('.ralph/.ralphrc');
-    expect(epic.summary.cleanupStories).toBe(1);
-  });
-
   it('generates agents-md stories for modules missing AGENTS.md', () => {
     // Only create AGENTS.md for src/commands, not src/lib
     mkdirSync(join(testDir, 'src/lib'), { recursive: true });
@@ -245,9 +216,7 @@ describe('generateOnboardingEpic', () => {
     const scan = makeScanResult({
       artifacts: {
         hasBmad: true,
-        hasBmalph: true,
         bmadPath: '_bmad',
-        bmalpthFiles: ['.ralph/.ralphrc'],
       },
     });
     const coverage = makeCoverageReport({
@@ -266,15 +235,14 @@ describe('generateOnboardingEpic', () => {
 
     const epic = generateOnboardingEpic(scan, coverage, audit, testDir);
 
-    // Expected: 1 architecture + 2 agents-md + 1 coverage + 1 doc-freshness + 1 cleanup = 6
-    expect(epic.summary.totalStories).toBe(6);
+    // Expected: 1 architecture + 2 agents-md + 1 coverage + 1 doc-freshness = 5
+    expect(epic.summary.totalStories).toBe(5);
     expect(epic.summary.coverageStories).toBe(1);
     expect(epic.summary.docStories).toBe(4); // 1 architecture + 2 agents-md + 1 doc-freshness
-    expect(epic.summary.cleanupStories).toBe(1);
 
     // Verify sequential numbering
     const keys = epic.stories.map(s => s.key);
-    expect(keys).toEqual(['0.1', '0.2', '0.3', '0.4', '0.5', '0.6']);
+    expect(keys).toEqual(['0.1', '0.2', '0.3', '0.4', '0.5']);
   });
 
   it('sets generatedAt timestamp', () => {
@@ -318,7 +286,7 @@ describe('writeOnboardingEpic', () => {
           ],
         },
       ],
-      summary: { totalStories: 2, coverageStories: 1, docStories: 1, cleanupStories: 0, verificationStories: 0, observabilityStories: 0 },
+      summary: { totalStories: 2, coverageStories: 1, docStories: 1, verificationStories: 0, observabilityStories: 0 },
     });
 
     const outputPath = join(testDir, 'ralph', 'onboarding-epic.md');
@@ -368,7 +336,7 @@ describe('writeOnboardingEpic', () => {
         module: 'src/lib',
         acceptanceCriteria: ['**Given** src/lib has 5 source files and no AGENTS.md\n**When** the agent reads the module\n**Then** src/lib/AGENTS.md is created with module purpose and key files'],
       }],
-      summary: { totalStories: 1, coverageStories: 0, docStories: 1, cleanupStories: 0, verificationStories: 0, observabilityStories: 0 },
+      summary: { totalStories: 1, coverageStories: 0, docStories: 1, verificationStories: 0, observabilityStories: 0 },
     });
 
     const outputPath = join(testDir, 'epic.md');
@@ -386,7 +354,7 @@ describe('writeOnboardingEpic', () => {
         type: 'doc-freshness',
         acceptanceCriteria: ['**Given** the following documents are stale: README.md\n**When** the agent reviews them\n**Then** all stale documents are updated'],
       }],
-      summary: { totalStories: 1, coverageStories: 0, docStories: 1, cleanupStories: 0, verificationStories: 0, observabilityStories: 0 },
+      summary: { totalStories: 1, coverageStories: 0, docStories: 1, verificationStories: 0, observabilityStories: 0 },
     });
 
     const outputPath = join(testDir, 'epic.md');
@@ -396,23 +364,6 @@ describe('writeOnboardingEpic', () => {
     expect(content).toContain('As a developer, I want up-to-date documentation reflecting the current codebase.');
   });
 
-  it('writes correct user story for bmalph-cleanup type', () => {
-    const epic = makeEpic({
-      stories: [{
-        key: '0.1',
-        title: 'Clean up bmalph artifacts',
-        type: 'bmalph-cleanup',
-        acceptanceCriteria: ['**Given** bmalph artifacts found\n**When** the agent cleans up\n**Then** all bmalph artifacts are removed'],
-      }],
-      summary: { totalStories: 1, coverageStories: 0, docStories: 0, cleanupStories: 1, verificationStories: 0, observabilityStories: 0 },
-    });
-
-    const outputPath = join(testDir, 'epic.md');
-    writeOnboardingEpic(epic, outputPath);
-
-    const content = readFileSync(outputPath, 'utf-8');
-    expect(content).toContain('As a developer, I want legacy bmalph artifacts cleaned up.');
-  });
 });
 
 // ─── formatEpicSummary ──────────────────────────────────────────────────────
@@ -420,41 +371,41 @@ describe('writeOnboardingEpic', () => {
 describe('formatEpicSummary', () => {
   it('formats summary with known inputs', () => {
     const epic = makeEpic({
-      summary: { totalStories: 5, coverageStories: 2, docStories: 2, cleanupStories: 1, verificationStories: 0, observabilityStories: 0 },
+      summary: { totalStories: 5, coverageStories: 2, docStories: 2, verificationStories: 1, observabilityStories: 0 },
     });
 
     expect(formatEpicSummary(epic)).toBe(
-      'Onboarding plan: 5 stories (2 coverage, 2 documentation, 1 cleanup, 0 verification, 0 observability)',
+      'Onboarding plan: 5 stories (2 coverage, 2 documentation, 1 verification, 0 observability)',
     );
   });
 
   it('formats summary with zero stories', () => {
     const epic = makeEpic({
-      summary: { totalStories: 0, coverageStories: 0, docStories: 0, cleanupStories: 0, verificationStories: 0, observabilityStories: 0 },
+      summary: { totalStories: 0, coverageStories: 0, docStories: 0, verificationStories: 0, observabilityStories: 0 },
     });
 
     expect(formatEpicSummary(epic)).toBe(
-      'Onboarding plan: 0 stories (0 coverage, 0 documentation, 0 cleanup, 0 verification, 0 observability)',
+      'Onboarding plan: 0 stories (0 coverage, 0 documentation, 0 verification, 0 observability)',
     );
   });
 
   it('formats summary with only coverage stories', () => {
     const epic = makeEpic({
-      summary: { totalStories: 3, coverageStories: 3, docStories: 0, cleanupStories: 0, verificationStories: 0, observabilityStories: 0 },
+      summary: { totalStories: 3, coverageStories: 3, docStories: 0, verificationStories: 0, observabilityStories: 0 },
     });
 
     expect(formatEpicSummary(epic)).toBe(
-      'Onboarding plan: 3 stories (3 coverage, 0 documentation, 0 cleanup, 0 verification, 0 observability)',
+      'Onboarding plan: 3 stories (3 coverage, 0 documentation, 0 verification, 0 observability)',
     );
   });
 
   it('formats summary with verification and observability stories', () => {
     const epic = makeEpic({
-      summary: { totalStories: 4, coverageStories: 0, docStories: 0, cleanupStories: 0, verificationStories: 2, observabilityStories: 2 },
+      summary: { totalStories: 4, coverageStories: 0, docStories: 0, verificationStories: 2, observabilityStories: 2 },
     });
 
     expect(formatEpicSummary(epic)).toBe(
-      'Onboarding plan: 4 stories (0 coverage, 0 documentation, 0 cleanup, 2 verification, 2 observability)',
+      'Onboarding plan: 4 stories (0 coverage, 0 documentation, 2 verification, 2 observability)',
     );
   });
 });
@@ -593,14 +544,6 @@ describe('importOnboardingEpic', () => {
       '',
       '**Given** A **When** B **Then** C',
       '',
-      '### Story 0.3: Clean up bmalph artifacts',
-      '',
-      'As a developer,',
-      'I want cleanup,',
-      'So that order.',
-      '',
-      '**Given** D **When** E **Then** F',
-      '',
     ].join('\n'), 'utf-8');
 
     const mockCreate = vi.fn().mockImplementation((_title: string, opts: any) => {
@@ -617,8 +560,6 @@ describe('importOnboardingEpic', () => {
     expect(mockCreate.mock.calls[0][1].priority).toBe(3);
     // coverage -> priority 2
     expect(mockCreate.mock.calls[1][1].priority).toBe(2);
-    // bmalph-cleanup -> priority 4
-    expect(mockCreate.mock.calls[2][1].priority).toBe(4);
   });
 
   it('returns empty array for non-existent file', () => {
@@ -728,35 +669,6 @@ describe('importOnboardingEpic', () => {
 
     const desc = mockCreate.mock.calls[0][1].description;
     expect(desc).toContain('[gap:docs:src/lib/AGENTS.md]');
-  });
-
-  it('appends gap-id tags for bmalph-cleanup stories', () => {
-    const epicPath = join(testDir, 'epic-cleanup.md');
-    writeFileSync(epicPath, [
-      '## Epic 0: Onboarding',
-      '',
-      '### Story 0.1: Clean up bmalph artifacts',
-      '',
-      'As a developer,',
-      'I want cleanup,',
-      'So that order.',
-      '',
-      '**Given** X **When** Y **Then** Z',
-      '',
-    ].join('\n'), 'utf-8');
-
-    const mockCreate = vi.fn().mockImplementation((title: string, opts: any) => {
-      return makeBeadsIssue({ id: 'BEAD-1', title, description: opts?.description });
-    });
-    const mockList = vi.fn().mockReturnValue([]);
-
-    importOnboardingEpic(epicPath, {
-      listIssues: mockList,
-      createIssue: mockCreate,
-    });
-
-    const desc = mockCreate.mock.calls[0][1].description;
-    expect(desc).toContain('[gap:docs:bmalph-cleanup]');
   });
 
   it('appends gap-id tags for doc-freshness stories', () => {
@@ -934,7 +846,7 @@ describe('writeOnboardingEpic — new story types', () => {
         storyKey: '4-1-verification-pipeline',
         acceptanceCriteria: ['**Given** story 4-1 is done **When** no proof **Then** create proof'],
       }],
-      summary: { totalStories: 1, coverageStories: 0, docStories: 0, cleanupStories: 0, verificationStories: 1, observabilityStories: 0 },
+      summary: { totalStories: 1, coverageStories: 0, docStories: 0, verificationStories: 1, observabilityStories: 0 },
     });
 
     const outputPath = join(testDir, 'epic.md');
@@ -953,7 +865,7 @@ describe('writeOnboardingEpic — new story types', () => {
         module: 'otlp-config',
         acceptanceCriteria: ['**Given** OTLP not configured **When** onboard **Then** configure'],
       }],
-      summary: { totalStories: 1, coverageStories: 0, docStories: 0, cleanupStories: 0, verificationStories: 0, observabilityStories: 1 },
+      summary: { totalStories: 1, coverageStories: 0, docStories: 0, verificationStories: 0, observabilityStories: 1 },
     });
 
     const outputPath = join(testDir, 'epic.md');

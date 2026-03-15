@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { applyPatch } from './patch-engine.js';
 import { PATCH_TEMPLATES } from '../templates/bmad-patches.js';
@@ -21,7 +21,6 @@ export interface BmadInstallResult {
   status: 'installed' | 'already-installed' | 'failed';
   version: string | null;
   patches_applied: string[];
-  bmalph_detected: boolean;
 }
 
 export interface PatchResult {
@@ -97,42 +96,6 @@ export function detectBmadVersion(dir?: string): string | null {
 }
 
 /**
- * Detects bmalph (predecessor to codeharness) artifacts.
- * Returns detection result with list of found files.
- */
-export function detectBmalph(dir?: string): { detected: boolean; files: string[] } {
-  const root = dir ?? process.cwd();
-  const files: string[] = [];
-
-  // Check for .ralph/.ralphrc
-  const ralphrcPath = join(root, '.ralph', '.ralphrc');
-  if (existsSync(ralphrcPath)) {
-    files.push('.ralph/.ralphrc');
-  }
-
-  // Check for .ralph/ directory itself
-  const ralphDir = join(root, '.ralph');
-  if (existsSync(ralphDir)) {
-    try {
-      const entries = readdirSync(ralphDir);
-      for (const entry of entries) {
-        const entryPath = `.ralph/${entry}`;
-        if (!files.includes(entryPath)) {
-          files.push(entryPath);
-        }
-      }
-    } catch {
-      // Directory exists but can't be read — already noted
-    }
-  }
-
-  return {
-    detected: files.length > 0,
-    files,
-  };
-}
-
-/**
  * Installs BMAD Method via `npx bmad-method init`.
  * If `_bmad/` already exists, skips installation and returns `already-installed`.
  * On failure, throws BmadError.
@@ -146,7 +109,6 @@ export function installBmad(dir?: string): BmadInstallResult {
       status: 'already-installed',
       version,
       patches_applied: [],
-      bmalph_detected: false,
     };
   }
 

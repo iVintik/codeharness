@@ -39,6 +39,7 @@ export interface HarnessState {
     resource_attributes?: string;
     agent_sdk?: string;
   };
+  retro_issue_targets?: Array<{ repo: string; labels: string[] }>;
   docker?: {
     compose_file: string;
     stack_running: boolean;

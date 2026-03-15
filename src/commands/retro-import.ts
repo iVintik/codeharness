@@ -1,10 +1,13 @@
 import { Command } from 'commander';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { ok, fail, info, jsonOutput } from '../lib/output.js';
+import { ok, fail, info, warn, jsonOutput } from '../lib/output.js';
 import { parseRetroActionItems, classifyFinding, derivePriority } from '../lib/retro-parser.js';
 import { createOrFindIssue, buildGapId } from '../lib/beads.js';
+import { isGhAvailable, findExistingGhIssue, ghIssueCreate, ensureLabels, getRepoFromRemote } from '../lib/github.js';
+import { readState, StateFileNotFoundError } from '../lib/state.js';
 import type { Classification } from '../lib/retro-parser.js';
+import type { RetroIssueTarget } from '../lib/github.js';
 
 const STORY_DIR = '_bmad-output/implementation-artifacts';
 
@@ -17,6 +20,14 @@ interface ImportedIssue {
   gapId: string;
   classification: string;
   created: boolean;
+  status: string;
+  notes: string;
+}
+
+interface GitHubResult {
+  created: number;
+  skipped: number;
+  errors: number;
 }
 
 function classificationToString(c: Classification): string {
@@ -107,6 +118,8 @@ export function registerRetroImportCommand(program: Command): void {
             gapId,
             classification: classificationToString(classification),
             created: result.created,
+            status: item.status,
+            notes: item.notes,
           };
 
           issues.push(issueRecord);
@@ -128,8 +141,158 @@ export function registerRetroImportCommand(program: Command): void {
         }
       }
 
+      // ─── GitHub Issue Creation Phase ────────────────────────────────────
+      const githubResult = createGitHubIssues(issues, epicNum, isJson);
+
       if (isJson) {
-        jsonOutput({ imported, skipped, issues: issues as unknown as Record<string, unknown>[] });
+        jsonOutput({
+          imported,
+          skipped,
+          issues: issues as unknown as Record<string, unknown>[],
+          github: githubResult as unknown as Record<string, unknown>,
+        });
       }
     });
+}
+
+/**
+ * Resolves the target repo for a classification based on retro_issue_targets config.
+ */
+function resolveTargetRepo(
+  classification: string,
+  targets: RetroIssueTarget[],
+): RetroIssueTarget | undefined {
+  if (targets.length === 0) return undefined;
+
+  if (classification === 'harness') {
+    // Prefer explicit codeharness repo, then first non-auto, then auto as fallback
+    const explicit = targets.find(t => t.repo === 'iVintik/codeharness');
+    if (explicit) return explicit;
+    const nonAuto = targets.find(t => t.repo !== 'auto');
+    if (nonAuto) return nonAuto;
+    return targets[0];
+  }
+
+  // project or tool:* → prefer auto, else first target
+  const auto = targets.find(t => t.repo === 'auto');
+  if (auto) return auto;
+  return targets[0];
+}
+
+/**
+ * Builds the GitHub issue body with retro context and gap-id for dedup.
+ */
+function buildGitHubIssueBody(
+  item: ImportedIssue,
+  epicNum: number,
+  projectName: string,
+): string {
+  return `## Retro Action Item ${item.number} — Epic ${epicNum}
+
+**Source project:** ${projectName}
+**Classification:** ${item.classification}
+**Original status:** ${item.status}
+**Notes:** ${item.notes}
+
+${item.title}
+
+<!-- gap-id: ${item.gapId} -->`;
+}
+
+/**
+ * GitHub issue creation phase. Runs after beads import.
+ * Failures here never affect beads import results.
+ */
+function createGitHubIssues(
+  issues: ImportedIssue[],
+  epicNum: number,
+  isJson: boolean,
+): GitHubResult | undefined {
+  // Read state to check for retro_issue_targets
+  let targets: RetroIssueTarget[] | undefined;
+  try {
+    const state = readState();
+    targets = state.retro_issue_targets;
+  } catch (err: unknown) {
+    if (err instanceof StateFileNotFoundError) {
+      if (!isJson) {
+        info('No state file found — skipping GitHub issues');
+      }
+      return undefined;
+    }
+    // Other state errors — skip GitHub phase gracefully
+    if (!isJson) {
+      info('Could not read state file — skipping GitHub issues');
+    }
+    return undefined;
+  }
+
+  if (!targets || targets.length === 0) {
+    if (!isJson) {
+      info('No retro_issue_targets configured — skipping GitHub issues');
+    }
+    return undefined;
+  }
+
+  // Check gh CLI availability
+  if (!isGhAvailable()) {
+    if (!isJson) {
+      warn('gh CLI not available — skipping GitHub issue creation');
+    }
+    return undefined;
+  }
+
+  // Resolve "auto" repos
+  const resolvedAutoRepo = getRepoFromRemote();
+
+  const result: GitHubResult = { created: 0, skipped: 0, errors: 0 };
+
+  // Detect project name from git remote
+  const projectName = resolvedAutoRepo ?? 'unknown';
+
+  for (const item of issues) {
+    const target = resolveTargetRepo(item.classification, targets);
+    if (!target) continue;
+
+    // Resolve actual repo name
+    const repo = target.repo === 'auto' ? resolvedAutoRepo : target.repo;
+    if (!repo) {
+      if (!isJson) {
+        warn(`Cannot resolve repo for ${item.number} — git remote not detected`);
+      }
+      result.errors++;
+      continue;
+    }
+
+    try {
+      // Check for existing issue (dedup)
+      const existing = findExistingGhIssue(repo, item.gapId);
+      if (existing) {
+        if (!isJson) {
+          info(`GitHub issue exists: ${repo}#${existing.number}`);
+        }
+        result.skipped++;
+        continue;
+      }
+
+      // Ensure labels exist
+      ensureLabels(repo, target.labels);
+
+      // Create the issue
+      const body = buildGitHubIssueBody(item, epicNum, projectName);
+      const created = ghIssueCreate(repo, item.title, body, target.labels);
+      if (!isJson) {
+        ok(`GitHub issue created: ${repo}#${created.number}`);
+      }
+      result.created++;
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!isJson) {
+        fail(`GitHub issue failed for ${item.number}: ${message}`);
+      }
+      result.errors++;
+    }
+  }
+
+  return result;
 }

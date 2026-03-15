@@ -76,6 +76,25 @@ Queries observability data (logs, metrics, traces) scoped to the current project
 - **Key deps:** `lib/state` (service name, endpoint resolution)
 - **Subcommands:** `logs <filter>`, `metrics <promql>`, `traces`
 
+## All Commands (14 total)
+
+| Command | File | Status |
+|---------|------|--------|
+| init | init.ts | Core onboarding |
+| bridge | bridge.ts | BMAD to Beads bridge |
+| run | run.ts | Ralph execution loop |
+| verify | verify.ts | Story verification |
+| status | status.ts | Harness health |
+| onboard | onboard.ts | Codebase scanning |
+| teardown | teardown.ts | Harness removal |
+| state | state.ts | State management |
+| sync | sync.ts | Beads↔files sync |
+| coverage | coverage.ts | Test coverage |
+| doc-health | doc-health.ts | Doc freshness |
+| stack | stack.ts | Observability stack |
+| retro-import | retro-import.ts | Retro parsing |
+| query | query.ts | Observability queries |
+
 ## Adding a New Command
 
 1. Create `src/commands/<name>.ts` exporting `register<Name>Command(program: Command): void`

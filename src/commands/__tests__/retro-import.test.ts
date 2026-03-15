@@ -15,15 +15,44 @@ vi.mock('../../lib/output.js', () => ({
   ok: vi.fn(),
   fail: vi.fn(),
   info: vi.fn(),
+  warn: vi.fn(),
   jsonOutput: vi.fn(),
+}));
+
+// Mock github module
+vi.mock('../../lib/github.js', () => ({
+  isGhAvailable: vi.fn(),
+  findExistingGhIssue: vi.fn(),
+  ghIssueCreate: vi.fn(),
+  ensureLabels: vi.fn(),
+  getRepoFromRemote: vi.fn(),
+}));
+
+// Mock state module
+vi.mock('../../lib/state.js', () => ({
+  readState: vi.fn(),
+  StateFileNotFoundError: class StateFileNotFoundError extends Error {
+    constructor() {
+      super('No state file found');
+      this.name = 'StateFileNotFoundError';
+    }
+  },
 }));
 
 import { registerRetroImportCommand } from '../retro-import.js';
 import { createOrFindIssue, buildGapId } from '../../lib/beads.js';
-import { ok, fail, info, jsonOutput } from '../../lib/output.js';
+import { ok, fail, info, warn, jsonOutput } from '../../lib/output.js';
+import { isGhAvailable, findExistingGhIssue, ghIssueCreate, ensureLabels, getRepoFromRemote } from '../../lib/github.js';
+import { readState, StateFileNotFoundError } from '../../lib/state.js';
 
 const mockCreateOrFindIssue = vi.mocked(createOrFindIssue);
 const mockBuildGapId = vi.mocked(buildGapId);
+const mockIsGhAvailable = vi.mocked(isGhAvailable);
+const mockFindExistingGhIssue = vi.mocked(findExistingGhIssue);
+const mockGhIssueCreate = vi.mocked(ghIssueCreate);
+const mockEnsureLabels = vi.mocked(ensureLabels);
+const mockGetRepoFromRemote = vi.mocked(getRepoFromRemote);
+const mockReadState = vi.mocked(readState);
 
 let testDir: string;
 let originalCwd: string;
@@ -48,6 +77,10 @@ beforeEach(() => {
   originalCwd = process.cwd();
   process.chdir(testDir);
   process.exitCode = undefined;
+  // Default: no state file (skips GitHub phase)
+  mockReadState.mockImplementation(() => {
+    throw new StateFileNotFoundError();
+  });
 });
 
 afterEach(() => {
@@ -119,12 +152,10 @@ describe('retro-import command', () => {
 
     await runRetroImport(['--epic', '9']);
 
-    expect(vi.mocked(info)).toHaveBeenCalledTimes(3);
     expect(vi.mocked(ok)).not.toHaveBeenCalled();
-    // Verify the info messages contain "Skipping existing:"
-    for (const call of vi.mocked(info).mock.calls) {
-      expect(call[0]).toContain('Skipping existing:');
-    }
+    // Check that at least 3 info calls contain "Skipping existing:"
+    const skipCalls = vi.mocked(info).mock.calls.filter(c => c[0].includes('Skipping existing:'));
+    expect(skipCalls).toHaveLength(3);
   });
 
   // ─── JSON output ──────────────────────────────────────────────────────
@@ -415,5 +446,649 @@ Nothing here.
     const title = firstCall[0];
     expect(title.length).toBeLessThanOrEqual(120);
     expect(title).toMatch(/\.\.\.$/);
+  });
+
+  // ─── GitHub integration tests ─────────────────────────────────────────
+
+  describe('GitHub issue creation', () => {
+    const setupBeadsSuccess = () => {
+      mockCreateOrFindIssue.mockReturnValue({
+        issue: { id: '1', title: 'test', status: 'open', type: 'task', priority: 2 },
+        created: true,
+      });
+    };
+
+    it('creates GitHub issues when retro_issue_targets is configured', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix project thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [
+          { repo: 'auto', labels: ['retro-finding'] },
+          { repo: 'iVintik/codeharness', labels: ['user-retro'] },
+        ],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/project');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockReturnValue({ number: 42, url: 'https://github.com/owner/project/issues/42' });
+
+      await runRetroImport(['--epic', '9']);
+
+      expect(mockEnsureLabels).toHaveBeenCalled();
+      expect(mockGhIssueCreate).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(ok)).toHaveBeenCalledWith(expect.stringContaining('GitHub issue created: owner/project#42'));
+    });
+
+    it('skips GitHub when retro_issue_targets is not configured', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+      } as ReturnType<typeof readState>);
+
+      await runRetroImport(['--epic', '9']);
+
+      expect(vi.mocked(info)).toHaveBeenCalledWith('No retro_issue_targets configured — skipping GitHub issues');
+      expect(mockIsGhAvailable).not.toHaveBeenCalled();
+    });
+
+    it('skips GitHub when gh CLI is not available', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(false);
+
+      await runRetroImport(['--epic', '9']);
+
+      expect(vi.mocked(warn)).toHaveBeenCalledWith('gh CLI not available — skipping GitHub issue creation');
+      expect(mockGhIssueCreate).not.toHaveBeenCalled();
+    });
+
+    it('skips duplicate GitHub issues', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/repo');
+      mockFindExistingGhIssue.mockReturnValue({
+        number: 10,
+        title: 'Existing',
+        body: '<!-- gap-id: [gap:retro:epic-9-item-A1] -->',
+        url: 'https://github.com/owner/repo/issues/10',
+      });
+
+      await runRetroImport(['--epic', '9']);
+
+      expect(vi.mocked(info)).toHaveBeenCalledWith('GitHub issue exists: owner/repo#10');
+      expect(mockGhIssueCreate).not.toHaveBeenCalled();
+    });
+
+    it('includes github field in JSON output', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/repo');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockReturnValue({ number: 1, url: 'u' });
+
+      await runRetroImport(['--epic', '9', '--json']);
+
+      const jsonCall = vi.mocked(jsonOutput).mock.calls[0][0];
+      expect(jsonCall).toHaveProperty('github');
+      const github = jsonCall['github'] as Record<string, unknown>;
+      expect(github).toHaveProperty('created', 1);
+      expect(github).toHaveProperty('skipped', 0);
+      expect(github).toHaveProperty('errors', 0);
+    });
+
+    it('skips GitHub phase when no state file exists (beads still works)', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      // Default: mockReadState throws StateFileNotFoundError
+
+      await runRetroImport(['--epic', '9']);
+
+      // Beads import succeeds
+      expect(mockCreateOrFindIssue).toHaveBeenCalledTimes(1);
+      // GitHub phase skipped with info message
+      expect(vi.mocked(info)).toHaveBeenCalledWith('No state file found — skipping GitHub issues');
+      expect(mockGhIssueCreate).not.toHaveBeenCalled();
+    });
+
+    it('handles ghIssueCreate failure gracefully', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/repo');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockImplementation(() => {
+        throw new Error('API rate limit');
+      });
+
+      await runRetroImport(['--epic', '9']);
+
+      expect(vi.mocked(fail)).toHaveBeenCalledWith(
+        expect.stringContaining('GitHub issue failed for A1'),
+      );
+    });
+
+    it('warns when auto repo cannot be resolved', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue(undefined);
+
+      await runRetroImport(['--epic', '9']);
+
+      expect(vi.mocked(warn)).toHaveBeenCalledWith(expect.stringContaining('Cannot resolve repo'));
+    });
+
+    it('suppresses info in JSON mode for state read errors', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockImplementation(() => {
+        throw new Error('corrupted state');
+      });
+
+      await runRetroImport(['--epic', '9', '--json']);
+
+      const infoCalls = vi.mocked(info).mock.calls.filter(c => c[0].includes('Could not read state'));
+      expect(infoCalls).toHaveLength(0);
+    });
+
+    it('handles other state read errors gracefully', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockImplementation(() => {
+        throw new Error('corrupted state');
+      });
+
+      await runRetroImport(['--epic', '9']);
+
+      expect(vi.mocked(info)).toHaveBeenCalledWith('Could not read state file — skipping GitHub issues');
+      expect(mockGhIssueCreate).not.toHaveBeenCalled();
+    });
+
+    it('routes project findings to non-auto target when no auto target exists', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix project thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [
+          { repo: 'iVintik/codeharness', labels: ['retro-finding'] },
+        ],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/project');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockReturnValue({ number: 1, url: 'u' });
+
+      await runRetroImport(['--epic', '9']);
+
+      // With no "auto" target, project findings go to first target
+      expect(mockGhIssueCreate).toHaveBeenCalledWith(
+        'iVintik/codeharness',
+        expect.any(String),
+        expect.any(String),
+        ['retro-finding'],
+      );
+    });
+
+    it('routes harness findings to non-auto target when no codeharness target exists', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix harness bug | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [
+          { repo: 'other/repo', labels: ['user-retro'] },
+        ],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/project');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockReturnValue({ number: 1, url: 'u' });
+
+      await runRetroImport(['--epic', '9']);
+
+      // Harness with no codeharness target → first non-auto target
+      expect(mockGhIssueCreate).toHaveBeenCalledWith(
+        'other/repo',
+        expect.any(String),
+        expect.any(String),
+        ['user-retro'],
+      );
+    });
+
+    it('routes harness findings to auto target as last fallback', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix harness bug | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [
+          { repo: 'auto', labels: ['retro'] },
+        ],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/project');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockReturnValue({ number: 1, url: 'u' });
+
+      await runRetroImport(['--epic', '9']);
+
+      // Harness with only auto target → auto fallback
+      expect(mockGhIssueCreate).toHaveBeenCalledWith(
+        'owner/project',
+        expect.any(String),
+        expect.any(String),
+        ['retro'],
+      );
+    });
+
+    it('suppresses warn in JSON mode when auto repo cannot be resolved', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue(undefined);
+
+      await runRetroImport(['--epic', '9', '--json']);
+
+      expect(vi.mocked(warn)).not.toHaveBeenCalled();
+      const jsonCall = vi.mocked(jsonOutput).mock.calls[0][0];
+      const github = jsonCall['github'] as Record<string, unknown>;
+      expect(github).toHaveProperty('errors', 1);
+    });
+
+    it('suppresses info in JSON mode for duplicate GitHub issues', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/repo');
+      mockFindExistingGhIssue.mockReturnValue({
+        number: 10,
+        title: 'Existing',
+        body: '<!-- gap-id: [gap:retro:epic-9-item-A1] -->',
+        url: 'https://github.com/owner/repo/issues/10',
+      });
+
+      await runRetroImport(['--epic', '9', '--json']);
+
+      // In JSON mode, info() should not be called for existing issue
+      const infoCalls = vi.mocked(info).mock.calls.filter(c => c[0].includes('GitHub issue exists'));
+      expect(infoCalls).toHaveLength(0);
+      const jsonCall = vi.mocked(jsonOutput).mock.calls[0][0];
+      const github = jsonCall['github'] as Record<string, unknown>;
+      expect(github).toHaveProperty('skipped', 1);
+    });
+
+    it('includes status and notes in GitHub issue body', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix project thing | Not done | Needs attention. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [
+          { repo: 'auto', labels: ['retro-finding'] },
+        ],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/project');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockReturnValue({ number: 42, url: 'https://github.com/owner/project/issues/42' });
+
+      await runRetroImport(['--epic', '9']);
+
+      const createCall = mockGhIssueCreate.mock.calls[0];
+      const body = createCall[2];
+      expect(body).toContain('**Original status:** Not done');
+      expect(body).toContain('**Notes:** Needs attention.');
+      expect(body).toContain('<!-- gap-id:');
+    });
+
+    it('suppresses fail in JSON mode for GitHub creation errors', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/repo');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockImplementation(() => {
+        throw new Error('API rate limit');
+      });
+
+      await runRetroImport(['--epic', '9', '--json']);
+
+      // In JSON mode, fail() should not be called for GitHub errors
+      const failCalls = vi.mocked(fail).mock.calls.filter(c => c[0].includes('GitHub issue failed'));
+      expect(failCalls).toHaveLength(0);
+      const jsonCall = vi.mocked(jsonOutput).mock.calls[0][0];
+      const github = jsonCall['github'] as Record<string, unknown>;
+      expect(github).toHaveProperty('errors', 1);
+    });
+
+    it('suppresses info in JSON mode when retro_issue_targets is empty', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [],
+      } as ReturnType<typeof readState>);
+
+      await runRetroImport(['--epic', '9', '--json']);
+
+      const infoCalls = vi.mocked(info).mock.calls.filter(c => c[0].includes('No retro_issue_targets'));
+      expect(infoCalls).toHaveLength(0);
+      expect(mockIsGhAvailable).not.toHaveBeenCalled();
+    });
+
+    it('suppresses warn in JSON mode when gh CLI unavailable', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(false);
+
+      await runRetroImport(['--epic', '9', '--json']);
+
+      const warnCalls = vi.mocked(warn).mock.calls.filter(c => c[0].includes('gh CLI'));
+      expect(warnCalls).toHaveLength(0);
+    });
+
+    it('suppresses ok in JSON mode for successful GitHub issue creation', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix project thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/repo');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockReturnValue({ number: 1, url: 'u' });
+
+      await runRetroImport(['--epic', '9', '--json']);
+
+      const okCalls = vi.mocked(ok).mock.calls.filter(c => c[0].includes('GitHub issue created'));
+      expect(okCalls).toHaveLength(0);
+    });
+
+    it('handles non-Error exceptions from ghIssueCreate', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix thing | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [{ repo: 'auto', labels: ['retro'] }],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/repo');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockImplementation(() => {
+        throw 'string error'; // eslint-disable-line no-throw-literal
+      });
+
+      await runRetroImport(['--epic', '9']);
+
+      expect(vi.mocked(fail)).toHaveBeenCalledWith(
+        expect.stringContaining('string error'),
+      );
+    });
+
+    it('routes harness findings to codeharness repo', async () => {
+      createRetroFile(9, `
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix harness bug | Not done | Ok. |
+`);
+      setupBeadsSuccess();
+      mockReadState.mockReturnValue({
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'nodejs',
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+        verification_log: [],
+        retro_issue_targets: [
+          { repo: 'auto', labels: ['retro-finding'] },
+          { repo: 'iVintik/codeharness', labels: ['user-retro'] },
+        ],
+      } as ReturnType<typeof readState>);
+      mockIsGhAvailable.mockReturnValue(true);
+      mockGetRepoFromRemote.mockReturnValue('owner/project');
+      mockFindExistingGhIssue.mockReturnValue(undefined);
+      mockGhIssueCreate.mockReturnValue({ number: 5, url: 'u' });
+
+      await runRetroImport(['--epic', '9']);
+
+      // "harness" classification should target iVintik/codeharness
+      expect(mockGhIssueCreate).toHaveBeenCalledWith(
+        'iVintik/codeharness',
+        expect.any(String),
+        expect.any(String),
+        ['user-retro'],
+      );
+    });
   });
 });

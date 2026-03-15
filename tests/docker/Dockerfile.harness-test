@@ -1,0 +1,36 @@
+FROM node:22-slim
+
+# System deps
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# Install Claude Code CLI globally
+RUN npm install -g @anthropic-ai/claude-code
+
+# Create non-root user (Claude Code refuses --dangerously-skip-permissions as root)
+RUN useradd -m -s /bin/bash harness && mkdir -p /workspace && chown harness:harness /workspace
+WORKDIR /workspace
+
+COPY --chown=harness:harness . .
+
+# Switch to harness user for all git and runtime operations
+USER harness
+
+# Initialize git repo
+RUN git config --global user.email "test@codeharness.dev" && \
+    git config --global user.name "codeharness-test" && \
+    git init && git add -A && git commit -m "test snapshot"
+
+# Apply test fixtures (overwrite sprint status and story with controlled versions)
+COPY --chown=harness:harness tests/docker/fixtures/sprint-status-test.yaml \
+     _bmad-output/implementation-artifacts/sprint-status.yaml
+COPY --chown=harness:harness tests/docker/fixtures/test-story.md \
+     _bmad-output/implementation-artifacts/0-1-hello-world.md
+
+# Re-commit with test fixtures in place (allow no-op if files unchanged)
+RUN git add -A && git diff --cached --quiet || git commit -m "apply test fixtures"
+
+ENTRYPOINT ["claude", \
+  "--dangerously-skip-permissions", \
+  "--print", \
+  "--plugin-dir", "/workspace", \
+  "--verbose"]

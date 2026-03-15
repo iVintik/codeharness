@@ -168,6 +168,18 @@
     </check>
   </step>
 
+  <!-- CODEHARNESS-PATCH-START:review-enforcement -->
+  <step n="4.5" goal="Harness verification checks">
+    <critical>Codeharness requires these additional review checks</critical>
+    <action>Verify Showboat proof document exists at docs/exec-plans/active/{{story_key}}.proof.md or docs/exec-plans/completed/{{story_key}}.proof.md</action>
+    <action>Check AGENTS.md freshness — all modules in File List must have up-to-date AGENTS.md</action>
+    <action>Verify test coverage meets 100% target for all changed modules</action>
+    <action if="proof document missing">Add HIGH finding: "Missing Showboat proof document"</action>
+    <action if="AGENTS.md stale or missing for changed module">Add MEDIUM finding: "AGENTS.md missing or stale for {{module}}"</action>
+    <action if="coverage below target">Add HIGH finding: "Test coverage below 100% target"</action>
+  </step>
+  <!-- CODEHARNESS-PATCH-END:review-enforcement -->
+
   <step n="5" goal="Update story status and sync sprint tracking">
     <!-- Determine new status based on review outcome -->
     <check if="all HIGH and MEDIUM issues fixed AND all ACs implemented">

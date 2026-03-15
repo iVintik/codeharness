@@ -1,1286 +1,1204 @@
 ---
 stepsCompleted: [1, 2, 3, 4]
-status: complete
-completedAt: '2026-03-14'
 inputDocuments:
-  - prd.md
-  - architecture.md
-  - ux-design-specification.md
+  - prd.md (v2)
+  - architecture.md (v2)
+  - ux-design-specification.md (v2)
 ---
 
 # codeharness - Epic Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown for codeharness, decomposing the requirements from the PRD, UX Design, and Architecture requirements into implementable stories.
+This document provides the complete epic and story breakdown for codeharness, decomposing 69 FRs, 28 NFRs, and architectural requirements into implementable stories for a Node.js CLI + Claude Code plugin.
 
 ## Requirements Inventory
 
 ### Functional Requirements
 
-FR1: User can install codeharness with a single command (`claude plugin install codeharness`)
-FR2: User can initialize the harness in a project via `/harness-init`
-FR3: System can detect the project's technology stack (Node.js via `package.json`, Python via `requirements.txt`/`pyproject.toml`)
-FR4: System can install BMAD Method via `npx bmad-method init` as part of `/harness-init`
-FR5: System can detect existing BMAD/bmalph installation and migrate (preserve artifacts, apply harness patches, take over execution)
-FR6: User can configure enforcement levels during init (frontend, database, API, VictoriaMetrics) with max-enforcement defaults
-FR7: System can persist enforcement configuration per project (`.claude/codeharness.local.md`)
-FR8: System can auto-install external dependencies (Docker check, Showboat, agent-browser, OTLP packages)
-FR9: User can re-run `/harness-init` idempotently without breaking existing configuration
-FR10: User can tear down the harness via `/harness-teardown` without affecting project source code
-FR11: System can start an ephemeral VictoriaMetrics stack via Docker Compose (VictoriaLogs + VictoriaMetrics + VictoriaTraces + OTel Collector)
-FR12: System can install OTLP auto-instrumentation for Node.js projects (zero code changes)
-FR13: System can install OTLP auto-instrumentation for Python projects (zero code changes)
-FR14: System can configure OTLP environment variables pointing to the local OTel Collector
-FR15: Agent can query VictoriaLogs via LogQL to inspect application runtime logs
-FR16: Agent can query VictoriaMetrics via PromQL to inspect application metrics
-FR17: Agent can trace request flows via VictoriaTraces
-FR18: System can verify the observability stack is running (SessionStart hook)
-FR19: Agent can verify UI features by interacting with the application via agent-browser (navigate, click, fill, screenshot)
-FR20: Agent can verify API endpoints by making real HTTP calls and inspecting response bodies AND side effects
-FR21: Agent can verify database state via Database MCP (read-only queries)
-FR22: Agent can verify runtime behavior by querying VictoriaLogs for expected log entries
-FR23: Agent can capture verification evidence in Showboat proof documents (`showboat exec`, `showboat image`)
-FR24: Agent can re-verify proof documents via `showboat verify` to confirm outputs match
-FR25: Agent can take annotated screenshots via agent-browser for visual evidence
-FR26: Agent can diff before/after states via agent-browser's snapshot diffing
-FR27: System can enforce per-commit quality gates (tests, lint, typecheck) via PreToolUse hook
-FR28: System can enforce per-story verification (full real-world verification + Showboat proof) before story completion
-FR29: System can block git commits without prior quality gate pass (PreToolUse hook)
-FR30: System can block story completion without Showboat proof document
-FR31: System can enforce that the agent queries VictoriaLogs/VictoriaTraces during development (PostToolUse hooks)
-FR32: System can inject verification prompts after code changes (PostToolUse: Write/Edit)
-FR33: System can verify OTLP instrumentation is present in new code (PostToolUse hook)
-FR34: System can control autonomous loop iteration (Stop hook: continue/terminate based on verification state)
-FR35: System can track verification state per story (what's verified, what's pending)
-FR36: System can read BMAD sprint plans from `_bmad-output/planning-artifacts/`
-FR37: System can map BMAD stories to verification tasks
-FR38: System can produce per-story Showboat proof documents matching BMAD story identifiers
-FR39: System can update BMAD sprint status after story verification
-FR40: System can apply harness patches to BMAD story templates (add verification requirements)
-FR41: System can apply harness patches to BMAD dev story workflow (enforce observability during development)
-FR42: System can apply harness patches to BMAD code review workflow (check Showboat proof exists)
-FR43: System can apply harness patches to BMAD retrospective workflow (review verification effectiveness, produce actionable follow-up)
-FR44: System can read BMAD acceptance criteria and map them to verification steps
-FR45: System can run Ralph's autonomous loop (vendored `snarktank/ralph`) with fresh context per iteration
-FR46: System can bridge BMAD stories to Ralph execution tasks with verification requirements per story
-FR47: System can track iteration count, story progress, and verification state across loop iterations
-FR48: System can enforce verification gates within the Ralph loop (story not marked done without Showboat proof)
-FR49: System can handle loop termination (all stories done, max iterations reached, user cancellation)
-FR50: System can trigger mandatory retrospective after each sprint completion
-FR51: System can analyze sprint verification data (pass rates, iteration counts, common failure patterns), documentation health (stale docs, quality grades), and test effectiveness (coverage trends, flaky tests) for retro input
-FR52: System can produce structured retro report (what worked, what didn't, verification effectiveness, debug efficiency, documentation health, test analysis)
-FR53: System can convert retro findings into actionable items: new stories for issues, BMAD workflow patches for process improvements, enforcement updates for verification gaps
-FR54: User can review and approve retro-generated items before they enter the next sprint backlog
-FR55: System can update BMAD sprint plan with approved retro follow-up items
-FR56: User can use codeharness without BMAD installed
-FR57: User can provide a task list as a markdown checklist, JSON task list, or plain text (one task per line) for verification tracking
-FR58: User can trigger verification manually via `/harness-verify` for any development work
-FR59: User can view harness status via `/harness-status` (configured enforcement, stack state, verification history)
-FR60: System can generate a verification summary per story (pass/fail per AC, evidence links)
-FR61: System can maintain a verification log across the sprint (which stories verified, iteration counts)
-FR62: System must enforce 100% project-wide test coverage as a quality gate before story completion
-FR63: Agent must write tests for all new code as part of story implementation (after implementation, before verification)
-FR64: Agent must write tests for any existing uncovered code discovered during story implementation
-FR65: System must block story completion if project-wide test coverage drops below 100%
-FR66: System must run all project tests as part of per-commit quality gates — all tests must pass
-FR67: System must report coverage delta per story (coverage added vs. coverage before)
-FR68: System must generate initial `AGENTS.md` during `/harness-init` as a ~100-line map with pointers to BMAD planning artifacts, project structure, build/test commands, conventions, and security notes
-FR69: Agent must create per-subsystem `AGENTS.md` files when creating new modules or subsystems (local, minimal, progressive disclosure)
-FR70: System must generate exec-plan files in `docs/exec-plans/active/` for each story at sprint start, derived from BMAD story definitions
-FR71: System must move exec-plan files from `active/` to `completed/` upon story verification, appending verification summary and Showboat proof link
-FR72: System must maintain `docs/index.md` as a map referencing BMAD planning artifacts in their native location (`_bmad-output/planning-artifacts/`) — no duplication, only pointers
-FR73: Doc-gardener subagent must scan for stale documentation (AGENTS.md referencing deleted code, docs not updated since code changed) and open fix-up tasks
-FR74: Doc-gardener subagent must generate `docs/quality/quality-score.md` with per-area documentation health grades
-FR75: Doc-gardener subagent must update `docs/exec-plans/tech-debt-tracker.md` with documentation debt items discovered during scans
-FR76: System must enforce doc freshness as part of story verification — AGENTS.md for changed modules must reflect current code
-FR77: System must enforce design-doc validation at epic completion — architectural decisions documented and ARCHITECTURE.md current
-FR78: System must generate `docs/quality/test-coverage.md` per sprint with coverage trends and per-story deltas
-FR79: System must generate `docs/generated/db-schema.md` from DB MCP queries when database enforcement is enabled
-FR80: BMAD retro workflow patch must include doc health analysis — stale doc count, quality grades, doc-gardener findings, documentation debt trends
-FR81: BMAD dev-story workflow patch must require: update/create per-subsystem AGENTS.md for new modules, update exec-plan with progress, ensure inline code documentation
-FR82: BMAD code-review workflow patch must verify: AGENTS.md freshness for changed modules, exec-plan updated, test coverage report present
-FR83: BMAD sprint-planning workflow must verify: planning docs complete, ARCHITECTURE.md current, test infrastructure ready, coverage baseline recorded
-FR84: BMAD story template patch must include documentation requirements in acceptance criteria: which docs must be created or updated for the story
-FR85: BMAD dev-story workflow patch must enforce: tests written after implementation, 100% coverage before verification, all tests pass
-FR86: BMAD code-review workflow patch must verify: tests exist for all new code, coverage is 100%, no skipped or disabled tests
-FR87: BMAD retro workflow patch must analyze: test effectiveness (tests that caught real bugs vs. tests that never failed), coverage trends, flaky test detection
-FR88: User can onboard an existing project to full harness compliance via `/harness-onboard`
-FR89: System must scan existing codebase structure, detect modules/subsystems, and map dependencies during onboarding
-FR90: System must generate root `AGENTS.md` and per-subsystem `AGENTS.md` files from actual code structure during onboarding
-FR91: System must discover or generate `ARCHITECTURE.md` — if one exists, validate freshness; if not, generate from code analysis
-FR92: System must set up `docs/` structure with `index.md` mapping to existing project documentation (README, inline docs, existing specs)
-FR93: System must run coverage analysis and produce a coverage gap report: uncovered files/lines, estimated effort per module, prioritized by risk
-FR94: System must generate an onboarding epic with stories for reaching full harness compliance: coverage gap stories (per module), doc gap stories, architecture doc stories
-FR95: System must audit existing documentation (README, JSDoc/docstrings, inline comments) and produce a doc quality report with freshness assessment
-FR96: System must generate initial `docs/generated/db-schema.md` from DB MCP if database enforcement is enabled
-FR97: User can review and approve the onboarding plan (epic + stories) before execution begins
-FR98: System must execute onboarding stories through the normal Ralph loop with verification — the onboarding IS the first sprint
-FR99: System must track onboarding progress in `/harness-status` showing compliance percentage (coverage, docs, AGENTS.md files)
+- FR1: User can install codeharness as a global npm package
+- FR2: User can initialize the harness via `codeharness init`
+- FR3: System can detect project stack (Node.js, Python)
+- FR4: System can install BMAD Method and apply harness patches
+- FR5: System can detect existing BMAD/bmalph, preserve artifacts, apply patches
+- FR6: User can configure enforcement levels (frontend, database, API, observability)
+- FR7: System can persist config in `.claude/codeharness.local.md`
+- FR8: System can auto-install dependencies (Showboat, agent-browser, beads, OTLP)
+- FR9: System can check Docker only when observability enabled
+- FR10: User can re-run init idempotently
+- FR11: User can teardown via `codeharness teardown`
+- FR12: System can generate Docker Compose from embedded templates
+- FR13: System can start/stop VictoriaMetrics stack
+- FR14: System can install OTLP for Node.js (--require flag)
+- FR15: System can install OTLP for Python (opentelemetry-instrument wrapper)
+- FR16: System can configure OTLP environment variables
+- FR17: Agent can query VictoriaLogs via LogQL
+- FR18: Agent can query VictoriaMetrics via PromQL
+- FR19: Agent can trace request flows via VictoriaTraces
+- FR20: Agent can verify UI via agent-browser
+- FR21: Agent can verify APIs via real HTTP calls
+- FR22: Agent can verify DB state via Database MCP
+- FR23: Agent can capture evidence in Showboat proof documents
+- FR24: Agent can re-verify via `showboat verify`
+- FR25: User can trigger verification via `codeharness verify`
+- FR26: System can enforce per-commit quality gates via PreToolUse hook
+- FR27: System can block commits without quality gate pass
+- FR28: System can inject verification prompts via PostToolUse hook
+- FR29: System can verify harness health on session start
+- FR30: System can update session flags after tests/coverage/verification
+- FR31: Hooks can create beads issues when problems detected
+- FR32: System can install and configure beads during init
+- FR33: System can import BMAD stories into beads via bridge
+- FR34: Agent can create beads issues for discovered bugs
+- FR35: System can create beads issues from onboard findings
+- FR36: System can create beads issues from hook-detected problems
+- FR37: Sprint planning can triage beads issues via `bd ready`
+- FR38: System can sync beads status with story file status
+- FR39: System can resolve beads git hook conflicts during init
+- FR40: System can read BMAD epics and stories
+- FR41: System can parse story ACs and map to verification steps
+- FR42: System can patch BMAD story templates
+- FR43: System can patch BMAD dev-story workflow
+- FR44: System can patch BMAD code-review workflow
+- FR45: System can patch BMAD retrospective workflow
+- FR46: System can patch BMAD sprint-planning workflow
+- FR47: System can run vendored Ralph loop with fresh context
+- FR48: System can feed Ralph from beads via `bd ready --json`
+- FR49: System can enforce verification gates in Ralph loop
+- FR50: System can handle loop termination
+- FR51: System can track iteration count and verification state
+- FR52: System can enforce 100% test coverage as quality gate
+- FR53: System can run all tests as per-commit quality gates
+- FR54: System can detect coverage tool per stack
+- FR55: System can report coverage delta per story
+- FR56: System can generate root AGENTS.md during init
+- FR57: System can generate docs/ scaffold
+- FR58: System can scan for stale documentation
+- FR59: System can generate and manage exec-plan files
+- FR60: System can enforce doc freshness during verification
+- FR61: User can onboard existing project via `codeharness onboard`
+- FR62: System can scan codebase with configurable module threshold
+- FR63: System can run coverage analysis and produce gap report
+- FR64: System can audit documentation and produce quality report
+- FR65: System can generate onboarding epic as beads issues
+- FR66: User can review and approve onboarding plan
+- FR67: User can view status via `codeharness status`
+- FR68: System can generate verification summary per story
+- FR69: System can maintain verification log across sprint
 
-### NonFunctional Requirements
+### Non-Functional Requirements
 
-NFR1: Hook execution (PreToolUse, PostToolUse) must complete within 500ms as measured by hook script timer
-NFR2: VictoriaLogs queries must return results within 2 seconds as measured by curl request round-trip time
-NFR3: `showboat verify` must complete re-run within 5 minutes for a typical story (10-15 verification steps)
-NFR4: VictoriaMetrics Docker stack must start within 30 seconds during `/harness-init`
-NFR5: OTLP auto-instrumentation must add <5% latency overhead to the developed application as measured by load test comparison with and without instrumentation enabled
-NFR6: Plugin must coexist with other Claude Code plugins without hook conflicts (detect and warn)
-NFR7: Plugin must work with Claude Code plugin system version as of March 2026
-NFR8: VictoriaMetrics stack must use pinned Docker image versions for reproducibility
-NFR9: agent-browser and Showboat versions must be pinned and tested for compatibility
-NFR10: OTLP instrumentation must work with standard OpenTelemetry SDK versions
-NFR11: Database MCP must support PostgreSQL, MySQL, and SQLite at minimum
-NFR12: BMAD integration must work with BMAD Method v6+ artifact format
-NFR13: Plugin must not modify project source code during `/harness-teardown`
-NFR14: If VictoriaMetrics stack crashes, the harness must detect and report it (not silently fail)
-NFR15: If agent-browser is unavailable, the harness must fall back gracefully (skip UI verification with warning)
-NFR16: Hook failures must produce clear error messages, not silent blocks
-NFR17: State file (`.claude/codeharness.local.md`) must be recoverable if corrupted
-NFR18: BMAD installation via `npx bmad-method init` must complete within 60 seconds
-NFR19: BMAD harness patches must be idempotent — applying patches twice produces the same result
-NFR20: Retrospective report generation must complete within 30 seconds using sprint verification data
-NFR21: Test suite must complete execution within 5 minutes for per-commit quality gates as measured by test runner wall-clock time
-NFR22: Coverage measurement must include all application source code (excluding test files, configuration, and generated code) as reported by the stack's native coverage tool (c8/istanbul for Node.js, coverage.py for Python)
-NFR23: Doc-gardener subagent must complete a full documentation scan within 60 seconds as measured by subagent execution time
-NFR24: AGENTS.md files must not exceed 100 lines — content beyond that must be in referenced docs (progressive disclosure)
-NFR25: `docs/index.md` must reference BMAD planning artifacts by relative path to `_bmad-output/planning-artifacts/` — never copy content
-NFR26: Doc freshness check must compare file modification timestamps against git log for corresponding source files
-NFR27: Generated documentation (`docs/generated/`, `docs/quality/`) must be clearly marked as auto-generated with "DO NOT EDIT MANUALLY" headers
+- NFR1: Hook execution <500ms
+- NFR2: VictoriaLogs queries <2s
+- NFR3: showboat verify <5min per story
+- NFR4: Docker stack start <30s
+- NFR5: codeharness init <5min
+- NFR6: OTLP overhead <5% latency
+- NFR7: codeharness bridge <10s for 50 stories
+- NFR8: bd ready --json <1s
+- NFR9: Plugin coexists with other Claude Code plugins
+- NFR10: Works with Claude Code plugin system March 2026
+- NFR11: Pinned Docker image versions
+- NFR12: Pinned tool versions in package.json
+- NFR13: BMAD v6+ compatibility
+- NFR14: Beads hooks coexist with codeharness hooks
+- NFR15: Teardown doesn't modify project source
+- NFR16: Detect/report VictoriaMetrics crash
+- NFR17: Graceful fallback if agent-browser unavailable
+- NFR18: Clear hook error messages
+- NFR19: State file recoverable if corrupted
+- NFR20: BMAD patches idempotent
+- NFR21: Ralph crash recovery
+- NFR22: Init idempotent
+- NFR23: Doc-gardener scan <60s
+- NFR24: AGENTS.md <100 lines
+- NFR25: docs/index.md references by relative path
+- NFR26: Generated docs have DO NOT EDIT headers
+- NFR27: Module detection threshold configurable (default 3)
+- NFR28: CLI test suite <5min
 
-### Additional Requirements
+### Additional Requirements (from Architecture)
 
-- Architecture specifies manual plugin scaffold as starter (no generator CLI) — first story must create `.claude-plugin/plugin.json` + full directory structure
-- 12 architectural decisions must be respected during implementation (hook state management, vendored Ralph loop, verification subagent, generated Docker Compose, direct start script OTLP modification, codeharness as BMAD distribution, deep BMAD integration, Ralph integration, testing enforcement, documentation structure, BMAD workflow integration, brownfield onboarding)
-- Canonical patterns defined for: bash state reading (`get_state` function), hook JSON output (`exit 0`/`exit 2`), state file YAML format (`snake_case`), Showboat proof doc format, AGENTS.md format (~100 lines, progressive disclosure)
-- Docker Compose services: `victoria-logs`, `victoria-metrics`, `victoria-traces`, `otel-collector`, `grafana` on network `codeharness-net`
-- BMAD patches cover 4 workflows: story template, dev story, code review, retrospective — each patch adds harness requirements (verification, observability, documentation, testing)
-- Ralph loop vendored from `snarktank/ralph` (~500 lines bash). Bridge from BMAD stories to Ralph tasks is verification-aware.
-- 4 subagents: verifier (verification pipeline), observer (VictoriaLogs/Traces querying), doc-gardener (doc health scanning), onboarder (brownfield project analysis)
-- Documentation structure references BMAD artifacts in native location — no duplication, only pointers via `docs/index.md`
-- Per-subsystem AGENTS.md files created as codebase grows — progressive disclosure pattern
-- Exec-plans lifecycle: active/ → completed/ with verification summary appended
-
-### UX Design Requirements
-
-UX-DR1: All command output must follow the Hybrid Direction C pattern — dense tabular summary at top for scanning, full details below for inspection
-UX-DR2: All status markers must use consistent vocabulary: `[OK]`, `[FAIL]`, `[BLOCKED]`, `[WARN]`, `[PASS]`, `[INFO]`
-UX-DR3: All actionable hints must use `→` prefix (e.g., `→ Run /harness-verify`)
-UX-DR4: `/harness-init` output must show per-component status lines (`[OK]`/`[FAIL]`), one per operation, with final summary and next action hint
-UX-DR5: Hook block messages must follow error pattern: `[BLOCKED] What failed` → `Why:` → `Fix:` → `→ Alternative action`
-UX-DR6: Hook block messages for coverage must list uncovered files with line numbers
-UX-DR7: Hook block messages for failing tests must list specific failing test names
-UX-DR8: Hook block messages for stale docs must list stale files with last-updated vs code-changed timestamps
-UX-DR9: Hook warn messages for new modules without AGENTS.md must name the module and suggest content
-UX-DR10: `/harness-status` must follow `git status` model — health line, enforcement config, sprint progress table with per-story pass/fail, next action hint
-UX-DR11: Showboat proof documents must have two reading modes: scan (summary table) and inspect (per-AC evidence details)
-UX-DR12: All generated markdown must use YAML frontmatter with structured metadata
-UX-DR13: No ANSI color codes in plugin output — semantic meaning via text markers only
-UX-DR14: Status lines must stay under 100 characters for 80-column terminal readability
-UX-DR15: `/harness-onboard` output must show project scan results (modules, coverage %, doc audit) and generated onboarding epic summary
-UX-DR16: Retrospective report must include doc health section (quality grades, stale doc count) and test analysis section (coverage trends, flaky tests)
-UX-DR17: All generated docs must have "DO NOT EDIT MANUALLY" headers
-UX-DR18: Exec-plan completed entries must include Showboat proof link and verification summary
+- Starter: TypeScript + tsup + Commander.js + Vitest + BATS
+- CLI entry point: src/index.ts with Commander.js program
+- 7 command modules in src/commands/ + state utility command
+- 8 lib modules in src/lib/
+- 5 embedded template modules in src/templates/
+- Plugin scaffold in plugin/ directory, copied to project during init
+- Vendored Ralph in ralph/ directory
+- State file read via bash sed/grep, written via CLI state set
+- All templates embedded as TypeScript — no external file dependencies
+- [OK]/[FAIL]/[WARN]/[INFO] output prefixes
+- --json flag on all commands
+- Exit codes: 0 success, 1 error, 2 invalid usage
 
 ### FR Coverage Map
 
-FR1: Epic 1 — Install codeharness
-FR2: Epic 1 — Initialize harness via /harness-init
-FR3: Epic 1 — Detect project technology stack
-FR4: Epic 1 — Install BMAD Method
-FR5: Epic 1 — Detect and migrate from existing BMAD/bmalph
-FR6: Epic 1 — Configure enforcement levels
-FR7: Epic 1 — Persist enforcement config
-FR8: Epic 1 — Auto-install external dependencies
-FR9: Epic 1 — Idempotent re-init
-FR10: Epic 1 — Harness teardown
-FR11: Epic 2 — Start VictoriaMetrics stack
-FR12: Epic 2 — OTLP auto-instrumentation Node.js
-FR13: Epic 2 — OTLP auto-instrumentation Python
-FR14: Epic 2 — Configure OTLP environment variables
-FR15: Epic 2 — Query VictoriaLogs via LogQL
-FR16: Epic 2 — Query VictoriaMetrics via PromQL
-FR17: Epic 2 — Trace request flows via VictoriaTraces
-FR18: Epic 2 — Verify observability stack running
-FR19: Epic 3 — Verify UI via agent-browser
-FR20: Epic 3 — Verify API endpoints via real HTTP calls
-FR21: Epic 3 — Verify database state via DB MCP
-FR22: Epic 3 — Verify runtime behavior via VictoriaLogs
-FR23: Epic 3 — Capture evidence in Showboat proof
-FR24: Epic 3 — Re-verify via showboat verify
-FR25: Epic 3 — Annotated screenshots via agent-browser
-FR26: Epic 3 — Diff before/after states
-FR27: Epic 3 — Per-commit quality gates
-FR28: Epic 3 — Per-story verification enforcement
-FR29: Epic 3 — Block commits without quality gate pass
-FR30: Epic 3 — Block story completion without proof
-FR31: Epic 4 — Enforce VictoriaLogs querying
-FR32: Epic 4 — Inject verification prompts after code changes
-FR33: Epic 4 — Verify OTLP instrumentation in new code
-FR34: Epic 4 — Control autonomous loop iteration
-FR35: Epic 4 — Track verification state per story
-FR36: Epic 5 — Read BMAD sprint plans
-FR37: Epic 5 — Map stories to verification tasks
-FR38: Epic 5 — Produce per-story Showboat proofs with BMAD IDs
-FR39: Epic 5 — Update BMAD sprint status
-FR40: Epic 5 — Patch BMAD story templates
-FR41: Epic 5 — Patch BMAD dev story workflow
-FR42: Epic 5 — Patch BMAD code review workflow
-FR43: Epic 5 — Patch BMAD retro workflow
-FR44: Epic 5 — Map BMAD ACs to verification steps
-FR45: Epic 6 — Run vendored Ralph loop
-FR46: Epic 6 — Bridge BMAD stories to Ralph tasks
-FR47: Epic 6 — Track iteration count and progress
-FR48: Epic 6 — Enforce verification gates in loop
-FR49: Epic 6 — Handle loop termination
-FR50: Epic 8 — Trigger mandatory retrospective
-FR51: Epic 8 — Analyze verification + doc health + test effectiveness
-FR52: Epic 8 — Produce structured retro report
-FR53: Epic 8 — Convert findings to actionable items
-FR54: Epic 8 — User review/approve retro items
-FR55: Epic 8 — Update BMAD sprint plan with follow-up
-FR56: Epic 10 — Use without BMAD
-FR57: Epic 10 — Provide task list in any format
-FR58: Epic 10 — Manual /harness-verify
-FR59: Epic 8 — /harness-status
-FR60: Epic 3 — Verification summary per story
-FR61: Epic 8 — Verification log across sprint
-FR62: Epic 4 — Enforce 100% coverage
-FR63: Epic 4 — Write tests for new code
-FR64: Epic 4 — Write tests for uncovered code
-FR65: Epic 4 — Block on coverage drop
-FR66: Epic 4 — Run all tests per commit
-FR67: Epic 4 — Report coverage delta
-FR68: Epic 1 — Generate AGENTS.md during init
-FR69: Epic 7 — Per-subsystem AGENTS.md creation
-FR70: Epic 7 — Generate exec-plan files per story
-FR71: Epic 7 — Move exec-plans active→completed
-FR72: Epic 1 — Maintain docs/index.md
-FR73: Epic 7 — Doc-gardener scan for stale docs
-FR74: Epic 7 — Doc-gardener quality-score.md
-FR75: Epic 7 — Doc-gardener tech-debt-tracker.md
-FR76: Epic 4 — Enforce doc freshness
-FR77: Epic 7 — Design-doc validation at epic completion
-FR78: Epic 8 — Generate test-coverage.md per sprint
-FR79: Epic 7 — Generate db-schema.md
-FR80: Epic 5 — BMAD retro patch includes doc health
-FR81: Epic 5 — BMAD dev-story patch includes doc requirements
-FR82: Epic 5 — BMAD code-review patch includes doc/test checks
-FR83: Epic 5 — BMAD sprint-planning patch includes doc/test readiness
-FR84: Epic 5 — BMAD story template patch includes doc ACs
-FR85: Epic 5 — BMAD dev-story patch includes test enforcement
-FR86: Epic 5 — BMAD code-review patch includes test verification
-FR87: Epic 5 — BMAD retro patch includes test analysis
-FR88: Epic 9 — /harness-onboard command
-FR89: Epic 9 — Scan codebase structure
-FR90: Epic 9 — Generate AGENTS.md from existing code
-FR91: Epic 9 — Discover/generate ARCHITECTURE.md
-FR92: Epic 9 — Set up docs/ from existing docs
-FR93: Epic 9 — Coverage gap analysis
-FR94: Epic 9 — Generate onboarding epic with stories
-FR95: Epic 9 — Audit existing documentation
-FR96: Epic 9 — Generate db-schema.md during onboarding
-FR97: Epic 9 — User review/approve onboarding plan
-FR98: Epic 9 — Execute onboarding through Ralph loop
-FR99: Epic 9 — Track onboarding compliance in /harness-status
+FR1: Epic 1 — npm global install
+FR2: Epic 1 — codeharness init command
+FR3: Epic 1 — stack detection (Node.js, Python)
+FR4: Epic 3 — BMAD Method install
+FR5: Epic 3 — detect existing BMAD/bmalph
+FR6: Epic 1 — enforcement level configuration
+FR7: Epic 1 — state file persistence
+FR8: Epic 2 — dependency auto-install
+FR9: Epic 1 — Docker check conditional on observability
+FR10: Epic 1 — idempotent init
+FR11: Epic 7 — teardown command
+FR12: Epic 2 — Docker Compose generation
+FR13: Epic 2 — VictoriaMetrics stack start/stop
+FR14: Epic 2 — OTLP for Node.js
+FR15: Epic 2 — OTLP for Python
+FR16: Epic 2 — OTLP environment variables
+FR17: Epic 2 — VictoriaLogs querying (LogQL)
+FR18: Epic 2 — VictoriaMetrics querying (PromQL)
+FR19: Epic 2 — VictoriaTraces
+FR20: Epic 4 — UI verification via agent-browser
+FR21: Epic 4 — API verification via HTTP calls
+FR22: Epic 4 — DB verification via Database MCP
+FR23: Epic 4 — Showboat proof capture
+FR24: Epic 4 — Showboat re-verification
+FR25: Epic 4 — manual verification trigger
+FR26: Epic 4 — per-commit quality gates (PreToolUse)
+FR27: Epic 4 — commit blocking
+FR28: Epic 4 — post-write verification prompts (PostToolUse)
+FR29: Epic 4 — session start health check
+FR30: Epic 4 — session flag updates
+FR31: Epic 4 — hook-created beads issues
+FR32: Epic 3 — beads install and configure
+FR33: Epic 3 — BMAD→beads bridge import
+FR34: Epic 3 — agent-created beads issues
+FR35: Epic 3 — onboard-created beads issues
+FR36: Epic 3 — hook-created beads issues
+FR37: Epic 3 — sprint planning via bd ready
+FR38: Epic 3 — beads↔story file sync
+FR39: Epic 3 — beads hook conflict resolution
+FR40: Epic 3 — read BMAD epics/stories
+FR41: Epic 3 — parse ACs for verification mapping
+FR42: Epic 3 — patch BMAD story template
+FR43: Epic 3 — patch BMAD dev-story workflow
+FR44: Epic 3 — patch BMAD code-review workflow
+FR45: Epic 3 — patch BMAD retrospective workflow
+FR46: Epic 3 — patch BMAD sprint-planning workflow
+FR47: Epic 5 — vendored Ralph loop
+FR48: Epic 5 — Ralph reads from beads
+FR49: Epic 5 — verification gates in loop
+FR50: Epic 5 — loop termination handling
+FR51: Epic 5 — iteration tracking
+FR52: Epic 4 — 100% coverage enforcement
+FR53: Epic 4 — per-commit test running
+FR54: Epic 4 — coverage tool detection per stack
+FR55: Epic 4 — coverage delta per story
+FR56: Epic 1 — AGENTS.md generation
+FR57: Epic 1 — docs/ scaffold generation
+FR58: Epic 4 — stale doc scanning
+FR59: Epic 4 — exec-plan management
+FR60: Epic 4 — doc freshness enforcement
+FR61: Epic 6 — codeharness onboard command
+FR62: Epic 6 — codebase scan with module threshold
+FR63: Epic 6 — coverage gap report
+FR64: Epic 6 — doc quality audit
+FR65: Epic 6 — onboarding epic generation as beads issues
+FR66: Epic 6 — user review/approval of onboarding plan
+FR67: Epic 7 — codeharness status command
+FR68: Epic 7 — per-story verification summary
+FR69: Epic 7 — sprint verification log
+FR70: Epic 0 — in-session sprint execution via `/harness-run` skill
 
 ## Epic List
 
-### Epic 1: Plugin Foundation & Harness Init
-User can install codeharness with one command and initialize a complete harness in any project — stack detected, observability configured, hooks installed, BMAD set up, documentation scaffolded, enforcement configured.
-**FRs covered:** FR1-FR10, FR68, FR72
+### Epic 0: In-Session Sprint Execution Skill
+User can run `/harness-run` to autonomously execute one complete sprint in the current Claude Code session. The skill reads sprint-status.yaml, iterates through stories in the current epic using BMAD workflows (create-story → dev-story → code-review), updates status after each story, and handles basic retry logic. Runs entirely in-session using the Agent tool for fresh context per story — no external processes, no CLI, no beads. This skill is the SINGLE source of sprint execution logic. All loop-related requirements from Epics 4-5 are implemented as progressive enhancements to this skill.
+**FRs covered:** FR70
+**Integration contract:** Future enhancements add gates to this skill's story-completion flow rather than implementing standalone loop logic. Epic 4 stories add quality gates (coverage, verification, doc health) to the skill. Epic 5 makes Ralph a session-management wrapper that invokes this skill.
 
-### Epic 2: Observability — Give the Agent Eyes
-The agent has full runtime visibility into the developed project — logs, metrics, traces — queryable via LogQL/PromQL during development. The user knows the agent isn't guessing.
-**FRs covered:** FR11-FR18
+### Epic 1: CLI Foundation & Project Initialization
+User can install codeharness globally and initialize it in any project. The CLI detects the stack, creates the state file, configures enforcement levels, and scaffolds documentation. Idempotent — safe to re-run.
+**FRs covered:** FR1, FR2, FR3, FR6, FR7, FR9, FR10, FR56, FR57
 
-### Epic 3: Verification & Proof
-The agent verifies features by actually using them — browser interaction, real API calls, DB state checks, log queries — and produces reproducible Showboat proof documents the user can trust. Commits blocked without verification.
-**FRs covered:** FR19-FR30, FR60
+### Epic 2: Dependency Management & Observability Stack
+CLI auto-installs all external dependencies with correct commands and fallback chains. When observability is enabled, manages the Docker-based VictoriaMetrics stack. Agent can query logs, metrics, and traces programmatically during development.
+**FRs covered:** FR8, FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR19
 
-### Epic 4: Enforcement & Quality Gates
-The harness mechanically enforces that the agent queries observability, writes tests (100% coverage), maintains doc freshness, and verifies before committing. The agent can't skip steps.
-**FRs covered:** FR31-FR35, FR62-FR67, FR76
+### Epic 3: BMAD Integration & Story Bridge
+CLI installs BMAD Method, applies harness patches to all 5 workflow files, and bridges BMAD stories into beads issues. Installs and configures beads. Two-layer model maintains sync between beads status and story file content. Hooks can create beads issues.
+**FRs covered:** FR4, FR5, FR32, FR33, FR34, FR35, FR36, FR37, FR38, FR39, FR40, FR41, FR42, FR43, FR44, FR45, FR46
 
-### Epic 5: BMAD Ownership & Integration
-codeharness IS the BMAD distribution — installs BMAD, applies harness patches to all workflows (story, dev, code review, retro, sprint planning), maps stories to verification tasks. Every BMAD workflow enforces harness requirements for verification, documentation, and testing.
-**FRs covered:** FR36-FR44, FR80-FR87
+### Epic 4: Verification Pipeline & Quality Enforcement
+Agent can verify features through real-world interaction (agent-browser, HTTP calls, DB MCP) and produce Showboat proof documents. Hooks mechanically enforce quality gates — commits blocked without tests passing, coverage met, and verification run. Testing, coverage, and doc health are integral quality gates.
+**FRs covered:** FR20, FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR52, FR53, FR54, FR55, FR58, FR59, FR60
+**Integration note:** All quality gate and verification requirements in this epic are implemented as enhancements to the sprint execution skill (`/harness-run` from Epic 0), not as standalone loop logic. Hooks (FR26-29) are orthogonal — they fire automatically during agent execution inside the skill.
 
-### Epic 6: Autonomous Execution
-User runs `/harness-run` and walks away. The vendored Ralph loop executes stories autonomously with verification gates per story — fresh context per iteration, crash recovery, progress tracking.
-**FRs covered:** FR45-FR49
+### Epic 5: Autonomous Execution Loop (Ralph Wrapper)
+Ralph provides multi-session, unattended sprint execution by spawning fresh Claude Code instances that invoke the `/harness-run` skill. Ralph handles concerns the in-session skill cannot: rate limiting, circuit breaker, crash recovery across sessions, and timeout management. Ralph does NOT implement its own task-picking or verification logic — the sprint skill owns that.
+**FRs covered:** FR47, FR48, FR49, FR50, FR51
+**Integration note:** Ralph's prompt tells Claude to run `/harness-run`. Task-picking (get_current_task, progress.json) is removed — the skill reads sprint-status.yaml. Ralph keeps: session spawning, rate limiting, circuit breaker, crash recovery, timeout. verify_gates.sh moves into the skill's story-completion flow.
 
-### Epic 7: Documentation System
-Project documentation follows the OpenAI harness pattern — per-subsystem AGENTS.md files, exec-plans tracking story lifecycle (active→completed), doc-gardener subagent keeping everything fresh with quality grades.
-**FRs covered:** FR69-FR75, FR77-FR79
+### Epic 6: Brownfield Onboarding
+User can onboard existing projects. CLI scans codebase with configurable module threshold, runs coverage analysis, audits documentation, generates an onboarding epic with stories imported as beads issues. User reviews and approves before execution.
+**FRs covered:** FR61, FR62, FR63, FR64, FR65, FR66
 
-### Epic 8: Sprint Lifecycle & Reporting
-Sprints have full lifecycle — mandatory retrospectives analyzing verification effectiveness, test trends, and doc health. `/harness-status` shows everything at a glance. Retro produces actionable follow-up stories.
-**FRs covered:** FR50-FR55, FR59, FR61, FR78
+### Epic 7: Status, Reporting & Lifecycle Management
+User can view complete harness status (enforcement config, Docker state, beads summary, session flags, verification history) in one screen. Can cleanly teardown the harness without affecting project code or beads data. Verification summaries and sprint-level logging.
+**FRs covered:** FR11, FR67, FR68, FR69
 
-### Epic 9: Brownfield Onboarding
-User can bring an existing project to full harness compliance. `/harness-onboard` scans the project, generates an onboarding epic, and executes it through the normal Ralph loop — the harness bootstraps itself.
-**FRs covered:** FR88-FR99
+## Epic 0: In-Session Sprint Execution Skill
 
-### Epic 10: Standalone Mode
-Users without BMAD can use codeharness with any task list — markdown checklist, JSON, or plain text. Verification works the same, any methodology benefits from the harness.
-**FRs covered:** FR56-FR58
+User can run `/harness-run` to autonomously execute one complete sprint in the current Claude Code session. This skill is the single source of sprint execution logic — progressively enhanced by Epic 4 (quality gates) and wrapped by Epic 5 (Ralph for multi-session).
 
-## Epic 1: Plugin Foundation & Harness Init
-
-User can install codeharness with one command and initialize a complete harness in any project — stack detected, observability configured, hooks installed, BMAD set up, documentation scaffolded, enforcement configured.
-
-### Story 1.1: Plugin Scaffold & Manifest
+### Story 0.1: Sprint Execution Skill — Autonomous In-Session Loop
 
 As a developer,
-I want to create the codeharness plugin directory structure and manifest,
-So that Claude Code recognizes codeharness as an installable plugin.
+I want to run `/harness-run` to autonomously execute stories in the current sprint,
+So that I can develop features without manual story-by-story invocation.
 
 **Acceptance Criteria:**
 
-**Given** the codeharness repository is initialized
-**When** the plugin scaffold is created
-**Then** `.claude-plugin/plugin.json` exists with name, version, description
-**And** all component directories exist: `commands/`, `skills/`, `hooks/`, `agents/`, `knowledge/`, `templates/`, `ralph/`
-**And** `claude --plugin-dir ./codeharness` loads without errors
-**And** the plugin appears in Claude Code's plugin list
+**Given** a sprint-status.yaml exists with stories in `backlog` status
+**When** the developer runs `/harness-run`
+**Then** the skill reads sprint-status.yaml to find the current epic (first non-done epic)
+**And** identifies the next `backlog` story in that epic
 
-### Story 1.2: Stack Detection & Enforcement Config
+**Given** the next story is identified
+**When** the skill processes it
+**Then** it invokes the create-story workflow (via Agent tool) to generate the story file
+**And** updates sprint-status.yaml story status to `ready-for-dev`
+**Then** it invokes the dev-story workflow (via Agent tool, fresh context) to implement
+**And** updates sprint-status.yaml story status to `in-progress`
+**Then** it invokes the code-review workflow (via Agent tool, fresh context)
+**And** updates sprint-status.yaml story status to `done`
+
+**Given** a story completes (status → done)
+**When** there are more stories in the current epic
+**Then** the skill proceeds to the next story automatically
+
+**Given** all stories in an epic are done
+**When** the epic-N-retrospective entry exists
+**Then** the skill runs the retrospective workflow
+**And** updates epic status to `done`
+**And** proceeds to the next epic if stories remain
+
+**Given** the skill encounters a failure
+**When** the dev-story or code-review workflow fails
+**Then** the skill retries the current story (max 3 attempts)
+**And** if max retries exceeded, halts with status report
+
+**Given** the skill completes or halts
+**When** execution ends
+**Then** sprint-status.yaml reflects the current state of all stories
+**And** a summary is printed: stories completed, stories remaining, any failures
+
+**Technical notes:**
+- Each workflow invocation uses the Agent tool for context isolation
+- sprint-status.yaml is the ONLY task source — no beads, no progress.json
+- Status updates happen immediately after each workflow completes
+- The skill is a Claude Code plugin skill/command, not a CLI command
+- This is the minimal loop skeleton — quality gates added by Epic 4 stories
+
+---
+
+## Epic 1: CLI Foundation & Project Initialization
+
+User can install codeharness globally and initialize it in any project. The CLI detects the stack, creates the state file, configures enforcement levels, and scaffolds documentation. Idempotent — safe to re-run.
+
+### Story 1.1: Project Scaffold & CLI Entry Point
 
 As a developer,
-I want `/harness-init` to detect my project's technology stack and ask me what to enforce,
-So that the harness is configured correctly for my project without manual setup.
+I want to install codeharness as a global npm package,
+So that I can run `codeharness` commands in any project directory.
 
 **Acceptance Criteria:**
 
-**Given** a project with `package.json` exists
-**When** the user runs `/harness-init`
-**Then** the system detects "Node.js" as the stack
-**And** prompts "Frontend? (y/n)", "Database? (y/n)", "APIs? (y/n)"
-**And** persists enforcement config to `.claude/codeharness.local.md` with YAML frontmatter
-**And** output follows UX-DR4: `[INFO] Stack detected: Node.js`
+**Given** a developer runs `npm install -g codeharness`
+**When** the installation completes
+**Then** the `codeharness` binary is available in PATH
+**And** `codeharness --version` prints the current version
+**And** `codeharness --help` lists all available commands
 
-**Given** a project with `requirements.txt` or `pyproject.toml`
-**When** the user runs `/harness-init`
-**Then** the system detects "Python" as the stack
+**Given** the CLI is installed
+**When** a developer runs `codeharness --help`
+**Then** all 7 commands are listed: init, bridge, run, verify, status, onboard, teardown
+**And** the hidden `state` utility command is not shown in help but is callable
 
-**Given** no recognized stack files exist
-**When** the user runs `/harness-init`
-**Then** the system asks the user to specify the stack
+**Given** any command is invoked
+**When** it produces output
+**Then** each line uses `[OK]`, `[FAIL]`, `[WARN]`, or `[INFO]` status prefixes
+**And** the `--json` flag is accepted and produces machine-readable JSON output
 
-### Story 1.3: Dependency Check & Auto-Install
+**Given** a developer runs any stub command (bridge, run, verify, status, onboard, teardown)
+**When** the command executes
+**Then** it exits with code 1 and prints `[FAIL] Not yet implemented. Coming in Epic N.`
+
+**Given** the project structure
+**When** built with `npm run build`
+**Then** tsup compiles TypeScript from `src/index.ts` to `dist/index.js`
+**And** `vitest` runs unit tests successfully
+**And** exit codes follow convention: 0 success, 1 error, 2 invalid usage
+
+### Story 1.2: Core Libraries — State, Stack Detection, Templates
 
 As a developer,
-I want `/harness-init` to check for and auto-install required dependencies,
-So that I don't have to manually install Docker, Showboat, agent-browser, or OTLP packages.
+I want the CLI to have reliable state management and stack detection,
+So that init and all future commands can build on solid foundations.
 
 **Acceptance Criteria:**
 
-**Given** Docker is not installed
-**When** `/harness-init` runs dependency checks
-**Then** output shows `[FAIL] Docker not installed` with fix instructions and halts
-**And** message follows UX-DR5 error pattern: What → Why → Fix → Alternative
+**Given** a project directory with no `.claude/codeharness.local.md`
+**When** `state.ts` `writeState()` is called with a config object
+**Then** it creates the file with YAML frontmatter using `snake_case` field names
+**And** boolean values are YAML native `true`/`false` (not strings)
+**And** null values are YAML `null` (not empty string)
 
-**Given** Docker is installed but Showboat is not
-**When** `/harness-init` runs dependency checks
-**Then** Showboat is auto-installed via `uvx showboat`
-**And** output shows `[OK] Showboat: installed`
+**Given** an existing `.claude/codeharness.local.md` with valid YAML
+**When** `state.ts` `readState()` is called
+**Then** it parses the YAML frontmatter and returns a typed config object
+**And** the markdown body below the frontmatter is preserved on subsequent writes
 
-**Given** all dependencies are present
-**When** `/harness-init` runs dependency checks
-**Then** each dependency shows `[OK]` status line
+**Given** a corrupted `.claude/codeharness.local.md` (invalid YAML)
+**When** `state.ts` `readState()` is called
+**Then** it logs `[WARN] State file corrupted — recreating from detected config`
+**And** recreates the state file from detected project state (NFR19)
 
-### Story 1.4: BMAD Installation & Harness Patches
+**Given** a project directory with `package.json`
+**When** `stack-detect.ts` `detectStack()` is called
+**Then** it returns `"nodejs"`
+
+**Given** a project directory with `requirements.txt` or `pyproject.toml`
+**When** `stack-detect.ts` `detectStack()` is called
+**Then** it returns `"python"`
+
+**Given** a project directory with no recognized indicator files
+**When** `stack-detect.ts` `detectStack()` is called
+**Then** it returns `null` and logs `[WARN] No recognized stack detected`
+
+**Given** an embedded template definition
+**When** `templates.ts` `generateFile()` is called with a config object
+**Then** it writes the file to the target path with template variables interpolated
+**And** templates are TypeScript string literals — no external file reads
+
+**Given** all three library modules
+**When** unit tests are run via `vitest`
+**Then** all tests pass with 100% coverage of state.ts, stack-detect.ts, and templates.ts
+
+### Story 1.3: Init Command — Full Harness Initialization
 
 As a developer,
-I want `/harness-init` to install BMAD and apply harness patches,
-So that BMAD workflows enforce verification, documentation, and testing requirements.
+I want to run `codeharness init` in my project directory,
+So that the harness is configured with stack detection, enforcement levels, state file, and documentation scaffold — ready for development.
 
 **Acceptance Criteria:**
 
-**Given** no `_bmad/` directory exists
-**When** `/harness-init` runs
-**Then** BMAD is installed via `npx bmad-method init`
-**And** harness patches are applied to story template, dev workflow, code review, and retro workflows
-**And** output shows `[OK] BMAD: installed (v6.x), harness patches applied`
-**And** BMAD installation completes within 60 seconds (NFR18)
-**And** patches are idempotent — running init twice produces same result (NFR19)
+**Given** a developer runs `codeharness init` in a Node.js project
+**When** init completes
+**Then** stack is detected as `"nodejs"` and printed as `[INFO] Stack detected: Node.js (package.json)`
+**And** enforcement levels are prompted with max-enforcement defaults (all ON)
+**And** the state file `.claude/codeharness.local.md` is created with the canonical structure from Architecture Decision 2
 
-**Given** `_bmad/` already exists (existing BMAD)
-**When** `/harness-init` runs
-**Then** existing artifacts are preserved
-**And** harness patches are applied without overwriting user content
-**And** output shows `[OK] BMAD: existing installation detected, harness patches applied`
+**Given** a developer answers enforcement prompts
+**When** observability is set to OFF
+**Then** Docker availability is NOT checked (FR9)
+**And** the state file records `observability: false`
 
-**Given** bmalph is detected (existing bmalph installation)
-**When** `/harness-init` runs
-**Then** bmalph artifacts are preserved
-**And** codeharness takes over execution
-**And** output shows `[OK] BMAD: migrated from bmalph, harness patches applied`
+**Given** a developer answers enforcement prompts
+**When** observability is set to ON
+**Then** Docker availability IS checked
+**And** if Docker is not installed, init prints `[FAIL] Docker not installed` with actionable remedy and exits 1
 
-### Story 1.5: Documentation Scaffold & AGENTS.md
+**Given** init creates the state file
+**When** the file is written
+**Then** it contains: `harness_version`, `initialized: true`, `stack`, `enforcement` block, `coverage` block with `target: 100`, `session_flags` block (all false), empty `verification_log` array
+
+**Given** init runs in a project with no `AGENTS.md`
+**When** documentation scaffold step executes
+**Then** root `AGENTS.md` is generated with project structure, build/test commands, and conventions
+**And** `AGENTS.md` does not exceed 100 lines (NFR24)
+**And** `docs/` directory is created with `index.md`, `exec-plans/`, `quality/`, `generated/`
+**And** `docs/index.md` references artifacts by relative path, never copies content (NFR25)
+**And** `docs/generated/` and `docs/quality/` files include `DO NOT EDIT MANUALLY` headers (NFR26)
+
+**Given** a developer runs `codeharness init` a second time in the same project
+**When** init detects existing state file and documentation
+**Then** existing configuration is preserved (not overwritten)
+**And** existing AGENTS.md and docs/ are not regenerated
+**And** init prints `[INFO] Harness already initialized — verifying configuration`
+**And** init completes successfully (NFR22)
+
+**Given** a developer runs `codeharness init --json`
+**When** init completes
+**Then** output is valid JSON with `status`, `stack`, `enforcement`, and `documentation` fields
+
+**Given** any init execution
+**When** measured from start to completion
+**Then** init completes within 5 minutes (NFR5)
+
+## Epic 2: Dependency Management & Observability Stack
+
+CLI auto-installs all external dependencies with correct commands and fallback chains. When observability is enabled, manages the Docker-based VictoriaMetrics stack. Agent can query logs, metrics, and traces programmatically during development.
+
+### Story 2.1: Dependency Auto-Install & OTLP Instrumentation
 
 As a developer,
-I want `/harness-init` to generate AGENTS.md and the docs/ structure,
-So that the project has a proper documentation foundation from day one.
+I want `codeharness init` to automatically install all external dependencies with correct commands,
+So that I don't have to manually install Showboat, agent-browser, beads, or OTLP packages.
 
 **Acceptance Criteria:**
 
-**Given** `/harness-init` has detected the stack and configured enforcement
-**When** documentation scaffolding runs
-**Then** root `AGENTS.md` is generated with ~100 lines (NFR24) containing: build/test commands, architecture overview, conventions, security notes, pointers to `_bmad-output/planning-artifacts/`
-**And** `docs/index.md` is created referencing BMAD artifacts by relative path (NFR25)
-**And** `docs/exec-plans/active/` and `docs/exec-plans/completed/` directories are created
-**And** `docs/quality/` and `docs/generated/` directories are created
-**And** generated docs have "DO NOT EDIT MANUALLY" headers (NFR27)
+**Given** a developer runs `codeharness init` in a Node.js project with observability ON
+**When** the dependency install step executes
+**Then** Showboat is installed via `pip install showboat` with fallback to `pipx install showboat`
+**And** agent-browser is installed via `npm install -g @anthropic/agent-browser`
+**And** beads is installed via `pip install beads` with fallback to `pipx install beads`
+**And** each successful install prints `[OK] <tool>: installed (v<version>)`
+**And** all versions are pinned in package.json (NFR12)
 
-### Story 1.6: State File & Hook Installation
+**Given** a Node.js project with observability ON
+**When** OTLP instrumentation is configured
+**Then** `@opentelemetry/auto-instrumentations-node` is installed as a project dependency
+**And** the start script is updated with `--require @opentelemetry/auto-instrumentations-node`
+**And** OTLP environment variables are set pointing to local OTel Collector (`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`)
+**And** instrumentation adds <5% latency overhead (NFR6)
 
-As a developer,
-I want `/harness-init` to create the state file and install all hooks,
-So that enforcement is active immediately after initialization.
-
-**Acceptance Criteria:**
-
-**Given** all previous init steps completed
-**When** state file and hooks are installed
-**Then** `.claude/codeharness.local.md` is created with canonical YAML structure (harness_version, initialized, enforcement, stack, coverage, session_flags)
-**And** `hooks.json` registers all hooks (session-start, pre-commit-gate, post-write-check, post-test-verify)
-**And** hook bash scripts are executable and POSIX-compatible
-**And** output shows `[OK] Hooks: 4 registered`
-
-### Story 1.7: Init Report & Idempotency
-
-As a developer,
-I want `/harness-init` to produce a clear summary report and be safe to re-run,
-So that I know exactly what was configured and can re-init without fear.
-
-**Acceptance Criteria:**
-
-**Given** all init steps complete successfully
-**When** init finishes
-**Then** output shows complete init report following UX-DR4 format with per-component `[OK]`/`[FAIL]` lines, final summary, and `→ Run /harness-run to start autonomous execution`
-
-**Given** init was already run successfully
-**When** user runs `/harness-init` again
-**Then** existing config is detected and preserved
-**And** components show `[OK] Already configured: {component}` where appropriate
-**And** no data is lost or overwritten
-
-### Story 1.8: Harness Teardown
-
-As a developer,
-I want `/harness-teardown` to cleanly remove all harness artifacts without touching my project code,
-So that I can remove the harness if needed without risk.
-
-**Acceptance Criteria:**
-
-**Given** the harness is initialized and running
-**When** user runs `/harness-teardown`
-**Then** Docker stack is stopped and removed
-**And** hooks are unregistered
-**And** `.claude/codeharness.local.md` is removed
-**And** project source code is NOT modified (NFR13)
-**And** `_bmad/` directory is NOT removed (BMAD artifacts preserved)
-**And** `docs/` directory is NOT removed (documentation preserved)
-**And** output shows per-component teardown status
-
-## Epic 2: Observability — Give the Agent Eyes
-
-The agent has full runtime visibility into the developed project — logs, metrics, traces — queryable via LogQL/PromQL during development. The user knows the agent isn't guessing.
-
-### Story 2.1: Docker Compose Generation & VictoriaMetrics Stack
-
-As a developer,
-I want `/harness-init` to generate and start a VictoriaMetrics observability stack,
-So that my project has logs, metrics, and traces infrastructure running locally.
-
-**Acceptance Criteria:**
-
-**Given** Docker is running and enforcement includes observability
-**When** `/harness-init` generates the Docker Compose
-**Then** `docker-compose.harness.yml` is generated based on enforcement config
-**And** services include: `victoria-logs`, `victoria-metrics`, `otel-collector` on network `codeharness-net`
-**And** `victoria-traces` is included only if tracing enforcement is enabled
-**And** all Docker images use pinned versions (NFR8)
-**And** stack starts within 30 seconds (NFR4)
-**And** output shows `[OK] VictoriaMetrics stack: started (logs:9428, metrics:8428, traces:14268)`
-
-**Given** observability enforcement is disabled (simple tool mode)
-**When** `/harness-init` runs
-**Then** no Docker Compose is generated, no stack started
-**And** output shows `[INFO] Observability: disabled (simple tool mode)`
-
-### Story 2.2: OTLP Auto-Instrumentation
-
-As a developer,
-I want the harness to auto-instrument my project with OpenTelemetry,
-So that my application emits logs, metrics, and traces without code changes.
-
-**Acceptance Criteria:**
-
-**Given** a Node.js project detected
-**When** OTLP instrumentation runs
-**Then** `@opentelemetry/auto-instrumentations-node` is installed
-**And** the project's start script is modified to include `--require @opentelemetry/auto-instrumentations-node/register`
-**And** OTLP environment variables are set: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_SERVICE_NAME`, exporters for traces/metrics/logs
-**And** instrumentation adds <5% latency overhead (NFR5)
-
-**Given** a Python project detected
-**When** OTLP instrumentation runs
+**Given** a Python project with observability ON
+**When** OTLP instrumentation is configured
 **Then** `opentelemetry-distro` and `opentelemetry-exporter-otlp` are installed
-**And** `opentelemetry-bootstrap -a install` runs for auto-instrumentation
-**And** start script wrapped with `opentelemetry-instrument`
-**And** OTLP environment variables are set
+**And** the run command is wrapped with `opentelemetry-instrument`
+**And** OTLP environment variables are configured
 
-### Story 2.3: Agent Observability Querying
+**Given** a dependency install fails (tool not found, network error)
+**When** the primary install command fails
+**Then** the fallback chain is attempted
+**And** if all fallbacks fail, `[FAIL] <tool>: install failed` is printed with actionable remedy
+**And** init continues for non-critical dependencies (agent-browser) but halts for critical ones (beads)
 
-As an agent,
-I want to query VictoriaLogs via LogQL and VictoriaMetrics via PromQL during development,
-So that I can see what my code is doing at runtime instead of guessing.
+**Given** a developer runs `codeharness init` with `--no-observability`
+**When** the dependency install step executes
+**Then** OTLP packages are NOT installed
+**And** agent-browser is still installed (used for verification, not observability)
+
+**Given** `codeharness init --json` is used
+**When** dependency install completes
+**Then** JSON output includes `dependencies` object with each tool's install status and version
+
+### Story 2.2: Docker Compose & VictoriaMetrics Stack Management
+
+As a developer,
+I want codeharness to manage an ephemeral VictoriaMetrics observability stack,
+So that the agent has runtime visibility into my application during development.
+
+**Acceptance Criteria:**
+
+**Given** observability enforcement is ON and Docker is available
+**When** `codeharness init` runs the Docker setup step
+**Then** `docker-compose.harness.yml` is generated from embedded TypeScript templates (not copied from external files)
+**And** the compose file includes: VictoriaLogs, VictoriaMetrics, OTel Collector
+**And** all Docker image tags are pinned versions, never `latest` (NFR11)
+
+**Given** a generated Docker Compose file
+**When** the VictoriaMetrics stack is started
+**Then** all services start within 30 seconds (NFR4)
+**And** init prints port mappings: `[OK] VictoriaMetrics stack: started (logs:9428, metrics:8428, traces:14268)`
+
+**Given** the VictoriaMetrics stack is running
+**When** `codeharness init` is run again (idempotent)
+**Then** the existing stack is detected and not restarted
+**And** init prints `[INFO] VictoriaMetrics stack: already running`
+
+**Given** the VictoriaMetrics stack crashes during development
+**When** a health check is performed (via hook or `codeharness status --check-docker`)
+**Then** the crash is detected and reported: `[FAIL] VictoriaMetrics stack: not running`
+**And** actionable remedy is shown: `→ Restart: docker compose -f docker-compose.harness.yml up -d` (NFR16)
+
+**Given** observability enforcement is OFF
+**When** `codeharness init` runs
+**Then** no Docker Compose file is generated
+**And** no Docker commands are executed
+**And** init prints `[INFO] Observability: disabled, skipping Docker stack`
+
+**Given** Docker is not installed and observability is ON
+**When** `codeharness init` runs
+**Then** init prints `[FAIL] Docker not installed` with install link and `--no-observability` alternative
+**And** init exits with code 1
+
+### Story 2.3: Observability Querying — Agent Visibility into Runtime
+
+As an autonomous agent,
+I want to query application logs, metrics, and traces programmatically,
+So that I can diagnose issues using real runtime data instead of guessing.
 
 **Acceptance Criteria:**
 
 **Given** the VictoriaMetrics stack is running and the application is instrumented
-**When** the agent queries VictoriaLogs (`curl localhost:9428/select/logsql/query?query=level:error`)
-**Then** results return within 2 seconds (NFR2)
-**And** log entries include structured fields from OTLP instrumentation
+**When** the agent queries VictoriaLogs via `curl 'localhost:9428/select/logsql/query?query=level:error'`
+**Then** application log entries matching the query are returned
+**And** results return within 2 seconds (NFR2)
 
-**When** the agent queries VictoriaMetrics (`curl localhost:8428/api/v1/query?query=http_requests_total`)
-**Then** metric results return within 2 seconds
+**Given** the VictoriaMetrics stack is running
+**When** the agent queries VictoriaMetrics via PromQL (`curl 'localhost:8428/api/v1/query?query=...'`)
+**Then** application metrics are returned in Prometheus format
 
-**When** the agent traces a request via VictoriaTraces
-**Then** the full request flow is visible with span hierarchy
+**Given** the VictoriaMetrics stack is running with tracing enabled
+**When** the agent queries VictoriaTraces
+**Then** request trace data is returned showing the full request flow
 
-### Story 2.4: Observability Health Check
+**Given** the plugin is installed
+**When** the agent needs to query observability data
+**Then** the `knowledge/victoria-querying.md` file provides LogQL/PromQL query patterns
+**And** the `skills/visibility-enforcement/` skill teaches the agent when and how to query
+
+**Given** the OTel Collector is configured
+**When** the instrumented application sends telemetry
+**Then** logs are routed to VictoriaLogs
+**And** metrics are routed to VictoriaMetrics
+**And** traces are routed to VictoriaTraces (when enabled)
+**And** the OTel Collector config is generated from embedded templates
+
+## Epic 3: BMAD Integration & Story Bridge
+
+CLI installs BMAD Method, applies harness patches to all 5 workflow files, and bridges BMAD stories into beads issues. Installs and configures beads. Two-layer model maintains sync between beads status and story file content.
+
+### Story 3.1: Beads Installation & CLI Wrapper
 
 As a developer,
-I want the harness to verify the observability stack is running at session start,
-So that the agent never operates blind without being warned.
+I want codeharness to install beads and provide a reliable programmatic interface to it,
+So that all task management flows through a unified, git-native issue tracker.
 
 **Acceptance Criteria:**
 
-**Given** a Claude Code session starts with codeharness installed
-**When** the SessionStart hook fires
-**Then** it checks VictoriaLogs, VictoriaMetrics, and OTel Collector are responding
-**And** if all healthy: silent (no output)
-**And** if any unhealthy: `[FAIL] VictoriaMetrics stack not responding` with fix instructions (NFR14)
+**Given** a developer runs `codeharness init`
+**When** the beads installation step executes
+**Then** beads is installed via `pip install beads` with fallback to `pipx install beads`
+**And** `bd init` is run if `.beads/` doesn't exist
+**And** init prints `[OK] Beads: installed (v<version>)`
+
+**Given** beads is installed
+**When** `src/lib/beads.ts` wraps `bd` commands
+**Then** `createIssue(title, opts)` calls `bd create` with `--json` flag
+**And** `getReady()` calls `bd ready --json` and returns parsed issues
+**And** `closeIssue(id)` calls `bd close <id>`
+**And** `updateIssue(id, opts)` calls `bd update <id>` with provided options
+**And** all `bd` calls use `--json` flag for programmatic consumption
+**And** `bd ready --json` returns results in under 1 second (NFR8)
+
+**Given** a `bd` command fails
+**When** the error is caught by beads.ts
+**Then** the error is wrapped with context: `"Beads failed: <original error>. Command: bd <args>"`
+**And** the wrapped error is thrown (never swallowed silently)
+
+**Given** the project has existing beads git hooks in `.beads/hooks/`
+**When** `codeharness init` runs
+**Then** beads git hooks (prepare-commit-msg, post-checkout) are detected
+**And** Claude Code hooks (hooks.json) and git hooks are identified as separate systems — no conflict by default
+**And** if both systems modify git hooks, CLI chains them in a harness-managed hooks directory
+**And** init prints `[INFO] Beads hooks detected — coexistence configured` (NFR14)
+
+**Given** the agent discovers a bug during development
+**When** it runs `bd create "Bug description" --type bug --priority 1`
+**Then** a beads issue is created with `discovered-from:<story-id>` link
+**And** the issue appears in `bd ready` output when dependencies are met
+
+**Given** a hook detects a problem
+**When** the hook script calls `bd create` with type=bug and priority=1
+**Then** a beads issue is created for the detected problem
+**And** the hook continues with its allow/block decision
+
+### Story 3.2: BMAD Installation & Workflow Patching
+
+As a developer,
+I want codeharness to install BMAD and patch its workflows with harness requirements,
+So that every BMAD workflow enforces verification, testing, observability, and documentation.
+
+**Acceptance Criteria:**
+
+**Given** a project with no `_bmad/` directory
+**When** `codeharness init` runs the BMAD installation step
+**Then** BMAD Method is installed via `npx bmad-method init`
+**And** harness patches are applied to all 5 workflow files
+**And** init prints `[OK] BMAD: installed (v<version>), harness patches applied`
+
+**Given** a project with existing `_bmad/` directory
+**When** `codeharness init` runs
+**Then** the existing BMAD installation is detected and preserved
+**And** harness patches are applied (or updated if already present)
+**And** init prints `[INFO] BMAD: existing installation detected, patches applied`
+**And** BMAD v6+ artifact format is supported (NFR13)
+
+**Given** a project with bmalph artifacts (`.ralph/.ralphrc`, bmalph CLI config)
+**When** `codeharness init` runs
+**Then** bmalph-specific files are identified and noted in onboard findings
+**And** existing BMAD artifacts are preserved
+**And** init prints `[WARN] bmalph detected — superseded files noted for cleanup`
+
+**Given** the story template patch (`story-verification`)
+**When** applied to BMAD story template
+**Then** verification requirements, documentation requirements, and testing requirements are added
+**And** patch uses markers: `<!-- CODEHARNESS-PATCH-START:story-verification -->` / `<!-- CODEHARNESS-PATCH-END:story-verification -->`
+
+**Given** the dev-story workflow patch (`dev-enforcement`)
+**When** applied to BMAD dev-story workflow
+**Then** observability checks, docs updates, and test enforcement are added
+
+**Given** the code-review workflow patch (`review-enforcement`)
+**When** applied to BMAD code-review workflow
+**Then** Showboat proof check, AGENTS.md freshness check, and coverage check are added
+
+**Given** the retrospective workflow patch (`retro-enforcement`)
+**When** applied to BMAD retrospective workflow
+**Then** verification effectiveness, doc health, and test quality sections are added
+
+**Given** the sprint-planning workflow patch (`sprint-beads`)
+**When** applied to BMAD sprint-planning workflow
+**Then** `bd ready` integration for backlog is added
+
+**Given** any patch is applied twice
+**When** the markers already exist in the target file
+**Then** the content between markers is replaced (updated), not duplicated
+**And** the result is identical to applying the patch once (NFR20)
+
+**Given** patch templates
+**When** they are stored
+**Then** they are embedded in `src/templates/bmad-patches.ts` as TypeScript string literals
+**And** patch names use kebab-case: `story-verification`, `dev-enforcement`, `review-enforcement`, `retro-enforcement`, `sprint-beads`
+
+### Story 3.3: BMAD Parser & Story Bridge Command
+
+As a developer,
+I want to run `codeharness bridge --epics epics.md` to convert BMAD stories into beads tasks,
+So that the autonomous loop can pick up stories from a unified task store.
+
+**Acceptance Criteria:**
+
+**Given** a developer runs `codeharness bridge --epics _bmad-output/planning-artifacts/epics.md`
+**When** the bridge parses the epics file
+**Then** all epics and stories are extracted from the markdown structure
+**And** story titles, user stories, and acceptance criteria are parsed
+**And** bridge prints per-epic summary: `[OK] Epic 1: <title> — <N> stories`
+
+**Given** parsed stories
+**When** the bridge imports them into beads
+**Then** each story is created via `bd create` with `type=story`
+**And** priority is set from sprint order (first story = highest priority)
+**And** description contains the path to the story file
+**And** dependencies between stories are set based on epic order
+**And** bridge prints `[OK] Bridge: <N> stories imported into beads`
+
+**Given** a 50-story epic file
+**When** `codeharness bridge` processes it
+**Then** parsing and import completes in under 10 seconds (NFR7)
+
+**Given** `codeharness bridge --dry-run` is used
+**When** the bridge parses stories
+**Then** it prints what would be imported without actually calling `bd create`
+**And** exits with code 0
+
+**Given** `codeharness bridge` is run a second time on the same epics file
+**When** existing beads issues match imported stories
+**Then** duplicates are not created
+**And** bridge prints `[INFO] Story already exists in beads: <title>`
+
+**Given** the two-layer model
+**When** a story is imported
+**Then** beads issue holds: status, priority, dependencies, path to story file
+**And** story file holds: ACs, dev notes, tasks/subtasks, verification requirements
+**And** bridge creates the link: beads description → story file path
+
+**Given** `codeharness bridge --json`
+**When** bridge completes
+**Then** JSON output includes array of imported stories with beads IDs and story file paths
+
+### Story 3.4: Beads Sync & Issue Lifecycle
+
+As a developer,
+I want beads status and story file status to stay in sync,
+So that I have a single source of truth regardless of whether I check beads or story files.
+
+**Acceptance Criteria:**
+
+**Given** Ralph completes a story and calls `bd close <id>`
+**When** the close is processed by the CLI
+**Then** the linked story file status is also updated to "done"
+**And** both beads and story file reflect the same state
+
+**Given** a story's status changes in beads (e.g., `bd update <id> --status in_progress`)
+**When** the CLI processes the update
+**Then** the linked story file status is updated to match
+**And** sync is bidirectional: story file status changes also update beads
+
+**Given** `codeharness onboard` generates findings
+**When** findings are created
+**Then** they are imported as beads issues with `type=task` and priority from severity
+**And** each issue links to the relevant finding details
+
+**Given** sprint planning workflow runs
+**When** the team triages the backlog
+**Then** `bd ready` shows the next unblocked tasks in priority order
+**And** the sprint-beads patch integrates this into the BMAD sprint planning workflow
+
+## Epic 4: Verification Pipeline & Quality Enforcement
+
+Agent can verify features through real-world interaction (agent-browser, HTTP calls, DB MCP) and produce Showboat proof documents. Hooks mechanically enforce quality gates — commits blocked without tests passing, coverage met, and verification run. Testing, coverage, and doc health are integral quality gates.
+
+### Story 4.1: Verification Pipeline & Showboat Integration
+
+> **Sprint skill integration:** Implement verification as a step in the sprint execution skill's story-completion flow. When verification is available, the skill calls it between dev-story completion and marking status `done`.
+
+As a developer,
+I want to run `codeharness verify --story <id>` to produce real-world proof that a story works,
+So that verified stories are backed by reproducible evidence, not just test results.
+
+**Acceptance Criteria:**
+
+**Given** a developer or agent runs `codeharness verify --story <story-id>`
+**When** the verification pipeline starts
+**Then** the story file is read and acceptance criteria are extracted
+**And** preconditions are checked: `tests_passed` and `coverage_met` flags must be `true`
+**And** if preconditions fail, `[FAIL] Preconditions not met` is printed with which flags are false
+
+**Given** verification is running for a story with UI acceptance criteria
+**When** the agent executes UI verification steps
+**Then** agent-browser is used to interact with the application (navigate, fill forms, click, screenshot)
+**And** annotated screenshots are captured via `showboat image`
+**And** if agent-browser is unavailable, verification falls back gracefully with `[WARN] agent-browser unavailable — skipping UI verification` (NFR17)
+
+**Given** verification is running for a story with API acceptance criteria
+**When** the agent executes API verification steps
+**Then** real HTTP calls are made (`curl` or equivalent) and response bodies inspected
+**And** side effects are verified (e.g., DB state after POST)
+**And** command output is captured via `showboat exec`
+
+**Given** verification is running for a story with database acceptance criteria
+**When** the agent needs to check DB state
+**Then** Database MCP is used for read-only queries
+**And** query results are captured as verification evidence
+
+**Given** all verification steps complete
+**When** evidence is captured
+**Then** a Showboat proof document is created at `verification/<story-id>-proof.md`
+**And** screenshots are stored at `verification/screenshots/<story-id>-<ac>-<desc>.png`
+**And** proof document follows canonical structure: story header → AC sections with `showboat exec` blocks → verification summary
+**And** verification summary includes: total ACs, verified count, failed count, showboat verify status
+
+**Given** a proof document exists
+**When** `showboat verify` is run against it
+**Then** all captured commands are re-executed and outputs compared
+**And** verification completes within 5 minutes for a typical story (NFR3)
+**And** pass/fail result is reported
+
+**Given** verification completes successfully
+**When** all ACs are verified
+**Then** CLI updates state: `codeharness state set verification_run true`
+**And** beads issue is updated: `bd close <story-id>`
+**And** `[OK] Story <id>: verified — proof at verification/<id>-proof.md` is printed
+
+**Given** `codeharness verify --story <id> --json`
+**When** verification completes
+**Then** JSON output includes per-AC pass/fail, evidence paths, and showboat verify status
+
+### Story 4.2: Hook Architecture & Enforcement
+
+> **Sprint skill integration:** Hooks are orthogonal — they fire automatically during agent execution inside the sprint skill. No changes to the skill needed. Hooks enhance the skill's behavior without the skill knowing about them.
+
+As a developer,
+I want mechanical enforcement hooks that make skipping verification architecturally impossible,
+So that the agent cannot commit code without passing quality gates.
+
+**Acceptance Criteria:**
+
+**Given** a Claude Code session starts
+**When** the `session-start.sh` SessionStart hook fires
+**Then** all session flags are reset to `false` via `codeharness state set`
+**And** Docker stack health is checked (if observability ON) via `codeharness status --check-docker`
+**And** agent-browser availability is checked
+**And** beads readiness is checked (`bd ready` returns tasks)
+**And** hook outputs JSON: `{"message": "Harness health: OK\n  Docker: running\n  Beads: N tasks ready\n  Session flags: reset"}`
 **And** hook completes within 500ms (NFR1)
 
-**Given** the VictoriaMetrics stack crashes during a session
-**When** the agent tries to query logs
-**Then** the failure is detected and reported, not silently swallowed
-
-## Epic 3: Verification & Proof
-
-The agent verifies features by actually using them — browser interaction, real API calls, DB state checks, log queries — and produces reproducible Showboat proof documents the user can trust. Commits blocked without verification.
-
-### Story 3.1: Verifier Subagent & Showboat Proof Template
-
-As a developer,
-I want a verification subagent that produces structured Showboat proof documents,
-So that verification runs in isolated context and produces reproducible evidence.
-
-**Acceptance Criteria:**
-
-**Given** a story has been implemented and quality gates passed
-**When** `/harness-verify` is triggered (or automatically during loop)
-**Then** a verifier subagent spawns with isolated context
-**And** it reads the story's acceptance criteria
-**And** it produces a proof doc at `verification/{story-id}-proof.md` following Hybrid Direction C: summary table at top, per-AC evidence below
-**And** proof doc has YAML frontmatter with story ID, timestamp, pass/fail counts (UX-DR12)
-
-### Story 3.2: UI Verification via agent-browser
-
-As an agent,
-I want to verify UI features by navigating, interacting, and screenshotting via agent-browser,
-So that UI verification uses real browser interaction, not test stubs.
-
-**Acceptance Criteria:**
-
-**Given** frontend enforcement is enabled and agent-browser is configured
-**When** a UI acceptance criterion needs verification
-**Then** the verifier navigates to the feature URL via agent-browser
-**And** interacts using accessibility-tree refs (click, fill, wait)
-**And** captures annotated screenshots via `showboat image`
-**And** can diff before/after states via agent-browser's snapshot diffing
-**And** each interaction is wrapped in `showboat exec` for reproducibility
-
-**Given** agent-browser is unavailable
-**When** UI verification is attempted
-**Then** UI verification is skipped with `[WARN] agent-browser unavailable, UI verification skipped` (NFR15)
-**And** proof doc notes the skip
-
-### Story 3.3: API & Database Verification
-
-As an agent,
-I want to verify API endpoints with real HTTP calls and database state via DB MCP,
-So that I confirm side effects actually happened, not just that a 200 was returned.
-
-**Acceptance Criteria:**
-
-**Given** API enforcement is enabled
-**When** an API acceptance criterion needs verification
-**Then** the verifier makes real HTTP calls (curl) and inspects response body AND status
-**And** captures output via `showboat exec`
-**And** proof doc shows: command, expected result, actual result
-
-**Given** database enforcement is enabled and DB MCP is configured
-**When** a database acceptance criterion needs verification
-**Then** the verifier queries the database via DB MCP (read-only)
-**And** confirms expected state (rows exist, values match)
-**And** DB MCP supports PostgreSQL, MySQL, and SQLite (NFR11)
-
-### Story 3.4: Log & Trace Verification
-
-As an agent,
-I want to verify runtime behavior by querying VictoriaLogs for expected entries,
-So that I can confirm the application did what it should internally, not just externally.
-
-**Acceptance Criteria:**
-
-**Given** observability enforcement is enabled
-**When** a runtime behavior criterion needs verification
-**Then** the verifier queries VictoriaLogs via LogQL for expected log entries
-**And** confirms trace IDs, event names, or error absence
-**And** captures query and results via `showboat exec`
-
-### Story 3.5: Showboat Verify & Re-run
-
-As a developer,
-I want to re-verify proof documents via `showboat verify`,
-So that I can confirm the evidence is reproducible, not stale or fabricated.
-
-**Acceptance Criteria:**
-
-**Given** a proof doc exists at `verification/{story-id}-proof.md`
-**When** `showboat verify` runs
-**Then** all `showboat exec` blocks are re-executed
-**And** outputs are compared to originals
-**And** result is PASS (all match) or FAIL (mismatches listed)
-**And** re-run completes within 5 minutes for 10-15 steps (NFR3)
-
-### Story 3.6: Quality Gates & Commit Blocking
-
-As a developer,
-I want the harness to block commits without quality gates passing and stories without proof,
-So that nothing ships without verification.
-
-**Acceptance Criteria:**
-
-**Given** the agent attempts to commit code
-**When** the pre-commit-gate hook fires
-**Then** it checks: tests pass, lint pass, typecheck pass
-**And** if any fail: `[BLOCKED] Commit blocked` with specific failures listed and fix commands
-**And** if all pass: silent allow
-
-**Given** the agent attempts to mark a story as complete
-**When** story completion is checked
-**Then** it verifies a Showboat proof doc exists for the story
-**And** `showboat verify` passes
-**And** if no proof: `[BLOCKED] Story completion blocked — no Showboat proof` with `→ Run /harness-verify`
-
-## Epic 4: Enforcement & Quality Gates
-
-The harness mechanically enforces that the agent queries observability, writes tests (100% coverage), maintains doc freshness, and verifies before committing. The agent can't skip steps.
-
-### Story 4.1: Post-Write Enforcement Hooks
-
-As a developer,
-I want hooks to prompt the agent to verify OTLP instrumentation and query logs after code changes,
-So that the agent maintains observability awareness throughout development.
-
-**Acceptance Criteria:**
-
-**Given** the agent writes or edits a file
-**When** the post-write-check PostToolUse hook fires
-**Then** it checks if the changed file should have OTLP instrumentation
-**And** if instrumentation missing: prompts `{"message": "Verify OTLP instrumentation in new code"}`
+**Given** an agent attempts a git commit via the Bash tool
+**When** the `pre-commit-gate.sh` PreToolUse hook fires
+**Then** hook reads session flags from state file via `get_state()` bash function
+**And** if `tests_passed`, `coverage_met`, or `verification_run` is `false`, commit is blocked
+**And** block response includes which flags failed and remediation: `{"decision": "block", "reason": "Quality gates not met.\n\n  tests_passed: false\n  coverage_met: true\n\n→ Run tests before committing."}`
+**And** if all flags are `true`, commit is allowed: `{"decision": "allow"}`
+**And** hook exits 0 for allow, 2 for block (never exit 1)
 **And** hook completes within 500ms (NFR1)
 
-**Given** the agent runs tests
-**When** the post-test-verify PostToolUse hook fires
-**Then** it prompts the agent to query VictoriaLogs for errors: `{"message": "Query VictoriaLogs for errors: curl localhost:9428/select/logsql/query?query=level:error"}`
+**Given** an agent writes code via the Write or Edit tool
+**When** the `post-write-check.sh` PostToolUse hook fires
+**Then** hook injects a verification prompt: `{"message": "New code written. Verify OTLP instrumentation is present.\n→ Check that new endpoints emit traces and structured logs."}`
+**And** the prompt is specific and actionable, not a generic reminder
+**And** hook completes within 500ms (NFR1)
 
-### Story 4.2: Testing Enforcement — 100% Coverage Gate
+**Given** an agent runs tests
+**When** the `post-test-verify.sh` PostToolUse hook fires
+**Then** hook prompts the agent to query logs: `{"message": "Tests complete. Query VictoriaLogs for errors:\n→ curl 'localhost:9428/select/logsql/query?query=level:error'"}`
+**And** hook can create beads issues via `bd create` if problems are detected
+
+**Given** the state file is missing when a hook fires
+**When** the hook tries to read state
+**Then** hook fails open: `{"decision": "allow"}` with exit 0
+**And** `[WARN]` is written to stderr
+
+**Given** a hook failure occurs (script error)
+**When** the error is caught
+**Then** clear error message is produced, not a silent block (NFR18)
+**And** hook always outputs valid JSON regardless of internal errors
+
+**Given** the plugin hook registration
+**When** `hooks.json` is configured
+**Then** all 4 hooks are registered with correct event types (SessionStart, PreToolUse, PostToolUse)
+**And** hooks coexist with other Claude Code plugins without conflicts (NFR9)
+**And** hooks work with Claude Code plugin system as of March 2026 (NFR10)
+
+### Story 4.3: Testing, Coverage & Quality Gates
+
+> **Sprint skill integration:** Implement coverage gate as an enhancement to the sprint execution skill. The skill checks tests pass and coverage is met before marking a story `done`. Gate is added to the skill's story-completion flow.
 
 As a developer,
-I want the harness to enforce 100% project-wide test coverage before story completion,
-So that no code ships without test coverage.
+I want the harness to enforce 100% test coverage as a quality gate,
+So that no blind spots accumulate across stories.
 
 **Acceptance Criteria:**
 
-**Given** the agent attempts to commit
-**When** the pre-commit-gate checks test coverage
-**Then** it runs the stack's coverage tool (c8/istanbul for Node.js, coverage.py for Python — NFR22)
-**And** if coverage < 100%: `[BLOCKED] Commit blocked — project-wide test coverage at {X}% (required: 100%)` with uncovered file list and line numbers (UX-DR6)
-**And** if coverage = 100%: silent allow
+**Given** a Node.js project
+**When** `src/lib/coverage.ts` detects the coverage tool
+**Then** c8 is identified as the coverage tool (from Vitest config or package.json)
+**And** detection is automatic — no manual configuration required
 
-**Given** the agent is implementing a story
-**When** it writes new code
-**Then** it must write tests for the new code after implementation, before verification
-**And** it must also write tests for any existing uncovered code discovered in the same files
+**Given** a Python project
+**When** `src/lib/coverage.ts` detects the coverage tool
+**Then** coverage.py is identified as the coverage tool
+**And** detection is automatic
 
-### Story 4.3: Testing Enforcement — All Tests Must Pass
+**Given** the pre-commit quality gate
+**When** tests need to run as part of the gate
+**Then** `coverage.ts` runs the project's test suite with coverage enabled
+**And** test results are captured: pass count, fail count, coverage percentage
+**And** if tests fail, `codeharness state set tests_passed false` is called
+**And** if tests pass, `codeharness state set tests_passed true` is called
 
-As a developer,
-I want all project tests to pass as a per-commit quality gate,
-So that no broken code is committed.
+**Given** tests pass with coverage data
+**When** coverage is evaluated against the 100% target
+**Then** if coverage >= 100%, `codeharness state set coverage_met true`
+**And** if coverage < 100%, `codeharness state set coverage_met false`
+**And** coverage percentage is printed: `[OK] Coverage: 100%` or `[FAIL] Coverage: 87% (target: 100%)`
 
-**Acceptance Criteria:**
+**Given** a story is being completed
+**When** coverage delta is calculated
+**Then** the change in coverage from before the story to after is reported
+**And** delta is printed: `[INFO] Coverage delta: +4% (96% → 100%)`
 
-**Given** the agent attempts to commit
-**When** the pre-commit-gate runs the test suite
-**Then** all tests must pass
-**And** if any fail: `[BLOCKED] Commit blocked — {N} tests failing` with specific test names (UX-DR7)
-**And** test suite completes within 5 minutes (NFR21)
-**And** hook failure messages are clear, not silent blocks (NFR16)
-
-### Story 4.4: Coverage Delta Reporting
-
-As a developer,
-I want to see how each story affected test coverage,
-So that I can track coverage trends across the sprint.
-
-**Acceptance Criteria:**
-
-**Given** a story is being verified
+**Given** the state file has `coverage.baseline` as null (first run)
 **When** coverage is measured
-**Then** the system records coverage before and after the story
-**And** reports the delta: `Coverage: 94% → 100% (+6% from this story)`
-**And** the delta is stored in the state file for sprint reporting
+**Then** baseline is set to the current coverage value
+**And** subsequent runs compare against baseline for delta
 
-### Story 4.5: Doc Freshness Enforcement
+### Story 4.4: Documentation Health & Freshness Enforcement
 
-As a developer,
-I want the harness to block commits when AGENTS.md files are stale for changed modules,
-So that documentation stays current with code changes.
-
-**Acceptance Criteria:**
-
-**Given** the agent modified files in a module that has an AGENTS.md
-**When** the pre-commit-gate checks doc freshness
-**Then** it compares AGENTS.md modification timestamp against git log for changed source files (NFR26)
-**And** if AGENTS.md is stale: `[BLOCKED] Commit blocked — AGENTS.md stale for changed module` with file names and timestamps (UX-DR8)
-**And** if no AGENTS.md exists for a new module: `[WARN] New module created without AGENTS.md` with module path and suggested content (UX-DR9)
-
-### Story 4.6: Verification State Tracking
+> **Sprint skill integration:** Implement doc freshness check as an enhancement to the sprint execution skill. The skill verifies AGENTS.md and exec-plans are current before marking a story `done`. Gate is added to the skill's story-completion flow.
 
 As a developer,
-I want the harness to track what's been verified per story across the session,
-So that hooks can make informed decisions about what's required.
+I want the harness to enforce documentation freshness during verification,
+So that documentation stays current with the code it describes.
 
 **Acceptance Criteria:**
 
-**Given** the harness is active
-**When** verification events occur (logs queried, tests pass, coverage met, proof created)
-**Then** session flags are updated in `.claude/codeharness.local.md`: `logs_queried`, `tests_passed`, `coverage_met`, `verification_run`
-**And** session flags reset on each new session (SessionStart hook)
-**And** the Stop hook can read verification state to decide continue/terminate
-
-## Epic 5: BMAD Ownership & Integration
-
-codeharness IS the BMAD distribution — installs BMAD, applies harness patches to all workflows (story, dev, code review, retro, sprint planning), maps stories to verification tasks. Every BMAD workflow enforces harness requirements for verification, documentation, and testing.
-
-### Story 5.1: BMAD Sprint Plan Reading & Story Mapping
-
-As a developer,
-I want codeharness to read BMAD sprint plans and map stories to verification tasks,
-So that every BMAD story automatically gets harness verification requirements.
-
-**Acceptance Criteria:**
-
-**Given** a BMAD sprint plan exists at `_bmad-output/planning-artifacts/`
-**When** the system reads the sprint plan
-**Then** it extracts all stories with their IDs, titles, and acceptance criteria
-**And** maps each AC to a verification type (UI, API, DB, log) based on content analysis
-**And** produces per-story verification task lists
-**And** works with BMAD Method v6+ artifact format (NFR12)
-
-### Story 5.2: BMAD Story Template Patch
-
-As a developer,
-I want BMAD story templates patched with harness requirements,
-So that every story created through BMAD includes verification, documentation, and testing criteria.
-
-**Acceptance Criteria:**
-
-**Given** BMAD is installed with harness patches
-**When** a new story is created using BMAD
-**Then** the story template includes: verification requirements section, documentation requirements (which AGENTS.md to update, exec-plan to create), testing requirements (coverage target)
-**And** acceptance criteria include doc and test deliverables
-**And** patches are idempotent (NFR19)
-
-### Story 5.3: BMAD Dev Story Workflow Patch
-
-As an agent,
-I want the BMAD dev story workflow to enforce observability, documentation, and testing during implementation,
-So that I follow the harness process automatically.
-
-**Acceptance Criteria:**
-
-**Given** the agent is executing a story via BMAD dev workflow
-**When** the patched workflow runs
-**Then** it enforces: update/create per-subsystem AGENTS.md for new modules, update exec-plan with progress, ensure inline code documentation
-**And** it enforces: tests written after implementation, 100% coverage before verification, all tests pass
-**And** it enforces: observability queries during development
-
-### Story 5.4: BMAD Code Review Workflow Patch
-
-As a developer,
-I want the BMAD code review workflow to verify documentation, tests, and proof exist,
-So that code review catches missing harness requirements.
-
-**Acceptance Criteria:**
-
-**Given** a code review is triggered via BMAD workflow
-**When** the patched code review runs
-**Then** it verifies: AGENTS.md freshness for changed modules, exec-plan updated
-**And** it verifies: tests exist for all new code, coverage is 100%, no skipped/disabled tests
-**And** it verifies: Showboat proof document exists for the story
-**And** it verifies: test coverage report is present
-
-### Story 5.5: BMAD Retrospective Workflow Patch
-
-As a developer,
-I want the BMAD retrospective workflow to analyze verification effectiveness, documentation health, and test quality,
-So that each sprint produces actionable improvements.
-
-**Acceptance Criteria:**
-
-**Given** a sprint is complete and retro triggers
-**When** the patched retro workflow runs
-**Then** it analyzes: verification pass rates, iteration counts, common failure patterns
-**And** it analyzes: doc health — stale doc count, quality grades, doc-gardener findings, documentation debt trends
-**And** it analyzes: test effectiveness — tests that caught real bugs vs. never-failed tests, coverage trends, flaky test detection
-**And** retro report includes all three analysis sections (UX-DR16)
-
-### Story 5.6: Showboat Proof with BMAD Identifiers & Sprint Status
-
-As a developer,
-I want Showboat proof documents to match BMAD story identifiers and sprint status to update automatically,
-So that there's a clear link between BMAD planning and harness verification.
-
-**Acceptance Criteria:**
-
-**Given** a story is verified via the harness
-**When** the Showboat proof document is generated
-**Then** the proof doc filename uses the BMAD story ID: `verification/{story-id}-proof.md`
-**And** BMAD sprint status is updated to reflect the story's verification state
-**And** the verification summary per story includes pass/fail per AC with evidence links (FR60)
-
-### Story 5.7: BMAD Sprint Planning Patch
-
-As a developer,
-I want the BMAD sprint planning workflow to verify planning docs are complete and harness infrastructure is ready,
-So that sprints don't start without proper foundation.
-
-**Acceptance Criteria:**
-
-**Given** sprint planning is initiated via BMAD
-**When** the patched sprint planning runs
-**Then** it verifies: planning docs complete (PRD, architecture, epics current)
-**And** it verifies: ARCHITECTURE.md is current and reflects latest decisions
-**And** it verifies: test infrastructure ready (coverage tool configured, baseline recorded)
-**And** it verifies: harness is initialized and healthy
-
-## Epic 6: Autonomous Execution
-
-User runs `/harness-run` and walks away. The vendored Ralph loop executes stories autonomously with verification gates per story — fresh context per iteration, crash recovery, progress tracking.
-
-### Story 6.1: Ralph Loop Vendoring & Driver
-
-As a developer,
-I want codeharness to include a vendored Ralph loop that spawns fresh Claude Code instances,
-So that autonomous execution has fresh context per iteration with crash recovery.
-
-**Acceptance Criteria:**
-
-**Given** Ralph's core loop (~500 lines bash) is vendored into `ralph/ralph.sh`
-**When** `/harness-run` is executed
-**Then** `ralph.sh` starts the external loop process
-**And** each iteration spawns a fresh `claude --plugin-dir ./codeharness` instance
-**And** the Claude Code driver at `ralph/drivers/claude-code.sh` handles instance lifecycle
-**And** the loop supports: max iterations, timeout, crash recovery, rate limiting
-
-### Story 6.2: BMAD→Ralph Task Bridge
-
-As a developer,
-I want codeharness to bridge BMAD stories to Ralph execution tasks with verification requirements,
-So that the Ralph loop knows what to build and what to verify for each story.
-
-**Acceptance Criteria:**
-
-**Given** a BMAD sprint plan with stories exists
-**When** `ralph/bridge.sh` converts stories to tasks
-**Then** each task includes: story ID, title, acceptance criteria, verification requirements, Showboat proof expectations, observability setup requirements
-**And** tasks are ordered according to story sequence in the sprint plan
-**And** the bridge produces `ralph/progress.txt` for tracking
-
-### Story 6.3: Verification Gates in Loop
-
-As a developer,
-I want the Ralph loop to enforce verification gates per story,
-So that stories aren't marked done without Showboat proof.
-
-**Acceptance Criteria:**
-
-**Given** the Ralph loop is executing a story
-**When** the agent signals story completion
-**Then** the Stop hook checks: Showboat proof exists, `showboat verify` passes, tests pass, coverage 100%
-**And** if all gates pass: story marked done, loop picks next task
-**And** if gates fail: agent iterates (fix → re-verify), iteration count incremented
-**And** verification state tracked across iterations (FR47)
-
-### Story 6.4: Loop Termination & Progress
-
-As a developer,
-I want the Ralph loop to terminate gracefully and report progress,
-So that I know when the sprint is done or why it stopped.
-
-**Acceptance Criteria:**
-
-**Given** the Ralph loop is running
-**When** all stories are done
-**Then** the loop terminates with success summary: stories completed, total iterations, verification pass rates
-
-**When** max iterations reached
-**Then** the loop terminates with progress report: completed stories, remaining stories, current story state
-
-**When** the user cancels
-**Then** the loop terminates cleanly, preserving current progress in state file
-
-**And** in all cases, progress is readable via `/harness-status`
-
-## Epic 7: Documentation System
-
-Project documentation follows the OpenAI harness pattern — per-subsystem AGENTS.md files, exec-plans tracking story lifecycle (active→completed), doc-gardener subagent keeping everything fresh with quality grades.
-
-### Story 7.1: Per-Subsystem AGENTS.md Generation
-
-As an agent,
-I want to create per-subsystem AGENTS.md files when creating new modules,
-So that future agents have local, minimal context for each part of the codebase.
-
-**Acceptance Criteria:**
-
-**Given** the agent creates a new module or subsystem directory
-**When** the module contains source files
-**Then** the agent creates `{module}/AGENTS.md` with: module purpose, key exports, dependencies, conventions
-**And** the AGENTS.md does not exceed 100 lines (NFR24)
-**And** content beyond 100 lines is placed in referenced docs (progressive disclosure)
-**And** the knowledge file `knowledge/documentation-patterns.md` teaches the agent the AGENTS.md format
-
-### Story 7.2: Exec-Plan Lifecycle
-
-As a developer,
-I want exec-plan files to track each story from active to completed,
-So that there's a clear record of what was worked on and what was verified.
-
-**Acceptance Criteria:**
-
-**Given** a sprint starts with BMAD stories
-**When** exec-plans are generated
-**Then** one file per story is created in `docs/exec-plans/active/{story-id}.md` derived from the BMAD story definition
-**And** each exec-plan contains: story summary, ACs, progress log section, verification status
-
-**Given** a story passes verification
-**When** the story is marked complete
-**Then** the exec-plan is moved from `active/` to `completed/`
-**And** verification summary and Showboat proof link are appended (UX-DR18)
-
-### Story 7.3: Doc-Gardener Subagent
-
-As a developer,
-I want a doc-gardener subagent that scans for stale documentation,
-So that docs stay fresh without manual oversight.
-
-**Acceptance Criteria:**
-
-**Given** the doc-gardener is triggered (during retro or on-demand)
-**When** it scans the project
-**Then** it finds: AGENTS.md files referencing deleted functions/modules, docs not updated since corresponding code changed, missing AGENTS.md for modules above complexity threshold, stale exec-plans in `active/` for completed stories
-**And** it opens fix-up tasks for each finding
+**Given** the doc-gardener agent or `src/lib/scanner.ts` scans for stale documentation
+**When** the scan runs
+**Then** all AGENTS.md files, exec-plans, and docs/ content are checked for staleness
+**And** a quality grade is produced per document (fresh/stale/missing)
 **And** scan completes within 60 seconds (NFR23)
 
-### Story 7.4: Quality Score & Tech Debt Tracker
+**Given** a story modifies code in a module
+**When** verification runs for that story
+**Then** the AGENTS.md for the changed module is checked for freshness
+**And** if AGENTS.md doesn't reflect current code, verification prints `[FAIL] AGENTS.md stale for module: <name>`
+**And** the story cannot be marked verified until AGENTS.md is updated
+
+**Given** an active story is being implemented
+**When** the exec-plan system is used
+**Then** `docs/exec-plans/<story-id>.md` is generated for the active story
+**And** upon verification passing, the exec-plan is moved to `docs/exec-plans/completed/`
+
+**Given** generated documentation in `docs/generated/` or `docs/quality/`
+**When** the files are created or updated
+**Then** they include `DO NOT EDIT MANUALLY` headers (NFR26)
+
+**Given** `docs/index.md` references BMAD artifacts
+**When** the index is generated or updated
+**Then** references use relative paths — content is never copied into the index (NFR25)
+
+## Epic 5: Autonomous Execution Loop
+
+User can start the full autonomous development loop. Vendored Ralph reads tasks from beads, spawns fresh Claude Code instances per iteration, enforces verification gates per story, handles termination and crash recovery.
+
+### Story 5.1: Ralph Loop Integration & Beads Task Source
+
+> **Sprint skill integration:** Ralph's prompt tells Claude to run `/harness-run`. Task-picking (get_current_task, progress.json) is removed — the skill reads sprint-status.yaml. Ralph keeps: session spawning, rate limiting, circuit breaker, crash recovery, timeout.
 
 As a developer,
-I want the doc-gardener to produce quality grades and track documentation debt,
-So that I can see doc health at a glance and prioritize fixes.
+I want to run `codeharness run` to start autonomous development,
+So that the agent implements stories from beads with fresh context per iteration.
 
 **Acceptance Criteria:**
 
-**Given** the doc-gardener has completed a scan
-**When** it generates reports
-**Then** `docs/quality/quality-score.md` is created/updated with per-area grades (e.g., "auth: A, routes: C, utils: F")
-**And** `docs/exec-plans/tech-debt-tracker.md` is updated with new documentation debt items
-**And** both files have "DO NOT EDIT MANUALLY" headers (NFR27)
-**And** reports reference BMAD planning artifacts by relative path, not copies (NFR25)
+**Given** a developer runs `codeharness run`
+**When** the run command starts
+**Then** vendored Ralph is invoked via `child_process.spawn('bash', ['ralph/ralph.sh', ...])`
+**And** `--plugin-dir` points to the installed plugin directory
+**And** `--task-source beads` is passed to configure Ralph for beads
+**And** `[INFO] Starting autonomous execution — <N> stories ready` is printed
 
-### Story 7.5: Design-Doc Validation at Epic Completion
+**Given** Ralph is running with beads task source
+**When** it needs the next task
+**Then** `bd ready --json` is called to get the next unblocked task
+**And** the task includes the path to the linked story file
+**And** Ralph reads the story file for ACs, dev notes, and requirements
+
+**Given** Ralph starts a new iteration
+**When** a story is picked up
+**Then** a fresh Claude Code instance is spawned with `claude --plugin-dir <path>`
+**And** the previous iteration's context is NOT carried over
+**And** `bd update <id> --status in_progress` marks the story as active
+**And** `[INFO] Iteration <N>: Story <id> — <title>` is printed
+
+**Given** Ralph spawns a Claude Code instance
+**When** the agent starts working
+**Then** the SessionStart hook fires (session flags reset, health check)
+**And** the plugin provides all skills, knowledge, and hooks
+**And** the agent has access to the full story file with ACs
+
+**Given** `codeharness run --json`
+**When** the loop runs
+**Then** each iteration outputs JSON with story ID, status, and timing
+
+### Story 5.2: Verification Gates, Termination & Tracking
+
+> **Sprint skill integration:** Verification gates move into the sprint skill (Epic 4 enhancements). verify_gates.sh is removed. Ralph detects completion by checking sprint-status.yaml after each session — if all stories done, loop ends.
 
 As a developer,
-I want the harness to validate architectural documentation when an epic completes,
-So that architecture docs stay current as the codebase evolves.
+I want the autonomous loop to enforce verification before closing stories and handle termination gracefully,
+So that no story is marked done without proof and the loop doesn't run forever.
 
 **Acceptance Criteria:**
 
-**Given** all stories in an epic are verified
-**When** epic completion is checked
-**Then** the system validates: ARCHITECTURE.md reflects decisions made during the epic
-**And** any new architectural decisions are documented in the architecture doc
-**And** if validation fails: epic cannot be marked complete until docs are updated
+**Given** an agent completes implementation of a story
+**When** the iteration reaches the verification gate
+**Then** `codeharness verify --story <id>` is invoked
+**And** if verification passes, `bd close <id>` marks the story done
+**And** if verification fails, the agent iterates on the same story
+**And** `[OK] Story <id>: DONE (bd close <beads-id>)` is printed on success
 
-### Story 7.6: DB Schema Generation
+**Given** a story fails verification
+**When** the agent retries
+**Then** the same story is re-attempted in the next iteration
+**And** iteration count for the story is tracked
+**And** if the story exceeds a configurable retry limit, it's flagged and the loop moves on
 
-As a developer,
-I want the harness to auto-generate a database schema document,
-So that agents always have current schema reference without manual maintenance.
+**Given** all stories are completed
+**When** `bd ready --json` returns no tasks
+**Then** the loop terminates normally
+**And** `[OK] All stories complete. <N> stories verified in <M> iterations.` is printed
 
-**Acceptance Criteria:**
+**Given** `codeharness run --max-iterations <N>`
+**When** the iteration count reaches N
+**Then** the loop terminates with `[INFO] Max iterations (<N>) reached. <done>/<total> stories complete.`
 
-**Given** database enforcement is enabled and DB MCP is configured
-**When** schema generation runs (during init or on-demand)
-**Then** `docs/generated/db-schema.md` is created from DB MCP queries
-**And** contains table names, columns, types, relationships
-**And** file has "DO NOT EDIT MANUALLY" header (NFR27)
-**And** schema is refreshable by re-running generation
+**Given** the user sends a cancellation signal (SIGINT/Ctrl+C)
+**When** the signal is received
+**Then** the current iteration is allowed to complete (or cleanly interrupted)
+**And** the loop exits with a summary of progress
 
-## Epic 8: Sprint Lifecycle & Reporting
+**Given** the circuit breaker detects stagnation
+**When** multiple consecutive iterations fail to make progress (no story state changes)
+**Then** the loop terminates with `[WARN] Circuit breaker: no progress in <N> iterations`
+**And** the current state is preserved for manual intervention
 
-Sprints have full lifecycle — mandatory retrospectives analyzing verification effectiveness, test trends, and doc health. `/harness-status` shows everything at a glance. Retro produces actionable follow-up stories.
+**Given** the Ralph loop crashes mid-iteration
+**When** `codeharness run` is restarted
+**Then** the loop resumes from the last completed story (NFR21)
+**And** beads state reflects the true progress (completed stories remain closed)
+**And** `[INFO] Resuming from last completed story` is printed
 
-### Story 8.1: Harness Status Command
+**Given** the loop runs across multiple stories
+**When** progress is tracked
+**Then** iteration count, stories completed, stories remaining, and elapsed time are maintained
+**And** periodic progress summaries are printed: `[INFO] Progress: <done>/<total> stories complete (iterations: <N>, elapsed: <time>)`
 
-As a developer,
-I want `/harness-status` to show harness health, sprint progress, and verification state at a glance,
-So that I always know where things stand without digging through files.
+## Epic 6: Brownfield Onboarding
 
-**Acceptance Criteria:**
+User can onboard existing projects. CLI scans codebase with configurable module threshold, runs coverage analysis, audits documentation, generates an onboarding epic with stories imported as beads issues. User reviews and approves before execution.
 
-**Given** the harness is initialized
-**When** user runs `/harness-status`
-**Then** output follows the `git status` model (UX-DR10): health line → enforcement config → sprint progress table → next action hint
-**And** health line shows: stack status, Docker status, Victoria health
-**And** enforcement line shows: `frontend:ON database:ON api:ON observability:ON`
-**And** sprint progress shows per-story `[PASS]`/`[    ]` with story titles
-**And** next action hint shows: current story or `→ Run /harness-run`
-**And** status lines stay under 100 characters (UX-DR14)
+### Story 6.1: Codebase Scan & Gap Analysis
 
-### Story 8.2: Verification Log
-
-As a developer,
-I want the harness to maintain a verification log across the sprint,
-So that I can see the full history of what was verified and how many iterations it took.
-
-**Acceptance Criteria:**
-
-**Given** stories are being verified during a sprint
-**When** verification events occur
-**Then** each event is appended to the verification log in state file: story ID, timestamp, pass/fail, iteration count
-**And** the log persists across sessions
-**And** `/harness-status` summarizes the log (total verified, pass rate, avg iterations)
-
-### Story 8.3: Mandatory Retrospective Trigger
-
-As a developer,
-I want the harness to automatically trigger a retrospective after sprint completion,
-So that every sprint produces improvement insights.
+As a developer with an existing project,
+I want to run `codeharness onboard` to understand what my project needs to reach full harness compliance,
+So that I get a clear picture of gaps before committing to the onboarding process.
 
 **Acceptance Criteria:**
 
-**Given** all stories in a sprint are verified (or max iterations reached)
-**When** the sprint completes
-**Then** a mandatory retrospective is triggered automatically
-**And** the retro has access to: verification log, coverage data, doc-gardener output
-**And** retro cannot be skipped — it's part of sprint completion
+**Given** a developer runs `codeharness onboard` in an existing project
+**When** the scan phase executes
+**Then** source files are discovered and modules are identified
+**And** module detection uses a configurable minimum threshold (default: 3 files to count as a module, NFR27)
+**And** subdirectories below the threshold are grouped with their parent module
+**And** `[INFO] Scan: <N> source files across <M> modules` is printed
 
-### Story 8.4: Retro Report Generation
+**Given** `codeharness onboard --min-module-size <N>` is specified
+**When** modules are detected
+**Then** the custom threshold is used instead of the default 3
 
-As a developer,
-I want the retrospective to produce a structured report with verification, testing, and doc analysis,
-So that I have actionable insights for the next sprint.
-
-**Acceptance Criteria:**
-
-**Given** the retrospective is triggered with sprint data
-**When** the retro report is generated
-**Then** it includes: sprint summary (stories completed, iterations, duration)
-**And** verification effectiveness section (pass rates, common failure patterns, iteration counts per story)
-**And** test analysis section (coverage trends per story, flaky tests detected, tests that never failed)
-**And** doc health section (quality grades, stale doc count, doc-gardener findings) (UX-DR16)
-**And** report completes within 30 seconds (NFR20)
-
-### Story 8.5: Test Coverage Report
-
-As a developer,
-I want a per-sprint test coverage report with trends and deltas,
-So that I can see how coverage evolved across the sprint.
-
-**Acceptance Criteria:**
-
-**Given** a sprint has completed
-**When** the coverage report is generated
-**Then** `docs/quality/test-coverage.md` is created/updated
-**And** it shows: baseline coverage at sprint start, final coverage, per-story deltas
-**And** file has "DO NOT EDIT MANUALLY" header (NFR27)
-
-### Story 8.6: Retro Follow-up Story Generation
-
-As a developer,
-I want the retrospective to convert findings into actionable follow-up stories,
-So that improvements are tracked and don't get lost.
-
-**Acceptance Criteria:**
-
-**Given** the retro report identifies issues
-**When** findings are converted to follow-up items
-**Then** each finding becomes: a new story for code/test issues, a BMAD workflow patch for process improvements, an enforcement update for verification gaps
-**And** user can review and approve items before they enter the next sprint backlog
-**And** approved items are added to the BMAD sprint plan
-
-## Epic 9: Brownfield Onboarding
-
-User can bring an existing project to full harness compliance. `/harness-onboard` scans the project, generates an onboarding epic, and executes it through the normal Ralph loop — the harness bootstraps itself.
-
-### Story 9.1: Codebase Scan & Analysis
-
-As a developer,
-I want `/harness-onboard` to scan my existing project and produce an analysis report,
-So that I understand the gap between current state and full harness compliance.
-
-**Acceptance Criteria:**
-
-**Given** the harness is initialized in an existing project
-**When** user runs `/harness-onboard`
-**Then** the onboarder subagent scans: project structure, modules/subsystems, dependencies
-**And** detects: source file count per module, existing test files, existing documentation (README, ARCHITECTURE.md, inline docs)
-**And** output shows project scan results following UX-DR15 format
-
-### Story 9.2: Coverage Gap Analysis
-
-As a developer,
-I want the onboarding to analyze test coverage gaps and estimate effort,
-So that I know how much work is needed to reach 100% coverage.
-
-**Acceptance Criteria:**
-
-**Given** the onboarder has scanned the codebase
+**Given** the scan completes module detection
 **When** coverage analysis runs
-**Then** it runs the stack's coverage tool and identifies: uncovered files with line counts, partially covered files with uncovered line ranges
-**And** estimates effort per module (lines to cover)
-**And** prioritizes by risk (core business logic first, utilities last)
-**And** output shows: `[INFO] Coverage: {X}% (target: 100%)` with per-file breakdown
+**Then** `src/lib/coverage.ts` detects the coverage tool and runs coverage
+**And** a gap report is produced showing: per-module coverage percentage, uncovered files count, overall project coverage
+**And** `[INFO] Coverage: <X>% overall (<N> files uncovered)` is printed
 
-### Story 9.3: Documentation Audit
+**Given** the scan completes coverage analysis
+**When** documentation audit runs
+**Then** existing documentation is checked: README.md, AGENTS.md, ARCHITECTURE.md, docs/ directory
+**And** each document gets a quality grade: present/stale/missing
+**And** `[INFO] Docs: README(present) AGENTS.md(missing) ARCHITECTURE.md(missing)` is printed
 
-As a developer,
-I want the onboarding to audit existing documentation quality and freshness,
-So that I know what docs need updating or creating.
+**Given** the scan detects bmalph artifacts
+**When** `.ralph/.ralphrc` or bmalph CLI config files are found
+**Then** they are flagged as superseded files for cleanup
+**And** existing BMAD artifacts (`_bmad/`) are preserved
 
-**Acceptance Criteria:**
+**Given** `codeharness onboard scan --json`
+**When** the scan completes
+**Then** JSON output includes modules array, coverage data, doc audit results, and detected artifacts
 
-**Given** the onboarder has scanned the codebase
-**When** doc audit runs
-**Then** it assesses: README existence and freshness, ARCHITECTURE.md existence, per-module AGENTS.md existence (0/N modules), inline doc coverage (JSDoc/docstrings as % of exports)
-**And** produces a doc quality report with freshness assessment per file
-**And** identifies: stale docs (last updated > N days before code changed), missing docs
+**Given** subcommands are available
+**When** the developer wants to run individual phases
+**Then** `codeharness onboard scan` runs only module detection
+**And** `codeharness onboard coverage` runs only coverage analysis
+**And** `codeharness onboard audit` runs only documentation audit
 
-### Story 9.4: AGENTS.md & Architecture Generation
+### Story 6.2: Onboarding Epic Generation & Approval
 
-As a developer,
-I want the onboarding to generate AGENTS.md files and ARCHITECTURE.md from actual code,
-So that the project has documentation infrastructure without me writing it manually.
-
-**Acceptance Criteria:**
-
-**Given** the onboarder has analyzed the codebase
-**When** documentation generation runs
-**Then** root `AGENTS.md` is generated from actual project structure (not template — reflects real modules, real build commands)
-**And** if no ARCHITECTURE.md exists: a draft is generated from code analysis (module dependencies, data flow, key patterns detected)
-**And** if ARCHITECTURE.md exists: freshness is validated
-**And** `docs/` structure is scaffolded with `index.md` mapping to existing project docs
-
-### Story 9.5: Onboarding Epic Generation
-
-As a developer,
-I want the onboarding to produce an epic with stories for reaching full compliance,
-So that I have a clear, executable plan instead of a vague todo list.
+As a developer with an existing project,
+I want codeharness to generate an onboarding plan from scan findings and let me approve it,
+So that I can review what will be done before the autonomous loop starts working on my project.
 
 **Acceptance Criteria:**
 
-**Given** the onboarder has completed analysis, coverage gap, and doc audit
-**When** the onboarding epic is generated
-**Then** it contains: one coverage story per uncovered module (grouped by module, ordered by risk), architecture doc story (if missing/stale), per-module AGENTS.md story, doc freshness/inline docs story
-**And** each story has acceptance criteria in Given/When/Then format
-**And** stories are sized for single agent sessions
-**And** the epic is written in BMAD format compatible with the Ralph bridge
+**Given** scan findings are complete (modules, coverage gaps, doc audit)
+**When** `codeharness onboard epic` generates the onboarding plan
+**Then** an onboarding epic is created with stories based on findings:
+**And** one coverage story per module below 100% coverage
+**And** one story for AGENTS.md generation (per module needing it)
+**And** one story for ARCHITECTURE.md if missing
+**And** one story for doc freshness if stale docs detected
+**And** one story for bmalph cleanup if bmalph artifacts found
+**And** the epic is written to `ralph/onboarding-epic.md`
 
-### Story 9.6: Onboarding Plan Review & Approval
+**Given** the onboarding epic is generated
+**When** it is presented to the developer
+**Then** the plan summary shows: total stories, coverage stories count, doc stories count
+**And** each story has clear scope and acceptance criteria
+**And** the developer is prompted: `Review the onboarding plan. Approve? [Y/n]`
+
+**Given** the developer approves the plan
+**When** approval is confirmed
+**Then** all onboarding stories are imported into beads via `codeharness bridge --epics ralph/onboarding-epic.md`
+**And** each finding becomes a beads issue with `type=task` and priority from severity
+**And** `[OK] Onboarding: <N> stories imported into beads` is printed
+**And** `Ready to run: codeharness run` is displayed
+
+**Given** the developer rejects or wants to modify the plan
+**When** they respond with `n` or provide feedback
+**Then** the plan is not imported into beads
+**And** the epic file remains at `ralph/onboarding-epic.md` for manual editing
+**And** `[INFO] Plan saved to ralph/onboarding-epic.md — edit and re-run when ready` is printed
+
+**Given** `codeharness onboard --json`
+**When** the full onboard pipeline completes
+**Then** JSON output includes scan results, generated stories, and import status
+
+## Epic 7: Status, Reporting & Lifecycle Management
+
+User can view complete harness status (enforcement config, Docker state, beads summary, session flags, verification history) in one screen. Can cleanly teardown the harness without affecting project code or beads data. Verification summaries and sprint-level logging.
+
+### Story 7.1: Status Command & Reporting
 
 As a developer,
-I want to review and approve the onboarding plan before execution,
-So that I control what gets done and in what order.
+I want to run `codeharness status` to see the complete harness state at a glance,
+So that I know what's running, what's done, and what needs attention.
 
 **Acceptance Criteria:**
 
-**Given** the onboarding epic has been generated
-**When** the plan is presented to the user
-**Then** it shows: total stories, estimated effort, module-by-module breakdown
-**And** user can: approve as-is, reorder stories, remove stories, add stories
-**And** only after explicit approval does the plan become executable
+**Given** a developer runs `codeharness status`
+**When** the harness is initialized
+**Then** output shows in one screen:
+**And** harness version and stack: `Harness: codeharness v<version>` / `Stack: nodejs`
+**And** enforcement config: `Enforcement: front:ON db:ON api:ON obs:ON`
+**And** Docker state per service: running/stopped with ports (if observability ON)
+**And** beads summary: total issues by type, ready/in-progress/done counts
+**And** session flags: current values of `tests_passed`, `coverage_met`, `verification_run`, `logs_queried`
+**And** coverage: current percentage and target
 
-### Story 9.7: Onboarding Execution & Compliance Tracking
+**Given** `codeharness status --check` is run
+**When** health checks execute
+**Then** Docker stack health is verified (if observability ON)
+**And** beads availability is verified
+**And** state file integrity is verified
+**And** exit code 0 if all healthy, exit code 1 if any check fails
+
+**Given** `codeharness status --check-docker` is run
+**When** Docker health is checked
+**Then** each VictoriaMetrics service is checked for running state
+**And** if any service is down: `[FAIL] <service>: not running`
+**And** actionable remedy is shown
+
+**Given** stories have been verified during a sprint
+**When** status reports verification history
+**Then** per-story verification summary is shown: story ID, pass/fail, AC count, proof path
+**And** sprint-level verification log is maintained across iterations
+
+**Given** `codeharness status --json`
+**When** status is queried
+**Then** JSON output includes all status fields: version, stack, enforcement, docker, beads, session_flags, coverage, verification_log
+
+### Story 7.2: Clean Teardown
 
 As a developer,
-I want the approved onboarding plan to execute through the normal Ralph loop with compliance tracking,
-So that the onboarding is verified the same way as any sprint.
+I want to run `codeharness teardown` to remove all harness artifacts,
+So that I can cleanly uninstall the harness without losing my project code or task history.
 
 **Acceptance Criteria:**
 
-**Given** the user has approved the onboarding plan
-**When** `/harness-run` executes the onboarding sprint
-**Then** each onboarding story runs through the normal pipeline: implement → tests → coverage → verify → proof
-**And** `/harness-status` shows onboarding compliance percentage: coverage %, docs coverage (N/M modules with AGENTS.md), ARCHITECTURE.md status
-**And** when all stories complete: `[OK] Project fully harnessed` with 100% compliance
+**Given** a developer runs `codeharness teardown`
+**When** teardown executes
+**Then** Docker stack is stopped: `docker compose -f docker-compose.harness.yml down -v`
+**And** `docker-compose.harness.yml` is removed
+**And** Plugin directory artifacts are removed
+**And** State file `.claude/codeharness.local.md` is removed
+**And** BMAD harness patches are removed (content between markers deleted, markers deleted)
+**And** OTLP instrumentation configuration is removed
+**And** `[OK] Harness teardown complete` is printed
 
-## Epic 10: Standalone Mode
+**Given** teardown runs
+**When** project files are evaluated
+**Then** project source code is NOT modified (NFR15)
+**And** beads data (`.beads/`) is NOT removed (preserved by default)
+**And** BMAD artifacts (`_bmad/`) are NOT removed (only harness patches within them)
+**And** `docs/` content created by the developer is NOT removed
+**And** verification proof documents are NOT removed
 
-Users without BMAD can use codeharness with any task list — markdown checklist, JSON, or plain text. Verification works the same, any methodology benefits from the harness.
+**Given** `codeharness teardown --keep-docker`
+**When** teardown executes
+**Then** Docker stack is left running
+**And** `docker-compose.harness.yml` is preserved
+**And** all other artifacts are removed
 
-### Story 10.1: Standalone Task List Support
+**Given** `codeharness teardown --keep-beads`
+**When** teardown executes
+**Then** beads data is explicitly preserved (this is the default, flag is for clarity)
 
-As a developer,
-I want to use codeharness without BMAD by providing my own task list,
-So that the harness works with any methodology, not just BMAD.
+**Given** Docker is not running at teardown time
+**When** teardown tries to stop Docker
+**Then** `[INFO] Docker stack: not running, skipping` is printed
+**And** teardown continues without error
 
-**Acceptance Criteria:**
-
-**Given** no `_bmad/` directory exists and BMAD is not installed
-**When** user provides a task list as markdown checklist, JSON task list, or plain text (one task per line)
-**Then** the system parses the task list into verification-trackable tasks
-**And** each task can be verified via `/harness-verify`
-**And** `/harness-status` shows task progress
-
-**Given** BMAD is not installed
-**When** user runs `/harness-init`
-**Then** BMAD installation is skipped (no error)
-**And** harness components (Victoria, hooks, docs/) still set up
-**And** output shows `[INFO] BMAD: not installed (standalone mode)`
-
-### Story 10.2: Manual Verification Trigger
-
-As a developer,
-I want to trigger verification manually via `/harness-verify` for any development work,
-So that I can use the verification pipeline outside of autonomous loops.
-
-**Acceptance Criteria:**
-
-**Given** the harness is initialized (with or without BMAD)
-**When** user runs `/harness-verify`
-**Then** the verifier subagent spawns and runs the full verification pipeline
-**And** it asks the user what to verify (or reads from current task context)
-**And** produces a Showboat proof document
-**And** runs `showboat verify` to confirm reproducibility
-**And** works identically whether BMAD is installed or not
+**Given** `codeharness teardown --json`
+**When** teardown completes
+**Then** JSON output includes list of removed artifacts and preserved items

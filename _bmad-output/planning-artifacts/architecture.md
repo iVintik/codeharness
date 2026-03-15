@@ -2,15 +2,16 @@
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
 lastStep: 8
 status: 'complete'
-completedAt: '2026-03-14'
+completedAt: '2026-03-15'
 inputDocuments:
-  - prd.md
+  - prd.md (v2)
   - product-brief-bmad-orchestrator-2026-03-14.md
   - research/technical-bmad-orchestrator-implementation-research-2026-03-14.md
-  - prd-validation-report.md
+  - prd-validation-report.md (v2)
+  - architecture-v1 (in-session context)
 workflowType: 'architecture'
 project_name: 'codeharness'
-user_name: 'Ivintik'
+user_name: 'BMad'
 date: '2026-03-14'
 ---
 
@@ -23,327 +24,561 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 ### Requirements Overview
 
 **Functional Requirements:**
-47 FRs across 8 capability areas. The core is a verification pipeline (implement → quality gates → real-world verification → evidence capture → iterate) orchestrated by Claude Code hooks and coordinated across external tools. Key architectural driver: everything is enforcement — hooks block actions until verification conditions are met.
+69 FRs across 11 capability areas. The core is a CLI-driven harness lifecycle (init→bridge→run→verify→status→onboard→teardown) with beads as the unified task store and Claude Code hooks for mechanical enforcement. Key architectural driver: the CLI does all mechanical work — the plugin is a thin wrapper.
 
 **Non-Functional Requirements:**
-17 NFRs focused on speed (hooks <500ms, queries <2s, stack start <30s), integration stability (pinned versions, coexistence with other plugins), and reliability (crash detection, graceful fallback for agent-browser only, clear error messages). No scalability, no availability, no concurrent user requirements — this is a single-user local development tool.
+28 NFRs across performance (hooks <500ms, init <5min, bridge <10s), integration (plugin coexistence, pinned versions, beads hook compatibility), and reliability (crash recovery, state file corruption handling, idempotent operations). Single-user local development tool — no scalability, availability, or concurrency requirements.
 
 **Scale & Complexity:**
 
-- Primary domain: Claude Code plugin (markdown + bash + JSON, no build step)
-- Complexity level: Medium — orchestration of 5 external tools, 4 hook types, 2 integration paths
-- Estimated architectural components: ~15 (4 commands, 3 skills, 4+ hooks, 2 agents, 1 MCP config, templates, knowledge files)
+- Primary domain: npm CLI package (Node.js) + Claude Code plugin (markdown/bash/JSON)
+- Complexity level: Medium-High — dual runtime (Node.js + bash), 5 external tool integrations, beads task store, BMAD workflow patching
+- Estimated architectural components: ~20 (7 CLI commands, 4 hooks, 3 skills, 2 agents, 6 lib modules, templates, vendored Ralph)
 
 ### Technical Constraints & Dependencies
 
-- **Claude Code plugin system** — All components must follow plugin conventions: `.claude-plugin/plugin.json` manifest, auto-discovered component directories
-- **No build step** — Pure markdown + bash + JSON. No TypeScript, no compilation, no npm dependencies for the plugin itself
-- **Docker required** — VictoriaMetrics stack runs in Docker. Hard dependency. If not installed, guide user to install Docker and stop.
-- **External tools required** — Showboat, agent-browser, OTLP packages. Auto-install during `/harness-init`. If auto-install fails, tell user what to install and stop.
-- **No fallback mode** — Missing tools = stop and fix. No degraded operation, no "skip this tool." The harness either works fully or doesn't start.
-- **Bash-based hooks** — Hook scripts are bash. Must work on macOS and Linux.
-- **`.mcp.json` for MCP** — Project-scoped, version-controlled. Agent-browser and DB MCP configured here.
-- **State via `.local.md`** — Plugin settings pattern: `.claude/codeharness.local.md` with YAML frontmatter
+- **Node.js CLI** — Commander.js for command parsing. npm for distribution. Must bundle templates, vendored Ralph, and plugin scaffold.
+- **Claude Code plugin system** — Plugin auto-discovery from directory structure. Hooks registered via `hooks.json`. Commands invoked as slash commands.
+- **Bash hooks** — Hook scripts are bash, must work on macOS + Linux. Call CLI for state updates. Must coexist with beads git hooks.
+- **Docker** — Required only when observability enforcement is enabled. VictoriaMetrics stack runs in Docker.
+- **Beads** — External dependency (`pip install beads`). Git-backed JSONL. Has its own git hooks that may conflict with codeharness hooks.
+- **Vendored Ralph** — ~500 lines of bash. Invoked by CLI via `child_process.spawn`. Reads tasks from `bd ready --json`. Fresh context per iteration.
+- **External tools** — Showboat (Python, pip), agent-browser (npm), OTLP packages (per-stack). All auto-installed by CLI with fallback chains.
+- **State file** — `.claude/codeharness.local.md` with YAML frontmatter. Single source of truth. Read by hooks (bash), written by CLI (Node.js).
 
 ### Cross-Cutting Concerns Identified
 
-1. **Verification state tracking** — Hooks need to know: has this story been verified? Has VictoriaLogs been queried? Has Showboat proof been created? This state must be accessible from hooks, commands, and skills.
-2. **Docker lifecycle management** — Start, stop, health check for VictoriaMetrics stack. Must handle: not started, started, crashed, user stopped manually.
-3. **Tool installation** — Each external tool (Docker, Showboat, agent-browser, OTLP packages) must be present. Auto-install where possible. If auto-install fails, tell the user exactly what to install and stop. No degraded/fallback mode.
-4. **BMAD/standalone branching** — Same verification pipeline, different task sources. The branching logic must be clean — not `if BMAD then X else Y` scattered everywhere.
-5. **Hook coordination** — Multiple hooks on different events must share state (via `.local.md`) and not conflict with each other or other plugins.
+1. **Two-runtime coordination** — Node.js CLI and bash scripts (hooks, Ralph) must share state via the `.local.md` file. Both read YAML. CLI writes, hooks read. Beads CLI (Python) is a third runtime.
+2. **Beads sync** — Beads issue status and BMAD story file status must stay in sync. Bridge creates the link. `bd close` must trigger story file update. Two-layer model (beads = status, files = content).
+3. **Docker lifecycle** — Start, stop, health check. Must handle: not installed (skip if observability OFF), not started, started, crashed, user stopped manually. CLI owns this.
+4. **Hook coexistence** — Codeharness hooks (Claude Code `hooks.json`) + beads git hooks (`prepare-commit-msg`, `post-checkout`) + possible user git hooks. Must detect and configure coexistence during init.
+5. **Template availability** — v1 failed because templates were missing files. v2 embeds templates in the npm package. CLI generates files from embedded templates, never copies from external directories.
+6. **Idempotency** — Every CLI command must be safe to re-run. Init twice = same result. Bridge twice = same beads state. Patches applied twice = no duplication (marker-based).
+7. **BMAD patch coordination** — 5 BMAD workflow files patched with harness requirements. Patches use markers for idempotency. Must detect BMAD version and adapt.
 
 ## Starter Template Evaluation
 
 ### Primary Technology Domain
 
-Claude Code plugin — not a traditional application. No web framework, no build tool, no database, no compiled language. The plugin is pure markdown + bash + JSON + YAML, following Claude Code's plugin conventions with auto-discovery of component directories.
+Node.js CLI tool — npm package with Commander.js, distributed globally. No web framework, no UI, no database. The CLI orchestrates external tools and generates files.
 
 ### Starter Options Considered
 
-No traditional starter applies. Claude Code plugins have no `create-plugin` CLI generator or boilerplate tool. The plugin structure is hand-scaffolded following the official plugin conventions.
+**Option A: `npm init` + manual setup**
+- Bare Node.js project. Add Commander.js, TypeScript, Vitest manually.
+- Full control. More setup work.
 
-### Selected Starter: Manual Plugin Scaffold
+**Option B: `oclif` (Salesforce CLI framework)**
+- Full-featured CLI framework with plugin system, auto-generated help, TypeScript-first.
+- Overkill — oclif is for complex multi-command CLIs with plugin ecosystems. codeharness has 7 commands, not 70.
 
-**Rationale:** Claude Code plugins are simple directory structures with a manifest. No generator needed — the structure IS the starter. First implementation story creates this scaffold.
+**Option C: `tsup` + Commander.js**
+- TypeScript bundler + Commander.js. Fast builds, ESM/CJS dual output, minimal config.
+- Right-sized. TypeScript compilation, tree-shaking, single entry point.
+
+### Selected Starter: Manual scaffold with tsup + Commander.js
+
+**Rationale:** codeharness is a focused CLI with 7 commands. oclif adds unnecessary abstraction. Manual scaffold with tsup gives us TypeScript, fast builds, and full control over the project structure. Commander.js is battle-tested for this scale.
 
 **Initialization:**
 
 ```bash
-mkdir -p codeharness/.claude-plugin codeharness/commands codeharness/skills codeharness/hooks codeharness/agents codeharness/knowledge codeharness/templates
+mkdir codeharness && cd codeharness
+npm init -y
+npm install commander
+npm install -D typescript tsup vitest @types/node
 ```
 
-**Architectural Decisions Provided by Plugin Structure:**
+**Architectural Decisions Provided by Starter:**
 
 **Language & Runtime:**
-- Plugin code: Markdown (commands, skills, knowledge), Bash (hooks), JSON (manifest, MCP config, hooks registry)
-- No TypeScript, no compilation, no build step
-- Hook scripts must be POSIX-compatible bash (macOS + Linux)
+- TypeScript with strict mode
+- Node.js >= 18 (LTS)
+- ESM modules (`"type": "module"` in package.json)
+- tsup for compilation → `dist/` output
 
-**Component Organization:**
+**Build Tooling:**
+- `tsup src/index.ts --format esm` — single entry point, tree-shaken
+- `"bin": { "codeharness": "./dist/index.js" }` in package.json
+- No watch mode needed — CLI is built, not served
+
+**Testing Framework:**
+- Vitest for TypeScript unit tests (`src/**/*.test.ts`)
+- BATS for bash integration tests (Ralph loop, hooks)
+- c8 for coverage (built into Vitest)
+
+**Code Organization:**
 ```
 codeharness/
-├── .claude-plugin/
-│   └── plugin.json              # Manifest: name, version, description
-├── commands/                     # User-invoked slash commands
-│   ├── harness-init.md          # /harness-init
-│   ├── harness-onboard.md       # /harness-onboard (brownfield project onboarding)
-│   ├── harness-verify.md        # /harness-verify
-│   ├── harness-status.md        # /harness-status
-│   └── harness-teardown.md      # /harness-teardown
-├── skills/                       # Auto-triggered agent knowledge
-│   ├── verification-enforcement.md
-│   ├── visibility-enforcement.md
-│   └── bmad-integration.md
-├── hooks/                        # Mechanical enforcement
-│   ├── hooks.json               # Hook event registrations
-│   ├── pre-commit-gate.sh       # PreToolUse: block commit without verification
-│   ├── post-write-check.sh      # PostToolUse: verify OTLP instrumentation
-│   ├── session-start.sh         # SessionStart: verify harness is running
-│   └── stop-loop.sh             # Stop: autonomous loop continuation
-├── agents/                       # Subagents for isolated tasks
-│   ├── verifier.md              # Runs verification pipeline
-│   └── observer.md              # Queries VictoriaLogs/Traces
-├── knowledge/                    # Context loaded into agent memory
-│   ├── harness-principles.md    # Harness engineering principles
-│   ├── verification-patterns.md # How to verify different story types
-│   ├── otlp-instrumentation.md  # OTLP setup per stack
-│   └── testing-patterns.md      # Test writing per stack, coverage tools, what to cover
-├── templates/                    # Copied to project during init
-│   ├── docker-compose.harness.yml
-│   ├── showboat-template.md
-│   └── otlp/
-│       ├── nodejs.md
-│       └── python.md
-└── .mcp.json                     # Project-scoped MCP: agent-browser, DB MCP
+├── src/
+│   ├── index.ts                    # CLI entry point (Commander.js)
+│   ├── commands/
+│   │   ├── init.ts                 # codeharness init
+│   │   ├── bridge.ts               # codeharness bridge
+│   │   ├── run.ts                  # codeharness run
+│   │   ├── verify.ts               # codeharness verify
+│   │   ├── status.ts               # codeharness status
+│   │   ├── onboard.ts              # codeharness onboard
+│   │   └── teardown.ts             # codeharness teardown
+│   ├── lib/
+│   │   ├── state.ts                # State file read/write
+│   │   ├── docker.ts               # Docker lifecycle management
+│   │   ├── beads.ts                # Beads CLI wrapper
+│   │   ├── bmad.ts                 # BMAD install + patching
+│   │   ├── stack-detect.ts         # Stack detection (Node.js, Python)
+│   │   ├── deps.ts                 # Dependency auto-install
+│   │   └── templates.ts            # Template generation from embedded content
+│   └── templates/                  # Embedded templates (compiled into dist/)
+│       ├── docker-compose.ts       # Docker Compose template strings
+│       ├── otel-config.ts          # OTel Collector config
+│       ├── bmad-patches.ts         # BMAD workflow patches
+│       ├── plugin-scaffold.ts      # Plugin directory structure
+│       └── showboat-template.ts    # Proof document template
+├── plugin/                         # Claude Code plugin (generated into project)
+│   ├── .claude-plugin/
+│   │   └── plugin.json
+│   ├── commands/                   # Slash commands → invoke CLI
+│   ├── hooks/                      # Bash hooks → call CLI for state
+│   ├── skills/                     # Agent knowledge files
+│   ├── agents/                     # Subagent specs
+│   └── knowledge/                  # Reference material
+├── ralph/                          # Vendored Ralph loop (bash)
+│   ├── ralph.sh
+│   ├── drivers/
+│   │   └── claude-code.sh
+│   └── lib/
+├── test/
+│   ├── unit/                       # Vitest tests for src/
+│   ├── integration/                # BATS tests for bash scripts
+│   └── fixtures/                   # Test data
+├── package.json
+├── tsconfig.json
+├── tsup.config.ts
+└── vitest.config.ts
 ```
 
-**Testing:**
-- Local testing: `claude --plugin-dir ./codeharness`
-- No test framework for the plugin itself — plugin artifacts are declarative (markdown, JSON)
-- Hook scripts tested by running them manually with sample `HOOK_INPUT` JSON
-
 **Development Workflow:**
-- Edit markdown/bash/JSON files directly
-- Test with `claude --plugin-dir ./codeharness` in a sample project
-- No build, no compile, no watch mode
-- Version bumps in `plugin.json`
+- `npm run build` — tsup compiles TypeScript → `dist/`
+- `npm test` — Vitest runs unit tests
+- `npm run test:integration` — BATS runs bash tests
+- `npm link` — global install for local testing
+- `claude --plugin-dir ./plugin` — test plugin in Claude Code
 
-**Note:** Plugin scaffold creation is the first implementation story.
+**Note:** Project initialization is the first implementation story.
 
 ## Core Architectural Decisions
 
-### Decision 1: Hook State Management
-**Decision:** Hybrid — file-based for persistent state (`.claude/codeharness.local.md` YAML frontmatter) + marker files for transient signals (`.claude/.harness-verified`, `.claude/.harness-logs-queried`)
-**Rationale:** Persistent state needs structured data (loop iteration, verification log). Transient signals need fast checks (file existence) from bash hooks.
+### Decision 1: CLI ↔ Plugin Boundary
 
-### Decision 2: Autonomous Loop
-**Decision:** Vendor Ralph's external bash loop. codeharness owns and runs the loop directly — not via bmalph, not via ralph-loop plugin.
-**Rationale:** Fresh context per iteration is critical for sustained autonomous runs. External loop provides process control, timeout, crash recovery, rate limiting. Stop hook is inferior for serious autonomous work. Ralph's core is ~500 lines of battle-tested bash.
+**Decision:** Strict separation — CLI owns all mechanical work, plugin owns all agent interaction.
 
-### Decision 3: Verification Pipeline
-**Decision:** Subagent — spawns verifier subagent with isolated context for per-story verification.
-**Rationale:** Verification (agent-browser, API calls, DB checks, Showboat) consumes significant context. Isolating it in a subagent keeps the implementation context clean.
+| Layer | Owns | Examples |
+|-------|------|---------|
+| **CLI** (`codeharness` npm) | Execution, state mutation, external tool orchestration | Stack detection, Docker start/stop, BMAD patching, beads import, template generation, state file writes |
+| **Plugin** (markdown/bash/JSON) | Agent interface, knowledge, enforcement signals | Slash commands that invoke CLI, hooks that read state and block/prompt, skills that teach patterns, agents that run verification |
+| **Hooks** (bash, in plugin) | Thin bridges — read state from CLI, send signals to agent | `pre-commit-gate.sh` reads `tests_passed` flag, blocks if false. Does NOT run tests itself — CLI does that. |
 
-### Decision 4: Docker Compose
-**Decision:** Generated based on enforcement config during `/harness-init`.
-**Rationale:** Not all projects need all Victoria components. If user opts out of VictoriaTraces (no tracing needed), don't start it. Generated compose is leaner and project-appropriate.
+**Rationale:** v1 failed because the plugin tried to be both interface AND implementation via markdown. The CLI is testable, debuggable, deterministic. The plugin is declarative — it tells the agent what to do and when, but the CLI does the doing.
 
-### Decision 5: OTLP Instrumentation
-**Decision:** Modify start script directly (add `--require` flag or `opentelemetry-instrument` wrapper).
-**Rationale:** Explicit is better than implicit. `NODE_OPTIONS` env var can be overridden accidentally. Modifying the start script makes it visible and version-controlled.
+**Rule:** If it mutates state, generates files, or calls external tools → CLI. If it guides the agent, blocks actions, or provides knowledge → plugin.
 
-### Decision 6: codeharness Scope
-**Decision:** codeharness replaces bmalph entirely. It IS the BMAD distribution with harness engineering built in.
-**Rationale:** codeharness needs to patch BMAD workflows to enforce harness requirements at every level. Can't patch what you don't own. Two tools managing `_bmad/` = conflict.
+### Decision 2: State Management
 
-### Decision 7: BMAD Integration Depth
-**Decision:** Deep integration — codeharness installs BMAD with harness-aware patches:
-- Story templates include verification requirements
-- Dev story workflow enforces observability during development
-- Code review checks Showboat proof exists
-- Retrospective reviews verification effectiveness
-- Architecture workflow generates structural constraints
-- PRD requires verifiable acceptance criteria
-**Rationale:** The harness must be wired into every phase, not bolted on at the end.
+**Decision:** Single state file (`.claude/codeharness.local.md`) written exclusively by CLI, read by hooks and plugin.
 
-### Decision 8: Ralph Integration
-**Decision:** Vendor Ralph's core loop (~500 lines bash). codeharness builds its own BMAD→task bridge that's verification-aware.
-**Rationale:** Ralph's fresh-context loop is proven. No need to reimplement. But the bridge from BMAD stories to execution tasks needs to include verification requirements, Showboat proof expectations, and observability setup per story — bmalph's bridge doesn't do this.
+**State file ownership:**
+- **CLI writes** — all state mutations go through `src/lib/state.ts`
+- **Hooks read** — bash hooks use `grep`/`sed` to read YAML values (fast, <500ms NFR1)
+- **Plugin skills reference** — skills tell the agent what state fields mean
+- **Beads is separate** — beads has its own state (`.beads/`). No duplication. CLI reads beads via `bd` commands when needed.
 
-### Decision 9: Testing & Coverage Enforcement
-**Decision:** 100% project-wide test coverage enforced as a quality gate. Tests written after implementation, before Showboat verification. Pipeline: implement → write tests → coverage check (100%) → all tests pass → Showboat verification → commit.
-**Rationale:** With agentic coding, TDD provides little design benefit — the agent iterates cheaply. But tests as regression guards are critical. Project-wide coverage (not per-story) ensures no blind spots accumulate. Any uncovered code discovered during a story gets tests added as part of that story. Coverage tools: c8/istanbul for Node.js, coverage.py for Python — detected during `/harness-init` alongside stack detection.
-
-### Decision 10: Documentation Structure (OpenAI Harness Pattern)
-**Decision:** Adopt OpenAI's documentation structure adapted for BMAD. BMAD planning artifacts remain in their native location (`_bmad-output/planning-artifacts/`). A `docs/` directory in the project root provides the OpenAI-style structure with `index.md` as a map pointing to BMAD artifacts — no duplication. Per-subsystem `AGENTS.md` files follow OpenAI's "88 files" pattern. Exec-plans derived from BMAD stories track active/completed work. Doc-gardening subagent maintains freshness and quality grades.
-**Rationale:** OpenAI proved at scale (1M lines) that repo-resident, mechanically-enforced documentation is essential for sustained agent productivity. BMAD already produces the planning artifacts — the OpenAI structure provides the operational layer (exec-plans, quality grades, freshness checks) that BMAD doesn't cover. No duplication: `docs/index.md` references `_bmad-output/` by path.
-
-### Decision 11: BMAD Workflow Integration for Docs & Tests
-**Decision:** Deep integration — BMAD workflow patches wire documentation and testing requirements into every workflow phase:
-- **Dev story patch:** Agent must update/create per-subsystem AGENTS.md, update exec-plan, write tests after implementation, achieve 100% coverage
-- **Code review patch:** Verify AGENTS.md freshness, exec-plan updated, tests exist, coverage 100%
-- **Retro patch:** Doc-gardener subagent runs, produces quality grades, analyzes test effectiveness, generates tech-debt-tracker items
-- **Sprint planning patch:** Verify planning docs complete, ARCHITECTURE.md current, test infrastructure ready
-- **Story template patch:** ACs include documentation and testing requirements
-**Rationale:** Documentation and testing that aren't enforced by the workflow don't happen. Patching BMAD workflows ensures every agent, in every phase, knows what docs and tests are required. The agent can't skip what the workflow demands.
-
-### Decision 12: Brownfield Onboarding as Self-Bootstrapping Epic
-**Decision:** `/harness-onboard` is a phased command. Phase 1: onboarder subagent scans the project, generates AGENTS.md files, docs/ scaffold, coverage gap report, and doc audit. Phase 2: it produces an onboarding epic with stories (coverage per module, architecture doc, AGENTS.md per-module, doc freshness). Phase 3: user reviews and approves. Phase 4: the onboarding epic executes through the normal Ralph loop with full verification — the harness onboards itself.
-**Rationale:** Brownfield onboarding is too much work for a single command. Breaking it into an epic that runs through the existing Ralph loop means: each phase is verifiable with Showboat proof, the user can review the plan before execution, progress is trackable, and the harness dogfoods itself during onboarding. The onboarding IS the first sprint.
-
-### Decision Impact Analysis
-
-**Scope change:** codeharness is now significantly larger than originally scoped:
-- BMAD installation + patching (was bmalph's job)
-- Ralph loop vendoring + verification integration (was bmalph's job)
-- BMAD→execution bridge with verification awareness (was bmalph's job, enhanced)
-- Harness (verification + observability + enforcement) (original scope)
-- Multi-platform support (future, was bmalph's job)
-
-**Implementation sequence:**
-1. Plugin scaffold + manifest
-2. BMAD installation with harness patches (including doc + test patches)
-3. VictoriaMetrics stack setup (Docker Compose generation)
-4. OTLP auto-instrumentation (Node.js, Python)
-5. Hook architecture (PreToolUse, PostToolUse, SessionStart)
-6. Documentation structure setup (AGENTS.md generation, docs/ scaffolding, index.md)
-7. Testing enforcement (coverage tools, pre-commit gate integration)
-8. Verification pipeline (agent-browser + Showboat + DB MCP)
-9. Doc-gardener subagent
-10. Ralph loop vendoring + verification-aware bridge
-11. Autonomous execution with per-story verification
-12. `/harness-verify`, `/harness-status`, `/harness-teardown`
-
-**Cross-component dependencies:**
-- Hooks depend on state file format (Decision 1)
-- Verification subagent depends on hook signals (Decision 1 + 3)
-- Docker Compose generation depends on enforcement config (Decision 4)
-- Ralph loop depends on bridge format (Decision 8)
-- BMAD patches depend on understanding all BMAD workflows (Decision 7)
-
-## Implementation Patterns & Consistency Rules
-
-### Critical Conflict Points
-
-5 areas where AI agents could make different choices when implementing codeharness components.
-
-### Markdown Command/Skill Patterns
-
-**YAML Frontmatter (all commands):**
-```yaml
----
-description: "One-line description of what this command does"
----
-```
-
-**Command structure:**
-- `## ` for main sections within command markdown
-- Imperative voice for instructions ("Detect the stack", not "The system detects the stack")
-- Code blocks with language tags for all examples
-- No conversational filler — dense, direct instructions
-
-**Skill structure:**
-- Description field must be triggering-optimized
-- Skills teach patterns, not execute procedures
-- Use "The agent should..." not "You should..."
-
-### Bash Hook Patterns
-
-**State file reading (canonical pattern):**
-```bash
-#!/bin/bash
-STATE_FILE=".claude/codeharness.local.md"
-
-get_state() {
-  local key="$1"
-  sed -n '/^---$/,/^---$/p' "$STATE_FILE" | grep "^${key}:" | sed "s/^${key}: *//"
-}
-
-if [ ! -f "$STATE_FILE" ]; then
-  echo '{"decision": "allow"}'
-  exit 0
-fi
-```
-
-**Hook JSON output (canonical format):**
-```bash
-# Allow
-echo '{"decision": "allow"}'
-exit 0
-
-# Block
-echo '{"decision": "block", "reason": "Run /harness-verify before committing"}'
-exit 2
-
-# Prompt injection (PostToolUse)
-echo '{"message": "Query VictoriaLogs for errors: curl localhost:9428/select/logsql/query?query=level:error"}'
-exit 0
-```
-
-**Error handling rules:**
-- Always check file existence before reading
-- `exit 0` for allow, `exit 2` for block
-- Never `exit 1` — that's hook script failure, not intentional block
-- All error messages must be actionable
-
-### State File Format
-
-**Canonical `.claude/codeharness.local.md` structure:**
+**Canonical state file structure:**
 ```yaml
 ---
 harness_version: "0.1.0"
 initialized: true
+stack: "nodejs"
 enforcement:
   frontend: true
   database: true
   api: true
   observability: true
-stack: "nodejs"
-stack_running: true
-current_loop:
-  active: false
-  iteration: 0
-  max_iterations: 50
-  current_task: ""
-  tasks_completed: []
-  tasks_remaining: []
-verification_log: []
 coverage:
-  baseline: 0
-  current: 0
-  tool: ""
+  target: 100
+  baseline: null
+  current: null
+  tool: "c8"
 session_flags:
   logs_queried: false
-  verification_run: false
   tests_passed: false
   coverage_met: false
+  verification_run: false
+verification_log: []
 ---
 ```
 
-**Rules:**
-- All field names: `snake_case`
-- Booleans: `true`/`false`
-- `session_flags` reset on each new session (SessionStart hook)
-- `verification_log` is append-only
-- `current_loop` updated by Stop hook and loop commands
+**Session flag lifecycle:**
+1. `session-start.sh` hook resets all flags to `false`
+2. Agent runs tests → CLI command `codeharness state set tests_passed true`
+3. Agent checks coverage → CLI command `codeharness state set coverage_met true`
+4. Agent runs verification → CLI command `codeharness state set verification_run true`
+5. `pre-commit-gate.sh` reads flags, blocks if any are `false`
 
-### Template Generation Patterns
+**Rationale:** v1's critical failure was that flags were never set. The CLI exposes `codeharness state set <key> <value>` as a subcommand. Hooks call it. The agent calls it. No more "flags hardcoded false forever."
 
-**Docker Compose:**
-- Service names: `victoria-logs`, `victoria-metrics`, `victoria-traces`, `otel-collector`, `grafana`
-- Network: `codeharness-net`
-- Volume prefix: `codeharness-`
-- Ports: 9428, 8428, 14268, 4318, 3001
+### Decision 3: Beads Integration
 
-**OTLP environment variables:**
-- Always `OTEL_` prefix (OpenTelemetry standard)
-- Service name: project directory name
-- Endpoint: `http://localhost:4318`
+**Decision:** Beads is the unified task store. CLI wraps `bd` commands. Two-layer model: beads = status/ordering, story files = content.
 
-### Showboat Proof Document Patterns
+**Bridge flow:**
+```
+codeharness bridge --epics epics.md
+  ├── Parse BMAD stories (src/lib/bmad.ts)
+  ├── For each story:
+  │   ├── bd create "Story title" --type story --priority N
+  │   ├── Set description = path to story file
+  │   └── Set deps from story dependencies
+  └── Report: "Imported N stories into beads"
+```
+
+**Beads ↔ story file sync:**
+- Bridge creates the link (beads issue description → story file path)
+- When Ralph completes a story: CLI runs `bd close <id>` AND updates story file status
+- `codeharness status` reads from beads (`bd list --json`) for sprint progress
+
+**Hook conflict resolution:**
+- `codeharness init` detects `.beads/hooks/` directory
+- Beads hooks are git hooks, codeharness hooks are Claude Code hooks — different systems, no conflict by default
+- If both modify git hooks: CLI chains them in a harness-managed hooks directory
+
+**Rationale:** Beads gives us dependency tracking, `bd ready` for task selection, and git-native JSONL persistence. The two-layer model keeps rich story content in files where BMAD workflows expect it, while beads handles the operational layer.
+
+### Decision 4: Ralph Integration
+
+**Decision:** CLI invokes vendored Ralph via `child_process.spawn`. Ralph reads from beads via `bd ready --json`.
+
+**Invocation:**
+```typescript
+// src/commands/run.ts
+spawn('bash', ['ralph/ralph.sh',
+  '--plugin-dir', pluginPath,
+  '--task-source', 'beads',
+  '--max-iterations', '50'
+], { stdio: 'inherit' });
+```
+
+**Ralph modifications for beads:**
+- Ralph's `task_sources.sh` already has `fetch_beads_tasks()` — use it
+- Remove progress.json dependency. Task state lives in beads.
+- `bd ready --json` returns next unblocked task
+- `bd update <id> --status in_progress` when story starts
+- `bd close <id>` when verification passes
+
+**Verification gates:**
+- After each iteration, CLI runs `codeharness verify --story <id>`
+- If pass → `bd close`, next story
+- If fail → iterate on same story
+
+**Rationale:** Ralph's loop is battle-tested. We configure it to read from beads instead of progress.json. The CLI handles pre/post iteration logic.
+
+**Amendment (2026-03-15): Sprint Execution Skill as Single Execution Engine**
+
+The sprint execution skill (`/harness-run`) is the single source of sprint execution logic. Two execution modes exist, both using the same skill:
+
+1. **In-session** (skill directly): User runs `/harness-run` in current Claude Code session. Skill uses Agent tool for fresh context per story. Reads sprint-status.yaml. No external processes.
+
+2. **Multi-session** (Ralph wrapper): Ralph spawns Claude Code instances. Each instance runs `/harness-run`. Ralph handles rate limiting, circuit breaker, crash recovery, timeout management. Ralph does NOT implement task-picking or verification gates.
+
+Architecture change:
+- OLD: Ralph → progress.json → custom prompt → agent improvises
+- NEW: Ralph → spawns Claude → `/harness-run` skill → BMAD workflows
+
+Ralph's removed responsibilities (moved to skill):
+- Task picking (get_current_task) → skill reads sprint-status.yaml
+- Verification gates (verify_gates.sh) → skill's story-completion flow
+- Progress tracking → sprint-status.yaml (single source of truth)
+
+Ralph's retained responsibilities:
+- Session spawning (fresh Claude Code instances)
+- Rate limiting (API call tracking)
+- Circuit breaker (stagnation detection)
+- Crash recovery (resume from last sprint-status.yaml state)
+- Timeout management (per-session and total loop)
+
+### Decision 5: Docker Lifecycle
+
+**Decision:** CLI manages Docker Compose via `child_process.exec`. Docker required only when `enforcement.observability` is `true`.
+
+**Skip logic:**
+- `enforcement.observability === false` → skip Docker entirely during init
+- Docker not installed + observability ON → clear error, halt init
+- Docker not installed + observability OFF → silently skip
+
+**Template generation from enforcement config:**
+- Base services: VictoriaLogs + VictoriaMetrics + OTel Collector
+- Optional: VictoriaTraces (if tracing needed)
+- Optional: Grafana (always included when observability ON)
+
+**Rationale:** v1 required Docker even when observability was OFF. CLI checks enforcement config first.
+
+### Decision 6: Template Embedding
+
+**Decision:** All templates are TypeScript string literals in `src/templates/`, compiled into the npm package. Never copies from external files.
+
+**Template modules:**
+- `src/templates/docker-compose.ts` — Docker Compose YAML
+- `src/templates/otel-config.ts` — OTel Collector configuration
+- `src/templates/bmad-patches.ts` — BMAD workflow patches with markers
+- `src/templates/plugin-scaffold.ts` — Plugin directory and file contents
+- `src/templates/showboat-template.ts` — Proof document skeleton
+
+**Rationale:** v1's "missing templates" gap. Embedding as TypeScript means `npm install -g codeharness` includes everything.
+
+### Decision 7: BMAD Patching
+
+**Decision:** CLI applies patches using marker-based idempotency. Patches embedded as templates.
+
+**Marker format:**
+```markdown
+<!-- CODEHARNESS-PATCH-START:{patch_name} -->
+{patch content}
+<!-- CODEHARNESS-PATCH-END:{patch_name} -->
+```
+
+**Patch targets:**
+1. Story template — verification + documentation + testing requirements
+2. Dev-story workflow — observability, docs, tests enforcement
+3. Code-review workflow — Showboat proof, AGENTS.md freshness, coverage
+4. Retrospective workflow — verification effectiveness, doc health, test quality
+5. Sprint-planning workflow — `bd ready` for backlog
+
+**BMAD installation:**
+- `_bmad/` missing → `npx bmad-method init` → apply patches
+- `_bmad/` exists → detect version → apply/update patches
+- bmalph artifacts found → note in onboard findings
+
+**Rationale:** Idempotent patches with markers. Safe to re-run. Replace-between-markers handles updates.
+
+### Decision 8: Verification Pipeline
+
+**Decision:** CLI orchestrates verification. Agent executes verification steps in isolated context via Agent tool.
+
+**Flow:**
+```
+codeharness verify --story <story-id>
+  ├── Read story file → extract ACs
+  ├── Check pre-conditions (tests_passed, coverage_met)
+  ├── Agent executes verification (Showboat, agent-browser, curl, DB MCP)
+  ├── Check proof exists at verification/{story-id}-proof.md
+  ├── Update state: verification_run = true
+  └── Update beads: bd close <story-id>
+```
+
+**Rationale:** Verification consumes significant context. Isolating it prevents implementation context pollution. CLI handles bookkeeping.
+
+### Decision 9: Brownfield Onboarding
+
+**Decision:** Multi-phase CLI command: scan → coverage → audit → epic → beads import → Ralph execution.
+
+**Module detection:**
+- Configurable minimum file threshold (default 3, NFR27)
+- Subdirectories below threshold grouped with parent
+
+**bmalph detection:**
+- `.ralph/.ralphrc` found → create beads issue for cleanup
+- Preserves BMAD artifacts, flags bmalph-specific files only
+
+**Rationale:** Onboarding is the first sprint. Flows through same pipeline as all other work.
+
+### Decision Impact Analysis
+
+**Implementation sequence:**
+1. Project scaffold (package.json, tsconfig, tsup, Commander.js)
+2. Core lib: state.ts, templates.ts, stack-detect.ts
+3. `codeharness init` (stack detect, deps, state file, templates)
+4. `codeharness bridge` (BMAD parsing → beads import)
+5. Beads integration (lib/beads.ts, hook conflict resolution)
+6. BMAD patching (lib/bmad.ts, embedded patches)
+7. Plugin scaffold generation
+8. Hook architecture (bash → CLI state calls)
+9. `codeharness verify` (verification orchestration)
+10. `codeharness run` (Ralph with beads task source)
+11. `codeharness onboard` (scan, coverage, audit, epic)
+12. `codeharness status` + `codeharness teardown`
+
+**Cross-component dependencies:**
+- Hooks depend on state file format (D2) and CLI `state set` command
+- Bridge depends on BMAD parser (D3) and beads wrapper (D3)
+- Ralph depends on beads `bd ready` (D4) and verification gates (D8)
+- Verification depends on state flags (D2) and Showboat proof format (D8)
+- Onboard depends on beads import (D3) and module detection config (D9)
+
+## Implementation Patterns & Consistency Rules
+
+### Critical Conflict Points
+
+8 areas where AI agents could make different choices when implementing codeharness components.
+
+### State File Patterns
+
+**YAML field naming:** `snake_case` always
+```yaml
+# ✅ Correct
+session_flags:
+  tests_passed: true
+  coverage_met: false
+
+# ❌ Wrong
+sessionFlags:
+  testsPassed: true
+```
+
+**Booleans:** `true`/`false` (YAML native, not strings)
+**Arrays:** YAML flow style for short lists, block style for long
+**Null:** `null` (not empty string, not omitted)
+
+**State reading (canonical bash pattern):**
+```bash
+STATE_FILE=".claude/codeharness.local.md"
+
+get_state() {
+  local key="$1"
+  sed -n '/^---$/,/^---$/p' "$STATE_FILE" | grep "^  ${key}:" | sed "s/^  ${key}: *//"
+}
+```
+
+**State writing (CLI only):**
+```bash
+codeharness state set tests_passed true
+codeharness state set coverage_met true
+```
+
+### Hook Script Patterns
+
+**Hook JSON output (canonical format):**
+```bash
+# Allow action
+echo '{"decision": "allow"}'
+exit 0
+
+# Block action
+echo '{"decision": "block", "reason": "Tests must pass before commit. Run: codeharness state set tests_passed true"}'
+exit 2
+
+# Prompt injection (PostToolUse)
+echo '{"message": "Query VictoriaLogs for errors after test run."}'
+exit 0
+```
+
+**Exit code rules:**
+- `exit 0` — allow / success
+- `exit 2` — intentional block (hook decided to block)
+- Never `exit 1` — that signals hook script failure, not intentional block
+
+**Error handling:**
+- Always check file existence before reading
+- If state file missing → `echo '{"decision": "allow"}'` and exit 0 (fail open)
+- All error messages must be actionable (tell the user what to do)
+
+**Hook → CLI calls:**
+```bash
+# Hooks call CLI for state updates, never write state directly
+codeharness state set tests_passed true
+codeharness status --check-docker
+```
+
+### CLI Output Patterns
+
+**Status prefixes:**
+```
+[OK]   Success message
+[WARN] Warning message
+[FAIL] Error message
+[INFO] Informational message
+```
+
+**JSON mode:** All commands support `--json` flag for machine-readable output
+```bash
+codeharness status --json
+# Returns: {"initialized": true, "stack": "nodejs", "docker": "running", ...}
+```
+
+**Progress reporting:** Use inline updates for long operations
+```
+[INFO] Installing dependencies...
+[OK]   Showboat: installed (v0.6.1)
+[OK]   agent-browser: installed
+[WARN] Docker: not installed (observability disabled, skipping)
+```
+
+**Exit codes:**
+- 0 — success
+- 1 — error (something failed)
+- 2 — invalid usage (bad arguments)
+
+### Template Patterns
+
+**Template functions:** TypeScript functions that accept a config object and return a string
+```typescript
+// src/templates/docker-compose.ts
+export function dockerComposeTemplate(config: {
+  observability: boolean;
+  projectName: string;
+}): string {
+  return `version: '3.8'
+services:
+  victoria-logs:
+    image: victoriametrics/victoria-logs:v1.15.0
+    ...
+${config.observability ? tracesService() : ''}`;
+}
+```
+
+**Variable substitution:** Template literal interpolation (TypeScript native). No custom template engine.
+**Pinned versions:** All Docker image tags and tool versions are constants, never `latest`.
+
+### Beads Interaction Patterns
+
+**CLI wrapper (src/lib/beads.ts):**
+```typescript
+import { execSync } from 'child_process';
+
+function bdCommand(args: string[]): any {
+  const result = execSync(`bd ${args.join(' ')} --json`, { encoding: 'utf-8' });
+  return JSON.parse(result);
+}
+
+export function createIssue(title: string, opts: BeadsCreateOpts): string {
+  return bdCommand(['create', `"${title}"`, ...formatOpts(opts)]);
+}
+
+export function getReady(): BeadsIssue[] {
+  return bdCommand(['ready']);
+}
+```
+
+**Always use `--json` flag** when calling `bd` programmatically.
+**Error handling:** If `bd` command fails, throw with clear message including the failed command.
+
+### BMAD Patch Patterns
+
+**Marker format (never deviate):**
+```markdown
+<!-- CODEHARNESS-PATCH-START:{patch_name} -->
+{patch content}
+<!-- CODEHARNESS-PATCH-END:{patch_name} -->
+```
+
+**Patch names:** `kebab-case`, descriptive: `story-verification`, `dev-enforcement`, `review-enforcement`, `retro-enforcement`, `sprint-beads`
+
+**Insertion logic:**
+1. Check if markers exist → if yes, replace content between markers (update)
+2. If no markers → find appropriate insertion point in workflow file → append with markers
+
+### Showboat Proof Patterns
 
 **File naming:** `verification/{story-id}-proof.md`
+**Screenshots:** `verification/screenshots/{story-id}-{ac-number}-{description}.png`
 
 **Document structure:**
 ```markdown
@@ -363,30 +598,45 @@ session_flags:
 - Total ACs: {count}
 - Verified: {count}
 - Failed: {count}
+- Showboat verify: PASS/FAIL
 ```
 
 **Rules:**
-- One Showboat document per story
+- One proof document per story
 - One section per acceptance criterion
-- Screenshots in `verification/screenshots/`
 - `showboat verify` must pass before story completion
+
+### Error Handling Patterns
+
+**CLI commands:**
+- Validate arguments first → exit 2 if invalid
+- Check preconditions (state file exists, Docker running, beads available) → exit 1 with actionable message
+- Catch external tool failures → wrap with context ("Showboat failed: {original error}. Try: pip install showboat")
+- Never swallow errors silently
+
+**Hooks:**
+- Fail open if state file missing (allow action, don't block)
+- Never crash — always output valid JSON
+- Log errors to stderr, decisions to stdout
 
 ### Enforcement Guidelines
 
 **All AI agents implementing codeharness MUST:**
-- Use the canonical state file reading pattern
-- Follow hook JSON output format exactly
 - Use `snake_case` for all YAML fields in state file
-- Name proof files as `verification/{story-id}-proof.md`
-- Use imperative voice in command markdown
-- Never use `exit 1` in hooks
+- Use canonical hook JSON output format
+- Use `[OK]`/`[FAIL]`/`[WARN]`/`[INFO]` prefixes for CLI output
+- Use marker-based patches for BMAD files
+- Never `exit 1` in hooks
+- Always call `bd` with `--json` flag
+- Pin all Docker image tags and tool versions
 
 **Anti-Patterns:**
-- ❌ Custom YAML parsing (use `get_state` function)
-- ❌ Inline JSON construction without proper quoting
-- ❌ Hardcoded Docker image tags
-- ❌ `console.log` style debugging in hooks
+- ❌ Hooks writing to state file directly (use CLI `state set`)
+- ❌ Custom YAML parsing in hooks (use `get_state` function)
+- ❌ `console.log` style debugging in production hooks
+- ❌ Hardcoded Docker image tags without version pins
 - ❌ Storing state outside `.claude/codeharness.local.md`
+- ❌ Template files on disk that could be missing (embed in code)
 
 ## Project Structure & Boundaries
 
@@ -394,271 +644,239 @@ session_flags:
 
 ```
 codeharness/
-├── .claude-plugin/
-│   └── plugin.json                          # Manifest
-├── commands/
-│   ├── harness-init.md                      # FR1-FR10
-│   ├── harness-onboard.md                   # FR88-FR99: Brownfield project onboarding
-│   ├── harness-verify.md                    # FR19-FR30
-│   ├── harness-status.md                    # FR45-FR47
-│   ├── harness-teardown.md                  # FR10
-│   └── harness-run.md                       # FR34: Start autonomous loop
-├── skills/
-│   ├── verification-enforcement.md          # FR19-FR26
-│   ├── visibility-enforcement.md            # FR31-FR33
-│   ├── bmad-integration.md                  # FR36-FR41
-│   └── standalone-tasks.md                  # FR42-FR44
-├── hooks/
-│   ├── hooks.json                           # Hook event registrations
-│   ├── pre-commit-gate.sh                   # FR27, FR29, FR62, FR65, FR66
-│   ├── post-write-check.sh                  # FR32-FR33
-│   ├── post-test-verify.sh                  # FR31
-│   ├── session-start.sh                     # FR18
+├── src/
+│   ├── index.ts                        # CLI entry point (Commander.js program)
+│   ├── commands/
+│   │   ├── init.ts                     # FR1-FR11: Stack detect, deps, Docker, BMAD, state
+│   │   ├── bridge.ts                   # FR33, FR40-FR41: BMAD parsing → beads import
+│   │   ├── run.ts                      # FR47-FR51: Ralph invocation with beads task source
+│   │   ├── verify.ts                   # FR20-FR25, FR49: Verification orchestration
+│   │   ├── status.ts                   # FR67-FR69: Harness health, beads summary
+│   │   ├── onboard.ts                  # FR61-FR66: Scan, coverage, audit, epic → beads
+│   │   ├── teardown.ts                 # FR11: Docker down, remove artifacts, preserve code
+│   │   └── state.ts                    # FR30: `codeharness state set <key> <value>`
+│   ├── lib/
+│   │   ├── state.ts                    # FR7, FR30: State file read/write (.local.md YAML)
+│   │   ├── docker.ts                   # FR9, FR12-FR13: Docker Compose lifecycle
+│   │   ├── beads.ts                    # FR32-FR39: Beads CLI wrapper (bd commands)
+│   │   ├── bmad.ts                     # FR4-FR5, FR40-FR46: BMAD install + patching
+│   │   ├── stack-detect.ts             # FR3: Detect Node.js/Python from indicator files
+│   │   ├── deps.ts                     # FR8: Auto-install with correct commands + fallbacks
+│   │   ├── templates.ts               # FR12, FR56-FR57: Generate files from embedded templates
+│   │   ├── coverage.ts                # FR52-FR55: Coverage tool detection, run, report
+│   │   └── scanner.ts                 # FR62-FR64: Codebase scan, module detection, gap analysis
+│   └── templates/                      # Embedded templates (compiled into dist/)
+│       ├── docker-compose.ts           # FR12: Docker Compose YAML generation
+│       ├── otel-config.ts              # FR16: OTel Collector config
+│       ├── bmad-patches.ts             # FR42-FR46: BMAD workflow patches with markers
+│       ├── plugin-scaffold.ts          # Plugin directory + file contents
+│       └── showboat-template.ts        # Proof document skeleton
+├── plugin/                             # Claude Code plugin (copied into project by CLI)
+│   ├── .claude-plugin/
+│   │   └── plugin.json                 # Manifest
+│   ├── commands/
+│   │   ├── harness-init.md             # → codeharness init
+│   │   ├── harness-run.md              # → codeharness run
+│   │   ├── harness-verify.md           # → codeharness verify
+│   │   ├── harness-status.md           # → codeharness status
+│   │   ├── harness-onboard.md          # → codeharness onboard
+│   │   └── harness-teardown.md         # → codeharness teardown
+│   ├── hooks/
+│   │   ├── hooks.json                  # Hook event registrations
+│   │   ├── pre-commit-gate.sh          # FR26-FR27: Block commit without quality gates
+│   │   ├── post-write-check.sh         # FR28: Prompt OTLP verification
+│   │   ├── post-test-verify.sh         # FR31: Prompt log query after tests
+│   │   └── session-start.sh            # FR29: Verify harness health
+│   ├── skills/
+│   │   ├── verification-enforcement/   # FR20-FR25: Verification patterns
+│   │   ├── visibility-enforcement/     # FR17-FR19: Observability querying patterns
+│   │   └── bmad-integration/           # FR40-FR46: BMAD workflow context
+│   ├── agents/
+│   │   ├── verifier.md                 # FR20-FR25: Verification subagent spec
+│   │   └── doc-gardener.md             # FR58-FR60: Doc health subagent spec
+│   └── knowledge/
+│       ├── verification-patterns.md    # How to verify different story types
+│       ├── otlp-instrumentation.md     # OTLP setup per stack
+│       ├── victoria-querying.md        # LogQL/PromQL patterns
+│       └── documentation-patterns.md   # AGENTS.md format, exec-plans, doc structure
+├── ralph/                              # Vendored Ralph loop (bash)
+│   ├── ralph.sh                        # FR47: Core loop (~500 lines)
+│   ├── drivers/
+│   │   └── claude-code.sh              # Claude Code driver
 │   └── lib/
-│       └── state.sh                         # Shared state functions
-├── agents/
-│   ├── verifier.md                          # FR19-FR26: Verification subagent
-│   ├── observer.md                          # FR15-FR17, FR22: Observability subagent
-│   ├── doc-gardener.md                      # FR73-FR75, FR80: Documentation health subagent
-│   └── onboarder.md                        # FR88-FR96: Brownfield project analysis subagent
-├── knowledge/
-│   ├── harness-principles.md                # Harness engineering principles
-│   ├── verification-patterns.md             # Per story type verification
-│   ├── otlp-instrumentation.md              # OTLP setup per stack
-│   ├── victoria-querying.md                 # LogQL/PromQL patterns
-│   ├── showboat-usage.md                    # Showboat commands and patterns
-│   ├── testing-patterns.md                  # FR62-FR67: Test writing per stack, coverage tools
-│   └── documentation-patterns.md            # FR68-FR84: Doc structure, AGENTS.md format, exec-plans
-├── templates/
-│   ├── docker-compose/
-│   │   ├── base.yml                         # Base Victoria services
-│   │   ├── traces.yml                       # VictoriaTraces (optional)
-│   │   ├── grafana.yml                      # Grafana dashboards
-│   │   └── otel-collector-config.yml        # OTel Collector config
-│   ├── otlp/
-│   │   ├── nodejs-setup.md                  # Node.js instrumentation
-│   │   └── python-setup.md                  # Python instrumentation
-│   ├── showboat-template.md                 # Proof document template
-│   └── bmad-patches/
-│       ├── story-verification-patch.md      # Story template patch
-│       ├── dev-workflow-patch.md             # Dev workflow patch
-│       ├── code-review-patch.md             # Code review patch
-│       └── retro-patch.md                   # Retrospective patch
-├── ralph/
-│   ├── ralph.sh                             # Core loop (~500 lines)
-│   ├── bridge.sh                            # BMAD→task bridge
-│   ├── progress.txt                         # Progress tracking template
-│   └── drivers/
-│       └── claude-code.sh                   # Claude Code driver
-├── .mcp.json                                # MCP config template
+│       ├── task_sources.sh             # FR48: Beads task source (fetch_beads_tasks)
+│       └── circuit_breaker.sh          # FR50: Stagnation detection
+├── test/
+│   ├── unit/                           # Vitest: src/**/*.test.ts mirrors
+│   │   ├── commands/
+│   │   ├── lib/
+│   │   └── templates/
+│   ├── integration/                    # BATS: bash script tests
+│   │   ├── ralph.bats
+│   │   ├── hooks.bats
+│   │   └── bridge.bats
+│   └── fixtures/                       # Test data (sample epics, state files, beads JSONL)
+├── package.json
+├── tsconfig.json
+├── tsup.config.ts
+├── vitest.config.ts
 └── README.md
 ```
 
 ### Architectural Boundaries
 
-**Plugin ↔ Claude Code:**
-- Commands: User-invoked via `/command-name`. Auto-discovered.
-- Skills: Auto-triggered by context match. Agent judgment.
-- Hooks: Registered in `hooks.json`. Mechanical — no judgment.
-- MCP: `.mcp.json` provides external tools to the agent.
+**CLI ↔ Plugin:**
+- CLI: `src/` — Node.js, compiled, does work
+- Plugin: `plugin/` — markdown/bash/JSON, copied into target project by `codeharness init`
+- Hooks call CLI via `codeharness state set` and `codeharness status --check-docker`
+- Commands are markdown that tell the agent to run `codeharness <subcommand>`
 
-**Hooks ↔ State:**
-- All hooks share state via `.claude/codeharness.local.md`
-- Shared functions in `hooks/lib/state.sh`
-- Transient session flags reset by `session-start.sh`
+**CLI ↔ Ralph:**
+- CLI spawns Ralph via `child_process.spawn('bash', ['ralph/ralph.sh', ...])`
+- Ralph reads tasks from beads (`bd ready --json`)
+- Ralph spawns fresh `claude --plugin-dir` instances per iteration
+- CLI handles pre/post iteration logic (verification gates, state updates)
 
-**Verification Subagent ↔ Main Agent:**
-- Spawned by `/harness-verify` or Ralph loop
-- Isolated context — doesn't consume implementation context
-- Produces Showboat proof at `verification/{story-id}-proof.md`
-- Updates state file with verification result
+**CLI ↔ Beads:**
+- CLI wraps `bd` commands via `src/lib/beads.ts`
+- Bridge imports BMAD stories into beads
+- Onboard creates beads issues from findings
+- Status reads beads for sprint progress
+- Hooks can call `bd create` for discovered issues
 
-**Ralph Loop ↔ Plugin:**
-- External process (bash script)
-- Spawns fresh `claude --plugin-dir ./codeharness` instances
-- Each instance has full plugin active (hooks, skills, commands)
-- Plugin hooks enforce verification within each iteration
+**CLI ↔ Docker:**
+- CLI generates `docker-compose.harness.yml` from embedded templates
+- CLI manages lifecycle: `docker compose up -d`, `ps`, `down -v`
+- Session-start hook calls CLI to verify Docker health
 
-**Templates ↔ Target Project:**
-- Docker Compose generated during `/harness-init`
+**Plugin ↔ Target Project:**
+- Plugin installed into target project's plugin directory
+- BMAD patches modify `_bmad/` workflow files (with markers)
 - OTLP setup modifies target project start scripts
-- BMAD patches modify `_bmad/` workflow files
-- All changes non-destructive — `/harness-teardown` removes only harness artifacts
+- State file lives in target project's `.claude/`
+- All changes non-destructive — `codeharness teardown` removes only harness artifacts
 
 ### Requirements to Structure Mapping
 
-| FR Category | Component | Files |
-|------------|-----------|-------|
-| Setup (FR1-FR10) | Command | `commands/harness-init.md` |
-| Observability (FR11-FR18) | Command + Templates + Hook | `commands/harness-init.md`, `templates/docker-compose/`, `hooks/session-start.sh` |
-| Verification (FR19-FR26) | Agent + Skill + Command | `agents/verifier.md`, `skills/verification-enforcement.md`, `commands/harness-verify.md` |
-| Verification Levels (FR27-FR30) | Hooks | `hooks/pre-commit-gate.sh` |
-| Enforcement (FR31-FR35) | Hooks + Skills | `hooks/post-write-check.sh`, `hooks/post-test-verify.sh`, `skills/visibility-enforcement.md` |
-| BMAD (FR36-FR41) | Skill + Templates | `skills/bmad-integration.md`, `templates/bmad-patches/` |
-| Standalone (FR42-FR44) | Skill + Command | `skills/standalone-tasks.md`, `commands/harness-verify.md` |
-| Reporting (FR45-FR47) | Command | `commands/harness-status.md` |
-| Testing & Coverage (FR62-FR67, FR85-FR87) | Hook + Knowledge + Skill + BMAD Patches | `hooks/pre-commit-gate.sh`, `knowledge/testing-patterns.md`, `skills/verification-enforcement.md`, `templates/bmad-patches/` |
-| Documentation (FR68-FR80) | Agent + Knowledge + Command + BMAD Patches | `agents/doc-gardener.md`, `knowledge/documentation-patterns.md`, `commands/harness-init.md`, `templates/bmad-patches/` |
-| BMAD Workflow Integration (FR81-FR84) | Templates | `templates/bmad-patches/dev-workflow-patch.md`, `templates/bmad-patches/code-review-patch.md`, `templates/bmad-patches/retro-patch.md`, `templates/bmad-patches/story-verification-patch.md` |
-| Brownfield Onboarding (FR88-FR99) | Command + Agent | `commands/harness-onboard.md`, `agents/onboarder.md` |
+| FR Category | CLI Component | Plugin Component |
+|------------|---------------|-----------------|
+| Setup (FR1-FR11) | `src/commands/init.ts`, `src/lib/*` | `commands/harness-init.md` |
+| Observability (FR12-FR19) | `src/lib/docker.ts`, `src/templates/docker-compose.ts` | `skills/visibility-enforcement/`, `knowledge/victoria-querying.md` |
+| Verification (FR20-FR25) | `src/commands/verify.ts` | `agents/verifier.md`, `skills/verification-enforcement/` |
+| Enforcement (FR26-FR31) | `src/commands/state.ts` | `hooks/*.sh` |
+| Beads (FR32-FR39) | `src/lib/beads.ts`, `src/commands/bridge.ts` | — |
+| BMAD (FR40-FR46) | `src/lib/bmad.ts`, `src/templates/bmad-patches.ts` | `skills/bmad-integration/` |
+| Loop (FR47-FR51) | `src/commands/run.ts`, `ralph/` | — |
+| Testing (FR52-FR55) | `src/lib/coverage.ts` | `hooks/pre-commit-gate.sh` |
+| Docs (FR56-FR60) | `src/lib/templates.ts`, `src/lib/scanner.ts` | `agents/doc-gardener.md`, `knowledge/documentation-patterns.md` |
+| Onboard (FR61-FR66) | `src/commands/onboard.ts`, `src/lib/scanner.ts` | `commands/harness-onboard.md` |
+| Status (FR67-FR69) | `src/commands/status.ts` | `commands/harness-status.md` |
 
 ### Data Flow
 
 ```
-/harness-init
-├── Detect stack → Install OTLP → Start Victoria stack
-├── Configure enforcement → Write state file
-├── Install BMAD (with patches) if not present
-├── Configure .mcp.json
-├── Install hooks
-├── Generate AGENTS.md (~100 lines, map to BMAD artifacts + project structure)
-├── Scaffold docs/ (index.md, exec-plans/, quality/, generated/)
-└── Detect coverage tool (c8/istanbul or coverage.py) → record in state
+codeharness init
+├── Detect stack (src/lib/stack-detect.ts)
+├── Install deps (src/lib/deps.ts) — Showboat, agent-browser, beads, OTLP
+├── Install/patch BMAD (src/lib/bmad.ts)
+├── Generate Docker Compose if observability ON (src/lib/docker.ts)
+├── Start Docker stack if observability ON
+├── Generate state file (src/lib/state.ts)
+├── Copy plugin into project (src/lib/templates.ts)
+├── Generate AGENTS.md + docs/ scaffold
+└── Configure .mcp.json (agent-browser, DB MCP)
 
-/harness-run (autonomous)
-├── ralph/ralph.sh starts external loop
-├── ralph/bridge.sh reads BMAD stories → task list
-└── For each task (fresh Claude Code instance):
-    ├── session-start.sh → verify harness
-    ├── Agent implements story
-    │   ├── post-write-check.sh → verify OTLP
-    │   ├── post-test-verify.sh → prompt log queries
-    │   └── pre-commit-gate.sh → block without verification + coverage + docs
-    ├── Agent writes tests for new + uncovered code
-    │   ├── Run tests → all must pass
-    │   └── Coverage check → must be 100% project-wide
-    ├── Agent updates documentation
-    │   ├── Create/update per-subsystem AGENTS.md for new modules
-    │   ├── Update exec-plan in docs/exec-plans/active/
-    │   └── Ensure inline code docs exist
-    ├── /harness-verify → verifier subagent
-    │   ├── Quality gates (tests pass + coverage 100% + docs fresh)
-    │   ├── Real-world verification
-    │   ├── Showboat evidence capture
-    │   └── showboat verify
-    ├── Pass → commit, mark done
-    │   ├── Move exec-plan active/ → completed/
-    │   ├── Update docs/quality/test-coverage.md with delta
-    │   └── Update verification log
-    ├── Fail → iterate
-    └── Ralph picks next task
+codeharness bridge --epics epics.md
+├── Parse BMAD stories (src/lib/bmad.ts)
+├── Extract ACs, dependencies, priorities
+├── For each story: bd create → beads issue
+└── Report: "N stories imported"
 
-Sprint completion:
-├── Mandatory retrospective
-│   ├── Analyze verification data + test effectiveness + doc health
-│   ├── doc-gardener subagent runs
-│   │   ├── Scan for stale AGENTS.md / docs
-│   │   ├── Generate docs/quality/quality-score.md
-│   │   └── Update docs/exec-plans/tech-debt-tracker.md
-│   ├── Generate retro report with doc health section
-│   └── Convert findings to follow-up stories
-└── Epic completion check
-    ├── All stories verified + docs complete
-    ├── Design-doc validated for epic scope
-    └── ARCHITECTURE.md freshness verified
+codeharness run
+├── Invoke ralph/ralph.sh via child_process.spawn
+├── Ralph: bd ready --json → next task
+├── Ralph: spawn claude --plugin-dir → agent implements
+│   ├── session-start.sh → codeharness status --check
+│   ├── Agent implements story
+│   │   ├── post-write-check.sh → prompt OTLP check
+│   │   ├── post-test-verify.sh → prompt log query
+│   │   └── Agent: codeharness state set tests_passed true
+│   ├── Agent writes tests, checks coverage
+│   │   └── Agent: codeharness state set coverage_met true
+│   ├── Agent updates docs (AGENTS.md, exec-plan)
+│   ├── codeharness verify --story <id>
+│   │   ├── Check preconditions (flags)
+│   │   ├── Agent: Showboat proof capture
+│   │   └── codeharness state set verification_run true
+│   └── pre-commit-gate.sh → reads flags, allows if all true
+├── Ralph: bd close <id> → story done
+├── Ralph: next iteration or complete
+└── Circuit breaker monitors for stagnation
 ```
-
-### Documentation Structure (Generated by /harness-init)
-
-```
-project-root/
-├── AGENTS.md                          ← Generated: ~100-line map to BMAD + project
-├── docs/
-│   ├── index.md                       ← Map: pointers to _bmad-output/ (no copies)
-│   ├── exec-plans/
-│   │   ├── active/                    ← Per-story context + progress (from BMAD stories)
-│   │   ├── completed/                 ← Verified stories + proof links
-│   │   └── tech-debt-tracker.md       ← Generated by doc-gardener during retro
-│   ├── quality/
-│   │   ├── quality-score.md           ← Doc health grades (doc-gardener)
-│   │   ├── test-coverage.md           ← Coverage trends per sprint
-│   │   └── verification-log.md        ← Aggregated Showboat results
-│   ├── generated/
-│   │   └── db-schema.md              ← Auto-generated from DB MCP
-│   └── references/                    ← External lib docs reformatted for agents
-├── src/
-│   ├── AGENTS.md                      ← Per-subsystem (created as modules grow)
-│   └── {module}/
-│       └── AGENTS.md                  ← Per-module (local, minimal)
-└── _bmad-output/
-    └── planning-artifacts/            ← SOURCE OF TRUTH (referenced, never copied)
-        ├── prd.md
-        ├── architecture.md
-        ├── ux-design-specification.md
-        └── epics.md
-```
-
-**Key principle:** `_bmad-output/planning-artifacts/` is the source of truth. `docs/index.md` references these by relative path. No duplication. Per-subsystem `AGENTS.md` files are progressive disclosure — local, minimal, created as the codebase grows.
 
 ## Architecture Validation Results
 
-### Coherence Validation ✅
+### Coherence Validation ✓
 
-**Decision Compatibility:** All 12 decisions compatible. No conflicts between vendored Ralph loop and hook-based enforcement. Subagent verification works within Ralph's fresh-context model. Generated Docker Compose aligns with configurable enforcement. Documentation structure references BMAD artifacts without duplication. Testing enforcement integrates with existing quality gates.
+**Decision Compatibility:** All 9 decisions compatible. CLI↔Plugin boundary (D1) cleanly separates concerns. State management (D2) provides single source of truth accessible from both runtimes. Beads integration (D3) feeds Ralph (D4) without progress.json dependency. Docker lifecycle (D5) respects enforcement config. Template embedding (D6) eliminates v1's missing-files gap. BMAD patching (D7) uses idempotent markers. Verification pipeline (D8) updates state through CLI. Onboarding (D9) creates beads issues that flow through the same pipeline.
 
-**Pattern Consistency:** Canonical patterns for state reading, hook output, YAML format, proof documents. All consistent.
+**Pattern Consistency:** All patterns align — `snake_case` YAML, canonical hook JSON, CLI status prefixes, marker-based patches. No contradictions across decision areas.
 
-**Structure Alignment:** Every FR maps to a specific file. All boundaries defined.
+**Structure Alignment:** Every FR maps to a specific file. CLI and plugin directories have clear boundaries. Ralph vendored separately with clean spawn interface.
 
-### Requirements Coverage ✅
+### Requirements Coverage ✓
 
-All 99 FRs mapped to architectural components. All 27 NFRs addressed. No uncovered requirements.
+All 69 FRs mapped to architectural components. All 28 NFRs addressed. No uncovered requirements.
 
-### Implementation Readiness ✅
+### Implementation Readiness ✓
 
-12 decisions documented. Canonical patterns defined. Complete directory tree with FR-to-file mapping. All integration boundaries specified. Documentation structure, testing enforcement, BMAD workflow patches, and brownfield onboarding fully designed.
+9 decisions documented with rationale. 8 pattern categories with canonical examples and anti-patterns. Complete directory tree with FR-to-file mapping. All integration boundaries specified.
 
 ### Gap Analysis
 
 **Critical Gaps:** 0
 
-**Resolved Gaps:**
-1. **BMAD installation:** `bmad-method` npm package as dependency. Run `npx bmad-method init` then apply harness patches from `templates/bmad-patches/`.
-2. **Ralph source:** Vendor `snarktank/ralph` (original, most features). Copy core loop into `ralph/` directory.
-
 **Minor Gaps (address during implementation):**
-- Init error handling flow (partial failures)
-- Default Grafana dashboard for agent use
-- Multi-platform driver abstraction (future)
+1. `codeharness state` utility subcommand — add to Commander.js program as hidden command
+2. Ralph beads integration — verify `bd ready --json` output format matches `fetch_beads_tasks()` expectations
+3. Beads git hooks coexistence — verify Claude Code hooks and git hooks don't conflict (different event systems)
 
 ### Architecture Completeness Checklist
 
-**✅ Requirements Analysis**
-- [x] Project context analyzed
-- [x] Scale assessed — single-user local dev tool
-- [x] Constraints identified — Docker, bash, no build step
-- [x] Cross-cutting concerns mapped
+**✓ Requirements Analysis**
+- [x] Project context analyzed (69 FRs, 28 NFRs, medium-high complexity)
+- [x] Scale assessed — single-user local dev tool, dual runtime
+- [x] Constraints identified — Node.js CLI + bash hooks + Python beads
+- [x] Cross-cutting concerns mapped (7 concerns)
 
-**✅ Architectural Decisions**
-- [x] 12 core decisions documented with rationale
-- [x] Scope: codeharness = BMAD + harness (replaces bmalph)
-- [x] Loop: vendored Ralph (snarktank, fresh context)
-- [x] BMAD: bmad-method npm dependency + harness patches
-- [x] Verification: subagent with isolated context
-- [x] State: hybrid file-based + marker signals
-- [x] Docker: generated from templates
-- [x] OTLP: direct start script modification
-- [x] Testing: 100% project-wide coverage, tests after implementation
-- [x] Documentation: OpenAI harness pattern adapted for BMAD, no duplication
-- [x] BMAD integration: docs + tests wired into all workflow patches
-- [x] Onboarding: brownfield as self-bootstrapping epic through Ralph loop
+**✓ Architectural Decisions**
+- [x] 9 core decisions documented with rationale
+- [x] CLI↔Plugin boundary strictly defined
+- [x] State management with session flag lifecycle
+- [x] Beads as unified task store with two-layer model
+- [x] Ralph integration via beads task source
+- [x] Docker conditional on enforcement config
+- [x] Templates embedded in npm package
+- [x] BMAD patches idempotent with markers
+- [x] Verification pipeline with subagent isolation
+- [x] Brownfield onboarding as self-bootstrapping epic
 
-**✅ Implementation Patterns**
-- [x] Canonical state reading/writing
-- [x] Hook JSON output format
-- [x] State file YAML structure
-- [x] Showboat proof document format
-- [x] Template generation conventions
-- [x] AGENTS.md format (progressive disclosure, ~100 lines, per-subsystem)
-- [x] Exec-plan lifecycle (active → completed)
-- [x] Doc freshness checking (git timestamp comparison)
+**✓ Implementation Patterns**
+- [x] State file format and read/write patterns
+- [x] Hook script patterns with exit codes
+- [x] CLI output format with status prefixes
+- [x] Template function patterns
+- [x] Beads interaction patterns
+- [x] BMAD patch marker patterns
+- [x] Showboat proof document patterns
+- [x] Error handling patterns for CLI and hooks
 
-**✅ Project Structure**
-- [x] Complete directory tree
-- [x] All 99 FRs mapped to files
-- [x] Component boundaries documented
+**✓ Project Structure**
+- [x] Complete directory tree with FR annotations
+- [x] All 69 FRs mapped to files
+- [x] Component boundaries documented (CLI↔Plugin↔Ralph↔Beads↔Docker)
 - [x] Data flow diagram defined
-- [x] Documentation structure mapped (BMAD native → OpenAI view)
+- [x] Requirements-to-structure mapping table
 
 ### Architecture Readiness Assessment
 
@@ -666,16 +884,14 @@ All 99 FRs mapped to architectural components. All 27 NFRs addressed. No uncover
 **Confidence Level:** High
 
 **Key Strengths:**
-- Clear separation: hooks (enforcement) vs skills (knowledge) vs commands (actions) vs agents (isolated work)
-- Fresh context via vendored Ralph eliminates context pollution
-- Every FR has a home in the project structure
-- Canonical patterns prevent agent implementation conflicts
+- CLI-first eliminates v1's specification-implementation gap
+- Beads gives unified task store with dependency tracking
+- Embedded templates guarantee availability
+- State flag lifecycle ensures flags actually get set
+- Every FR has a concrete home in the project structure
 
 **First Implementation Priority:**
-1. Plugin scaffold (`.claude-plugin/plugin.json` + directory structure)
-2. `npx bmad-method init` integration + harness patches (including doc + test patches)
-3. Docker Compose template generation
-4. Hook architecture (`hooks.json` + bash scripts + `lib/state.sh`)
-5. Documentation structure (AGENTS.md generation, docs/ scaffolding)
-6. Testing enforcement (coverage tool detection, pre-commit gate)
-7. Doc-gardener subagent
+1. Project scaffold (`npm init`, Commander.js, tsup, Vitest)
+2. Core lib (`state.ts`, `templates.ts`, `stack-detect.ts`)
+3. `codeharness init` command
+4. `codeharness bridge` + beads integration

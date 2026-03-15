@@ -252,6 +252,17 @@
     <critical>Do NOT propose to pause for review until Step 9 completion gates are satisfied</critical>
   </step>
 
+  <!-- CODEHARNESS-PATCH-START:dev-enforcement -->
+  <step n="5.5" goal="Harness enforcement gates">
+    <critical>Codeharness requires these checks before proceeding to tests</critical>
+    <action>Verify AGENTS.md files are updated for all modules touched during implementation</action>
+    <action>Create or update exec-plan in docs/exec-plans/active/ for this story</action>
+    <action>Ensure all new code has appropriate test stubs before writing full tests</action>
+    <action>Run test suite and verify 100% coverage target for changed modules</action>
+    <action if="coverage below target">HALT: "Coverage target not met — add tests before continuing"</action>
+  </step>
+  <!-- CODEHARNESS-PATCH-END:dev-enforcement -->
+
   <step n="6" goal="Author comprehensive tests">
     <action>Create unit tests for business logic and core functionality introduced/changed by the task</action>
     <action>Add integration tests for component interactions specified in story requirements</action>

@@ -1,92 +1,183 @@
 ---
-description: Start autonomous execution — the vendored Ralph loop executes stories with verification gates per story.
+description: Start autonomous execution — run one sprint in the current session, iterating through stories using BMAD workflows.
 ---
 
-# Harness Run
+# Harness Run — In-Session Sprint Execution
 
-Start the autonomous execution loop. Each iteration spawns a fresh Claude Code instance with the codeharness plugin.
+Execute stories autonomously in the current Claude Code session. Reads sprint-status.yaml, iterates through stories using BMAD workflows (create-story → dev-story → code-review), and updates status after each story. This is the single source of sprint execution logic.
 
-## Prerequisites
+## Step 1: Pre-flight — Read Sprint Status
 
-1. Harness must be initialized (`/harness-init` completed)
-2. BMAD sprint plan must exist (or standalone task list)
-3. Stories must be mapped to verification tasks
+Read the sprint status file to understand current state.
 
-## Step 1: Pre-flight Check
+1. Read `_bmad-output/implementation-artifacts/sprint-status.yaml` in full.
+2. Parse the `development_status` section. Each entry is one of:
+   - **Epic entry:** key matching `epic-N` (e.g., `epic-1`) — status is `backlog`, `in-progress`, or `done`
+   - **Story entry:** key matching `N-M-slug` (e.g., `1-2-user-auth`) — status is `backlog`, `ready-for-dev`, `in-progress`, `review`, or `done`
+   - **Retrospective entry:** key matching `epic-N-retrospective` — status is `optional` or `done`
+3. If the file doesn't exist or has no `development_status`, HALT:
+   ```
+   [FAIL] No sprint-status.yaml found. Run /sprint-planning first.
+   ```
 
-Verify the following. If any check fails, report `[FAIL]` with the specific failure and suggest `→ Run /harness-init`.
+Initialize tracking variables (once, before the loop):
+- `stories_completed = 0`
+- `stories_failed = 0`
+- `retry_count = 0` (per story, resets for each new story)
+- `cycle_count = 0` (per story, counts dev↔review round-trips, resets for each new story)
+- `max_retries = 3`
+- `max_cycles = 5` (max dev↔review round-trips before halting)
+- `start_time = current timestamp`
 
-1. Check `.claude/codeharness.local.md` exists and is valid YAML frontmatter
-2. Check Docker stack is healthy (if observability enforcement is enabled in state file)
-3. Check task list exists — either `ralph/progress.json` (from bridge) or standalone tasks
-4. Check `ralph/ralph.sh` exists and is executable
+## Step 2: Find Current Epic and Next Story
 
-If any check fails:
-```
-[FAIL] Cannot start harness loop.
+Scan `development_status` entries **in order from top to bottom**:
 
-{specific failure}
+1. **Find current epic:** The first `epic-N` entry where status is NOT `done`. If all epics are `done`, go to Step 7 (completion).
 
-→ Run /harness-init to set up the harness
-```
+2. **Find next story in current epic:** Scan entries in file order. Take the first `N-M-slug` entry where:
+   - `N` matches the current epic number
+   - Status is NOT `done`
 
-## Step 2: Bridge BMAD Stories to Tasks
+3. If no actionable stories remain in the current epic, check if all stories are `done` → go to Step 5 (epic completion). Otherwise HALT with status report.
 
-If `ralph/progress.json` does not exist, run `ralph/bridge.sh` to convert BMAD stories to Ralph execution tasks:
-- Each task includes: story ID, title, ACs, verification requirements
-- Tasks ordered by sprint plan sequence
-- Output stored in `ralph/progress.json`
+4. Print the plan:
+   ```
+   [INFO] Current epic: Epic {N}
+   [INFO] Next story: {story_key} (status: {current_status})
+   [INFO] Stories in epic: {done_count}/{total_count} done
+   ```
 
-If standalone mode (no BMAD), read the user's task list directly and generate `ralph/progress.json`.
+## Step 3: Execute Story Lifecycle
 
-## Step 3: Start Ralph Loop
+Based on the story's current status, determine which workflow(s) to run. Execute them in sequence, verifying status transitions after each.
 
-Execute the vendored Ralph loop:
+### 3a: If status is `backlog` — Run Create Story
 
-```bash
-bash ralph/ralph.sh --plugin-dir . --max-iterations 50 --timeout 14400
-```
-
-The vendored loop (`ralph/ralph.sh`):
-1. Reads next incomplete task from `ralph/progress.json`
-2. Spawns a fresh `claude --plugin-dir .` instance with task context
-3. Agent implements the story (harness hooks enforce verification)
-4. Circuit breaker monitors for stagnation (no-progress detection)
-5. If iteration succeeds → check task completion, pick next task
-6. If iteration fails → retry with backoff (max 3 consecutive failures)
-7. Rate limiting prevents API overuse (100 calls/hour default)
-
-Supported options:
-- `--max-iterations NUM` — max loop iterations (default: 50)
-- `--timeout SECONDS` — total loop timeout (default: 14400 = 4h)
-- `--iteration-timeout MIN` — per-iteration timeout (default: 15m)
-- `--calls NUM` — max API calls per hour (default: 100)
-- `--live` — show live streaming output
-- `--prompt FILE` — override prompt file
-- `--progress FILE` — override progress file
-- `--reset-circuit` — reset circuit breaker and exit
-
-## Step 4: Loop Termination
-
-The loop terminates when:
-- All stories done → success summary (tasks completed, total iterations)
-- Max iterations reached → progress report (completed/remaining stories)
-- User cancels (Ctrl+C) → preserve progress cleanly
-- Circuit breaker opens → stagnation detected, halt with diagnostics
-- 3 consecutive failures → halt with error report
-- API limit reached → wait 60 minutes, then retry
-
-In all cases, progress is saved to `ralph/progress.json` and readable via `/harness-status`.
-
-Status is tracked in `ralph/status.json` with: iteration count, calls made, status, exit reason.
-
-## Output
+Invoke the create-story workflow via Agent tool to generate the story file:
 
 ```
-Harness Run — starting autonomous execution
+Use the Agent tool with:
+  prompt: "Run /create-story for story {story_key}. The sprint-status.yaml is at _bmad-output/implementation-artifacts/sprint-status.yaml. Auto-discover the next backlog story and create it. Do NOT ask the user any questions — proceed autonomously."
+  subagent_type: "general-purpose"
+```
 
-Stories: {N} total, {M} remaining
-Loop: max 50 iterations, 4h timeout
+After the Agent completes:
+1. Re-read `sprint-status.yaml`
+2. Verify the story status changed from `backlog` to `ready-for-dev`
+3. If status didn't change, increment retry_count and retry this step (up to max_retries)
+4. Print: `[OK] Story {story_key}: backlog → ready-for-dev`
 
-Starting iteration 1...
+### 3b: If status is `ready-for-dev` or `in-progress` — Run Dev Story
+
+Invoke the dev-story workflow via Agent tool to implement the story:
+
+```
+Use the Agent tool with:
+  prompt: "Run /bmad-dev-story for the story at _bmad-output/implementation-artifacts/{story_key}.md — implement all tasks, write tests, and mark the story for review. Do NOT ask the user any questions — proceed autonomously through all tasks until complete."
+  subagent_type: "general-purpose"
+```
+
+After the Agent completes:
+1. Re-read `sprint-status.yaml`
+2. Verify the story status changed to `review`
+3. If status is still `in-progress` or `ready-for-dev`, this may indicate failure — increment retry_count
+4. If retry_count >= max_retries, go to Step 6 (failure handling)
+5. If status didn't reach `review`, retry this step
+6. Print: `[OK] Story {story_key}: → review`
+
+### 3c: If status is `review` — Run Code Review
+
+Invoke the code-review workflow via Agent tool:
+
+```
+Use the Agent tool with:
+  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found, and mark the story done. Do NOT ask the user any questions — proceed autonomously."
+  subagent_type: "general-purpose"
+```
+
+After the Agent completes:
+1. Re-read `sprint-status.yaml`
+2. Check the story status:
+   - If `done` → Story complete! Print `[OK] Story {story_key}: review → done`. Reset retry_count and cycle_count. Increment stories_completed. Go to Step 4.
+   - If `in-progress` → Code review found issues and sent story back for fixes. Increment cycle_count. If cycle_count >= max_cycles, go to Step 6 (failure — stuck in dev↔review loop). Print `[WARN] Story {story_key}: review → in-progress (issues found, re-developing, cycle {cycle_count}/{max_cycles})`. Go to Step 3b to re-run dev-story.
+   - If still `review` → Code review may have failed silently. Increment retry_count. If retry_count >= max_retries, go to Step 6. Otherwise retry this step.
+
+## Step 4: Story Complete — Continue or Finish Epic
+
+A story just completed successfully.
+
+1. Re-read `sprint-status.yaml` to get current state
+2. Check if more stories remain in the current epic (any `N-M-slug` with status != `done` where N = current epic number)
+3. If more stories remain:
+   - Reset retry_count and cycle_count to 0
+   - Go to Step 2 to pick the next story
+4. If all stories in current epic are `done`:
+   - Go to Step 5 (epic completion)
+
+## Step 5: Epic Completion
+
+All stories in the current epic are done.
+
+1. Check if `epic-{N}-retrospective` entry exists and status is `optional`:
+   - If yes, run the retrospective:
+     ```
+     Use the Agent tool with:
+       prompt: "Run /retrospective for Epic {N}. All stories are complete. Review the epic's work, extract lessons learned, and produce the retrospective document. Do NOT ask the user any questions — proceed autonomously."
+       subagent_type: "general-purpose"
+     ```
+   - After retrospective completes, verify `epic-{N}-retrospective` status changed to `done`
+
+2. Update `epic-{N}` status to `done` in sprint-status.yaml (use Edit tool)
+
+3. Print:
+   ```
+   [OK] Epic {N}: DONE (all stories complete, retrospective run)
+   ```
+
+4. Check if more epics remain (any `epic-M` with status != `done` where M > N):
+   - If yes, go to Step 2 to start the next epic
+   - If no, go to Step 7 (sprint complete)
+
+## Step 6: Failure Handling
+
+A story has exceeded max_retries (3 stagnation retries) or max_cycles (5 dev↔review round-trips).
+
+1. Increment stories_failed
+2. Print:
+   ```
+   [FAIL] Story {story_key}: exceeded {max_retries} retries
+   [FAIL] Last status: {current_status}
+   [FAIL] Halting sprint execution
+   ```
+3. Go to Step 7 (summary)
+
+## Step 7: Sprint Execution Summary
+
+Print the final summary:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Harness Run — Sprint Execution Complete
+
+Stories completed: {stories_completed}
+Stories failed:    {stories_failed}
+Stories remaining: {remaining_count}
+Elapsed time:     {elapsed since start_time}
+
+Epic status:
+{for each epic: "  Epic {N}: {status}"}
+
+Result: {ALL_DONE | HALTED_ON_FAILURE | NO_WORK}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+If all epics are done:
+```
+All sprint work complete. Consider running /sprint-planning for the next sprint.
+```
+
+If halted on failure:
+```
+Sprint halted. Review the failing story and fix manually, then re-run /harness-run to continue.
 ```

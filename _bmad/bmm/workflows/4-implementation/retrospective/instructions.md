@@ -1421,6 +1421,36 @@ Charlie (Senior Dev): "Time to knock out that prep work."
 
 </step>
 
+<!-- CODEHARNESS-PATCH-START:retro-enforcement -->
+<step n="retro-harness" goal="Harness effectiveness analysis">
+  <critical>Codeharness retrospective analysis — review verification and documentation health</critical>
+
+  <action>Analyze verification effectiveness across completed stories:
+    - How many stories had Showboat proof documents?
+    - Were acceptance criteria verified with real evidence?
+    - Did any stories pass review without proper verification?
+  </action>
+
+  <action>Analyze documentation health:
+    - Are all module AGENTS.md files current?
+    - Are exec-plans complete for all stories?
+    - Run doc-gardener scan: `bash ralph/doc_gardener.sh scan --project-dir .`
+  </action>
+
+  <action>Analyze test quality:
+    - Coverage trends across stories
+    - Test-to-code ratio
+    - Were tests written before or after implementation?
+  </action>
+
+  <output>**Harness Effectiveness:**
+    - Verification coverage: {{verified_stories}}/{{total_stories}} stories
+    - Documentation health: {{doc_score}}
+    - Test coverage trend: {{coverage_trend}}
+  </output>
+</step>
+<!-- CODEHARNESS-PATCH-END:retro-enforcement -->
+
 </workflow>
 
 <facilitation-guidelines>

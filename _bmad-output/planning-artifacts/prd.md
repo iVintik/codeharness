@@ -3,213 +3,227 @@ stepsCompleted: ['step-01-init', 'step-02-discovery', 'step-02b-vision', 'step-0
 inputDocuments:
   - product-brief-bmad-orchestrator-2026-03-14.md
   - research/technical-bmad-orchestrator-implementation-research-2026-03-14.md
+  - prd-v1 (existing completed PRD, used as context)
+  - architecture.md (from .ralph/specs/planning-artifacts/)
+  - audit-findings (current session gap analysis)
 documentCounts:
   briefs: 1
   research: 1
   brainstorming: 0
-  projectDocs: 0
+  projectDocs: 3
 workflowType: 'prd'
 classification:
   projectType: developer_tool
   domain: general
-  complexity: medium
-  projectContext: greenfield
+  complexity: medium-high
+  projectContext: brownfield
+  designPhilosophy: executable-first
 ---
 
 # Product Requirements Document - codeharness
 
-**Author:** Ivintik
+**Author:** BMad
 **Date:** 2026-03-14
 
 ## Executive Summary
 
-codeharness is a Claude Code plugin that combines the BMAD methodology, Ralph's autonomous execution loop, and Harness Engineering into a single tool that makes autonomous coding agents produce software that actually works — not software that passes tests. It replaces bmalph by providing BMAD installation (with harness-aware patches), a vendored Ralph loop (with verification gates), and mechanical enforcement of real-world verification and observability.
+codeharness is an npm CLI package and Claude Code plugin that makes autonomous coding agents produce software that actually works — not software that passes tests. It packages OpenAI's Harness Engineering discipline (1M lines of agent-generated production code) as an installable tool: real-world verification via Showboat proof documents, agent-first observability via an ephemeral VictoriaMetrics stack, and mechanical enforcement via Claude Code hooks that make skipping verification architecturally impossible.
 
-Two problems kill autonomous development today. First, agents write code that "passes tests" but breaks when used — UI features that don't render, APIs that return 200 but do nothing, data operations that silently fail. Second, agents are blind to runtime behavior — they can't see logs, traces, or application state, so they guess at fixes instead of diagnosing root causes.
+Two problems kill autonomous development. First, agents write code that "passes tests" but breaks in use — UI that doesn't render, APIs that return 200 but do nothing, data operations that silently fail. Second, agents are blind to runtime behavior — they can't see logs, traces, or application state, so they guess at fixes instead of diagnosing root causes.
 
-codeharness solves both. It enforces real-world verification — the agent must use what it built (agent-browser for UI, real API calls, DB state inspection) and capture reproducible proof via Showboat. It gives the agent eyes — an ephemeral VictoriaMetrics observability stack with OpenTelemetry instrumentation, so the agent queries logs, traces, and metrics during development. Both are enforced mechanically through Claude Code hooks, not documentation the agent can ignore.
+codeharness solves both through a Node.js CLI (`codeharness init`, `codeharness run`, `codeharness verify`) that automates the full harness lifecycle. The CLI replaces bmalph by owning BMAD installation (with harness-aware workflow patches), a vendored Ralph loop (with verification gates per story), and an executable BMAD-to-task bridge. The Claude Code plugin wraps the CLI, providing slash commands and hook-based enforcement — but all mechanical work runs in the CLI, not in markdown the agent interprets.
 
-The result: when codeharness says "done," the feature actually works. The user has a Showboat proof document with real screenshots, actual API responses, and confirmed database state — re-runnable by anyone.
+### What Makes This Special
 
-## What Makes This Special
+- **Executable-first architecture:** Every capability is a CLI command backed by real code. PRD v1's failure was treating markdown instructions as implementation. v2 makes every "system can X" a function in the CLI, not a skill the agent reads and improvises.
+- **Verification-as-proof:** Not "tests pass" but Showboat documents with real command output, screenshots, and DB state that anyone can re-verify with `showboat verify`.
+- **Agent-first observability:** Ephemeral VictoriaMetrics stack the agent queries programmatically (LogQL/PromQL) during development — built for agents, not dashboards.
+- **Anti-cheating by architecture:** Hooks block commits without proof. Showboat's exec→verify cycle captures real output. The agent structurally cannot skip verification.
+- **BMAD distribution with harness built in:** codeharness installs BMAD, patches all workflows (story, dev, code review, retro), bridges stories to Ralph tasks, and runs the autonomous loop. One tool, not two.
 
-- **Verification-as-proof:** Not "tests pass" but reproducible Showboat documents with real command output that anyone can re-verify
-- **Agent-first observability:** Ephemeral VictoriaMetrics stack the agent queries programmatically (LogQL/PromQL) — built for agents, not dashboards
-- **Anti-cheating by architecture:** Showboat's exec→verify, agent-browser's snapshot diffing, hooks that block commits without proof — the agent CAN'T skip verification
-- **Validated at scale:** OpenAI's Harness Engineering (1M lines). LangChain benchmark: harness changes alone improved 52.8% → 66.5% (Top 30 → Top 5)
+### Known Implementation Gaps (from v1 audit)
+
+The following issues were discovered during harness initialization and the full audit. This PRD must address each:
+
+1. **Scan/coverage data contradicts itself.** `onboard.sh scan` reports "test files: 2" but then `onboard.sh coverage` says "ralph: 10 files, tests exist" while the onboarding epic generates a story for ralph test coverage. The CLI must produce consistent, non-contradictory scan results.
+
+2. **Module detection is too aggressive.** Subdirectories with 1 file (`ralph/drivers/`) are treated as independent modules needing their own AGENTS.md and test coverage. The CLI must have a configurable minimum threshold for what counts as a module.
+
+3. **BMAD patch templates directory doesn't exist.** `/harness-init` references `templates/bmad-patches/` but no such directory exists in the plugin. The CLI must own patch templates and apply them reliably.
+
+4. **Docker Compose and OTLP templates missing.** `templates/docker-compose.harness.yml` and `templates/otel-collector-config.yaml` are referenced but don't exist. The CLI must generate these from embedded templates, not copy from missing files.
+
+5. **Dependency auto-install commands are wrong.** `uvx install showboat` fails — `uvx` has no `install` subcommand. The CLI must use correct install commands (`uv tool install`, `pip install`, `npm install -g`) with proper fallback chains.
+
+6. **Docker gating doesn't account for disabled observability.** Init halts on missing Docker even when observability is OFF. The CLI must only require Docker when the observability enforcement flag is enabled.
+
+7. **README.md flagged as missing but never generated.** Scan and audit both flag it, but no story or init step creates one. Either generate it or stop flagging it.
+
+8. **No executable orchestration exists.** Every `/harness-*` command is markdown the agent reads and improvises. The CLI must implement every init step, bridge operation, and verification gate as executable code.
+
+Additionally, the full audit revealed:
+- **Bridge doesn't parse BMAD stories.** `bridge.sh` accepts args but has no parsing logic. The CLI must implement real BMAD epic/story parsing.
+- **Session flags are never set.** State file is created with all flags `false`, but nothing ever sets them to `true`. The CLI must update flags after test runs and verification.
+- **Verifier subagent is never spawned.** Agent spec exists but nothing calls it. The CLI must orchestrate verification, not delegate to an unconnected subagent.
+- **Retro never triggers.** Script exists but nothing invokes it after sprint completion. The CLI must trigger retros as part of the loop lifecycle.
 
 ## Project Classification
 
-- **Project Type:** Developer tool — Claude Code plugin with CLI commands, hooks, skills, MCP integrations
+- **Project Type:** Developer tool — npm CLI package + Claude Code plugin
 - **Domain:** General software development tooling
-- **Complexity:** Medium-High — BMAD distribution + Ralph loop + harness (VictoriaMetrics, agent-browser, Showboat, OTLP, hooks, MCP) but no regulated domain
-- **Project Context:** Greenfield
+- **Complexity:** Medium-High — orchestration of external tools (VictoriaMetrics, agent-browser, Showboat, OTLP), BMAD integration, autonomous loop, Node.js CLI with Commander.js
+- **Project Context:** Brownfield — Ralph loop vendored and working, hooks wired, bash utility scripts exist. ~40% implemented, ~60% missing (mostly the CLI layer and orchestration glue). PRD rewrite driven by implementation gap analysis.
 
 ## Success Criteria
 
 ### User Success
 
-- **Verification trust:** When codeharness marks a story "verified," the feature works when the user tries it. Target: >95% of verified stories hold up under manual spot-check.
-- **Happy path verified via real usage:** agent-browser interaction, real API calls with side-effect checks, DB state confirmation — captured in Showboat proof
-- **Edge cases verified via automated tests:** Unit tests and E2E tests cover edge cases the AC defines — in addition to real-world verification, not a replacement
-- **No manual re-checking needed:** User trusts the Showboat proof document without opening the browser themselves
-- **Debug efficiency:** When something fails, the agent has enough visibility (logs, traces, metrics) to identify root cause on first attempt. Target: >70%
+- **Verification trust:** When codeharness marks a story "verified," the feature works when tested manually. Target: >95% of verified stories hold up.
+- **No manual re-checking:** User trusts Showboat proof documents without opening the browser themselves.
+- **Debug efficiency:** With observability enabled, agent identifies root cause on first attempt. Target: >70%.
+- **Zero-friction init:** `codeharness init` completes in <5 minutes. First verified story within first autonomous loop iteration.
 
 ### Business Success
 
-- **GitHub stars:** Target: 500+ in first 6 months
-- **Plugin installs:** Claude Code marketplace. Target: 100+ active in first 6 months
-- **3-month goal:** Creator can produce complex prototypes autonomously with real verification
-- **6-month goal:** Public release, community adoption begins
-- **12-month goal:** Contributors, integrations with other methodologies, growing ecosystem
+- **Solve our own problem first:** Creator can autonomously produce complex features with real verification — no more "tests pass but nothing works."
+- **3-month goal:** codeharness is stable enough to build real projects with. Full init→run→verify→retro cycle works end-to-end.
+- **6-month goal:** Public release ready. Documentation complete, CLI published to npm.
+- **12-month goal:** Community adoption begins. Contributors add verification patterns for new stacks.
 
 ### Technical Success
 
-- **Showboat verify pass rate:** `showboat verify` confirms outputs match on re-run. Target: >98%
-- **Install-to-first-verification:** Under 15 minutes from `claude plugin install` to first verified task
-- **Iteration cycles per story:** Average implement→verify→fix loops before AC pass. Target: <3
-- **Sustained autonomous run time:** Agent works without human intervention. Target: >4 hours
-- **Observability stack flexibility:** VictoriaMetrics for full projects. Future: OpenSearch, remote logging solutions.
-- **Harness overhead:** OTLP instrumentation and verification must not noticeably slow development
+- **CLI completeness:** Every FR maps to a CLI command or subcommand. Zero markdown-as-implementation.
+- **Showboat verify pass rate:** `showboat verify` confirms outputs match on re-run. Target: >98%.
+- **Sustained autonomous run:** Agent works >4 hours without human intervention via vendored Ralph loop.
+- **Iteration cycles per story:** Average implement→verify→fix loops before AC pass. Target: <3.
+- **100% test coverage:** Enforced project-wide as a quality gate. No blind spots accumulate across stories.
+- **All 12 known gaps resolved:** Every issue from the v1 audit is addressed by a specific FR and implemented in the CLI.
 
 ### Measurable Outcomes
 
 | Metric | Target | Method |
 |--------|--------|--------|
-| Verified stories that actually work | >95% | Manual spot-check by user |
+| Verified stories that actually work | >95% | Manual spot-check |
 | Showboat verify pass rate | >98% | Automated re-run |
-| Root cause on first attempt | >70% | Agent debug logs |
-| Install to first verification | <15 min | Timed |
-| Iterations per story | <3 | Loop counter |
+| Root cause on first attempt | >70% | Agent debug logs with observability |
+| Init completion | <5 min | Timed CLI execution |
+| Iterations per story | <3 | Loop counter via beads metadata |
 | Sustained autonomous run | >4h | Session duration |
-| GitHub stars (6 months) | 500+ | GitHub |
-| Plugin installs (6 months) | 100+ | Marketplace |
+| Test coverage | 100% | Coverage tool per stack (c8, coverage.py) |
+| Known gaps resolved | 12/12 | FR traceability matrix |
 
 ## User Journeys
 
-### Journey 1: Alex — Solo Developer, New Project (Happy Path)
+### Journey 1: Alex — New Project with Full Harness
 
-Alex is a senior developer building a SaaS prototype. He's used Claude Code with Ralph loops before but got burned — the agent said features were done, tests passed, but half the UI was broken and two API endpoints returned 200 with empty responses. He spent a full day manually re-testing everything.
+Alex is a senior developer building a SaaS prototype. He's used Claude Code with Ralph loops before but got burned — the agent said features were done, tests passed, but half the UI was broken and two API endpoints returned 200 with empty responses.
 
-**Opening:** Alex discovers codeharness on the Claude Code marketplace. "Harness Engineering as a plugin" catches his eye — he read the OpenAI blog post. He runs `claude plugin install codeharness`.
+**Opening:** Alex runs `npm install -g codeharness`. In his new project directory, he runs `codeharness init`. The CLI detects Node.js from `package.json`, asks: "Frontend? Database? APIs? Observability?" — yes to all. It installs BMAD with harness patches, starts the VictoriaMetrics Docker stack, adds OTLP instrumentation to his start script, configures agent-browser and Postgres MCP in `.mcp.json`, writes `.claude/codeharness.local.md` with enforcement config. All automated, no markdown to read.
 
-**Rising Action:** In his new project, he runs `/harness-init`. The harness asks: "Frontend? Database? APIs?" — yes to all. VictoriaMetrics stack starts, OTLP instrumentation is added to his Next.js app, agent-browser and Postgres MCP are configured. He kicks off a BMAD sprint with 5 stories.
+**Rising Action:** Alex runs BMAD planning through the Claude Code plugin — `/create-prd`, `/create-architecture`, `/create-epics-stories`. When ready, he runs `codeharness bridge --epics _bmad-output/planning-artifacts/epics.md` — the CLI parses his BMAD stories, extracts acceptance criteria, and imports them as beads issues with verification requirements per story. Then: `codeharness run`. The vendored Ralph loop starts, reading tasks from `bd ready`. Each iteration spawns a fresh Claude Code instance with the plugin loaded. Hooks enforce verification at every step.
 
-**Climax:** Story 3 — user registration — completes. The Showboat proof document shows: agent-browser screenshot of the registration form filled and submitted, the success page rendered. `curl` output showing the POST response with the new user ID. A Postgres query showing the user row exists with correct email and hashed password. VictoriaLogs query showing the `user.created` log entry with trace ID. `showboat verify` re-runs everything — all outputs match.
+**Climax:** Story 3 — user registration — completes. The Showboat proof document shows: agent-browser screenshot of the registration form filled and submitted, the success page rendered. `curl` output showing the POST response with the new user ID. A Postgres query via DB MCP showing the user row with correct email and hashed password. VictoriaLogs query showing the `user.created` log entry with trace ID. `showboat verify` re-runs everything — all outputs match. The CLI updates session flags and marks the story verified via `bd close`.
 
-**Resolution:** Alex reviews the Showboat docs for all 5 stories. He doesn't open the browser once. He trusts the proof. The sprint took 4 hours of autonomous execution. His day of manual re-testing is gone.
-
----
-
-### Journey 2: Alex — Migrating from bmalph (Edge Case)
-
-Alex has a project running bmalph with BMAD and Ralph. He installs codeharness and runs `/harness-init`.
-
-**Opening:** Alex runs `claude plugin install codeharness` in the existing project. He runs `/harness-init`.
-
-**Rising Action:** codeharness detects `_bmad/` and `.ralph/` directories. It reports: "Existing BMAD installation detected. I'll apply harness patches and take over execution. Your existing BMAD artifacts are preserved." It applies patches to story templates, dev workflow, code review, and retrospective workflows. It asks about project characteristics — Python API with Postgres, no frontend. Alex confirms: agent-browser OFF, DB MCP ON, APIs ON, VictoriaMetrics ON.
-
-**Climax:** The next sprint runs through codeharness's vendored Ralph loop with verification gates. After each story, the verification pipeline triggers. Showboat captures: real API calls to every endpoint, response bodies showing correct data, Postgres queries confirming data was written, VictoriaLogs showing the request flow. After the sprint, a mandatory retrospective runs — analyzing verification data, surfacing issues, producing follow-up stories.
-
-**Resolution:** Alex's existing BMAD stories now include verification requirements. The stories that previously "passed tests" but had silent failures are caught during verification. bmalph is no longer needed. The retro produced 2 follow-up stories for the next sprint.
+**Resolution:** Alex runs `codeharness status` — 5/5 stories verified, 100% test coverage, all Showboat proofs pass. He didn't open the browser once. The sprint took 4 hours of autonomous execution.
 
 ---
 
-### Journey 3: The Agent — Developing with the Harness (Agent-as-User)
+### Journey 2: Alex — Onboarding an Existing Project
 
-The autonomous agent picks up story US-003: "User can reset password via email." This is the agent's journey through the harness.
+Alex has a 6-month-old Node.js API with 40% test coverage, a stale README, and no architecture docs. He wants harness guarantees but can't start from scratch.
 
-**Opening:** The agent reads the story from the BMAD sprint plan. SessionStart hook fires — verifies VictoriaMetrics stack is running, OTLP is configured, agent-browser is available. The agent has eyes.
+**Opening:** Alex runs `codeharness init` — sets up Victoria, hooks, OTLP. Then `codeharness onboard --project-dir .`.
 
-**Rising Action:** The agent implements the password reset endpoint and email sending logic. PostToolUse hook fires after each file write — the agent checks that new code includes structured logging for the reset flow. The agent starts the dev server, queries VictoriaLogs: `level:error` returns nothing. It makes a real API call: `POST /api/reset-password` with a test email. Checks VictoriaLogs for the `password.reset.requested` trace — it's there. Checks the DB via MCP — the reset token row exists.
+**Rising Action:** The CLI scans his project: 23 source files across 5 modules, 40% coverage (12 files uncovered), README exists but stale, no ARCHITECTURE.md. It generates: root AGENTS.md from project structure, `docs/` scaffold with `index.md`. Then it produces a coverage gap report and an onboarding epic with 8 stories — 5 coverage stories (one per module), 1 architecture doc, 1 per-module AGENTS.md, 1 doc freshness. The CLI writes `ralph/onboarding-epic.md`.
 
-**Climax:** The agent opens agent-browser, navigates to the reset password page, fills in the email, submits. Uses `wait --fn` until the success message appears. Takes an annotated screenshot. Then navigates to the reset link (from the DB token), enters a new password, submits. Verifies login works with the new password. Every step wrapped in `showboat exec`.
+**Climax:** Alex reviews the plan, approves it. `codeharness bridge --epics ralph/onboarding-epic.md` converts to tasks. `codeharness run` picks them up. Story 1: write tests for `auth` module — 100% coverage, Showboat proof showing all tests pass. By story 5, project-wide coverage is 100%. Stories 6-8: architecture doc and AGENTS.md files generated and verified.
 
-**Resolution:** The agent runs `showboat verify` — all outputs match. PreToolUse hook allows the commit. The story is marked verified. The Showboat document contains 12 verification steps with real evidence. The agent moves to the next story.
+**Resolution:** `codeharness status` shows: 100% coverage, 5/5 modules with AGENTS.md, ARCHITECTURE.md current. The project is fully harnessed. Future sprints maintain these standards — the harness won't let them degrade.
 
 ---
 
-### Journey 4: The Agent — Debugging a Failure (Agent Edge Case)
+### Journey 3: The Agent — Developing with the Harness
 
-The agent is implementing story US-005: "Admin can view all user activity." Tests pass. But during verification, the API returns 200 with an empty array — even though users exist in the database.
+The autonomous agent picks up story 3.2: "User can reset password via email." This is the agent's journey through the harness.
+
+**Opening:** SessionStart hook fires — calls `codeharness status --check` to verify VictoriaMetrics stack is running, OTLP configured, agent-browser available. The agent has eyes.
+
+**Rising Action:** The agent implements the password reset endpoint. PostToolUse hook fires after each file write — prompts the agent to verify OTLP instrumentation. The agent starts the dev server, queries VictoriaLogs: `level:error` returns nothing. Makes a real API call: `POST /api/reset-password` with a test email. Checks VictoriaLogs for the `password.reset.requested` trace — it's there. Checks DB via MCP — reset token row exists.
+
+**Climax:** The agent opens agent-browser, navigates to the reset password page, fills in the email, submits. Takes an annotated screenshot. Navigates to the reset link (from DB token), enters new password, submits. Verifies login works with new password. Every step wrapped in `showboat exec`. The agent runs `showboat verify` — all outputs match. PreToolUse hook allows the commit because the CLI set `tests_passed`, `coverage_met`, and `verification_run` flags to `true`.
+
+**Resolution:** The story is marked verified via `bd close`. The Showboat document contains 12 verification steps with real evidence. The agent moves to the next story.
+
+---
+
+### Journey 4: The Agent — Debugging a Failure
+
+The agent is implementing story 3.5: "Admin can view all user activity." Tests pass. But during verification, the API returns 200 with an empty array — even though users exist in the database.
 
 **Opening:** Showboat verification captures: `curl localhost:3000/api/admin/activity` returns `{"data": []}`. DB MCP query shows 15 activity records exist. Verification fails.
 
-**Rising Action:** The agent queries VictoriaLogs: searches for the request trace. Finds the trace — the SQL query is `SELECT * FROM activity WHERE tenant_id = ?` but `tenant_id` is `null`. The agent reads the application log: "No tenant context found in request." Root cause identified on first attempt — the admin route is missing the tenant middleware.
+**Rising Action:** The agent queries VictoriaLogs — searches for the request trace. Finds it: the SQL query is `SELECT * FROM activity WHERE tenant_id = ?` but `tenant_id` is `null`. Application log: "No tenant context found in request." Root cause identified on first attempt — admin route is missing tenant middleware.
 
-**Climax:** The agent adds the tenant middleware to the admin route, adds a structured log entry for tenant resolution, reruns. VictoriaLogs now shows `tenant.resolved: 42`. The API returns 15 activity records. DB state matches API response.
+**Climax:** Agent adds tenant middleware, adds structured log for tenant resolution, reruns. VictoriaLogs now shows `tenant.resolved: 42`. API returns 15 activity records. DB state matches API response.
 
-**Resolution:** `showboat verify` passes. Without VictoriaMetrics, the agent would have guessed — maybe the query is wrong? Maybe the table is empty? Maybe the endpoint is hitting the wrong DB? With logs and traces, it found the exact issue in one iteration.
+**Resolution:** `showboat verify` passes. Without VictoriaMetrics, the agent would have guessed — maybe the query is wrong? Maybe the table is empty? With logs and traces, it found the exact issue in one iteration.
 
 ---
 
 ### Journey 5: Community Contributor
 
-Maria finds codeharness on GitHub. She uses BMAD for her team's projects and wants to add a verification pattern for GraphQL APIs (codeharness currently handles REST).
+Maria finds codeharness on GitHub. She uses BMAD for her team's projects and wants to add a verification pattern for GraphQL APIs.
 
-**Opening:** She reads the plugin structure — knowledge files in `knowledge/`, verification patterns in `skills/`. She sees how REST API verification works in `verification-enforcement.md`.
+**Opening:** She reads the CLI source — Commander.js commands in `src/commands/`, verification logic in `src/verify/`. She sees how REST API verification works.
 
-**Rising Action:** She writes a `graphql-verification.md` skill that teaches the agent how to verify GraphQL queries and mutations using real `curl` calls with GraphQL payloads. She adds a knowledge file explaining GraphQL introspection for schema verification.
+**Rising Action:** She writes a GraphQL verification module that teaches the agent how to verify GraphQL queries and mutations using real `curl` calls with GraphQL payloads. She adds it to `src/verify/graphql.js` and registers it in the verification strategy registry.
 
-**Resolution:** She submits a PR. The maintainers review it, and it's merged. GraphQL projects can now use codeharness with proper API verification. The community grows.
-
-### Journey 6: Alex — Onboarding an Existing Project (Brownfield)
-
-Alex has a 6-month-old Node.js API with 40% test coverage, a README, some JSDoc, and no ARCHITECTURE.md. He wants the harness guarantees but can't rewrite from scratch.
-
-**Opening:** Alex installs codeharness and runs `/harness-init` (sets up Victoria, hooks, OTLP). Then he runs `/harness-onboard`.
-
-**Rising Action:** The onboard command scans his project: 23 source files across 5 modules, 40% coverage (12 files uncovered), README exists but is stale, no ARCHITECTURE.md, no per-module docs. It generates: root AGENTS.md from actual project structure, a draft ARCHITECTURE.md from code analysis, docs/ scaffold with index.md pointing to his existing README and planning artifacts. Then it produces a coverage gap report and an **onboarding epic** with 8 stories: 5 coverage stories (one per module), 1 architecture doc story, 1 AGENTS.md per-module story, 1 doc freshness story.
-
-**Climax:** Alex reviews the onboarding plan, approves it, and runs `/harness-run`. The Ralph loop picks up the onboarding stories. Story 1: write tests for the `auth` module — 100% coverage for that module, Showboat proof showing all tests pass. Story 2: write tests for `routes` module. By story 5, project-wide coverage is 100%. Story 6: the agent generates ARCHITECTURE.md with accurate module descriptions. Story 7: per-module AGENTS.md files created. Story 8: README and inline docs updated.
-
-**Resolution:** `/harness-status` shows: 100% coverage, 5/5 modules with AGENTS.md, ARCHITECTURE.md current, docs/quality-score.md all green. The project is fully harnessed. Future sprints maintain these standards — the harness won't let them degrade.
+**Resolution:** She submits a PR. Tests pass — she added tests for her module. The maintainers review, merge. GraphQL projects can now use codeharness with proper API verification.
 
 ### Journey Requirements Summary
 
 | Journey | Capabilities Revealed |
 |---------|----------------------|
-| **Alex — New Project** | Install, init with config, VictoriaMetrics setup, OTLP instrumentation, multi-level verification, Showboat proof, BMAD integration |
-| **Alex — Migrating from bmalph** | Auto-detection of existing setup, harness patch application, selective enforcement config, bmalph replacement, mandatory retro with follow-up |
-| **Alex — Brownfield Onboarding** | Codebase scan, AGENTS.md generation, ARCHITECTURE.md discovery, coverage gap analysis, onboarding epic generation, self-bootstrapping through Ralph loop |
-| **Agent — Happy Path** | SessionStart verification, PostToolUse hooks, VictoriaLogs querying, agent-browser interaction, Showboat evidence capture, commit gating |
-| **Agent — Debug Failure** | VictoriaLogs trace querying, root cause identification via logs, iterative verification loop, structured logging validation |
-| **Community Contributor** | Plugin extensibility, knowledge file patterns, skill authoring, PR workflow |
+| **Alex — New Project** | CLI init with stack detection, enforcement config, Docker stack, OTLP instrumentation, BMAD install + patches, bridge, autonomous run, status reporting |
+| **Alex — Brownfield Onboarding** | CLI onboard scan, coverage gap analysis, AGENTS.md generation, onboarding epic generation, self-bootstrapping through Ralph loop |
+| **Agent — Happy Path** | SessionStart health check, PostToolUse hooks, VictoriaLogs querying, agent-browser interaction, Showboat evidence capture, CLI flag updates, commit gating |
+| **Agent — Debug Failure** | VictoriaLogs trace querying, root cause identification via observability, iterative verification loop |
+| **Community Contributor** | CLI extensibility, modular verification strategies, test infrastructure, PR workflow |
 
 ## Innovation & Novel Patterns
 
 ### Detected Innovation Areas
 
-**1. Harness Engineering as a Distributable Plugin**
+**1. Harness Engineering as a Distributable CLI**
 
-OpenAI's Harness Engineering is proven at scale (1M lines, 5 months) but exists only as internal infrastructure. No one has packaged the pattern — ephemeral observability, browser access for agents, mechanical enforcement, proof-of-work verification — as an installable, reusable plugin. codeharness bridges the gap between "published blog post" and "anyone can use it." This is a new paradigm for developer tooling: productizing an engineering methodology as a plugin.
+OpenAI's Harness Engineering is proven at scale (1M lines, 5 months) but exists only as internal infrastructure. codeharness packages the pattern — ephemeral observability, browser access for agents, mechanical enforcement, proof-of-work verification — as an npm CLI anyone can install. LangChain proved the harness matters more than the model (52.8% → 66.5% benchmark improvement from harness changes alone).
 
-**2. Verification-as-Proof, Not Verification-as-Testing**
+**2. CLI-Backed Plugin Architecture**
 
-Traditional verification: run tests → pass/fail → trust the result. codeharness verification: run real interactions → capture evidence → produce reproducible proof document → re-verify independently. The Showboat proof document is not a test report — it's an executable artifact that anyone can re-run to confirm the outputs match.
+Claude Code plugins are typically pure markdown — commands, skills, and knowledge files that the agent reads and interprets. codeharness introduces a new pattern: the plugin is a thin wrapper around a Node.js CLI that does the real work. The CLI is testable, debuggable, and deterministic. The plugin provides the agent interface (hooks, slash commands) but delegates all mechanical work to CLI commands. This solves the "specification-implementation gap" that killed v1.
 
-**3. Agent-First Observability**
+**3. Verification-as-Proof, Not Verification-as-Testing**
 
-Observability tools (Grafana, Datadog, Kibana) are built for humans. codeharness provides observability specifically for the agent to query programmatically during development. The agent uses LogQL/PromQL to understand runtime behavior. Ephemeral per-task stacks (spun up when a story starts, torn down when complete) are a new pattern — only seen in OpenAI's internal setup before this.
+Traditional verification: run tests → pass/fail → trust. codeharness verification: run real interactions → capture evidence → produce reproducible proof document → re-verify independently. The Showboat proof document is an executable artifact, not a test report.
 
-**4. Anti-Cheating by Architecture**
+**4. Agent-First Observability**
 
-Most autonomous loops trust the agent's self-report. codeharness makes cheating structurally difficult: Showboat's `exec` captures real command output (`verify` re-runs everything). Hooks block commits without proof. agent-browser's `diff snapshot` provides before/after structural comparison. The constraints are architectural — the agent CAN'T skip verification, not "shouldn't."
+Observability tools (Grafana, Datadog) are built for humans staring at dashboards. codeharness provides observability the agent queries programmatically during development via LogQL/PromQL. Ephemeral per-task stacks are a new pattern — only seen in OpenAI's internal setup before.
 
 ### Market Context & Competitive Landscape
 
-- **OpenAI Harness Engineering** — Internal only, not available as a plugin. Validates the approach.
-- **claude-code-harness** — Focused on code review loops, not real-world verification or observability.
-- **ralphex** — Multi-agent code review, no real-world verification.
-- **Vibe Kanban** — Task orchestration with visual review, no observability or proof-of-work.
-- **No direct competitor** combines all four innovation areas in a single tool.
+- **OpenAI Harness Engineering** — Internal only. Validates the approach but not available as a tool.
+- **bmalph** — BMAD + Ralph glue CLI. No verification, no observability, no enforcement. codeharness replaces it.
+- **claude-code-harness** — Code review loops only. No real-world verification.
+- **ralphex** — Multi-agent code review. No verification or observability.
+- **No direct competitor** combines CLI-based harness engineering with BMAD distribution in a single npm package.
 
 ### Validation Approach
 
-1. **Dogfooding** — Build codeharness using codeharness (from Phase 1 onward)
-2. **Showboat verify reliability** — Track pass rate. Target: >98%
-3. **Agent debug efficiency** — Measure root cause identification with vs. without VictoriaMetrics. Target: >70%
-4. **User trust survey** — After 3 months, do users manually re-check after verification? If not, trust is established.
+1. **Dogfooding** — Build codeharness using codeharness. The CLI builds itself.
+2. **Showboat verify reliability** — Track pass rate across sprints. Target: >98%.
+3. **Agent debug efficiency** — Measure root cause identification with vs. without VictoriaMetrics. Target: >70%.
+4. **CLI vs. markdown comparison** — Compare v2 (CLI-backed) init success rate against v1 (markdown-only) init. Expect dramatic improvement.
 
 ### Innovation Risk Mitigation
 
@@ -219,122 +233,134 @@ Covered in Project Scoping & Phased Development → Risk Mitigation Strategy.
 
 ### Project-Type Overview
 
-codeharness is a Claude Code plugin (markdown + bash + JSON, no build step) that harnesses projects built in Node.js or Python (MVP). The plugin itself has no language runtime — it's pure Claude Code plugin artifacts. The complexity is in orchestrating external tools (VictoriaMetrics, agent-browser, Showboat) and configuring them correctly per project stack.
+codeharness is an npm CLI package (`codeharness`) distributed via npm, paired with a Claude Code plugin that wraps CLI commands as slash commands and hooks. The CLI is the engine; the plugin is the interface. No build step for the plugin — markdown + JSON. The CLI is standard Node.js with Commander.js.
 
 ### Technical Architecture Considerations
 
-**Plugin architecture:** Commands, skills, hooks, agents, MCP config, knowledge files, templates. No compiled code. Claude Code auto-discovers all components from plugin directory structure.
+**CLI Architecture:**
+- Node.js with Commander.js for command parsing
+- Subcommands: `init`, `run`, `verify`, `bridge`, `status`, `teardown`, `onboard`
+- Each subcommand maps to a module in `src/commands/`
+- Shared libraries in `src/lib/` for state management, Docker orchestration, BMAD parsing, template generation
+- Exit codes follow conventions: 0 success, 1 error, 2 invalid usage
 
-**External tool dependencies (auto-installed during `/harness-init`):**
-- **Docker** — Required for VictoriaMetrics stack
-- **Showboat** — Python CLI, installed via `uvx showboat` (auto-install)
-- **agent-browser** — Rust binary, installed via npm or direct download (auto-install)
-- **OpenTelemetry packages** — Per-stack, installed into the target project
+**Plugin Architecture:**
+- `.claude-plugin/plugin.json` manifest
+- `commands/` — slash commands that invoke `codeharness <subcommand>`
+- `hooks/` — bash scripts that call CLI for state checks and flag updates
+- `skills/` — knowledge files for agent guidance (verification patterns, observability querying)
+- `agents/` — subagent specs (verifier, doc-gardener)
+- `knowledge/` — reference material (OTLP instrumentation, verification patterns)
 
-**Stack detection and auto-instrumentation (MVP):**
+**Target Stack Support (MVP):**
 
-| Stack | Detection | Install | Run Wrapper | Auto-Instruments |
-|-------|-----------|---------|-------------|-----------------|
-| **Node.js** | `package.json` exists | `npm install @opentelemetry/auto-instrumentations-node` | `node --require @opentelemetry/auto-instrumentations-node/register app.js` | HTTP, Express, Fastify, pg, mysql, redis, etc. |
-| **Python** | `requirements.txt` or `pyproject.toml` exists | `pip install opentelemetry-distro opentelemetry-exporter-otlp` + `opentelemetry-bootstrap -a install` | `opentelemetry-instrument python app.py` | Flask, Django, FastAPI, psycopg2, SQLAlchemy, requests, etc. |
+| Stack | Detection | OTLP Instrumentation | Coverage Tool |
+|-------|-----------|---------------------|---------------|
+| Node.js | `package.json` | `@opentelemetry/auto-instrumentations-node` via `--require` | c8 / istanbul |
+| Python | `requirements.txt` / `pyproject.toml` | `opentelemetry-distro` via `opentelemetry-instrument` wrapper | coverage.py |
 
-**OTLP environment variables (set by `/harness-init`):**
+### Installation & Distribution
+
+```bash
+npm install -g codeharness
 ```
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
-OTEL_SERVICE_NAME=<project-name>
-OTEL_TRACES_EXPORTER=otlp
-OTEL_METRICS_EXPORTER=otlp
-OTEL_LOGS_EXPORTER=otlp
-```
 
-Zero code changes to the application. Auto-instrumentation captures HTTP requests, DB queries, errors, and traces automatically.
+Single package, global install. The CLI bundles:
+- Commander.js command structure
+- Embedded templates (Docker Compose, OTLP config, BMAD patches, Showboat template)
+- Vendored Ralph loop (bash, invoked by CLI)
+- Plugin scaffold (generated into project during `codeharness init`)
 
-### Command Surface
+No yarn/pnpm alternatives needed. npm is the distribution channel.
 
-| Command | Purpose |
-|---------|---------|
-| `/harness-init` | Set up harness: detect stack, configure enforcement, start Victoria stack, install OTLP, configure MCP, install hooks |
-| `/harness-verify` | Run verification pipeline: quality gates → real-world verification → Showboat proof |
-| `/harness-status` | Show harness state: what's configured, what's running, verification history |
-| `/harness-run` | Start autonomous Ralph loop with verification gates per story |
-| `/harness-teardown` | Clean up: stop Docker stack, remove hooks (non-destructive to project code) |
+### Documentation
 
-### Enforcement Configuration (per-project, saved in `.claude/codeharness.local.md`)
+- **README.md** — Quick start, installation, command reference, architecture overview
+- **Self-documenting** — `codeharness init` generates the project's documentation structure (`docs/`, `AGENTS.md`, `ARCHITECTURE.md`) as part of harness setup. The harness creates the documentation it enforces.
+- **In-repo docs** — Plugin knowledge files serve as both agent context and developer reference
 
-| Setting | Default | User Confirms |
-|---------|---------|---------------|
-| Frontend/UI verification (agent-browser) | ON | "Does this project have a frontend?" |
-| Database verification (DB MCP) | ON | "Does this project use a database?" |
-| API verification (real HTTP calls) | ON | "Does this project have APIs?" |
-| Full observability (VictoriaMetrics) | ON | "Is this a simple tool/utility?" → if yes, OFF |
-| OTLP auto-instrumentation | ON | Automatic based on stack detection |
+### Migration from bmalph
+
+No formal migration command. `codeharness onboard` handles existing projects including those with bmalph:
+- Detects `_bmad/` and `.ralph/` directories
+- Preserves existing BMAD artifacts
+- Comments on bmalph-specific files that are superseded (e.g., `.ralph/.ralphrc`, bmalph CLI config)
+- Applies harness patches to existing BMAD workflows
+- Generates onboarding epic that includes cleanup of bmalph-specific artifacts as a story
 
 ### Implementation Considerations
 
-- **No build step** — Plugin is pure markdown + bash + JSON + YAML
-- **Auto-install strategy** — `/harness-init` checks for each dependency, installs if missing, reports what was installed
-- **Non-destructive** — `/harness-teardown` removes harness artifacts but never touches project source code
-- **Idempotent init** — Running `/harness-init` twice is safe — detects existing config, updates if needed
-- **BMAD detection** — If `_bmad/` exists, BMAD integration skill activates automatically
+- **No build step for plugin** — Plugin artifacts are declarative (markdown, JSON, bash). Only the CLI needs compilation/testing.
+- **CLI testing** — Mocha/Vitest for unit tests, BATS for bash script integration tests (Ralph loop, hooks)
+- **Template embedding** — Templates compiled into CLI package, not copied from external directories. Solves the "missing templates" gap from v1.
+- **Idempotent operations** — Every CLI command is safe to re-run. `init` twice = same result. `bridge` twice = same progress.json.
+- **State file as contract** — `.claude/codeharness.local.md` is the single source of truth. CLI reads and writes it. Hooks read it. Plugin skills reference it.
 
 ## Project Scoping & Phased Development
 
 ### MVP Strategy & Philosophy
 
-**MVP Approach:** Problem-solving MVP — deliver the core harness that makes autonomous development produce verifiably working software. BMAD/bmalph integration is the primary use case. Standalone mode is available but secondary.
+**MVP Approach:** Problem-solving MVP — deliver the complete harness lifecycle (init→bridge→run→verify→status→onboard→teardown) as a working CLI with beads as the unified task store. The full cycle must work end-to-end. No partial implementations.
 
-**Resource Requirements:** Solo developer (creator), Claude Code with codeharness (dogfooding). External dependencies: Docker, Showboat, agent-browser — all auto-installed.
+**Resource Requirements:** Solo developer with Claude Code (dogfooding). External dependencies: Docker, Showboat, agent-browser, beads — auto-installed by CLI.
 
 ### MVP Feature Set (Phase 1)
 
 **Core User Journeys Supported:**
-- Alex — New BMAD project with full harness (Journey 1)
-- Alex — Existing bmalph project, add codeharness (Journey 2)
-- Agent — Developing with harness, full visibility (Journey 3)
-- Agent — Debugging failure using observability (Journey 4)
+- Alex — New Project (Journey 1): full init→bridge→run→verify cycle
+- Alex — Brownfield Onboarding (Journey 2): onboard→bridge→run cycle
+- Agent — Developing with Harness (Journey 3): hooks + verification + observability
+- Agent — Debugging a Failure (Journey 4): observability querying
 
 **Must-Have Capabilities:**
 
-| Capability | What | Why MVP |
-|-----------|------|---------|
-| One-command install | `claude plugin install codeharness`. Installs BMAD (npm dep), vendors Ralph, sets up harness. Replaces bmalph. | First impression, zero friction |
-| `/harness-init` | Detect stack, configure enforcement, start Victoria, install OTLP, configure MCP, install hooks | The harness setup IS the product |
-| Configurable enforcement | Per-project opt-out of UI/DB/API/Victoria verification. Max by default. | Different projects need different harness levels |
-| Per-commit quality gates | Tests, lint, typecheck before commit | Lightweight, always-on |
-| Per-story verification | Full real-world verification: agent-browser + API calls + DB inspection + Showboat proof | The core value proposition |
-| Showboat proof documents | Reproducible evidence per story, `showboat verify` re-runs | Trust through proof |
-| Enforced visibility | Hooks ensure agent queries VictoriaLogs/Traces during development | "Give the agent eyes" |
-| VictoriaMetrics stack | Ephemeral Docker Compose: VictoriaLogs + VictoriaMetrics + VictoriaTraces + OTel Collector | Agent-first observability |
-| OTLP auto-instrumentation | Node.js and Python zero-code instrumentation | Zero friction visibility for developed project |
-| BMAD ownership | Install BMAD (npm dep), apply harness patches to workflows | codeharness IS the BMAD distribution |
-| BMAD patching | Patch story templates, dev workflow, code review, retro with harness requirements | Harness wired into every phase |
-| Ralph loop | Vendored `snarktank/ralph` with verification-aware BMAD→task bridge | Fresh context, process control |
-| bmalph migration | Detect existing bmalph, preserve artifacts, apply patches, take over | Smooth migration path |
-| Mandatory retrospective | Auto-trigger retro after sprint, analyze verification data, produce actionable follow-up | Self-correcting development loop |
-| Standalone mode | Works without BMAD for any task list | Secondary, but supported |
-| `/harness-verify` | Manual verification trigger outside autonomous loop | For manual development or spot-checks |
-| `/harness-run` | Start autonomous Ralph loop with verification gates | Autonomous execution |
-| `/harness-status` | Show harness state, verification history | User visibility into harness |
-| `/harness-teardown` | Stop Docker stack, remove hooks (non-destructive) | Clean exit |
-| `/harness-onboard` | Scan existing project, generate AGENTS.md + docs/ + coverage gap report, produce onboarding epic with stories, execute through Ralph loop | Essential for brownfield adoption — most real projects aren't greenfield |
+| Capability | CLI Command | What It Does |
+|-----------|-------------|--------------|
+| Harness setup | `codeharness init` | Stack detection, enforcement config, dependency install (including beads), Docker stack (if observability ON), OTLP instrumentation, BMAD install + patches, state file, plugin scaffold |
+| BMAD→beads bridge | `codeharness bridge` | Parse BMAD epics/stories, extract ACs, import as beads issues with type=story, link to story files, set priorities from sprint order |
+| Autonomous execution | `codeharness run` | Vendored Ralph loop reading from beads (`bd ready`), fresh context per iteration, circuit breaker, crash recovery, verification gates per story |
+| Verification pipeline | `codeharness verify` | Quality gates → real-world verification → Showboat proof → flag updates → `bd update` status |
+| Status reporting | `codeharness status` | Harness health, sprint progress (from beads), verification state, Docker stack state |
+| Brownfield onboarding | `codeharness onboard` | Codebase scan, coverage gap analysis, doc audit, findings created as beads issues, onboarding epic generation |
+| Clean teardown | `codeharness teardown` | Stop Docker stack, remove harness artifacts, preserve project code and beads data |
+| Issue tracking | beads (`bd`) | Unified task store for stories, bugs, tech debt, retro findings. `bd ready` feeds Ralph. `bd create` from agent/hooks/retro/onboard. Git-synced JSONL. |
+| Hook enforcement | 4 hooks | Session start health check, pre-commit gate, post-write OTLP check, post-test verify prompt. Hooks can `bd create` when problems detected. |
+| State management | CLI lib | Read/write `.claude/codeharness.local.md`, update session flags after tests/verification |
+| BMAD patches | CLI lib | Apply harness patches to story template, dev workflow, code review, retro. Idempotent. Sprint planning patch integrates `bd ready` for backlog. |
+| Stack support | CLI lib | Node.js + Python OTLP auto-instrumentation and coverage tools |
+
+**Beads Integration Details:**
+
+| Source | Entry Mechanism | Beads Fields |
+|--------|----------------|-------------|
+| BMAD stories | `codeharness bridge --import-to-beads` | type=story, priority from sprint order, description links to story file |
+| Bugs during dev | Agent runs `bd create` | type=bug, priority, `discovered-from:<story-id>` |
+| Onboard findings | `codeharness onboard` | type=task, priority from severity |
+| Retro follow-ups | `codeharness retro` (post-MVP, created manually for MVP) | type=task, priority from severity |
+| Hook findings | Hook scripts run `bd create` | type=bug, priority=1 |
+| Manual | User runs `bd create` | Any type/priority |
+
+**Two-Layer Model:**
+- **Beads** = status, ordering, dependencies (which task, what priority, what's blocked)
+- **Story files** = content (ACs, dev notes, tasks/subtasks, verification requirements)
+- Bridge maintains the link: beads issue description contains path to story file
+- Ralph does `bd ready` → gets issue → reads linked story file → implements → `bd close`
 
 ### Post-MVP Features
 
 **Phase 2 (Growth):**
-- Per-epic integration verification (all stories in epic work together)
-- Per-PR/MR verification (verification before merge request)
-- Configurable enforcement strictness (per-workflow: strict/relaxed)
-- Per-retro verification (verify fixes from retrospective issues)
+- `codeharness retro` — mandatory retrospective, auto-creates beads issues from findings
 - Go stack support for OTLP auto-instrumentation
+- Per-epic integration verification
+- Configurable enforcement strictness (strict/relaxed)
 - Multi-platform drivers (Codex, OpenCode)
 
 **Phase 3 (Expansion):**
-- Structural constraint generation (auto-generate linters/structural tests from architecture)
-- Multi-methodology support (GSD, custom task formats beyond BMAD)
-- Alternative observability backends (OpenSearch, remote/cloud-hosted)
-- Multi-agent verification (parallel verification via Agent Teams)
-- Cross-project harness templates (pre-configured profiles per stack)
-- Verification analytics (track patterns across sprints)
+- Structural constraint generation from architecture
+- Multi-methodology support (GSD, custom task formats)
+- Alternative observability backends (OpenSearch, remote/cloud)
+- Verification analytics across sprints
+- Community verification patterns (pluggable per domain)
 
 ### Risk Mitigation Strategy
 
@@ -342,222 +368,177 @@ Zero code changes to the application. Auto-instrumentation captures HTTP request
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Docker not available | Can't run Victoria stack | Detect during init, clear error. Docker is a hard requirement. |
-| agent-browser instability | Browser verification unreliable | Fallback to Playwright MCP. Both configured. |
-| Showboat breaking changes | Proof format changes | Pin version. Monitor upstream. |
-| Hook conflicts with other plugins | Multiple plugins on Stop event | Detect installed plugins, warn, offer to take over. |
-| OTLP auto-instrumentation gaps | Some frameworks not covered | Knowledge files with manual instrumentation as fallback. |
-| Context window pressure | Verification consumes tokens | Use subagents for verification — isolated context. |
-| Harness too complex for casual users | Low adoption | Configurable enforcement — max by default, explicit opt-out for what doesn't apply |
-| Showboat proof docs become bloated | Slow verification | Keep proof lean — only AC-relevant evidence, not exhaustive logs |
-| VictoriaMetrics overhead on dev machines | Slow development | Simple tool mode skips Victoria. Future: remote backends. |
-| Hooks slow down fast iteration | Developer friction | Per-commit gates are lightweight (tests/lint). Heavy verification is per-story, not per-commit. |
+| Docker unavailable | No observability stack | Observability is opt-out. CLI skips Docker when disabled. |
+| agent-browser instability | Browser verification fails | Fallback to Playwright MCP. Both configurable. |
+| Showboat breaking changes | Proof format breaks | Pin version in package.json. |
+| Beads git hooks conflict with codeharness hooks | Double hook firing, commit issues | `codeharness init` detects beads hooks, configures coexistence. Test hook ordering. |
+| Beads ↔ story file sync drift | Beads says "done" but story file says "in-progress" | Bridge maintains bidirectional sync. `bd close` triggers story file status update via CLI. |
+| Ralph loop bash + Node.js CLI mismatch | Integration complexity | CLI invokes Ralph via `child_process.spawn`. Ralph reads beads via `bd ready --json`. |
+| BMAD Method upstream changes | Patches break | Pin BMAD version. |
 
 **Market Risks:**
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| OpenAI releases official harness plugin | Direct competition | codeharness is Claude Code-native. First-mover advantage. |
-| bmalph adds verification natively | Core value absorbed | codeharness is deeper: Showboat proof + VictoriaMetrics + mechanical enforcement. |
-| Low adoption | No traction | Dogfood first. Solve creator's own problem. |
+| OpenAI releases official harness tool | Direct competition | codeharness is Claude Code-native. First-mover. |
+| bmalph adds verification natively | Core value absorbed | codeharness is deeper: Showboat + VictoriaMetrics + mechanical enforcement + CLI. |
+| Beads abandoned upstream | Dependency dies | Beads is simple (JSONL + CLI). Fork or replace with built-in if needed. |
 
 **Resource Risks:**
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| Solo developer, limited time | Slow progress | Phased approach. Dogfooding accelerates. |
-| External dependencies change | Breaking updates | Pin versions. Monitor upstream. |
+| Solo developer, limited time | Slow progress | CLI-first: each command independently testable and shippable. |
+| External dependency churn | Breaking updates | Pin all versions. Lock file. |
 
 ## Functional Requirements
 
 ### Harness Setup & Configuration
 
-- FR1: User can install codeharness with a single command (`claude plugin install codeharness`)
-- FR2: User can initialize the harness in a project via `/harness-init`
-- FR3: System can detect the project's technology stack (Node.js via `package.json`, Python via `requirements.txt`/`pyproject.toml`)
-- FR4: System can install BMAD Method via `npx bmad-method init` as part of `/harness-init`
-- FR5: System can detect existing BMAD/bmalph installation and migrate (preserve artifacts, apply harness patches, take over execution)
-- FR6: User can configure enforcement levels during init (frontend, database, API, VictoriaMetrics) with max-enforcement defaults
-- FR7: System can persist enforcement configuration per project (`.claude/codeharness.local.md`)
-- FR8: System can auto-install external dependencies (Docker check, Showboat, agent-browser, OTLP packages)
-- FR9: User can re-run `/harness-init` idempotently without breaking existing configuration
-- FR10: User can tear down the harness via `/harness-teardown` without affecting project source code
+- FR1: User can install codeharness as a global npm package (`npm install -g codeharness`)
+- FR2: User can initialize the harness in a project via `codeharness init`
+- FR3: System can detect the project's technology stack (Node.js, Python) from indicator files
+- FR4: System can install BMAD Method as part of init and apply harness patches to all BMAD workflows
+- FR5: System can detect existing BMAD/bmalph installations, preserve artifacts, and apply harness patches
+- FR6: User can configure enforcement levels during init (frontend, database, API, observability) with max-enforcement defaults
+- FR7: System can persist enforcement configuration in `.claude/codeharness.local.md` with YAML frontmatter
+- FR8: System can auto-install external dependencies (Showboat, agent-browser, beads, OTLP packages) with correct install commands and fallback chains
+- FR9: System can check Docker availability only when observability enforcement is enabled
+- FR10: User can re-run `codeharness init` idempotently without breaking existing configuration
+- FR11: User can tear down the harness via `codeharness teardown` without affecting project source code or beads data
 
 ### Observability Stack
 
-- FR11: System can start an ephemeral VictoriaMetrics stack via Docker Compose (VictoriaLogs + VictoriaMetrics + VictoriaTraces + OTel Collector)
-- FR12: System can install OTLP auto-instrumentation for Node.js projects (zero code changes)
-- FR13: System can install OTLP auto-instrumentation for Python projects (zero code changes)
-- FR14: System can configure OTLP environment variables pointing to the local OTel Collector
-- FR15: Agent can query VictoriaLogs via LogQL to inspect application runtime logs
-- FR16: Agent can query VictoriaMetrics via PromQL to inspect application metrics
-- FR17: Agent can trace request flows via VictoriaTraces
-- FR18: System can verify the observability stack is running (SessionStart hook)
+- FR12: System can generate a Docker Compose file from embedded templates based on enforcement config
+- FR13: System can start/stop an ephemeral VictoriaMetrics stack (VictoriaLogs + VictoriaMetrics + VictoriaTraces + OTel Collector)
+- FR14: System can install OTLP auto-instrumentation for Node.js projects (zero code changes, `--require` flag in start script)
+- FR15: System can install OTLP auto-instrumentation for Python projects (zero code changes, `opentelemetry-instrument` wrapper)
+- FR16: System can configure OTLP environment variables pointing to the local OTel Collector
+- FR17: Agent can query VictoriaLogs via LogQL to inspect application runtime logs
+- FR18: Agent can query VictoriaMetrics via PromQL to inspect application metrics
+- FR19: Agent can trace request flows via VictoriaTraces
 
 ### Real-World Verification
 
-- FR19: Agent can verify UI features by interacting with the application via agent-browser (navigate, click, fill, screenshot)
-- FR20: Agent can verify API endpoints by making real HTTP calls and inspecting response bodies AND side effects
-- FR21: Agent can verify database state via Database MCP (read-only queries)
-- FR22: Agent can verify runtime behavior by querying VictoriaLogs for expected log entries
+- FR20: Agent can verify UI features by interacting with the application via agent-browser
+- FR21: Agent can verify API endpoints by making real HTTP calls and inspecting response bodies and side effects
+- FR22: Agent can verify database state via Database MCP (read-only queries)
 - FR23: Agent can capture verification evidence in Showboat proof documents (`showboat exec`, `showboat image`)
 - FR24: Agent can re-verify proof documents via `showboat verify` to confirm outputs match
-- FR25: Agent can take annotated screenshots via agent-browser for visual evidence
-- FR26: Agent can diff before/after states via agent-browser's snapshot diffing
-
-### Verification Levels
-
-- FR27: System can enforce per-commit quality gates (tests, lint, typecheck) via PreToolUse hook
-- FR28: System can enforce per-story verification (full real-world verification + Showboat proof) before story completion
-- FR29: System can block git commits without prior quality gate pass (PreToolUse hook)
-- FR30: System can block story completion without Showboat proof document
+- FR25: User can trigger verification manually via `codeharness verify` for any story
 
 ### Enforcement & Hooks
 
-- FR31: System can enforce that the agent queries VictoriaLogs/VictoriaTraces during development (PostToolUse hooks)
-- FR32: System can inject verification prompts after code changes (PostToolUse: Write/Edit)
-- FR33: System can verify OTLP instrumentation is present in new code (PostToolUse hook)
-- FR34: System can control autonomous loop iteration (Stop hook: continue/terminate based on verification state)
-- FR35: System can track verification state per story (what's verified, what's pending)
+- FR26: System can enforce per-commit quality gates (tests pass, coverage met) via PreToolUse hook
+- FR27: System can block git commits without prior quality gate pass
+- FR28: System can inject verification prompts after code changes via PostToolUse hook
+- FR29: System can verify harness health on session start (Docker stack, OTLP, agent-browser availability)
+- FR30: System can update session flags in state file after test runs, coverage checks, and verification
+- FR31: Hooks can create beads issues via `bd create` when problems are detected
 
-### BMAD Ownership
+### Issue Tracking (Beads Integration)
 
-- FR36: System can read BMAD sprint plans from `_bmad-output/planning-artifacts/`
-- FR37: System can map BMAD stories to verification tasks
-- FR38: System can produce per-story Showboat proof documents matching BMAD story identifiers
-- FR39: System can update BMAD sprint status after story verification
-- FR40: System can apply harness patches to BMAD story templates (add verification requirements)
-- FR41: System can apply harness patches to BMAD dev story workflow (enforce observability during development)
-- FR42: System can apply harness patches to BMAD code review workflow (check Showboat proof exists)
-- FR43: System can apply harness patches to BMAD retrospective workflow (review verification effectiveness, produce actionable follow-up)
-- FR44: System can read BMAD acceptance criteria and map them to verification steps
+- FR32: System can install and configure beads as part of `codeharness init`
+- FR33: System can import BMAD stories into beads as issues via `codeharness bridge`
+- FR34: Agent can create beads issues during development for discovered bugs (`bd create` with `discovered-from` links)
+- FR35: System can create beads issues from onboard scan findings
+- FR36: System can create beads issues from hook-detected problems
+- FR37: Sprint planning workflow can triage beads issues (`bd ready` for backlog)
+- FR38: System can maintain bidirectional sync between beads issue status and story file status
+- FR39: System can resolve beads git hook conflicts with codeharness hooks during init
+
+### BMAD Integration
+
+- FR40: System can read BMAD epics and stories from planning artifacts
+- FR41: System can parse story acceptance criteria and map them to verification steps
+- FR42: System can apply harness patches to BMAD story templates (add verification + documentation + testing requirements)
+- FR43: System can apply harness patches to BMAD dev-story workflow (enforce observability, docs, tests)
+- FR44: System can apply harness patches to BMAD code-review workflow (check Showboat proof, AGENTS.md freshness, coverage)
+- FR45: System can apply harness patches to BMAD retrospective workflow (verification effectiveness, doc health, test quality)
+- FR46: System can apply harness patches to BMAD sprint-planning workflow (integrate `bd ready` for backlog)
 
 ### Autonomous Execution Loop
 
-- FR45: System can run Ralph's autonomous loop (vendored `snarktank/ralph`) with fresh context per iteration
-- FR46: System can bridge BMAD stories to Ralph execution tasks with verification requirements per story
-- FR47: System can track iteration count, story progress, and verification state across loop iterations
-- FR48: System can enforce verification gates within the Ralph loop (story not marked done without Showboat proof)
-- FR49: System can handle loop termination (all stories done, max iterations reached, user cancellation)
-
-### Sprint Retrospective & Follow-up
-
-- FR50: System can trigger mandatory retrospective after each sprint completion
-- FR51: System can analyze sprint verification data (pass rates, iteration counts, common failure patterns), documentation health (stale docs, quality grades), and test effectiveness (coverage trends, flaky tests) for retro input
-- FR52: System can produce structured retro report (what worked, what didn't, verification effectiveness, debug efficiency, documentation health, test analysis)
-- FR53: System can convert retro findings into actionable items: new stories for issues, BMAD workflow patches for process improvements, enforcement updates for verification gaps
-- FR54: User can review and approve retro-generated items before they enter the next sprint backlog
-- FR55: System can update BMAD sprint plan with approved retro follow-up items
-
-### Standalone Mode
-
-- FR56: User can use codeharness without BMAD installed
-- FR57: User can provide a task list as a markdown checklist, JSON task list, or plain text (one task per line) for verification tracking
-- FR58: User can trigger verification manually via `/harness-verify` for any development work
+- FR47: System can run the vendored Ralph loop with fresh context per iteration
+- FR48: System can feed Ralph from beads via `bd ready --json` instead of progress.json
+- FR49: System can enforce verification gates within the Ralph loop (story not done without Showboat proof)
+- FR50: System can handle loop termination (all stories done, max iterations, user cancellation, circuit breaker)
+- FR51: System can track iteration count, story progress, and verification state across loop iterations
+- FR70: User can run `/harness-run` to execute one sprint autonomously in the current Claude Code session, iterating through stories using BMAD workflows (create-story → dev-story → code-review) and updating sprint-status.yaml. This is the single source of sprint execution logic — Ralph and all quality gates are implemented as consumers or enhancements of this skill, not as competing implementations.
 
 ### Testing & Coverage
 
-- FR62: System must enforce 100% project-wide test coverage as a quality gate before story completion
-- FR63: Agent must write tests for all new code as part of story implementation (after implementation, before verification)
-- FR64: Agent must write tests for any existing uncovered code discovered during story implementation
-- FR65: System must block story completion if project-wide test coverage drops below 100%
-- FR66: System must run all project tests as part of per-commit quality gates — all tests must pass
-- FR67: System must report coverage delta per story (coverage added vs. coverage before)
+- FR52: System can enforce 100% project-wide test coverage as a quality gate before story completion
+- FR53: System can run all project tests as part of per-commit quality gates
+- FR54: System can detect and use the appropriate coverage tool per stack (c8 for Node.js, coverage.py for Python)
+- FR55: System can report coverage delta per story
 
 ### Documentation & Doc Health
 
-- FR68: System must generate initial `AGENTS.md` during `/harness-init` as a ~100-line map with pointers to BMAD planning artifacts, project structure, build/test commands, conventions, and security notes
-- FR69: Agent must create per-subsystem `AGENTS.md` files when creating new modules or subsystems (local, minimal, progressive disclosure)
-- FR70: System must generate exec-plan files in `docs/exec-plans/active/` for each story at sprint start, derived from BMAD story definitions
-- FR71: System must move exec-plan files from `active/` to `completed/` upon story verification, appending verification summary and Showboat proof link
-- FR72: System must maintain `docs/index.md` as a map referencing BMAD planning artifacts in their native location (`_bmad-output/planning-artifacts/`) — no duplication, only pointers
-- FR73: Doc-gardener subagent must scan for stale documentation (AGENTS.md referencing deleted code, docs not updated since code changed) and open fix-up tasks
-- FR74: Doc-gardener subagent must generate `docs/quality/quality-score.md` with per-area documentation health grades
-- FR75: Doc-gardener subagent must update `docs/exec-plans/tech-debt-tracker.md` with documentation debt items discovered during scans
-- FR76: System must enforce doc freshness as part of story verification — AGENTS.md for changed modules must reflect current code
-- FR77: System must enforce design-doc validation at epic completion — architectural decisions documented and ARCHITECTURE.md current
-- FR78: System must generate `docs/quality/test-coverage.md` per sprint with coverage trends and per-story deltas
-- FR79: System must generate `docs/generated/db-schema.md` from DB MCP queries when database enforcement is enabled
-- FR80: BMAD retro workflow patch must include doc health analysis — stale doc count, quality grades, doc-gardener findings, documentation debt trends
+- FR56: System can generate root AGENTS.md during init with project structure, build/test commands, and conventions
+- FR57: System can generate docs/ scaffold (index.md, exec-plans/, quality/, generated/)
+- FR58: System can scan for stale documentation and produce quality grades
+- FR59: System can generate exec-plan files for active stories and move to completed/ upon verification
+- FR60: System can enforce doc freshness as part of story verification (AGENTS.md for changed modules must reflect current code)
 
-### BMAD Workflow Documentation Integration
+### Brownfield Onboarding
 
-- FR81: BMAD dev-story workflow patch must require: update/create per-subsystem AGENTS.md for new modules, update exec-plan with progress, ensure inline code documentation
-- FR82: BMAD code-review workflow patch must verify: AGENTS.md freshness for changed modules, exec-plan updated, test coverage report present
-- FR83: BMAD sprint-planning workflow must verify: planning docs complete, ARCHITECTURE.md current, test infrastructure ready, coverage baseline recorded
-- FR84: BMAD story template patch must include documentation requirements in acceptance criteria: which docs must be created or updated for the story
-
-### BMAD Workflow Testing Integration
-
-- FR85: BMAD dev-story workflow patch must enforce: tests written after implementation, 100% coverage before verification, all tests pass
-- FR86: BMAD code-review workflow patch must verify: tests exist for all new code, coverage is 100%, no skipped or disabled tests
-- FR87: BMAD retro workflow patch must analyze: test effectiveness (tests that caught real bugs vs. tests that never failed), coverage trends, flaky test detection
-
-### Brownfield Project Onboarding
-
-- FR88: User can onboard an existing project to full harness compliance via `/harness-onboard`
-- FR89: System must scan existing codebase structure, detect modules/subsystems, and map dependencies during onboarding
-- FR90: System must generate root `AGENTS.md` and per-subsystem `AGENTS.md` files from actual code structure during onboarding
-- FR91: System must discover or generate `ARCHITECTURE.md` — if one exists, validate freshness; if not, generate from code analysis
-- FR92: System must set up `docs/` structure with `index.md` mapping to existing project documentation (README, inline docs, existing specs)
-- FR93: System must run coverage analysis and produce a coverage gap report: uncovered files/lines, estimated effort per module, prioritized by risk
-- FR94: System must generate an onboarding epic with stories for reaching full harness compliance: coverage gap stories (per module), doc gap stories, architecture doc stories
-- FR95: System must audit existing documentation (README, JSDoc/docstrings, inline comments) and produce a doc quality report with freshness assessment
-- FR96: System must generate initial `docs/generated/db-schema.md` from DB MCP if database enforcement is enabled
-- FR97: User can review and approve the onboarding plan (epic + stories) before execution begins
-- FR98: System must execute onboarding stories through the normal Ralph loop with verification — the onboarding IS the first sprint
-- FR99: System must track onboarding progress in `/harness-status` showing compliance percentage (coverage, docs, AGENTS.md files)
+- FR61: User can onboard an existing project via `codeharness onboard`
+- FR62: System can scan existing codebase, detect modules with configurable minimum threshold, and map dependencies
+- FR63: System can run coverage analysis and produce a gap report
+- FR64: System can audit existing documentation and produce a doc quality report
+- FR65: System can generate an onboarding epic with stories, created as beads issues
+- FR66: User can review and approve the onboarding plan before execution
 
 ### Status & Reporting
 
-- FR59: User can view harness status via `/harness-status` (configured enforcement, stack state, verification history)
-- FR60: System can generate a verification summary per story (pass/fail per AC, evidence links)
-- FR61: System can maintain a verification log across the sprint (which stories verified, iteration counts)
+- FR67: User can view harness status via `codeharness status` (enforcement config, Docker stack state, beads summary, verification history)
+- FR68: System can generate a verification summary per story (pass/fail per AC, evidence links)
+- FR69: System can maintain a verification log across the sprint
 
 ### Out of Scope (Explicitly Excluded)
 
-- Beads issue tracker integration — evaluated during research but excluded from MVP and post-MVP scope. Sprint task tracking is handled via BMAD sprint plans or standalone task lists, not Beads.
+- Retrospective automation (Phase 2 — `codeharness retro`)
+- Go stack support (Phase 2)
+- Multi-platform drivers beyond Claude Code (Phase 2)
+- Structural constraint generation (Phase 3)
+- Alternative observability backends (Phase 3)
 
 ## Non-Functional Requirements
 
 ### Performance
 
-- NFR1: Hook execution (PreToolUse, PostToolUse) must complete within 500ms as measured by hook script timer
-- NFR2: VictoriaLogs queries must return results within 2 seconds as measured by curl request round-trip time
+- NFR1: Hook execution (PreToolUse, PostToolUse, SessionStart) must complete within 500ms as measured by hook script timer
+- NFR2: VictoriaLogs queries must return results within 2 seconds as measured by curl round-trip time
 - NFR3: `showboat verify` must complete re-run within 5 minutes for a typical story (10-15 verification steps)
-- NFR4: VictoriaMetrics Docker stack must start within 30 seconds during `/harness-init`
-- NFR5: OTLP auto-instrumentation must add <5% latency overhead to the developed application as measured by load test comparison with and without instrumentation enabled
+- NFR4: VictoriaMetrics Docker stack must start within 30 seconds during `codeharness init`
+- NFR5: `codeharness init` must complete all steps within 5 minutes
+- NFR6: OTLP auto-instrumentation must add <5% latency overhead to the developed application
+- NFR7: `codeharness bridge` must parse a 50-story epic in under 10 seconds
+- NFR8: `bd ready --json` must return results in under 1 second
 
 ### Integration
 
-- NFR6: Plugin must coexist with other Claude Code plugins without hook conflicts (detect and warn)
-- NFR7: Plugin must work with Claude Code plugin system version as of March 2026
-- NFR8: VictoriaMetrics stack must use pinned Docker image versions for reproducibility
-- NFR9: agent-browser and Showboat versions must be pinned and tested for compatibility
-- NFR10: OTLP instrumentation must work with standard OpenTelemetry SDK versions
-- NFR11: Database MCP must support PostgreSQL, MySQL, and SQLite at minimum
-- NFR12: BMAD integration must work with BMAD Method v6+ artifact format
-- NFR13: Plugin must not modify project source code during `/harness-teardown`
+- NFR9: Plugin must coexist with other Claude Code plugins without hook conflicts (detect and warn)
+- NFR10: Plugin must work with Claude Code plugin system version as of March 2026
+- NFR11: VictoriaMetrics stack must use pinned Docker image versions for reproducibility
+- NFR12: All external tool versions (Showboat, agent-browser, beads, OTLP packages) must be pinned in package.json
+- NFR13: BMAD integration must work with BMAD Method v6+ artifact format
+- NFR14: Beads git hooks must coexist with codeharness hooks without conflicts
+- NFR15: Plugin must not modify project source code during `codeharness teardown`
 
 ### Reliability
 
-- NFR14: If VictoriaMetrics stack crashes, the harness must detect and report it (not silently fail)
-- NFR15: If agent-browser is unavailable, the harness must fall back gracefully (skip UI verification with warning)
-- NFR16: Hook failures must produce clear error messages, not silent blocks
-- NFR17: State file (`.claude/codeharness.local.md`) must be recoverable if corrupted
-- NFR18: BMAD installation via `npx bmad-method init` must complete within 60 seconds
-- NFR19: BMAD harness patches must be idempotent — applying patches twice produces the same result
-- NFR20: Retrospective report generation must complete within 30 seconds using sprint verification data
-
-### Testing & Coverage
-
-- NFR21: Test suite must complete execution within 5 minutes for per-commit quality gates as measured by test runner wall-clock time
-- NFR22: Coverage measurement must include all application source code (excluding test files, configuration, and generated code) as reported by the stack's native coverage tool (c8/istanbul for Node.js, coverage.py for Python)
-
-### Documentation
-
-- NFR23: Doc-gardener subagent must complete a full documentation scan within 60 seconds as measured by subagent execution time
-- NFR24: AGENTS.md files must not exceed 100 lines — content beyond that must be in referenced docs (progressive disclosure)
-- NFR25: `docs/index.md` must reference BMAD planning artifacts by relative path to `_bmad-output/planning-artifacts/` — never copy content
-- NFR26: Doc freshness check must compare file modification timestamps against git log for corresponding source files
-- NFR27: Generated documentation (`docs/generated/`, `docs/quality/`) must be clearly marked as auto-generated with "DO NOT EDIT MANUALLY" headers
+- NFR16: If VictoriaMetrics stack crashes, the harness must detect and report it (not silently fail)
+- NFR17: If agent-browser is unavailable, the harness must fall back gracefully (skip UI verification with warning)
+- NFR18: Hook failures must produce clear error messages, not silent blocks
+- NFR19: State file (`.claude/codeharness.local.md`) must be recoverable if corrupted — recreate from detected config
+- NFR20: BMAD harness patches must be idempotent — applying patches twice produces the same result
+- NFR21: Ralph loop must recover from crash and resume from last completed story
+- NFR22: `codeharness init` must be idempotent — re-running preserves existing config and verification log
+- NFR23: Doc-gardener scan must complete within 60 seconds
+- NFR24: AGENTS.md files must not exceed 100 lines (progressive disclosure — details in referenced docs)
+- NFR25: `docs/index.md` must reference BMAD artifacts by relative path — never copy content
+- NFR26: Generated documentation (`docs/generated/`, `docs/quality/`) must have "DO NOT EDIT MANUALLY" headers
+- NFR27: Module detection threshold must be configurable (default: 3 files minimum to count as a module)
+- NFR28: Test suite for the CLI itself must complete within 5 minutes

@@ -1,5 +1,1 @@
-issue_trackers:
-  - name: beads
-    type: beads
-    default: true
-    scope: local
+issue_trackers: []

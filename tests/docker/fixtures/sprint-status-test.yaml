@@ -1,0 +1,11 @@
+# Test fixture — trivial sprint for full-loop verification
+generated: 2026-03-15
+project: codeharness-test
+project_key: TEST
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  epic-0: in-progress
+  0-1-hello-world: ready-for-dev
+  epic-0-retrospective: optional

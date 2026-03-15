@@ -34,7 +34,8 @@ Ask the user what to enforce. Present each option and wait for answers:
 1. "Frontend? (y/n)" — enables UI verification via agent-browser
 2. "Database? (y/n)" — enables DB state verification via DB MCP
 3. "APIs? (y/n)" — enables API verification via real HTTP calls
-4. "Observability? (y/n)" — enables VictoriaMetrics stack and OTLP instrumentation
+
+Note: Observability is always enabled (mandatory). There is no opt-out.
 
 ## Step 3: Dependency Check
 
@@ -42,19 +43,15 @@ Check that all required external tools are available. **If Docker is missing, ha
 
 ### Required Dependencies
 
-1. **Docker** (required, cannot auto-install):
+1. **Docker** (recommended, graceful degradation if missing):
    - Run: `docker info` (suppress output, check exit code)
    - If missing:
      ```
-     [FAIL] Docker not installed.
-
-     Docker is required to run the VictoriaMetrics observability stack.
-     Without it, the harness cannot provide logs, metrics, or traces.
-
-     → Install Docker Desktop: https://www.docker.com/products/docker-desktop/
-     → Or install Docker Engine: https://docs.docker.com/engine/install/
+     [WARN] Docker not available — observability will use remote mode
+     [INFO] → Install Docker: https://docs.docker.com/engine/install/
+     [INFO] → Or use remote endpoints: codeharness init --otel-endpoint <url>
      ```
-   - **HALT** — do not continue init without Docker.
+   - Init continues — observability is deferred until Docker or remote endpoint is configured.
 
 2. **Showboat** (auto-installable):
    - Run: `which showboat` or `showboat --version`
@@ -73,8 +70,7 @@ Check that all required external tools are available. **If Docker is missing, ha
 
 3. **agent-browser** (auto-installable, only if frontend enforcement enabled):
    - Run: `which agent-browser` or `agent-browser --version`
-   - If missing and frontend enabled: auto-install via `npm install -g agent-browser`
-   - If missing and frontend disabled: skip silently
+   - If missing: auto-install via `npm install -g agent-browser`
    - If install fails:
      ```
      [WARN] agent-browser not installed. UI verification will be skipped.
@@ -83,12 +79,11 @@ Check that all required external tools are available. **If Docker is missing, ha
      ```
    - If present: `[OK] agent-browser: installed`
 
-4. **OTLP packages** (auto-installable, only if observability enforcement enabled):
+4. **OTLP packages** (auto-installable, always installed — observability is mandatory):
    - For Node.js: check if `@opentelemetry/auto-instrumentations-node` is in devDependencies
      - If missing: `npm install --save-dev @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-metrics-otlp-http @opentelemetry/exporter-logs-otlp-http @opentelemetry/exporter-trace-otlp-http`
    - For Python: check if `opentelemetry-distro` is installed
      - If missing: `pip install opentelemetry-distro opentelemetry-exporter-otlp`
-   - If observability disabled: skip silently
    - If present: `[OK] OTLP instrumentation: installed`
 
 ### Dependency Report
@@ -97,15 +92,13 @@ After all checks, output a summary:
 ```
 [OK] Docker: running
 [OK] Showboat: installed
-[OK] agent-browser: installed (or [INFO] agent-browser: skipped (frontend enforcement disabled))
-[OK] OTLP instrumentation: installed (or [INFO] OTLP: skipped (observability disabled))
+[OK] agent-browser: installed
+[OK] OTLP instrumentation: installed
 ```
 
 If any required dependency failed, do not proceed to the next step.
 
 ## Step 3.5: Docker Compose Generation & VictoriaMetrics Stack
-
-**Skip this step if observability enforcement is disabled.** Output: `[INFO] Observability: disabled (simple tool mode)`
 
 ### Generate Docker Compose
 
@@ -264,7 +257,6 @@ enforcement:
   frontend: {true|false}
   database: {true|false}
   api: {true|false}
-  observability: {true|false}
 coverage:
   target: 100
   baseline: null
@@ -316,7 +308,7 @@ Harness Init — codeharness v0.1.0
 [OK] BMAD: {installed|existing|migrated|standalone}
 [OK] Documentation scaffold: {created|updated|preserved}
 [OK] Hooks: 4 registered (session-start, pre-commit, post-write, post-test)
-[OK] Enforcement configured: frontend:{ON|OFF} database:{ON|OFF} api:{ON|OFF} observability:{ON|OFF}
+[OK] Enforcement configured: frontend:{ON|OFF} database:{ON|OFF} api:{ON|OFF} observability:ON
 [OK] Config persisted: .claude/codeharness.local.md
 
 → Run /harness-run to start autonomous execution.

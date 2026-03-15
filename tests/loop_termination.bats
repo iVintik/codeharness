@@ -30,34 +30,35 @@ teardown() {
     teardown_test_dir
 }
 
-# ─── Task completion detection ────────────────────────────────────────────
+# ─── Task completion detection (sprint-status.yaml) ──────────────────────
 
 @test "all_tasks_complete detects when all tasks are done" {
-    cat > "$PROGRESS_FILE" << 'EOF'
-{"tasks": [
-    {"id": "1.1", "status": "complete"},
-    {"id": "1.2", "status": "complete"}
-]}
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  epic-1: done
+  1-1-first: done
+  1-2-second: done
 EOF
     all_tasks_complete
 }
 
 @test "all_tasks_complete returns false with pending tasks" {
-    cat > "$PROGRESS_FILE" << 'EOF'
-{"tasks": [
-    {"id": "1.1", "status": "complete"},
-    {"id": "1.2", "status": "pending"}
-]}
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  1-1-first: done
+  1-2-second: backlog
 EOF
     ! all_tasks_complete
 }
 
 @test "all_tasks_complete returns false with in_progress tasks" {
-    cat > "$PROGRESS_FILE" << 'EOF'
-{"tasks": [
-    {"id": "1.1", "status": "complete"},
-    {"id": "1.2", "status": "in_progress"}
-]}
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  1-1-first: done
+  1-2-second: in-progress
 EOF
     ! all_tasks_complete
 }
@@ -102,45 +103,25 @@ EOF
     [[ "$reason" == "user_cancelled" ]]
 }
 
-# ─── Progress tracking ───────────────────────────────────────────────────
+# ─── Progress tracking (sprint-status.yaml) ──────────────────────────────
 
 @test "get_task_counts shows completed vs total" {
-    cat > "$PROGRESS_FILE" << 'EOF'
-{"tasks": [
-    {"id": "1.1", "status": "complete"},
-    {"id": "1.2", "status": "complete"},
-    {"id": "2.1", "status": "pending"}
-]}
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  1-1-first: done
+  1-2-second: done
+  2-1-third: backlog
 EOF
     local counts
     counts=$(get_task_counts)
     [[ "$counts" == "3 2" ]]
 }
 
-@test "get_current_task returns next pending task" {
-    cat > "$PROGRESS_FILE" << 'EOF'
-{"tasks": [
-    {"id": "1.1", "status": "complete"},
-    {"id": "1.2", "status": "pending"},
-    {"id": "2.1", "status": "pending"}
-]}
-EOF
+@test "get_current_task returns empty (task picking by skill)" {
     local task
     task=$(get_current_task)
-    [[ "$task" == "1.2" ]]
-}
-
-@test "get_current_task returns in_progress before pending" {
-    cat > "$PROGRESS_FILE" << 'EOF'
-{"tasks": [
-    {"id": "1.1", "status": "complete"},
-    {"id": "1.2", "status": "in_progress"},
-    {"id": "2.1", "status": "pending"}
-]}
-EOF
-    local task
-    task=$(get_current_task)
-    [[ "$task" == "1.2" ]]
+    [[ -z "$task" ]]
 }
 
 # ─── Status readable via harness-status ──────────────────────────────────

@@ -9,25 +9,34 @@ description: Enforces that the agent verifies features, writes tests, and achiev
 Before committing code:
 
 1. **Write tests after implementation** — tests must cover all new code
-2. **Achieve 100% project-wide coverage** — not per-file, project-wide
-3. **All tests must pass** — zero failures allowed
+2. **Achieve 90% project-wide statement coverage** — the overall target
+3. **Every file must have at least 80% statement coverage** — no file left behind
+4. **All tests must pass** — zero failures allowed
 
-### Coverage Tools by Stack
+### Coverage Gate
 
-- **Node.js:** `npx c8 npm test` or configure c8/istanbul in package.json
-- **Python:** `pytest --cov=src tests/ --cov-report=term-missing`
-- **Go:** `go test -coverprofile=coverage.out ./...`
-- **Rust:** `cargo tarpaulin`
-
-### Coverage Check
-
-Run coverage and verify 100%:
+Run coverage using the CLI command:
 ```bash
-# Node.js example
-npx c8 --check-coverage --lines 100 --branches 100 --functions 100 npm test
+codeharness coverage --min-file 80
 ```
 
-If coverage < 100%, identify uncovered files and line numbers. Write tests for uncovered code — including existing uncovered code in the same files you modified.
+This automatically:
+- Detects the coverage tool (c8/Vitest for Node.js, coverage.py for Python)
+- Runs the test suite with coverage enabled
+- Parses coverage reports and evaluates against the 90% overall target
+- **Checks every file against the 80% per-file statement coverage floor**
+- Updates state flags: `tests_passed` and `coverage_met`
+- Reports coverage delta from baseline
+
+Options:
+- `--json` — machine-readable output
+- `--check-only` — read last coverage report without re-running tests
+- `--story <id>` — associate coverage delta with a specific story
+- `--min-file <percent>` — minimum per-file statement coverage (default: 80)
+
+**Per-file coverage rule:** No source file may have less than 80% statement coverage. This prevents the pattern where overall coverage stays high while individual files (especially command handlers) go untested. The pre-commit hook enforces this automatically.
+
+If any file is below the floor, write tests for that file before committing — even if it's not code you wrote in this story.
 
 ## Verification Requirements
 
@@ -36,7 +45,7 @@ Before marking a story complete:
 1. Showboat proof document must exist at `verification/{story-id}-proof.md`
 2. `showboat verify` must pass (evidence is reproducible)
 3. All tests must pass
-4. Coverage must be 100%
+4. Coverage must be >= 90% overall, >= 80% per file
 
 ## Commit Blocking
 

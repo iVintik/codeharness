@@ -1,10 +1,31 @@
 {
   "name": "codeharness",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "description": "Claude Code plugin — makes autonomous coding agents produce software that actually works",
+  "bin": {
+    "codeharness": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
+    "build": "tsup",
     "test": "bats tests/",
-    "test:ralph": "bats tests/test_ralph_loop.bats"
+    "test:ralph": "bats tests/test_ralph_loop.bats",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "commander": "^14.0.3",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@vitest/coverage-v8": "^4.1.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   }
 }

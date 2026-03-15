@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Self-contained CLI entry point for the codeharness plugin.
+# Used by hooks via ${CLAUDE_PLUGIN_ROOT}/bin/codeharness
+# so the CLI works without global npm install.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PLUGIN_ROOT="$(dirname "$SCRIPT_DIR")"
+
+exec node "$PLUGIN_ROOT/dist/index.js" "$@"

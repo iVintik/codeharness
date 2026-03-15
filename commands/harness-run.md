@@ -4,7 +4,7 @@ description: Start autonomous execution — run one sprint in the current sessio
 
 # Harness Run — In-Session Sprint Execution
 
-Execute stories autonomously in the current Claude Code session. Reads sprint-status.yaml, iterates through stories using BMAD workflows (create-story → dev-story → code-review), and updates status after each story. This is the single source of sprint execution logic.
+Execute stories autonomously in the current Claude Code session. Reads sprint-status.yaml, iterates through stories using BMAD workflows (create-story → dev-story → code-review → verify), and updates status after each story. This is the single source of sprint execution logic.
 
 ## Step 1: Pre-flight — Read Sprint Status
 
@@ -13,7 +13,7 @@ Read the sprint status file to understand current state.
 1. Read `_bmad-output/implementation-artifacts/sprint-status.yaml` in full.
 2. Parse the `development_status` section. Each entry is one of:
    - **Epic entry:** key matching `epic-N` (e.g., `epic-1`) — status is `backlog`, `in-progress`, or `done`
-   - **Story entry:** key matching `N-M-slug` (e.g., `1-2-user-auth`) — status is `backlog`, `ready-for-dev`, `in-progress`, `review`, or `done`
+   - **Story entry:** key matching `N-M-slug` (e.g., `1-2-user-auth`) — status is `backlog`, `ready-for-dev`, `in-progress`, `review`, `verified`, or `done`
    - **Retrospective entry:** key matching `epic-N-retrospective` — status is `optional` or `done`
 3. If the file doesn't exist or has no `development_status`, HALT:
    ```
@@ -92,16 +92,32 @@ Invoke the code-review workflow via Agent tool:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found, and mark the story done. Do NOT ask the user any questions — proceed autonomously."
+  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found. After fixing, run `codeharness coverage --min-file 80` and ensure all files pass the per-file floor and the overall 90% target. Update the story status to `verified` when all issues are fixed and coverage passes. Do NOT ask the user any questions — proceed autonomously."
   subagent_type: "general-purpose"
 ```
 
 After the Agent completes:
 1. Re-read `sprint-status.yaml`
 2. Check the story status:
-   - If `done` → Story complete! Print `[OK] Story {story_key}: review → done`. Reset retry_count and cycle_count. Increment stories_completed. Go to Step 4.
+   - If `verified` → Code review passed and coverage verified. Print `[OK] Story {story_key}: review → verified`. Go to Step 3d.
    - If `in-progress` → Code review found issues and sent story back for fixes. Increment cycle_count. If cycle_count >= max_cycles, go to Step 6 (failure — stuck in dev↔review loop). Print `[WARN] Story {story_key}: review → in-progress (issues found, re-developing, cycle {cycle_count}/{max_cycles})`. Go to Step 3b to re-run dev-story.
    - If still `review` → Code review may have failed silently. Increment retry_count. If retry_count >= max_retries, go to Step 6. Otherwise retry this step.
+
+### 3d: If status is `verified` — Run Acceptance Verification
+
+Invoke the verification pipeline via Agent tool to produce a showboat proof document:
+
+```
+Use the Agent tool with:
+  prompt: "Run /codeharness:harness-verify for story {story_key}. Read the story file at _bmad-output/implementation-artifacts/{story_key}.md, extract all acceptance criteria, and produce a proof document with real-world evidence (test output, CLI output, file contents) for each AC. Save the proof to docs/exec-plans/completed/{story_key}-proof.md. After verification passes, update sprint-status.yaml to change {story_key} status to `done`. Do NOT ask the user any questions — proceed autonomously."
+  subagent_type: "general-purpose"
+```
+
+After the Agent completes:
+1. Re-read `sprint-status.yaml`
+2. Check the story status:
+   - If `done` → Story complete! Print `[OK] Story {story_key}: verified → done`. Reset retry_count and cycle_count. Increment stories_completed. Go to Step 4.
+   - If still `verified` → Verification may have failed. Increment retry_count. If retry_count >= max_retries, go to Step 6. Otherwise retry this step.
 
 ## Step 4: Story Complete — Continue or Finish Epic
 

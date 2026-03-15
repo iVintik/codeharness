@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
+# DEPRECATED: Verification gates are now handled by the /harness-run sprint execution skill.
+# This script is kept as a standalone diagnostic tool.
+#
 # verify_gates.sh — Verification gates for the Ralph loop
 # Checks that a story has: Showboat proof, tests passing, coverage met, verification run.
-# Called by ralph.sh after each iteration to decide: mark done or iterate again.
+# Previously called by ralph.sh after each iteration to decide: mark done or iterate again.
 #
 # Usage:
 #   ralph/verify_gates.sh --story-id ID --project-dir DIR --progress PATH

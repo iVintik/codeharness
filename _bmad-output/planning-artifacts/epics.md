@@ -1202,3 +1202,388 @@ So that I can cleanly uninstall the harness without losing my project code or ta
 **Given** `codeharness teardown --json`
 **When** teardown completes
 **Then** JSON output includes list of removed artifacts and preserved items
+
+---
+
+## Epic 8: Onboarding Hardening & Issue Deduplication
+
+**Goal:** Make `codeharness onboard` state-aware, incremental by default, and fix issue deduplication across the entire pipeline so the same gap is never tracked twice regardless of how it was created.
+
+### Story 8.1: Stable Issue Identity & Beads-Level Deduplication
+
+**As a** developer running onboard or bridge multiple times,
+**I want** the system to never create duplicate beads issues for the same gap,
+**So that** my issue list stays clean and I don't waste time on already-tracked work.
+
+**Scope:** Create a `gap-id` tagging system embedded in beads issue descriptions. All code paths that create beads issues (bridge, onboard epic, hooks) use the same dedup function that checks open beads issues by gap-id before creating.
+
+#### Acceptance Criteria
+
+**Given** a gap like "coverage below 80% in src/lib/scanner.ts"
+**When** any code path creates a beads issue for it
+**Then** the issue description contains a tag like `[gap:coverage:src/lib/scanner.ts]`
+
+**Given** a beads issue already exists with tag `[gap:coverage:src/lib/scanner.ts]` and status `open`
+**When** onboard or bridge tries to create another issue for the same gap
+**Then** the existing issue is returned, no duplicate is created
+**And** `[INFO] Already tracked: <title> (ISSUE-NNN)` is printed
+
+**Given** the `bridge` command imports stories from BMAD epics
+**When** importing, each story gets a deterministic gap-id based on epic number + story number
+**Then** re-running `bridge` with the same epics file creates no duplicates
+
+**Given** the `post-test-verify` hook creates a beads issue for a test failure
+**When** the same test fails again in the next iteration
+**Then** no duplicate issue is created
+
+#### Technical Notes
+
+- New function `findExistingByGapId(gapId: string, beadsFns)` in `src/lib/beads.ts`
+- Gap-id format: `[gap:<category>:<identifier>]` embedded in issue description
+- Categories: `coverage`, `docs`, `verification`, `bridge`, `test-failure`
+- All callers of `createIssue` should go through a new `createOrFindIssue` wrapper
+- Dedup only checks open issues (closed issue handling is a separate future concern)
+
+---
+
+### Story 8.2: Onboard Precondition Checks & State Awareness
+
+**As a** developer running `codeharness onboard` on an existing project,
+**I want** the command to check prerequisites and understand what's already set up,
+**So that** it doesn't suggest work that's already done or fail silently due to missing setup.
+
+**Scope:** Add precondition checks to `onboard` and make it read existing state before scanning.
+
+#### Acceptance Criteria
+
+**Given** `codeharness init` has NOT been run
+**When** I run `codeharness onboard`
+**Then** `[FAIL] Harness not initialized — run codeharness init first` is printed
+**And** exit code is 1
+
+**Given** BMAD is not installed
+**When** I run `codeharness onboard`
+**Then** `[WARN] BMAD not installed — generated stories won't be executable until init completes` is printed
+**And** onboard continues (non-blocking)
+
+**Given** enforcement hooks are not registered
+**When** I run `codeharness onboard`
+**Then** `[WARN] Hooks not registered — enforcement won't be active` is printed
+
+**Given** I previously ran onboard and fixed 3 of 5 gaps
+**When** I run `codeharness onboard` again
+**Then** only the 2 remaining unfixed gaps are surfaced
+**And** the output shows `[INFO] 3 previously tracked gaps already in beads`
+
+**Given** `--full` flag is passed
+**When** I run `codeharness onboard --full`
+**Then** all gaps are shown regardless of existing beads issues (full re-scan mode)
+
+---
+
+### Story 8.3: Extended Gap Detection — Verification, Per-File Coverage, Observability
+
+**As a** developer onboarding an existing project,
+**I want** the scanner to detect all types of gaps (not just test coverage and docs),
+**So that** the generated onboarding epic covers everything needed for full harness compliance.
+
+**Scope:** Extend the gap detector to cover verification coverage, per-file coverage floor, and observability readiness.
+
+#### Acceptance Criteria
+
+**Given** stories exist in sprint-status.yaml with status `done`
+**When** those stories have no proof document in `docs/exec-plans/completed/`
+**Then** a gap `[gap:verification:<story-key>]` is created for each
+**And** the onboarding epic includes "Create verification proof for <story>" stories
+
+**Given** the coverage report shows files below 80% statement coverage
+**When** onboard runs coverage analysis
+**Then** `checkPerFileCoverage(80)` is used instead of the per-module `analyzeCoverageGaps`
+**And** each violating file generates a gap `[gap:coverage:<file-path>]`
+
+**Given** observability is enabled in state but OTLP env vars are not configured
+**When** onboard runs
+**Then** a gap `[gap:observability:otlp-config]` is surfaced
+**And** the epic includes "Configure OTLP instrumentation" story
+
+**Given** observability is enabled but Docker stack is not running
+**When** onboard runs
+**Then** a gap `[gap:observability:docker-stack]` is surfaced
+
+**Given** observability is disabled in state (`enforcement.observability: false`)
+**When** onboard runs
+**Then** no observability gaps are generated
+
+---
+
+### Story 8.4: Scan Persistence & Onboarding Progress Tracking
+
+**As a** developer going through onboarding over multiple sessions,
+**I want** scan results to persist and progress to be visible,
+**So that** I can see how far along the onboarding is without re-scanning every time.
+
+**Scope:** Persist scan results to a file, add progress reporting.
+
+#### Acceptance Criteria
+
+**Given** `codeharness onboard scan` completes
+**When** results are ready
+**Then** they are saved to `.harness/last-onboard-scan.json`
+
+**Given** a saved scan exists and is less than 24 hours old
+**When** `codeharness onboard coverage` or `onboard epic` runs
+**Then** the saved scan is reused instead of re-scanning
+**And** `[INFO] Using cached scan from <timestamp>` is printed
+
+**Given** a saved scan exists but is older than 24 hours
+**When** any onboard subcommand runs
+**Then** a fresh scan is performed
+**And** the cache is updated
+
+**Given** `--force-scan` flag is passed
+**When** onboard runs
+**Then** cache is ignored and a fresh scan is performed
+
+**Given** onboarding has generated 7 gaps and 3 are fixed (closed in beads)
+**When** I run `codeharness onboard` or `codeharness status`
+**Then** `[INFO] Onboarding progress: 3/7 gaps resolved (4 remaining)` is printed
+
+**Given** all onboarding gaps are resolved
+**When** I run `codeharness onboard`
+**Then** `[OK] Onboarding complete — all gaps resolved` is printed
+**And** exit code is 0
+
+---
+
+## Epic 9: Observability Rearchitecture — Shared Stack, Universal Instrumentation, Mandatory Telemetry
+
+**Goal:** Replace the per-project local Docker stack with a shared per-machine installation that all harness projects reuse, support remote backends, make observability mandatory (no opt-out), add instrumentation for all app types (web, CLI, agents), and enforce data isolation via `service.name`.
+
+### Story 9.1: Shared Machine-Level Observability Stack
+
+**As a** developer working on multiple harness projects on the same machine,
+**I want** a single shared VictoriaMetrics/Logs/Traces stack that all projects use,
+**So that** I don't waste resources running duplicate Docker containers per project and can view all project telemetry from one place.
+
+**Scope:** Move the Docker Compose stack from per-project to a machine-level location (`~/.codeharness/stack/`). Add stack discovery so `codeharness init` finds an already-running stack instead of creating a new one. Add a `codeharness stack` command for explicit stack management.
+
+#### Acceptance Criteria
+
+**Given** no shared stack is running on the machine
+**When** I run `codeharness init` in any project
+**Then** the shared stack is started at `~/.codeharness/stack/`
+**And** `docker-compose.harness.yml` and `otel-collector-config.yaml` are written to `~/.codeharness/stack/`
+**And** `[OK] Observability stack: started (shared at ~/.codeharness/stack/)` is printed
+
+**Given** the shared stack is already running (started by another project)
+**When** I run `codeharness init` in a new project
+**Then** the existing stack is discovered via Docker container labels or compose project name
+**And** no new containers are started
+**And** `[OK] Observability stack: already running (shared)` is printed
+
+**Given** project A and project B both use the shared stack
+**When** I run `codeharness teardown` in project A
+**Then** the shared stack is NOT stopped (project B still uses it)
+**And** only project A's local config is cleaned up
+
+**Given** I want to explicitly manage the shared stack
+**When** I run `codeharness stack stop`
+**Then** the shared Docker stack is stopped
+**And** `[WARN] Stopping shared stack — all harness projects will lose observability` is printed
+
+**Given** I run `codeharness stack start`
+**When** the stack was previously stopped
+**Then** containers resume with existing data volumes preserved
+
+**Given** I run `codeharness stack status`
+**When** the stack is running
+**Then** all service health statuses are shown with endpoint URLs
+
+#### Technical Notes
+
+- Stack location: `~/.codeharness/stack/` (XDG-aware: `$XDG_DATA_HOME/codeharness/stack/` if set)
+- Docker Compose project name: `codeharness-shared` (fixed, not per-project)
+- Port range: fixed (9428, 8428, 16686, 4317, 4318) — document in init output
+- Discovery: check for running containers with label `com.codeharness.stack=shared` or `docker compose -p codeharness-shared ps`
+- Remove per-project `docker-compose.harness.yml` generation from init
+- The `otel-collector-config.yaml` stays the same — it just lives at the machine level now
+- Stack lifecycle is independent of any single project
+
+---
+
+### Story 9.2: Remote Backend Support
+
+**As a** developer on a team with shared infrastructure,
+**I want** to connect my harness project to a remote VictoriaMetrics/Logs/Traces instance instead of a local Docker stack,
+**So that** I can use existing company infrastructure and share telemetry with my team.
+
+**Scope:** Add remote endpoint configuration to `codeharness init` and state. When remote endpoints are configured, skip Docker stack entirely and point OTel Collector (or direct OTLP export) to remote URLs.
+
+#### Acceptance Criteria
+
+**Given** I run `codeharness init --otel-endpoint https://otel.mycompany.com:4318`
+**When** init configures OTLP
+**Then** the OTel endpoint is set to the provided URL (no local Docker started)
+**And** state file contains `otlp.endpoint: https://otel.mycompany.com:4318`
+
+**Given** I run `codeharness init --logs-url https://logs.mycompany.com --metrics-url https://metrics.mycompany.com --traces-url https://traces.mycompany.com`
+**When** init configures observability
+**Then** a local OTel Collector config is generated that routes to these remote backends
+**And** the local OTel Collector container is started (but NOT VictoriaMetrics/Logs/Jaeger — they're remote)
+
+**Given** no endpoint flags are passed
+**When** I run `codeharness init`
+**Then** local shared stack behavior is used (Story 9.1)
+
+**Given** remote endpoints are configured
+**When** I run `codeharness status --check-docker`
+**Then** Docker health check is skipped for remote backends
+**And** connectivity to remote endpoints is verified via HTTP health check instead
+
+**Given** remote endpoints are configured
+**When** the knowledge file `observability-querying.md` is used by the agent
+**Then** query URLs use the remote endpoints from state, not hardcoded localhost
+
+#### Technical Notes
+
+- Endpoint config stored in state file under `otlp` section
+- Three modes: `local-shared` (default), `remote-direct` (OTLP endpoint only), `remote-routed` (local OTel Collector → remote backends)
+- `remote-direct` = no local containers at all, app sends OTLP directly to remote
+- `remote-routed` = local OTel Collector for buffering/retry, backends are remote
+- Query URLs in knowledge file should be templated from state, not hardcoded
+
+---
+
+### Story 9.3: Mandatory Observability & Remove Opt-Out
+
+**As a** harness maintainer,
+**I want** observability to be mandatory for every harness project,
+**So that** runtime behavior is always visible and the agent always has access to logs/metrics/traces during development.
+
+**Scope:** Remove `--no-observability` flag and `enforcement.observability` toggle. Make observability always-on. Update all code paths that check for observability being disabled.
+
+#### Acceptance Criteria
+
+**Given** `codeharness init` is run
+**When** init configures the project
+**Then** observability is always enabled — no `--no-observability` flag exists
+**And** `enforcement.observability` is removed from state (or always `true`)
+
+**Given** Docker is not available on the machine
+**When** init runs and needs the observability stack
+**Then** `[WARN] Docker not available — observability will use remote mode` is printed
+**And** init prompts for remote endpoint OR prints instructions for installing Docker
+**And** init does NOT fail — it configures the project for remote-when-available
+
+**Given** a project initialized with an older version that had `observability: false`
+**When** `codeharness init` is re-run (idempotent)
+**Then** observability is enabled and configured
+**And** `[INFO] Observability upgraded from disabled to enabled` is printed
+
+**Given** hooks previously had `if observability OFF → skip` logic
+**When** any hook runs
+**Then** observability checks are always performed (hooks simplified)
+
+#### Technical Notes
+
+- Remove `--no-observability`, `--no-frontend`, `--no-database`, `--no-api` flags entirely OR keep `--no-frontend/database/api` but remove `--no-observability`
+- Remove `if (state.enforcement.observability === false)` branches throughout codebase
+- Update `session-start.sh`, `post-write-check.sh`, `post-test-verify.sh` to remove observability-off bypass
+- Migration path: existing projects with `observability: false` get auto-upgraded on next `init`
+
+---
+
+### Story 9.4: Universal Instrumentation — Web, CLI, Agent Support
+
+**As a** developer building any type of application,
+**I want** codeharness to instrument my project regardless of whether it's a web app, CLI tool, or AI agent,
+**So that** I get observability for all project types, not just long-running Node.js/Python servers.
+
+**Scope:** Extend OTLP instrumentation to handle short-lived processes (CLIs), browser-side telemetry (web apps), and LLM call tracing (agents).
+
+#### Acceptance Criteria
+
+**Given** a Node.js CLI project (no `start` script, has `bin` in package.json)
+**When** `codeharness init` detects the CLI stack type
+**Then** OTLP is configured with `OTEL_BSP_SCHEDULE_DELAY=100` (flush quickly for short-lived processes)
+**And** a wrapper script or `NODE_OPTIONS` env var is configured for CLI execution
+**And** the state records `app_type: cli`
+
+**Given** a web application (has `index.html` or frontend framework detected)
+**When** `codeharness init` detects the web stack type
+**Then** a browser OTLP setup is configured (OTel Web SDK snippet or package)
+**And** the OTel Collector is configured to accept browser telemetry on HTTP endpoint
+**And** CORS headers are configured on the OTel Collector for localhost origins
+
+**Given** a Python or Node.js agent project (imports `anthropic`, `openai`, `langchain`, etc.)
+**When** `codeharness init` detects the agent stack type
+**Then** LLM call tracing is configured (OpenLLMetry / Traceloop or similar)
+**And** token usage, latency, and prompt/completion lengths are captured as metrics
+**And** the state records `app_type: agent`
+
+**Given** any app type
+**When** telemetry is emitted
+**Then** `service.name` is always set to the project name
+**And** `service.instance.id` is set to a unique value per process
+**And** data from different projects is separable in queries
+
+**Given** stack detection cannot determine the app type
+**When** `codeharness init` runs
+**Then** `[INFO] App type: generic (manual OTLP setup may be needed)` is printed
+**And** basic OTLP env vars are still configured (endpoint, service name)
+**And** the knowledge file provides manual instrumentation guidance
+
+#### Technical Notes
+
+- Extend `detectStack()` to return app type: `server`, `cli`, `web`, `agent`, `generic`
+- CLI instrumentation: `OTEL_BSP_SCHEDULE_DELAY=100`, `OTEL_TRACES_SAMPLER=always_on`, flush-on-exit
+- Web instrumentation: `@opentelemetry/sdk-trace-web`, `@opentelemetry/instrumentation-fetch`
+- Agent instrumentation: OpenLLMetry (`traceloop-sdk`) or manual span wrapping
+- Data isolation: `service.name` resource attribute set via `OTEL_SERVICE_NAME` env var
+- `service.instance.id` via `OTEL_RESOURCE_ATTRIBUTES="service.instance.id=$(hostname)-$$"`
+- Update all query patterns in knowledge files to include `service.name` filter
+
+---
+
+### Story 9.5: Data Isolation & Multi-Project Query Patterns
+
+**As a** developer running multiple harness projects against the same observability stack,
+**I want** each project's data to be cleanly separated and queryable independently,
+**So that** logs/metrics/traces from project A don't pollute project B's dashboards and queries.
+
+**Scope:** Enforce `service.name` on all telemetry, update all query patterns to filter by it, and add project-scoped query helpers to the CLI.
+
+#### Acceptance Criteria
+
+**Given** project "my-api" and project "my-worker" both send telemetry to the shared stack
+**When** I query logs for "my-api"
+**Then** only logs with `service.name=my-api` are returned
+**And** "my-worker" logs are excluded
+
+**Given** `codeharness init` sets up OTLP
+**When** the project emits telemetry
+**Then** `OTEL_SERVICE_NAME` env var is set to the project name
+**And** all OTel SDKs pick it up automatically (no manual code needed)
+
+**Given** `codeharness status` shows endpoints
+**When** endpoint URLs are displayed
+**Then** they include the `service.name` query filter pre-applied
+**Example:** `logs: http://localhost:9428/select/logsql/query?query={service_name="my-api"}`
+
+**Given** the agent queries observability data during development
+**When** it uses patterns from `knowledge/observability-querying.md`
+**Then** all example queries include `service.name` filter
+**And** the knowledge file references the project name from state
+
+**Given** the OTel Collector receives telemetry without `service.name`
+**When** the telemetry is processed
+**Then** it is tagged with a default `service.name=unknown-<timestamp>` to prevent untagged pollution
+
+#### Technical Notes
+
+- `OTEL_SERVICE_NAME` is the standard env var — all OTel SDKs read it
+- Set in `.env`, `package.json` scripts, or state file during init
+- OTel Collector processor: add `resource/default` processor that injects `service.name` if missing
+- Update `knowledge/observability-querying.md`: all LogQL, PromQL, and Jaeger queries must include `service.name` filter
+- Update `status.ts` endpoint display to include service-scoped query URLs
+- Consider adding `codeharness query logs "error"` shorthand that auto-applies service.name filter

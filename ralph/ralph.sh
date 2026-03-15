@@ -22,8 +22,11 @@ PLUGIN_DIR=""
 # Harness state directory (derived from project root)
 HARNESS_STATE_DIR=""
 
-# Progress file (managed by bridge.sh, read by loop)
+# Progress file (legacy — kept for backwards compat, optional)
 PROGRESS_FILE=""
+
+# Sprint status file (primary task source — read by /harness-run skill)
+SPRINT_STATUS_FILE=""
 
 # Prompt file for each iteration
 PROMPT_FILE=""
@@ -33,6 +36,7 @@ LOG_DIR=""
 
 # Loop limits
 MAX_ITERATIONS=${MAX_ITERATIONS:-50}
+MAX_STORY_RETRIES=${MAX_STORY_RETRIES:-3}
 LOOP_TIMEOUT_SECONDS=${LOOP_TIMEOUT_SECONDS:-14400}  # 4 hours default
 ITERATION_TIMEOUT_MINUTES=${ITERATION_TIMEOUT_MINUTES:-15}
 
@@ -63,6 +67,8 @@ CALL_COUNT_FILE=""
 TIMESTAMP_FILE=""
 STATUS_FILE=""
 LIVE_LOG_FILE=""
+STORY_RETRY_FILE=""
+FLAGGED_STORIES_FILE=""
 
 # Global arrays for driver command building
 declare -a CLAUDE_CMD_ARGS=()
@@ -152,6 +158,28 @@ update_status() {
         return
     fi
 
+    # codeharness: Include sprint-status story counts in status JSON
+    local stories_total=0
+    local stories_completed=0
+    if [[ -n "$SPRINT_STATUS_FILE" && -f "$SPRINT_STATUS_FILE" ]]; then
+        local sprint_counts
+        sprint_counts=$(get_task_counts)
+        stories_total=${sprint_counts%% *}
+        stories_completed=${sprint_counts##* }
+    fi
+
+    local stories_remaining=$((stories_total - stories_completed))
+    local elapsed_seconds=0
+    if [[ -n "$loop_start_time" ]]; then
+        elapsed_seconds=$(( $(date +%s) - loop_start_time ))
+    fi
+
+    # Build flagged stories JSON array
+    local flagged_json="[]"
+    if [[ -n "$FLAGGED_STORIES_FILE" && -f "$FLAGGED_STORIES_FILE" ]]; then
+        flagged_json=$(jq -R -s 'split("\n") | map(select(length > 0))' < "$FLAGGED_STORIES_FILE")
+    fi
+
     jq -n \
         --arg timestamp "$(get_iso_timestamp)" \
         --argjson loop_count "$loop_count" \
@@ -162,6 +190,11 @@ update_status() {
         --arg status "$status" \
         --arg exit_reason "$exit_reason" \
         --arg version "$VERSION" \
+        --argjson stories_total "$stories_total" \
+        --argjson stories_completed "$stories_completed" \
+        --argjson stories_remaining "$stories_remaining" \
+        --argjson elapsed_seconds "$elapsed_seconds" \
+        --argjson flagged_stories "$flagged_json" \
         '{
             timestamp: $timestamp,
             version: $version,
@@ -171,71 +204,261 @@ update_status() {
             max_iterations: $max_iterations,
             last_action: $last_action,
             status: $status,
-            exit_reason: $exit_reason
+            exit_reason: $exit_reason,
+            stories_total: $stories_total,
+            stories_completed: $stories_completed,
+            stories_remaining: $stories_remaining,
+            elapsed_seconds: $elapsed_seconds,
+            flagged_stories: $flagged_stories
         }' > "$STATUS_FILE"
 }
 
-# Read current task from progress file
+# codeharness: Task picking is handled by /harness-run skill inside each Claude session.
+# Ralph just spawns sessions and checks sprint-status.yaml for completion.
 get_current_task() {
-    if [[ ! -f "$PROGRESS_FILE" ]]; then
-        echo ""
-        return 1
-    fi
-
-    # Find first incomplete task
-    local task
-    task=$(jq -r '.tasks[] | select(.status == "pending" or .status == "in_progress") | .id' "$PROGRESS_FILE" 2>/dev/null | head -1)
-
-    if [[ -z "$task" || "$task" == "null" ]]; then
-        echo ""
-        return 1
-    fi
-
-    echo "$task"
+    # No-op — task picking is done by the /harness-run skill, not Ralph.
+    echo ""
+    return 0
 }
 
-# Mark a task as complete in progress file
-mark_task_complete() {
-    local task_id=$1
-
-    if [[ ! -f "$PROGRESS_FILE" ]]; then
+# codeharness: Check if all stories in sprint-status.yaml are done.
+# Reads development_status entries matching N-N-slug pattern (story keys).
+# Returns 0 (true) if ALL story entries have status "done", 1 otherwise.
+check_sprint_complete() {
+    if [[ ! -f "$SPRINT_STATUS_FILE" ]]; then
         return 1
     fi
 
-    local updated
-    updated=$(jq --arg id "$task_id" \
-        '(.tasks[] | select(.id == $id)).status = "complete"' \
-        "$PROGRESS_FILE" 2>/dev/null)
+    local total=0
+    local done_count=0
 
-    if [[ -n "$updated" ]]; then
-        echo "$updated" > "$PROGRESS_FILE"
+    while IFS=: read -r key value; do
+        # Trim whitespace
+        key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        # Skip comments and empty lines
+        [[ -z "$key" || "$key" == \#* ]] && continue
+
+        # Match story keys: N-N-slug (e.g. 5-1-ralph-loop-integration)
+        if [[ "$key" =~ ^[0-9]+-[0-9]+- ]]; then
+            total=$((total + 1))
+            if [[ "$value" == "done" ]]; then
+                done_count=$((done_count + 1))
+            fi
+        fi
+    done < "$SPRINT_STATUS_FILE"
+
+    if [[ $total -eq 0 ]]; then
+        return 1
     fi
+
+    [[ $done_count -eq $total ]]
 }
 
-# Check if all tasks are complete
+# codeharness: Replaces all_tasks_complete() with sprint-status.yaml check.
 all_tasks_complete() {
-    if [[ ! -f "$PROGRESS_FILE" ]]; then
-        return 1
-    fi
-
-    local pending
-    pending=$(jq '[.tasks[] | select(.status != "complete")] | length' "$PROGRESS_FILE" 2>/dev/null)
-
-    [[ "$pending" == "0" ]]
+    check_sprint_complete
 }
 
-# Get task counts for reporting
+# codeharness: Get story counts from sprint-status.yaml.
+# Returns "total completed" (space-separated).
 get_task_counts() {
-    if [[ ! -f "$PROGRESS_FILE" ]]; then
+    if [[ ! -f "$SPRINT_STATUS_FILE" ]]; then
         echo "0 0"
         return
     fi
 
-    local total completed
-    total=$(jq '.tasks | length' "$PROGRESS_FILE" 2>/dev/null || echo "0")
-    completed=$(jq '[.tasks[] | select(.status == "complete")] | length' "$PROGRESS_FILE" 2>/dev/null || echo "0")
+    local total=0
+    local completed=0
+
+    while IFS=: read -r key value; do
+        key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+
+        [[ -z "$key" || "$key" == \#* ]] && continue
+
+        if [[ "$key" =~ ^[0-9]+-[0-9]+- ]]; then
+            total=$((total + 1))
+            if [[ "$value" == "done" ]]; then
+                completed=$((completed + 1))
+            fi
+        fi
+    done < "$SPRINT_STATUS_FILE"
 
     echo "$total $completed"
+}
+
+# ─── Retry Tracking ─────────────────────────────────────────────────────────
+
+# Increment retry count for a story. Returns the new count.
+increment_story_retry() {
+    local story_key=$1
+
+    if [[ -z "$STORY_RETRY_FILE" ]]; then
+        echo "0"
+        return
+    fi
+
+    local count=0
+    local temp_file="${STORY_RETRY_FILE}.tmp"
+
+    # Read current count if file exists
+    if [[ -f "$STORY_RETRY_FILE" ]]; then
+        local line
+        while IFS=' ' read -r key val; do
+            if [[ "$key" == "$story_key" ]]; then
+                count=$((val + 0))
+            fi
+        done < "$STORY_RETRY_FILE"
+    fi
+
+    count=$((count + 1))
+
+    # Rewrite the file with updated count (atomic via temp file + mv)
+    # Clean up stale temp file from any previous crash
+    rm -f "$temp_file" 2>/dev/null
+
+    if [[ -f "$STORY_RETRY_FILE" ]]; then
+        local found=false
+        while IFS=' ' read -r key val; do
+            if [[ "$key" == "$story_key" ]]; then
+                echo "$key $count" >> "$temp_file"
+                found=true
+            else
+                echo "$key $val" >> "$temp_file"
+            fi
+        done < "$STORY_RETRY_FILE"
+        if [[ "$found" == "false" ]]; then
+            echo "$story_key $count" >> "$temp_file"
+        fi
+        mv "$temp_file" "$STORY_RETRY_FILE"
+    else
+        echo "$story_key $count" > "$STORY_RETRY_FILE"
+    fi
+
+    echo "$count"
+}
+
+# Get current retry count for a story (0 if not tracked).
+get_story_retry_count() {
+    local story_key=$1
+
+    if [[ -z "$STORY_RETRY_FILE" || ! -f "$STORY_RETRY_FILE" ]]; then
+        echo "0"
+        return
+    fi
+
+    while IFS=' ' read -r key val; do
+        if [[ "$key" == "$story_key" ]]; then
+            echo "$((val + 0))"
+            return
+        fi
+    done < "$STORY_RETRY_FILE"
+
+    echo "0"
+}
+
+# Check if a story is flagged (exceeded retry limit).
+is_story_flagged() {
+    local story_key=$1
+
+    if [[ -z "$FLAGGED_STORIES_FILE" || ! -f "$FLAGGED_STORIES_FILE" ]]; then
+        return 1
+    fi
+
+    grep -qx "$story_key" "$FLAGGED_STORIES_FILE" 2>/dev/null
+}
+
+# Flag a story that exceeded retry limit.
+flag_story() {
+    local story_key=$1
+
+    if [[ -z "$FLAGGED_STORIES_FILE" ]]; then
+        return
+    fi
+
+    if ! is_story_flagged "$story_key"; then
+        echo "$story_key" >> "$FLAGGED_STORIES_FILE"
+    fi
+}
+
+# Get list of flagged stories (newline-separated).
+get_flagged_stories() {
+    if [[ -z "$FLAGGED_STORIES_FILE" || ! -f "$FLAGGED_STORIES_FILE" ]]; then
+        echo ""
+        return
+    fi
+    cat "$FLAGGED_STORIES_FILE"
+}
+
+# Snapshot sprint-status.yaml story statuses as "key:status" lines.
+snapshot_story_statuses() {
+    if [[ ! -f "$SPRINT_STATUS_FILE" ]]; then
+        echo ""
+        return
+    fi
+
+    while IFS=: read -r key value; do
+        key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [[ -z "$key" || "$key" == \#* ]] && continue
+        if [[ "$key" =~ ^[0-9]+-[0-9]+- ]]; then
+            echo "$key:$value"
+        fi
+    done < "$SPRINT_STATUS_FILE"
+}
+
+# Compare before/after snapshots to detect story changes.
+# Sets CHANGED_STORIES (newly done) and UNCHANGED_STORIES (not done).
+detect_story_changes() {
+    local before_snapshot=$1
+    local after_snapshot=$2
+
+    CHANGED_STORIES=""
+    UNCHANGED_STORIES=""
+
+    # Parse after snapshot
+    while IFS=: read -r key status; do
+        [[ -z "$key" ]] && continue
+        local before_status=""
+        # Find the same key in before snapshot
+        while IFS=: read -r bkey bstatus; do
+            if [[ "$bkey" == "$key" ]]; then
+                before_status="$bstatus"
+                break
+            fi
+        done <<< "$before_snapshot"
+
+        if [[ "$status" == "done" && "$before_status" != "done" ]]; then
+            CHANGED_STORIES="${CHANGED_STORIES}${key}
+"
+        elif [[ "$status" != "done" ]]; then
+            UNCHANGED_STORIES="${UNCHANGED_STORIES}${key}
+"
+        fi
+    done <<< "$after_snapshot"
+}
+
+# ─── Progress Summary ───────────────────────────────────────────────────────
+
+print_progress_summary() {
+    local counts
+    counts=$(get_task_counts)
+    local total=${counts%% *}
+    local completed=${counts##* }
+    local elapsed=$(( $(date +%s) - loop_start_time ))
+    local elapsed_fmt
+
+    if [[ $elapsed -ge 3600 ]]; then
+        elapsed_fmt="$((elapsed / 3600))h$((elapsed % 3600 / 60))m"
+    elif [[ $elapsed -ge 60 ]]; then
+        elapsed_fmt="$((elapsed / 60))m$((elapsed % 60))s"
+    else
+        elapsed_fmt="${elapsed}s"
+    fi
+
+    log_status "INFO" "Progress: ${completed}/${total} stories complete (iterations: ${loop_count}, elapsed: ${elapsed_fmt})"
 }
 
 # ─── Driver Management ──────────────────────────────────────────────────────
@@ -389,6 +612,21 @@ execute_iteration() {
 cleanup() {
     log_status "INFO" "Ralph loop interrupted. Cleaning up..."
     update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "interrupted" "stopped" "user_cancelled"
+
+    # Print progress summary on interruption
+    if [[ -n "$loop_start_time" && -n "$SPRINT_STATUS_FILE" ]]; then
+        local counts
+        counts=$(get_task_counts)
+        local total=${counts%% *}
+        local completed=${counts##* }
+        local elapsed=$(( $(date +%s) - loop_start_time ))
+        local elapsed_min=$(( elapsed / 60 ))
+
+        log_status "INFO" "  Iterations: $loop_count"
+        log_status "INFO" "  Stories completed: $completed/$total"
+        log_status "INFO" "  Elapsed: ${elapsed_min}m"
+    fi
+
     exit 0
 }
 
@@ -408,6 +646,7 @@ Required:
 Options:
     -h, --help                Show this help message
     --max-iterations NUM      Maximum loop iterations (default: 50)
+    --max-story-retries NUM   Max retries per story before flagging (default: 3)
     --timeout SECONDS         Total loop timeout in seconds (default: 14400 = 4h)
     --iteration-timeout MIN   Per-iteration timeout in minutes (default: 15)
     --calls NUM               Max API calls per hour (default: 100)
@@ -451,9 +690,14 @@ main() {
     LIVE_LOG_FILE="${project_root}/ralph/live.log"
     CALL_COUNT_FILE="${project_root}/ralph/.call_count"
     TIMESTAMP_FILE="${project_root}/ralph/.last_reset"
+    STORY_RETRY_FILE="${project_root}/ralph/.story_retries"
+    FLAGGED_STORIES_FILE="${project_root}/ralph/.flagged_stories"
 
-    # Use progress file from argument or default
+    # Use progress file from argument or default (legacy, optional)
     PROGRESS_FILE="${PROGRESS_FILE:-${project_root}/ralph/progress.json}"
+
+    # codeharness: Sprint status file is the primary task source
+    SPRINT_STATUS_FILE="${project_root}/_bmad-output/implementation-artifacts/sprint-status.yaml"
 
     # Use prompt file from argument or default
     PROMPT_FILE="${PROMPT_FILE:-${project_root}/.ralph/PROMPT.md}"
@@ -483,11 +727,24 @@ main() {
     # Initialize rate limiting
     init_call_tracking
 
+    # Crash recovery: detect if resuming from a previous run
+    if [[ -f "$STATUS_FILE" ]]; then
+        local prev_status
+        prev_status=$(jq -r '.status // ""' "$STATUS_FILE" 2>/dev/null || echo "")
+        if [[ -n "$prev_status" && "$prev_status" != "completed" ]]; then
+            log_status "INFO" "Resuming from last completed story"
+        fi
+    fi
+
+    # Preserve retry state across restarts (Task 5.3)
+    # .story_retries and .flagged_stories are file-based — they persist automatically
+
     log_status "SUCCESS" "Ralph loop starting"
     log_status "INFO" "Plugin: $PLUGIN_DIR"
     log_status "INFO" "Max iterations: $MAX_ITERATIONS | Timeout: $((LOOP_TIMEOUT_SECONDS / 3600))h"
     log_status "INFO" "Prompt: $PROMPT_FILE"
-    log_status "INFO" "Progress: $PROGRESS_FILE"
+    log_status "INFO" "Sprint status: $SPRINT_STATUS_FILE"
+    log_status "INFO" "Max story retries: $MAX_STORY_RETRIES"
 
     # Record loop start time for timeout
     loop_start_time=$(date +%s)
@@ -501,14 +758,13 @@ main() {
         # ── Check loop limits ──
 
         if [[ $loop_count -gt $MAX_ITERATIONS ]]; then
-            log_status "WARN" "Max iterations reached ($MAX_ITERATIONS)"
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "max_iterations" "stopped" "max_iterations_reached"
 
             local counts
             counts=$(get_task_counts)
             local total=${counts%% *}
             local completed=${counts##* }
-            log_status "INFO" "Progress: $completed/$total tasks completed"
+            log_status "INFO" "Max iterations ($MAX_ITERATIONS) reached. ${completed}/${total} stories complete."
             break
         fi
 
@@ -523,7 +779,11 @@ main() {
         # ── Check circuit breaker ──
 
         if should_halt_execution; then
-            log_status "ERROR" "Circuit breaker open — halting"
+            local cb_no_progress=0
+            if [[ -f "$CB_STATE_FILE" ]]; then
+                cb_no_progress=$(jq -r '.consecutive_no_progress // 0' "$CB_STATE_FILE" 2>/dev/null || echo "0")
+            fi
+            log_status "WARN" "Circuit breaker: no progress in ${cb_no_progress} iterations"
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker" "halted" "stagnation_detected"
             break
         fi
@@ -538,14 +798,12 @@ main() {
         # ── Check task completion ──
 
         if all_tasks_complete; then
-            log_status "SUCCESS" "All tasks complete!"
-
             local counts
             counts=$(get_task_counts)
             local total=${counts%% *}
 
             update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "all_complete" "completed" "all_tasks_done"
-            log_status "SUCCESS" "Completed $total tasks in $loop_count iterations"
+            log_status "SUCCESS" "All stories complete. ${total} stories verified in ${loop_count} iterations."
             break
         fi
 
@@ -557,6 +815,10 @@ main() {
         log_status "LOOP" "=== Iteration #$loop_count ==="
         update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "executing" "running"
 
+        # ── Snapshot story statuses before iteration ──
+        local before_snapshot
+        before_snapshot=$(snapshot_story_statuses)
+
         # ── Execute ──
 
         execute_iteration "$loop_count" "$current_task"
@@ -567,20 +829,35 @@ main() {
                 consecutive_failures=0
                 update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "completed" "success"
 
-                # ── Verification gates ──
-                if [[ -n "$current_task" ]]; then
-                    local project_root
-                    project_root="$(pwd)"
-                    log_status "INFO" "Checking verification gates for $current_task..."
+                # ── Retry tracking: compare sprint-status before/after ──
+                local after_snapshot
+                after_snapshot=$(snapshot_story_statuses)
+                detect_story_changes "$before_snapshot" "$after_snapshot"
 
-                    if "$SCRIPT_DIR/verify_gates.sh" \
-                        --story-id "$current_task" \
-                        --project-dir "$project_root" \
-                        --progress "$PROGRESS_FILE" 2>&1; then
-                        log_status "SUCCESS" "Story $current_task verified — moving to next task"
-                    else
-                        log_status "INFO" "Story $current_task gates not yet satisfied — will iterate"
-                    fi
+                # For each non-done, non-flagged story, increment retry count
+                if [[ -n "$UNCHANGED_STORIES" ]]; then
+                    while IFS= read -r skey; do
+                        [[ -z "$skey" ]] && continue
+                        # Skip already-flagged stories
+                        if is_story_flagged "$skey"; then
+                            continue
+                        fi
+                        local retry_count
+                        retry_count=$(increment_story_retry "$skey")
+                        if [[ $retry_count -gt $MAX_STORY_RETRIES ]]; then
+                            log_status "WARN" "Story ${skey} exceeded retry limit (${retry_count}) — flagging and moving on"
+                            flag_story "$skey"
+                        else
+                            log_status "WARN" "Story ${skey} — retry ${retry_count}/${MAX_STORY_RETRIES}"
+                        fi
+                    done <<< "$UNCHANGED_STORIES"
+                fi
+
+                if [[ -n "$CHANGED_STORIES" ]]; then
+                    while IFS= read -r skey; do
+                        [[ -z "$skey" ]] && continue
+                        log_status "SUCCESS" "Story ${skey}: DONE"
+                    done <<< "$CHANGED_STORIES"
                 fi
 
                 sleep 5  # Brief pause between iterations
@@ -612,38 +889,35 @@ main() {
                 ;;
         esac
 
+        # Print progress summary after every iteration
+        print_progress_summary
+
         log_status "LOOP" "=== End Iteration #$loop_count ==="
     done
 
-    # Final summary
+    # Final summary — reads from sprint-status.yaml
     local counts
     counts=$(get_task_counts)
     local total=${counts%% *}
     local completed=${counts##* }
 
-    # Calculate verification pass rate
-    local verified=0
-    local total_iterations=0
-    if [[ -f "$PROGRESS_FILE" ]]; then
-        verified=$(jq '[.tasks[] | select(.status == "complete")] | length' "$PROGRESS_FILE" 2>/dev/null || echo "0")
-        total_iterations=$(jq '[.tasks[].iterations // 0] | add // 0' "$PROGRESS_FILE" 2>/dev/null || echo "0")
-    fi
-    local pass_rate="N/A"
-    if [[ $total -gt 0 ]]; then
-        pass_rate="$((verified * 100 / total))%"
-    fi
+    local elapsed_total=$(( $(date +%s) - loop_start_time ))
+    local elapsed_min=$(( elapsed_total / 60 ))
 
     log_status "SUCCESS" "Ralph loop finished"
     log_status "INFO" "  Iterations: $loop_count"
-    log_status "INFO" "  Tasks completed: $completed/$total"
-    log_status "INFO" "  Verification pass rate: $pass_rate"
-    log_status "INFO" "  Total verify iterations: $total_iterations"
+    log_status "INFO" "  Stories completed: $completed/$total"
+    log_status "INFO" "  Elapsed: ${elapsed_min}m"
     log_status "INFO" "  API calls: $(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")"
+
+    if [[ $completed -eq $total && $total -gt 0 ]]; then
+        log_status "SUCCESS" "All stories complete. $total stories verified in $loop_count iterations."
+    fi
 
     # Write final summary to status file
     update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "final_summary" \
         "$(if [[ $completed -eq $total && $total -gt 0 ]]; then echo "completed"; else echo "stopped"; fi)" \
-        "completed:$completed/$total,pass_rate:$pass_rate"
+        "completed:$completed/$total"
 
     # Mandatory retrospective — cannot be skipped
     log_status "INFO" "Triggering mandatory sprint retrospective..."
@@ -673,6 +947,10 @@ while [[ $# -gt 0 ]]; do
             MAX_ITERATIONS="$2"
             shift 2
             ;;
+        --max-story-retries)
+            MAX_STORY_RETRIES="$2"
+            shift 2
+            ;;
         --timeout)
             LOOP_TIMEOUT_SECONDS="$2"
             shift 2
@@ -698,14 +976,18 @@ while [[ $# -gt 0 ]]; do
             shift
             ;;
         --reset-circuit)
+            # Derive state paths so circuit breaker uses the correct directory
+            HARNESS_STATE_DIR="$(pwd)/.claude"
+            export HARNESS_STATE_DIR
             init_circuit_breaker
             reset_circuit_breaker "Manual reset via CLI"
             echo "Circuit breaker reset to CLOSED"
             exit 0
             ;;
         --status)
-            if [[ -n "$STATUS_FILE" && -f "$STATUS_FILE" ]]; then
-                jq . "$STATUS_FILE" 2>/dev/null || cat "$STATUS_FILE"
+            _status_file="$(pwd)/ralph/status.json"
+            if [[ -f "$_status_file" ]]; then
+                jq . "$_status_file" 2>/dev/null || cat "$_status_file"
             else
                 echo "No status file found."
             fi

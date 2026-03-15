@@ -1,5 +1,5 @@
 ---
-description: Enforces that the agent queries observability tools (VictoriaLogs, VictoriaMetrics) during development instead of guessing at runtime behavior. Triggers when the agent is debugging, investigating errors, or verifying runtime behavior.
+description: Enforces that the agent queries observability tools (VictoriaLogs, VictoriaMetrics, VictoriaTraces) during development instead of guessing at runtime behavior. Triggers when the agent is debugging, investigating errors, or verifying runtime behavior.
 ---
 
 # Visibility Enforcement
@@ -8,40 +8,62 @@ description: Enforces that the agent queries observability tools (VictoriaLogs, 
 
 The agent must SEE what the code does at runtime. No guessing. Query logs, metrics, and traces.
 
-## When to Query
+## When to Query Observability
 
-- **After writing code:** Check VictoriaLogs for errors from the new code path
-- **After running tests:** Query for unexpected errors or warnings
-- **During debugging:** Search logs for error context instead of guessing
-- **During verification:** Confirm expected log entries and trace spans exist
+Query observability endpoints in these situations:
 
-## How to Query
+- **After running tests:** Check VictoriaLogs for unexpected errors or warnings in the application logs
+- **After seeing HTTP errors:** Trace the request through VictoriaTraces, cross-reference with logs
+- **When debugging unexpected behavior:** Search logs for error context instead of guessing at root cause
+- **During verification:** Confirm expected log entries and trace spans exist before marking work complete
 
-### Logs (VictoriaLogs)
-```bash
-# Errors in last 5 minutes
-curl 'localhost:9428/select/logsql/query?query=level:error&start=5m'
+## Query Decision Flow
 
-# Specific service errors
-curl 'localhost:9428/select/logsql/query?query=level:error AND service_name:{name}&start=5m'
+Before querying, follow this decision flow:
 
-# Search by message
-curl 'localhost:9428/select/logsql/query?query=_msg:*keyword*&start=10m'
-```
+1. **Check if Docker stack is healthy:**
+   ```bash
+   codeharness status --check-docker
+   ```
+   If unhealthy, the agent cannot query. Start the stack first:
+   ```bash
+   codeharness stack start
+   ```
 
-### Metrics (VictoriaMetrics)
-```bash
-# Request count
-curl 'localhost:8428/api/v1/query?query=http_requests_total'
+2. **Query the appropriate endpoint:**
+   - Errors/warnings in logs: VictoriaLogs at `localhost:9428`
+   - Metrics/rates/counters: VictoriaMetrics at `localhost:8428`
+   - Request traces: VictoriaTraces at `localhost:16686`
 
-# Error rate
-curl 'localhost:8428/api/v1/query?query=rate(http_requests_total{status_code=~"5.."}[5m])'
-```
+   See `knowledge/observability-querying.md` for full query patterns and endpoint formats.
+
+## Post-Query Actions
+
+After querying, act on results:
+
+- **Errors found in logs:** Diagnose the root cause from log context, fix the code, re-run tests
+- **Metrics show anomalies:** Investigate — high error rates or latency spikes indicate a regression
+- **Traces show failures:** Follow the trace spans to find where the request broke down
+- **No issues found:** Good — the runtime matches expectations
 
 ## State Tracking
 
-After querying logs, update the state file:
-```yaml
-session_flags:
-  logs_queried: true
+After querying logs, record that the query happened:
+
+```bash
+codeharness state set session_flags.logs_queried true
 ```
+
+This session flag is checked by quality gates before commits. It resets to `false` at the start of each session (via `session-start.sh` hook).
+
+## When Observability Endpoints Are Unreachable
+
+Observability is always enabled (mandatory). If endpoints are unreachable:
+- The Docker stack may not be running — start it with `codeharness stack start`
+- Or use remote endpoints: `codeharness init --otel-endpoint <url>`
+- Check current mode: `codeharness status --check-docker`
+
+## References
+
+- Query patterns and endpoints: `knowledge/observability-querying.md`
+- OTLP instrumentation setup: `knowledge/otlp-instrumentation.md`

@@ -3,3 +3,6 @@ _bmad-output/
 internal-claude-plugins/
 .env
 .env.*
+.harness/
+node_modules/
+dist/

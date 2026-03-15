@@ -198,65 +198,52 @@ teardown() {
 
 # ─── Progress tracking ──────────────────────────────────────────────────────
 
-@test "get_current_task reads first pending task" {
+@test "get_current_task returns empty (task picking handled by /harness-run skill)" {
     source "$RALPH_SH"
-    PROGRESS_FILE="$TEST_DIR/ralph/progress.json"
 
     run get_current_task
     [ "$status" -eq 0 ]
-    [ "$output" = "US-001" ]
-}
-
-@test "get_current_task returns empty when no progress file" {
-    source "$RALPH_SH"
-    PROGRESS_FILE="$TEST_DIR/nonexistent.json"
-
-    run get_current_task
-    [ "$status" -ne 0 ]
     [ -z "$output" ]
 }
 
-@test "mark_task_complete updates task status" {
+@test "all_tasks_complete returns false when stories remain" {
     source "$RALPH_SH"
-    PROGRESS_FILE="$TEST_DIR/ralph/progress.json"
-
-    mark_task_complete "US-001"
-    local status_val=$(jq -r '.tasks[0].status' "$PROGRESS_FILE")
-    [ "$status_val" = "complete" ]
-
-    # Second task still pending
-    local status_val2=$(jq -r '.tasks[1].status' "$PROGRESS_FILE")
-    [ "$status_val2" = "pending" ]
-}
-
-@test "all_tasks_complete returns false when tasks remain" {
-    source "$RALPH_SH"
-    PROGRESS_FILE="$TEST_DIR/ralph/progress.json"
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  epic-1: in-progress
+  1-1-first-story: done
+  1-2-second-story: in-progress
+EOF
 
     run all_tasks_complete
     [ "$status" -ne 0 ]
 }
 
-@test "all_tasks_complete returns true when all done" {
+@test "all_tasks_complete returns true when all stories done" {
     source "$RALPH_SH"
-    PROGRESS_FILE="$TEST_DIR/ralph/progress.json"
-
-    # Mark both tasks complete
-    mark_task_complete "US-001"
-    mark_task_complete "US-002"
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  epic-1: done
+  1-1-first-story: done
+  1-2-second-story: done
+EOF
 
     run all_tasks_complete
     [ "$status" -eq 0 ]
 }
 
-@test "get_task_counts returns total and completed" {
+@test "get_task_counts returns total and completed from sprint-status" {
     source "$RALPH_SH"
-    PROGRESS_FILE="$TEST_DIR/ralph/progress.json"
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  epic-1: in-progress
+  1-1-first-story: done
+  1-2-second-story: in-progress
+EOF
 
-    run get_task_counts
-    [ "$output" = "2 0" ]
-
-    mark_task_complete "US-001"
     run get_task_counts
     [ "$output" = "2 1" ]
 }

@@ -1,7 +1,6 @@
 {
   "SessionStart": [
     {
-      "matcher": "",
       "hooks": [
         {
           "type": "command",
@@ -24,6 +23,15 @@
   "PostToolUse": [
     {
       "matcher": "Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/post-write-check.sh"
+        }
+      ]
+    },
+    {
+      "matcher": "Edit",
       "hooks": [
         {
           "type": "command",

@@ -1,0 +1,1057 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { Command } from 'commander';
+
+// Mock the stack-path module
+vi.mock('../../lib/stack-path.js', () => ({
+  getStackDir: vi.fn(() => '/mock/.codeharness/stack'),
+  getComposeFilePath: vi.fn(() => '/mock/.codeharness/stack/docker-compose.harness.yml'),
+  getOtelConfigPath: vi.fn(() => '/mock/.codeharness/stack/otel-collector-config.yaml'),
+  ensureStackDir: vi.fn(),
+}));
+
+// Mock the docker module
+vi.mock('../../lib/docker.js', () => ({
+  getStackHealth: vi.fn(() => ({
+    healthy: true,
+    services: [
+      { name: 'victoria-logs', running: true },
+      { name: 'victoria-metrics', running: true },
+      { name: 'victoria-traces', running: true },
+      { name: 'otel-collector', running: true },
+    ],
+  })),
+  getCollectorHealth: vi.fn(() => ({
+    healthy: true,
+    services: [{ name: 'otel-collector', running: true }],
+  })),
+  isSharedStackRunning: vi.fn(() => false),
+  checkRemoteEndpoint: vi.fn(() => Promise.resolve({ reachable: true })),
+}));
+
+// Mock the beads module
+vi.mock('../../lib/beads.js', () => ({
+  isBeadsInitialized: vi.fn(() => false),
+  listIssues: vi.fn(() => []),
+}));
+
+// Mock the onboard-checks module
+vi.mock('../../lib/onboard-checks.js', () => ({
+  getOnboardingProgress: vi.fn(() => null),
+}));
+
+import { registerStatusCommand, DEFAULT_ENDPOINTS, buildScopedEndpoints } from '../status.js';
+import { getStackHealth, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker.js';
+import { isBeadsInitialized, listIssues } from '../../lib/beads.js';
+import { getOnboardingProgress } from '../../lib/onboard-checks.js';
+import { writeState, getDefaultState } from '../../lib/state.js';
+import type { HarnessState } from '../../lib/state.js';
+
+const mockGetStackHealth = vi.mocked(getStackHealth);
+const mockGetCollectorHealth = vi.mocked(getCollectorHealth);
+const mockCheckRemoteEndpoint = vi.mocked(checkRemoteEndpoint);
+const mockIsBeadsInitialized = vi.mocked(isBeadsInitialized);
+const mockListIssues = vi.mocked(listIssues);
+
+let testDir: string;
+let originalCwd: string;
+
+beforeEach(() => {
+  testDir = mkdtempSync(join(tmpdir(), 'ch-status-test-'));
+  originalCwd = process.cwd();
+  process.chdir(testDir);
+  mockGetStackHealth.mockReturnValue({
+    healthy: true,
+    services: [
+      { name: 'victoria-logs', running: true },
+      { name: 'victoria-metrics', running: true },
+      { name: 'victoria-traces', running: true },
+      { name: 'otel-collector', running: true },
+    ],
+  });
+  mockIsBeadsInitialized.mockReturnValue(false);
+  mockListIssues.mockReturnValue([]);
+});
+
+afterEach(() => {
+  process.chdir(originalCwd);
+  rmSync(testDir, { recursive: true, force: true });
+  vi.restoreAllMocks();
+  process.exitCode = undefined;
+});
+
+function createCli(): Command {
+  const program = new Command();
+  program.option('--json', 'JSON output');
+  registerStatusCommand(program);
+  return program;
+}
+
+async function runCli(args: string[]): Promise<{ stdout: string; exitCode: number | undefined }> {
+  const logs: string[] = [];
+  const consoleSpy = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
+    logs.push(a.map(String).join(' '));
+  });
+  process.exitCode = undefined;
+
+  const program = createCli();
+  await program.parseAsync(['node', 'codeharness', ...args]);
+
+  consoleSpy.mockRestore();
+  const exitCode = process.exitCode;
+  process.exitCode = undefined;
+
+  return { stdout: logs.join('\n'), exitCode };
+}
+
+// ─── Existing --check-docker tests (preserved) ─────────────────────────────
+
+describe('status --check-docker', () => {
+  it('reports healthy stack', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    state.docker = {
+      compose_file: 'docker-compose.harness.yml',
+      stack_running: true,
+      ports: { logs: 9428, metrics: 8428, traces: 14268, otel_grpc: 4317, otel_http: 4318 },
+    };
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status', '--check-docker']);
+    expect(stdout).toContain('[OK] VictoriaMetrics stack: running');
+  });
+
+  it('reports unhealthy stack with remedy', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: false,
+      services: [
+        { name: 'victoria-logs', running: true },
+        { name: 'victoria-metrics', running: false },
+        { name: 'victoria-traces', running: true },
+        { name: 'otel-collector', running: false },
+      ],
+      remedy: 'Restart: docker compose -f docker-compose.harness.yml up -d',
+    });
+
+    const { stdout } = await runCli(['status', '--check-docker']);
+    expect(stdout).toContain('[FAIL] VictoriaMetrics stack: not running');
+    expect(stdout).toContain('victoria-metrics: down');
+    expect(stdout).toContain('otel-collector: down');
+    expect(stdout).toContain('Restart: docker compose -f docker-compose.harness.yml up -d');
+  });
+
+  it('uses compose file from state', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    state.docker = {
+      compose_file: 'custom-compose.yml',
+      stack_running: true,
+      ports: { logs: 9428, metrics: 8428, traces: 14268, otel_grpc: 4317, otel_http: 4318 },
+    };
+    writeState(state, testDir);
+
+    await runCli(['status', '--check-docker']);
+    expect(mockGetStackHealth).toHaveBeenCalledWith('custom-compose.yml', undefined);
+  });
+
+  it('falls back to default compose file when no state', async () => {
+    await runCli(['status', '--check-docker']);
+    expect(mockGetStackHealth).toHaveBeenCalledWith('docker-compose.harness.yml', undefined);
+  });
+
+  it('JSON output for healthy stack', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['--json', 'status', '--check-docker']);
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    expect(jsonLine).toBeDefined();
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed.status).toBe('ok');
+    expect(parsed.docker.healthy).toBe(true);
+    expect(parsed.docker.services).toHaveLength(4);
+  });
+
+  it('JSON output for unhealthy stack', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: false,
+      services: [
+        { name: 'victoria-logs', running: false },
+        { name: 'victoria-metrics', running: false },
+        { name: 'victoria-traces', running: false },
+        { name: 'otel-collector', running: false },
+      ],
+      remedy: 'Restart: docker compose -f docker-compose.harness.yml up -d',
+    });
+
+    const { stdout } = await runCli(['--json', 'status', '--check-docker']);
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.docker.healthy).toBe(false);
+    expect(parsed.docker.remedy).toContain('Restart');
+  });
+
+  it('prints endpoint URLs when stack is healthy', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status', '--check-docker']);
+    expect(stdout).toContain('Endpoints:');
+    expect(stdout).toContain('logs=http://localhost:9428');
+    expect(stdout).toContain('metrics=http://localhost:8428');
+    expect(stdout).toContain('traces=http://localhost:16686');
+  });
+
+  it('does not print endpoint URLs when stack is unhealthy', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: false,
+      services: [
+        { name: 'victoria-logs', running: false },
+        { name: 'victoria-metrics', running: false },
+        { name: 'victoria-traces', running: false },
+        { name: 'otel-collector', running: false },
+      ],
+      remedy: 'Restart: docker compose -f docker-compose.harness.yml up -d',
+    });
+
+    const { stdout } = await runCli(['status', '--check-docker']);
+    expect(stdout).not.toContain('Endpoints:');
+  });
+
+  it('JSON output includes endpoints when stack is healthy', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['--json', 'status', '--check-docker']);
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed.endpoints).toEqual(DEFAULT_ENDPOINTS);
+    expect(parsed.endpoints.logs).toBe('http://localhost:9428');
+    expect(parsed.endpoints.metrics).toBe('http://localhost:8428');
+    expect(parsed.endpoints.traces).toBe('http://localhost:16686');
+    expect(parsed.endpoints.otel_http).toBe('http://localhost:4318');
+  });
+
+  it('JSON output omits endpoints when stack is unhealthy', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: false,
+      services: [
+        { name: 'victoria-logs', running: false },
+        { name: 'victoria-metrics', running: false },
+        { name: 'victoria-traces', running: false },
+        { name: 'otel-collector', running: false },
+      ],
+      remedy: 'Restart',
+    });
+
+    const { stdout } = await runCli(['--json', 'status', '--check-docker']);
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed.endpoints).toBeUndefined();
+  });
+});
+
+// ─── Full status display ────────────────────────────────────────────────────
+
+describe('status (full display)', () => {
+  it('displays version, stack, enforcement, session flags, and coverage', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    state.harness_version = '0.4.0';
+    writeState(state, testDir);
+
+    const { stdout, exitCode } = await runCli(['status']);
+    expect(stdout).toContain('Harness: codeharness v0.4.0');
+    expect(stdout).toContain('Stack: nodejs');
+    expect(stdout).toContain('Enforcement: front:ON db:ON api:ON obs:ON');
+    expect(stdout).toContain('Session: tests_passed=false coverage_met=false verification_run=false logs_queried=false');
+    expect(stdout).toContain('Coverage:');
+    expect(exitCode).toBeUndefined();
+  });
+
+  it('prints [FAIL] when state file is missing with exit code 1', async () => {
+    // No state file in testDir
+    const { stdout, exitCode } = await runCli(['status']);
+    expect(stdout).toContain('[FAIL] Harness not initialized');
+    expect(exitCode).toBe(1);
+  });
+
+  it('shows Stack: unknown when stack is null', async () => {
+    const state = getDefaultState(null);
+    state.initialized = true;
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Stack: unknown');
+  });
+
+  it('always shows Docker service health (observability is mandatory)', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: true,
+      services: [
+        { name: 'victoria-logs', running: true },
+        { name: 'victoria-metrics', running: true },
+        { name: 'victoria-traces', running: true },
+        { name: 'otel-collector', running: true },
+      ],
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Docker:');
+    expect(stdout).toContain('victoria-logs: running');
+    expect(stdout).toContain('victoria-metrics: running');
+    expect(stdout).toContain('otel-collector: running');
+    expect(stdout).toContain('Endpoints:');
+  });
+
+  it('shows Docker stopped services without endpoints', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: false,
+      services: [
+        { name: 'victoria-logs', running: true },
+        { name: 'victoria-metrics', running: false },
+        { name: 'victoria-traces', running: true },
+        { name: 'otel-collector', running: false },
+      ],
+      remedy: 'Restart',
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('victoria-metrics: stopped');
+    expect(stdout).toContain('otel-collector: stopped');
+    expect(stdout).not.toContain('Endpoints:');
+  });
+
+  it('shows coverage with current percentage', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    state.coverage.current = 85;
+    state.coverage.target = 100;
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Coverage: 85% / 100% target');
+  });
+
+  it('shows coverage dash when current is null', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    state.coverage.current = null;
+    state.coverage.target = 100;
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Coverage: \u2014 / 100% target');
+  });
+});
+
+// ─── Beads summary ──────────────────────────────────────────────────────────
+
+describe('status beads summary', () => {
+  it('shows beads not initialized when .beads dir missing', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Beads: not initialized');
+  });
+
+  it('shows beads issue counts when initialized', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockReturnValue([
+      { id: '1', title: 'Bug 1', status: 'ready', type: 'bug', priority: 1 },
+      { id: '2', title: 'Bug 2', status: 'done', type: 'bug', priority: 1 },
+      { id: '3', title: 'Task 1', status: 'in_progress', type: 'task', priority: 2 },
+    ]);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Beads: 3 issues');
+    expect(stdout).toContain('bug:2');
+    expect(stdout).toContain('task:1');
+    expect(stdout).toContain('ready:1');
+    expect(stdout).toContain('in-progress:1');
+    expect(stdout).toContain('done:1');
+  });
+
+  it('shows zero issues without empty parentheses when no issues exist', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockReturnValue([]);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Beads: 0 issues | ready:0 in-progress:0 done:0');
+    expect(stdout).not.toContain('()');
+  });
+
+  it('handles listIssues failure gracefully', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockImplementation(() => {
+      throw new Error('bd not found');
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Beads: unavailable (bd command failed)');
+  });
+});
+
+// ─── Verification log ───────────────────────────────────────────────────────
+
+describe('status verification log', () => {
+  it('shows no entries when verification log is empty', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    state.verification_log = [];
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Verification: no entries');
+  });
+
+  it('displays verification log entries', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    state.verification_log = [
+      '4-1-test: pass at 2026-03-10T14:30:00.000Z',
+      '4-2-hooks: fail at 2026-03-11T10:00:00.000Z',
+    ];
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Verification log:');
+    expect(stdout).toContain('4-1-test: pass at 2026-03-10T14:30:00.000Z');
+    expect(stdout).toContain('4-2-hooks: fail at 2026-03-11T10:00:00.000Z');
+  });
+});
+
+// ─── --check health check ───────────────────────────────────────────────────
+
+describe('status --check', () => {
+  it('reports all checks passing with exit code 0', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockReturnValue([]);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: true,
+      services: [
+        { name: 'victoria-logs', running: true },
+        { name: 'victoria-metrics', running: true },
+        { name: 'victoria-traces', running: true },
+        { name: 'otel-collector', running: true },
+      ],
+    });
+
+    const { stdout, exitCode } = await runCli(['status', '--check']);
+    expect(stdout).toContain('[OK] State file: valid');
+    expect(stdout).toContain('[OK] Docker: all services running');
+    expect(stdout).toContain('[OK] Beads: available');
+    expect(exitCode).toBe(0);
+  });
+
+  it('reports state file missing with exit code 1', async () => {
+    // No state file
+    const { stdout, exitCode } = await runCli(['status', '--check']);
+    expect(stdout).toContain('[FAIL] State file: not found');
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports docker unhealthy with exit code 1', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockReturnValue([]);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: false,
+      services: [
+        { name: 'victoria-logs', running: false },
+        { name: 'victoria-metrics', running: false },
+        { name: 'victoria-traces', running: false },
+        { name: 'otel-collector', running: false },
+      ],
+      remedy: 'Restart: docker compose -f docker-compose.harness.yml up -d',
+    });
+
+    const { stdout, exitCode } = await runCli(['status', '--check']);
+    expect(stdout).toContain('[FAIL] Docker:');
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports beads not initialized with exit code 1', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout, exitCode } = await runCli(['status', '--check']);
+    expect(stdout).toContain('[FAIL] Beads: not initialized');
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports beads bd command failure', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockImplementation(() => {
+      throw new Error('bd not found');
+    });
+
+    const { stdout, exitCode } = await runCli(['status', '--check']);
+    expect(stdout).toContain('[FAIL] Beads: bd command failed');
+    expect(exitCode).toBe(1);
+  });
+});
+
+// ─── JSON output ────────────────────────────────────────────────────────────
+
+describe('status --json', () => {
+  it('outputs JSON with all expected fields for full status', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    state.harness_version = '0.4.0';
+
+    state.coverage.current = 95;
+    state.verification_log = ['4-1-test: pass at 2026-03-10T14:30:00.000Z'];
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.version).toBe('0.4.0');
+    expect(parsed.stack).toBe('nodejs');
+    expect(parsed.enforcement).toEqual({
+      frontend: true,
+      database: true,
+      api: true,
+    });
+    expect(parsed.docker).toBeDefined();
+    expect(parsed.beads).toEqual({ initialized: false });
+    expect(parsed.session_flags).toBeDefined();
+    expect(parsed.coverage).toBeDefined();
+    expect(parsed.verification_log).toEqual(['4-1-test: pass at 2026-03-10T14:30:00.000Z']);
+  });
+
+  it('outputs JSON with docker health when observability is ON', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    mockGetStackHealth.mockReturnValue({
+      healthy: true,
+      services: [
+        { name: 'victoria-logs', running: true },
+        { name: 'victoria-metrics', running: true },
+        { name: 'victoria-traces', running: true },
+        { name: 'otel-collector', running: true },
+      ],
+    });
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.docker.healthy).toBe(true);
+    expect(parsed.docker.services).toHaveLength(4);
+    expect(parsed.docker.endpoints).toEqual(DEFAULT_ENDPOINTS);
+  });
+
+  it('outputs JSON with beads data when initialized', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockReturnValue([
+      { id: '1', title: 'Bug', status: 'ready', type: 'bug', priority: 1 },
+      { id: '2', title: 'Task', status: 'done', type: 'task', priority: 2 },
+    ]);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.beads.initialized).toBe(true);
+    expect(parsed.beads.total).toBe(2);
+    expect(parsed.beads.issues_by_type).toEqual({ bug: 1, task: 1 });
+    expect(parsed.beads.issues_by_status).toEqual({ ready: 1, done: 1 });
+  });
+
+  it('outputs JSON for --check with check results', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockReturnValue([]);
+
+    const { stdout } = await runCli(['--json', 'status', '--check']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('ok');
+    expect(parsed.checks.state_file.status).toBe('ok');
+    expect(parsed.checks.docker.status).toBe('ok');
+    expect(parsed.checks.beads.status).toBe('ok');
+  });
+
+  it('outputs JSON for --check with failures', async () => {
+    // No state file
+    const { stdout } = await runCli(['--json', 'status', '--check']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.checks.state_file.status).toBe('fail');
+  });
+
+  it('includes app_type in JSON output when set', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+    state.app_type = 'cli';
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.app_type).toBe('cli');
+  });
+
+  it('omits app_type from JSON output when not set', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+    // No app_type
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.app_type).toBeUndefined();
+  });
+
+  it('JSON output for state not initialized shows fail', async () => {
+    const { stdout, exitCode } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.message).toContain('Harness not initialized');
+    expect(exitCode).toBe(1);
+  });
+});
+
+// ─── Onboarding progress in status ──────────────────────────────────────────
+
+describe('status onboarding progress', () => {
+  it('displays onboarding progress when gap-tagged issues exist', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    vi.mocked(getOnboardingProgress).mockReturnValue({
+      total: 7,
+      resolved: 3,
+      remaining: 4,
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Onboarding: 3/7 gaps resolved (4 remaining)');
+  });
+
+  it('does not display onboarding progress when no gap-tagged issues', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    vi.mocked(getOnboardingProgress).mockReturnValue(null);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).not.toContain('Onboarding:');
+  });
+
+  it('includes onboarding progress in JSON output', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+    vi.mocked(getOnboardingProgress).mockReturnValue({
+      total: 5,
+      resolved: 2,
+      remaining: 3,
+    });
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.onboarding).toEqual({
+      total: 5,
+      resolved: 2,
+      remaining: 3,
+    });
+  });
+
+  it('omits onboarding key in JSON when no progress data', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+    vi.mocked(getOnboardingProgress).mockReturnValue(null);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.onboarding).toBeUndefined();
+  });
+});
+
+// ─── Remote mode status display ──────────────────────────────────────────────
+
+describe('status remote-direct mode', () => {
+  it('displays "Docker: none" for remote-direct mode', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+
+    state.otlp = {
+      enabled: true,
+      endpoint: 'https://otel.company.com:4318',
+      service_name: 'test',
+      mode: 'remote-direct',
+    };
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Docker: none (remote OTLP at https://otel.company.com:4318)');
+  });
+
+  it('--check-docker checks remote endpoint for remote-direct', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+
+    state.otlp = {
+      enabled: true,
+      endpoint: 'https://otel.company.com:4318',
+      service_name: 'test',
+      mode: 'remote-direct',
+    };
+    writeState(state, testDir);
+    mockCheckRemoteEndpoint.mockResolvedValue({ reachable: true });
+
+    const { stdout } = await runCli(['status', '--check-docker']);
+    expect(stdout).toContain('Remote OTLP endpoint: reachable');
+  });
+
+  it('--check-docker reports unreachable remote endpoint', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+
+    state.otlp = {
+      enabled: true,
+      endpoint: 'https://otel.company.com:4318',
+      service_name: 'test',
+      mode: 'remote-direct',
+    };
+    writeState(state, testDir);
+    mockCheckRemoteEndpoint.mockResolvedValue({ reachable: false, error: 'ECONNREFUSED' });
+
+    const { stdout } = await runCli(['status', '--check-docker']);
+    expect(stdout).toContain('Remote OTLP endpoint: unreachable');
+  });
+
+  it('--check reports remote OTLP status for remote-direct', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+
+    state.otlp = {
+      enabled: true,
+      endpoint: 'https://otel.company.com:4318',
+      service_name: 'test',
+      mode: 'remote-direct',
+    };
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockReturnValue([]);
+    mockCheckRemoteEndpoint.mockResolvedValue({ reachable: true });
+
+    const { stdout, exitCode } = await runCli(['status', '--check']);
+    expect(stdout).toContain('[OK] Docker: remote OTLP reachable');
+    expect(exitCode).toBe(0);
+  });
+
+  it('JSON full status includes mode and endpoints for remote-direct', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+
+    state.otlp = {
+      enabled: true,
+      endpoint: 'https://otel.company.com:4318',
+      service_name: 'test',
+      mode: 'remote-direct',
+    };
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.docker.mode).toBe('remote-direct');
+    expect(parsed.docker.endpoint).toBe('https://otel.company.com:4318');
+    expect(parsed.endpoints).toBeDefined();
+    expect(parsed.endpoints.otel_http).toBe('https://otel.company.com:4318');
+  });
+});
+
+describe('status remote-routed mode', () => {
+  it('displays "Docker: OTel Collector only" for remote-routed mode', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'test',
+      mode: 'remote-routed',
+    };
+    state.docker = {
+      compose_file: '/mock/.codeharness/stack/docker-compose.harness.yml',
+      stack_running: true,
+      remote_endpoints: {
+        logs_url: 'https://logs.company.com',
+        metrics_url: 'https://metrics.company.com',
+        traces_url: 'https://traces.company.com',
+      },
+      ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+    };
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Docker: OTel Collector only');
+    expect(stdout).toContain('https://logs.company.com');
+  });
+
+  it('JSON full status includes mode and remote_endpoints for remote-routed', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'test',
+      mode: 'remote-routed',
+    };
+    state.docker = {
+      compose_file: '/mock/.codeharness/stack/docker-compose.harness.yml',
+      stack_running: true,
+      remote_endpoints: {
+        logs_url: 'https://logs.company.com',
+        metrics_url: 'https://metrics.company.com',
+        traces_url: 'https://traces.company.com',
+      },
+      ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+    };
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.docker.mode).toBe('remote-routed');
+    expect(parsed.docker.remote_endpoints.logs_url).toBe('https://logs.company.com');
+    expect(parsed.endpoints.logs).toBe('https://logs.company.com');
+    expect(parsed.endpoints.otel_http).toBe('http://localhost:4318');
+  });
+
+  it('displays app type in full status output', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+    state.app_type = 'agent';
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'test',
+      mode: 'local-shared',
+      agent_sdk: 'traceloop',
+    };
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('App type: agent');
+    expect(stdout).toContain('Agent SDK: traceloop');
+  });
+
+  it('displays app type without agent SDK for non-agent types', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+    state.app_type = 'web';
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('App type: web');
+    expect(stdout).not.toContain('Agent SDK:');
+  });
+
+  it('does not display app type when not set in state', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+    // No app_type set
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).not.toContain('App type:');
+  });
+
+  it('displays scoped endpoints when service_name is set', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'my-api',
+      mode: 'local-shared',
+    };
+    writeState(state, testDir);
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Scoped:');
+    expect(stdout).toContain('service_name%3Amy-api');
+  });
+
+  it('--check verifies collector and remote endpoints for remote-routed', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'test',
+      mode: 'remote-routed',
+    };
+    state.docker = {
+      compose_file: '/mock/.codeharness/stack/docker-compose.harness.yml',
+      stack_running: true,
+      remote_endpoints: {
+        logs_url: 'https://logs.company.com',
+        metrics_url: 'https://metrics.company.com',
+        traces_url: 'https://traces.company.com',
+      },
+      ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+    };
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(true);
+    mockListIssues.mockReturnValue([]);
+    mockGetCollectorHealth.mockReturnValue({
+      healthy: true,
+      services: [{ name: 'otel-collector', running: true }],
+    });
+    mockCheckRemoteEndpoint.mockResolvedValue({ reachable: true });
+
+    const { stdout, exitCode } = await runCli(['status', '--check']);
+    expect(stdout).toContain('[OK] Docker: OTel Collector running');
+    expect(stdout).toContain('[OK] Remote logs: reachable');
+    expect(stdout).toContain('[OK] Remote metrics: reachable');
+    expect(stdout).toContain('[OK] Remote traces: reachable');
+    expect(exitCode).toBe(0);
+  });
+});
+
+// ─── Scoped endpoints ────────────────────────────────────────────────────────
+
+describe('buildScopedEndpoints', () => {
+  it('builds scoped logs URL with service_name filter (URL-encoded)', () => {
+    const scoped = buildScopedEndpoints(DEFAULT_ENDPOINTS, 'my-api');
+    expect(scoped.logs).toBe('http://localhost:9428/select/logsql/query?query=service_name%3Amy-api');
+  });
+
+  it('builds scoped metrics URL with service_name label (URL-encoded)', () => {
+    const scoped = buildScopedEndpoints(DEFAULT_ENDPOINTS, 'my-api');
+    expect(scoped.metrics).toBe('http://localhost:8428/api/v1/query?query=%7Bservice_name%3D%22my-api%22%7D');
+  });
+
+  it('builds scoped traces URL with service parameter', () => {
+    const scoped = buildScopedEndpoints(DEFAULT_ENDPOINTS, 'my-api');
+    expect(scoped.traces).toBe('http://localhost:16686/api/traces?service=my-api&limit=20');
+  });
+
+  it('properly encodes service names with special characters', () => {
+    const scoped = buildScopedEndpoints(DEFAULT_ENDPOINTS, 'my api&test');
+    expect(scoped.traces).toBe('http://localhost:16686/api/traces?service=my%20api%26test&limit=20');
+    expect(scoped.logs).toContain('my%20api%26test');
+  });
+});
+
+describe('scoped endpoints in JSON output', () => {
+  it('includes scoped_endpoints when service_name is set', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'my-api',
+      mode: 'local-shared',
+    };
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.scoped_endpoints).toBeDefined();
+    expect(parsed.scoped_endpoints.logs).toContain('my-api');
+    expect(parsed.scoped_endpoints.metrics).toContain('my-api');
+    expect(parsed.scoped_endpoints.traces).toContain('my-api');
+  });
+
+  it('omits scoped_endpoints when no service_name', async () => {
+    const state = getDefaultState('nodejs') as HarnessState;
+    state.initialized = true;
+    // No otlp config
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.scoped_endpoints).toBeUndefined();
+  });
+});

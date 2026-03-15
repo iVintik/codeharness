@@ -57,7 +57,7 @@ curl 'localhost:9428/select/logsql/query?query=*&limit=5'
 curl 'localhost:8428/api/v1/query?query=up'
 
 # Check traces (if enabled)
-curl 'localhost:14268/api/traces?service={project_name}&limit=5'
+curl 'localhost:16686/api/traces?service={project_name}&limit=5'
 ```
 
 ## Performance

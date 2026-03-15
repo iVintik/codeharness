@@ -26,50 +26,51 @@ teardown() {
     teardown_test_dir
 }
 
-# ── Progress Tracking ──
+# ── Progress Tracking (sprint-status.yaml based) ──
 
-@test "get_current_task returns first pending task" {
-    create_test_progress "$PROGRESS_FILE"
+@test "get_current_task returns empty (task picking by /harness-run skill)" {
     local task
     task=$(get_current_task)
-    [[ "$task" == "US-001" ]]
-}
-
-@test "get_current_task returns empty when no progress file" {
-    local task
-    task=$(get_current_task) || true
     [[ -z "$task" ]]
 }
 
-@test "mark_task_complete updates task status" {
-    create_test_progress "$PROGRESS_FILE"
-    mark_task_complete "US-001"
-    local status
-    status=$(jq -r '.tasks[] | select(.id == "US-001") | .status' "$PROGRESS_FILE")
-    [[ "$status" == "complete" ]]
-}
-
-@test "all_tasks_complete returns false when tasks pending" {
-    create_test_progress "$PROGRESS_FILE"
+@test "all_tasks_complete returns false when stories pending" {
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  epic-1: in-progress
+  1-1-first: done
+  1-2-second: in-progress
+EOF
     ! all_tasks_complete
 }
 
-@test "all_tasks_complete returns true when all done" {
-    create_test_progress "$PROGRESS_FILE"
-    mark_task_complete "US-001"
-    mark_task_complete "US-002"
+@test "all_tasks_complete returns true when all stories done" {
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  epic-1: done
+  1-1-first: done
+  1-2-second: done
+EOF
     all_tasks_complete
 }
 
-@test "get_task_counts returns total and completed" {
-    create_test_progress "$PROGRESS_FILE"
-    mark_task_complete "US-001"
+@test "get_task_counts returns total and completed from sprint-status" {
+    SPRINT_STATUS_FILE="$TEST_DIR/sprint-status.yaml"
+    cat > "$SPRINT_STATUS_FILE" << 'EOF'
+development_status:
+  epic-1: in-progress
+  1-1-first: done
+  1-2-second: in-progress
+EOF
     local counts
     counts=$(get_task_counts)
     [[ "$counts" == "2 1" ]]
 }
 
-@test "get_task_counts returns 0 0 without progress file" {
+@test "get_task_counts returns 0 0 without sprint-status file" {
+    SPRINT_STATUS_FILE="$TEST_DIR/nonexistent.yaml"
     local counts
     counts=$(get_task_counts)
     [[ "$counts" == "0 0" ]]

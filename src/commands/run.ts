@@ -44,11 +44,13 @@ export function countStories(statuses: Record<string, string>): {
   ready: number;
   done: number;
   inProgress: number;
+  verified: number;
 } {
   let total = 0;
   let ready = 0;
   let done = 0;
   let inProgress = 0;
+  let verified = 0;
 
   for (const [key, status] of Object.entries(statuses)) {
     if (!STORY_KEY_PATTERN.test(key)) continue;
@@ -56,9 +58,10 @@ export function countStories(statuses: Record<string, string>): {
     if (status === 'backlog' || status === 'ready-for-dev') ready++;
     else if (status === 'done') done++;
     else if (status === 'in-progress' || status === 'review') inProgress++;
+    else if (status === 'verified') verified++;
   }
 
-  return { total, ready, done, inProgress };
+  return { total, ready, done, inProgress, verified };
 }
 
 /**
@@ -139,7 +142,7 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      info(`Starting autonomous execution — ${counts.ready} stories ready, ${counts.inProgress} in progress, ${counts.done}/${counts.total} done`, outputOpts);
+      info(`Starting autonomous execution — ${counts.ready} ready, ${counts.inProgress} in progress, ${counts.verified} verified, ${counts.done}/${counts.total} done`, outputOpts);
 
       // 4. Parse and validate numeric options
       const maxIterations = parseInt(options.maxIterations, 10);

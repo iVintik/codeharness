@@ -70,7 +70,7 @@ showboat exec "verification/{story-id}-proof.md" bash "grep -c '{pattern}' {file
 
 **CLI behavior ACs:**
 ```bash
-showboat exec "verification/{story-id}-proof.md" bash "node dist/index.js {command} 2>&1"
+showboat exec "verification/{story-id}-proof.md" bash "codeharness {command} 2>&1"
 ```
 
 **Code structure ACs:**

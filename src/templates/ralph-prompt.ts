@@ -21,8 +21,8 @@ Run the \`/harness-run\` command to execute the next story in the sprint.
 
 1. **Run \`/harness-run\`** — this is the sprint execution skill that:
    - Reads sprint-status.yaml at \`{{sprintStatusPath}}\` to find the next story
-   - Picks the first story with status \`ready-for-dev\` or \`in-progress\`
-   - Executes the full BMAD workflow: create-story, dev-story, code-review
+   - Picks the first story with status NOT \`done\` (handles \`backlog\`, \`ready-for-dev\`, \`in-progress\`, \`review\`, and \`verified\`)
+   - Executes the appropriate BMAD workflow for the story's current status
    - Updates sprint-status.yaml when the story is complete
 
 2. **Follow all BMAD workflows** — the /harness-run skill handles this, but if prompted:

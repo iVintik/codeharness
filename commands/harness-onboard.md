@@ -23,7 +23,7 @@ If the build fails, fix the errors before proceeding.
 Run the comprehensive TypeScript scanner with `--force-scan` and `--auto-approve`:
 
 ```bash
-node dist/index.js onboard epic --force-scan --auto-approve
+codeharness onboard epic --force-scan --auto-approve
 ```
 
 This runs ALL phases:

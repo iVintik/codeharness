@@ -8,7 +8,18 @@
 trap 'echo "{\"message\": \"[WARN] session-start hook failed: $BASH_COMMAND\"}"; exit 0' ERR
 
 STATE_FILE=".claude/codeharness.local.md"
-HARNESS_CLI="${CLAUDE_PLUGIN_ROOT}/bin/codeharness"
+
+# Prefer globally installed CLI, fall back to plugin-local wrapper
+if command -v codeharness >/dev/null 2>&1; then
+  HARNESS_CLI="codeharness"
+  CLI_SOURCE="global"
+elif [ -x "${CLAUDE_PLUGIN_ROOT}/bin/codeharness" ]; then
+  HARNESS_CLI="${CLAUDE_PLUGIN_ROOT}/bin/codeharness"
+  CLI_SOURCE="plugin-local"
+else
+  HARNESS_CLI=""
+  CLI_SOURCE="missing"
+fi
 
 # Check if harness is initialized
 if [ ! -f "$STATE_FILE" ]; then
@@ -18,7 +29,7 @@ fi
 
 # Reset all session flags via CLI (single read-modify-write)
 RESET_STATUS="reset"
-if [ -x "$HARNESS_CLI" ]; then
+if [ -n "$HARNESS_CLI" ]; then
   "$HARNESS_CLI" state reset-session --json >/dev/null 2>&1 || RESET_STATUS="failed"
 else
   RESET_STATUS="failed"
@@ -26,7 +37,7 @@ fi
 
 # Check Docker health (always — observability is mandatory)
 DOCKER_STATUS="n/a"
-if [ -x "$HARNESS_CLI" ]; then
+if [ -n "$HARNESS_CLI" ]; then
   if "$HARNESS_CLI" status --check-docker --json >/dev/null 2>&1; then
     DOCKER_STATUS="running"
   else
@@ -63,7 +74,16 @@ HEALTH="OK"
 if [ "$DOCKER_STATUS" = "stopped" ] || [ "$RESET_STATUS" = "failed" ]; then
   HEALTH="WARN"
 fi
+if [ "$CLI_SOURCE" = "missing" ]; then
+  HEALTH="WARN"
+fi
+
+# Build CLI status message
+CLI_MSG="$CLI_SOURCE"
+if [ "$CLI_SOURCE" = "missing" ]; then
+  CLI_MSG="NOT FOUND — run: npm install -g codeharness"
+fi
 
 # Output health status JSON
-echo "{\"message\": \"Harness health: ${HEALTH}\\n  Docker: ${DOCKER_STATUS}\\n  Beads: ${BEADS_STATUS}\\n  Browser: ${BROWSER_STATUS}\\n  Session flags: ${RESET_STATUS}\"}"
+echo "{\"message\": \"Harness health: ${HEALTH}\\n  CLI: ${CLI_MSG}\\n  Docker: ${DOCKER_STATUS}\\n  Beads: ${BEADS_STATUS}\\n  Browser: ${BROWSER_STATUS}\\n  Session flags: ${RESET_STATUS}\"}"
 exit 0

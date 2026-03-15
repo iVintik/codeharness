@@ -8,9 +8,9 @@ describe('CLI entry point', () => {
     expect(program.description()).toContain('autonomous coding agents');
   });
 
-  it('reports version 0.1.0', () => {
+  it('reports a valid semver version', () => {
     const program = createProgram();
-    expect(program.version()).toBe('0.1.0');
+    expect(program.version()).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   it('has --json global option', () => {
@@ -57,7 +57,7 @@ describe('CLI entry point', () => {
       // Commander throws on --version with exitOverride
     }
 
-    expect(writeSpy).toHaveBeenCalledWith(expect.stringContaining('0.1.0'));
+    expect(writeSpy).toHaveBeenCalledWith(expect.stringMatching(/\d+\.\d+\.\d+/));
     writeSpy.mockRestore();
   });
 });

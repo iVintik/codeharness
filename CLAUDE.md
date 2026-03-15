@@ -1,4 +1,6 @@
+# Codeharness
 
+This is a **Claude Code plugin** (`.claude-plugin/plugin.json`). Use `plugin-ops` skills for releases, audits, diagnostics — not manual git tags.
 
 ## BMAD-METHOD Integration
 

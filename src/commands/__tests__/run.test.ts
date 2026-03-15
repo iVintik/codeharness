@@ -112,7 +112,7 @@ describe('run command', () => {
         '5-4-another': 'in-progress',
         'epic-5-retrospective': 'optional',
       });
-      expect(counts).toEqual({ total: 4, ready: 2, done: 1, inProgress: 1 });
+      expect(counts).toEqual({ total: 4, ready: 2, done: 1, inProgress: 1, verified: 0 });
     });
 
     it('ignores epic keys and retrospective keys', () => {
@@ -125,11 +125,20 @@ describe('run command', () => {
     });
 
     it('returns zeros for empty statuses', () => {
-      expect(countStories({})).toEqual({ total: 0, ready: 0, done: 0, inProgress: 0 });
+      expect(countStories({})).toEqual({ total: 0, ready: 0, done: 0, inProgress: 0, verified: 0 });
     });
 
     it('counts review status as inProgress', () => {
       expect(countStories({ '1-1-story': 'review' }).inProgress).toBe(1);
+    });
+
+    it('counts verified status separately', () => {
+      const counts = countStories({
+        '1-1-story': 'verified',
+        '1-2-story': 'verified',
+        '1-3-story': 'done',
+      });
+      expect(counts).toEqual({ total: 3, ready: 0, done: 1, inProgress: 0, verified: 2 });
     });
   });
 
@@ -391,7 +400,7 @@ describe('run command', () => {
       getChildOnHandlers()['close'](0);
       await p;
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('1 stories ready'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('1 ready'));
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('1/3 done'));
     });
   });

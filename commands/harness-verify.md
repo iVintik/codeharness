@@ -26,7 +26,7 @@ If tests fail, **fix the failures first** — do not proceed to verification wit
 
 After tests pass:
 ```bash
-node dist/index.js coverage 2>&1
+codeharness coverage 2>&1
 ```
 
 This updates `session_flags.tests_passed` and `session_flags.coverage_met` in state, which are preconditions for `codeharness verify`.
@@ -77,7 +77,7 @@ If showboat verify fails:
 Once showboat verification passes, run the CLI command to update state:
 
 ```bash
-node dist/index.js verify --story {story_id}
+codeharness verify --story {story_id}
 ```
 
 This:

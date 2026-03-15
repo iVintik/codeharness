@@ -323,7 +323,7 @@ describe('init command — state file creation', () => {
     await runCli(['init']);
 
     const state = readState(testDir);
-    expect(state.harness_version).toBe('0.1.0');
+    expect(state.harness_version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
 

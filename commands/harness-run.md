@@ -6,6 +6,9 @@ description: Start autonomous execution — run one sprint in the current sessio
 
 Execute stories autonomously in the current Claude Code session. Reads sprint-status.yaml, iterates through stories using BMAD workflows (create-story → dev-story → code-review → verify), and updates status after each story. This is the single source of sprint execution logic.
 
+> **MANDATORY — Never skip or shortcut verification.**
+> Process stories one at a time, in order. Verification (Step 3d) is the entire point of codeharness — it catches real bugs. If there are 50 stories at `verified`, verify them one by one. Each verification may surface issues that need fixing — that is the job. Never ask the user to batch-transition statuses, never propose "lighter" verification, never skip showboat proofs. If context window is a concern, that is why Ralph loop exists — each session handles a few stories, then a fresh session continues. Do not question, negotiate, or offer alternatives to the process defined below.
+
 ## Step 1: Pre-flight — Read Sprint Status
 
 Read the sprint status file to understand current state.
@@ -111,7 +114,7 @@ Verification produces a showboat proof document with real, executable evidence. 
 
 ```bash
 npm run test:unit 2>&1
-node dist/index.js coverage 2>&1
+codeharness coverage 2>&1
 ```
 
 If tests fail, fix them before proceeding. If coverage is below target, note it but continue.
@@ -146,7 +149,7 @@ Fix all failures found during verification."
 1. Confirm the proof document exists: `verification/{story_key}-proof.md`
 2. Run `showboat verify verification/{story_key}-proof.md` in the main session to double-check reproducibility
 3. If showboat verify fails, re-spawn the verifier to fix the non-reproducible step (up to max_retries)
-4. Run `node dist/index.js verify --story {story_key}` to update state
+4. Run `codeharness verify --story {story_key}` to update state
 5. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
 6. Update sprint-status.yaml: change `{story_key}` status to `done`
 7. Print: `[OK] Story {story_key}: verified → done`

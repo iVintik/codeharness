@@ -1,6 +1,6 @@
 {
   "name": "codeharness",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "type": "module",
   "description": "CLI for codeharness — makes autonomous coding agents produce software that actually works",
   "bin": {
@@ -12,6 +12,10 @@
     "ralph/**/*.sh",
     "ralph/AGENTS.md"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iVintik/codeharness.git"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=18"

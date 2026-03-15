@@ -68,18 +68,18 @@ teardown() {
     [[ "$output" == *"3"* ]]  # auth has 3 files
 }
 
-@test "scan detects existing test files" {
+@test "scan shows test file counts per module" {
     run bash "$ONBOARD_SH" scan --project-dir "$TEST_DIR"
     [[ "$output" == *"test"* ]]
 }
 
-@test "scan detects README" {
-    run bash "$ONBOARD_SH" scan --project-dir "$TEST_DIR"
+@test "audit detects README" {
+    run bash "$ONBOARD_SH" audit --project-dir "$TEST_DIR"
     [[ "$output" == *"README"* ]]
 }
 
-@test "scan detects missing ARCHITECTURE.md" {
-    run bash "$ONBOARD_SH" scan --project-dir "$TEST_DIR"
+@test "audit detects missing ARCHITECTURE.md" {
+    run bash "$ONBOARD_SH" audit --project-dir "$TEST_DIR"
     [[ "$output" == *"ARCHITECTURE"* ]]
 }
 

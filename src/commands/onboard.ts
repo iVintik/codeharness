@@ -80,8 +80,10 @@ export function registerOnboardCommand(program: Command): void {
         process.exitCode = 1;
         return;
       }
-      for (const w of preconditions.warnings) {
-        warn(w);
+      if (!isJson) {
+        for (const w of preconditions.warnings) {
+          warn(w);
+        }
       }
 
       const result = runScan(minModuleSize);
@@ -429,10 +431,18 @@ function runAudit(): DocAuditResult {
 
 function printScanOutput(result: ScanResult): void {
   info(`Scan: ${result.totalSourceFiles} source files across ${result.modules.length} modules`);
+  for (const mod of result.modules) {
+    info(`  ${mod.path}: ${mod.sourceFiles} source, ${mod.testFiles} test`);
+  }
 }
 
 function printCoverageOutput(result: CoverageGapReport): void {
   info(`Coverage: ${result.overall}% overall (${result.uncoveredFiles} files uncovered)`);
+  for (const mod of result.modules) {
+    if (mod.uncoveredFileCount > 0) {
+      info(`  ${mod.path}: ${mod.coveragePercent}% (${mod.uncoveredFileCount} uncovered)`);
+    }
+  }
 }
 
 function printAuditOutput(result: DocAuditResult): void {

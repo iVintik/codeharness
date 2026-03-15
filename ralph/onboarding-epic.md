@@ -1,8 +1,10 @@
 # Onboarding Epic: Bring Project to Harness Compliance
 
-Generated: 2026-03-14T18:17:49Z
+Generated: 2026-03-15T14:02:25Z
 
-### Story O.1: Create ARCHITECTURE.md
+## Epic 0: Onboarding
+
+### Story 0.1: Create ARCHITECTURE.md
 
 As a developer, I want an ARCHITECTURE.md documenting the project's architecture.
 
@@ -10,56 +12,112 @@ As a developer, I want an ARCHITECTURE.md documenting the project's architecture
 **When** the agent analyzes the codebase
 **Then** ARCHITECTURE.md is created with module overview and dependencies
 
-### Story O.2: Create ralph/lib/AGENTS.md
+### Story 0.2: Create dist/AGENTS.md
 
-As an agent, I want AGENTS.md for ralph/lib so I have local context.
+As an agent, I want AGENTS.md for dist so I have local context.
 
-**Given** ralph/lib has 3 source files and no AGENTS.md
+**Given** dist has 3 source files and no AGENTS.md
 **When** the agent reads the module
-**Then** ralph/lib/AGENTS.md is created with module purpose and key files
+**Then** dist/AGENTS.md is created with module purpose and key files
 
-### Story O.3: Create hooks/AGENTS.md
+### Story 0.3: Create src/commands/AGENTS.md
 
-As an agent, I want AGENTS.md for hooks so I have local context.
+As an agent, I want AGENTS.md for src/commands so I have local context.
 
-**Given** hooks has 4 source files and no AGENTS.md
+**Given** src/commands has 13 source files and no AGENTS.md
 **When** the agent reads the module
-**Then** hooks/AGENTS.md is created with module purpose and key files
+**Then** src/commands/AGENTS.md is created with module purpose and key files
 
-### Story O.4: Add test coverage for ralph
+### Story 0.4: Create src/lib/AGENTS.md
 
-As a developer, I want tests for ralph to ensure correctness.
+As an agent, I want AGENTS.md for src/lib so I have local context.
 
-**Given** ralph has 10 source files with no tests
+**Given** src/lib has 20 source files and no AGENTS.md
+**When** the agent reads the module
+**Then** src/lib/AGENTS.md is created with module purpose and key files
+
+### Story 0.5: Create src/templates/AGENTS.md
+
+As an agent, I want AGENTS.md for src/templates so I have local context.
+
+**Given** src/templates has 5 source files and no AGENTS.md
+**When** the agent reads the module
+**Then** src/templates/AGENTS.md is created with module purpose and key files
+
+### Story 0.6: Add test coverage for dist
+
+As a developer, I want tests for dist to ensure correctness.
+
+**Given** dist has 0 uncovered files at 0% coverage
 **When** the agent writes tests
-**Then** ralph has 100% test coverage
+**Then** dist has 100% test coverage
 
-### Story O.5: Add test coverage for ralph/drivers
+### Story 0.7: Add test coverage for src/commands
 
-As a developer, I want tests for ralph/drivers to ensure correctness.
+As a developer, I want tests for src/commands to ensure correctness.
 
-**Given** ralph/drivers has 1 source files with no tests
+**Given** src/commands has 0 uncovered files at 0% coverage
 **When** the agent writes tests
-**Then** ralph/drivers has 100% test coverage
+**Then** src/commands has 100% test coverage
 
-### Story O.6: Add test coverage for ralph/lib
+### Story 0.8: Add test coverage for src/lib
 
-As a developer, I want tests for ralph/lib to ensure correctness.
+As a developer, I want tests for src/lib to ensure correctness.
 
-**Given** ralph/lib has 3 source files with no tests
+**Given** src/lib has 0 uncovered files at 0% coverage
 **When** the agent writes tests
-**Then** ralph/lib has 100% test coverage
+**Then** src/lib has 100% test coverage
 
-### Story O.7: Add test coverage for hooks
+### Story 0.9: Add test coverage for src/templates
 
-As a developer, I want tests for hooks to ensure correctness.
+As a developer, I want tests for src/templates to ensure correctness.
 
-**Given** hooks has 4 source files with no tests
+**Given** src/templates has 0 uncovered files at 0% coverage
 **When** the agent writes tests
-**Then** hooks has 100% test coverage
+**Then** src/templates has 100% test coverage
+
+### Story 0.10: Update stale documentation
+
+As a developer, I want up-to-date documentation reflecting the current codebase.
+
+**Given** the following documents are stale: AGENTS.md, docs/index.md
+**When** the agent reviews them against current source
+**Then** all stale documents are updated to reflect the current codebase
+
+### Story 0.fc1: Add test coverage for src/commands/query.ts
+
+As a developer, I want tests for src/commands/query.ts to ensure correctness.
+
+**Given** src/commands/query.ts has 72.07% statement coverage (below 80% floor)
+**When** the agent writes tests
+**Then** src/commands/query.ts reaches at least 80% statement coverage
+
+### Story 0.fc2: Add test coverage for src/commands/stack.ts
+
+As a developer, I want tests for src/commands/stack.ts to ensure correctness.
+
+**Given** src/commands/stack.ts has 79.38% statement coverage (below 80% floor)
+**When** the agent writes tests
+**Then** src/commands/stack.ts reaches at least 80% statement coverage
+
+### Story 0.o1: Configure OTLP instrumentation
+
+As a developer, I want observability infrastructure configured so the harness can monitor runtime behavior.
+
+**Given** observability is enabled but OTLP is not configured
+**When** onboard runs
+**Then** OTLP instrumentation must be configured with endpoint and service name
+
+### Story 0.o2: Start Docker observability stack
+
+As a developer, I want observability infrastructure configured so the harness can monitor runtime behavior.
+
+**Given** observability is enabled but Docker compose file is not configured
+**When** onboard runs
+**Then** Docker observability stack must be configured and started
 
 ---
 
-**Total stories:** 7
+**Total stories:** 14
 
 Review and approve before execution.

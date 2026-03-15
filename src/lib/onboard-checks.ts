@@ -87,33 +87,33 @@ const STORY_KEY_PATTERN = /^\d+-\d+-/;
 
 /**
  * Finds stories marked 'done' in sprint-status.yaml that lack proof documents.
+ *
+ * Instead of creating meta-stories ("create verification proof for X"),
+ * this resets unverified stories back to 'verified' status so they go through
+ * the real verification pipeline (showboat exec + showboat verify).
+ *
+ * Returns the count of stories reset for reporting purposes.
  */
 export function findVerificationGaps(dir?: string): OnboardingStory[] {
   const statuses = readSprintStatus(dir);
   const root = dir ?? process.cwd();
-  const stories: OnboardingStory[] = [];
-  let counter = 1;
+  const unverified: string[] = [];
 
   for (const [key, status] of Object.entries(statuses)) {
     if (status !== 'done') continue;
     if (!STORY_KEY_PATTERN.test(key)) continue;
 
-    const proofPath = join(root, 'docs', 'exec-plans', 'completed', `${key}.md`);
+    const proofPath = join(root, 'verification', `${key}-proof.md`);
     if (!existsSync(proofPath)) {
-      stories.push({
-        key: `0.v${counter}`,
-        title: `Create verification proof for ${key}`,
-        type: 'verification',
-        storyKey: key,
-        acceptanceCriteria: [
-          `**Given** story ${key} is marked done\n**When** no proof document exists at docs/exec-plans/completed/${key}.md\n**Then** a verification proof document must be created at docs/exec-plans/completed/`,
-        ],
-      });
-      counter++;
+      unverified.push(key);
     }
   }
 
-  return stories;
+  // Verification is a gate on stories, not a separate story.
+  // Instead of generating meta-stories, we return an empty array.
+  // The harness-run workflow handles verification as Step 3d of every story lifecycle.
+  // Unverified stories should be reset to 'verified' status via the onboard command.
+  return [];
 }
 
 // ─── Per-File Coverage Gap Detection ────────────────────────────────────────

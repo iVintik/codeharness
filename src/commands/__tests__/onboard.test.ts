@@ -786,10 +786,8 @@ describe('onboard gap filtering', () => {
     expect(helpInfo).toContain('--force-scan');
   });
 
-  it('merges extended gaps from verification, coverage, and observability detectors', async () => {
-    vi.mocked(findVerificationGaps).mockReturnValue([
-      { key: '0.v1', title: 'Create verification proof for 4-1-test', type: 'verification', storyKey: '4-1-test', acceptanceCriteria: ['AC'] },
-    ]);
+  it('merges extended gaps from coverage and observability detectors (verification returns empty)', async () => {
+    vi.mocked(findVerificationGaps).mockReturnValue([]);
     vi.mocked(findPerFileCoverageGaps).mockReturnValue([
       { key: '0.fc1', title: 'Add test coverage for src/lib/low.ts', type: 'coverage', module: 'src/lib/low.ts', acceptanceCriteria: ['AC'] },
     ]);
@@ -802,11 +800,10 @@ describe('onboard gap filtering', () => {
     // writeOnboardingEpic should receive the epic with merged stories
     const epicArg = vi.mocked(writeOnboardingEpic).mock.calls[0][0];
     const titles = epicArg.stories.map((s: any) => s.title);
-    expect(titles).toContain('Create verification proof for 4-1-test');
     expect(titles).toContain('Add test coverage for src/lib/low.ts');
     expect(titles).toContain('Configure OTLP instrumentation');
-    // Summary should be rebuilt with extended gap counts
-    expect(epicArg.summary.verificationStories).toBe(1);
+    // Verification stories are no longer generated — verification is a gate, not a story
+    expect(epicArg.summary.verificationStories).toBe(0);
     expect(epicArg.summary.observabilityStories).toBe(1);
     // Original 1 coverage + 1 new per-file coverage = 2
     expect(epicArg.summary.coverageStories).toBe(2);

@@ -432,7 +432,328 @@ describe('stack stop (remote-routed)', () => {
 });
 
 describe('stack status (remote-routed)', () => {
+  const remoteRoutedState = {
+    harness_version: '0.4.0',
+    initialized: true,
+    stack: 'nodejs' as const,
+    enforcement: { frontend: true, database: true, api: true },
+    coverage: { target: 90, baseline: null, current: null, tool: 'c8' as const },
+    session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+    verification_log: [] as never[],
+    otlp: { enabled: true, endpoint: 'http://localhost:4318', service_name: 'test', mode: 'remote-routed' as const },
+    docker: {
+      compose_file: '/mock/.codeharness/stack/docker-compose.harness.yml',
+      stack_running: true,
+      remote_endpoints: { logs_url: 'https://logs.co', metrics_url: 'https://metrics.co', traces_url: 'https://traces.co' },
+      ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+    },
+  };
+
   it('shows collector status and remote endpoints', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+
+    const { stdout } = await runCli(['stack', 'status']);
+
+    expect(stdout).toContain('OTel Collector: running');
+    expect(stdout).toContain('Remote backends:');
+    expect(stdout).toContain('https://logs.co');
+  });
+
+  it('shows not running when collector is unhealthy', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+    mockGetCollectorHealth.mockReturnValue({
+      healthy: false,
+      services: [{ name: 'otel-collector', running: false }],
+      remedy: 'Restart collector',
+    });
+
+    const { stdout } = await runCli(['stack', 'status']);
+
+    expect(stdout).toContain('OTel Collector: not running');
+    expect(stdout).toContain('otel-collector: stopped');
+  });
+
+  it('JSON output for remote-routed status', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+
+    const { stdout } = await runCli(['--json', 'stack', 'status']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.mode).toBe('remote-routed');
+    expect(parsed.healthy).toBe(true);
+    expect(parsed.remote_endpoints).toBeDefined();
+  });
+
+  it('JSON output for unhealthy remote-routed status', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+    mockGetCollectorHealth.mockReturnValue({
+      healthy: false,
+      services: [{ name: 'otel-collector', running: false }],
+      remedy: 'Restart collector',
+    });
+
+    const { stdout } = await runCli(['--json', 'stack', 'status']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.healthy).toBe(false);
+    expect(parsed.remedy).toBe('Restart collector');
+  });
+});
+
+// ─── Additional remote mode edge cases ──────────────────────────────────────
+
+describe('stack start (remote-direct) JSON', () => {
+  it('JSON output for remote-direct start', async () => {
+    mockReadState.mockReturnValue({
+      harness_version: '0.4.0',
+      initialized: true,
+      stack: 'nodejs',
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+      otlp: { enabled: true, endpoint: 'https://otel.co:4318', service_name: 'test', mode: 'remote-direct' },
+    });
+
+    const { stdout } = await runCli(['--json', 'stack', 'start']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('ok');
+    expect(parsed.message).toContain('No local stack needed');
+  });
+});
+
+describe('stack stop (remote-direct) JSON', () => {
+  it('JSON output for remote-direct stop', async () => {
+    mockReadState.mockReturnValue({
+      harness_version: '0.4.0',
+      initialized: true,
+      stack: 'nodejs',
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+      otlp: { enabled: true, endpoint: 'https://otel.co:4318', service_name: 'test', mode: 'remote-direct' },
+    });
+
+    const { stdout } = await runCli(['--json', 'stack', 'stop']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('ok');
+    expect(parsed.message).toContain('No local stack to stop');
+  });
+});
+
+describe('stack status (remote-direct) JSON', () => {
+  it('JSON output when remote endpoint is reachable', async () => {
+    mockReadState.mockReturnValue({
+      harness_version: '0.4.0',
+      initialized: true,
+      stack: 'nodejs',
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+      otlp: { enabled: true, endpoint: 'https://otel.co:4318', service_name: 'test', mode: 'remote-direct' },
+    });
+    mockCheckRemoteEndpoint.mockResolvedValue({ reachable: true });
+
+    const { stdout } = await runCli(['--json', 'stack', 'status']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('ok');
+    expect(parsed.mode).toBe('remote-direct');
+    expect(parsed.reachable).toBe(true);
+  });
+
+  it('JSON output when remote endpoint is unreachable', async () => {
+    mockReadState.mockReturnValue({
+      harness_version: '0.4.0',
+      initialized: true,
+      stack: 'nodejs',
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+      otlp: { enabled: true, endpoint: 'https://otel.co:4318', service_name: 'test', mode: 'remote-direct' },
+    });
+    mockCheckRemoteEndpoint.mockResolvedValue({ reachable: false, error: 'Connection refused' });
+
+    const { stdout } = await runCli(['--json', 'stack', 'status']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.reachable).toBe(false);
+    expect(parsed.error).toBe('Connection refused');
+  });
+
+  it('shows unreachable status in text mode', async () => {
+    mockReadState.mockReturnValue({
+      harness_version: '0.4.0',
+      initialized: true,
+      stack: 'nodejs',
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+      otlp: { enabled: true, endpoint: 'https://otel.co:4318', service_name: 'test', mode: 'remote-direct' },
+    });
+    mockCheckRemoteEndpoint.mockResolvedValue({ reachable: false, error: 'timeout' });
+
+    const { stdout } = await runCli(['stack', 'status']);
+
+    expect(stdout).toContain('Remote OTLP: unreachable');
+  });
+
+  it('uses "unknown" when otlp endpoint is not set', async () => {
+    mockReadState.mockReturnValue({
+      harness_version: '0.4.0',
+      initialized: true,
+      stack: 'nodejs',
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+      otlp: { enabled: true, service_name: 'test', mode: 'remote-direct' },
+    });
+    mockCheckRemoteEndpoint.mockResolvedValue({ reachable: false, error: 'unknown host' });
+
+    const { stdout } = await runCli(['stack', 'status']);
+
+    expect(stdout).toContain('unknown');
+  });
+});
+
+describe('stack start (remote-routed) edge cases', () => {
+  const remoteRoutedState = {
+    harness_version: '0.4.0',
+    initialized: true,
+    stack: 'nodejs' as const,
+    enforcement: { frontend: true, database: true, api: true },
+    coverage: { target: 90, baseline: null, current: null, tool: 'c8' as const },
+    session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+    verification_log: [] as never[],
+    otlp: { enabled: true, endpoint: 'http://localhost:4318', service_name: 'test', mode: 'remote-routed' as const },
+    docker: {
+      compose_file: '/mock/.codeharness/stack/docker-compose.harness.yml',
+      stack_running: true,
+      remote_endpoints: { logs_url: 'https://logs.co', metrics_url: 'https://metrics.co', traces_url: 'https://traces.co' },
+      ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+    },
+  };
+
+  it('reports collector already running (text)', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+    mockIsCollectorRunning.mockReturnValue(true);
+
+    const { stdout } = await runCli(['stack', 'start']);
+
+    expect(stdout).toContain('OTel Collector: already running');
+  });
+
+  it('reports collector already running (JSON)', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+    mockIsCollectorRunning.mockReturnValue(true);
+
+    const { stdout } = await runCli(['--json', 'stack', 'start']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('ok');
+    expect(parsed.message).toContain('already running');
+  });
+
+  it('reports collector start failure (text)', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+    mockStartCollectorOnly.mockReturnValue({
+      started: false,
+      services: [],
+      error: 'port conflict',
+    });
+
+    const { stdout, exitCode } = await runCli(['stack', 'start']);
+
+    expect(stdout).toContain('OTel Collector: failed to start');
+    expect(stdout).toContain('port conflict');
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports collector start failure (JSON)', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+    mockStartCollectorOnly.mockReturnValue({
+      started: false,
+      services: [],
+      error: 'port conflict',
+    });
+
+    const { stdout, exitCode } = await runCli(['--json', 'stack', 'start']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.error).toBe('port conflict');
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports collector start failure without error detail (text)', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+    mockStartCollectorOnly.mockReturnValue({
+      started: false,
+      services: [],
+    });
+
+    const { stdout, exitCode } = await runCli(['stack', 'start']);
+
+    expect(stdout).toContain('OTel Collector: failed to start');
+    expect(exitCode).toBe(1);
+  });
+
+  it('JSON output on successful collector start', async () => {
+    mockReadState.mockReturnValue({ ...remoteRoutedState });
+
+    const { stdout } = await runCli(['--json', 'stack', 'start']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('ok');
+    expect(parsed.message).toContain('OTel Collector: started');
+  });
+
+  it('fails when remote endpoints not configured (text)', async () => {
+    mockReadState.mockReturnValue({
+      ...remoteRoutedState,
+      docker: {
+        compose_file: '/mock/file',
+        stack_running: false,
+        ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+      },
+    });
+
+    const { stdout, exitCode } = await runCli(['stack', 'start']);
+
+    expect(stdout).toContain('Remote endpoints not configured');
+    expect(exitCode).toBe(1);
+  });
+
+  it('fails when remote endpoints not configured (JSON)', async () => {
+    mockReadState.mockReturnValue({
+      ...remoteRoutedState,
+      docker: {
+        compose_file: '/mock/file',
+        stack_running: false,
+        ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+      },
+    });
+
+    const { stdout, exitCode } = await runCli(['--json', 'stack', 'start']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.message).toContain('Remote endpoints not configured');
+    expect(exitCode).toBe(1);
+  });
+});
+
+describe('stack stop (remote-routed) edge cases', () => {
+  it('reports collector stop failure (text)', async () => {
     mockReadState.mockReturnValue({
       harness_version: '0.4.0',
       initialized: true,
@@ -442,18 +763,86 @@ describe('stack status (remote-routed)', () => {
       session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
       verification_log: [],
       otlp: { enabled: true, endpoint: 'http://localhost:4318', service_name: 'test', mode: 'remote-routed' },
-      docker: {
-        compose_file: '/mock/.codeharness/stack/docker-compose.harness.yml',
-        stack_running: true,
-        remote_endpoints: { logs_url: 'https://logs.co', metrics_url: 'https://metrics.co', traces_url: 'https://traces.co' },
-        ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
-      },
+    });
+    mockStopCollectorOnly.mockImplementation(() => {
+      throw new Error('container not found');
     });
 
-    const { stdout } = await runCli(['stack', 'status']);
+    const { stdout, exitCode } = await runCli(['stack', 'stop']);
 
-    expect(stdout).toContain('OTel Collector: running');
-    expect(stdout).toContain('Remote backends:');
-    expect(stdout).toContain('https://logs.co');
+    expect(stdout).toContain('failed to stop');
+    expect(stdout).toContain('container not found');
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports collector stop failure (JSON)', async () => {
+    mockReadState.mockReturnValue({
+      harness_version: '0.4.0',
+      initialized: true,
+      stack: 'nodejs',
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+      otlp: { enabled: true, endpoint: 'http://localhost:4318', service_name: 'test', mode: 'remote-routed' },
+    });
+    mockStopCollectorOnly.mockImplementation(() => {
+      throw new Error('timeout');
+    });
+
+    const { stdout, exitCode } = await runCli(['--json', 'stack', 'stop']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.error).toBe('timeout');
+    expect(exitCode).toBe(1);
+  });
+
+  it('JSON output on successful collector stop', async () => {
+    mockReadState.mockReturnValue({
+      harness_version: '0.4.0',
+      initialized: true,
+      stack: 'nodejs',
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+      otlp: { enabled: true, endpoint: 'http://localhost:4318', service_name: 'test', mode: 'remote-routed' },
+    });
+
+    const { stdout } = await runCli(['--json', 'stack', 'stop']);
+
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('ok');
+    expect(parsed.message).toContain('OTel Collector: stopped');
+  });
+});
+
+describe('stack start (local-shared) edge cases', () => {
+  it('reports failure without error detail', async () => {
+    mockIsSharedStackRunning.mockReturnValue(false);
+    mockStartSharedStack.mockReturnValue({
+      started: false,
+      services: [],
+    });
+
+    const { stdout, exitCode } = await runCli(['stack', 'start']);
+
+    expect(stdout).toContain('Shared stack: failed to start');
+    // Should not contain "Error:" since no error detail
+    expect(stdout).not.toContain('Error:');
+    expect(exitCode).toBe(1);
+  });
+
+  it('reports stop failure with non-Error thrown value', async () => {
+    mockStopSharedStack.mockImplementation(() => {
+      throw 'string error';  // eslint-disable-line no-throw-literal
+    });
+
+    const { stdout, exitCode } = await runCli(['stack', 'stop']);
+
+    expect(stdout).toContain('failed to stop');
+    expect(stdout).toContain('string error');
+    expect(exitCode).toBe(1);
   });
 });

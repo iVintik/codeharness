@@ -15,6 +15,6 @@ See [BMAD planning artifacts](../_bmad-output/planning-artifacts/) for PRDs, arc
 - [Test coverage](quality/test-coverage.md) — coverage trends
 - [Tech debt tracker](exec-plans/tech-debt-tracker.md) — doc-gardener debt items
 
-## Generated
+## Architecture
 
-- [Generated docs](generated/) — auto-generated documentation (DB schema, etc.)
+- [ARCHITECTURE.md](../ARCHITECTURE.md) — module map, dependency graph, build system

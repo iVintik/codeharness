@@ -314,65 +314,20 @@ describe('findVerificationGaps', () => {
     writeFileSync(join(statusDir, 'sprint-status.yaml'), content, 'utf-8');
   }
 
-  it('returns no gaps when done stories have proof documents', () => {
-    writeSprintStatus(testDir, { '1-1-some-story': 'done' });
-    mkdirSync(join(testDir, 'docs', 'exec-plans', 'completed'), { recursive: true });
-    writeFileSync(join(testDir, 'docs', 'exec-plans', 'completed', '1-1-some-story.md'), '# Proof', 'utf-8');
-
-    const gaps = findVerificationGaps(testDir);
-    expect(gaps).toHaveLength(0);
-  });
-
-  it('creates gaps for done stories missing proof documents', () => {
+  it('returns empty — verification is a gate on stories, not a separate story', () => {
     writeSprintStatus(testDir, {
       '1-1-some-story': 'done',
       '2-1-another-story': 'done',
     });
-    // No proof documents created
-
-    const gaps = findVerificationGaps(testDir);
-    expect(gaps).toHaveLength(2);
-    expect(gaps[0].type).toBe('verification');
-    expect(gaps[0].title).toBe('Create verification proof for 1-1-some-story');
-    expect(gaps[0].storyKey).toBe('1-1-some-story');
-    expect(gaps[1].title).toBe('Create verification proof for 2-1-another-story');
-  });
-
-  it('ignores stories in non-done statuses', () => {
-    writeSprintStatus(testDir, {
-      '1-1-some-story': 'in-progress',
-      '2-1-another-story': 'ready-for-dev',
-      '3-1-backlog-story': 'backlog',
-    });
+    // No proof documents, but no meta-stories should be generated
 
     const gaps = findVerificationGaps(testDir);
     expect(gaps).toHaveLength(0);
-  });
-
-  it('skips epic and retrospective entries', () => {
-    writeSprintStatus(testDir, {
-      'epic-1': 'done',
-      'epic-1-retrospective': 'done',
-      '1-1-real-story': 'done',
-    });
-
-    const gaps = findVerificationGaps(testDir);
-    // Only 1-1-real-story should be flagged
-    expect(gaps).toHaveLength(1);
-    expect(gaps[0].storyKey).toBe('1-1-real-story');
   });
 
   it('returns empty when sprint-status.yaml is missing (graceful)', () => {
     const gaps = findVerificationGaps(testDir);
     expect(gaps).toHaveLength(0);
-  });
-
-  it('produces correct gap-ids for verification stories', () => {
-    writeSprintStatus(testDir, { '4-1-verification-pipeline': 'done' });
-
-    const gaps = findVerificationGaps(testDir);
-    expect(gaps).toHaveLength(1);
-    expect(storyToGapId(gaps[0])).toBe('[gap:verification:4-1-verification-pipeline]');
   });
 });
 

@@ -105,19 +105,57 @@ After the Agent completes:
 
 ### 3d: If status is `verified` — Run Acceptance Verification
 
-Invoke the verification pipeline via Agent tool to produce a showboat proof document:
+Verification produces a showboat proof document with real, executable evidence. This step runs tests, captures CLI output, and fixes any issues discovered.
+
+**Pre-verification: Run tests and coverage in the main session first.**
+
+```bash
+npm run test:unit 2>&1
+node dist/index.js coverage 2>&1
+```
+
+If tests fail, fix them before proceeding. If coverage is below target, note it but continue.
+
+**Spawn the verifier subagent:**
 
 ```
 Use the Agent tool with:
-  prompt: "Run /codeharness:harness-verify for story {story_key}. Read the story file at _bmad-output/implementation-artifacts/{story_key}.md, extract all acceptance criteria, and produce a proof document with real-world evidence (test output, CLI output, file contents) for each AC. Save the proof to docs/exec-plans/completed/{story_key}-proof.md. After verification passes, update sprint-status.yaml to change {story_key} status to `done`. Do NOT ask the user any questions — proceed autonomously."
-  subagent_type: "general-purpose"
+  subagent_type: "codeharness:verifier"
+  prompt: "Verify story {story_key}.
+
+Story file: _bmad-output/implementation-artifacts/{story_key}.md
+Proof output: verification/{story_key}-proof.md
+
+Read the story file, extract all acceptance criteria, and produce a showboat proof document.
+
+You MUST:
+1. Run `showboat init` to create the proof document
+2. Run `npm run test:unit` via `showboat exec` and capture output as evidence
+3. For each AC, run real commands via `showboat exec` to prove the AC is met
+4. If ANY step fails — fix the underlying issue (code, tests, config), use `showboat pop` to remove the failed entry, then re-capture the passing result
+5. Run a final `npm run test:unit` via `showboat exec` to confirm fixes haven't broken anything
+6. Run `showboat verify` to confirm all evidence is reproducible
+
+Do NOT write proof markdown by hand — use showboat CLI exclusively.
+Do NOT skip tests — they are mandatory evidence.
+Fix all failures found during verification."
 ```
 
-After the Agent completes:
-1. Re-read `sprint-status.yaml`
-2. Check the story status:
-   - If `done` → Story complete! Print `[OK] Story {story_key}: verified → done`. Reset retry_count and cycle_count. Increment stories_completed. Go to Step 4.
-   - If still `verified` → Verification may have failed. Increment retry_count. If retry_count >= max_retries, go to Step 6. Otherwise retry this step.
+**After the verifier completes:**
+
+1. Confirm the proof document exists: `verification/{story_key}-proof.md`
+2. Run `showboat verify verification/{story_key}-proof.md` in the main session to double-check reproducibility
+3. If showboat verify fails, re-spawn the verifier to fix the non-reproducible step (up to max_retries)
+4. Run `node dist/index.js verify --story {story_key}` to update state
+5. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
+6. Update sprint-status.yaml: change `{story_key}` status to `done`
+7. Print: `[OK] Story {story_key}: verified → done`
+
+**If verification reveals unfixable issues:**
+1. The story status stays at `verified` (not done)
+2. Increment retry_count
+3. If retry_count >= max_retries, go to Step 6 (failure handling)
+4. Otherwise, go to Step 3b to re-implement the failing parts
 
 ## Step 4: Story Complete — Continue or Finish Epic
 

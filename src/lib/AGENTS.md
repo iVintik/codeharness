@@ -84,29 +84,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, beads) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-## All Library Files (22 total)
-
-| File | Category |
-|------|----------|
-| state.ts | State & Output |
-| output.ts | State & Output |
-| stack-detect.ts | Stack & Environment |
-| stack-path.ts | Stack & Environment |
-| templates.ts | Stack & Environment |
-| docker.ts | Docker & Observability |
-| otlp.ts | Docker & Observability |
-| coverage.ts | Coverage & Testing |
-| verify-parser.ts | Verification Pipeline |
-| verify.ts | Verification Pipeline |
-| doc-health.ts | Documentation Health |
-| retro-parser.ts | Retrospective Parsing |
-| github.ts | GitHub CLI Integration |
-| beads.ts | Beads Integration |
-| beads-sync.ts | Beads Integration |
-| bmad.ts | BMAD Method Integration |
-| patch-engine.ts | BMAD Method Integration |
-| scanner.ts | Codebase Scanning |
-| scan-cache.ts | Codebase Scanning |
-| epic-generator.ts | Codebase Scanning |
-| onboard-checks.ts | Codebase Scanning |
-| deps.ts | Dependency Management |
+**Total: 22 library files across 10 categories.**

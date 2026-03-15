@@ -13,6 +13,7 @@ export interface GhIssue {
   title: string;
   body: string;
   url: string;
+  labels?: Array<{ name: string }>;
 }
 
 export interface RetroIssueTarget {
@@ -82,7 +83,7 @@ export function ghIssueCreate(
  * Searches for issues on the given repo matching the query string.
  */
 export function ghIssueSearch(repo: string, query: string): GhIssue[] {
-  const args = ['issue', 'list', '--repo', repo, '--search', query, '--state', 'all', '--json', 'number,title,body,url'];
+  const args = ['issue', 'list', '--repo', repo, '--search', query, '--state', 'all', '--json', 'number,title,body,url,labels'];
   const cmdStr = `gh ${args.join(' ')}`;
 
   try {

@@ -127,6 +127,20 @@ describe('sprintBeadsPatch', () => {
     expect(content).toContain('beads');
     expect(content).toContain('status');
   });
+
+  it('contains pre-triage import verification checklist', () => {
+    const content = sprintBeadsPatch();
+    expect(content).toContain('Pre-Triage Import Verification');
+    expect(content).toContain('codeharness retro-import');
+    expect(content).toContain('codeharness github-import');
+  });
+
+  it('contains multi-source visibility checklist item', () => {
+    const content = sprintBeadsPatch();
+    expect(content).toContain('[gap:retro:...]');
+    expect(content).toContain('[source:github:...]');
+    expect(content).toContain('manual');
+  });
 });
 
 describe('sprintPlanningRetroPatch', () => {
@@ -165,6 +179,110 @@ describe('sprintPlanningRetroPatch', () => {
     expect(content).toMatch(/^##/m);
     // Should have checklist items
     expect(content).toMatch(/- \[ \]/);
+  });
+
+  it('includes codeharness retro-import step', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('codeharness retro-import --epic N');
+    expect(content).toContain('[gap:retro:epic-N-item-M]');
+  });
+
+  it('includes codeharness github-import step', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('codeharness github-import');
+    expect(content).toContain('[source:github:');
+  });
+
+  it('includes bd ready for combined backlog display', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('bd ready');
+    expect(content).toContain('combined backlog');
+  });
+
+  it('contains source-aware backlog presentation section', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('Source-Aware Backlog Presentation');
+    expect(content).toContain('[gap:retro:...]');
+    expect(content).toContain('[source:github:...]');
+    expect(content).toContain('no gap-id prefix');
+  });
+
+  it('contains uniform triage checklist item', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toContain('triaged uniformly');
+  });
+
+  it('has numbered steps in correct order (scan, retro-import, github-import, bd ready, identify, surface)', () => {
+    const content = sprintPlanningRetroPatch();
+    const scanIdx = content.indexOf('Scan for retrospective files');
+    const retroImportIdx = content.indexOf('Import retro findings to beads');
+    const ghImportIdx = content.indexOf('Import GitHub issues to beads');
+    const bdReadyIdx = content.indexOf('Display combined backlog');
+    const identifyIdx = content.indexOf('Identify unresolved items');
+    const surfaceIdx = content.indexOf('Surface during planning');
+    // All steps must exist
+    expect(scanIdx).toBeGreaterThan(-1);
+    expect(retroImportIdx).toBeGreaterThan(-1);
+    expect(ghImportIdx).toBeGreaterThan(-1);
+    expect(bdReadyIdx).toBeGreaterThan(-1);
+    expect(identifyIdx).toBeGreaterThan(-1);
+    expect(surfaceIdx).toBeGreaterThan(-1);
+    // Steps must appear in correct order
+    expect(scanIdx).toBeLessThan(retroImportIdx);
+    expect(retroImportIdx).toBeLessThan(ghImportIdx);
+    expect(ghImportIdx).toBeLessThan(bdReadyIdx);
+    expect(bdReadyIdx).toBeLessThan(identifyIdx);
+    expect(identifyIdx).toBeLessThan(surfaceIdx);
+  });
+
+  it('has no duplicate checklist items', () => {
+    const content = sprintPlanningRetroPatch();
+    const checklistItems = content.split('\n').filter((line) => line.startsWith('- [ ]'));
+    const unique = new Set(checklistItems);
+    expect(checklistItems.length).toBe(unique.size);
+  });
+
+  it('sections appear in correct order (retro review, source-aware, integration)', () => {
+    const content = sprintPlanningRetroPatch();
+    const retroReviewIdx = content.indexOf('### Unresolved Action Items');
+    const sourceAwareIdx = content.indexOf('### Source-Aware Backlog Presentation');
+    const integrationIdx = content.indexOf('### Integration with Sprint Planning');
+    expect(retroReviewIdx).toBeGreaterThan(-1);
+    expect(sourceAwareIdx).toBeGreaterThan(-1);
+    expect(integrationIdx).toBeGreaterThan(-1);
+    expect(retroReviewIdx).toBeLessThan(sourceAwareIdx);
+    expect(sourceAwareIdx).toBeLessThan(integrationIdx);
+  });
+
+  it('matches expected content snapshot', () => {
+    const content = sprintPlanningRetroPatch();
+    expect(content).toMatchSnapshot();
+  });
+});
+
+describe('sprintBeadsPatch', () => {
+  it('has no duplicate checklist items', () => {
+    const content = sprintBeadsPatch();
+    const checklistItems = content.split('\n').filter((line) => line.startsWith('- [ ]'));
+    const unique = new Set(checklistItems);
+    expect(checklistItems.length).toBe(unique.size);
+  });
+
+  it('pre-triage section appears before beads status section', () => {
+    const content = sprintBeadsPatch();
+    const preTriage = content.indexOf('### Pre-Triage Import Verification');
+    const beadsStatus = content.indexOf('### Beads Issue Status');
+    const sprintReadiness = content.indexOf('### Sprint Readiness');
+    expect(preTriage).toBeGreaterThan(-1);
+    expect(beadsStatus).toBeGreaterThan(-1);
+    expect(sprintReadiness).toBeGreaterThan(-1);
+    expect(preTriage).toBeLessThan(beadsStatus);
+    expect(beadsStatus).toBeLessThan(sprintReadiness);
+  });
+
+  it('matches expected content snapshot', () => {
+    const content = sprintBeadsPatch();
+    expect(content).toMatchSnapshot();
   });
 });
 

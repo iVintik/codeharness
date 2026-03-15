@@ -27,8 +27,8 @@ Patch functions:
 - `devEnforcementPatch()` — observability, docs, test enforcement for dev-story checklist
 - `reviewEnforcementPatch()` — Showboat proof, AGENTS.md freshness, coverage for code-review
 - `retroEnforcementPatch()` — verification effectiveness, doc health, test quality for retrospective
-- `sprintBeadsPatch()` — beads issue status and sprint readiness for sprint-planning checklist
-- `sprintPlanningRetroPatch()` — surfaces unresolved retrospective action items in sprint-planning instructions
+- `sprintBeadsPatch()` — beads issue status, pre-triage import verification, multi-source visibility for sprint-planning checklist
+- `sprintPlanningRetroPatch()` — retro-import, github-import, bd ready combined backlog, source-aware presentation for sprint-planning instructions
 
 ### docker-compose.ts
 

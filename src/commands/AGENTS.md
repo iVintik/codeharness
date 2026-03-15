@@ -71,35 +71,18 @@ Imports retrospective action items as beads issues. Parses `epic-N-retrospective
 - **Key deps:** `lib/retro-parser` (parsing, classification, priority), `lib/beads` (createOrFindIssue, buildGapId), `lib/output`
 - **Subcommands:** none; requires `--epic <n>`, supports `--json`
 
+### github-import.ts
+Imports GitHub issues labeled for sprint planning into beads. Queries GitHub via `gh` CLI for issues with a specified label (default: `sprint-candidate`), maps GitHub labels to beads type (bug/story/task) and priority, creates or deduplicates beads issues using gap-ids with format `[source:github:owner/repo#N]`.
+- **Key deps:** `lib/github` (isGhAvailable, ghIssueSearch, getRepoFromRemote), `lib/beads` (createOrFindIssue, buildGapId), `lib/output`
+- **Subcommands:** none; supports `--repo <owner/repo>`, `--label <label>`, `--json`
+
 ### query.ts
 Queries observability data (logs, metrics, traces) scoped to the current project. Automatically injects service_name filtering into LogsQL and PromQL queries. Resolves endpoints from state (local or remote).
 - **Key deps:** `lib/state` (service name, endpoint resolution)
 - **Subcommands:** `logs <filter>`, `metrics <promql>`, `traces`
 
-## All Commands (14 total)
-
-| Command | File | Status |
-|---------|------|--------|
-| init | init.ts | Core onboarding |
-| bridge | bridge.ts | BMAD to Beads bridge |
-| run | run.ts | Ralph execution loop |
-| verify | verify.ts | Story verification |
-| status | status.ts | Harness health |
-| onboard | onboard.ts | Codebase scanning |
-| teardown | teardown.ts | Harness removal |
-| state | state.ts | State management |
-| sync | sync.ts | Beads↔files sync |
-| coverage | coverage.ts | Test coverage |
-| doc-health | doc-health.ts | Doc freshness |
-| stack | stack.ts | Observability stack |
-| retro-import | retro-import.ts | Retro parsing |
-| query | query.ts | Observability queries |
-
 ## Adding a New Command
 
 1. Create `src/commands/<name>.ts` exporting `register<Name>Command(program: Command): void`
-2. Use `program.command('<name>').description('...').action(...)` to define the command
-3. Import and call the register function in `src/index.ts`
-4. Support `--json` output via `cmd.optsWithGlobals().json` and the `jsonOutput()` helper from `lib/output`
-5. Add tests in `src/commands/__tests__/`
-6. Update this AGENTS.md with the new command entry
+2. Register in `src/index.ts`, add tests in `src/commands/__tests__/`
+3. Support `--json` output via `cmd.optsWithGlobals().json` and `jsonOutput()` from `lib/output`

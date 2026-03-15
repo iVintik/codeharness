@@ -113,7 +113,7 @@ describe('ghIssueSearch', () => {
     expect(result).toEqual(issues);
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'gh',
-      ['issue', 'list', '--repo', 'o/r', '--search', 'gap:retro', '--state', 'all', '--json', 'number,title,body,url'],
+      ['issue', 'list', '--repo', 'o/r', '--search', 'gap:retro', '--state', 'all', '--json', 'number,title,body,url,labels'],
       expect.objectContaining({ stdio: 'pipe' }),
     );
   });

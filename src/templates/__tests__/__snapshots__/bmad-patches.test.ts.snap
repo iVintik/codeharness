@@ -1,0 +1,55 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`sprintBeadsPatch > matches expected content snapshot 1`] = `
+"## Codeharness Backlog Integration
+
+### Pre-Triage Import Verification
+- [ ] Confirm \`codeharness retro-import\` was run for all completed retrospectives
+- [ ] Confirm \`codeharness github-import\` was run to pull labeled GitHub issues
+- [ ] Verify all sources are reflected in beads before starting triage
+
+### Beads Issue Status
+- [ ] Run \`bd ready\` to display issues ready for development
+- [ ] Review beads issue counts by status (open, in-progress, done)
+- [ ] Verify issues from all sources are visible: retro (\`[gap:retro:...]\`), GitHub (\`[source:github:...]\`), and manual
+- [ ] Verify no blocked issues without documented reason
+
+### Sprint Readiness
+- [ ] All selected stories have corresponding beads issues
+- [ ] Dependencies between stories are reflected in beads deps
+- [ ] Capacity aligns with estimated story complexity"
+`;
+
+exports[`sprintPlanningRetroPatch > matches expected content snapshot 1`] = `
+"## Retrospective Action Items Review
+
+### Unresolved Action Items from Previous Retrospectives
+
+Before starting sprint planning, review all completed retrospectives for unresolved action items:
+
+1. **Scan for retrospective files:** Look for all \`epic-N-retrospective.md\` files in \`_bmad-output/implementation-artifacts/\`
+2. **Import retro findings to beads:** For each retrospective not yet imported, run \`codeharness retro-import --epic N\` to classify findings and create beads issues with \`[gap:retro:epic-N-item-M]\` gap-ids
+3. **Import GitHub issues to beads:** Run \`codeharness github-import\` to pull labeled issues into beads with \`[source:github:owner/repo#N]\` gap-ids
+4. **Display combined backlog:** Run \`bd ready\` to present the unified backlog containing retro findings, GitHub issues, and manually created issues
+5. **Identify unresolved items:** Filter for action items that are NOT marked as completed/done
+6. **Surface during planning:** Present unresolved items to the team before selecting stories for the sprint
+
+### Source-Aware Backlog Presentation
+
+When presenting the backlog during triage, issues should be identifiable by source:
+
+- **Retro findings** have gap-ids matching \`[gap:retro:...]\` — originated from retrospective action items
+- **GitHub issues** have gap-ids matching \`[source:github:...]\` — imported from GitHub via label query
+- **Manual issues** have no gap-id prefix — created directly in beads
+
+### Integration with Sprint Planning
+
+- [ ] All \`epic-N-retrospective.md\` files scanned for action items
+- [ ] \`codeharness retro-import --epic N\` run for each unimported retrospective
+- [ ] \`codeharness github-import\` run to pull labeled GitHub issues
+- [ ] \`bd ready\` run to display combined backlog from all sources
+- [ ] Unresolved action items listed and reviewed
+- [ ] Relevant action items incorporated into sprint goals or new stories
+- [ ] Recurring issues from multiple retros flagged for systemic fixes
+- [ ] All sources (retro, GitHub, manual) triaged uniformly — no source left unreviewed"
+`;

@@ -76,7 +76,11 @@ export function registerOnboardCommand(program: Command): void {
 
       const preconditions = runPreconditions();
       if (!preconditions.canProceed) {
-        fail('Harness not initialized \u2014 run codeharness init first');
+        if (isJson) {
+          jsonOutput({ status: 'fail', message: 'Harness not initialized \u2014 run codeharness init first' });
+        } else {
+          fail('Harness not initialized \u2014 run codeharness init first');
+        }
         process.exitCode = 1;
         return;
       }
@@ -115,7 +119,11 @@ export function registerOnboardCommand(program: Command): void {
 
       const preconditions = runPreconditions();
       if (!preconditions.canProceed) {
-        fail('Harness not initialized \u2014 run codeharness init first');
+        if (isJson) {
+          jsonOutput({ status: 'fail', message: 'Harness not initialized \u2014 run codeharness init first' });
+        } else {
+          fail('Harness not initialized \u2014 run codeharness init first');
+        }
         process.exitCode = 1;
         return;
       }
@@ -156,7 +164,11 @@ export function registerOnboardCommand(program: Command): void {
 
       const preconditions = runPreconditions();
       if (!preconditions.canProceed) {
-        fail('Harness not initialized \u2014 run codeharness init first');
+        if (isJson) {
+          jsonOutput({ status: 'fail', message: 'Harness not initialized \u2014 run codeharness init first' });
+        } else {
+          fail('Harness not initialized \u2014 run codeharness init first');
+        }
         process.exitCode = 1;
         return;
       }
@@ -188,7 +200,11 @@ export function registerOnboardCommand(program: Command): void {
 
       const preconditions = runPreconditions();
       if (!preconditions.canProceed) {
-        fail('Harness not initialized \u2014 run codeharness init first');
+        if (isJson) {
+          jsonOutput({ status: 'fail', message: 'Harness not initialized \u2014 run codeharness init first' });
+        } else {
+          fail('Harness not initialized \u2014 run codeharness init first');
+        }
         process.exitCode = 1;
         return;
       }
@@ -285,7 +301,11 @@ export function registerOnboardCommand(program: Command): void {
 
     const preconditions = runPreconditions();
     if (!preconditions.canProceed) {
-      fail('Harness not initialized \u2014 run codeharness init first');
+      if (isJson) {
+        jsonOutput({ status: 'fail', message: 'Harness not initialized \u2014 run codeharness init first' });
+      } else {
+        fail('Harness not initialized \u2014 run codeharness init first');
+      }
       process.exitCode = 1;
       return;
     }

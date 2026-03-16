@@ -1,6 +1,6 @@
 # Onboarding Epic: Bring Project to Harness Compliance
 
-Generated: 2026-03-16T16:52:15Z
+Generated: 2026-03-16T18:07:15Z
 
 ## Epic 0: Onboarding
 
@@ -8,7 +8,7 @@ Generated: 2026-03-16T16:52:15Z
 
 As a developer, I want tests for src/commands to ensure correctness.
 
-**Given** src/commands has 0 uncovered files at 95.3% coverage
+**Given** src/commands has 0 uncovered files at 95.44% coverage
 **When** the agent writes tests
 **Then** src/commands has 100% test coverage
 
@@ -16,7 +16,7 @@ As a developer, I want tests for src/commands to ensure correctness.
 
 As a developer, I want tests for src/lib to ensure correctness.
 
-**Given** src/lib has 0 uncovered files at 95.3% coverage
+**Given** src/lib has 0 uncovered files at 95.44% coverage
 **When** the agent writes tests
 **Then** src/lib has 100% test coverage
 
@@ -24,7 +24,7 @@ As a developer, I want tests for src/lib to ensure correctness.
 
 As a developer, I want tests for src/templates to ensure correctness.
 
-**Given** src/templates has 0 uncovered files at 95.3% coverage
+**Given** src/templates has 0 uncovered files at 95.44% coverage
 **When** the agent writes tests
 **Then** src/templates has 100% test coverage
 

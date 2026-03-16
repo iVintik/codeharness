@@ -195,12 +195,23 @@ You MUST:
 5. Run a final `npm run test:unit` via `showboat exec` to confirm fixes haven't broken anything
 6. Run `showboat verify` to confirm all evidence is reproducible
 
-ESCALATION RULES — for ACs that cannot be verified in the current session:
-- If an AC mentions 'sprint planning', 'workflow', 'run /command', 'user session', or references multi-system interaction, it is integration-required
-- If an AC has a `<!-- verification: integration-required -->` tag, it is explicitly integration-required
-- For integration-required ACs, write `[ESCALATE] Requires integration test — cannot verify in current session` in the proof section instead of attempting fake evidence
-- Use `showboat exec bash \"echo '[ESCALATE] AC {N}: {reason}'\"` to formally record the escalation in the proof document
-- NEVER fake evidence for integration-required ACs — that is the exact problem escalation solves
+VERIFICATION STRATEGY — choose the best approach for each AC:
+- **cli-direct** (default): AC can be verified by running CLI commands in the current session
+- **docker-session**: AC needs Agent tool integration, workflow execution, or multi-system interaction → run Claude Code in Docker using the test harness at `tests/docker/Dockerfile.harness-test`. Build it, run it, capture output as evidence.
+- **escalate** (last resort): AC truly cannot be automated — requires physical hardware, human visual judgement, or an unavailable paid external service. Docker unavailable also qualifies.
+
+ESCALATION is the LAST resort. Before escalating, you MUST attempt:
+1. CLI verification (direct commands)
+2. Docker-session verification (Claude Code in Docker for Agent/workflow ACs)
+3. Only if BOTH fail → escalate with `[ESCALATE] AC {N}: {specific reason}`
+
+For Docker verification of Agent/workflow ACs:
+```bash
+showboat exec bash \"docker build -t codeharness-verify -f tests/docker/Dockerfile.harness-test . 2>&1 | tail -5\"
+showboat exec bash \"docker run --rm -e ANTHROPIC_API_KEY=\\\"$ANTHROPIC_API_KEY\\\" codeharness-verify '{prompt}' 2>&1 | tail -40\"
+```
+
+NEVER fake evidence — use real execution (CLI or Docker).
 
 MANDATORY — `showboat exec` rules:
 - Every AC MUST use `showboat exec` with real CLI commands (e.g., `codeharness verify ...`, `cat <file> | grep <expected>`, running the actual binary)

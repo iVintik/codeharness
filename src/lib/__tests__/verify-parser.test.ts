@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseStoryACs, classifyAC, classifyVerifiability, parseVerificationTag, INTEGRATION_KEYWORDS } from '../verify-parser.js';
+import { parseStoryACs, classifyAC, classifyVerifiability, classifyStrategy, parseVerificationTag, INTEGRATION_KEYWORDS } from '../verify-parser.js';
 
 // Mock output.ts to suppress warnings during tests
 vi.mock('../output.js', () => ({
@@ -311,5 +311,61 @@ describe('parseVerificationTag', () => {
 
   it('handles extra whitespace in tag', () => {
     expect(parseVerificationTag('text <!--  verification:  cli-verifiable  -->')).toBe('cli-verifiable');
+  });
+});
+
+// ─── classifyStrategy ──────────────────────────────────────────────────────
+
+describe('classifyStrategy', () => {
+  it('returns cli-direct for simple CLI ACs', () => {
+    expect(classifyStrategy('Given the user runs codeharness status, Then output shows version')).toBe('cli-direct');
+  });
+
+  it('returns docker-session for Agent tool ACs', () => {
+    expect(classifyStrategy('invokes /create-story via Agent tool')).toBe('docker-session');
+  });
+
+  it('returns docker-session for subagent ACs', () => {
+    expect(classifyStrategy('spawns a subagent for code review')).toBe('docker-session');
+  });
+
+  it('returns docker-session for workflow ACs', () => {
+    expect(classifyStrategy('runs the sprint planning workflow')).toBe('docker-session');
+  });
+
+  it('returns docker-session for multi-step ACs', () => {
+    expect(classifyStrategy('multi-step process that retries the current story')).toBe('docker-session');
+  });
+
+  it('returns docker-session for sprint execution ACs', () => {
+    expect(classifyStrategy('sprint execution proceeds automatically to the next story')).toBe('docker-session');
+  });
+
+  it('returns escalate for physical hardware ACs', () => {
+    expect(classifyStrategy('requires physical hardware testing on device')).toBe('escalate');
+  });
+
+  it('returns escalate for manual human review ACs', () => {
+    expect(classifyStrategy('needs manual human visual inspection')).toBe('escalate');
+  });
+
+  it('returns docker-session for integration keywords (not escalate)', () => {
+    expect(classifyStrategy('requires integration test with external system')).toBe('docker-session');
+  });
+
+  it('includes strategy in parsed ACs', () => {
+    const storyPath = writeStoryFile('strategy-test.md', [
+      '# Story',
+      '',
+      '## Acceptance Criteria',
+      '',
+      '1. Given the CLI is built, Then codeharness --version shows the version',
+      '2. Given a sprint, Then it invokes /create-story via Agent tool for backlog stories',
+    ].join('\n'));
+
+    const acs = parseStoryACs(storyPath);
+    expect(acs).toHaveLength(2);
+    expect(acs[0].strategy).toBe('cli-direct');
+    expect(acs[1].strategy).toBe('docker-session');
   });
 });

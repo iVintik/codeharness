@@ -61,9 +61,18 @@ and acceptance criteria with evidence items (`exec` commands or
 `image` paths). Also exports `verificationSummaryBlock()` for the
 pass/fail summary table. Used by `src/lib/verify.ts`.
 
+### verify-dockerfile.ts
+
+Dockerfile template for black-box verification environment.
+`verifyDockerfileTemplate()` generates a Dockerfile that installs the
+project as a user would (`npm install -g` from tarball for Node.js,
+`pip install` from dist for Python), includes `curl`, `jq`, `showboat`,
+sets OTEL environment variables pointing to `host.docker.internal:4318`,
+and contains NO source code. Used by `src/lib/verify-env.ts`.
+
 ## Test Coverage
 
 Each template file has a corresponding test in `__tests__/`:
 `bmad-patches.test.ts`, `docker-compose.test.ts`,
 `otel-config.test.ts`, `ralph-prompt.test.ts`,
-`showboat-template.test.ts`.
+`showboat-template.test.ts`, `verify-dockerfile.test.ts`.

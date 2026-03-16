@@ -14,6 +14,7 @@ import { registerStackCommand } from './commands/stack.js';
 import { registerQueryCommand } from './commands/query.js';
 import { registerRetroImportCommand } from './commands/retro-import.js';
 import { registerGithubImportCommand } from './commands/github-import.js';
+import { registerVerifyEnvCommand } from './commands/verify-env.js';
 
 declare const __PKG_VERSION__: string;
 const VERSION = typeof __PKG_VERSION__ !== 'undefined' ? __PKG_VERSION__ : '0.0.0-dev';
@@ -42,6 +43,7 @@ export function createProgram(): Command {
   registerQueryCommand(program);
   registerRetroImportCommand(program);
   registerGithubImportCommand(program);
+  registerVerifyEnvCommand(program);
 
   return program;
 }

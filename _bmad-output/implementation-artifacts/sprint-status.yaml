@@ -41,20 +41,33 @@ tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 
 development_status:
-  epic-0: done
-  0-1-sprint-execution-skill: done
+  # === Epic 13: BLACK-BOX VERIFICATION (highest priority) ===
+  # Must complete before any other verification runs.
+  # Sprint Change Proposal: sprint-change-proposal-2026-03-16.md
+  epic-13: in-progress
+  13-1-verification-dockerfile-generator: done
+  13-2-documentation-gate-for-verification: backlog
+  13-3-black-box-verifier-agent: backlog
+  13-4-verification-environment-sprint-workflow: backlog
+  epic-13-retrospective: optional
+
+  # === Previously "done" stories reset to verifying ===
+  # Reason: all prior verification was white-box (grep source code).
+  # These must be re-verified with the new black-box approach.
+  epic-0: in-progress
+  0-1-sprint-execution-skill: verifying
   epic-0-retrospective: done
 
-  epic-1: done
-  1-1-project-scaffold-cli-entry-point: done
-  1-2-core-libraries-state-stack-detection-templates: done
-  1-3-init-command-full-harness-initialization: done
+  epic-1: in-progress
+  1-1-project-scaffold-cli-entry-point: verifying
+  1-2-core-libraries-state-stack-detection-templates: verifying
+  1-3-init-command-full-harness-initialization: verifying
   epic-1-retrospective: optional
 
   epic-2: in-progress
-  2-1-dependency-auto-install-otlp-instrumentation: done
+  2-1-dependency-auto-install-otlp-instrumentation: verifying
   2-2-docker-compose-victoriametrics-stack-management: verifying
-  2-3-observability-querying-agent-visibility-into-runtime: done
+  2-3-observability-querying-agent-visibility-into-runtime: verifying
   epic-2-retrospective: optional
 
   epic-3: in-progress
@@ -126,6 +139,7 @@ development_status:
   11-5-sprint-planning-retro-issue-integration: verifying
   epic-11-retrospective: done
 
+  # Epic 12 stays done — infrastructure epic, approach is different
   epic-12: done
   12-1-fix-verification-pipeline: done
   12-2-sprint-execution-ownership: done

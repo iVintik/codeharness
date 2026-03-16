@@ -556,3 +556,14 @@ No formal migration command. `codeharness onboard` handles existing projects inc
 - NFR26: Generated documentation (`docs/generated/`, `docs/quality/`) must have "DO NOT EDIT MANUALLY" headers
 - NFR27: Module detection threshold must be configurable (default: 3 files minimum to count as a module)
 - NFR28: Test suite for the CLI itself must complete within 5 minutes
+- NFR29: Verification environment Docker image must build in <2 minutes
+
+### Verification Integrity (added 2026-03-16, Sprint Change Proposal)
+
+- FR80: System can generate per-project verification Dockerfile from embedded template — container has built artifact and docs only, no source code
+- FR81: System can build and cache verification Docker image via `codeharness verify-env build`
+- FR82: System can validate verification environment readiness via `codeharness verify-env check` — image exists, CLI works inside, observability reachable
+- FR83: Verifier agent operates without source code access — only built artifact, user docs, and observability endpoints
+- FR84: `validateProofQuality()` rejects grep-heavy proofs and requires functional CLI evidence per AC
+- FR85: Verification requires README.md with working installation instructions — missing or broken docs fail verification
+- FR86: Verification environment is connected to host observability stack — traces from container flow to VictoriaMetrics via OTEL

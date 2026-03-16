@@ -81,6 +81,11 @@ Queries observability data (logs, metrics, traces) scoped to the current project
 - **Key deps:** `lib/state` (service name, endpoint resolution)
 - **Subcommands:** `logs <filter>`, `metrics <promql>`, `traces`
 
+### verify-env.ts
+Manages the verification environment for black-box story verification. Builds a Docker image from project artifacts (no source code), prepares clean temp workspaces with only story docs, validates the environment, and cleans up.
+- **Key deps:** `lib/verify-env` (build, prepare, check, cleanup), `lib/output`
+- **Subcommands:** `build` (build Docker image, supports `--json`), `prepare --story <key>` (create clean workspace), `check` (validate image/CLI/otel), `cleanup --story <key>` (remove workspace and container)
+
 ## Adding a New Command
 
 1. Create `src/commands/<name>.ts` exporting `register<Name>Command(program: Command): void`

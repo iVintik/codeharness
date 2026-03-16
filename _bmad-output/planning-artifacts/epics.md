@@ -1946,3 +1946,134 @@ The verification pipeline is broken at three independent layers — verifier age
 - Story file format: add optional `<!-- verification: cli-verifiable|integration-required -->` tag per AC
 - Proof file format: add `[ESCALATE]` status alongside `PENDING` and verified
 - harness-run: distinguish between PENDING (verifier failed) and ESCALATE (verifier correctly identified it can't verify) — different handling for each
+
+---
+
+## Epic 13: Black-Box Verification Environment
+
+Verification uses two-layer isolation: (1) the verifier agent runs in a **clean workspace** with no source code — only docs, story file, and showboat; (2) the software under test runs inside a **Docker container** connected to the observability stack — protecting the local environment and providing real runtime telemetry.
+
+**FRs covered:** FR80, FR81, FR82, FR83, FR84, FR85, FR86
+**Depends on:** Epic 2 (observability stack), Epic 4 (verification pipeline)
+**Blocks:** All future verification — Epic 13 must complete before any story can be verified with the new approach.
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  VERIFIER SESSION (clean temp directory)                  │
+│  /tmp/verify-{story-key}/                                │
+│  Contains: story.md, README.md, docs/, showboat          │
+│  Does NOT contain: src/, tests/, .git/, node_modules/    │
+│  Runs: claude --print -p "Verify story..."               │
+│                                                          │
+│  Uses docker exec to exercise CLI ──┐                    │
+│  Uses curl to query observability ──┼──┐                 │
+└─────────────────────────────────────┼──┼─────────────────┘
+                                      │  │
+┌─────────────────────────────────────┼──┼─────────────────┐
+│  DOCKER CONTAINER (codeharness-verify)  │                │
+│  Has: built CLI (npm install), curl, jq │                │
+│  OTEL → host.docker.internal:4318  ─────┼───┐            │
+│  No source code, no tests               │   │            │
+└──────────────────────────────────────────┘   │            │
+                                               │            │
+┌──────────────────────────────────────────────┼────────────┐
+│  HOST OBSERVABILITY STACK                    │            │
+│  VictoriaLogs :9428  ◄──── curl queries ─────┘            │
+│  VictoriaMetrics :8428  ◄── curl queries                  │
+│  VictoriaTraces :16686  ◄── curl queries                  │
+│  OTel Collector :4318  ◄──── traces from container        │
+└───────────────────────────────────────────────────────────┘
+```
+
+**Context:** Three prior attempts to fix verification (Epic 12 proof format enforcement, stronger prompts, showboat verify) failed because the verifier has source code access and rationalizes away Docker/functional testing. Session transcript analysis (2026-03-16) confirmed the pattern is structural, not instructional. The fix: the verifier physically cannot see source code (clean workspace), and the tested software runs in Docker (protects local env, provides OTEL telemetry).
+
+### Story 13.1: Verification Environment Setup
+
+As a developer,
+I want `codeharness verify-env` to prepare both the clean workspace and Docker container for verification,
+So that the verifier agent is structurally isolated from source code and the tested software runs safely in Docker.
+
+**Acceptance Criteria:**
+
+1. `codeharness verify-env build` does two things:
+   a. Builds a Docker image (`codeharness-verify`) from embedded Dockerfile template — installs the project as a user would (`npm install` from `package.json` for Node.js, `pip install` from built dist for Python), includes `curl`, `jq`, `showboat`. NO source code in image.
+   b. OTEL environment variables in the container point to `host.docker.internal:4318` (host observability stack)
+2. `codeharness verify-env prepare --story {story-key}` creates a clean temp workspace at `/tmp/codeharness-verify-{story-key}/` containing ONLY:
+   - `story.md` — copied from `_bmad-output/implementation-artifacts/{story-key}.md`
+   - `README.md` — copied from project root
+   - `docs/` — copied from project root
+   - `verification/` — directory for proof output
+   - NO `src/`, NO `tests/`, NO `.git/`, NO `node_modules/`
+3. `codeharness verify-env check` validates: Docker image exists, CLI works inside container (`docker run --rm codeharness-verify codeharness --version`), observability endpoints reachable from container
+4. Docker image build completes in <2 minutes (NFR29)
+5. Image is rebuilt when `dist/` content hash changes (hash stored in state file for cache invalidation)
+6. `codeharness verify-env build --json` outputs structured result with image tag, size, build time
+7. `codeharness verify-env cleanup --story {story-key}` removes the temp workspace and stops/removes the container
+
+### Story 13.2: Documentation Gate for Verification
+
+As a developer,
+I want verification to require user-facing documentation,
+So that the verifier can install and use the project from docs alone.
+
+**Acceptance Criteria:**
+
+1. `codeharness verify` fails with `[FAIL] No README.md found — verification requires user documentation` if README.md doesn't exist
+2. `codeharness init` scaffolds a minimal README.md with: project name, installation command (`npm install -g codeharness`), basic usage, CLI command reference (auto-generated from Commander.js help output)
+3. The README includes a "Quick Start" section with the minimum commands to get the project working
+4. `codeharness verify-env check` validates that the CLI installed inside the Docker container actually works — runs `docker exec codeharness-verify codeharness --help` and checks exit code
+5. If the CLI doesn't work inside the container (install failed, missing deps), verify-env check fails — this is a real build/packaging bug
+
+### Story 13.3: Black-Box Verifier Agent & Session
+
+As a developer,
+I want the verifier to run as a separate Claude Code session in a clean workspace with no source code,
+So that verification proves features work from the user's perspective.
+
+**Acceptance Criteria:**
+
+1. harness-run Step 3d spawns the verifier as a **separate Claude Code process** via:
+   ```bash
+   cd /tmp/codeharness-verify-{story-key} && claude --print --max-budget-usd 3 \
+     -p "Verify story {story-key}. [verification prompt]"
+   ```
+   NOT as an in-session subagent (which would share the host filesystem).
+2. The verification prompt includes:
+   - The story's acceptance criteria (from story.md in the clean workspace)
+   - The Docker container name (`codeharness-verify`) for running CLI commands
+   - Observability endpoints (VictoriaLogs :9428, VictoriaMetrics :8428, VictoriaTraces :16686)
+   - Instructions to read README.md for usage guidance
+   - Instruction that ALL CLI commands must run via `docker exec codeharness-verify ...`
+3. The verifier session runs in `/tmp/codeharness-verify-{story-key}/` which has NO source code — the agent physically cannot grep `src/`
+4. For each AC, verifier runs commands inside the Docker container via `docker exec codeharness-verify ...` and captures output
+5. Verifier queries observability endpoints via `curl localhost:9428/...` for runtime evidence (traces, logs, metrics)
+6. Proof document is written to `/tmp/codeharness-verify-{story-key}/verification/{story-key}-proof.md`
+7. After verifier session completes, harness-run copies the proof document back to the main project's `verification/` directory
+8. `validateProofQuality()` updated: rejects proofs where >50% of evidence commands are `grep` against `src/`; requires at least one `docker exec` command per AC
+9. If the verifier cannot make a feature work from docs + CLI alone, it reports a REAL failure — the code or docs are broken
+
+### Story 13.4: Verification Workflow Integration
+
+As a developer,
+I want harness-run to orchestrate the full verification lifecycle (build → prepare → verify → validate → cleanup),
+So that verification is automated and never falls back to white-box approaches.
+
+**Acceptance Criteria:**
+
+1. harness-run Step 3d is rewritten to use the new verification flow:
+   a. `npm run build` — ensure dist/ is current
+   b. `codeharness verify-env build` — build/rebuild Docker image if needed
+   c. `docker run -d --name codeharness-verify --network host codeharness-verify sleep infinity` — start container
+   d. `codeharness verify-env prepare --story {story-key}` — create clean workspace
+   e. Run verifier session via `claude --print` in clean workspace
+   f. Copy proof document back to main project
+   g. `codeharness verify --story {story-key}` — validate proof quality
+   h. `codeharness verify-env cleanup --story {story-key}` — remove temp workspace and container
+2. If verify-env build fails, story stays at `verifying` with clear error — no fallback to white-box
+3. If verifier session fails (non-zero exit, timeout), retry up to max_retries
+4. Observability stack must be running before verification — if `codeharness status --check-docker` reports it's down, `codeharness stack start` is called first
+5. Container uses `--network host` so it can reach the OTEL Collector at localhost:4318 and the verifier can query VictoriaLogs/Metrics/Traces at localhost
+6. Total verification per story timeout: 10 minutes (including Docker setup)
+7. Ralph's `.story_retries` is updated per attempt — retries persist across sessions

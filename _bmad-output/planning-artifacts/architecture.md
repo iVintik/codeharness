@@ -976,3 +976,59 @@ All 69 FRs mapped to architectural components. All 28 NFRs addressed. No uncover
 2. Core lib (`state.ts`, `templates.ts`, `stack-detect.ts`)
 3. `codeharness init` command
 4. `codeharness bridge` + beads integration
+
+---
+
+## Architecture Decision 10: Black-Box Verification (added 2026-03-16)
+
+### Context
+
+Three iterations of white-box verification improvements failed:
+1. Epic 12 — proof format enforcement → agent produced correctly-formatted grep proofs
+2. Stronger agent instructions ("Docker is the default") → agent rationalized around them
+3. showboat verify (reproducibility check) → caught timestamps, missed substance
+
+Session transcript analysis confirmed the verifier agent reads source code, forms a belief about correctness, then documents that belief via grep — every time, across all stories.
+
+### Decision
+
+**Verification uses two-layer isolation:**
+
+1. **Verifier agent** runs as a separate `claude --print` session in a **clean temp directory** (`/tmp/codeharness-verify-{story}/`). This directory contains ONLY: story file, README.md, docs/, and a verification output directory. No source code, no tests, no git history. The agent physically cannot grep source code because it doesn't exist on its filesystem.
+
+2. **Software under test** runs inside a **Docker container** (`codeharness-verify`). The container has the built CLI installed via npm, plus curl/jq. OTEL environment variables route telemetry to the host observability stack. The verifier exercises the CLI via `docker exec`, protecting the local environment from side effects.
+
+The verifier queries the host's VictoriaLogs/Metrics/Traces endpoints via curl for runtime evidence.
+
+### Components
+
+| Component | Path | Purpose |
+|-----------|------|---------|
+| Verify Environment Manager | `src/lib/verify-env.ts` | Build image, prepare clean workspace, start/stop container, cleanup |
+| Verification Dockerfile Template | `src/templates/verify-dockerfile.ts` | Docker image with built CLI only (no source) |
+| Verification Prompt Template | `src/templates/verify-prompt.ts` | The prompt sent to `claude --print` for the verifier session |
+| Proof Validator Update | `src/lib/verify.ts` | Command classification — rejects grep-heavy proofs, requires `docker exec` |
+
+### Evidence Model
+
+| Tier | Type | Example |
+|------|------|---------|
+| PRIMARY | `docker exec` exercising CLI | `docker exec codeharness-verify codeharness init --json` |
+| PRIMARY | Observability query | `curl localhost:9428/select/logsql/query?query=...` |
+| SUPPLEMENTARY | showboat verify reproducibility | `showboat verify proof.md` |
+| REJECTED | grep against source code | `grep -n 'pattern' src/lib/foo.ts` |
+| REJECTED | Unit test output as primary evidence | `npm run test:unit` alone |
+
+### Why two layers, not one
+
+- **Clean workspace alone** (no Docker): the verifier could run CLI commands that install packages, modify system state, or corrupt the local environment. Docker protects the host.
+- **Docker alone** (no clean workspace): if the verifier runs as an in-session subagent, it shares the host filesystem and can still grep source code via Bash. The clean workspace eliminates this.
+- **Together**: the verifier can't see source code (clean workspace) AND can't damage the local env (Docker). OTEL telemetry flows from the container to the host stack, giving the verifier runtime evidence without source code access.
+
+### Consequences
+
+- Documentation becomes load-bearing — wrong docs = verification failure = real bug
+- Verification takes longer (separate session + Docker exec) but produces real signal
+- Agent cannot shortcut because source code doesn't exist on its filesystem
+- Docker image amortizes build cost across stories (cache by dist/ hash)
+- Separate `claude --print` session means verification cost is isolated and measurable

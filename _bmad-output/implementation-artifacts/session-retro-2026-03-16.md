@@ -1133,3 +1133,119 @@ Every parser fix invalidated every existing proof document. This cascading stale
 - **Epics completed to date:** 3 (Epic 0, Epic 1, Epic 12)
 
 The highest-leverage action for the next session is item #1 (unified parser) combined with item #2 (test against real corpus). These two actions would eliminate the most common failure mode observed today and prevent a fifth round of parser fixes.
+
+---
+
+# Session Retrospective — 2026-03-16 (Afternoon Session)
+
+**Timestamp:** 2026-03-16T14:50Z
+**Sprint Scope:** Verification pass across Epics 2-3 (continuing bulk verification of `verifying` stories)
+**Ralph Loop Runs This Session:** 6 (across multiple restarts)
+**Stories Attempted:** 4 (2-1, 2-2, 2-3, 3-1)
+**Stories Completed (done):** 2 (2-1, 2-3)
+**Stories Still Verifying:** 2 (2-2, 3-1)
+**Git Commits This Session:** 2 (7b3e151, 495f7ec)
+
+---
+
+## 1. Session Summary
+
+This afternoon session continued the bulk verification pass started in the morning. Ralph ran across 6 separate loop invocations (several were interrupted/restarted by the user), processing stories from Epics 2 and 3.
+
+| Story | Title | Outcome | Notes |
+|-------|-------|---------|-------|
+| 2-1 | Dependency Auto-Install & OTLP Instrumentation | **done** | 8/8 ACs verified. All 1470 tests pass, 95.33% coverage. Committed as 7b3e151. |
+| 2-2 | Docker Compose VictoriaMetrics Stack Management | **verifying** | AC5 and AC6 escalated — observability is now mandatory (always ON), making "observability OFF" and "Docker not installed" ACs architecturally obsolete. 2 escalated ACs block done status. |
+| 2-3 | Observability Querying — Agent Visibility into Runtime | **done** | 7/7 ACs verified. No code fixes needed. Committed as 495f7ec. |
+| 3-1 | Beads Installation CLI Wrapper | **verifying** | Proof format mismatch — verifier generated proof without `## AC N:` section headers, causing 0/0 ACs detected by the parser. No code bugs; all tests pass. |
+
+**Overall progress at session end:** 8/52 stories done, 44 remaining at `verifying`.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Discovered
+
+None. No code bugs were found during verification of any of the 4 stories attempted. All 1470 tests pass consistently across all runs.
+
+### 2.2 Workarounds Applied (Tech Debt)
+
+- **AC5/AC6 on story 2-2 marked as escalated rather than removed.** The architecture evolved to make observability mandatory (no opt-out), which means AC5 ("verify observability OFF behavior") and AC6 ("Docker not installed exits with code 1") are no longer testable. They were escalated rather than the story file being updated, meaning the story is stuck at `verifying` until a human decides whether to remove or rewrite those ACs.
+
+### 2.3 Verification Gaps
+
+- **Story 2-3 AC5 evidence quality is weak.** Uses grep of source/test files rather than running the CLI against a live Docker stack. Unit tests confirm behavior with mocked Docker health, but there is no integration-level evidence. Accepted because unit test coverage is solid, but this is a pattern to watch.
+- **Story 3-1 proof format mismatch.** The verifier subagent generated a proof document with a numbered list of ACs but without the `## AC N:` section headers that `validateProofQuality()` requires. This is the same parser/format issue identified in the morning session. The "Format 4" bullet-list parser added in commit b9c9010 does not cover this variant.
+
+### 2.4 Tooling/Infrastructure Problems
+
+- **Ralph retry storm on first run.** The 06:52 run triggered retry warnings for ALL 49 `verifying` stories on every iteration (lines 31-80 of ralph.log). Three full iterations burned ~20 minutes accomplishing nothing — every story got retried to 3/3 with no progress. Root cause: Ralph was treating all `verifying` stories as needing work but the subagent could not make progress because it was trying to verify too many stories per iteration.
+- **Multiple Ralph restarts.** Six separate Ralph invocations in the afternoon session, interrupted 4 times. This fragmentation costs startup overhead and loses context between runs.
+- **Story 0-1 exceeded retry limit (4/3).** Ralph flagged story 0-1 as exceeding its retry limit at 08:45 and moved on. This burned multiple iterations on a story that was already `done` from a prior session.
+
+---
+
+## 3. What Went Well
+
+- **Clean verifications.** Stories 2-1 and 2-3 verified cleanly with no code changes required. The implementation quality from prior sessions was solid.
+- **Session issues log.** The `.session-issues.md` file captured all verification problems in real-time, providing clear raw material for this retrospective. The practice is working.
+- **Escalation mechanism.** Story 2-2's architecturally obsolete ACs were properly escalated rather than silently passed or failed. The `[ESCALATE]` system from Epic 12 is functioning as designed.
+- **Test suite stability.** 1470 tests passing consistently across all runs — no flakiness observed.
+
+---
+
+## 4. What Went Wrong
+
+- **Retry storm wasted ~20 minutes and ~$3-4.** The first Ralph run (06:52) spent 3 iterations retrying all 49 `verifying` stories with no progress before being interrupted. Each iteration burned API cost for zero value.
+- **Proof format parser is STILL incomplete.** The morning session added Format 4 (bullet-list parser). The afternoon session hit ANOTHER format variant (numbered list without `## AC N:` headers) that the parser does not handle. This is the 5th parser fix cycle. Story 3-1 is stuck because of it.
+- **Fragmented Ralph sessions.** Six restarts lose accumulated context and cost startup overhead each time. The loop should be able to run unattended for longer stretches.
+- **Done stories being re-verified.** Story 0-1 was already `done` but Ralph attempted to re-verify it, eventually exceeding the retry limit. This suggests Ralph's story selection logic is not properly filtering `done` stories in some edge cases.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+- **One story per iteration works well.** When Ralph focused on a single story per iteration (the 14:39 run), it verified 2-1 cleanly in one pass. The scattershot approach of retrying all stories simultaneously produces no results.
+- **Session issues log is essential.** Every subagent-reported issue was captured and available for this retrospective without any post-hoc investigation.
+
+### Patterns to Avoid
+- **Do not attempt bulk verification of all stories simultaneously.** Ralph's retry logic treats each `verifying` story as a separate task, but the subagent cannot meaningfully verify 49 stories in one 15-minute window.
+- **Do not keep adding parser format variants one at a time.** Five fix cycles for the AC parser is too many. A unified, lenient parser that handles all reasonable proof document formats is overdue.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Fix the proof format parser to handle numbered-list ACs.** Story 3-1 is blocked by this. The parser needs to recognize patterns like `1. **AC1:** ...` in addition to `## AC 1:` headers.
+2. **Resolve story 2-2 escalated ACs.** Decide whether to remove AC5/AC6 from the story file (they are architecturally obsolete) or rewrite them to match the current mandatory-observability design. Currently blocking `done` status.
+
+### Fix Soon (Next Sprint)
+
+3. **Implement a unified, lenient AC parser.** Consolidate Formats 1-4 (and any new variant) into a single parser that uses heuristics to find AC evidence regardless of exact header format. Test against the full corpus of existing proof documents.
+4. **Fix Ralph's story selection for done stories.** Story 0-1 should never have been retried — it was already `done`. Debug why Ralph's resume logic re-queued it.
+5. **Increase Ralph's per-iteration timeout.** Several runs used 15-minute timeouts, which is insufficient for verification of complex stories. The 30-minute timeout on later runs performed better.
+
+### Backlog (Track but Not Urgent)
+
+6. **Add integration-level verification for Docker-dependent ACs.** Story 2-3 AC5 was verified via source grep + mocked tests rather than live Docker interaction. Acceptable for now, but integration tests would strengthen confidence.
+7. **Investigate Ralph restart overhead.** Six restarts in one session is excessive. Consider adding a "continue from where I left off" mode that preserves subagent context across interruptions.
+8. **Track cost per story verification.** Story 2-1 cost ~$2.94 for a single verification pass. At 44 remaining stories, naive projection is ~$130 for full verification. Identify stories that can be batch-verified cheaply vs. those needing deep single-story passes.
+
+---
+
+## Session Metrics
+
+- **Stories completed this session:** 2 (2-1, 2-3)
+- **Stories stuck at verifying:** 2 (2-2 escalated ACs, 3-1 parser format)
+- **Bugs found:** 0
+- **Parser issues hit:** 1 (new format variant)
+- **Ralph iterations total:** ~10 across 6 loop invocations
+- **Estimated session cost:** ~$6-8 (based on 2-1 at $2.94 + overhead from retries)
+- **Total tests:** 1,470 (all passing)
+- **Coverage:** 95.33% statement
+- **Epics completed to date:** 3 (Epic 0, Epic 1, Epic 12)
+- **Overall progress:** 8/52 stories done (15.4%)

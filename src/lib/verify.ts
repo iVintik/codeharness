@@ -217,7 +217,45 @@ export function validateProofQuality(proofPath: string): ProofQuality {
     const acNumbers = new Set(inlineMatches.map(m => m[1]));
 
     if (acNumbers.size === 0) {
-      return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
+      // Format 3: narrative proofs with === AC N: markers inside code block output
+      const narrativeAcPattern = /=== AC ?(\d+):/g;
+      const narrativeMatches = [...content.matchAll(narrativeAcPattern)];
+      const narrativeAcNumbers = new Set(narrativeMatches.map(m => m[1]));
+
+      if (narrativeAcNumbers.size === 0) {
+        return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
+      }
+
+      // Sort AC markers by position for region-based analysis
+      const sortedAcs = narrativeMatches
+        .map(m => ({ num: m[1], idx: m.index! }))
+        .filter((v, i, a) => a.findIndex(x => x.num === v.num) === i) // dedupe by AC num
+        .sort((a, b) => a.idx - b.idx);
+
+      for (let i = 0; i < sortedAcs.length; i++) {
+        const { num: acNum, idx: acIdx } = sortedAcs[i];
+        // Region: from previous AC (or start) to next AC (or end)
+        const regionStart = i > 0 ? sortedAcs[i - 1].idx : 0;
+        const regionEnd = i + 1 < sortedAcs.length ? sortedAcs[i + 1].idx : content.length;
+        const section = content.slice(regionStart, regionEnd);
+
+        if (section.includes('[ESCALATE]')) {
+          escalated++;
+        } else if (/```output/m.test(section)) {
+          verified++;
+        } else {
+          pending++;
+        }
+      }
+
+      const narrativeTotal = verified + pending + escalated;
+      return {
+        verified,
+        pending,
+        escalated,
+        total: narrativeTotal,
+        passed: pending === 0 && verified > 0,
+      };
     }
 
     for (const acNum of acNumbers) {

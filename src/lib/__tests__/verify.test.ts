@@ -531,6 +531,72 @@ describe('validateProofQuality — no-space AC header format', () => {
   });
 });
 
+describe('validateProofQuality — narrative === AC N: format', () => {
+  it('parses === AC N: markers inside code block output', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Verification Proof',
+      '',
+      '```bash',
+      'some-command',
+      '```',
+      '',
+      '```output',
+      '=== AC1: writeState creates YAML ===',
+      'harness_version: 0.1.0',
+      '```',
+      '',
+      '```bash',
+      'another-command',
+      '```',
+      '',
+      '```output',
+      '=== AC2: readState parses YAML ===',
+      'stack: nodejs',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
+  });
+
+  it('detects escalated ACs in narrative format', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof',
+      '',
+      '```output',
+      '=== AC1: verified thing ===',
+      'result: ok',
+      '```',
+      '',
+      '=== AC2: unverifiable thing ===',
+      '[ESCALATE] Requires hardware',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true });
+  });
+
+  it('detects pending ACs in narrative format (no output block)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof',
+      '',
+      '```output',
+      '=== AC1: has evidence ===',
+      'data here',
+      '```',
+      '',
+      '=== AC2: missing evidence ===',
+      'No output block follows.',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
+  });
+});
+
 // ─── updateVerificationState ────────────────────────────────────────────────
 
 describe('updateVerificationState', () => {

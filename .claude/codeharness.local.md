@@ -37,8 +37,14 @@ verification_log:
   - "13-2-documentation-gate-for-verification: pass at 2026-03-16T15:19:11.049Z"
   - "1-1-project-scaffold-cli-entry-point: pass at 2026-03-16T18:04:53.865Z"
   - "1-1-project-scaffold-cli-entry-point: pass at 2026-03-16T18:10:28.603Z"
+  - "1-2-core-libraries-state-stack-detection-templates: pass at
+    2026-03-16T18:41:30.365Z"
+  - "1-3-init-command-full-harness-initialization: pass at
+    2026-03-16T18:47:38.557Z"
 verify_env_dist_hash: 8627ee369228b95d11bb70df5694f1611a48f63f7233d1e33bbabac01ccf9711
 ---
+
+
 
 
 

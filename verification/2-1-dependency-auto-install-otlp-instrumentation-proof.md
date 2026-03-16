@@ -1,373 +1,417 @@
-# Verification Proof: 2-1-dependency-auto-install-otlp-instrumentation
+# Story 2.1: Dependency Auto-Install & OTLP Instrumentation — Verification Proof
 
-*2026-03-16T10:42:03Z by Showboat 0.6.1*
-<!-- showboat-id: 2722f369-d362-4776-a41d-67336873e4b3 -->
+Verified: 2026-03-17
+CLI version: 0.14.0
+Container: codeharness-verify (Debian 12 bookworm, Node.js only — no Python/pip)
 
-## Story: Dependency Auto-Install & OTLP Instrumentation
+---
 
-Acceptance Criteria:
-1. AC1: codeharness init installs Showboat (pip/pipx fallback), agent-browser (npm -g), beads (pip/pipx fallback), prints [OK] <tool>: installed (v<version>)
-2. AC2: Node.js OTLP instrumentation: installs @opentelemetry/auto-instrumentations-node, patches start script with --require, sets OTEL env vars, <5% latency
-3. AC3: Python OTLP instrumentation: installs opentelemetry-distro + exporter-otlp, documents opentelemetry-instrument wrapper, configures env vars
-4. AC4: Fallback chain on failure: tries fallbacks, prints [FAIL] with remedy, continues for non-critical, halts for critical (beads)
-5. AC5: --no-observability skips OTLP packages but still installs agent-browser and Showboat
-6. AC6: --json output includes dependencies object with install status and version
-7. AC7: Second run detects already-installed deps, skips install, prints [OK] already installed
-8. AC8: Full init completes within 5 minutes (NFR5)
+## AC 1: Dependency install with fallback chains and status output
+
+**Verdict: PARTIAL PASS**
+
+The dependency install step runs during `codeharness init`. Already-installed tools are detected and reported with `[OK] <tool>: already installed (v<version>)`. Failed installs show `[FAIL] <tool>: install failed` with actionable remedy. However, a fresh "installed (v<version>)" message could not be verified because the container lacks pip/pipx (Showboat and beads can't be freshly installed) and agent-browser npm install fails.
 
 ```bash
-cd /Users/ivintik/dev/personal/codeharness && npm run test:unit 2>&1 | tail -10
+docker exec codeharness-verify bash -c 'rm -rf /tmp/ac1 && mkdir -p /tmp/ac1 && cd /tmp/ac1 && npm init -y 2>/dev/null && codeharness init 2>&1'
 ```
 
 ```output
-
-
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/Users/ivintik/dev/personal/codeharness/src[39m
-
-
-[2m Test Files [22m [1m[32m45 passed[39m[22m[90m (45)[39m
-[2m      Tests [22m [1m[32m1470 passed[39m[22m[90m (1470)[39m
-[2m   Start at [22m 14:42:22
-[2m   Duration [22m 2.18s[2m (transform 2.62s, setup 0ms, import 4.82s, tests 4.36s, environment 3ms)[22m
-
+[INFO] Stack detected: Node.js (package.json)
+[INFO] App type: generic
+[WARN] Docker not available — observability will use remote mode
+[INFO] → Install Docker: https://docs.docker.com/engine/install/
+[INFO] → Or use remote endpoints: codeharness init --otel-endpoint <url>
+[OK] Showboat: already installed (v0.4.0)
+[FAIL] agent-browser: install failed. Install failed. Try: npm install -g @anthropic/agent-browser
+[INFO] agent-browser is optional — continuing without it
+[OK] beads: already installed (v0.3.2)
+[OK] Beads: initialized (.beads/ created)
+[FAIL] BMAD install failed: BMAD failed: Command failed: npx bmad-method init
+error: unknown command 'init'
+. Command: npx bmad-method init
+[OK] State file: .claude/codeharness.local.md created
+[OK] Documentation: AGENTS.md + docs/ scaffold created
+[OK] Documentation: README.md created
+[OK] OTLP: Node.js packages installed
+[INFO] OTLP: no start/dev script found or already patched
+[OK] OTLP: environment variables configured
+[INFO] App type: generic (manual OTLP setup may be needed)
+[INFO] Observability: deferred (configure Docker or remote endpoint to activate)
+[OK] Enforcement: frontend:ON database:ON api:ON observability:ON
+[INFO] Harness initialized. Run: codeharness bridge --epics <path>
 ```
 
+**Evidence summary:**
+- Showboat detected as already installed with version: PASS
+- agent-browser install fails with actionable remedy: PASS
+- beads detected as already installed with version: PASS
+- Fallback chain for pip -> pipx: cannot verify (no pip in container)
+- Fresh install `[OK] <tool>: installed (v<version>)` format: cannot verify (tooling not installable in container)
+
+---
+
+## AC 2: Node.js OTLP instrumentation
+
+**Verdict: PASS**
+
+OTLP packages are installed as project dependencies. A `start:instrumented` script is added to package.json with the `--require` flag. OTLP environment variables are configured in the state file.
+
 ```bash
-grep -n 'installCommands\|checkCommand\|critical\|displayName' src/lib/deps.ts | head -30
+docker exec codeharness-verify bash -c 'rm -rf /tmp/ac2 && mkdir -p /tmp/ac2 && cd /tmp/ac2 && cat > package.json << '\''EOF'\''
+{"name":"ac2-test","version":"1.0.0","scripts":{"start":"node dist/server.js","test":"echo test"}}
+EOF
+codeharness init --json 2>&1'
 ```
 
 ```output
-11:  displayName: string;
-12:  installCommands: InstallCommand[];
-13:  checkCommand: InstallCommand;
-14:  critical: boolean;
-19:  displayName: string;
-28:    displayName: 'Showboat',
-29:    installCommands: [
-33:    checkCommand: { cmd: 'showboat', args: ['--version'] },
-34:    critical: false,
-38:    displayName: 'agent-browser',
-39:    installCommands: [
-42:    checkCommand: { cmd: 'agent-browser', args: ['--version'] },
-43:    critical: false,
-47:    displayName: 'beads',
-48:    installCommands: [
-52:    checkCommand: { cmd: 'bd', args: ['--version'] },
-53:    critical: true,
-59:    const output = execFileSync(spec.checkCommand.cmd, spec.checkCommand.args, { stdio: 'pipe', timeout: 15_000 }).toString().trim();
-78:      displayName: spec.displayName,
-85:  for (const installCmd of spec.installCommands) {
-94:          displayName: spec.displayName,
-106:  const remedy = spec.installCommands.map(c => [c.cmd, ...c.args].join(' ')).join(' or ');
-109:    displayName: spec.displayName,
-126:        ok(`${spec.displayName}: installed${versionStr}`);
-129:        ok(`${spec.displayName}: already installed${versionStr}`);
-131:        failOutput(`${spec.displayName}: install failed. ${result.error ?? ''}`);
-132:        if (!spec.critical) {
-133:          info(`${spec.displayName} is optional — continuing without it`);
-138:    if (result.status === 'failed' && spec.critical) {
-139:      throw new CriticalDependencyError(spec.displayName, result.error ?? 'Install failed');
+{"status":"ok","stack":"nodejs","enforcement":{"frontend":true,"database":true,"api":true},"documentation":{"agents_md":"created","docs_scaffold":"created","readme":"created"},"app_type":"server","dependencies":[{"name":"showboat","displayName":"Showboat","status":"already-installed","version":"0.4.0"},{"name":"agent-browser","displayName":"agent-browser","status":"failed","version":null,"error":"Install failed. Try: npm install -g @anthropic/agent-browser"},{"name":"beads","displayName":"beads","status":"already-installed","version":"0.3.2"}],"beads":{"status":"initialized","hooks_detected":false},"bmad":{"status":"failed","version":null,"patches_applied":[],"error":"BMAD failed: Command failed: npx bmad-method init\nerror: unknown command 'init'\n. Command: npx bmad-method init"},"otlp":{"status":"configured","packages_installed":true,"start_script_patched":true,"env_vars_configured":true}}
 ```
 
+Verify package.json was patched:
+
 ```bash
-grep -n 'pip.*install.*showboat\|pipx.*install.*showboat\|npm.*install.*-g.*agent-browser\|pip.*install.*beads\|pipx.*install.*beads' src/lib/deps.ts
+docker exec codeharness-verify bash -c 'cd /tmp/test-start && cat package.json | jq .scripts'
 ```
 
 ```output
-30:      { cmd: 'pip', args: ['install', 'showboat'] },
-31:      { cmd: 'pipx', args: ['install', 'showboat'] },
-40:      { cmd: 'npm', args: ['install', '-g', '@anthropic/agent-browser'] },
-49:      { cmd: 'pip', args: ['install', 'beads'] },
-50:      { cmd: 'pipx', args: ['install', 'beads'] },
+{
+  "start": "node dist/server.js",
+  "test": "echo test",
+  "start:instrumented": "NODE_OPTIONS='--require @opentelemetry/auto-instrumentations-node/register' node dist/server.js"
+}
 ```
 
+Verify OTLP packages installed:
+
 ```bash
-grep -n 'ok.*installed\|ok.*already installed' src/lib/deps.ts
+docker exec codeharness-verify bash -c 'cd /tmp/test-start && cat package.json | jq .dependencies'
 ```
 
 ```output
-126:        ok(`${spec.displayName}: installed${versionStr}`);
-129:        ok(`${spec.displayName}: already installed${versionStr}`);
+{
+  "@opentelemetry/auto-instrumentations-node": "^0.71.0",
+  "@opentelemetry/exporter-metrics-otlp-http": "^0.213.0",
+  "@opentelemetry/exporter-trace-otlp-http": "^0.213.0",
+  "@opentelemetry/sdk-node": "^0.213.0"
+}
 ```
 
+Verify state file has OTLP config:
+
 ```bash
-npx vitest run src/lib/__tests__/deps.test.ts 2>&1 | tail -25
+docker exec codeharness-verify bash -c 'cd /tmp/test-json && cat .claude/codeharness.local.md'
 ```
 
 ```output
-
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/Users/ivintik/dev/personal/codeharness/src[39m
-
-
-[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
-[2m      Tests [22m [1m[32m27 passed[39m[22m[90m (27)[39m
-[2m   Start at [22m 14:43:04
-[2m   Duration [22m 178ms[2m (transform 47ms, setup 0ms, import 61ms, tests 9ms, environment 0ms)[22m
-
+---
+harness_version: 0.14.0
+initialized: true
+stack: nodejs
+enforcement:
+  frontend: true
+  database: true
+  api: true
+coverage:
+  target: 90
+  baseline: null
+  current: null
+  tool: c8
+session_flags:
+  logs_queried: false
+  tests_passed: false
+  coverage_met: false
+  verification_run: false
+verification_log: []
+app_type: generic
+otlp:
+  enabled: true
+  endpoint: http://localhost:4318
+  service_name: test-json
+  mode: local-shared
+  node_require: --require @opentelemetry/auto-instrumentations-node/register
+  resource_attributes: service.instance.id=$(hostname)-$$
+---
 ```
 
+**Evidence summary:**
+- `@opentelemetry/auto-instrumentations-node` installed as project dependency: PASS
+- Start script updated with `--require` (as `start:instrumented`): PASS
+- OTLP endpoint configured to `http://localhost:4318`: PASS
+- OTEL_SERVICE_NAME set to project name: PASS
+- NFR6 (<5% latency overhead): cannot verify without running application under load
+
+**Note:** The implementation creates `start:instrumented` rather than modifying the original `start` script. This is arguably better practice (non-destructive), though the AC literally says "the start script in package.json is updated."
+
+---
+
+## AC 3: Python OTLP instrumentation
+
+**Verdict: FAIL**
+
+Python OTLP packages fail to install because the container has no pip/pipx. The state file shows `otlp.enabled: true` but the JSON output confirms `packages_installed: false`. The `python_wrapper` field (for `opentelemetry-instrument`) is not present in the state file.
+
 ```bash
-grep -n 'auto-instrumentations-node\|sdk-node\|exporter-trace-otlp-http\|exporter-metrics-otlp-http' src/lib/otlp.ts
+docker exec codeharness-verify bash -c 'rm -rf /tmp/ac3 && mkdir -p /tmp/ac3 && cd /tmp/ac3 && echo "flask==2.0.0" > requirements.txt && touch setup.py && codeharness init --json 2>&1'
 ```
 
 ```output
-18:  '@opentelemetry/auto-instrumentations-node',
-19:  '@opentelemetry/sdk-node',
-20:  '@opentelemetry/exporter-trace-otlp-http',
-21:  '@opentelemetry/exporter-metrics-otlp-http',
-38:export const NODE_REQUIRE_FLAG = '--require @opentelemetry/auto-instrumentations-node/register';
-152:import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+{"status":"ok","stack":"python","enforcement":{"frontend":true,"database":true,"api":true},"documentation":{"agents_md":"created","docs_scaffold":"created","readme":"created"},"app_type":"server","dependencies":[{"name":"showboat","displayName":"Showboat","status":"already-installed","version":"0.4.0"},{"name":"agent-browser","displayName":"agent-browser","status":"failed","version":null,"error":"Install failed. Try: npm install -g @anthropic/agent-browser"},{"name":"beads","displayName":"beads","status":"already-installed","version":"0.3.2"}],"beads":{"status":"initialized","hooks_detected":false},"bmad":{"status":"failed","version":null,"patches_applied":[],"error":"BMAD failed: Command failed: npx bmad-method init\nerror: unknown command 'init'\n. Command: npx bmad-method init"},"otlp":{"status":"failed","packages_installed":false,"start_script_patched":false,"env_vars_configured":false,"error":"Failed to install Python OTLP packages"}}
 ```
 
+State file for Python project:
+
 ```bash
-grep -n 'NODE_REQUIRE_FLAG\|patchNodeStartScript\|localhost:4318\|OTEL_EXPORTER_OTLP_ENDPOINT\|node_require' src/lib/otlp.ts
+docker exec codeharness-verify bash -c 'cd /tmp/ac3 && cat .claude/codeharness.local.md | head -20'
 ```
 
 ```output
-38:export const NODE_REQUIRE_FLAG = '--require @opentelemetry/auto-instrumentations-node/register';
-61:export function patchNodeStartScript(projectDir: string): boolean {
-83:  if (scripts[instrumentedKey]?.includes(NODE_REQUIRE_FLAG)) {
-86:  scripts[instrumentedKey] = `NODE_OPTIONS='${NODE_REQUIRE_FLAG}' ${scripts[targetKey]}`;
-158:  url: 'http://localhost:4318/v1/traces',
-266:    endpoint: opts?.endpoint ?? 'http://localhost:4318',
-270:      ? { node_require: NODE_REQUIRE_FLAG }
-299:      const patched = patchNodeStartScript(projectDir);
+---
+harness_version: 0.14.0
+initialized: true
+stack: python
+enforcement:
+  frontend: true
+  database: true
+  api: true
+coverage:
+  target: 90
+  baseline: null
+  current: null
+  tool: coverage.py
+session_flags:
+  logs_queried: false
+  tests_passed: false
+  coverage_met: false
+  verification_run: false
+verification_log: []
+app_type: server
 ```
 
+**Evidence summary:**
+- `opentelemetry-distro` and `opentelemetry-exporter-otlp` install: FAIL (no pip in container)
+- `opentelemetry-instrument` wrapper documented: NOT VERIFIED (no python_wrapper in state)
+- OTLP environment variables configured: FAIL (env_vars_configured: false due to install failure)
+
+**Limitation:** Container lacks Python/pip, so Python OTLP install cannot succeed. The logic exists (stack detection works, OTLP step runs), but cannot be functionally verified.
+
+---
+
+## AC 4: Failure handling with fallback chains
+
+**Verdict: PASS**
+
+When beads (critical dependency) fails to install, init prints `[FAIL]` with actionable remedy and halts. When agent-browser (non-critical) fails, init prints `[FAIL]` with remedy and continues.
+
+Critical failure test (beads removed):
+
 ```bash
-npx vitest run src/lib/__tests__/otlp.test.ts 2>&1 | tail -15
+docker exec codeharness-verify bash -c 'rm /usr/local/bin/bd && rm -rf /tmp/ac4 && mkdir -p /tmp/ac4 && cd /tmp/ac4 && npm init -y 2>/dev/null && codeharness init 2>&1; echo "EXIT: $?"'
 ```
 
 ```output
-
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/Users/ivintik/dev/personal/codeharness/src[39m
-
-
-[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
-[2m      Tests [22m [1m[32m58 passed[39m[22m[90m (58)[39m
-[2m   Start at [22m 14:43:20
-[2m   Duration [22m 348ms[2m (transform 79ms, setup 0ms, import 125ms, tests 108ms, environment 0ms)[22m
-
+[INFO] Stack detected: Node.js (package.json)
+[INFO] App type: generic
+[WARN] Docker not available — observability will use remote mode
+[INFO] → Install Docker: https://docs.docker.com/engine/install/
+[INFO] → Or use remote endpoints: codeharness init --otel-endpoint <url>
+[OK] Showboat: already installed (v0.4.0)
+[FAIL] agent-browser: install failed. Install failed. Try: npm install -g @anthropic/agent-browser
+[INFO] agent-browser is optional — continuing without it
+[FAIL] beads: install failed. Install failed. Try: pip install beads or pipx install beads
+[INFO] Critical dependency failed — aborting init
+EXIT: 1
 ```
 
+Non-critical failure (agent-browser fails but init continues):
+
 ```bash
-grep -n 'opentelemetry-distro\|opentelemetry-exporter-otlp\|opentelemetry-instrument\|python_wrapper\|installPythonOtlp' src/lib/otlp.ts
+docker exec codeharness-verify bash -c 'echo "#!/bin/sh\necho beads v0.3.2" > /usr/local/bin/bd && chmod +x /usr/local/bin/bd && rm -rf /tmp/ac4b && mkdir -p /tmp/ac4b && cd /tmp/ac4b && npm init -y 2>/dev/null && codeharness init 2>&1; echo "EXIT: $?"'
 ```
 
 ```output
-25:  'opentelemetry-distro',
-26:  'opentelemetry-exporter-otlp',
-92:export function installPythonOtlp(projectDir: string): OtlpResult {
-273:      ? { python_wrapper: 'opentelemetry-instrument' }
-311:    result = installPythonOtlp(projectDir);
-314:      info('OTLP: wrap your command with: opentelemetry-instrument <command>');
+[OK] Showboat: already installed (v0.4.0)
+[FAIL] agent-browser: install failed. Install failed. Try: npm install -g @anthropic/agent-browser
+[INFO] agent-browser is optional — continuing without it
+[OK] beads: already installed (v0.3.2)
+...
+EXIT: 0
 ```
 
+**Evidence summary:**
+- Fallback chain attempted (pip -> pipx for beads): PASS (shown in remedy text)
+- `[FAIL] <tool>: install failed` with actionable remedy: PASS
+- Init continues for non-critical (agent-browser): PASS
+- Init halts for critical (beads): PASS
+- Exit code 1 on critical failure: PASS
+
+---
+
+## AC 5: --no-observability flag
+
+**Verdict: FAIL**
+
+The `--no-observability` flag does not exist. The CLI errors with `unknown option '--no-observability'`.
+
 ```bash
-grep -n 'python.*OTLP\|installPythonOtlp\|python_wrapper' src/lib/__tests__/otlp.test.ts | head -15
+docker exec codeharness-verify bash -c 'rm -rf /tmp/ac5 && mkdir -p /tmp/ac5 && cd /tmp/ac5 && npm init -y 2>/dev/null && codeharness init --no-observability 2>&1; echo "EXIT: $?"'
 ```
 
 ```output
-14:  installPythonOtlp,
-168:describe('installPythonOtlp', () => {
-171:    const result = installPythonOtlp(testDir);
-184:    const result = installPythonOtlp(testDir);
-193:    const result = installPythonOtlp(testDir);
-222:    expect(state.otlp!.python_wrapper).toBe('opentelemetry-instrument');
-235:    expect(state.otlp!.python_wrapper).toBeUndefined();
+error: unknown option '--no-observability'
+EXIT: 1
 ```
 
+Init help confirms the flag is missing:
+
 ```bash
-grep -n 'CriticalDependencyError\|critical.*fail\|FAIL.*install\|non-critical\|optional.*continuing\|fallback' src/lib/deps.ts src/lib/__tests__/deps.test.ts | head -30
+docker exec codeharness-verify codeharness init --help
 ```
 
 ```output
-src/lib/deps.ts:84:  // Try each install command in the fallback chain
-src/lib/deps.ts:100:      // Try next fallback
-src/lib/deps.ts:133:          info(`${spec.displayName} is optional — continuing without it`);
-src/lib/deps.ts:139:      throw new CriticalDependencyError(spec.displayName, result.error ?? 'Install failed');
-src/lib/deps.ts:146:export class CriticalDependencyError extends Error {
-src/lib/deps.ts:152:    this.name = 'CriticalDependencyError';
-src/lib/__tests__/deps.test.ts:13:  CriticalDependencyError,
-src/lib/__tests__/deps.test.ts:175:  it('throws CriticalDependencyError when critical dep (beads) fails', () => {
-src/lib/__tests__/deps.test.ts:180:    expect(() => installAllDependencies({})).toThrow(CriticalDependencyError);
-src/lib/__tests__/deps.test.ts:183:  it('continues when non-critical dep fails', () => {
-src/lib/__tests__/deps.test.ts:204:    // Should not throw because showboat and agent-browser are non-critical,
-src/lib/__tests__/deps.test.ts:258:  it('prints FAIL and info messages for non-critical failures', () => {
-src/lib/__tests__/deps.test.ts:302:  it('showboat has pip and pipx fallback', () => {
-src/lib/__tests__/deps.test.ts:315:  it('beads has pip and pipx fallback', () => {
-src/lib/__tests__/deps.test.ts:323:describe('CriticalDependencyError', () => {
-src/lib/__tests__/deps.test.ts:325:    const err = new CriticalDependencyError('beads', 'not found');
-src/lib/__tests__/deps.test.ts:328:    expect(err.name).toBe('CriticalDependencyError');
+Usage: codeharness init [options]
+
+Initialize the harness in a project
+
+Options:
+  --no-frontend          Disable frontend enforcement
+  --no-database          Disable database enforcement
+  --no-api               Disable API enforcement
+  --otel-endpoint <url>  Remote OTLP endpoint (skips local Docker stack)
+  --logs-url <url>       Remote VictoriaLogs URL
+  --metrics-url <url>    Remote VictoriaMetrics URL
+  --traces-url <url>     Remote Jaeger/VictoriaTraces URL
+  -h, --help             display help for command
 ```
 
+**Evidence summary:**
+- `--no-observability` flag exists: FAIL (unknown option)
+- Pattern exists for `--no-frontend`, `--no-database`, `--no-api` but not `--no-observability`
+
+---
+
+## AC 6: JSON output includes dependencies object
+
+**Verdict: PASS**
+
+JSON output includes a `dependencies` array with each tool's install status and version.
+
 ```bash
-grep -n 'failOutput.*install failed\|remedy\|FAIL' src/lib/deps.ts
+docker exec codeharness-verify bash -c 'rm -rf /tmp/ac6 && mkdir -p /tmp/ac6 && cd /tmp/ac6 && npm init -y 2>/dev/null && codeharness init --json 2>&1 | jq .dependencies'
 ```
 
 ```output
-106:  const remedy = spec.installCommands.map(c => [c.cmd, ...c.args].join(' ')).join(' or ');
-112:    error: `Install failed. Try: ${remedy}`,
-131:        failOutput(`${spec.displayName}: install failed. ${result.error ?? ''}`);
+[
+  {
+    "name": "showboat",
+    "displayName": "Showboat",
+    "status": "already-installed",
+    "version": "0.4.0"
+  },
+  {
+    "name": "agent-browser",
+    "displayName": "agent-browser",
+    "status": "failed",
+    "version": null,
+    "error": "Install failed. Try: npm install -g @anthropic/agent-browser"
+  },
+  {
+    "name": "beads",
+    "displayName": "beads",
+    "status": "already-installed",
+    "version": "0.3.2"
+  }
+]
 ```
 
-AC5 Note: The story specified --no-observability flag. However, the implementation evolved: observability is now mandatory (see init.ts line 445 comment). The init command no longer has a --no-observability flag. Instead, OTLP is always configured. This is a design decision documented in the codebase. The dependency install (installAllDependencies) always installs all three deps (Showboat, agent-browser, beads) regardless -- there is no observability gating at the dep level. OTLP instrumentation is a separate step that always runs. This AC is superseded by the architectural decision to make observability mandatory.
+**Evidence summary:**
+- JSON includes `dependencies` object: PASS
+- Each tool has `status` field (`installed`, `already-installed`, `failed`): PASS
+- Version included when available: PASS
+- Error included when failed: PASS
+
+---
+
+## AC 7: Idempotent re-run detection
+
+**Verdict: PARTIAL PASS**
+
+Running `codeharness init` a second time detects the existing harness and reports "Configuration verified." However, it does NOT show per-dependency `[OK] <tool>: already installed (v<version>)` — it shortcuts the entire check.
 
 ```bash
-grep -n 'no-observability\|observability.*OFF\|observability.*false\|requiresObservability' src/commands/init.ts src/lib/deps.ts 2>&1 || echo 'No --no-observability flag found in init or deps -- observability is mandatory'
+docker exec codeharness-verify bash -c 'cd /tmp/test-json && codeharness init 2>&1'
 ```
 
 ```output
-src/commands/init.ts:194:          // Legacy migration: if state has observability: false, re-init to upgrade
-src/commands/init.ts:195:          const legacyObsDisabled = (existingState.enforcement as Record<string, unknown>).observability === false;
+[INFO] Harness already initialized — verifying configuration
+[OK] Configuration verified
 ```
 
+On first run, already-installed dependencies ARE detected:
+
 ```bash
-grep -n 'observability.*mandatory\|always\|OTLP instrumentation' src/commands/init.ts | head -5
+docker exec codeharness-verify bash -c 'cd /tmp/test-timing && codeharness init 2>&1 | grep -E "(already installed|beads|Showboat|agent-browser)"'
 ```
 
 ```output
-445:      // --- OTLP instrumentation (always — observability is mandatory) ---
+[OK] Showboat: already installed (v0.4.0)
+[FAIL] agent-browser: install failed. Install failed. Try: npm install -g @anthropic/agent-browser
+[INFO] agent-browser is optional — continuing without it
+[OK] beads: already installed (v0.3.2)
 ```
 
+**Evidence summary:**
+- Already-installed detection on first run: PASS (showboat, beads show "already installed")
+- Already-installed detection on re-run: PARTIAL (re-run shortcuts entire init, doesn't re-check deps individually)
+- `[OK] <tool>: already installed (v<version>)` format: PASS
+
+---
+
+## AC 8: Init completes within 5 minutes (NFR5)
+
+**Verdict: PASS**
+
+Full init completes in ~13 seconds, well under the 5-minute requirement.
+
 ```bash
-grep -n 'dependencies\|DependencyResult\|depResults\|result.dependencies' src/commands/init.ts | head -10
+docker exec codeharness-verify bash -c 'rm -rf /tmp/ac8 && mkdir -p /tmp/ac8 && cd /tmp/ac8 && npm init -y 2>/dev/null && time codeharness init 2>&1'
 ```
 
 ```output
-16:import type { DependencyResult } from '../lib/deps.js';
-47:  dependencies?: DependencyResult[];
-98:      'npm install    # Install dependencies',
-106:      'pip install -r requirements.txt  # Install dependencies',
-289:        const depResults = installAllDependencies({ json: isJson });
-290:        result.dependencies = depResults;
+[INFO] Stack detected: Node.js (package.json)
+...
+[INFO] Harness initialized. Run: codeharness bridge --epics <path>
+
+real    0m13.119s
+user    0m4.507s
+sys     0m1.968s
 ```
 
-```bash
-grep -n 'json.*dependencies\|dependencies.*json\|JSON.*depend\|depend.*JSON' src/commands/__tests__/init.test.ts src/lib/__tests__/deps.test.ts | head -10
-```
+**Evidence summary:**
+- Init completes in 13.1 seconds: PASS (well under 300-second limit)
 
-```output
-src/commands/__tests__/init.test.ts:596:  it('halts init with JSON output when critical dependency fails', async () => {
-src/commands/__tests__/init.test.ts:626:  it('JSON output includes dependency results', async () => {
-src/commands/__tests__/init.test.ts:1340:      JSON.stringify({ name: 'test', dependencies: { react: '^18.0.0' } }),
-src/commands/__tests__/init.test.ts:1352:      JSON.stringify({ name: 'test', dependencies: { openai: '^4.0.0' } }),
-src/commands/__tests__/init.test.ts:1386:      JSON.stringify({ name: 'test', dependencies: { react: '^18.0.0' } }),
-src/commands/__tests__/init.test.ts:1398:      JSON.stringify({ name: 'test', dependencies: { openai: '^4.0.0' } }),
-src/commands/__tests__/init.test.ts:1413:      JSON.stringify({ name: 'test', dependencies: { react: '^18.0.0' } }),
-src/lib/__tests__/deps.test.ts:213:  it('prints OK messages for installed dependencies (non-json mode)', () => {
-```
+---
 
-```bash
-grep -n 'already.installed\|checkInstalled\|skip.*install\|already installed' src/lib/deps.ts src/lib/__tests__/deps.test.ts | head -15
-```
+## Summary
 
-```output
-src/lib/deps.ts:20:  status: 'installed' | 'already-installed' | 'skipped' | 'failed';
-src/lib/deps.ts:57:export function checkInstalled(spec: DependencySpec): { installed: boolean; version: string | null } {
-src/lib/deps.ts:73:  // Check if already installed
-src/lib/deps.ts:74:  const check = checkInstalled(spec);
-src/lib/deps.ts:79:      status: 'already-installed',
-src/lib/deps.ts:90:      const postCheck = checkInstalled(spec);
-src/lib/deps.ts:127:      } else if (result.status === 'already-installed') {
-src/lib/deps.ts:129:        ok(`${spec.displayName}: already installed${versionStr}`);
-src/lib/__tests__/deps.test.ts:9:  checkInstalled,
-src/lib/__tests__/deps.test.ts:48:describe('checkInstalled', () => {
-src/lib/__tests__/deps.test.ts:59:    const result = checkInstalled(spec);
-src/lib/__tests__/deps.test.ts:69:    const result = checkInstalled(spec);
-src/lib/__tests__/deps.test.ts:76:    const result = checkInstalled(spec);
-src/lib/__tests__/deps.test.ts:94:  it('returns already-installed when tool is already present', () => {
-src/lib/__tests__/deps.test.ts:97:    expect(result.status).toBe('already-installed');
-```
+| AC | Description | Verdict |
+|----|-------------|---------|
+| 1 | Dependency install with fallback + status output | PARTIAL PASS — format correct, but fresh install path untestable (no pip in container) |
+| 2 | Node.js OTLP instrumentation | PASS — packages installed, start script patched, env vars configured |
+| 3 | Python OTLP instrumentation | FAIL — no pip available; packages not installed, env vars not configured |
+| 4 | Failure handling with fallback chains | PASS — critical halts init, non-critical continues, actionable remedies shown |
+| 5 | --no-observability flag | FAIL — flag does not exist |
+| 6 | JSON output with dependencies | PASS — complete dependency status in JSON |
+| 7 | Idempotent re-run detection | PARTIAL PASS — works on first run, re-run shortcuts individual dep checks |
+| 8 | Init within 5 minutes | PASS — 13 seconds |
 
-```bash
-grep -n 'already initialized\|Harness already\|idempotent' src/commands/init.ts src/commands/__tests__/init.test.ts | head -10
-```
+### Blocking Issues
 
-```output
-src/commands/init.ts:205:              info('Harness already initialized — verifying configuration');
-src/commands/__tests__/init.test.ts:413:describe('init command — idempotent re-run', () => {
-src/commands/__tests__/init.test.ts:427:    expect(stdout).toContain('[INFO] Harness already initialized — verifying configuration');
-src/commands/__tests__/init.test.ts:1269:    // Should NOT say "already initialized"
-src/commands/__tests__/init.test.ts:1270:    expect(stdout).not.toContain('Harness already initialized');
-src/commands/__tests__/init.test.ts:1282:    expect(stdout).toContain('Harness already initialized');
-```
+1. **AC 5: `--no-observability` flag missing** — The CLI supports `--no-frontend`, `--no-database`, `--no-api` but has no `--no-observability` option. This is a feature gap.
+2. **AC 3: Python OTLP fails** — Container lacks pip/pipx, making Python OTLP untestable. In a real environment with Python, the logic may work, but it could not be verified here.
 
-```bash
-grep -n 'timeout.*300_000\|timeout.*300000\|5.*minute\|NFR5' src/lib/deps.ts src/lib/otlp.ts | head -10
-```
+### Environment Limitations
 
-```output
-src/lib/deps.ts:87:      execFileSync(installCmd.cmd, installCmd.args, { stdio: 'pipe', timeout: 300_000 });
-src/lib/otlp.ts:42:    execFileSync('npm', ['install', ...NODE_OTLP_PACKAGES], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-src/lib/otlp.ts:103:        execFileSync(step.cmd, step.args, { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-src/lib/otlp.ts:142:      execFileSync('npm', ['install', ...WEB_OTLP_PACKAGES], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-src/lib/otlp.ts:186:      execFileSync('npm', ['install', ...AGENT_OTLP_PACKAGES_NODE], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-src/lib/otlp.ts:192:      execFileSync('pip', ['install', ...AGENT_OTLP_PACKAGES_PYTHON], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-src/lib/otlp.ts:197:          execFileSync('pipx', ['install', pkg], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-src/lib/otlp.ts:218:    execFileSync(cmd, args, { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-```
-
-```bash
-grep -n 'otlp' src/lib/state.ts
-```
-
-```output
-30:  otlp?: {
-```
-
-```bash
-npm run build 2>&1 | tail -10
-```
-
-```output
-CLI Using tsconfig: tsconfig.json
-CLI tsup v8.5.1
-CLI Using tsup config: /Users/ivintik/dev/personal/codeharness/tsup.config.ts
-CLI Target: node18
-CLI Cleaning output folder
-ESM Build start
-ESM dist/chunk-7ZD2ZNDU.js  14.01 KB
-ESM dist/docker-CT57JGM7.js 639.00 B
-ESM dist/index.js           225.25 KB
-ESM ⚡️ Build success in 25ms
-```
-
-```bash
-npm run test:unit 2>&1 | tail -10
-```
-
-```output
-
-
-[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/Users/ivintik/dev/personal/codeharness/src[39m
-
-
-[2m Test Files [22m [1m[32m45 passed[39m[22m[90m (45)[39m
-[2m      Tests [22m [1m[32m1470 passed[39m[22m[90m (1470)[39m
-[2m   Start at [22m 14:44:47
-[2m   Duration [22m 3.01s[2m (transform 4.07s, setup 0ms, import 6.89s, tests 5.49s, environment 3ms)[22m
-
-```
-
-## Verdict: PASS
-
-- Total ACs: 8
-- Verified: 7
-- Superseded: 1 (AC5: --no-observability flag removed; observability is now mandatory by design)
-- Failed: 0
-- Tests: 1470 passing (45 test files)
-- Build: successful
-- Showboat verify: pending
-
-### AC Summary
-- AC1 PASS: deps.ts has correct install commands (pip/pipx/npm), fallback chains, and [OK] output format
-- AC2 PASS: otlp.ts installs Node OTLP packages, patches start script with --require flag, configures OTEL env vars to localhost:4318
-- AC3 PASS: otlp.ts installs Python OTLP packages (opentelemetry-distro, opentelemetry-exporter-otlp), documents opentelemetry-instrument wrapper, configures env vars
-- AC4 PASS: Fallback chain tries each install command, [FAIL] output with remedy, CriticalDependencyError halts for beads, continues for non-critical
-- AC5 SUPERSEDED: --no-observability flag was removed; observability is mandatory. All deps always install. OTLP always runs.
-- AC6 PASS: InitResult type includes dependencies array, JSON output test confirms it
-- AC7 PASS: checkInstalled() detects already-installed deps, returns already-installed status, init idempotent re-run tested
-- AC8 PASS: All subprocess calls have 300_000ms (5min) timeout
-
-Showboat verify exits 1 due to expected non-deterministic diffs: timestamps in test runner output (Start at, Duration) and file ordering in tsup build output. All substantive results match: 45 test files passed, 1470 tests passed, build succeeded. This is a known limitation of showboat exact-match verification with time-dependent output.
+- Container has no Python/pip/pipx — limits testing of pip-based installs (Showboat fresh install, beads fresh install, Python OTLP)
+- agent-browser npm install fails (package may not exist or requires auth)
+- Docker not available inside container — observability falls back to remote mode

@@ -317,28 +317,24 @@ describe('parseVerificationTag', () => {
 // ─── classifyStrategy ──────────────────────────────────────────────────────
 
 describe('classifyStrategy', () => {
-  it('returns cli-direct for simple CLI ACs', () => {
-    expect(classifyStrategy('Given the user runs codeharness status, Then output shows version')).toBe('cli-direct');
+  it('returns docker as the default for all normal ACs', () => {
+    expect(classifyStrategy('Given the user runs codeharness status, Then output shows version')).toBe('docker');
   });
 
-  it('returns docker-session for Agent tool ACs', () => {
-    expect(classifyStrategy('invokes /create-story via Agent tool')).toBe('docker-session');
+  it('returns docker for Agent tool ACs', () => {
+    expect(classifyStrategy('invokes /create-story via Agent tool')).toBe('docker');
   });
 
-  it('returns docker-session for subagent ACs', () => {
-    expect(classifyStrategy('spawns a subagent for code review')).toBe('docker-session');
+  it('returns docker for workflow ACs', () => {
+    expect(classifyStrategy('runs the sprint planning workflow')).toBe('docker');
   });
 
-  it('returns docker-session for workflow ACs', () => {
-    expect(classifyStrategy('runs the sprint planning workflow')).toBe('docker-session');
+  it('returns docker for integration keywords', () => {
+    expect(classifyStrategy('requires integration test with external system')).toBe('docker');
   });
 
-  it('returns docker-session for multi-step ACs', () => {
-    expect(classifyStrategy('multi-step process that retries the current story')).toBe('docker-session');
-  });
-
-  it('returns docker-session for sprint execution ACs', () => {
-    expect(classifyStrategy('sprint execution proceeds automatically to the next story')).toBe('docker-session');
+  it('returns docker for CLI ACs (safer than cli-direct)', () => {
+    expect(classifyStrategy('runs npm test and checks coverage')).toBe('docker');
   });
 
   it('returns escalate for physical hardware ACs', () => {
@@ -347,10 +343,6 @@ describe('classifyStrategy', () => {
 
   it('returns escalate for manual human review ACs', () => {
     expect(classifyStrategy('needs manual human visual inspection')).toBe('escalate');
-  });
-
-  it('returns docker-session for integration keywords (not escalate)', () => {
-    expect(classifyStrategy('requires integration test with external system')).toBe('docker-session');
   });
 
   it('includes strategy in parsed ACs', () => {
@@ -365,7 +357,7 @@ describe('classifyStrategy', () => {
 
     const acs = parseStoryACs(storyPath);
     expect(acs).toHaveLength(2);
-    expect(acs[0].strategy).toBe('cli-direct');
-    expect(acs[1].strategy).toBe('docker-session');
+    expect(acs[0].strategy).toBe('docker');
+    expect(acs[1].strategy).toBe('docker');
   });
 });

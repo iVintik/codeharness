@@ -195,23 +195,22 @@ You MUST:
 5. Run a final `npm run test:unit` via `showboat exec` to confirm fixes haven't broken anything
 6. Run `showboat verify` to confirm all evidence is reproducible
 
-VERIFICATION STRATEGY — choose the best approach for each AC:
-- **cli-direct** (default): AC can be verified by running CLI commands in the current session
-- **docker-session**: AC needs Agent tool integration, workflow execution, or multi-system interaction → run Claude Code in Docker using the test harness at `tests/docker/Dockerfile.harness-test`. Build it, run it, capture output as evidence.
-- **escalate** (last resort): AC truly cannot be automated — requires physical hardware, human visual judgement, or an unavailable paid external service. Docker unavailable also qualifies.
+VERIFICATION STRATEGY — Docker is the default for ALL ACs:
+- **docker** (default): Run verification in an isolated Docker container. This is the safest approach — it can't corrupt the host environment, and works for everything: CLI commands, Agent tool integration, workflows, services, database checks. Uses `tests/docker/Dockerfile.harness-test` which has Claude Code pre-installed.
+- **cli-direct** (fallback): If Docker is unavailable, run CLI commands in the current session. Only for read-only checks that can't cause side effects.
+- **escalate** (last resort): AC truly cannot be automated — requires physical hardware or human visual judgement. Almost nothing should reach this tier.
 
-ESCALATION is the LAST resort. Before escalating, you MUST attempt:
-1. CLI verification (direct commands)
-2. Docker-session verification (Claude Code in Docker for Agent/workflow ACs)
-3. Only if BOTH fail → escalate with `[ESCALATE] AC {N}: {specific reason}`
-
-For Docker verification of Agent/workflow ACs:
+For Docker verification:
 ```bash
 showboat exec bash \"docker build -t codeharness-verify -f tests/docker/Dockerfile.harness-test . 2>&1 | tail -5\"
-showboat exec bash \"docker run --rm -e ANTHROPIC_API_KEY=\\\"$ANTHROPIC_API_KEY\\\" codeharness-verify '{prompt}' 2>&1 | tail -40\"
+showboat exec bash \"docker run --rm -e ANTHROPIC_API_KEY=\\\"$ANTHROPIC_API_KEY\\\" codeharness-verify '{verification prompt}' 2>&1 | tail -40\"
 ```
 
-NEVER fake evidence — use real execution (CLI or Docker).
+The verification prompt should exercise the exact behavior described in the AC. Docker gives you a throwaway environment — be aggressive, test destructive paths, simulate failures. That's the whole point of isolation.
+
+If Docker is unavailable (no daemon, no API key), fall back to cli-direct for safe read-only checks, escalate for anything else.
+
+NEVER fake evidence — use real execution.
 
 MANDATORY — `showboat exec` rules:
 - Every AC MUST use `showboat exec` with real CLI commands (e.g., `codeharness verify ...`, `cat <file> | grep <expected>`, running the actual binary)
@@ -261,12 +260,13 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 6. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
 7. Handle escalated ACs separately from pending:
    - `pending > 0` means verifier failed to produce evidence → re-spawn verifier (up to max_retries)
-   - `escalated > 0` means verifier correctly identified ACs that cannot be verified in the current session:
-     - Print: `[WARN] Story {story_key} has {N} escalated ACs — story stays at verified`
-     - Do NOT mark story as `done` — story stays at `verified` status
-     - Do NOT re-spawn the verifier — escalation is the correct outcome
-     - The story is **blocked** — Step 2 skip logic will advance past it
-8. If no escalated ACs and `pending === 0`: Update sprint-status.yaml: change `{story_key}` status to `done`
+   - `escalated > 0` means verifier correctly identified ACs that truly cannot be automated — log them but do NOT re-spawn and do NOT block completion:
+     ```
+     [INFO] Story {story_key}: {N} ACs escalated (tracked in proof document for manual follow-up)
+     ```
+8. If `pending === 0`: Update sprint-status.yaml: change `{story_key}` status to `done`
+   - Stories with escalated ACs still reach `done` — escalation means the AC was acknowledged and documented, not that the story is incomplete
+   - Escalated ACs remain in the proof document for future manual or integration verification
 9. Print: `[OK] Story {story_key}: verified → done`
 
 **If verification reveals unfixable issues:**

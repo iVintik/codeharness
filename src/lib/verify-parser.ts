@@ -12,15 +12,16 @@ export type Verifiability = 'cli-verifiable' | 'integration-required';
 
 /**
  * Verification strategy — how the verifier should approach proving an AC.
- * The verifier picks the BEST strategy for each AC, trying cheaper ones first.
  *
- * - cli-direct:     Run CLI commands in the current subprocess (default, cheapest)
- * - docker-session: Spin up a Docker container with Claude Code to test Agent tool
- *                   integration, multi-step workflows, or multi-system interactions
- * - escalate:       Truly impossible — requires physical hardware, external paid
- *                   service, or human judgement. Last resort only.
+ * - docker:    Run in a Docker container (default, safest — isolated environment,
+ *              can't corrupt host, works for ALL verification including Agent tool,
+ *              workflows, CLI commands, integration tests)
+ * - cli-direct: Run CLI commands in the current subprocess (fallback when Docker
+ *               is unavailable — faster but risks host environment side effects)
+ * - escalate:   Truly impossible — requires physical hardware, external paid
+ *               service, or human judgement. Last resort only.
  */
-export type VerificationStrategy = 'cli-direct' | 'docker-session' | 'escalate';
+export type VerificationStrategy = 'docker' | 'cli-direct' | 'escalate';
 
 export interface ParsedAC {
   id: string;
@@ -125,10 +126,13 @@ export function classifyVerifiability(description: string): Verifiability {
 
 /**
  * Determines the best verification strategy for an AC.
- * Tries cheaper strategies first:
- *   1. cli-direct — can run in current subprocess
- *   2. docker-session — needs Claude Code in Docker for Agent/workflow testing
- *   3. escalate — truly impossible to automate
+ *
+ * Docker is the DEFAULT — it's the safest approach because it runs in an
+ * isolated container that can't corrupt the host environment. It works for
+ * everything: CLI commands, Agent tool integration, workflows, services.
+ *
+ * cli-direct is the fallback when Docker is unavailable (checked at runtime).
+ * escalate is the last resort for things that truly can't be automated.
  */
 export function classifyStrategy(description: string): VerificationStrategy {
   const lower = description.toLowerCase();
@@ -138,17 +142,8 @@ export function classifyStrategy(description: string): VerificationStrategy {
     if (lower.includes(kw)) return 'escalate';
   }
 
-  // Check for Docker-session needs (Agent tool, workflows, multi-step)
-  for (const kw of DOCKER_SESSION_KEYWORDS) {
-    if (lower.includes(kw)) return 'docker-session';
-  }
-
-  // Check integration keywords — these CAN be Docker-verified
-  for (const kw of INTEGRATION_KEYWORDS) {
-    if (lower.includes(kw)) return 'docker-session';
-  }
-
-  return 'cli-direct';
+  // Default: Docker for everything — safe, isolated, works for all AC types
+  return 'docker';
 }
 
 // ─── Verification Tag Parsing ───────────────────────────────────────────────

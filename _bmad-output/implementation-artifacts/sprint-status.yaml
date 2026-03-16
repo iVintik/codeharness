@@ -54,7 +54,7 @@ development_status:
   epic-2: in-progress
   2-1-dependency-auto-install-otlp-instrumentation: done
   2-2-docker-compose-victoriametrics-stack-management: verifying
-  2-3-observability-querying-agent-visibility-into-runtime: verifying
+  2-3-observability-querying-agent-visibility-into-runtime: done
   epic-2-retrospective: optional
 
   epic-3: in-progress

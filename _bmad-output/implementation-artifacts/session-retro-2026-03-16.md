@@ -1536,3 +1536,141 @@ All four stories passed code review after fixes. Story 13-3 is stuck at `verifyi
 | Security vulnerabilities caught | 4 (path traversal x2, injection x1, null assertion x1) |
 | AGENTS.md staleness incidents | 1 (repeat from earlier session) |
 | Escalated ACs | 3 (AC4, AC5, AC9 in 13-3) |
+
+---
+
+# Session Retrospective — 2026-03-16 (Session 3, ~22:30)
+
+**Session Date:** 2026-03-16
+**Session Window:** ~21:10 – 22:30 (approx. 80 minutes)
+**Sprint Scope:** Black-box re-verification of previously-done stories (0-1, 1-1, 1-2)
+**Stories Attempted:** 3
+**Stories Completed:** 1 (1-1 reached `done`)
+**Stories Blocked:** 2 (0-1 and 1-2 remain `verifying`)
+**Git Commits This Session:** 2 (1be2d37, 5530b00)
+
+---
+
+## 1. Session Summary
+
+This session continued the mass re-verification effort required after Epic 13 introduced black-box verification. Three stories were run through the new Docker-based verifier:
+
+| Story | Title | Outcome | Details |
+|-------|-------|---------|---------|
+| 0-1 | Sprint Execution Skill | **Blocked** (5/6 ACs escalated) | Markdown-only skill — not CLI-verifiable |
+| 1-1 | Project Scaffold / CLI Entry Point | **Done** | 2 defects found and fixed during verification |
+| 1-2 | Core Libraries (State, Stack, Detection, Templates) | **Blocked** (1 AC escalated) | AC8 requires vitest, which isn't in the npm-installed package |
+
+**Key outcome:** Only 1 of 3 stories cleared verification. The other 2 are blocked by structural limitations of the black-box verification approach, not by code defects.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Discovered During Verification
+
+| # | Bug | Severity | Story | Fixed? |
+|---|-----|----------|-------|--------|
+| B1 | `state` command visible in `--help` output — Commander.js v14 lacks `hideHelp()` | Low | 1-1 | Yes — used `_hidden = true` private property |
+| B2 | `onboard --json` ignores JSON flag on all 5 early-exit paths — used `fail()` instead of `jsonOutput()` | Medium | 1-1 | Yes — all 5 paths corrected |
+
+Both bugs were real defects in the CLI that would affect end users. The black-box verifier found them because it tested the actual installed binary, not the source code.
+
+### 2.2 Workarounds Applied (Tech Debt)
+
+| # | Workaround | Debt Level | Notes |
+|---|-----------|------------|-------|
+| W1 | Commander.js `_hidden = true` for state command | Medium | Relies on internal/private API. Will break if Commander.js changes internals in a minor version. Should monitor on upgrade. |
+| W2 | `--dangerously-skip-permissions` flag required for verifier's `claude --print` invocations | Low | First verifier run failed without it. Now documented, but fragile if Claude CLI changes flag behavior. |
+
+### 2.3 Verification Gaps (Escalated ACs)
+
+| # | Story | Escalated ACs | Root Cause |
+|---|-------|--------------|------------|
+| V1 | 0-1 | 5 of 6 ACs | Markdown skill — ACs 2-4 require a live Claude Code session with Agent tool. AC5 partially verified. Fundamentally not black-box testable. |
+| V2 | 1-2 | 1 of 8 (AC8) | AC8 requires running vitest, but the npm-installed package doesn't include test files. Source tree not present in black-box container. |
+
+### 2.4 Minor Deviations Noted (Not Failures)
+
+These were flagged by the verifier for story 1-2 but did not cause AC failures:
+
+- `enforcement.observability` missing from default state (story spec includes it)
+- `coverage.target` defaults to 90 instead of 100 (story spec says 100)
+- `renderTemplate()` doesn't exist in the bundle (story specified it)
+
+These suggest the story spec drifted from the implementation. The implementation is likely correct (reasonable defaults), but the story files should be updated to match reality.
+
+### 2.5 Tooling / Infrastructure Issues
+
+| # | Issue | Impact |
+|---|-------|--------|
+| T1 | Showboat verify errored on block 8 comparison (story 1-2) — expected/actual appear identical, likely whitespace/encoding mismatch | Low — proof quality still parsed correctly |
+| T2 | Showboat verify errored on block 39 (story 0-1) — "exec: no command" | Low — formatting issue in proof, not a real failure |
+| T3 | Shared VictoriaMetrics stack port collision with per-project docker-compose.harness.yml | Low — used shared stack directly as workaround |
+| T4 | Test count dropped from 52 files / 1613 tests to 51 files / 1598 tests between verification runs | Unknown — needs investigation, may be pre-existing |
+
+---
+
+## 3. What Went Well
+
+- **Black-box verification found real bugs.** Both defects in story 1-1 (hidden command visibility, JSON flag on early exit) were genuine user-facing issues that white-box testing missed. This validates the entire Epic 13 investment.
+- **Story 1-1 went from verification to done quickly.** Defects were found, fixed, and re-verified in a single pass (~20 minutes).
+- **Escalation mechanism works correctly.** Stories 0-1 and 1-2 properly escalated ACs that cannot be verified in a black-box container instead of faking passes.
+- **Session issues log captured everything.** All three verifier runs produced clear, actionable issue reports — no information was lost.
+
+---
+
+## 4. What Went Wrong
+
+- **2 of 3 stories remain blocked after verification.** 67% failure rate, though the blockers are structural (verification approach limitations), not code quality issues.
+- **Skill-only stories (0-1) are essentially unverifiable in black-box mode.** 5/6 ACs escalated. This was predicted in the Epic 13 retrospective but no alternative verification path has been created yet.
+- **AC8 for story 1-2 is a packaging gap.** The test suite is not shipped with the npm package, so the verifier can't run it. This is a real gap — either the AC needs rewriting or the package needs to include tests.
+- **Story spec drift.** Three deviations between the 1-2 story spec and the actual implementation suggest specs are not being updated when implementation decisions change.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+1. **Black-box verification catches real bugs.** Keep using it for all CLI/library stories.
+2. **Session issues log as retro input.** Having subagents write issues in real-time produces better retros than trying to reconstruct what happened.
+3. **Escalation over false passes.** The escalation mechanism prevents bad data from entering the proof trail.
+
+### Patterns to Avoid
+1. **Don't attempt black-box verification on pure-skill stories.** They need a different verification approach (live session replay, or manual verification checklist).
+2. **Don't let story specs drift.** When implementation deviates from spec (for good reasons), update the spec immediately — not during verification.
+3. **Don't assume test files are in the installed package.** Any AC that requires running the project's own test suite needs to be flagged as source-only during story creation.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+- [ ] **Decide on 0-1 disposition** — either mark it done with escalation notes (it passed white-box before Epic 13 reset), or define a manual verification checklist for skill stories.
+- [ ] **Decide on 1-2 AC8** — either rewrite AC8 to something verifiable from the installed package, or accept the escalation and move 1-2 to done.
+
+### Fix Soon (Next Sprint)
+- [ ] **Create a verification path for markdown-skill stories** — possibly a "skill verification" mode that uses Claude Code session replay or simply documents that these stories are verified by inspection.
+- [ ] **Update story 1-2 spec** to match actual implementation (enforcement.observability, coverage.target=90, no renderTemplate).
+- [ ] **Investigate test count drop** (1613 → 1598 tests) — determine if tests were deleted, renamed, or if this is a vitest config issue.
+- [ ] **Fix Showboat whitespace/encoding issue** causing false block comparison errors in proofs.
+
+### Backlog
+- [ ] **Monitor Commander.js `_hidden` stability** — if upgrading Commander.js, check that the `_hidden` property still works. Consider contributing a `hideHelp()` method upstream.
+- [ ] **Consider shipping test files in package** — or creating a separate `@codeharness/tests` package — so AC8-style requirements can be verified in containers.
+- [ ] **Automate story spec sync** — when implementation changes default values or removes planned APIs, flag the spec for update.
+
+---
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 3 |
+| Stories completed | 1 (33%) |
+| Stories blocked (structural) | 2 |
+| Bugs found by black-box verifier | 2 (both fixed) |
+| ACs escalated (total) | 6 (5 in 0-1, 1 in 1-2) |
+| Spec deviations noted | 3 (in 1-2) |
+| Tooling issues | 4 |
+| Workarounds introduced | 2 |

@@ -637,6 +637,24 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     expect(result).toEqual({ verified: 1, pending: 0, escalated: 2, total: 3, passed: true });
   });
 
+  it('parses bullet-list AC format with PASS/FAIL qualifiers', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof',
+      '',
+      '```output',
+      'evidence here',
+      '```',
+      '',
+      '- AC1 PASS: Verified install commands',
+      '- AC2 PASS (evolved): OTLP configured',
+      '- AC3 FAIL: Something broken',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 3, pending: 0, escalated: 0, total: 3, passed: true });
+  });
+
   it('marks all as pending in bullet-list format when no evidence blocks exist', () => {
     const path = join(testDir, 'proof.md');
     writeFileSync(path, [

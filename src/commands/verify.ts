@@ -204,7 +204,15 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
   } else {
     showboatStatus = showboatResult.passed ? 'pass' : 'fail';
     if (!showboatResult.passed) {
-      fail(`Showboat verify failed: ${showboatResult.output}`, { json: isJson });
+      if (isJson) {
+        jsonOutput({
+          status: 'fail',
+          message: `Showboat verify failed: ${showboatResult.output}`,
+          proofQuality: { verified: proofQuality.verified, pending: proofQuality.pending, escalated: proofQuality.escalated, total: proofQuality.total },
+        });
+      } else {
+        fail(`Showboat verify failed: ${showboatResult.output}`);
+      }
       process.exitCode = 1;
       return;
     }

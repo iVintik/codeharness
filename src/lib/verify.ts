@@ -223,8 +223,8 @@ export function validateProofQuality(proofPath: string): ProofQuality {
       const narrativeAcNumbers = new Set(narrativeMatches.map(m => m[1]));
 
       if (narrativeAcNumbers.size === 0) {
-        // Format 4: bullet-list AC summaries (e.g., "- AC1: description" in evidence summary sections)
-        const bulletAcPattern = /^- AC ?(\d+):/gm;
+        // Format 4: bullet-list AC summaries (e.g., "- AC1: desc", "- AC1 PASS: desc", "- AC 1: desc")
+        const bulletAcPattern = /^- AC ?(\d+)[^:\n]*:/gm;
         const bulletMatches = [...content.matchAll(bulletAcPattern)];
         const bulletAcNumbers = new Set(bulletMatches.map(m => m[1]));
 
@@ -238,7 +238,7 @@ export function validateProofQuality(proofPath: string): ProofQuality {
 
         for (const acNum of bulletAcNumbers) {
           // Find the bullet line for this AC
-          const bulletPattern = new RegExp(`^- AC ?${acNum}:(.*)$`, 'm');
+          const bulletPattern = new RegExp(`^- AC ?${acNum}[^:\\n]*:(.*)$`, 'm');
           const bulletMatch = content.match(bulletPattern);
           if (!bulletMatch) { bPending++; continue; }
 

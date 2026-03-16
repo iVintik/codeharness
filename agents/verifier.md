@@ -58,50 +58,9 @@ showboat exec "verification/{story-id}-proof.md" bash "npm run test:unit 2>&1 | 
 4. Re-run and capture the passing output
 5. Add a note documenting what was fixed
 
-### Step 4: Verify each AC with real evidence
+### Step 4: Verify each AC — Docker first
 
-For each acceptance criterion, determine the verification approach and capture evidence:
-
-**File existence / content ACs:**
-```bash
-showboat exec "verification/{story-id}-proof.md" bash "ls -la {file} && head -5 {file}"
-showboat exec "verification/{story-id}-proof.md" bash "grep -c '{pattern}' {file}"
-```
-
-**CLI behavior ACs:**
-```bash
-showboat exec "verification/{story-id}-proof.md" bash "codeharness {command} 2>&1"
-```
-
-**Code structure ACs:**
-```bash
-showboat exec "verification/{story-id}-proof.md" bash "grep -n '{function_or_class}' {file}"
-```
-
-**Coverage ACs:**
-```bash
-showboat exec "verification/{story-id}-proof.md" bash "npm run test:coverage 2>&1 | grep -A2 '{module}'"
-```
-
-**UI ACs** (if agent-browser available):
-```bash
-agent-browser navigate "{url}" --screenshot "verification/screenshots/{story-id}-ac{N}.png"
-showboat image "verification/{story-id}-proof.md" "verification/screenshots/{story-id}-ac{N}.png"
-```
-
-**API ACs:**
-```bash
-showboat exec "verification/{story-id}-proof.md" bash "curl -s -w '\n%{http_code}' {endpoint}"
-```
-
-**Log/Trace ACs:**
-```bash
-showboat exec "verification/{story-id}-proof.md" bash "curl -s 'http://localhost:9428/select/logsql/query?query={query}&limit=5'"
-```
-
-### Step 4b: Docker verification (default for ALL ACs)
-
-Docker is the preferred verification approach for ALL acceptance criteria — not just Agent/workflow ACs. It provides an isolated, throwaway environment that:
+**Docker is the default.** Run ALL verification in Docker containers. This is not optional — it's the primary approach because it:
 - Can't corrupt the host machine
 - Allows testing destructive paths safely (failures, retries, crashes)
 - Has Claude Code pre-installed for Agent tool / workflow verification
@@ -112,7 +71,7 @@ Docker is the preferred verification approach for ALL acceptance criteria — no
 showboat exec "verification/{story-id}-proof.md" bash "docker build -t codeharness-verify -f tests/docker/Dockerfile.harness-test . 2>&1 | tail -5"
 ```
 
-**Run verification for each AC:**
+**Run verification for each AC inside Docker:**
 ```bash
 showboat exec "verification/{story-id}-proof.md" bash "docker run --rm \
   -e ANTHROPIC_API_KEY=\"$ANTHROPIC_API_KEY\" \
@@ -122,15 +81,21 @@ showboat exec "verification/{story-id}-proof.md" bash "docker run --rm \
 
 **Craft the verification prompt to exercise the exact AC behavior:**
 - AC says "CLI shows version" → prompt: "Run codeharness --version and show the output"
+- AC says "file exists with content" → prompt: "ls -la {file} && head -5 {file}"
+- AC says "tests pass with coverage" → prompt: "Run npm run test:coverage and report results"
 - AC says "invokes /create-story via Agent tool" → prompt: "Run /harness-run. Verify it invokes create-story for the first backlog story."
 - AC says "retries on failure, halts after max" → prompt: "Run /harness-run against a story designed to fail. Confirm retry and halt behavior."
-- AC says "tests pass with coverage" → prompt: "Run npm run test:coverage and report results"
+- AC says "API responds" → prompt: "curl -s -w '\n%{http_code}' {endpoint}"
 
 Docker gives you a throwaway environment — be aggressive, test destructive paths, simulate failures. That's the whole point of isolation.
 
-**Fallback to cli-direct** only if Docker is unavailable (no daemon running). For read-only checks (file existence, grep patterns), cli-direct is acceptable.
+**Fallback: cli-direct** — ONLY if Docker is unavailable (no daemon, build fails). For trivially safe read-only checks (file existence, grep), cli-direct is acceptable as fallback:
+```bash
+showboat exec "verification/{story-id}-proof.md" bash "ls -la {file}"
+showboat exec "verification/{story-id}-proof.md" bash "grep -n '{pattern}' {file}"
+```
 
-**Escalate** only if truly impossible (needs physical hardware, human visual judgement):
+**Escalate** — ONLY if truly impossible (physical hardware, human visual judgement):
 ```bash
 showboat exec "verification/{story-id}-proof.md" bash "echo '[ESCALATE] AC {N}: {specific reason why this cannot be automated}'"
 ```

@@ -249,3 +249,11 @@
 [2026-03-16 09:46:53] [LOOP] === Iteration #3 ===
 [2026-03-16 09:46:55] [LOOP] Iteration 3 — Task: '(reading from prompt)'
 [2026-03-16 09:46:55] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-03-16 09:54:36] [INFO] Platform driver: Claude Code (claude)
+[2026-03-16 09:54:36] [INFO] Resuming from last completed story
+[2026-03-16 09:54:41] [INFO] Ralph loop interrupted. Cleaning up...
+[2026-03-16 09:54:42] [INFO]   Iterations: 3
+[2026-03-16 09:54:42] [INFO]   Stories completed: 4/52
+[2026-03-16 09:54:42] [INFO]   Elapsed: 18m
+[2026-03-16 09:55:14] [INFO] Platform driver: Claude Code (claude)
+[2026-03-16 09:55:14] [INFO] Resuming from last completed story

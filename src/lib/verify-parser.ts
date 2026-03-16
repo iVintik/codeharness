@@ -10,11 +10,24 @@ import { warn } from './output.js';
 
 export type Verifiability = 'cli-verifiable' | 'integration-required';
 
+/**
+ * Verification strategy — how the verifier should approach proving an AC.
+ * The verifier picks the BEST strategy for each AC, trying cheaper ones first.
+ *
+ * - cli-direct:     Run CLI commands in the current subprocess (default, cheapest)
+ * - docker-session: Spin up a Docker container with Claude Code to test Agent tool
+ *                   integration, multi-step workflows, or multi-system interactions
+ * - escalate:       Truly impossible — requires physical hardware, external paid
+ *                   service, or human judgement. Last resort only.
+ */
+export type VerificationStrategy = 'cli-direct' | 'docker-session' | 'escalate';
+
 export interface ParsedAC {
   id: string;
   description: string;
   type: 'ui' | 'api' | 'db' | 'general';
   verifiability: Verifiability;
+  strategy: VerificationStrategy;
 }
 
 // ─── Keywords for Classification ────────────────────────────────────────────
@@ -61,6 +74,36 @@ export const INTEGRATION_KEYWORDS = [
   'manual verification',
 ];
 
+// Keywords that indicate Docker-session verification (Agent tool, subagents, live sessions)
+const DOCKER_SESSION_KEYWORDS = [
+  'agent tool',
+  'subagent',
+  'via agent',
+  'invoke',
+  '/create-story',
+  '/bmad-dev-story',
+  '/bmad-code-review',
+  '/harness-run',
+  '/retrospective',
+  'sprint execution',
+  'fresh context',
+  'spawns',
+  'code review workflow',
+  'dev-story workflow',
+  'automatically proceeds',
+  'retries the current story',
+  'halts with status',
+  'prints summary',
+];
+
+// Keywords that indicate true escalation (cannot be automated at all)
+const ESCALATE_KEYWORDS = [
+  'physical hardware',
+  'manual human',
+  'visual inspection by human',
+  'paid external service',
+];
+
 // ─── Verifiability Classification ───────────────────────────────────────────
 
 /**
@@ -76,6 +119,36 @@ export function classifyVerifiability(description: string): Verifiability {
   }
 
   return 'cli-verifiable';
+}
+
+// ─── Verification Strategy ─────────────────────────────────────────────────
+
+/**
+ * Determines the best verification strategy for an AC.
+ * Tries cheaper strategies first:
+ *   1. cli-direct — can run in current subprocess
+ *   2. docker-session — needs Claude Code in Docker for Agent/workflow testing
+ *   3. escalate — truly impossible to automate
+ */
+export function classifyStrategy(description: string): VerificationStrategy {
+  const lower = description.toLowerCase();
+
+  // Check for true escalation first (very rare)
+  for (const kw of ESCALATE_KEYWORDS) {
+    if (lower.includes(kw)) return 'escalate';
+  }
+
+  // Check for Docker-session needs (Agent tool, workflows, multi-step)
+  for (const kw of DOCKER_SESSION_KEYWORDS) {
+    if (lower.includes(kw)) return 'docker-session';
+  }
+
+  // Check integration keywords — these CAN be Docker-verified
+  for (const kw of INTEGRATION_KEYWORDS) {
+    if (lower.includes(kw)) return 'docker-session';
+  }
+
+  return 'cli-direct';
 }
 
 // ─── Verification Tag Parsing ───────────────────────────────────────────────
@@ -173,11 +246,13 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
         // Check for explicit verification tag (authoritative), fall back to heuristic
         const tag = parseVerificationTag(description);
         const verifiability = tag ?? classifyVerifiability(description);
+        const strategy = classifyStrategy(description);
         acs.push({
           id: currentId,
           description,
           type: classifyAC(description),
           verifiability,
+          strategy,
         });
       } else {
         warn(`Skipping malformed AC #${currentId}: empty description`);

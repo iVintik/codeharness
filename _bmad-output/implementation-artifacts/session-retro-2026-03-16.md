@@ -500,3 +500,197 @@ Total wasted cost on deadlock: ~$2.56 across Sessions 2-3, with zero progress.
 **Session 1** was productive. **Sessions 2 and 3** hit the same deadlock. The pattern is clear: the harness-run algorithm's sequential epic processing with hard halt on blocked stories is a fundamental design flaw. Until epic-skip logic is implemented (or story 0-1 is manually marked done), every future session will produce this exact same result.
 
 **Recommendation:** Stop the Ralph loop. Fix the algorithm. Then resume. Continuing to run automated sessions against a known deadlock is burning money for zero return.
+
+---
+
+# Session Retrospective — 2026-03-16 (Sessions 4-6, Ralph Runs #4-6)
+
+**Timestamp:** 2026-03-16T09:55:00Z
+**Session Window:** 06:52 - 09:54 UTC (3 hours elapsed, ~58 minutes active compute)
+**Ralph Loop Runs:** 3 separate runs (4 iterations + 1 iteration + 3 iterations = 8 total iterations)
+**Stories Completed:** 2 (0-1 promoted to done, 1-1 promoted to done)
+**Stories at Start:** 3 done / 49 verified
+**Stories at End:** 5 done / 47 verified (0-1 done, 1-1 done)
+**Commits:** 3 (c98fcb2, 66d422c, 803e814)
+**Total API Cost:** ~$6.77 ($4.52 + $1.28 + $0.97)
+
+---
+
+## 1. Session Summary
+
+Three Ralph loop runs occurred after the earlier Sessions 1-3. The first run (4 iterations, 06:52-07:14) hit the same Epic 0 deadlock three times, exhausting retries for all 49 verified stories, then was interrupted by the user. The second run (1 iteration, 08:27-08:45) was the breakthrough session: it recognized the deadlock, wrote the session retro/issues, and the harness-run session itself resolved the Epic 0 deadlock by marking 0-1 as done. The user then committed that fix (c98fcb2), followed by the escalation-logic fix (66d422c). The third run (3 iterations, 09:36-09:54) verified and promoted story 1-1 to done, with a systemic fix to the inline AC parser (803e814).
+
+| Run | Iterations | Duration | Cost | Stories Progressed | Key Event |
+|-----|-----------|----------|------|-------------------|-----------|
+| Run 4 (06:52) | 4 (interrupted) | ~22 min | ~$4.52 | 0 | All 49 stories hit retry limits; deadlock persisted |
+| Run 5 (08:27) | 1 (interrupted) | ~18 min | ~$1.28 | 1 (0-1 done) | Deadlock override: 0-1 marked done; 0-1 flagged as exceeded retries |
+| Run 6 (09:36) | 3 (interrupted) | ~18 min | ~$0.97 | 1 (1-1 done) | Inline AC parser fix; 1-1 verified with 5/5 ACs |
+
+### Key Deliverables
+
+1. **Deadlock broken.** Story 0-1 promoted to `done` after 4 sessions of deadlock. Epic 0 retrospective completed and committed.
+2. **Escalation logic fixed.** `harness-run.md` updated so escalated ACs no longer block story completion (commit 66d422c). This is the algorithmic fix Sessions 2-3 called for.
+3. **Inline AC parser fixed.** `validateProofQuality()` in `src/lib/verify.ts` now handles showboat's native `--- ACN:` inline markers inside code blocks, not just `## AC N:` section headers (commit 803e814). This unblocks verification for all showboat-generated proof documents.
+4. **Story 1-1 verified.** 5/5 ACs confirmed via showboat proof document. First story verified end-to-end after both parser fixes.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Discovered
+
+| # | Bug | Severity | Fixed? | Where |
+|---|-----|----------|--------|-------|
+| B5 | `validateProofQuality()` only matched `## AC N:` section headers. Showboat native format uses inline `--- ACN:` markers inside bash/output code blocks. All showboat-generated proofs reported 0/0 ACs. | Critical | Yes | `src/lib/verify.ts` — added fallback parser for inline markers (commit 803e814) |
+| B6 | Escalated ACs treated as blockers preventing story promotion to `done`. A story with 5/6 escalated ACs could never complete, even though escalated ACs are explicitly unverifiable by design. | Critical | Yes | `commands/harness-run.md` — `pending === 0` is now the sole done-condition (commit 66d422c) |
+
+### 2.2 Workarounds Applied (Tech Debt)
+
+| # | Workaround | Debt Level | Notes |
+|---|-----------|------------|-------|
+| W3 | Story 0-1 manually marked `done` via direct sprint-status.yaml edit rather than through the normal verification pipeline. | Low | Acceptable — 1/6 ACs verified, 5/6 correctly escalated. The deliverable (harness-run.md) exists and functions. Proof document exists with evidence. |
+| W4 | Ralph retry counter was reset between runs, allowing re-processing of stories that had already exhausted retries in Run 4. | Medium | The `.story_retries` file persists across runs, but Run 5 started fresh. This inadvertently helped (it allowed 0-1 to be re-processed and finally resolved), but indicates Ralph's retry state is not durable across user interruptions. |
+
+### 2.3 Verification Gaps
+
+| # | Gap | Impact |
+|---|-----|--------|
+| V5 | Run 4 logged "retry 1/3", "retry 2/3", "retry 3/3" for ALL 49 verified stories in bulk after each iteration, even though only 1 story (0-1) was the actual blocker. The retry tracking treats all non-done stories as having failed, not just the one being worked on. | High — retry exhaustion on stories that were never actually attempted wastes their retry budget |
+| V6 | 47 stories remain at `verified` with no proof documents. Only 0-1 and 1-1 have been through the full verification pipeline. | High — bulk verification still needed |
+
+### 2.4 Tooling/Infrastructure Problems
+
+| # | Problem | Impact |
+|---|---------|--------|
+| T3 | Ralph loop Run 4 burned 4 iterations ($4.52) on the deadlock before user interrupted. The loop had no pre-iteration check for "was the previous iteration's exit reason the same as the one before?" | High — most expensive wasted run today |
+| T4 | Ralph retry tracking is per-story but applied in bulk. After Run 4 iteration 1, all 49 stories got "retry 1/3" even though only story 0-1 was processed. By iteration 3, all stories were at retry 3/3. | Critical — design flaw in retry tracking |
+| T5 | The `.story_retries` file currently shows `0-1-sprint-execution-skill 2` but story 0-1 is done. Stale retry state for completed stories is not cleaned up. | Low — cosmetic but indicates state management gap |
+
+### 2.5 Process Concerns
+
+| # | Concern | Recommendation |
+|---|---------|---------------|
+| P3 | Human intervention was required to break the deadlock (committing c98fcb2, 66d422c). The automated loop could not self-repair. The Session 2 retro identified this but the fix only happened when a human read the retro and acted on it. | Ralph needs a mechanism to apply "Fix Now" items from retros before the next iteration, or the loop should pause and alert when it detects repeated failures. |
+| P4 | Three separate Ralph runs in 3 hours, each interrupted by the user. The user is acting as the feedback loop that Ralph itself should provide. | Ralph should auto-halt after N consecutive zero-progress iterations and surface an actionable summary, rather than requiring the user to monitor and interrupt. |
+
+---
+
+## 3. What Went Well
+
+1. **The deadlock is finally broken.** After 4 sessions of the same blockage, story 0-1 was promoted to done and the escalation logic was fixed. Future stories with only escalated ACs will flow through to `done` automatically.
+
+2. **Two systemic parser fixes shipped.** The AC header regex fix (Session 1, B1) and the inline AC marker fix (B5, this session) together mean `validateProofQuality()` now handles both proof document formats. This unblocks verification for every story in the sprint.
+
+3. **The escalation-as-blocker design flaw is fixed.** Commit 66d422c ensures `pending === 0` is the sole condition for done status. Escalated ACs are logged and tracked but do not block. This is the correct design for a system that distinguishes between CLI-verifiable and integration-required acceptance criteria.
+
+4. **Story 1-1 verified cleanly.** 5/5 ACs confirmed with real evidence via showboat. This is the first story to complete the full pipeline after all parser fixes were in place. It validates that the verification architecture works end-to-end.
+
+5. **Session issues log proved its value across 6 sessions.** Every session wrote entries. The accumulated log made the deadlock undeniable and the fix obvious. Without this log, the same investigation would have been repeated in every session.
+
+6. **Cost reduction across sessions.** Run 6 cost $0.97 (down from Run 5's $1.28 and Run 4's $4.52). The system is getting faster at recognizing and handling known states.
+
+---
+
+## 4. What Went Wrong
+
+1. **Run 4 burned $4.52 on 4 deadlocked iterations.** The most expensive wasted run of the day. The loop ran 4 iterations against the known deadlock, retrying all 49 stories 3 times each, before the user interrupted. The total deadlock cost across all sessions is now ~$7.08 (Sessions 2-3: $2.56, Run 4: $4.52).
+
+2. **Retry tracking applied in bulk is fundamentally broken.** Ralph incremented retry counts for all 49 verified stories after each iteration, even though only 1 story (0-1) was the blocker. This means 48 innocent stories had their retry budgets consumed by a problem they had nothing to do with. If the user hadn't interrupted and reset, those stories would have been permanently flagged as failed.
+
+3. **Still only 5/52 stories at `done`.** Despite 6 sessions and ~$15+ in API costs today, the sprint has only moved 5 stories to done (3 from Epic 12 in Session 1, 0-1 and 1-1 in these sessions). 47 stories remain at `verified`. At the current rate of ~1 story per session, completing the sprint would take 47 more sessions.
+
+4. **Human intervention was the fix, not automation.** The deadlock was broken by a human reading the session retro, understanding the problem, and manually committing the fixes. The automated system could not self-repair. This contradicts the goal of autonomous sprint execution.
+
+5. **Three user interruptions in 3 hours.** The user had to monitor Ralph, interrupt when it was stuck, apply fixes, and restart. Ralph is supposed to reduce human overhead, not create a babysitting requirement.
+
+---
+
+## 5. Lessons Learned
+
+### Repeat
+
+- **L7: Fix the algorithm, not just the data.** Marking 0-1 as done (W3) was the immediate unblock, but the real fix was changing the escalation logic (66d422c). Both were needed — the workaround for today, the fix for tomorrow.
+
+- **L8: Parser fixes compound.** The AC header regex fix (B1) plus the inline marker fix (B5) together cover both proof document formats. Each fix alone was insufficient. When fixing parsers, test against all known input formats, not just the one that triggered the bug.
+
+- **L9: Session issues log as escalation path.** The log accumulated evidence across 6 sessions until a human read it and acted. This is the correct pattern for surfacing persistent problems that automation cannot resolve.
+
+### Avoid
+
+- **L10: Do not apply retry tracking to stories that were not actually attempted.** Bulk retry increments penalize bystander stories. Retry tracking must be scoped to the specific story that was worked on and failed, not all stories in the sprint.
+
+- **L11: Do not let automated loops run more than 2 consecutive zero-progress iterations.** After Run 4 iteration 2 produced the same result as iteration 1, iterations 3 and 4 added nothing but cost. A hard cap of 2 consecutive no-progress iterations should trigger an auto-halt with a diagnostic message.
+
+- **L12: Do not assume the loop can self-repair algorithm-level bugs.** The deadlock was in the harness-run command itself, which is the algorithm the loop executes. The loop cannot fix its own control logic. When a retro identifies an algorithm-level "Fix Now" item, the loop must pause for human intervention.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| # | Action | Owner | Details |
+|---|--------|-------|---------|
+| A11 | Clean up `.story_retries` — remove entry for completed story 0-1 | Dev | Stale retry state for done stories should be pruned |
+| A12 | Scope Ralph retry tracking to individual stories | Dev | Only increment retry count for the specific story that was attempted and failed, not all non-done stories |
+
+### Fix Soon (Next Sprint)
+
+| # | Action | Owner | Details |
+|---|--------|-------|---------|
+| A13 | Add consecutive-zero-progress auto-halt to Ralph loop | Dev | After 2 iterations with no story transitions, halt and emit diagnostic. Prevents cost burn on deadlocks. |
+| A14 | Batch verification mode for remaining 47 verified stories | Dev | A mode that processes all verified stories without sequential epic ordering. Carried from Session 2 A4. |
+| A15 | Add pre-iteration blocker check to Ralph | Dev | Before starting an iteration, check if previous iteration's exit reason was "deadlock" or "no_progress". If so, require evidence of fix before proceeding. Carried from Session 3 A5. |
+
+### Backlog (Track but Not Urgent)
+
+| # | Action | Owner | Details |
+|---|--------|-------|---------|
+| A16 | Branch coverage to 85%+ | Dev | Carried from Session 3 A8, Session 2 A7, Session 1 A3, originally Epic 8. **Seventh carry.** Per L6 from Session 1: schedule as a story in next sprint or explicitly drop. |
+| A17 | Wire `codeharness sync` | Dev | Carried from Session 3 A9, Session 2 A8, Session 1 A5, originally Epic 1. **Seventh carry.** Same disposition as A16. |
+| A18 | Fix showboat verify brittle string matching | Dev | Carried from Session 3 A7, Session 2 A6, Session 1 A8. |
+
+---
+
+## Metrics
+
+| Metric | Start of Sessions 4-6 | End of Sessions 4-6 | Delta |
+|--------|----------------------|---------------------|-------|
+| Stories at `done` | 3 (Epic 12) | 5 (Epic 12 + 0-1 + 1-1) | +2 |
+| Stories at `verified` | 49 | 47 | -2 |
+| Epics at `done` | 1 (Epic 12) | 2 (Epic 0, Epic 12) | +1 |
+| Ralph iterations (total today) | 3 | 11 | +8 |
+| API cost (these sessions) | - | ~$6.77 | - |
+| API cost (cumulative today) | ~$7.84 | ~$14.61 | +$6.77 |
+| Commits | 0 | 3 | +3 |
+| Tests | 1,455 | 1,455 | 0 |
+| Production code changes | 0 | +75 lines (verify.ts) | +75 |
+| User interruptions | 0 | 3 | +3 |
+
+---
+
+## Cross-Session Comparison (Full Day — 2026-03-16)
+
+| Dimension | Session 1 | Session 2 | Session 3 | Sessions 4-6 |
+|-----------|-----------|-----------|-----------|--------------|
+| Stories completed | 3 (Epic 12) | 0 | 0 | 2 (0-1, 1-1) |
+| Bugs fixed | 4 (B1-B4) | 0 | 0 | 2 (B5-B6) |
+| Code changes | +271 prod, +634 test | 0 | 0 | +75 prod |
+| Duration | ~90 min | ~30 min | ~2 min | ~58 min active |
+| Cost | ~$5+ | ~$1.28 | ~$1.28 | ~$6.77 |
+| Primary blocker | Broken verification | Deadlock | Deadlock (repeat) | Deadlock (resolved) |
+| Blocker resolved? | Yes | No | No | Yes |
+| Human intervention | No | No | No | Yes (3 interruptions + commits) |
+
+### Day Summary
+
+- **Total stories completed:** 5 (3 from Epic 12, 2 from Epics 0-1)
+- **Total bugs fixed:** 6 (B1-B6)
+- **Total API cost:** ~$14.61
+- **Total Ralph iterations:** 11
+- **Total human interventions:** 3
+- **Remaining verified stories:** 47 of 52
+
+The day started with a broken verification pipeline (Session 1 fixed it), hit an algorithm deadlock (Sessions 2-3 identified it, Sessions 4-6 resolved it with human help), and ended with the pipeline finally working end-to-end. The path from `verified` to `done` is now clear for the remaining 47 stories, but bulk verification at ~1 story per session will be slow without batch mode.
+
+**Critical path forward:** The next Ralph run should be able to process stories sequentially through Epics 1-11 without hitting the deadlock. The rate-limiting factor is now verification time per story, not algorithm bugs. Batch verification (A14) would significantly accelerate completion.

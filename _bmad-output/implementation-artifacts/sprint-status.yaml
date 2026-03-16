@@ -48,7 +48,7 @@ development_status:
   epic-1: in-progress
   1-1-project-scaffold-cli-entry-point: done
   1-2-core-libraries-state-stack-detection-templates: done
-  1-3-init-command-full-harness-initialization: verified
+  1-3-init-command-full-harness-initialization: done
   epic-1-retrospective: optional
 
   epic-2: in-progress

@@ -595,6 +595,60 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     const result = validateProofQuality(path);
     expect(result).toEqual({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
   });
+
+  it('parses bullet-list AC format with evidence', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof',
+      '',
+      '```bash',
+      'some command',
+      '```',
+      '',
+      '```output',
+      'some output',
+      '```',
+      '',
+      '### AC Evidence Summary:',
+      '- AC1: Verified install commands',
+      '- AC2: OTLP packages configured',
+      '- AC3: Python support verified',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 3, pending: 0, escalated: 0, total: 3, passed: true });
+  });
+
+  it('detects N/A and superseded ACs in bullet-list format', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof',
+      '',
+      '```output',
+      'evidence here',
+      '```',
+      '',
+      '- AC1: Verified thing',
+      '- AC2: N/A — superseded by architecture decision',
+      '- AC3: Escalated — requires hardware',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 1, pending: 0, escalated: 2, total: 3, passed: true });
+  });
+
+  it('marks all as pending in bullet-list format when no evidence blocks exist', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof',
+      '',
+      '- AC1: Claimed verification',
+      '- AC2: Also claimed',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 0, pending: 2, escalated: 0, total: 2, passed: false });
+  });
 });
 
 // ─── updateVerificationState ────────────────────────────────────────────────

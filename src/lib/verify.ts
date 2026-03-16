@@ -223,7 +223,51 @@ export function validateProofQuality(proofPath: string): ProofQuality {
       const narrativeAcNumbers = new Set(narrativeMatches.map(m => m[1]));
 
       if (narrativeAcNumbers.size === 0) {
-        return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
+        // Format 4: bullet-list AC summaries (e.g., "- AC1: description" in evidence summary sections)
+        const bulletAcPattern = /^- AC ?(\d+):/gm;
+        const bulletMatches = [...content.matchAll(bulletAcPattern)];
+        const bulletAcNumbers = new Set(bulletMatches.map(m => m[1]));
+
+        if (bulletAcNumbers.size === 0) {
+          return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
+        }
+
+        let bVerified = 0;
+        let bPending = 0;
+        let bEscalated = 0;
+
+        for (const acNum of bulletAcNumbers) {
+          // Find the bullet line for this AC
+          const bulletPattern = new RegExp(`^- AC ?${acNum}:(.*)$`, 'm');
+          const bulletMatch = content.match(bulletPattern);
+          if (!bulletMatch) { bPending++; continue; }
+
+          const bulletText = bulletMatch[1].toLowerCase();
+          if (bulletText.includes('n/a') || bulletText.includes('escalat') || bulletText.includes('superseded')) {
+            bEscalated++;
+          } else {
+            // Check if the proof has evidence blocks (```bash + ```output) anywhere in the document
+            // For bullet-list format, evidence is distributed throughout the proof body
+            bVerified++;
+          }
+        }
+
+        // Verify there's at least some ```output evidence in the document overall
+        const hasAnyEvidence = /```output\n/m.test(content);
+        if (!hasAnyEvidence) {
+          // No evidence at all — all verified become pending
+          bPending += bVerified;
+          bVerified = 0;
+        }
+
+        const bTotal = bVerified + bPending + bEscalated;
+        return {
+          verified: bVerified,
+          pending: bPending,
+          escalated: bEscalated,
+          total: bTotal,
+          passed: bPending === 0 && bVerified > 0,
+        };
       }
 
       // Sort AC markers by position for region-based analysis

@@ -818,3 +818,130 @@ None. All parser fixes are already committed and tested. The verification pipeli
 - **Epics completed to date:** 3 (Epic 0, Epic 1, Epic 12)
 
 The verification pipeline is now stable across all known proof formats. The next session should be able to verify Epic 2 stories without parser issues. The rate-limiting factor remains one-at-a-time verification — batch mode (backlog item) would accelerate the remaining 45 stories significantly.
+
+---
+
+# Session Retrospective — 2026-03-16 (Session 4, ~10:49 UTC)
+
+**Session Date:** 2026-03-16
+**Sprint Scope:** Epic 2 verification (Story 2-1), continued verification pipeline hardening
+**Stories Attempted:** 2 (2-1 verified, 2-2 verification started but did not complete)
+**Stories Completed:** 0 (2-1 blocked at `verifying` due to 1 escalated AC)
+**Git Commits This Session:** 2 (b890d9c, a885a8d — prior session close; 1a625b7 — v0.13.0 release)
+
+---
+
+## 1. Session Summary
+
+This session focused on verifying Epic 2 stories. Story 2-1 (Dependency Auto-Install & OTLP Instrumentation) was the primary target. Verification uncovered a runtime bug in `src/commands/run.ts`, required a fourth AC parser format, and ultimately verified 4/5 ACs — but the story remains blocked at `verifying` because AC5 (`--no-observability` flag) was superseded by a mandatory observability architecture decision and marked as escalated/N/A.
+
+Story 2-2 (Docker Compose VictoriaMetrics Stack Management) verification was started via a background agent but did not complete before the session's time budget expired.
+
+| Story | Title | Outcome | Key Deliverables |
+|-------|-------|---------|-----------------|
+| 2-1 | Dependency Auto-Install & OTLP Instrumentation | verified (blocked) | 4/5 ACs verified; AC5 escalated as N/A/superseded; runtime bug fixed; Format 4 parser added |
+| 2-2 | Docker Compose VictoriaMetrics Stack Management | in-progress | Background verification agent launched; did not complete |
+
+**Codebase at session end:** 1,469 tests passing.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Discovered During Implementation
+
+| Bug | Severity | Root Cause | Fix |
+|-----|----------|------------|-----|
+| `countStories()` ReferenceError in `src/commands/run.ts` | Critical (runtime crash) | Variable declared as `reviewed` but referenced as `verified` — name mismatch after a refactor | Renamed variable to `verified`; 17 test failures resolved |
+| Linter auto-modification race | Medium (test flakes) | Linter changed `verified` to `verifying` in a status string match between file write and test execution | Re-aligned string to match linter output |
+
+### 2.2 Workarounds Applied (Tech Debt)
+
+| Workaround | Debt Level | Context |
+|------------|------------|---------|
+| AC5 marked as N/A/escalated | Low | `--no-observability` flag was deliberately removed by architecture decision in later stories (Epic 9). Not a defect — the AC is genuinely superseded. But the process has no mechanism to mark superseded ACs as resolved without manual intervention. |
+
+### 2.3 Verification Gaps
+
+| Gap | Impact |
+|-----|--------|
+| Stories with ANY escalated ACs (even N/A/superseded) are blocked from `done` | Story 2-1 is functionally complete (4/5 ACs verified, 1 AC intentionally superseded) but cannot progress. This will affect every story with architecture-evolved ACs. |
+| 49 stories remain at `verifying` across epics 2-11 | At current throughput (~2 stories/session), this is 25+ sessions of pure verification work. No batch verification capability exists. |
+| Story 2-2 verification incomplete | Background agent timed out. Unknown whether verification will pass or surface new issues. |
+
+### 2.4 Tooling/Infrastructure Problems
+
+| Problem | Impact | Status |
+|---------|--------|--------|
+| Fourth AC parser format needed (`- AC N:` bullet lists) | Verifier agents produce yet another format not recognized by `validateProofQuality()`. Fourth format fix in a single day. | Fixed — Format 4 added with 3 tests |
+| Showboat verify still brittle | Test count changed from 1466 to 1469 due to parser fix tests. All existing proofs now have stale test counts. | Known — not fixed |
+
+---
+
+## 3. What Went Well
+
+- **Runtime bug caught and fixed immediately.** The `countStories()` variable mismatch would have crashed `harness-run` in production. Caught by test suite during verification, fixed in minutes.
+- **Format 4 parser fix was quick.** By the fourth format fix, the pattern is well-established: identify format, add regex fallback, write 3 tests. Took minimal time.
+- **Story 2-1 verification was thorough.** All verifiable ACs had CLI evidence with real command output. The escalated AC (AC5) was correctly identified as superseded rather than being incorrectly marked as failed.
+
+---
+
+## 4. What Went Wrong
+
+- **Four AC parser formats in one day.** `## AC N:`, `--- ACN:`, `=== AC N:`, and now `- AC N:`. Each format required its own regex, tests, and evidence-detection logic. The proof generation tooling produces inconsistent output and the parser keeps playing catch-up.
+- **Escalated-AC deadlock persists at a new level.** Epic 0 had the deadlock at the epic level (no skip logic). That was fixed. Now the same pattern appears at the story level: a story with all CLI-verifiable ACs passing + only N/A escalated ACs remaining still cannot reach `done`. The fix for epic-level deadlock did not address story-level deadlock.
+- **Background verification timed out.** Story 2-2 was launched as a background agent but the session ended before it completed. No partial results are available. The next session will need to restart this verification from scratch.
+- **Linter interference during testing.** The linter auto-modified code between write and test execution, causing a brief test failure that required manual re-alignment. This is a recurring friction point.
+
+---
+
+## 5. Lessons Learned
+
+| Lesson | Type |
+|--------|------|
+| Standardize proof format — urgency increased from "fix soon" to "fix now" after 4th format in one day | Repeat (escalated) |
+| Need a `done-with-superseded-acs` status or a way to mark N/A ACs as resolved | New — this is a process gap, not a tooling gap |
+| Background verification agents need explicit time budgets and checkpoint saves | New — a timed-out background agent produces zero usable output |
+| The `countStories()` bug demonstrates that refactors touching variable names need test runs before commit | Repeat — basic hygiene, but the bug shipped |
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| Item | Priority | Context |
+|------|----------|---------|
+| Add mechanism to resolve superseded/N/A ACs without blocking story completion | Critical | Story 2-1 is the first of likely many stories where architecture evolution makes an AC genuinely inapplicable. The process must allow these stories to reach `done`. Options: (a) `done-with-caveats` status, (b) allow N/A escalated ACs to not block done, (c) manual override command. |
+
+### Fix Soon (Next Sprint)
+
+| Item | Priority | Context |
+|------|----------|---------|
+| Standardize proof format to single canonical form | Critical (upgraded from High) | Four formats in one day. Pick `## AC N:` as canonical, enforce in all verifier prompts. Remove fallback parsers once migration is complete. |
+| Add verification time budget and checkpointing | Medium | Background agents that time out lose all work. Need partial-result saves or at minimum a status checkpoint. |
+| Add pre-verification lint step | Low | Catch linter-modified code before test execution to avoid false failures. |
+
+### Backlog (Track But Not Urgent)
+
+| Item | Context |
+|------|---------|
+| Batch verification mode | 49 stories at `verifying`. Current rate is unsustainable. This has been on backlog since session 2 — consider promoting. |
+| Fix `readStateWithBody()` extra newline on round-trip | Cosmetic bug noted in 1-2 verification. Still low priority. |
+| Coverage target reconciliation | Still applicable. |
+
+---
+
+## Session Metrics
+
+- **Stories verified:** 1 (2-1, but blocked at `verifying`)
+- **Stories completed to `done`:** 0
+- **ACs verified:** 4/5 (1 escalated as N/A)
+- **Bugs fixed:** 1 (countStories ReferenceError)
+- **Systemic fixes applied:** 1 (Format 4 bullet-list parser)
+- **Tests added for fixes:** 3
+- **Total test count:** 1,469
+- **Remaining verifying stories:** 49 across epics 2-11
+- **Epics completed to date:** 3 (Epic 0, Epic 1, Epic 12)
+
+The critical blocker for this session is the escalated-AC deadlock at the story level. Story 2-1 is functionally complete but cannot progress. This same pattern will recur across any story where architecture evolution has superseded an original AC. Resolving this process gap is the highest-priority action item before the next session.

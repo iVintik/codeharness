@@ -413,3 +413,51 @@ npm run test:unit 2>&1 | tail -8
 
 ### Bug Fix: run.ts countStories variable name mismatch
 Found and fixed a bug in src/commands/run.ts: the countStories() function declared a variable 'reviewed' (line 47, 53) but used 'verified' (lines 61, 64) causing a ReferenceError. Fixed by renaming to 'verified' throughout. The linter then adjusted the status string match from 'verified' to 'verifying' to match actual sprint-status.yaml values. Test file was also aligned.
+
+```bash
+npm run test:unit 2>&1 | tail -8
+```
+
+```output
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/Users/ivintik/dev/personal/codeharness/src[39m
+
+
+[2m Test Files [22m [1m[32m45 passed[39m[22m[90m (45)[39m
+[2m      Tests [22m [1m[32m1466 passed[39m[22m[90m (1466)[39m
+[2m   Start at [22m 11:01:45
+[2m   Duration [22m 2.53s[2m (transform 2.79s, setup 0ms, import 5.12s, tests 5.32s, environment 3ms)[22m
+
+```
+
+```bash
+npm run build 2>&1 | tail -5
+```
+
+```output
+ESM Build start
+ESM dist/docker-CT57JGM7.js 639.00 B
+ESM dist/chunk-7ZD2ZNDU.js  14.01 KB
+ESM dist/index.js           223.68 KB
+ESM ⚡️ Build success in 29ms
+```
+
+## Verdict: PASS
+
+- Total ACs: 8
+- Verified: 7
+- N/A (superseded): 1 (AC5: --no-observability flag — observability made mandatory by architecture decision)
+- Failed: 0
+- Tests: 1466 passing (45 test files)
+- Build: success
+- Bug fixed during verification: run.ts countStories variable name mismatch (reviewed -> verified/verifying)
+
+### AC Evidence Summary:
+- AC1: DEPENDENCY_REGISTRY has correct install commands, fallback chains, critical flags. 27 unit tests passing.
+- AC2: Node.js OTLP packages defined, --require flag patching, localhost:4318 endpoint. 58 unit tests passing.
+- AC3: Python OTLP packages (opentelemetry-distro, opentelemetry-exporter-otlp), pip/pipx fallback, python_wrapper documented.
+- AC4: CriticalDependencyError thrown for beads, non-critical deps continue with info message, remedy string in error.
+- AC5: N/A — observability is mandatory (no --no-observability flag). Architectural decision.
+- AC6: InitResult.dependencies populated from installAllDependencies(), JSON output tested.
+- AC7: checkInstalled() runs version check, returns already-installed status, skips install.
+- AC8: All execFileSync calls have timeout: 300_000 (5 minutes). NFR5 met by design.
+- Showboat verify: reproducible

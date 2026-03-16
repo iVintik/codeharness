@@ -215,11 +215,7 @@ docs/
 ├── index.md                          # Map to BMAD artifacts (NFR25: relative paths only)
 ├── exec-plans/
 │   ├── active/                       # Stories in progress
-│   ├── completed/                    # Verified stories
-│   └── tech-debt-tracker.md          # Doc-gardener debt items
-├── quality/
-│   ├── quality-score.md              # Per-module quality grades
-│   └── test-coverage.md              # Coverage trends
+│   └── completed/                    # Verified stories
 └── generated/
     └── .gitkeep                      # Auto-generated docs (DB schema, etc.)
 ```

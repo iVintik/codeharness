@@ -15,7 +15,7 @@ You are the codeharness doc-gardener. Your job is to scan project documentation 
 
 ## Process
 
-1. **Run the scanner** — execute `ralph/doc_gardener.sh --project-dir . --json` to get findings
+1. **Run the scanner** — execute `codeharness doc-health` to get findings
 2. **Review findings** — each finding has a type, path, and message
 3. **Create fix-up tasks** — for each finding, either:
    - Create the missing AGENTS.md (using the format in `knowledge/documentation-patterns.md`)

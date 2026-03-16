@@ -38,7 +38,7 @@ LOG_DIR=""
 MAX_ITERATIONS=${MAX_ITERATIONS:-50}
 MAX_STORY_RETRIES=${MAX_STORY_RETRIES:-3}
 LOOP_TIMEOUT_SECONDS=${LOOP_TIMEOUT_SECONDS:-14400}  # 4 hours default
-ITERATION_TIMEOUT_MINUTES=${ITERATION_TIMEOUT_MINUTES:-15}
+ITERATION_TIMEOUT_MINUTES=${ITERATION_TIMEOUT_MINUTES:-30}
 
 # Rate limiting
 MAX_CALLS_PER_HOUR=${MAX_CALLS_PER_HOUR:-100}
@@ -447,6 +447,7 @@ print_progress_summary() {
     counts=$(get_task_counts)
     local total=${counts%% *}
     local completed=${counts##* }
+    local remaining=$((total - completed))
     local elapsed=$(( $(date +%s) - loop_start_time ))
     local elapsed_fmt
 
@@ -458,7 +459,62 @@ print_progress_summary() {
         elapsed_fmt="${elapsed}s"
     fi
 
-    log_status "INFO" "Progress: ${completed}/${total} stories complete (iterations: ${loop_count}, elapsed: ${elapsed_fmt})"
+    log_status "INFO" "Progress: ${completed}/${total} done, ${remaining} remaining (iterations: ${loop_count}, elapsed: ${elapsed_fmt})"
+
+    # Show the next story in line (first non-done, non-flagged)
+    if [[ -f "$SPRINT_STATUS_FILE" ]]; then
+        local next_story=""
+        while IFS=: read -r key value; do
+            key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [[ -z "$key" || "$key" == \#* ]] && continue
+            if [[ "$key" =~ ^[0-9]+-[0-9]+- && "$value" != "done" ]]; then
+                if ! is_story_flagged "$key"; then
+                    next_story="$key ($value)"
+                    break
+                fi
+            fi
+        done < "$SPRINT_STATUS_FILE"
+        if [[ -n "$next_story" ]]; then
+            log_status "INFO" "Next up: ${next_story}"
+        fi
+    fi
+}
+
+# ─── Iteration Insights ──────────────────────────────────────────────────────
+
+print_iteration_insights() {
+    local project_root
+    project_root="$(pwd)"
+    local issues_file="$project_root/_bmad-output/implementation-artifacts/.session-issues.md"
+    local today
+    today=$(date +%Y-%m-%d)
+    local retro_file="$project_root/_bmad-output/implementation-artifacts/session-retro-${today}.md"
+
+    # Show session issues (last 20 lines — most recent subagent)
+    if [[ -f "$issues_file" ]]; then
+        local issue_count
+        issue_count=$(grep -c '^### ' "$issues_file" 2>/dev/null || echo "0")
+        if [[ $issue_count -gt 0 ]]; then
+            echo ""
+            log_status "INFO" "━━━ Session Issues ($issue_count entries) ━━━"
+            # Print the last subagent's issues block
+            awk '/^### /{block=""} {block=block $0 "\n"} END{printf "%s", block}' "$issues_file" | head -15
+            echo ""
+        fi
+    fi
+
+    # Show retro summary if generated
+    if [[ -f "$retro_file" ]]; then
+        log_status "INFO" "━━━ Session Retro ━━━"
+        # Print action items section if present, otherwise first 10 lines
+        if grep -q '## Action items\|## Action Items' "$retro_file" 2>/dev/null; then
+            sed -n '/^## Action [Ii]tems/,/^## /p' "$retro_file" | head -20
+        else
+            head -10 "$retro_file"
+        fi
+        echo ""
+    fi
 }
 
 # ─── Driver Management ──────────────────────────────────────────────────────
@@ -474,6 +530,13 @@ load_platform_driver() {
     source "$driver_file"
 
     driver_valid_tools
+
+    # Auto-populate CLAUDE_ALLOWED_TOOLS from driver's valid tool patterns
+    # so Ralph runs autonomously without permission prompts
+    if [[ -z "$CLAUDE_ALLOWED_TOOLS" && ${#VALID_TOOL_PATTERNS[@]} -gt 0 ]]; then
+        CLAUDE_ALLOWED_TOOLS=$(IFS=','; echo "${VALID_TOOL_PATTERNS[*]}")
+    fi
+
     log_status "INFO" "Platform driver: $(driver_display_name) ($(driver_cli_binary))"
 }
 
@@ -496,8 +559,10 @@ execute_iteration() {
     log_status "LOOP" "Iteration $iteration — Task: ${task_id:-'(reading from prompt)'}"
     local timeout_seconds=$((ITERATION_TIMEOUT_MINUTES * 60))
 
-    # Build loop context
-    local loop_context="Loop #${iteration}."
+    # Build loop context — pass time budget so the session can prioritize retro
+    local start_time
+    start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local loop_context="Loop #${iteration}. Time budget: ${ITERATION_TIMEOUT_MINUTES} minutes (started: ${start_time}). Reserve the last 5 minutes for Step 8 (session retrospective) — do not start new story work if less than 10 minutes remain."
     if [[ -n "$task_id" ]]; then
         loop_context+=" Current task: $task_id."
     fi
@@ -508,6 +573,10 @@ execute_iteration() {
         log_status "ERROR" "Failed to build CLI command"
         return 1
     fi
+
+    # Write deadline file for time-warning hook
+    local deadline=$(( $(date +%s) + timeout_seconds ))
+    echo "$deadline" > "ralph/.iteration_deadline"
 
     log_status "INFO" "Starting $(driver_display_name) (timeout: ${ITERATION_TIMEOUT_MINUTES}m)..."
 
@@ -648,7 +717,7 @@ Options:
     --max-iterations NUM      Maximum loop iterations (default: 50)
     --max-story-retries NUM   Max retries per story before flagging (default: 3)
     --timeout SECONDS         Total loop timeout in seconds (default: 14400 = 4h)
-    --iteration-timeout MIN   Per-iteration timeout in minutes (default: 15)
+    --iteration-timeout MIN   Per-iteration timeout in minutes (default: 30)
     --calls NUM               Max API calls per hour (default: 100)
     --prompt FILE             Prompt file for each iteration
     --progress FILE           Progress file (tasks JSON)
@@ -834,11 +903,12 @@ main() {
                 after_snapshot=$(snapshot_story_statuses)
                 detect_story_changes "$before_snapshot" "$after_snapshot"
 
-                # For each non-done, non-flagged story, increment retry count
+                # Only increment retry for the FIRST non-done, non-flagged story
+                # (the one harness-run would have picked up). Other stories were
+                # never attempted — don't penalise them for not progressing.
                 if [[ -n "$UNCHANGED_STORIES" ]]; then
                     while IFS= read -r skey; do
                         [[ -z "$skey" ]] && continue
-                        # Skip already-flagged stories
                         if is_story_flagged "$skey"; then
                             continue
                         fi
@@ -850,13 +920,29 @@ main() {
                         else
                             log_status "WARN" "Story ${skey} — retry ${retry_count}/${MAX_STORY_RETRIES}"
                         fi
+                        break  # only retry the first actionable story
                     done <<< "$UNCHANGED_STORIES"
                 fi
 
                 if [[ -n "$CHANGED_STORIES" ]]; then
                     while IFS= read -r skey; do
                         [[ -z "$skey" ]] && continue
-                        log_status "SUCCESS" "Story ${skey}: DONE"
+                        # Extract story title from story file if available
+                        local story_file="$project_root/_bmad-output/implementation-artifacts/${skey}.md"
+                        local story_title=""
+                        if [[ -f "$story_file" ]]; then
+                            story_title=$(grep -m1 '^# \|^## Story' "$story_file" 2>/dev/null | sed 's/^#* *//' | head -c 60)
+                        fi
+                        local proof_file="$project_root/verification/${skey}-proof.md"
+                        local proof_info=""
+                        if [[ -f "$proof_file" ]]; then
+                            proof_info=" [proof: verification/${skey}-proof.md]"
+                        fi
+                        if [[ -n "$story_title" ]]; then
+                            log_status "SUCCESS" "Story ${skey}: DONE — ${story_title}${proof_info}"
+                        else
+                            log_status "SUCCESS" "Story ${skey}: DONE${proof_info}"
+                        fi
                     done <<< "$CHANGED_STORIES"
                 fi
 
@@ -892,6 +978,9 @@ main() {
         # Print progress summary after every iteration
         print_progress_summary
 
+        # ── Show session issues and retro highlights ──
+        print_iteration_insights
+
         log_status "LOOP" "=== End Iteration #$loop_count ==="
     done
 
@@ -919,14 +1008,6 @@ main() {
         "$(if [[ $completed -eq $total && $total -gt 0 ]]; then echo "completed"; else echo "stopped"; fi)" \
         "completed:$completed/$total"
 
-    # Mandatory retrospective — cannot be skipped
-    log_status "INFO" "Triggering mandatory sprint retrospective..."
-    if [[ -f "$SCRIPT_DIR/retro.sh" ]]; then
-        local project_root
-        project_root="$(pwd)"
-        "$SCRIPT_DIR/retro.sh" --project-dir "$project_root" 2>&1 || \
-            log_status "WARN" "Retro report generation failed"
-    fi
 }
 
 # ─── CLI Parsing ─────────────────────────────────────────────────────────────

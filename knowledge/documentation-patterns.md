@@ -81,7 +81,7 @@ Vendored autonomous execution loop. Spawns fresh Claude Code instances per itera
 
 - All scripts are POSIX-compatible bash with `set -e`
 - Driver pattern: `ralph/drivers/{name}.sh` implements driver interface
-- State files: `ralph/status.json`, `ralph/progress.json`
+- State files: `ralph/status.json`, `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - Tests: `tests/*.bats` (bats-core framework)
 
 ## Testing

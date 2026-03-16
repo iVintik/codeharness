@@ -11,7 +11,7 @@ Verify a story by producing a showboat proof document with executable, reproduci
 If a story ID is provided as argument, use it. Otherwise:
 
 1. Check the current exec-plan in `docs/exec-plans/active/` for the story in progress
-2. Check `ralph/progress.json` if running in Ralph loop
+2. Check `_bmad-output/implementation-artifacts/sprint-status.yaml` for the first story at `verified` status
 3. Ask the user: "Which story should I verify?"
 
 ## Step 2: Pre-verification — Run Tests

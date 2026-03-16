@@ -1434,7 +1434,7 @@ Charlie (Senior Dev): "Time to knock out that prep work."
   <action>Analyze documentation health:
     - Are all module AGENTS.md files current?
     - Are exec-plans complete for all stories?
-    - Run doc-gardener scan: `bash ralph/doc_gardener.sh scan --project-dir .`
+    - Run doc-health scan: `codeharness doc-health`
   </action>
 
   <action>Analyze test quality:

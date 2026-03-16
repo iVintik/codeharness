@@ -105,7 +105,7 @@ export function registerRunCommand(program: Command): void {
     .description('Execute the autonomous coding loop')
     .option('--max-iterations <n>', 'Maximum loop iterations', '50')
     .option('--timeout <seconds>', 'Total loop timeout in seconds', '14400')
-    .option('--iteration-timeout <minutes>', 'Per-iteration timeout in minutes', '15')
+    .option('--iteration-timeout <minutes>', 'Per-iteration timeout in minutes', '30')
     .option('--live', 'Show live output streaming', false)
     .option('--calls <n>', 'Max API calls per hour', '100')
     .option('--max-story-retries <n>', 'Max retries per story before flagging', '3')

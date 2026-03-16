@@ -1,5 +1,13 @@
 {
   "name": "codeharness",
-  "version": "0.9.0",
-  "description": "Makes autonomous coding agents produce software that actually works \u2014 real-world verification, observability, and mechanical enforcement via Claude Code hooks."
+  "version": "0.10.0",
+  "description": "Makes autonomous coding agents produce software that actually works \u2014 real-world verification, observability, and mechanical enforcement via Claude Code hooks.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/time-warning.sh"
+      }
+    ]
+  }
 }

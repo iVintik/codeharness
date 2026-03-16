@@ -130,15 +130,6 @@ if [[ -f "$PROGRESS_FILE" ]]; then
 
     echo ""
 
-    # Verification summary
-    VLOG="$PROJECT_DIR/ralph/verification-log.json"
-    if [[ -f "$VLOG" ]]; then
-        v_total=$(jq '.events | length' "$VLOG" 2>/dev/null || echo "0")
-        v_pass=$(jq '[.events[] | select(.result == "pass")] | length' "$VLOG" 2>/dev/null || echo "0")
-        echo "  Verification: $v_pass passed / $v_total checks"
-        echo ""
-    fi
-
     # Next action
     current=$(jq -r '.tasks[] | select(.status == "pending" or .status == "in_progress") | .id' "$PROGRESS_FILE" 2>/dev/null | head -1)
     if [[ -n "$current" && "$current" != "null" ]]; then

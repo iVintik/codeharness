@@ -41,9 +41,12 @@ driver_valid_tools() {
         "Bash"
         "Bash(git *)"
         "Bash(npm *)"
+        "Bash(npx *)"
         "Bash(bats *)"
         "Bash(python *)"
         "Bash(node *)"
+        "Bash(showboat *)"
+        "Bash(codeharness *)"
         "NotebookEdit"
     )
 }

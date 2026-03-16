@@ -51,6 +51,30 @@ Scan `development_status` entries **in order from top to bottom**:
    [INFO] Stories in epic: {done_count}/{total_count} done
    ```
 
+## Subagent Issues Tracking
+
+Every subagent (create-story, dev-story, code-review, verifier, retrospective) MUST end its response with a `## Session Issues` section. This section reports problems, workarounds, suboptimal outcomes, and observations — not just success/failure status.
+
+**After each subagent returns**, extract the `## Session Issues` section from its response and append it to the session issues log file at `_bmad-output/implementation-artifacts/.session-issues.md`. Use the following format:
+
+```markdown
+### {story_key} — {step name} ({timestamp})
+
+{extracted issues from subagent response}
+```
+
+If the subagent didn't include a Session Issues section, append:
+```markdown
+### {story_key} — {step name} ({timestamp})
+
+No issues reported (subagent did not include Session Issues section — this itself is an issue).
+```
+
+Initialize the issues file at the start of the session (Step 1) by writing a header:
+```markdown
+# Session Issues Log — {date}
+```
+
 ## Step 3: Execute Story Lifecycle
 
 Based on the story's current status, determine which workflow(s) to run. Execute them in sequence, verifying status transitions after each.
@@ -61,7 +85,14 @@ Invoke the create-story workflow via Agent tool to generate the story file:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /create-story for story {story_key}. The sprint-status.yaml is at _bmad-output/implementation-artifacts/sprint-status.yaml. Auto-discover the next backlog story and create it. For each AC, append `<!-- verification: cli-verifiable -->` or `<!-- verification: integration-required -->` based on whether the AC can be verified by running CLI commands in a subprocess. ACs referencing workflows, sprint planning, user sessions, or external system interactions should be tagged as integration-required. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
+  prompt: "Run /create-story for story {story_key}. The sprint-status.yaml is at _bmad-output/implementation-artifacts/sprint-status.yaml. Auto-discover the next backlog story and create it. For each AC, append `<!-- verification: cli-verifiable -->` or `<!-- verification: integration-required -->` based on whether the AC can be verified by running CLI commands in a subprocess. ACs referencing workflows, sprint planning, user sessions, or external system interactions should be tagged as integration-required. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
+
+MANDATORY — End your response with a `## Session Issues` section listing:
+- Problems encountered (errors, ambiguities in epic definition, missing context)
+- Workarounds applied (anything you did that felt hacky or suboptimal)
+- Risks identified (ACs that seem untestable, unclear requirements, missing dependencies)
+- Observations (anything surprising or noteworthy about this story)
+If nothing to report, write `## Session Issues\n\nNone.`"
   subagent_type: "general-purpose"
 ```
 
@@ -77,7 +108,14 @@ Invoke the dev-story workflow via Agent tool to implement the story:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /bmad-dev-story for the story at _bmad-output/implementation-artifacts/{story_key}.md — implement all tasks, write tests, and mark the story for review. Do NOT ask the user any questions — proceed autonomously through all tasks until complete. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
+  prompt: "Run /bmad-dev-story for the story at _bmad-output/implementation-artifacts/{story_key}.md — implement all tasks, write tests, and mark the story for review. Do NOT ask the user any questions — proceed autonomously through all tasks until complete. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
+
+MANDATORY — End your response with a `## Session Issues` section listing:
+- Problems encountered (build failures, test failures, unclear task specs, missing APIs)
+- Workarounds applied (anything hacky, copied patterns that felt wrong, TODOs left behind)
+- Code quality concerns (areas that need refactoring, edge cases not handled, tech debt added)
+- Observations (unexpected complexity, architectural mismatches, dependency issues)
+If nothing to report, write `## Session Issues\n\nNone.`"
   subagent_type: "general-purpose"
 ```
 
@@ -95,7 +133,15 @@ Invoke the code-review workflow via Agent tool:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found. After fixing, run `codeharness coverage --min-file 80` and ensure all files pass the per-file floor and the overall 90% target. Update the story status to `verified` when all issues are fixed and coverage passes. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
+  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found. After fixing, run `codeharness coverage --min-file 80` and ensure all files pass the per-file floor and the overall 90% target. Update the story status to `verified` when all issues are fixed and coverage passes. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
+
+MANDATORY — End your response with a `## Session Issues` section listing:
+- Bugs found and their severity (HIGH/MEDIUM/LOW with brief description)
+- Code quality issues found but NOT fixed (LOW priority items, tech debt)
+- Coverage gaps (files below floor, untested edge cases, areas needing integration tests)
+- Architecture concerns (patterns that don't fit, coupling issues, missing abstractions)
+- Items sent back for re-development (what failed and why)
+If nothing to report, write `## Session Issues\n\nNone.`"
   subagent_type: "general-purpose"
 ```
 
@@ -164,7 +210,15 @@ Invalid evidence examples:
 Do NOT write proof markdown by hand — use showboat CLI exclusively.
 Do NOT skip tests — they are mandatory evidence.
 Fix all failures found during verification.
-Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
+Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
+
+MANDATORY — End your response with a `## Session Issues` section listing:
+- Verification failures discovered (code bugs, broken tests, missing functionality)
+- Code fixes applied during verification (what was broken and how you fixed it)
+- Escalated ACs and why they couldn't be verified (what would be needed to verify them)
+- Evidence quality concerns (ACs with weak evidence, reproducibility issues)
+- Showboat/tooling issues (CLI problems, format mismatches, sandbox restrictions)
+If nothing to report, write `## Session Issues\n\nNone.`"
 ```
 
 **After the verifier completes:**
@@ -227,7 +281,14 @@ All stories in the current epic are done.
    - If yes, run the retrospective:
      ```
      Use the Agent tool with:
-       prompt: "Run /retrospective for Epic {N}. All stories are complete. Review the epic's work, extract lessons learned, and produce the retrospective document. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
+       prompt: "Run /retrospective for Epic {N}. All stories are complete. Review the epic's work, extract lessons learned, and produce the retrospective document. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
+
+MANDATORY — End your response with a `## Session Issues` section listing:
+- Epic-level problems (recurring patterns across stories, process breakdowns)
+- Stories that were harder than expected and why
+- Action items that need immediate attention vs. backlog
+- Process improvements that should be encoded in tooling/config, not just documented
+If nothing to report, write `## Session Issues\n\nNone.`"
        subagent_type: "general-purpose"
      ```
    - After retrospective completes:
@@ -292,4 +353,59 @@ All sprint work complete. Consider running /sprint-planning for the next sprint.
 If halted on failure:
 ```
 Sprint halted. Review the failing story and fix manually, then re-run /harness-run to continue.
+```
+
+## Step 8: Session Retrospective (Mandatory)
+
+**This step runs at the end of EVERY session — regardless of whether work succeeded, failed, or stalled.** After printing the summary in Step 7, ALWAYS run the retrospective before the session ends.
+
+**Time awareness:** Ralph passes your time budget and start time in the system prompt (e.g. "Time budget: 30 minutes, started: 2026-03-16T08:00:00Z"). Use this to manage your time:
+- **Before starting a new story or verification step**, check elapsed time. If less than 10 minutes remain, skip to Step 7 → Step 8.
+- **Reserve the last 5 minutes** for the session retrospective (Step 8). The retro is more valuable than starting work you can't finish.
+- A session that completes one story with a good retro is better than a session that starts two stories and gets killed before writing either.
+
+Invoke the BMAD retrospective workflow:
+
+```
+Use the Agent tool with:
+  prompt: "Run /retrospective for the current sprint session.
+
+Sprint status: _bmad-output/implementation-artifacts/sprint-status.yaml
+Session issues log: _bmad-output/implementation-artifacts/.session-issues.md
+
+CRITICAL: Read the session issues log FIRST. This file contains real problems, workarounds, bugs, and observations reported by every subagent that ran this session. These are the raw materials for your retrospective — do not ignore them.
+
+Produce a retrospective that covers:
+1. **Session summary** — which stories were attempted, their outcomes, time spent
+2. **Issues analysis** — categorize and analyze all issues from the session log:
+   - Bugs discovered during implementation or verification
+   - Workarounds applied (tech debt introduced this session)
+   - Code quality concerns raised by reviewers
+   - Verification gaps (escalated ACs, weak evidence)
+   - Tooling/infrastructure problems (sandbox, permissions, CLI issues)
+3. **What went well** — stories completed, bugs fixed, process improvements
+4. **What went wrong** — failures, blockers, stuck stories, wasted iterations
+5. **Lessons learned** — patterns to repeat or avoid
+6. **Action items** — concrete next steps, split into:
+   - Fix now (before next session)
+   - Fix soon (next sprint)
+   - Backlog (track but not urgent)
+
+Write the retrospective to _bmad-output/implementation-artifacts/session-retro-{date}.md where {date} is today's date in YYYY-MM-DD format.
+
+If a session retro for today already exists, append to it with a `---` separator and timestamp.
+
+Do NOT ask the user any questions — proceed autonomously.
+Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
+  subagent_type: "general-purpose"
+```
+
+Print:
+```
+[OK] Session retrospective complete
+```
+
+If the retrospective agent fails, log the warning but do NOT halt — the session is ending anyway:
+```
+[WARN] Session retrospective failed: {error}
 ```

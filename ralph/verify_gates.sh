@@ -162,39 +162,10 @@ increment_iteration() {
     fi
 }
 
-# ─── Verification log ─────────────────────────────────────────────────────
-
-append_verification_log() {
-    local result="$1"
-    local log_file="$PROJECT_DIR/ralph/verification-log.json"
-    local timestamp
-    timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-
-    local event
-    event=$(jq -n \
-        --arg story_id "$STORY_ID" \
-        --arg result "$result" \
-        --argjson gates_passed "$GATES_PASSED" \
-        --argjson gates_total "$GATES_TOTAL" \
-        --arg timestamp "$timestamp" \
-        '{story_id: $story_id, result: $result, gates_passed: $gates_passed, gates_total: $gates_total, timestamp: $timestamp}')
-
-    if [[ -f "$log_file" ]]; then
-        log_data=$(jq --argjson event "$event" '.events += [$event]' "$log_file" 2>/dev/null)
-        if [[ -n "$log_data" ]]; then
-            echo "$log_data" > "$log_file"
-        fi
-    else
-        jq -n --argjson event "$event" '{events: [$event]}' > "$log_file"
-    fi
-}
-
 # ─── Decision ─────────────────────────────────────────────────────────────
 
 if [[ $GATES_PASSED -eq $GATES_TOTAL ]]; then
     # Log pass event
-    append_verification_log "pass"
-
     # All gates pass — mark story complete
     local_updated=$(jq --arg id "$STORY_ID" \
         '(.tasks[] | select(.id == $id)).status = "complete"' \
@@ -224,8 +195,6 @@ if [[ $GATES_PASSED -eq $GATES_TOTAL ]]; then
     exit 0
 else
     # Log fail event
-    append_verification_log "fail"
-
     # Gates failed — increment iteration, report failures
     increment_iteration
 

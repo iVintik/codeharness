@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { registerInitCommand, generateAgentsMdContent, generateDocsIndexContent, getCoverageTool, getStackLabel } from '../init.js';
+import { registerInitCommand, generateAgentsMdContent, generateDocsIndexContent, getCoverageTool, getStackLabel, getProjectName } from '../init.js';
 import { readState, writeState, getDefaultState } from '../../lib/state.js';
 
 // Mock the stack-path module
@@ -410,6 +410,79 @@ describe('init command — docs/ scaffold', () => {
   });
 });
 
+describe('init command — README.md generation', () => {
+  it('creates README.md when not present', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{"name": "my-test-project"}');
+
+    await runCli(['init']);
+
+    const readmePath = join(testDir, 'README.md');
+    expect(existsSync(readmePath)).toBe(true);
+    const content = readFileSync(readmePath, 'utf-8');
+    expect(content).toContain('# my-test-project');
+    expect(content).toContain('## Quick Start');
+    expect(content).toContain('## Installation');
+    expect(content).toContain('## Usage');
+    expect(content).toContain('## CLI Reference');
+  });
+
+  it('does not overwrite existing README.md', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    writeFileSync(join(testDir, 'README.md'), 'my custom readme');
+
+    await runCli(['init']);
+
+    const content = readFileSync(join(testDir, 'README.md'), 'utf-8');
+    expect(content).toBe('my custom readme');
+  });
+
+  it('includes install command in Quick Start', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{"name": "test-pkg"}');
+
+    await runCli(['init']);
+
+    const content = readFileSync(join(testDir, 'README.md'), 'utf-8');
+    expect(content).toContain('npm install -g codeharness');
+    expect(content).toContain('codeharness init');
+    expect(content).toContain('codeharness status');
+  });
+
+  it('uses directory basename when package.json has no name', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+
+    await runCli(['init']);
+
+    const content = readFileSync(join(testDir, 'README.md'), 'utf-8');
+    // Project name should be the temp dir basename
+    expect(content).toMatch(/^# .+/m);
+  });
+
+  it('JSON output includes readme status as created', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{"name": "test-proj"}');
+
+    const { stdout } = await runCli(['--json', 'init']);
+
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    expect(jsonLine).toBeDefined();
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed.documentation.readme).toBe('created');
+  });
+
+  it('JSON output includes readme status as exists when README already present', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    writeFileSync(join(testDir, 'README.md'), '# existing');
+
+    // Need to do a fresh init (not re-run) for this test
+    // The idempotent check would short-circuit, so we skip the state
+    const { stdout } = await runCli(['--json', 'init']);
+
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    expect(jsonLine).toBeDefined();
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed.documentation.readme).toBe('exists');
+  });
+});
+
 describe('init command — idempotent re-run', () => {
   it('preserves existing state on re-run', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
@@ -465,6 +538,7 @@ describe('init command — JSON output', () => {
     expect(parsed.documentation).toBeDefined();
     expect(parsed.documentation.agents_md).toBe('created');
     expect(parsed.documentation.docs_scaffold).toBe('created');
+    expect(parsed.documentation.readme).toBe('created');
   });
 
   it('JSON output succeeds with deferred observability when Docker unavailable', async () => {
@@ -497,6 +571,7 @@ describe('init command — JSON output', () => {
     expect(parsed.status).toBe('ok');
     expect(parsed.documentation.agents_md).toBe('exists');
     expect(parsed.documentation.docs_scaffold).toBe('exists');
+    expect(parsed.documentation.readme).toBe('exists');
   });
 
   it('suppresses human output in JSON mode', async () => {

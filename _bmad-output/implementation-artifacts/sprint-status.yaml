@@ -46,7 +46,7 @@ development_status:
   # Sprint Change Proposal: sprint-change-proposal-2026-03-16.md
   epic-13: in-progress
   13-1-verification-dockerfile-generator: done
-  13-2-documentation-gate-for-verification: backlog
+  13-2-documentation-gate-for-verification: done
   13-3-black-box-verifier-agent: backlog
   13-4-verification-environment-sprint-workflow: backlog
   epic-13-retrospective: optional

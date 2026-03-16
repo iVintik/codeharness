@@ -61,6 +61,14 @@ and acceptance criteria with evidence items (`exec` commands or
 `image` paths). Also exports `verificationSummaryBlock()` for the
 pass/fail summary table. Used by `src/lib/verify.ts`.
 
+### readme.ts
+
+README.md template for project documentation. `readmeTemplate()` accepts
+a `ReadmeTemplateConfig` (projectName, stack, cliHelpOutput) and generates
+a README with Quick Start, Installation, Usage, and CLI Reference sections.
+Install command varies by stack (npm for nodejs/null, pip for python).
+Used by `src/commands/init.ts`.
+
 ### verify-dockerfile.ts
 
 Dockerfile template for black-box verification environment.
@@ -75,4 +83,5 @@ and contains NO source code. Used by `src/lib/verify-env.ts`.
 Each template file has a corresponding test in `__tests__/`:
 `bmad-patches.test.ts`, `docker-compose.test.ts`,
 `otel-config.test.ts`, `ralph-prompt.test.ts`,
-`showboat-template.test.ts`, `verify-dockerfile.test.ts`.
+`readme.test.ts`, `showboat-template.test.ts`,
+`verify-dockerfile.test.ts`.

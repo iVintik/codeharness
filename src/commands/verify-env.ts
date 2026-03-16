@@ -90,12 +90,16 @@ export function registerVerifyEnvCommand(program: Command): void {
       const allPassed = result.imageExists && result.cliWorks && result.otelReachable;
 
       if (isJson) {
-        jsonOutput({
+        const jsonResult: Record<string, unknown> = {
           status: allPassed ? 'ok' : 'fail',
           imageExists: result.imageExists,
           cliWorks: result.cliWorks,
           otelReachable: result.otelReachable,
-        });
+        };
+        if (result.imageExists && !result.cliWorks) {
+          jsonResult.message = 'CLI does not work inside verification container — build or packaging is broken';
+        }
+        jsonOutput(jsonResult);
       } else {
         info(`Image exists: ${result.imageExists ? 'yes' : 'no'}`);
         info(`CLI works in container: ${result.cliWorks ? 'yes' : 'no'}`);
@@ -107,6 +111,9 @@ export function registerVerifyEnvCommand(program: Command): void {
           fail('Verification environment: not ready');
           if (!result.imageExists) {
             info('Run: codeharness verify-env build');
+          }
+          if (result.imageExists && !result.cliWorks) {
+            fail('CLI does not work inside verification container — build or packaging is broken');
           }
           if (!result.otelReachable) {
             info('Run: codeharness stack start');

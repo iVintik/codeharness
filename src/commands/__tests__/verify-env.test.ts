@@ -186,6 +186,33 @@ describe('verify-env check', () => {
     expect(exitCode).toBe(1);
   });
 
+  it('reports CLI packaging error when image exists but CLI broken', async () => {
+    mockCheck.mockReturnValue({
+      imageExists: true,
+      cliWorks: false,
+      otelReachable: true,
+    });
+
+    const { stdout, exitCode } = await runCli(['verify-env', 'check']);
+    expect(stdout).toContain('CLI does not work inside verification container — build or packaging is broken');
+    expect(exitCode).toBe(1);
+  });
+
+  it('outputs JSON with CLI packaging error when image exists but CLI broken', async () => {
+    mockCheck.mockReturnValue({
+      imageExists: true,
+      cliWorks: false,
+      otelReachable: true,
+    });
+
+    const { stdout, exitCode } = await runCli(['--json', 'verify-env', 'check']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.status).toBe('fail');
+    expect(parsed.cliWorks).toBe(false);
+    expect(parsed.message).toBe('CLI does not work inside verification container — build or packaging is broken');
+    expect(exitCode).toBe(1);
+  });
+
   it('outputs JSON', async () => {
     const { stdout } = await runCli(['--json', 'verify-env', 'check']);
     const parsed = JSON.parse(stdout);

@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { ok, fail, info, warn, jsonOutput } from '../lib/output.js';
 import { detectStack, detectAppType } from '../lib/stack-detect.js';
@@ -12,6 +12,7 @@ import { instrumentProject, configureOtlpEnvVars } from '../lib/otlp.js';
 import { initBeads, isBeadsInitialized, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../lib/beads.js';
 import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, BmadError } from '../lib/bmad.js';
 import { getComposeFilePath } from '../lib/stack-path.js';
+import { readmeTemplate } from '../templates/readme.js';
 import type { HarnessState } from '../lib/state.js';
 import type { DependencyResult } from '../lib/deps.js';
 import type { OtlpResult } from '../lib/otlp.js';
@@ -43,6 +44,7 @@ interface InitResult {
   documentation: {
     agents_md: 'created' | 'exists';
     docs_scaffold: 'created' | 'exists';
+    readme: 'created' | 'exists';
   };
   dependencies?: DependencyResult[];
   beads?: {
@@ -64,6 +66,21 @@ interface InitResult {
     ports: { logs: number; metrics: number; traces: number; otel_grpc: number; otel_http: number };
   } | null;
   error?: string;
+}
+
+function getProjectName(projectDir: string): string {
+  try {
+    const pkgPath = join(projectDir, 'package.json');
+    if (existsSync(pkgPath)) {
+      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+      if (pkg.name && typeof pkg.name === 'string') {
+        return pkg.name;
+      }
+    }
+  } catch {
+    // Fall through to basename
+  }
+  return basename(projectDir);
 }
 
 function getStackLabel(stack: string | null): string {
@@ -183,6 +200,7 @@ export function registerInitCommand(program: Command): void {
         documentation: {
           agents_md: 'created',
           docs_scaffold: 'created',
+          readme: 'created',
         },
       };
 
@@ -198,6 +216,7 @@ export function registerInitCommand(program: Command): void {
             result.enforcement = existingState.enforcement;
             result.documentation.agents_md = 'exists';
             result.documentation.docs_scaffold = 'exists';
+            result.documentation.readme = 'exists';
 
             if (isJson) {
               jsonOutput(result as unknown as Record<string, unknown>);
@@ -436,9 +455,37 @@ export function registerInitCommand(program: Command): void {
         result.documentation.docs_scaffold = 'exists';
       }
 
+      // --- README.md generation ---
+      const readmePath = join(projectDir, 'README.md');
+      if (!existsSync(readmePath)) {
+        let cliHelpOutput = '';
+        try {
+          const { execFileSync } = await import('node:child_process');
+          cliHelpOutput = execFileSync(process.execPath, [process.argv[1], '--help'], {
+            stdio: 'pipe',
+            timeout: 10_000,
+          }).toString();
+        } catch {
+          cliHelpOutput = 'Run: codeharness --help';
+        }
+
+        const readmeContent = readmeTemplate({
+          projectName: getProjectName(projectDir),
+          stack,
+          cliHelpOutput,
+        });
+        generateFile(readmePath, readmeContent);
+        result.documentation.readme = 'created';
+      } else {
+        result.documentation.readme = 'exists';
+      }
+
       if (!isJson) {
         if (result.documentation.agents_md === 'created' || result.documentation.docs_scaffold === 'created') {
           ok('Documentation: AGENTS.md + docs/ scaffold created');
+        }
+        if (result.documentation.readme === 'created') {
+          ok('Documentation: README.md created');
         }
       }
 
@@ -618,4 +665,4 @@ export function registerInitCommand(program: Command): void {
 }
 
 // Exported for testing
-export { generateAgentsMdContent, generateDocsIndexContent, getCoverageTool, getStackLabel };
+export { generateAgentsMdContent, generateDocsIndexContent, getCoverageTool, getStackLabel, getProjectName };

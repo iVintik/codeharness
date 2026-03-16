@@ -117,6 +117,18 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     return;
   }
 
+  // 0b. README.md gate — without docs, verification is meaningless
+  const readmePath = join(root, 'README.md');
+  if (!existsSync(readmePath)) {
+    if (isJson) {
+      jsonOutput({ status: 'fail', message: 'No README.md found — verification requires user documentation' });
+    } else {
+      fail('No README.md found — verification requires user documentation');
+    }
+    process.exitCode = 1;
+    return;
+  }
+
   // 1. Resolve story file path
   const storyFilePath = join(root, STORY_DIR, `${storyId}.md`);
   if (!existsSync(storyFilePath)) {

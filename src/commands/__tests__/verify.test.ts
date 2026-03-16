@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
@@ -65,6 +65,9 @@ beforeEach(() => {
     join(storyDir, '4-1-test.md'),
     '# Story 4.1: Test Story\n\nStatus: ready-for-dev\n\n## Acceptance Criteria\n\n1. **Given** test, **Then** pass.\n',
   );
+
+  // Create README.md (required by documentation gate)
+  writeFileSync(join(testDir, 'README.md'), '# Test Project\n');
 });
 
 afterEach(() => {
@@ -84,6 +87,53 @@ async function runVerify(args: string[]): Promise<void> {
     // Commander throws on exitOverride — ignore
   }
 }
+
+// ─── README Gate Tests ──────────────────────────────────────────────────────
+
+describe('verify command — README gate', () => {
+  it('fails with correct error when README.md is missing', async () => {
+    // Remove the README.md created in beforeEach
+    rmSync(join(testDir, 'README.md'), { force: true });
+
+    await runVerify(['--story', '4-1-test']);
+
+    expect(fail).toHaveBeenCalledWith('No README.md found — verification requires user documentation');
+    expect(process.exitCode).toBe(1);
+    // Should NOT reach preconditions
+    expect(checkPreconditions).not.toHaveBeenCalled();
+  });
+
+  it('outputs JSON error when README.md is missing and --json is set', async () => {
+    rmSync(join(testDir, 'README.md'), { force: true });
+
+    await runVerify(['--story', '4-1-test', '--json']);
+
+    expect(jsonOutput).toHaveBeenCalledWith({
+      status: 'fail',
+      message: 'No README.md found — verification requires user documentation',
+    });
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('proceeds past README check when README.md exists', async () => {
+    // README.md exists (created in beforeEach)
+    vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const },
+    ]);
+    vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
+    vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
+    vi.mocked(updateVerificationState).mockImplementation(() => {});
+    vi.mocked(closeBeadsIssue).mockImplementation(() => {});
+
+    await runVerify(['--story', '4-1-test']);
+
+    // Should reach preconditions (README gate passed)
+    expect(checkPreconditions).toHaveBeenCalled();
+    expect(ok).toHaveBeenCalled();
+  });
+});
 
 // ─── Story Verification Tests ────────────────────────────────────────────────
 

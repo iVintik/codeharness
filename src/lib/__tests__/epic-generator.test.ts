@@ -140,6 +140,32 @@ describe('generateOnboardingEpic', () => {
     expect(epic.summary.coverageStories).toBe(2);
   });
 
+  it('generates README story when README.md missing', () => {
+    mkdirSync(join(testDir, 'src/lib'), { recursive: true });
+    mkdirSync(join(testDir, 'src/commands'), { recursive: true });
+    writeFileSync(join(testDir, 'src/lib/AGENTS.md'), '# Agents', 'utf-8');
+    writeFileSync(join(testDir, 'src/commands/AGENTS.md'), '# Agents', 'utf-8');
+
+    const scan = makeScanResult();
+    const coverage = makeCoverageReport();
+    const audit = makeAuditResult({
+      documents: [
+        { name: 'README.md', grade: 'missing', path: null },
+        { name: 'AGENTS.md', grade: 'present', path: 'AGENTS.md' },
+        { name: 'ARCHITECTURE.md', grade: 'present', path: 'ARCHITECTURE.md' },
+      ],
+    });
+
+    const epic = generateOnboardingEpic(scan, coverage, audit, testDir);
+
+    const readmeStories = epic.stories.filter(s => s.title === 'Create README.md');
+    expect(readmeStories).toHaveLength(1);
+    expect(readmeStories[0].type).toBe('doc-freshness');
+    expect(readmeStories[0].key).toBe('0.1');
+    expect(readmeStories[0].acceptanceCriteria[0]).toContain('codeharness init');
+    expect(epic.summary.docStories).toBe(1);
+  });
+
   it('generates architecture story when ARCHITECTURE.md missing', () => {
     mkdirSync(join(testDir, 'src/lib'), { recursive: true });
     mkdirSync(join(testDir, 'src/commands'), { recursive: true });
@@ -227,7 +253,7 @@ describe('generateOnboardingEpic', () => {
     });
     const audit = makeAuditResult({
       documents: [
-        { name: 'README.md', grade: 'stale', path: 'README.md' },
+        { name: 'README.md', grade: 'missing', path: null },
         { name: 'AGENTS.md', grade: 'present', path: 'AGENTS.md' },
         { name: 'ARCHITECTURE.md', grade: 'missing', path: null },
       ],
@@ -235,10 +261,11 @@ describe('generateOnboardingEpic', () => {
 
     const epic = generateOnboardingEpic(scan, coverage, audit, testDir);
 
-    // Expected: 1 architecture + 2 agents-md + 1 coverage + 1 doc-freshness = 5
+    // Expected: 1 readme + 1 architecture + 2 agents-md + 1 coverage = 5
+    // (no doc-freshness since README is missing not stale, and no stale docs)
     expect(epic.summary.totalStories).toBe(5);
     expect(epic.summary.coverageStories).toBe(1);
-    expect(epic.summary.docStories).toBe(4); // 1 architecture + 2 agents-md + 1 doc-freshness
+    expect(epic.summary.docStories).toBe(4); // 1 readme(doc-freshness) + 1 architecture + 2 agents-md
 
     // Verify sequential numbering
     const keys = epic.stories.map(s => s.key);
@@ -611,6 +638,35 @@ describe('importOnboardingEpic', () => {
     expect(mockCreate).toHaveBeenCalledTimes(1);
     const desc = mockCreate.mock.calls[0][1].description;
     expect(desc).toContain('[gap:coverage:src/lib]');
+  });
+
+  it('appends gap-id tags for README stories', () => {
+    const epicPath = join(testDir, 'epic-readme.md');
+    writeFileSync(epicPath, [
+      '## Epic 0: Onboarding',
+      '',
+      '### Story 0.1: Create README.md',
+      '',
+      'As a developer,',
+      'I want a README,',
+      'So that verification works.',
+      '',
+      '**Given** X **When** Y **Then** Z',
+      '',
+    ].join('\n'), 'utf-8');
+
+    const mockCreate = vi.fn().mockImplementation((title: string, opts: any) => {
+      return makeBeadsIssue({ id: 'BEAD-1', title, description: opts?.description });
+    });
+    const mockList = vi.fn().mockReturnValue([]);
+
+    importOnboardingEpic(epicPath, {
+      listIssues: mockList,
+      createIssue: mockCreate,
+    });
+
+    const desc = mockCreate.mock.calls[0][1].description;
+    expect(desc).toContain('[gap:docs:README.md]');
   });
 
   it('appends gap-id tags to created issues for architecture stories', () => {

@@ -69,6 +69,20 @@ export function generateOnboardingEpic(
   const stories: OnboardingStory[] = [];
   let storyNum = 1;
 
+  // README.md story — verification gate requires it (Epic 13, story 13-2)
+  const readmeDoc = audit.documents.find(d => d.name === 'README.md');
+  if (readmeDoc && readmeDoc.grade === 'missing') {
+    stories.push({
+      key: `0.${storyNum}`,
+      title: 'Create README.md',
+      type: 'doc-freshness',
+      acceptanceCriteria: [
+        '**Given** no README.md exists\n**When** the agent runs `codeharness init`\n**Then** README.md is created with project name, installation command, Quick Start section, and CLI reference',
+      ],
+    });
+    storyNum++;
+  }
+
   // Architecture story — if ARCHITECTURE.md is missing
   const archDoc = audit.documents.find(d => d.name === 'ARCHITECTURE.md');
   if (archDoc && archDoc.grade === 'missing') {
@@ -312,6 +326,7 @@ export function importOnboardingEpic(
 function getPriorityFromTitle(title: string): number {
   if (title.startsWith('Add test coverage for ')) return PRIORITY_BY_TYPE.coverage;
   if (title.startsWith('Create ') && title.endsWith('AGENTS.md')) return PRIORITY_BY_TYPE['agents-md'];
+  if (title === 'Create README.md') return PRIORITY_BY_TYPE['doc-freshness'];
   if (title === 'Create ARCHITECTURE.md') return PRIORITY_BY_TYPE.architecture;
   if (title === 'Update stale documentation') return PRIORITY_BY_TYPE['doc-freshness'];
   if (title.startsWith('Create verification proof for ')) return PRIORITY_BY_TYPE.verification;
@@ -335,6 +350,10 @@ function getGapIdFromTitle(title: string): string | null {
   if (title.startsWith('Create ') && title.endsWith('/AGENTS.md')) {
     const mod = title.slice('Create '.length);
     return `[gap:docs:${mod}]`;
+  }
+  // readme
+  if (title === 'Create README.md') {
+    return '[gap:docs:README.md]';
   }
   // architecture
   if (title === 'Create ARCHITECTURE.md') {

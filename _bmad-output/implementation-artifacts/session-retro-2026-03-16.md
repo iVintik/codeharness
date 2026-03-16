@@ -1393,3 +1393,146 @@ Across all sessions today:
 - **Total releases cut today:** 10+ (v0.12.0 through v0.13.2)
 - **Total tests at end of day:** 1,470, all passing
 - **Coverage:** 95.33% statement
+
+---
+
+# Session Retrospective — 2026-03-16 (Epic 13: Black-Box Verification)
+
+**Timestamp:** 2026-03-16T20:30
+**Sprint Scope:** Epic 13 (Black-Box Verification Environment)
+**Stories Attempted:** 4 (13-1, 13-2, 13-3, 13-4)
+**Stories Completed:** 3 (13-1 done, 13-2 done, 13-4 done)
+**Stories Blocked:** 1 (13-3 verifying — 3 escalated ACs)
+
+---
+
+## 1. Session Summary
+
+Epic 13 builds the black-box verification infrastructure that replaces the prior white-box grep-based approach. The verifier agent runs inside Docker with only the built artifact, docs, and observability — no source code access. This session implemented the four stories in sequence.
+
+| Story | Title | Outcome | Duration (approx) | Key Deliverables |
+|-------|-------|---------|-------------------|-----------------|
+| 13-1 | Verification Dockerfile Generator | done | ~20 min | `prepare-workspace.ts` — npm pack, Dockerfile generation, OTEL config, state-file caching |
+| 13-2 | Documentation Gate for Verification | done | ~15 min | `verify-env` check validates README.md + AGENTS.md exist and are fresh before verification proceeds |
+| 13-3 | Black-Box Verifier Agent | blocked | ~20 min | `verifier-session.ts` — spawns Claude subprocess in Docker, proof collection. 3 ACs escalated (AC4, AC5, AC9 need Docker + Claude subprocess) |
+| 13-4 | Verification Environment Sprint Workflow | done | ~10 min | `harness-run.md` skill updated with full black-box verification sub-steps (3d-i through 3d-viii) |
+
+All four stories passed code review after fixes. Story 13-3 is stuck at `verifying` because three acceptance criteria require a live Docker daemon and Claude subprocess — not available in the current sandbox.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Security Vulnerabilities Found During Code Review
+
+| Severity | Issue | Story | Status |
+|----------|-------|-------|--------|
+| HIGH | Path traversal via unsanitized `storyKey` in `spawnVerifierSession()` | 13-3 | FIXED |
+| HIGH | Path traversal via unsanitized `storyKey` in `copyProofToProject()` | 13-3 | FIXED |
+| HIGH | Dockerfile template injection via unsanitized filenames | 13-1 | FIXED |
+| HIGH | Non-null assertion on `npm pack` output (crash on empty output) | 13-1 | FIXED |
+| HIGH | Non-existent CLI command `codeharness verify-prompt` referenced in skill file | 13-4 | FIXED |
+| HIGH | Missing failure handling for docker run and prepare-workspace steps | 13-4 | FIXED |
+| HIGH | Success path never routed to cleanup step | 13-4 | FIXED |
+
+**Pattern:** 4 of 7 HIGH issues are input validation gaps (path traversal, injection). The code review step is catching these reliably, but the dev step is consistently producing them. This suggests the dev agent needs stronger security-aware prompting or a pre-review lint for path/input validation.
+
+### 2.2 Workarounds / Tech Debt Introduced
+
+| Item | Story | Debt Level |
+|------|-------|-----------|
+| `checkBlackBoxEnforcement()` vacuous pass for non-`## AC` proof formats | 13-3 | MEDIUM — proofs not using `## AC` headers bypass black-box enforcement check |
+| `detectStack()` returns loose `string` type instead of union type | 13-1 | LOW — type safety gap |
+| Python build path only mock-tested | 13-1 | LOW — no Python projects exist yet |
+| Integration tests not written (require Docker daemon) | 13-1 | MEDIUM — deferred to runtime |
+
+### 2.3 Verification Gaps
+
+| Gap | Story | Impact |
+|-----|-------|--------|
+| 3 ACs escalated in 13-3 (AC4, AC5, AC9) | 13-3 | Story blocked — needs Docker + Claude subprocess |
+| All 13-4 ACs verified structurally only (grep) | 13-4 | Markdown-only story, no runtime verification possible |
+| Showboat verify fails on non-deterministic output (timestamps, durations) | 13-1 | Known limitation, not a functional failure |
+| `codeharness init` fails without beads server — can't test README generation e2e | 13-2 | AC coverage gap |
+
+### 2.4 Tooling / Infrastructure Problems
+
+| Problem | Story | Resolution |
+|---------|-------|-----------|
+| Stale global CLI binary (v0.13.2) didn't include 13-2 changes | 13-2 | Manual `npm run build && npm link` |
+| AGENTS.md was stale (missing `readme.ts`) — blocked verification | 13-2 | Regenerated AGENTS.md |
+| Beads server not running — `codeharness init` fails early | 13-2 | Workaround: skip e2e test |
+| `host.docker.internal` requires `--add-host` flag on Linux | 13-1 | Documented as risk, not yet tested on Linux |
+
+**AGENTS.md staleness is a repeat offender.** This is the second time today it blocked verification. Story 13-2 specifically added a freshness gate, but the gate itself was blocked by the staleness it was designed to prevent — a bootstrapping problem.
+
+---
+
+## 3. What Went Well
+
+- **3 of 4 stories completed in one session.** Epic 13 is nearly done — only 13-3 needs escalated AC resolution.
+- **Code review caught all 7 HIGH issues before merge.** The review step is functioning as a genuine quality gate.
+- **Security fixes were applied immediately.** Path traversal and injection vulnerabilities were caught and fixed in the same session — zero tech debt on security.
+- **Story 13-4 (skill file update) completed cleanly.** Markdown-only story with clear scope — no code churn.
+- **Session issues log worked as intended.** Every subagent reported its findings, making this retrospective straightforward to produce.
+- **npm pack approach for artifact installation validated.** Correct design decision — avoids dev dependency leakage into the verification container.
+
+---
+
+## 4. What Went Wrong
+
+- **13-3 blocked on environment constraints.** Three ACs require Docker + Claude subprocess, which aren't available in the current sandbox. This was foreseeable — the story's AC design should have tagged these as `[ESCALATE]` from the start.
+- **Dev agent keeps producing input validation gaps.** 4 of 7 HIGH findings were unsanitized inputs. This is a systemic pattern, not a one-off.
+- **AGENTS.md staleness blocked verification again.** Same problem as earlier in the day. The freshness gate (13-2) was being verified when it hit the very problem it solves — classic chicken-and-egg.
+- **Showboat verify's exact-match diffing remains problematic.** Timestamps and durations in output cause false mismatches. This was noted in the earlier Epic 12 retro and is still unresolved.
+- **`checkBlackBoxEnforcement()` has a known bypass.** Proofs not using `## AC` headers pass the black-box check vacuously. This weakens the guarantee that verification is actually black-box.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+1. **Code review as a hard gate works.** All security issues were caught before commit. Keep the review step mandatory.
+2. **Session issues log is valuable.** Subagents recording problems in real-time gives the retro concrete data instead of vague recollections.
+3. **Small, focused stories complete faster.** 13-1 (generator), 13-2 (gate), 13-4 (workflow) were each well-scoped and finished cleanly. 13-3 (the big agent story) is the one that got stuck.
+
+### Patterns to Avoid
+1. **Don't design ACs that require infrastructure the sandbox doesn't have — without tagging them `[ESCALATE]` upfront.** Story 13-3 wasted a full dev + review + verification cycle before discovering three ACs couldn't be verified.
+2. **Don't assume AGENTS.md is current.** Run the freshness check (now from 13-2) before any verification attempt.
+3. **Don't rely on globally installed CLI binaries during development.** Always rebuild and relink before verification.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+- [ ] **Resolve 13-3 escalated ACs (AC4, AC5, AC9)** — requires Docker daemon + Claude subprocess. Either provision the environment or formally accept the escalation and close 13-3 with documented gaps.
+- [ ] **Regenerate AGENTS.md** — ensure it reflects all current source files so the 13-2 freshness gate passes cleanly for future verifications.
+
+### Fix Soon (Next Sprint)
+- [ ] **Add input validation guidance to dev agent prompt** — path traversal and injection were caught 4 times this session. The dev agent prompt should include a security checklist (validate paths, sanitize template inputs, check null/empty returns).
+- [ ] **Fix `checkBlackBoxEnforcement()` vacuous pass** — enforce that proofs must contain `## AC` headers, or adapt the parser to handle alternate formats without vacuously passing.
+- [ ] **Address Showboat verify non-deterministic output** — either normalize timestamps/durations before comparison or switch to semantic diffing for test output sections.
+- [ ] **Add Linux `--add-host` flag handling** to Dockerfile generator for `host.docker.internal` resolution.
+
+### Backlog (Track But Not Urgent)
+- [ ] **Tighten `detectStack()` return type** from `string` to a union type (LOW from 13-1 review).
+- [ ] **Write integration tests for 13-1** that exercise actual Docker builds (need CI with Docker).
+- [ ] **Python build path testing** — currently mock-only; no Python projects exist to test against.
+- [ ] **Automate CLI rebuild-and-link before verification** — eliminate the manual `npm run build && npm link` step that tripped up 13-2 verification.
+
+---
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 4 |
+| Stories completed | 3 (75%) |
+| Stories blocked | 1 (13-3 — 3 escalated ACs) |
+| Code review findings (HIGH) | 7 — all fixed |
+| Code review findings (MEDIUM) | 3 — 2 fixed, 1 unfixed |
+| Code review findings (LOW) | 1 — unfixed |
+| Security vulnerabilities caught | 4 (path traversal x2, injection x1, null assertion x1) |
+| AGENTS.md staleness incidents | 1 (repeat from earlier session) |
+| Escalated ACs | 3 (AC4, AC5, AC9 in 13-3) |

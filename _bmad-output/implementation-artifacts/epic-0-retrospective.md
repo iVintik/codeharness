@@ -1,9 +1,11 @@
 # Epic 0 Retrospective: In-Session Sprint Execution Skill
 
 **Epic:** Epic 0 — In-Session Sprint Execution Skill
-**Date:** 2026-03-15
-**Stories Completed:** 1 (0-1-sprint-execution-skill)
+**Date:** 2026-03-16 (revised; original retro 2026-03-15)
+**Stories:** 1 (0-1-sprint-execution-skill)
 **Status:** All stories done
+**Previous Retro:** None (first epic)
+**Sessions to close:** 4+ (implementation on 2026-03-15, then blocked across 4 sessions on 2026-03-16)
 
 ---
 
@@ -11,7 +13,11 @@
 
 Epic 0 was a strategic insertion — added via sprint change proposal before any other epic was started. The goal: create a sprint execution skill (`/harness-run`) that could autonomously iterate through stories using BMAD workflows, so that codeharness could build itself. This was a bootstrap problem — the tool that automates sprint execution needed to exist before the rest of the tool could be built.
 
-The epic delivered a single story that replaced the Ralph-focused `commands/harness-run.md` with an in-session sprint execution loop. The skill reads `sprint-status.yaml`, orchestrates BMAD workflows (create-story, dev-story, code-review) via Agent tool with fresh context per story, handles retry logic, and produces execution summaries.
+The epic delivered a single story (0-1) that replaced the Ralph-focused `commands/harness-run.md` with an in-session sprint execution loop. The skill reads `sprint-status.yaml`, orchestrates BMAD workflows (create-story, dev-story, code-review) via Agent tool with fresh context per story, handles retry logic, and produces execution summaries.
+
+The story was implemented and code-reviewed on 2026-03-15. It reached `verified` status quickly but was then blocked for 4 consecutive sessions (2026-03-16) because 5 of its 6 ACs are integration-required — they test live Agent tool invocation and full sprint execution, which cannot be verified by CLI tooling. The algorithm deadlock this caused (sequential epic processing halting on Epic 0's blocked story, preventing access to 49 verified stories in Epics 1-11) became the catalyst for Epic 12's corrective work on unverifiable AC detection and escalation.
+
+The story was ultimately marked `done` with 1/6 ACs verified (content inspection) and 5/6 escalated (integration-required).
 
 ---
 
@@ -23,39 +29,48 @@ The decision to insert Epic 0 before the planned Epic 1 was the right call. The 
 
 ### 2. Skill-as-Markdown Architecture
 
-The key architectural insight — that the sprint execution engine is a markdown command file with instructions, not TypeScript code — proved correct. The skill leverages Claude Code's Agent tool for fresh context per story, which keeps context pollution under control. No compilation step, no runtime dependencies, immediately testable.
+The key architectural insight — that the sprint execution engine is a markdown command file with instructions, not TypeScript code — proved correct. The skill leverages Claude Code's Agent tool for fresh context per story, which keeps context pollution under control. No compilation step, no runtime dependencies, immediately testable. This architecture was validated across 12 subsequent epics of autonomous execution.
 
 ### 3. Architecture Amendment Was Clean
 
-Amending Decision 4 (Ralph Integration) to position the sprint skill as the single execution engine, with Ralph as a future session-management wrapper, was a clean separation. This avoids two competing loop implementations and ensures Ralph (Epic 5) will be additive rather than duplicative.
+Amending Decision 4 (Ralph Integration) to position the sprint skill as the single execution engine, with Ralph as a future session-management wrapper, was a clean separation. This avoids two competing loop implementations. Epic 5 later confirmed this: Ralph invokes `/harness-run` rather than reimplementing task picking.
 
-### 4. Verification in Isolated Environment
-
-Using a Docker container for verification was a good practice for a skill that modifies sprint state. The proof document shows the full lifecycle (pre-flight, story selection, dev, review, epic completion, summary) working end-to-end with a trivial test story.
-
-### 5. Code Review Caught Real Issues
+### 4. Code Review Caught Real Issues
 
 The code review cycle identified concrete improvements: moving tracking variable initialization to Step 1 (before the loop), simplifying story selection to file-order scan, adding a dev-review cycle counter (max 5) to prevent infinite loops, and adding elapsed time to the summary. These were substantive, not nitpicks.
+
+### 5. The Deliverable Actually Worked
+
+Despite the verification difficulties, the harness-run skill successfully executed Epics 1 through 12 autonomously. The proof is in the output: 10,800 lines of production TypeScript, 1,437+ unit tests, 95%+ statement coverage — all built by the skill this story created. The best evidence for a bootstrap tool is that it builds the rest of the system.
 
 ---
 
 ## What Could Be Improved
 
-### 1. Story Was Large for a Single Story
+### 1. Story Was Unverifiable by Design
 
-Story 0.1 covered the entire sprint execution loop — 7 steps, retry logic, epic completion, retrospective triggering, failure handling, and summary reporting. For a "minimal loop skeleton," it was still substantial. In future epics, consider splitting complex skills into smaller stories (e.g., separate story for retry/failure handling).
+5 of 6 ACs require live Agent tool invocation and full sprint execution context. This was known from the start — the story's Dev Notes section explicitly says "This is a markdown skill — no unit tests." But nobody flagged that the verification pipeline would choke on a story where 83% of ACs are structurally unverifiable. This gap wasn't addressed until Epic 12 (Story 12-3: Unverifiable AC Detection & Escalation), 12 epics later.
 
-### 2. Retry/Failure Paths Not Fully Verified
+### 2. Four Sessions Burned on the Same Deadlock
 
-The proof document notes that AC5 (retry/cycle logic) was verified only at the initialization level ("variables initialized correctly"). The happy path was fully tested, but the failure path (max retries exceeded, dev-review loop stagnation) was not exercised in the Docker test. Future stories should include negative-path test fixtures.
+The harness-run algorithm processes epics sequentially. When Story 0-1 sat at `verified` with 5/6 escalated ACs, the algorithm could not promote it to `done` and could not skip to Epic 1. This caused identical deadlocks in Sessions 2, 3, and 4 on 2026-03-16:
+
+| Session | Duration | Cost | New Information |
+|---------|----------|------|-----------------|
+| Session 1 (Epic 12 work) | ~90 min | ~$5+ | High — 4 bugs fixed |
+| Session 2 | ~30 min | ~$1.28 | Medium — deadlock identified |
+| Session 3 | ~2 min | ~$1.28 | None — pure repeat |
+| Session 4+ | ~2 min | ~$1.28 | None — pure repeat |
+
+Total wasted cost on deadlock: ~$3.84+ across Sessions 2-4, with zero progress. Ralph's automated loop amplified the problem by firing new sessions before any human could implement the fix identified in Session 2's retro.
 
 ### 3. No Automated Regression Test
 
-The skill is a markdown file — no unit tests apply. But there's no automated way to verify it still works after changes. The Docker-based smoke test was manual. Consider creating a lightweight regression harness (a script that sets up a fixture sprint-status.yaml and runs the skill against it) for future modifications.
+The skill is a markdown file — no unit tests apply. The Docker-based smoke test used during initial verification was manual and ad-hoc. There is still no automated way to verify the skill works after changes. This remains unaddressed.
 
-### 4. Planning Artifacts Updated Across Multiple Files
+### 4. Retry/Failure Paths Not Verified
 
-The sprint change proposal required updates to epics.md, architecture.md, prd.md, and sprint-status.yaml. This was done correctly, but the scattered nature of these updates is a process smell. If the project grows, consider whether a single-source change proposal should auto-propagate to dependent artifacts.
+AC5 (retry/cycle logic) was verified only at the initialization level ("variables initialized correctly"). The failure path (max retries exceeded, dev-review loop stagnation) was never exercised. This is the same verification gap that applies to all integration-required ACs — the happy path works, but edge cases remain untested.
 
 ---
 
@@ -65,47 +80,44 @@ The sprint change proposal required updates to epics.md, architecture.md, prd.md
 
 When the tool you're building is needed to build itself, don't fight the dependency order. Insert a minimal epic at position 0 that creates just enough capability to proceed. The sprint change proposal mechanism handled this well.
 
-### L2: Agent Tool Provides Sufficient Context Isolation
+### L2: Markdown Skills Are a Different Category of Deliverable
 
-The Agent tool with `subagent_type: "general-purpose"` gives each BMAD workflow a fresh context. This is adequate for story-level isolation without needing external process spawning (Ralph). The in-session approach is simpler and faster for attended development.
+Traditional unit tests don't apply to markdown command files. The verification pipeline (Epic 4) was designed around CLI-testable acceptance criteria — it has no lighter path for non-code deliverables. This mismatch went undetected for 12 epics until the algorithm tried to verify Story 0-1 through the standard pipeline. The fix (Epic 12's `[ESCALATE]` status and `classifyVerifiability()`) was the right structural answer, but it came too late. ACs for markdown/skill stories should be tagged `<!-- verification: integration-required -->` at story creation time, not discovered during verification.
 
-### L3: sprint-status.yaml as Single Task Source Is Sufficient
+### L3: Sequential Epic Processing With Hard Halts Is Fragile
 
-Using sprint-status.yaml as the sole task source (no beads, no progress.json) kept the sprint execution skill simple. The file-order scanning for story selection is deterministic and easy to reason about. This validates the architecture decision to delay beads integration until Epic 3.
+The harness-run algorithm's design — process epics in order, halt when no actionable stories remain — is correct for the happy path but catastrophic when a single story is structurally blocked. The algorithm had no skip logic, no "done-pending-integration" status, and no awareness that 49 stories sat behind a single blocked story. This is a fundamental architectural gap in the sprint execution skill itself — the very deliverable of this epic.
 
-### L4: Markdown Skills Need Their Own Verification Strategy
+### L4: Automated Loops Amplify Deadlocks
 
-Traditional unit tests don't apply to markdown command files. The Docker-based smoke test worked but was ad-hoc. For Epic 4 (verification pipeline), establishing a repeatable verification strategy for skills/commands should be an explicit requirement.
+Ralph's automated loop fired Sessions 3 and 4 against a known deadlock without any pre-session check. Each session burned API cost and produced zero progress. The lesson: automated execution needs a circuit breaker — if the previous session's exit reason was "deadlock" or "blocked," refuse to start a new session unless the blocker has been resolved.
 
-### L5: Code Review Cycle Counter Was a Non-Obvious Requirement
+### L5: The Best Verification Is Production Use
 
-The original story didn't include a max cycle count for dev-review round-trips. Code review caught this — without it, a story that keeps failing review would loop infinitely between dev and review. This is the kind of edge case that emerges only when you think through the full state machine.
-
----
-
-## Action Items for Subsequent Epics
-
-| # | Action | Target Epic | Owner |
-|---|--------|-------------|-------|
-| A1 | When implementing Epic 4 quality gates, add them as enhancements to the existing `/harness-run` skill — do not create a separate execution flow | Epic 4 | Dev |
-| A2 | When implementing Epic 5 Ralph integration, Ralph should invoke `/harness-run` — not reimplement task picking or gate logic | Epic 5 | Dev |
-| A3 | Create a regression test fixture for `/harness-run` that exercises the failure path (max retries, dev-review loop stagnation) | Epic 4 | Dev |
-| A4 | Consider splitting complex skills into multiple stories in future epics (one for happy path, one for error handling) | All future | SM |
+Story 0-1's deliverable (harness-run.md) was verified more thoroughly by building 12 epics than any proof document could capture. The harness-run skill orchestrated creation and development of 60+ stories, managed epic transitions, triggered retrospectives, and handled retry logic — all in production. When a bootstrap tool's value is proven by the system it built, formal AC verification becomes ceremonial.
 
 ---
 
-## Next Epic Readiness
+## Action Item Status (from original retro)
 
-**Epic 1: Project Scaffold & CLI Entry Point** is next in the backlog. It covers:
-- Story 1-1: Project scaffold and CLI entry point
-- Story 1-2: Core libraries (state, stack detection, templates)
-- Story 1-3: Init command (full harness initialization)
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Add quality gates to `/harness-run` in Epic 4 | Done | Epic 4 (Story 4-1, 4-2, 4-3) added verification pipeline, hook enforcement, and testing gates to harness-run |
+| A2 | Ralph should invoke `/harness-run`, not reimplement | Done | Epic 5 (Story 5-1) implemented Ralph as a session wrapper calling harness-run |
+| A3 | Create regression test fixture for failure paths | Not done | No automated regression test exists for harness-run.md. The skill remains untested for failure paths. |
+| A4 | Split complex skills into multiple stories | Partially done | Later epics used 2-5 story splits. But complex individual stories still appear (e.g., 12-1 covered three independent fix layers). |
 
-**Prerequisites met:** The sprint execution skill (`/harness-run`) is operational and can be used to execute Epic 1 stories autonomously.
+---
 
-**Risks for Epic 1:**
-- These are code stories (TypeScript), not markdown skills. The verification strategy shifts to unit tests + build verification.
-- Story 1-3 (init command) has significant scope — it orchestrates stack detection, dependency installation, Docker setup, BMAD patching, state file creation, and plugin scaffold generation. Consider whether it needs to be broken down further during story creation.
+## Action Items for Future Work
+
+| # | Action | Priority | Owner | Notes |
+|---|--------|----------|-------|-------|
+| A1 | Add epic-skip logic to harness-run | High | Dev | When all stories in an epic are blocked/escalated, skip to next epic. This is the root cause of the 4-session deadlock. |
+| A2 | Add pre-session blocker check to Ralph | High | Dev | Before invoking claude, Ralph should verify the previous session's exit reason. If "deadlock," require evidence of fix before proceeding. |
+| A3 | Allow promoting stories where all verifiable ACs pass | Medium | Dev | Stories with 100% of CLI-verifiable ACs verified and remaining ACs escalated should be promotable to `done` automatically. |
+| A4 | Define "documentation-only" story type | Medium | PM | Markdown/skill stories should require only content inspection, not integration testing. Lighter verification path needed. |
+| A5 | Create regression test fixture for harness-run failure paths | Low | Dev | Carried from original retro A3. Still unaddressed after 12 epics. Either schedule as a story or drop. |
 
 ---
 
@@ -119,3 +131,8 @@ The original story didn't include a max cycle count for dev-review round-trips. 
 - **Architecture amendments:** 1 (Decision 4 — Ralph as wrapper)
 - **Files modified:** 3 (commands/harness-run.md, AGENTS.md, .claude/relay.yaml)
 - **Files created:** 2 (exec-plan, proof document)
+- **Sessions to reach done:** 4+ (1 implementation session + 3 blocked sessions before manual resolution)
+- **ACs verified by CLI:** 1/6 (AC1 — content inspection)
+- **ACs escalated:** 5/6 (AC2-AC6 — integration-required)
+- **Estimated cost of deadlock sessions:** ~$3.84 (Sessions 2-4, zero progress)
+- **Subsequent epics built by this deliverable:** 12 (Epics 1-12, 60+ stories)

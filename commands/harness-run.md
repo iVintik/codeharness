@@ -212,10 +212,12 @@ Leave story at `verifying`, go to Step 6. No fallback.
 **3d-ii: Start Docker container**
 
 ```bash
-docker run -d --name codeharness-verify --network host codeharness-verify sleep infinity
+docker run -d --name codeharness-verify --network host \
+  -e ANTHROPIC_API_KEY="$ANTHROPIC_API_KEY" \
+  codeharness-verify sleep infinity
 ```
 
-`--network host` allows the container to reach OTEL Collector at `localhost:4318`, VictoriaLogs at `:9428`, VictoriaMetrics at `:8428`, and VictoriaTraces at `:16686`.
+`--network host` allows the container to reach OTEL Collector at `localhost:4318`, VictoriaLogs at `:9428`, VictoriaMetrics at `:8428`, and VictoriaTraces at `:16686`. The `ANTHROPIC_API_KEY` env var enables the `claude` CLI inside the container for verifier sessions that need to spawn Claude subprocesses.
 
 If `docker run` fails, log `[FAIL] docker run failed: {error}`, leave story at `verifying`, and go to Step 6. No cleanup needed — the container never started.
 

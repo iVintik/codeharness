@@ -93,6 +93,19 @@ describe('verifyPromptTemplate', () => {
     expect(prompt).toContain('[ESCALATE]');
   });
 
+  it('instructs verifier that claude CLI is available in container', () => {
+    const prompt = verifyPromptTemplate(baseConfig);
+    expect(prompt).toContain('claude');
+    expect(prompt).toContain('claude --print');
+    expect(prompt).toContain('ANTHROPIC_API_KEY');
+  });
+
+  it('instructs verifier to escalate narrowly, not blanket-escalate', () => {
+    const prompt = verifyPromptTemplate(baseConfig);
+    expect(prompt).toContain('escalate narrowly');
+    expect(prompt).toContain('last resort');
+  });
+
   it('merges partial observability endpoint overrides with defaults', () => {
     const prompt = verifyPromptTemplate({
       ...baseConfig,

@@ -145,3 +145,12 @@ development_status:
   12-2-sprint-execution-ownership: done
   12-3-unverifiable-ac-detection-escalation: done
   epic-12-retrospective: done
+
+  epic-14: backlog
+  14-1-add-test-coverage-for-src-commands: backlog
+  14-2-add-test-coverage-for-src-lib: backlog
+  14-3-add-test-coverage-for-src-templates: backlog
+  14-4-update-stale-documentation: backlog
+  14-5-configure-otlp-instrumentation: backlog
+  14-6-start-docker-observability-stack: backlog
+  epic-14-retrospective: optional

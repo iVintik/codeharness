@@ -36,7 +36,7 @@ describe('dockerComposeTemplate', () => {
   it('uses correct image for victoria-logs', () => {
     const result = dockerComposeTemplate(defaultConfig);
     const parsed = parse(result) as { services: Record<string, { image: string }> };
-    expect(parsed.services['victoria-logs'].image).toBe('victoriametrics/victoria-logs:v1.15.0');
+    expect(parsed.services['victoria-logs'].image).toBe('victoriametrics/victoria-logs:v1.15.0-victorialogs');
   });
 
   it('uses correct image for victoria-metrics', () => {

@@ -1,0 +1,28 @@
+# Black-box verification environment
+# Installs the project as a user would (from tarball), plus verification tools.
+# NO source code enters the image — only the built artifact.
+FROM node:20-slim
+
+ARG TARBALL=package.tgz
+
+# System utilities
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    jq \
+  && rm -rf /var/lib/apt/lists/*
+
+# Verification tools + Claude Code CLI
+RUN npm install -g showboat @anthropic-ai/claude-code
+
+# Install the project from tarball (same as a user would)
+COPY ${TARBALL} /tmp/${TARBALL}
+RUN npm install -g /tmp/${TARBALL} && rm /tmp/${TARBALL}
+
+# OTEL environment pointing to host observability stack
+ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+ENV OTEL_SERVICE_NAME=codeharness-verify
+ENV OTEL_TRACES_EXPORTER=otlp
+ENV OTEL_METRICS_EXPORTER=otlp
+ENV OTEL_LOGS_EXPORTER=otlp
+
+WORKDIR /workspace

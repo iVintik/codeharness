@@ -35,16 +35,10 @@ vi.mock('../stack-detect.js', () => ({
   detectStack: vi.fn(() => 'nodejs'),
 }));
 
-// Mock template module
-vi.mock('../../templates/verify-dockerfile.js', () => ({
-  verifyDockerfileTemplate: vi.fn(() => 'FROM node:20-slim\nRUN echo "mock"'),
-}));
-
 import { execFileSync } from 'node:child_process';
 import { isDockerAvailable } from '../docker.js';
 import { detectStack } from '../stack-detect.js';
 import { readStateWithBody, writeState } from '../state.js';
-import { verifyDockerfileTemplate } from '../../templates/verify-dockerfile.js';
 import {
   isValidStoryKey,
   computeDistHash,
@@ -59,13 +53,15 @@ const mockIsDockerAvailable = vi.mocked(isDockerAvailable);
 const mockDetectStack = vi.mocked(detectStack);
 const mockReadStateWithBody = vi.mocked(readStateWithBody);
 const mockWriteState = vi.mocked(writeState);
-const mockVerifyDockerfileTemplate = vi.mocked(verifyDockerfileTemplate);
 
 let testDir: string;
 
 beforeEach(() => {
   vi.clearAllMocks();
   testDir = mkdtempSync(join(tmpdir(), 'ch-verify-env-test-'));
+  // Create templates/Dockerfile.verify so buildVerifyImage can find it
+  mkdirSync(join(testDir, 'templates'), { recursive: true });
+  writeFileSync(join(testDir, 'templates', 'Dockerfile.verify'), 'FROM node:20-slim\nARG TARBALL=package.tgz\nCOPY ${TARBALL} /tmp/\n');
   // Reset default mock behaviors after clearAllMocks
   mockIsDockerAvailable.mockReturnValue(true);
   mockDetectStack.mockReturnValue('nodejs');
@@ -268,10 +264,14 @@ describe('buildVerifyImage', () => {
     const result = buildVerifyImage({ projectDir: testDir });
     expect(result.cached).toBe(false);
     expect(result.imageTag).toBe('codeharness-verify');
-    expect(mockVerifyDockerfileTemplate).toHaveBeenCalledWith({
-      stack: 'python',
-      distFileName: 'mypackage-0.1.0.tar.gz',
-    });
+
+    // Verify docker build was called with --build-arg TARBALL=mypackage-0.1.0.tar.gz
+    const buildCall = mockExecFileSync.mock.calls.find(
+      c => (c[1] as string[]).includes('build'),
+    );
+    expect(buildCall).toBeDefined();
+    expect((buildCall![1] as string[])).toContain('--build-arg');
+    expect((buildCall![1] as string[]).join(' ')).toContain('TARBALL=mypackage-0.1.0.tar.gz');
   });
 
   it('throws when npm pack produces empty output', () => {

@@ -8,13 +8,12 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, cpSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, cpSync, rmSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { info } from './output.js';
 import { detectStack } from './stack-detect.js';
 import { readStateWithBody, writeState } from './state.js';
-import { verifyDockerfileTemplate } from '../templates/verify-dockerfile.js';
 import { isDockerAvailable } from './docker.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -208,12 +207,16 @@ function buildNodeImage(projectDir: string): void {
     // Copy tarball to build context
     cpSync(tarballPath, join(buildContext, tarballName));
 
-    // Generate Dockerfile
-    const dockerfile = verifyDockerfileTemplate({ stack: 'nodejs', tarballName });
-    writeFileSync(join(buildContext, 'Dockerfile'), dockerfile, 'utf-8');
+    // Copy static Dockerfile from templates/
+    const dockerfileSrc = resolveDockerfileTemplate(projectDir);
+    cpSync(dockerfileSrc, join(buildContext, 'Dockerfile'));
 
-    // Build image
-    execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], {
+    // Build image with tarball name as build arg
+    execFileSync('docker', [
+      'build', '-t', IMAGE_TAG,
+      '--build-arg', `TARBALL=${tarballName}`,
+      '.',
+    ], {
       cwd: buildContext,
       stdio: 'pipe',
       timeout: 120_000,
@@ -248,12 +251,16 @@ function buildPythonImage(projectDir: string): void {
     // Copy dist file to build context
     cpSync(join(distDir, distFile), join(buildContext, distFile));
 
-    // Generate Dockerfile
-    const dockerfile = verifyDockerfileTemplate({ stack: 'python', distFileName: distFile });
-    writeFileSync(join(buildContext, 'Dockerfile'), dockerfile, 'utf-8');
+    // Copy static Dockerfile from templates/
+    const dockerfileSrc = resolveDockerfileTemplate(projectDir);
+    cpSync(dockerfileSrc, join(buildContext, 'Dockerfile'));
 
-    // Build image
-    execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], {
+    // Build image with tarball name as build arg
+    execFileSync('docker', [
+      'build', '-t', IMAGE_TAG,
+      '--build-arg', `TARBALL=${distFile}`,
+      '.',
+    ], {
       cwd: buildContext,
       stdio: 'pipe',
       timeout: 120_000,
@@ -405,6 +412,25 @@ export function cleanupVerifyEnv(storyKey: string): void {
   } catch {
     // Container may not exist — that's fine
   }
+}
+
+// ─── Dockerfile Resolution ──────────────────────────────────────────────────
+
+/**
+ * Finds the static Dockerfile.verify template.
+ * Checks project templates/ first, then falls back to the installed package.
+ */
+function resolveDockerfileTemplate(projectDir: string): string {
+  // Project-local template (allows customization)
+  const local = join(projectDir, 'templates', 'Dockerfile.verify');
+  if (existsSync(local)) return local;
+
+  // Installed package template (npm global install path)
+  const pkgDir = new URL('../../', import.meta.url).pathname;
+  const pkg = join(pkgDir, 'templates', 'Dockerfile.verify');
+  if (existsSync(pkg)) return pkg;
+
+  throw new Error('Dockerfile.verify not found. Ensure templates/Dockerfile.verify exists in the project or installed package.');
 }
 
 // ─── Docker Helpers ─────────────────────────────────────────────────────────

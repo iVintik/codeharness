@@ -78,19 +78,17 @@ observability endpoints (VictoriaLogs/Metrics/Traces), README.md usage
 instructions, and the rule that ALL CLI commands must use `docker exec`.
 Used by `src/lib/verifier-session.ts`.
 
-### verify-dockerfile.ts
-
-Dockerfile template for black-box verification environment.
-`verifyDockerfileTemplate()` generates a Dockerfile that installs the
-project as a user would (`npm install -g` from tarball for Node.js,
-`pip install` from dist for Python), includes `curl`, `jq`, `showboat`,
-sets OTEL environment variables pointing to `host.docker.internal:4318`,
-and contains NO source code. Used by `src/lib/verify-env.ts`.
-
 ## Test Coverage
 
 Each template file has a corresponding test in `__tests__/`:
 `bmad-patches.test.ts`, `docker-compose.test.ts`,
 `otel-config.test.ts`, `ralph-prompt.test.ts`,
 `readme.test.ts`, `showboat-template.test.ts`,
-`verify-dockerfile.test.ts`, `verify-prompt.test.ts`.
+`verify-prompt.test.ts`.
+
+## Static Templates (outside src/)
+
+The Dockerfile for the verification environment is a static file at
+`templates/Dockerfile.verify` (not a TypeScript template). It uses
+`ARG TARBALL` for the package filename. `src/lib/verify-env.ts` copies
+it into the Docker build context and passes `--build-arg TARBALL=<name>`.

@@ -9,6 +9,7 @@
   "files": [
     "dist",
     "bin",
+    "templates/Dockerfile.verify",
     "ralph/**/*.sh",
     "ralph/AGENTS.md"
   ],

@@ -72,6 +72,7 @@ For EACH acceptance criterion, you must:
 1. Run commands inside the Docker container via \`docker exec ${container} ...\`
 2. Capture the command output as evidence
 3. Query observability endpoints if runtime evidence is needed
+4. For ACs that involve Claude Code sessions or agent workflows, use \`docker exec ${container} claude ...\` to spawn real sessions inside the container
 
 ### Docker Container
 
@@ -79,6 +80,14 @@ For EACH acceptance criterion, you must:
 - ALL CLI commands MUST run via: \`docker exec ${container} <command>\`
 - Example: \`docker exec ${container} codeharness --version\`
 - Example: \`docker exec ${container} codeharness init --json\`
+- Example: \`docker exec ${container} claude --print -p "Run /harness-run" --max-budget-usd 1\`
+
+The container has the following tools installed:
+- \`codeharness\` — the project CLI
+- \`claude\` — Claude Code CLI (authenticated via ANTHROPIC_API_KEY env var)
+- \`curl\`, \`jq\` — for querying observability endpoints
+- \`showboat\` — for proof document validation
+- \`node\`, \`npm\` — Node.js runtime
 
 ### Observability Endpoints
 
@@ -109,12 +118,16 @@ docker exec ${container} <command>
 \`\`\`
 \`\`\`
 
+**IMPORTANT: Only use \`bash\` and \`output\` as code fence languages.** Never use bare \`\`\` fences without a language tag. If quoting code snippets, use \`\`\`text. Showboat will try to execute any unlabeled code block.
+
 ## Critical Rules
 
 1. **ALL commands MUST use \`docker exec ${container} ...\`** — do NOT run commands directly on the host filesystem.
 2. **Do NOT attempt to access source code** — there is no \`src/\` directory in this workspace. If you try to \`grep\`, \`cat\`, or \`find\` source files, you will find nothing.
 3. **Report REAL failures** — if a feature does not work via the CLI or the documentation is insufficient to exercise it, report that as a verification failure with specific details about what went wrong. Do NOT fabricate passing evidence.
 4. **Every AC needs functional evidence** — reading docs alone is not evidence. You must execute commands and capture output.
-5. **Mark unreachable ACs as [ESCALATE]** — if an AC genuinely cannot be verified in this environment (e.g., requires a real network service), mark it as \`[ESCALATE]\` with a clear explanation.
+5. **Verify aggressively, escalate narrowly.** If an AC has 5 parts and you can verify 4, verify those 4 and escalate ONLY the specific part you cannot reach. Never blanket-escalate an entire AC because one aspect requires something unavailable.
+6. **[ESCALATE] is a last resort.** Before escalating, try: running the CLI command, spawning a \`claude\` session inside the container, querying observability data, or testing the behavior indirectly. Only escalate if you have genuinely exhausted all options.
+7. **\`claude\` CLI is available** inside the container. If an AC requires spawning a Claude Code session, running a slash command, or testing agent behavior, use \`docker exec ${container} claude --print -p "..." --max-budget-usd 1\` to actually test it. Do NOT escalate just because "it needs a Claude session."
 `;
 }

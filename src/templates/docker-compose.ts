@@ -30,7 +30,7 @@ name: codeharness-shared
 
 services:
   victoria-logs:
-    image: victoriametrics/victoria-logs:v1.15.0
+    image: victoriametrics/victoria-logs:v1.15.0-victorialogs
     labels:
       com.codeharness.stack: shared
     ports:

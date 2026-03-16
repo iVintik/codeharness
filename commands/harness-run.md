@@ -260,13 +260,12 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 6. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
 7. Handle escalated ACs separately from pending:
    - `pending > 0` means verifier failed to produce evidence → re-spawn verifier (up to max_retries)
-   - `escalated > 0` means verifier correctly identified ACs that truly cannot be automated — log them but do NOT re-spawn and do NOT block completion:
-     ```
-     [INFO] Story {story_key}: {N} ACs escalated (tracked in proof document for manual follow-up)
-     ```
-8. If `pending === 0`: Update sprint-status.yaml: change `{story_key}` status to `done`
-   - Stories with escalated ACs still reach `done` — escalation means the AC was acknowledged and documented, not that the story is incomplete
-   - Escalated ACs remain in the proof document for future manual or integration verification
+   - `escalated > 0` means verifier correctly identified ACs that cannot be verified — story is **blocked**:
+     - Print: `[WARN] Story {story_key} has {N} escalated ACs — story stays at verified`
+     - Do NOT mark story as `done` — story stays at `verified` status
+     - Do NOT re-spawn the verifier — escalation is the correct outcome
+     - The story is blocked — Step 2 skip logic will advance past it to other stories/epics
+8. If `pending === 0` and `escalated === 0`: Update sprint-status.yaml: change `{story_key}` status to `done`
 9. Print: `[OK] Story {story_key}: verified → done`
 
 **If verification reveals unfixable issues:**

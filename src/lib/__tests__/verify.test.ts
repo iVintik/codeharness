@@ -427,6 +427,36 @@ describe('proofHasContent', () => {
   });
 });
 
+describe('validateProofQuality — no-space AC header format', () => {
+  it('parses ## ACN: headers (no space between AC and number)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '## AC1: Binary available',
+      '',
+      '```bash',
+      'codeharness --version',
+      '```',
+      '',
+      '```output',
+      '0.10.0',
+      '```',
+      '',
+      '## AC2: Commands listed',
+      '',
+      '```bash',
+      'codeharness --help',
+      '```',
+      '',
+      '```output',
+      'Usage: codeharness [command]',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
+  });
+});
+
 // ─── updateVerificationState ────────────────────────────────────────────────
 
 describe('updateVerificationState', () => {

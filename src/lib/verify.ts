@@ -179,8 +179,8 @@ export function validateProofQuality(proofPath: string): ProofQuality {
 
   const content = readFileSync(proofPath, 'utf-8');
 
-  // Split into AC sections by ## AC N: headers
-  const acHeaderPattern = /^## AC \d+:/gm;
+  // Split into AC sections by ## AC N: or ## ACN: headers
+  const acHeaderPattern = /^## AC ?(\d+):/gm;
   const matches = [...content.matchAll(acHeaderPattern)];
 
   if (matches.length === 0) {

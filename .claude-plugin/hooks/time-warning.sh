@@ -3,7 +3,9 @@
 # Reads deadline from ralph/.iteration_deadline (epoch timestamp).
 # Warns at 10 min remaining, urgently at 5 min remaining.
 
-DEADLINE_FILE="ralph/.iteration_deadline"
+PROJECT_ROOT="${CLAUDE_PLUGIN_ROOT:+${CLAUDE_PLUGIN_ROOT}/..}"
+PROJECT_ROOT="${PROJECT_ROOT:-$(dirname "$(dirname "$0")")}"
+DEADLINE_FILE="${PROJECT_ROOT}/ralph/.iteration_deadline"
 
 if [[ ! -f "$DEADLINE_FILE" ]]; then
     exit 0

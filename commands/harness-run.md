@@ -41,8 +41,18 @@ Scan `development_status` entries **in order from top to bottom**:
 2. **Find next story in current epic:** Scan entries in file order. Take the first `N-M-slug` entry where:
    - `N` matches the current epic number
    - Status is NOT `done`
+   - Story is **actionable** — meaning status is `backlog`, `ready-for-dev`, `in-progress`, or `review`
+   - A `verified` story IS actionable (needs verification step 3d)
+   - **BUT**: a `verified` story that already has a proof document with `escalated > 0` and `pending === 0` is **blocked**, not actionable — skip it
 
-3. If no actionable stories remain in the current epic, check if all stories are `done` → go to Step 5 (epic completion). Otherwise HALT with status report.
+3. If no actionable stories remain in the current epic:
+   - If all stories are `done` → go to Step 5 (epic completion)
+   - If some stories are blocked (verified with escalations) but none are actionable:
+     ```
+     [INFO] Epic {N}: all remaining stories are blocked (escalated ACs) — skipping to next epic
+     ```
+     Advance to the next `epic-M` where `M > N` and repeat from step 1. Do NOT halt.
+   - If truly no work remains across all epics → go to Step 7 (completion)
 
 4. Print the plan:
    ```
@@ -240,13 +250,12 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 6. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
 7. Handle escalated ACs separately from pending:
    - `pending > 0` means verifier failed to produce evidence → re-spawn verifier (up to max_retries)
-   - `escalated > 0` means verifier correctly identified unverifiable ACs — do NOT re-spawn. Log:
-     ```
-     [INFO] Story {story_key}: {N} ACs escalated (integration-required) — these do not block completion
-     ```
-8. If `pending === 0`: Update sprint-status.yaml: change `{story_key}` status to `done`
-   - This includes stories with escalated ACs — escalation means "acknowledged as unverifiable", not "blocked"
-   - Escalated ACs are tracked in the proof document for future integration testing
+   - `escalated > 0` means verifier correctly identified ACs that cannot be verified in the current session:
+     - Print: `[WARN] Story {story_key} has {N} escalated ACs — story stays at verified`
+     - Do NOT mark story as `done` — story stays at `verified` status
+     - Do NOT re-spawn the verifier — escalation is the correct outcome
+     - The story is **blocked** — Step 2 skip logic will advance past it
+8. If no escalated ACs and `pending === 0`: Update sprint-status.yaml: change `{story_key}` status to `done`
 9. Print: `[OK] Story {story_key}: verified → done`
 
 **If verification reveals unfixable issues:**

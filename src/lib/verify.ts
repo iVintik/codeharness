@@ -179,41 +179,66 @@ export function validateProofQuality(proofPath: string): ProofQuality {
 
   const content = readFileSync(proofPath, 'utf-8');
 
-  // Split into AC sections by ## AC N: or ## ACN: headers
+  // Try two formats: (1) ## AC N: section headers, (2) inline --- ACN: markers in code blocks
   const acHeaderPattern = /^## AC ?(\d+):/gm;
   const matches = [...content.matchAll(acHeaderPattern)];
-
-  if (matches.length === 0) {
-    return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
-  }
 
   let verified = 0;
   let pending = 0;
   let escalated = 0;
 
-  for (let i = 0; i < matches.length; i++) {
-    const start = matches[i].index!;
-    const end = i + 1 < matches.length ? matches[i + 1].index! : content.length;
-    const section = content.slice(start, end);
+  if (matches.length > 0) {
+    // Format 1: dedicated ## AC N: section headers
+    for (let i = 0; i < matches.length; i++) {
+      const start = matches[i].index!;
+      const end = i + 1 < matches.length ? matches[i + 1].index! : content.length;
+      const section = content.slice(start, end);
 
-    // Check for [ESCALATE] marker first — escalated ACs are explicitly
-    // unverifiable, distinct from pending (missing evidence).
-    if (section.includes('[ESCALATE]')) {
-      escalated++;
-      continue;
+      if (section.includes('[ESCALATE]')) {
+        escalated++;
+        continue;
+      }
+
+      const hasEvidence =
+        section.includes('<!-- /showboat exec -->') ||
+        section.includes('<!-- showboat image:') ||
+        /```(?:bash|shell)\n[\s\S]*?```\n+```output\n/m.test(section);
+
+      if (hasEvidence) {
+        verified++;
+      } else {
+        pending++;
+      }
+    }
+  } else {
+    // Format 2: showboat native — inline --- ACN: markers inside code blocks
+    const inlineAcPattern = /--- AC ?(\d+):/g;
+    const inlineMatches = [...content.matchAll(inlineAcPattern)];
+    const acNumbers = new Set(inlineMatches.map(m => m[1]));
+
+    if (acNumbers.size === 0) {
+      return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
     }
 
-    // Recognise both the codeharness template markers AND showboat's native
-    // format (```bash + ```output pairs produced by `showboat exec`).
-    const hasEvidence =
-      section.includes('<!-- /showboat exec -->') ||
-      section.includes('<!-- showboat image:') ||
-      /```(?:bash|shell)\n[\s\S]*?```\n+```output\n/m.test(section);
+    for (const acNum of acNumbers) {
+      const acPattern = new RegExp(`--- AC ?${acNum}:`, 'g');
+      // Find first occurrence and extract surrounding context
+      const acIdx = content.search(acPattern);
+      if (acIdx === -1) { pending++; continue; }
 
-    if (hasEvidence) {
-      verified++;
-    } else {
-      pending++;
+      // Get content from this AC marker to the next AC marker or end
+      const nextAcPattern = new RegExp(`--- AC ?(?!${acNum})\\d+:`, 'g');
+      nextAcPattern.lastIndex = acIdx + 1;
+      const nextMatch = nextAcPattern.exec(content);
+      const section = content.slice(acIdx, nextMatch ? nextMatch.index : content.length);
+
+      if (section.includes('[ESCALATE]')) {
+        escalated++;
+      } else if (/```output\n/m.test(section)) {
+        verified++;
+      } else {
+        pending++;
+      }
     }
   }
 

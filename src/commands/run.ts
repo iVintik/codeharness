@@ -77,6 +77,7 @@ export function buildSpawnArgs(opts: {
   calls: number;
   live: boolean;
   maxStoryRetries?: number;
+  reset?: boolean;
 }): string[] {
   const args = [
     opts.ralphPath,
@@ -96,6 +97,10 @@ export function buildSpawnArgs(opts: {
     args.push('--live');
   }
 
+  if (opts.reset) {
+    args.push('--reset');
+  }
+
   return args;
 }
 
@@ -109,6 +114,7 @@ export function registerRunCommand(program: Command): void {
     .option('--live', 'Show live output streaming', false)
     .option('--calls <n>', 'Max API calls per hour', '100')
     .option('--max-story-retries <n>', 'Max retries per story before flagging', '3')
+    .option('--reset', 'Clear retry counters, flagged stories, and circuit breaker before starting', false)
     .action(async (options, cmd) => {
       const globalOpts = cmd.optsWithGlobals();
       const isJson = !!globalOpts.json;
@@ -200,6 +206,7 @@ export function registerRunCommand(program: Command): void {
         calls,
         live: options.live,
         maxStoryRetries,
+        reset: options.reset,
       });
 
       // 7. Set environment for JSON mode

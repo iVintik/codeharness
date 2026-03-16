@@ -1,4 +1,5 @@
 ---
+name: visibility-enforcement
 description: Enforces that the agent queries observability tools (VictoriaLogs, VictoriaMetrics, VictoriaTraces) during development instead of guessing at runtime behavior. Triggers when the agent is debugging, investigating errors, or verifying runtime behavior.
 ---
 

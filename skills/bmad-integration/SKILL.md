@@ -1,4 +1,5 @@
 ---
+name: bmad-integration
 description: Integrates codeharness with BMAD methodology — reads sprint plans, maps stories to verification tasks, enforces harness requirements in all BMAD workflows. Triggers when working with BMAD artifacts, sprint plans, or story files.
 ---
 

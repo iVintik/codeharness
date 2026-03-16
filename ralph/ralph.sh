@@ -50,6 +50,9 @@ CLAUDE_OUTPUT_FORMAT="${CLAUDE_OUTPUT_FORMAT:-json}"
 CLAUDE_ALLOWED_TOOLS="${CLAUDE_ALLOWED_TOOLS:-}"
 CLAUDE_USE_CONTINUE="${CLAUDE_USE_CONTINUE:-false}"  # Fresh context per iteration by default
 
+# Reset retry state on start
+RESET_RETRIES=false
+
 # Live output
 LIVE_OUTPUT=false
 
@@ -722,6 +725,7 @@ Options:
     --prompt FILE             Prompt file for each iteration
     --progress FILE           Progress file (tasks JSON)
     --live                    Show live output streaming
+    --reset                   Clear retry counters, flagged stories, and circuit breaker before starting
     --reset-circuit           Reset circuit breaker and exit
     --status                  Show current status and exit
 
@@ -805,7 +809,20 @@ main() {
         fi
     fi
 
-    # Preserve retry state across restarts (Task 5.3)
+    # Reset retry state if --reset flag was passed
+    if [[ "$RESET_RETRIES" == "true" ]]; then
+        if [[ -f "$STORY_RETRY_FILE" ]]; then
+            rm -f "$STORY_RETRY_FILE"
+            log_status "INFO" "Cleared story retry counters"
+        fi
+        if [[ -f "$FLAGGED_STORIES_FILE" ]]; then
+            rm -f "$FLAGGED_STORIES_FILE"
+            log_status "INFO" "Cleared flagged stories"
+        fi
+        reset_circuit_breaker "Reset via --reset flag"
+        log_status "INFO" "Circuit breaker reset to CLOSED"
+    fi
+
     # .story_retries and .flagged_stories are file-based — they persist automatically
 
     log_status "SUCCESS" "Ralph loop starting"
@@ -1054,6 +1071,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --live)
             LIVE_OUTPUT=true
+            shift
+            ;;
+        --reset)
+            RESET_RETRIES=true
             shift
             ;;
         --reset-circuit)

@@ -1,4 +1,5 @@
 ---
+name: verification-enforcement
 description: Enforces that the agent verifies features, writes tests, and achieves 100% coverage before marking stories complete. Triggers when the agent attempts to commit code or mark a story done.
 ---
 

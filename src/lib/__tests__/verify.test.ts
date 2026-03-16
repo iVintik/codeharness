@@ -29,10 +29,16 @@ vi.mock('../beads-sync.js', () => ({
   syncClose: vi.fn(),
 }));
 
+// Mock doc-health
+vi.mock('../doc-health.js', () => ({
+  checkStoryDocFreshness: vi.fn(),
+}));
+
 import { execFileSync } from 'node:child_process';
 import { warn } from '../output.js';
 import { isBeadsInitialized, listIssues, closeIssue } from '../beads.js';
 import { syncClose } from '../beads-sync.js';
+import { checkStoryDocFreshness } from '../doc-health.js';
 import {
   checkPreconditions,
   createProofDocument,
@@ -105,6 +111,74 @@ describe('checkPreconditions', () => {
     const result = checkPreconditions(testDir);
     expect(result.passed).toBe(false);
     expect(result.failures).toHaveLength(2);
+  });
+
+  it('adds failure for stale docs when storyId is provided', () => {
+    setupState({ tests_passed: true, coverage_met: true });
+    vi.mocked(checkStoryDocFreshness).mockReturnValue({
+      passed: false,
+      documents: [
+        { path: 'AGENTS.md', grade: 'stale', reason: 'AGENTS.md is stale', freshness: 'stale', module: 'src' },
+      ],
+      durationMs: 10,
+    });
+
+    const result = checkPreconditions(testDir, 'test-story');
+    expect(result.passed).toBe(false);
+    expect(result.failures).toContain('AGENTS.md is stale');
+  });
+
+  it('adds failure for missing docs when storyId is provided', () => {
+    setupState({ tests_passed: true, coverage_met: true });
+    vi.mocked(checkStoryDocFreshness).mockReturnValue({
+      passed: false,
+      documents: [
+        { path: 'AGENTS.md', grade: 'missing', reason: 'AGENTS.md not found', freshness: 'missing', module: 'src' },
+      ],
+      durationMs: 5,
+    });
+
+    const result = checkPreconditions(testDir, 'test-story');
+    expect(result.passed).toBe(false);
+    expect(result.failures).toContain('AGENTS.md not found');
+  });
+
+  it('skips non-stale non-missing docs without adding failures', () => {
+    setupState({ tests_passed: true, coverage_met: true });
+    vi.mocked(checkStoryDocFreshness).mockReturnValue({
+      passed: false,
+      documents: [
+        { path: 'AGENTS.md', grade: 'present', reason: '', freshness: 'fresh', module: 'src' },
+      ],
+      durationMs: 5,
+    });
+
+    const result = checkPreconditions(testDir, 'test-story');
+    expect(result.passed).toBe(true);
+    expect(result.failures).toEqual([]);
+  });
+
+  it('passes when doc report passed is true', () => {
+    setupState({ tests_passed: true, coverage_met: true });
+    vi.mocked(checkStoryDocFreshness).mockReturnValue({
+      passed: true,
+      documents: [],
+      durationMs: 5,
+    });
+
+    const result = checkPreconditions(testDir, 'test-story');
+    expect(result.passed).toBe(true);
+  });
+
+  it('warns and continues when checkStoryDocFreshness throws', () => {
+    setupState({ tests_passed: true, coverage_met: true });
+    vi.mocked(checkStoryDocFreshness).mockImplementation(() => {
+      throw new Error('git not found');
+    });
+
+    const result = checkPreconditions(testDir, 'test-story');
+    expect(result.passed).toBe(true);
+    expect(warn).toHaveBeenCalledWith('Doc health check failed — skipping');
   });
 });
 

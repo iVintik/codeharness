@@ -345,6 +345,187 @@ describe('auditDocumentation', () => {
   });
 });
 
+// ─── analyzeCoverageGaps edge cases ──────────────────────────────────────────
+
+describe('analyzeCoverageGaps edge cases', () => {
+  it('returns zero report for unknown tool', () => {
+    // No package.json, no requirements.txt — unknown tool
+    const modules: ModuleInfo[] = [
+      { path: 'src', sourceFiles: 3, testFiles: 1 },
+    ];
+    const report = analyzeCoverageGaps(modules, testDir);
+    expect(report.overall).toBe(0);
+    expect(report.modules[0].coveragePercent).toBe(0);
+    expect(report.modules[0].uncoveredFileCount).toBe(3);
+    expect(report.uncoveredFiles).toBe(3);
+  });
+
+  it('handles Python coverage report for per-file coverage', () => {
+    // Set up as a Python project
+    createFile('requirements.txt', 'pytest-cov\n');
+    createFile('setup.py', '');
+    createFile('coverage.json', JSON.stringify({
+      totals: { percent_covered: 80 },
+      files: {
+        'src/main.py': { summary: { percent_covered: 90 } },
+        'src/util.py': { summary: { percent_covered: 0 } },
+      },
+    }));
+
+    const modules: ModuleInfo[] = [
+      { path: 'src', sourceFiles: 2, testFiles: 0 },
+    ];
+
+    const report = analyzeCoverageGaps(modules, testDir);
+    expect(report.overall).toBe(80);
+    const srcMod = report.modules.find(m => m.path === 'src');
+    expect(srcMod).toBeDefined();
+    expect(srcMod!.uncoveredFileCount).toBe(1);
+  });
+
+  it('handles Python coverage report with missing files key', () => {
+    createFile('requirements.txt', 'coverage\n');
+    createFile('coverage.json', JSON.stringify({
+      totals: { percent_covered: 50 },
+    }));
+
+    const modules: ModuleInfo[] = [
+      { path: 'src', sourceFiles: 1, testFiles: 0 },
+    ];
+
+    const report = analyzeCoverageGaps(modules, testDir);
+    // No per-file data → uses overall for all modules
+    expect(report.modules[0].coveragePercent).toBe(50);
+    expect(report.uncoveredFiles).toBe(0);
+  });
+
+  it('handles malformed coverage-summary.json gracefully', () => {
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({
+      name: 'test',
+      devDependencies: { '@vitest/coverage-v8': '^1.0.0' },
+    }));
+    mkdirSync(join(testDir, 'coverage'), { recursive: true });
+    writeFileSync(join(testDir, 'coverage', 'coverage-summary.json'), '{ invalid json');
+
+    const modules: ModuleInfo[] = [
+      { path: 'src', sourceFiles: 1, testFiles: 0 },
+    ];
+
+    const report = analyzeCoverageGaps(modules, testDir);
+    expect(report.modules[0].coveragePercent).toBe(0);
+  });
+
+  it('handles absolute file paths in per-file coverage data', () => {
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({
+      name: 'test',
+      devDependencies: { '@vitest/coverage-v8': '^1.0.0' },
+    }));
+    mkdirSync(join(testDir, 'coverage'), { recursive: true });
+    writeFileSync(
+      join(testDir, 'coverage', 'coverage-summary.json'),
+      JSON.stringify({
+        total: { statements: { pct: 80 } },
+        [join(testDir, 'src/a.ts')]: { statements: { pct: 100 } },
+        [join(testDir, 'src/b.ts')]: { statements: { pct: 60 } },
+      }),
+    );
+
+    const modules: ModuleInfo[] = [
+      { path: 'src', sourceFiles: 2, testFiles: 0 },
+    ];
+
+    const report = analyzeCoverageGaps(modules, testDir);
+    const srcMod = report.modules.find(m => m.path === 'src');
+    expect(srcMod).toBeDefined();
+    expect(srcMod!.coveragePercent).toBe(80); // (100 + 60) / 2
+  });
+});
+
+// ─── auditDocumentation edge cases ──────────────────────────────────────────
+
+describe('auditDocumentation edge cases', () => {
+  it('checks staleness against root when no src/ exists', () => {
+    // Create docs and source at root level (no src/ directory)
+    const readmePath = createFile('README.md', '# Project');
+    const codePath = createFile('main.ts', 'code');
+
+    const past = new Date(Date.now() - 10000);
+    const future = new Date(Date.now() + 10000);
+
+    setMtime(readmePath, past);
+    setMtime(codePath, future);
+
+    const result = auditDocumentation(testDir);
+    const readme = result.documents.find(d => d.name === 'README.md');
+    expect(readme?.grade).toBe('stale');
+  });
+
+  it('checks docs/index.md staleness against root when no src/', () => {
+    const indexPath = createFile('docs/index.md', '# Index');
+    const codePath = createFile('main.ts', 'code');
+
+    const past = new Date(Date.now() - 10000);
+    const future = new Date(Date.now() + 10000);
+
+    setMtime(indexPath, past);
+    setMtime(codePath, future);
+
+    const result = auditDocumentation(testDir);
+    const index = result.documents.find(d => d.name === 'docs/index.md');
+    expect(index?.grade).toBe('stale');
+  });
+});
+
+// ─── scanCodebase edge cases ─────────────────────────────────────────────────
+
+describe('scanCodebase edge cases', () => {
+  it('counts Python and JS files as source files', () => {
+    createFile('src/a.py', 'code');
+    createFile('src/b.js', 'code');
+    createFile('src/c.ts', 'code');
+    createFile('src/d.txt', 'not source');
+
+    const result = scanCodebase(testDir, { minModuleSize: 1 });
+    expect(result.totalSourceFiles).toBe(3);
+  });
+
+  it('excludes test files from source file count', () => {
+    createFile('src/main.ts', 'code');
+    createFile('src/main.test.ts', 'test');
+    createFile('src/main.spec.ts', 'spec');
+    createFile('src/test_helper.py', 'helper');
+
+    const result = scanCodebase(testDir, { minModuleSize: 1 });
+    expect(result.totalSourceFiles).toBe(1);
+  });
+
+  it('skips node_modules and dist directories', () => {
+    createFile('src/a.ts', 'code');
+    createFile('node_modules/pkg/index.js', 'lib');
+    createFile('dist/index.js', 'built');
+
+    const result = scanCodebase(testDir, { minModuleSize: 1 });
+    expect(result.totalSourceFiles).toBe(1);
+  });
+
+  it('detects BMAD artifacts', () => {
+    createFile('_bmad/config.yaml', 'config');
+    createFile('src/a.ts', 'code');
+
+    const result = scanCodebase(testDir, { minModuleSize: 1 });
+    expect(result.artifacts.hasBmad).toBe(true);
+    expect(result.artifacts.bmadPath).toBe('_bmad');
+  });
+
+  it('reports no BMAD when _bmad is absent', () => {
+    createFile('src/a.ts', 'code');
+
+    const result = scanCodebase(testDir, { minModuleSize: 1 });
+    expect(result.artifacts.hasBmad).toBe(false);
+    expect(result.artifacts.bmadPath).toBeNull();
+  });
+});
+
 // ─── countSourceFiles __tests__ exclusion ────────────────────────────────────
 
 describe('scanCodebase __tests__ handling', () => {

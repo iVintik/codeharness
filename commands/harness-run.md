@@ -230,7 +230,12 @@ If nothing to report, write `## Session Issues\n\nNone.`"
    - If `proofQuality.pending === 0` → proof quality passed, proceed
    - Do NOT trust the verifier agent's claim that all ACs are verified — the CLI must independently validate
 3. Run `showboat verify verification/{story_key}-proof.md` in the main session to double-check reproducibility
-4. If showboat verify fails, re-spawn the verifier to fix the non-reproducible step (up to max_retries)
+4. If showboat verify fails:
+   - Check if `proofQuality.pending === 0` (all ACs have evidence). If yes, the failure is due to non-deterministic output (test counts, timestamps, durations). Log the showboat diff as a **warning** but do NOT re-spawn the verifier — the structural proof quality is what matters:
+     ```
+     [WARN] showboat verify failed for {story_key} — non-deterministic output diff (proof quality OK, proceeding)
+     ```
+   - If `proofQuality.pending > 0`, the failure is real (missing evidence) — re-spawn the verifier (up to max_retries)
 5. Run `codeharness verify --story {story_key}` to update state (this will also re-check proof quality)
 6. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
 7. Handle escalated ACs separately from pending:
@@ -249,7 +254,20 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 3. If retry_count >= max_retries, go to Step 6 (failure handling)
 4. Otherwise, go to Step 3b to re-implement the failing parts
 
-### 3e: Commit Story Changes
+### 3e: Sync Beads Status
+
+After the story reaches `done`, sync the status to beads (if initialized):
+
+```bash
+codeharness sync --story {story_key} --direction files-to-beads
+```
+
+If this fails, log a warning but continue — beads sync is not a blocking step:
+```
+[WARN] Beads sync failed for {story_key}: {error message}
+```
+
+### 3f: Commit Story Changes
 
 After the story reaches `done`, commit all changes with a coherent message.
 

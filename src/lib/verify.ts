@@ -26,6 +26,143 @@ export interface ProofQuality {
   escalated: number;
   total: number;
   passed: boolean;
+  /** Count of `grep ... src/` commands in evidence (black-box metric) */
+  grepSrcCount: number;
+  /** Count of `docker exec` commands in evidence (black-box metric) */
+  dockerExecCount: number;
+  /** Count of observability query commands in evidence (black-box metric) */
+  observabilityCount: number;
+  /** Count of other commands in evidence (black-box metric) */
+  otherCount: number;
+  /** Whether the proof passes black-box enforcement checks */
+  blackBoxPass: boolean;
+}
+
+// ─── Evidence Command Classification ─────────────────────────────────────────
+
+export type EvidenceCommandType = 'docker-exec' | 'observability' | 'grep-src' | 'other';
+
+export interface ClassifiedCommand {
+  command: string;
+  type: EvidenceCommandType;
+}
+
+/**
+ * Extracts command strings from evidence blocks in a proof document
+ * and classifies each as: docker-exec, observability, grep-src, or other.
+ *
+ * Scans for commands inside ```bash or ```shell fenced code blocks.
+ */
+export function classifyEvidenceCommands(proofContent: string): ClassifiedCommand[] {
+  const results: ClassifiedCommand[] = [];
+
+  // Extract commands from ```bash or ```shell code blocks
+  const codeBlockPattern = /```(?:bash|shell)\n([\s\S]*?)```/g;
+  for (const match of proofContent.matchAll(codeBlockPattern)) {
+    const block = match[1].trim();
+    // Each non-empty line in a code block is a command (or continuation)
+    // We treat the whole block as one command for classification
+    const lines = block.split('\n').filter(l => l.trim().length > 0);
+    for (const line of lines) {
+      const cmd = line.trim();
+      if (!cmd) continue;
+      results.push({ command: cmd, type: classifyCommand(cmd) });
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Classifies a single command string.
+ */
+function classifyCommand(cmd: string): EvidenceCommandType {
+  // docker exec commands
+  if (/docker\s+exec\b/.test(cmd)) {
+    return 'docker-exec';
+  }
+
+  // Observability queries (curl to known endpoints)
+  if (/curl\b/.test(cmd) && /localhost:(9428|8428|16686)\b/.test(cmd)) {
+    return 'observability';
+  }
+
+  // grep against src/
+  if (/\bgrep\b/.test(cmd) && /\bsrc\//.test(cmd)) {
+    return 'grep-src';
+  }
+
+  return 'other';
+}
+
+/**
+ * Checks black-box enforcement criteria for a proof document.
+ * Returns whether the proof passes and per-AC docker exec presence.
+ *
+ * Rejection criteria:
+ * - >50% of evidence commands are grep against src/
+ * - Any AC section has zero docker exec commands
+ */
+export function checkBlackBoxEnforcement(proofContent: string): {
+  blackBoxPass: boolean;
+  grepSrcCount: number;
+  dockerExecCount: number;
+  observabilityCount: number;
+  otherCount: number;
+  grepRatio: number;
+  acsMissingDockerExec: number[];
+} {
+  const commands = classifyEvidenceCommands(proofContent);
+
+  const grepSrcCount = commands.filter(c => c.type === 'grep-src').length;
+  const dockerExecCount = commands.filter(c => c.type === 'docker-exec').length;
+  const observabilityCount = commands.filter(c => c.type === 'observability').length;
+  const otherCount = commands.filter(c => c.type === 'other').length;
+  const totalCommands = commands.length;
+
+  const grepRatio = totalCommands > 0 ? grepSrcCount / totalCommands : 0;
+
+  // Check per-AC docker exec presence
+  const acsMissingDockerExec: number[] = [];
+  const acHeaderPattern = /^## AC ?(\d+):/gm;
+  const acMatches = [...proofContent.matchAll(acHeaderPattern)];
+
+  if (acMatches.length > 0) {
+    for (let i = 0; i < acMatches.length; i++) {
+      const acNum = parseInt(acMatches[i][1], 10);
+      const start = acMatches[i].index!;
+      const end = i + 1 < acMatches.length ? acMatches[i + 1].index! : proofContent.length;
+      const section = proofContent.slice(start, end);
+
+      // Skip escalated ACs
+      if (section.includes('[ESCALATE]')) continue;
+
+      // Check if this section has docker exec commands
+      const sectionCommands = classifyEvidenceCommands(section);
+      const hasDockerExec = sectionCommands.some(c => c.type === 'docker-exec');
+      if (!hasDockerExec) {
+        acsMissingDockerExec.push(acNum);
+      }
+    }
+  }
+
+  const grepTooHigh = grepRatio > 0.5;
+  const missingDockerExec = acsMissingDockerExec.length > 0;
+
+  // If no bash/shell code blocks were found at all, black-box checks are
+  // not applicable (the proof may use showboat-native exec markers).
+  // Enforcement only kicks in when there are extractable commands.
+  const hasExtractableCommands = totalCommands > 0;
+
+  return {
+    blackBoxPass: !hasExtractableCommands || (!grepTooHigh && !missingDockerExec),
+    grepSrcCount,
+    dockerExecCount,
+    observabilityCount,
+    otherCount,
+    grepRatio,
+    acsMissingDockerExec,
+  };
 }
 
 export interface VerifyResult {
@@ -173,11 +310,34 @@ export function runShowboatVerify(proofPath: string): ShowboatVerifyResult {
  * `passed` is true only when `pending === 0 && verified > 0`.
  */
 export function validateProofQuality(proofPath: string): ProofQuality {
+  const emptyResult: ProofQuality = {
+    verified: 0, pending: 0, escalated: 0, total: 0, passed: false,
+    grepSrcCount: 0, dockerExecCount: 0, observabilityCount: 0, otherCount: 0,
+    blackBoxPass: false,
+  };
+
   if (!existsSync(proofPath)) {
-    return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
+    return emptyResult;
   }
 
   const content = readFileSync(proofPath, 'utf-8');
+
+  // Compute black-box enforcement metrics once
+  const bbEnforcement = checkBlackBoxEnforcement(content);
+
+  /** Helper: merge base counts with black-box metrics to produce final ProofQuality */
+  function buildResult(base: { verified: number; pending: number; escalated: number; total: number }): ProofQuality {
+    const basePassed = base.pending === 0 && base.verified > 0;
+    return {
+      ...base,
+      passed: basePassed && bbEnforcement.blackBoxPass,
+      grepSrcCount: bbEnforcement.grepSrcCount,
+      dockerExecCount: bbEnforcement.dockerExecCount,
+      observabilityCount: bbEnforcement.observabilityCount,
+      otherCount: bbEnforcement.otherCount,
+      blackBoxPass: bbEnforcement.blackBoxPass,
+    };
+  }
 
   // Try two formats: (1) ## AC N: section headers, (2) inline --- ACN: markers in code blocks
   const acHeaderPattern = /^## AC ?(\d+):/gm;
@@ -229,7 +389,7 @@ export function validateProofQuality(proofPath: string): ProofQuality {
         const bulletAcNumbers = new Set(bulletMatches.map(m => m[1]));
 
         if (bulletAcNumbers.size === 0) {
-          return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
+          return buildResult({ verified: 0, pending: 0, escalated: 0, total: 0 });
         }
 
         let bVerified = 0;
@@ -261,13 +421,12 @@ export function validateProofQuality(proofPath: string): ProofQuality {
         }
 
         const bTotal = bVerified + bPending + bEscalated;
-        return {
+        return buildResult({
           verified: bVerified,
           pending: bPending,
           escalated: bEscalated,
           total: bTotal,
-          passed: bPending === 0 && bVerified > 0,
-        };
+        });
       }
 
       // Sort AC markers by position for region-based analysis
@@ -293,13 +452,12 @@ export function validateProofQuality(proofPath: string): ProofQuality {
       }
 
       const narrativeTotal = verified + pending + escalated;
-      return {
+      return buildResult({
         verified,
         pending,
         escalated,
         total: narrativeTotal,
-        passed: pending === 0 && verified > 0,
-      };
+      });
     }
 
     for (const acNum of acNumbers) {
@@ -325,15 +483,7 @@ export function validateProofQuality(proofPath: string): ProofQuality {
   }
 
   const total = verified + pending + escalated;
-  return {
-    verified,
-    pending,
-    escalated,
-    total,
-    // Proof passes when no pending ACs remain and at least one is verified.
-    // Escalated ACs are allowed — they are explicitly acknowledged as unverifiable.
-    passed: pending === 0 && verified > 0,
-  };
+  return buildResult({ verified, pending, escalated, total });
 }
 
 /**

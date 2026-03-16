@@ -246,7 +246,7 @@ describe('runShowboatVerify', () => {
 describe('validateProofQuality', () => {
   it('returns zeros and passed=false for nonexistent file', () => {
     const result = validateProofQuality('/nonexistent/proof.md');
-    expect(result).toEqual({ verified: 0, pending: 0, escalated: 0, total: 0, passed: false });
+    expect(result).toMatchObject({ verified: 0, pending: 0, escalated: 0, total: 0, passed: false });
   });
 
   it('returns all PENDING for skeleton proof (all ACs have no evidence)', () => {
@@ -274,7 +274,7 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 0, pending: 3, escalated: 0, total: 3, passed: false });
+    expect(result).toMatchObject({ verified: 0, pending: 3, escalated: 0, total: 3, passed: false });
   });
 
   it('returns all verified for fully verified proof (all showboat exec blocks)', () => {
@@ -304,7 +304,7 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
+    expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
   });
 
   it('returns passed=false for mixed proof (some verified, some PENDING)', () => {
@@ -330,7 +330,7 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
+    expect(result).toMatchObject({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
   });
 
   it('considers showboat image markers as verified evidence', () => {
@@ -346,7 +346,7 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
+    expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
   });
 
   it('returns total=0 and passed=false for file with no AC sections', () => {
@@ -354,7 +354,7 @@ describe('validateProofQuality', () => {
     writeFileSync(path, '# Proof: test-story\n\nNo AC sections here.');
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 0, pending: 0, escalated: 0, total: 0, passed: false });
+    expect(result).toMatchObject({ verified: 0, pending: 0, escalated: 0, total: 0, passed: false });
   });
 
   it('recognises showboat native format (bash + output code blocks) as evidence', () => {
@@ -384,7 +384,9 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
+    // verified=2 (evidence exists), but passed=false because black-box
+    // enforcement requires docker exec per AC when bash blocks are present
+    expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 0, total: 2, blackBoxPass: false, passed: false });
   });
 
   it('counts [ESCALATE] sections as escalated (not pending)', () => {
@@ -411,7 +413,7 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true });
+    expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true });
   });
 
   it('returns passed=true for mixed verified/escalated ACs with no pending', () => {
@@ -445,7 +447,7 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 2, pending: 0, escalated: 1, total: 3, passed: true });
+    expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 1, total: 3, passed: true });
   });
 
   it('returns passed=false for pending + escalated ACs', () => {
@@ -465,7 +467,7 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 0, pending: 1, escalated: 1, total: 2, passed: false });
+    expect(result).toMatchObject({ verified: 0, pending: 1, escalated: 1, total: 2, passed: false });
   });
 });
 
@@ -527,7 +529,9 @@ describe('validateProofQuality — no-space AC header format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
+    // verified=2 (evidence exists), but passed=false because black-box
+    // enforcement requires docker exec per AC when bash blocks are present
+    expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 0, total: 2, blackBoxPass: false, passed: false });
   });
 });
 
@@ -557,7 +561,7 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
+    expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
   });
 
   it('detects escalated ACs in narrative format', () => {
@@ -575,7 +579,7 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true });
+    expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true });
   });
 
   it('detects pending ACs in narrative format (no output block)', () => {
@@ -593,7 +597,7 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
+    expect(result).toMatchObject({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
   });
 
   it('parses bullet-list AC format with evidence', () => {
@@ -616,7 +620,7 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 3, pending: 0, escalated: 0, total: 3, passed: true });
+    expect(result).toMatchObject({ verified: 3, pending: 0, escalated: 0, total: 3, passed: true });
   });
 
   it('detects N/A and superseded ACs in bullet-list format', () => {
@@ -634,7 +638,7 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 1, pending: 0, escalated: 2, total: 3, passed: true });
+    expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 2, total: 3, passed: true });
   });
 
   it('parses bullet-list AC format with PASS/FAIL qualifiers', () => {
@@ -652,7 +656,7 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 3, pending: 0, escalated: 0, total: 3, passed: true });
+    expect(result).toMatchObject({ verified: 3, pending: 0, escalated: 0, total: 3, passed: true });
   });
 
   it('marks all as pending in bullet-list format when no evidence blocks exist', () => {
@@ -665,7 +669,7 @@ describe('validateProofQuality — narrative === AC N: format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    expect(result).toEqual({ verified: 0, pending: 2, escalated: 0, total: 2, passed: false });
+    expect(result).toMatchObject({ verified: 0, pending: 2, escalated: 0, total: 2, passed: false });
   });
 });
 

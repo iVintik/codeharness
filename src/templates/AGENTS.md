@@ -69,6 +69,15 @@ a README with Quick Start, Installation, Usage, and CLI Reference sections.
 Install command varies by stack (npm for nodejs/null, pip for python).
 Used by `src/commands/init.ts`.
 
+### verify-prompt.ts
+
+Verification prompt template for the black-box verifier session.
+`verifyPromptTemplate()` generates the prompt passed to `claude --print`
+in the clean workspace. Includes: story ACs, Docker container name,
+observability endpoints (VictoriaLogs/Metrics/Traces), README.md usage
+instructions, and the rule that ALL CLI commands must use `docker exec`.
+Used by `src/lib/verifier-session.ts`.
+
 ### verify-dockerfile.ts
 
 Dockerfile template for black-box verification environment.
@@ -84,4 +93,4 @@ Each template file has a corresponding test in `__tests__/`:
 `bmad-patches.test.ts`, `docker-compose.test.ts`,
 `otel-config.test.ts`, `ralph-prompt.test.ts`,
 `readme.test.ts`, `showboat-template.test.ts`,
-`verify-dockerfile.test.ts`.
+`verify-dockerfile.test.ts`, `verify-prompt.test.ts`.

@@ -7,7 +7,7 @@ description: Start autonomous execution — run one sprint in the current sessio
 Execute stories autonomously in the current Claude Code session. Reads sprint-status.yaml, iterates through stories using BMAD workflows (create-story → dev-story → code-review → verify), and updates status after each story. This is the single source of sprint execution logic.
 
 > **MANDATORY — Never skip or shortcut verification.**
-> Process stories one at a time, in order. Verification (Step 3d) is the entire point of codeharness — it catches real bugs. If there are 50 stories at `verified`, verify them one by one. Each verification may surface issues that need fixing — that is the job. Never ask the user to batch-transition statuses, never propose "lighter" verification, never skip showboat proofs. If context window is a concern, that is why Ralph loop exists — each session handles a few stories, then a fresh session continues. Do not question, negotiate, or offer alternatives to the process defined below.
+> Process stories one at a time, in order. Verification (Step 3d) is the entire point of codeharness — it catches real bugs. If there are 50 stories at `verifying`, verify them one by one. Each verification may surface issues that need fixing — that is the job. Never ask the user to batch-transition statuses, never propose "lighter" verification, never skip showboat proofs. If context window is a concern, that is why Ralph loop exists — each session handles a few stories, then a fresh session continues. Do not question, negotiate, or offer alternatives to the process defined below.
 
 ## Step 1: Pre-flight — Read Sprint Status
 
@@ -16,7 +16,7 @@ Read the sprint status file to understand current state.
 1. Read `_bmad-output/implementation-artifacts/sprint-status.yaml` in full.
 2. Parse the `development_status` section. Each entry is one of:
    - **Epic entry:** key matching `epic-N` (e.g., `epic-1`) — status is `backlog`, `in-progress`, or `done`
-   - **Story entry:** key matching `N-M-slug` (e.g., `1-2-user-auth`) — status is `backlog`, `ready-for-dev`, `in-progress`, `review`, `verified`, or `done`
+   - **Story entry:** key matching `N-M-slug` (e.g., `1-2-user-auth`) — status is `backlog`, `ready-for-dev`, `in-progress`, `review`, `verifying`, or `done`
    - **Retrospective entry:** key matching `epic-N-retrospective` — status is `optional` or `done`
 3. If the file doesn't exist or has no `development_status`, HALT:
    ```
@@ -42,8 +42,8 @@ Scan `development_status` entries **in order from top to bottom**:
    - `N` matches the current epic number
    - Status is NOT `done`
    - Story is **actionable** — meaning status is `backlog`, `ready-for-dev`, `in-progress`, or `review`
-   - A `verified` story IS actionable (needs verification step 3d)
-   - **BUT**: a `verified` story that already has a proof document with `escalated > 0` and `pending === 0` is **blocked**, not actionable — skip it
+   - A `verifying` story IS actionable (needs verification step 3d)
+   - **BUT**: a `verifying` story that already has a proof document with `escalated > 0` and `pending === 0` is **blocked**, not actionable — skip it
 
 3. If no actionable stories remain in the current epic:
    - If all stories are `done` → go to Step 5 (epic completion)
@@ -143,7 +143,7 @@ Invoke the code-review workflow via Agent tool:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found. After fixing, run `codeharness coverage --min-file 80` and ensure all files pass the per-file floor and the overall 90% target. Update the story status to `verified` when all issues are fixed and coverage passes. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
+  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found. After fixing, run `codeharness coverage --min-file 80` and ensure all files pass the per-file floor and the overall 90% target. Update the story status to `verifying` when all issues are fixed and coverage passes. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
 
 MANDATORY — End your response with a `## Session Issues` section listing:
 - Bugs found and their severity (HIGH/MEDIUM/LOW with brief description)
@@ -158,11 +158,11 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 After the Agent completes:
 1. Re-read `sprint-status.yaml`
 2. Check the story status:
-   - If `verified` → Code review passed and coverage verified. Print `[OK] Story {story_key}: review → verified`. Go to Step 3d.
+   - If `verifying` → Code review passed and coverage verified. Print `[OK] Story {story_key}: review → verifying`. Go to Step 3d.
    - If `in-progress` → Code review found issues and sent story back for fixes. Increment cycle_count. If cycle_count >= max_cycles, go to Step 6 (failure — stuck in dev↔review loop). Print `[WARN] Story {story_key}: review → in-progress (issues found, re-developing, cycle {cycle_count}/{max_cycles})`. Go to Step 3b to re-run dev-story.
    - If still `review` → Code review may have failed silently. Increment retry_count. If retry_count >= max_retries, go to Step 6. Otherwise retry this step.
 
-### 3d: If status is `verified` — Run Acceptance Verification
+### 3d: If status is `verifying` — Run Acceptance Verification
 
 Verification produces a showboat proof document with real, executable evidence. This step runs tests, captures CLI output, and fixes any issues discovered.
 
@@ -262,14 +262,14 @@ If nothing to report, write `## Session Issues\n\nNone.`"
    - `pending > 0` means verifier failed to produce evidence → re-spawn verifier (up to max_retries)
    - `escalated > 0` means verifier correctly identified ACs that cannot be verified — story is **blocked**:
      - Print: `[WARN] Story {story_key} has {N} escalated ACs — story stays at verified`
-     - Do NOT mark story as `done` — story stays at `verified` status
+     - Do NOT mark story as `done` — story stays at `verifying` status
      - Do NOT re-spawn the verifier — escalation is the correct outcome
      - The story is blocked — Step 2 skip logic will advance past it to other stories/epics
 8. If `pending === 0` and `escalated === 0`: Update sprint-status.yaml: change `{story_key}` status to `done`
-9. Print: `[OK] Story {story_key}: verified → done`
+9. Print: `[OK] Story {story_key}: verifying → done`
 
 **If verification reveals unfixable issues:**
-1. The story status stays at `verified` (not done)
+1. The story status stays at `verifying` (not done)
 2. Increment retry_count
 3. If retry_count >= max_retries, go to Step 6 (failure handling)
 4. Otherwise, go to Step 3b to re-implement the failing parts

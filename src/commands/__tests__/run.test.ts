@@ -132,10 +132,10 @@ describe('run command', () => {
       expect(countStories({ '1-1-story': 'review' }).inProgress).toBe(1);
     });
 
-    it('counts verified status separately', () => {
+    it('counts verifying status separately', () => {
       const counts = countStories({
-        '1-1-story': 'verified',
-        '1-2-story': 'verified',
+        '1-1-story': 'verifying',
+        '1-2-story': 'verifying',
         '1-3-story': 'done',
       });
       expect(counts).toEqual({ total: 3, ready: 0, done: 1, inProgress: 0, verified: 2 });

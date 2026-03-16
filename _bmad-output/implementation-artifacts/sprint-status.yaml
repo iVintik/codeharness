@@ -20,7 +20,7 @@
 #   - ready-for-dev: Story file created in stories folder
 #   - in-progress: Developer actively working on implementation
 #   - review: Ready for code review (via Dev's code-review workflow)
-#   - verified: Code review passed, coverage gates met, proof document created
+#   - verifying: Code review passed, coverage gates met — acceptance verification in progress
 #   - done: Story completed (acceptance criteria verified with evidence)
 #
 # Retrospective Status:
@@ -52,78 +52,78 @@ development_status:
   epic-1-retrospective: optional
 
   epic-2: in-progress
-  2-1-dependency-auto-install-otlp-instrumentation: verified
-  2-2-docker-compose-victoriametrics-stack-management: verified
-  2-3-observability-querying-agent-visibility-into-runtime: verified
+  2-1-dependency-auto-install-otlp-instrumentation: verifying
+  2-2-docker-compose-victoriametrics-stack-management: verifying
+  2-3-observability-querying-agent-visibility-into-runtime: verifying
   epic-2-retrospective: optional
 
   epic-3: in-progress
-  3-1-beads-installation-cli-wrapper: verified
-  3-2-bmad-installation-workflow-patching: verified
-  3-3-bmad-parser-story-bridge-command: verified
-  3-4-beads-sync-issue-lifecycle: verified
+  3-1-beads-installation-cli-wrapper: verifying
+  3-2-bmad-installation-workflow-patching: verifying
+  3-3-bmad-parser-story-bridge-command: verifying
+  3-4-beads-sync-issue-lifecycle: verifying
   epic-3-retrospective: optional
 
   epic-4: in-progress
-  4-1-verification-pipeline-showboat-integration: verified
-  4-2-hook-architecture-enforcement: verified
-  4-3-testing-coverage-quality-gates: verified
-  4-4-documentation-health-freshness-enforcement: verified
+  4-1-verification-pipeline-showboat-integration: verifying
+  4-2-hook-architecture-enforcement: verifying
+  4-3-testing-coverage-quality-gates: verifying
+  4-4-documentation-health-freshness-enforcement: verifying
   epic-4-retrospective: optional
 
   epic-5: in-progress
-  5-1-ralph-loop-integration-beads-task-source: verified
-  5-2-verification-gates-termination-tracking: verified
+  5-1-ralph-loop-integration-beads-task-source: verifying
+  5-2-verification-gates-termination-tracking: verifying
   epic-5-retrospective: optional
 
   epic-6: in-progress
-  6-1-codebase-scan-gap-analysis: verified
-  6-2-onboarding-epic-generation-approval: verified
+  6-1-codebase-scan-gap-analysis: verifying
+  6-2-onboarding-epic-generation-approval: verifying
   epic-6-retrospective: optional
 
   epic-7: in-progress
-  7-1-status-command-reporting: verified
-  7-2-clean-teardown: verified
+  7-1-status-command-reporting: verifying
+  7-2-clean-teardown: verifying
   epic-7-retrospective: optional
 
   epic-8: in-progress
-  8-1-stable-issue-identity-beads-deduplication: verified
-  8-2-onboard-precondition-checks-state-awareness: verified
-  8-3-extended-gap-detection-verification-coverage-observability: verified
-  8-4-scan-persistence-onboarding-progress-tracking: verified
+  8-1-stable-issue-identity-beads-deduplication: verifying
+  8-2-onboard-precondition-checks-state-awareness: verifying
+  8-3-extended-gap-detection-verification-coverage-observability: verifying
+  8-4-scan-persistence-onboarding-progress-tracking: verifying
   epic-8-retrospective: optional
 
   epic-9: in-progress
-  9-1-shared-machine-level-observability-stack: verified
-  9-2-remote-backend-support: verified
-  9-3-mandatory-observability-remove-opt-out: verified
-  9-4-universal-instrumentation-web-cli-agent: verified
-  9-5-data-isolation-multi-project-query-patterns: verified
+  9-1-shared-machine-level-observability-stack: verifying
+  9-2-remote-backend-support: verifying
+  9-3-mandatory-observability-remove-opt-out: verifying
+  9-4-universal-instrumentation-web-cli-agent: verifying
+  9-5-data-isolation-multi-project-query-patterns: verifying
   epic-9-retrospective: optional
 
   epic-10: in-progress
-  10-1-create-architecture-md: verified
-  10-2-create-dist-agents-md: verified
-  10-3-create-src-commands-agents-md: verified
-  10-4-create-src-lib-agents-md: verified
-  10-5-create-src-templates-agents-md: verified
-  10-6-add-test-coverage-for-dist: verified
-  10-7-add-test-coverage-for-src-commands: verified
-  10-8-add-test-coverage-for-src-lib: verified
-  10-9-add-test-coverage-for-src-templates: verified
-  10-10-update-stale-documentation: verified
-  10-41-add-test-coverage-for-src-commands-query-ts: verified
-  10-42-add-test-coverage-for-src-commands-stack-ts: verified
-  10-43-configure-otlp-instrumentation: verified
-  10-44-start-docker-observability-stack: verified
+  10-1-create-architecture-md: verifying
+  10-2-create-dist-agents-md: verifying
+  10-3-create-src-commands-agents-md: verifying
+  10-4-create-src-lib-agents-md: verifying
+  10-5-create-src-templates-agents-md: verifying
+  10-6-add-test-coverage-for-dist: verifying
+  10-7-add-test-coverage-for-src-commands: verifying
+  10-8-add-test-coverage-for-src-lib: verifying
+  10-9-add-test-coverage-for-src-templates: verifying
+  10-10-update-stale-documentation: verifying
+  10-41-add-test-coverage-for-src-commands-query-ts: verifying
+  10-42-add-test-coverage-for-src-commands-stack-ts: verifying
+  10-43-configure-otlp-instrumentation: verifying
+  10-44-start-docker-observability-stack: verifying
   epic-10-retrospective: optional
 
   epic-11: in-progress
-  11-1-fix-retro-status-lifecycle: verified
-  11-2-retro-finding-classification-beads-import: verified
-  11-3-github-issue-creation-from-retro-findings: verified
-  11-4-github-issue-import-to-beads: verified
-  11-5-sprint-planning-retro-issue-integration: verified
+  11-1-fix-retro-status-lifecycle: verifying
+  11-2-retro-finding-classification-beads-import: verifying
+  11-3-github-issue-creation-from-retro-findings: verifying
+  11-4-github-issue-import-to-beads: verifying
+  11-5-sprint-planning-retro-issue-integration: verifying
   epic-11-retrospective: done
 
   epic-12: done

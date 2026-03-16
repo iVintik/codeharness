@@ -89,7 +89,7 @@ const STORY_KEY_PATTERN = /^\d+-\d+-/;
  * Finds stories marked 'done' in sprint-status.yaml that lack proof documents.
  *
  * Instead of creating meta-stories ("create verification proof for X"),
- * this resets unverified stories back to 'verified' status so they go through
+ * this resets unverified stories back to 'verifying' status so they go through
  * the real verification pipeline (showboat exec + showboat verify).
  *
  * Returns the count of stories reset for reporting purposes.
@@ -112,7 +112,7 @@ export function findVerificationGaps(dir?: string): OnboardingStory[] {
   // Verification is a gate on stories, not a separate story.
   // Instead of generating meta-stories, we return an empty array.
   // The harness-run workflow handles verification as Step 3d of every story lifecycle.
-  // Unverified stories should be reset to 'verified' status via the onboard command.
+  // Unverified stories should be reset to 'verifying' status via the onboard command.
   return [];
 }
 

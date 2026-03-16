@@ -44,12 +44,14 @@ export function countStories(statuses: Record<string, string>): {
   ready: number;
   done: number;
   inProgress: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   verified: number;
 } {
   let total = 0;
   let ready = 0;
   let done = 0;
   let inProgress = 0;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   let verified = 0;
 
   for (const [key, status] of Object.entries(statuses)) {
@@ -58,7 +60,7 @@ export function countStories(statuses: Record<string, string>): {
     if (status === 'backlog' || status === 'ready-for-dev') ready++;
     else if (status === 'done') done++;
     else if (status === 'in-progress' || status === 'review') inProgress++;
-    else if (status === 'verified') verified++;
+    else if (status === 'verifying') verified++;
   }
 
   return { total, ready, done, inProgress, verified };

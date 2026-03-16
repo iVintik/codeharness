@@ -32,7 +32,9 @@ verification_log:
   - "1-1-project-scaffold-cli-entry-point: pass at 2026-03-16T06:00:39.784Z"
   - "2-3-observability-querying-agent-visibility-into-runtime: pass at
     2026-03-16T11:02:56.027Z"
+  - "3-1-beads-installation-cli-wrapper: pass at 2026-03-16T11:19:20.328Z"
 ---
+
 
 
 

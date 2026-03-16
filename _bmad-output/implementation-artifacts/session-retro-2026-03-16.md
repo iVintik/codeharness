@@ -1249,3 +1249,147 @@ None. No code bugs were found during verification of any of the 4 stories attemp
 - **Coverage:** 95.33% statement
 - **Epics completed to date:** 3 (Epic 0, Epic 1, Epic 12)
 - **Overall progress:** 8/52 stories done (15.4%)
+
+---
+
+# Session Retrospective — 2026-03-16 (Late Afternoon Session, ~15:10-15:30 UTC)
+
+**Timestamp:** 2026-03-16T15:30Z
+**Sprint Scope:** Continued verification pass — stories 3-1 (re-verification) and 3-2 (first verification attempt)
+**Stories Attempted:** 2 (3-1, 3-2)
+**Stories Completed (done):** 0
+**Stories Still Verifying:** 2 (3-1 blocked by escalated AC, 3-2 missing implementation)
+**Git Commits This Session:** 1 (a37e73f — retro + proofs for 2-2, 2-3, 3-1)
+
+---
+
+## 1. Session Summary
+
+This short session continued the verification pass from the afternoon, focusing on story 3-1 (re-verification after proof format fix) and story 3-2 (first verification attempt).
+
+| Story | Title | Outcome | Notes |
+|-------|-------|---------|-------|
+| 3-1 | Beads Installation CLI Wrapper | **verifying** (8/9 ACs) | Re-verification succeeded for 8 ACs. AC3 (NFR8 sub-1s latency) escalated — requires a live `beads` installation with a real `bd` binary to measure timing. Structurally sound (single `execFileSync`, no overhead) but untestable without real binary. |
+| 3-2 | BMAD Installation Workflow Patching | **in-progress** (code gap) | Verification found a real missing feature: `detectBmalph()` function specified in Task 1.5 does not exist. No bmalph detection step in `init.ts`, no `[WARN] bmalph detected` message. Story needs to go back to dev. |
+
+**Overall progress at session end:** 9/52 stories done (17.3%) per ralph status.json, though sprint-status.yaml shows 8 done. The discrepancy is likely due to ralph counting stories differently.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Discovered During Implementation
+
+| # | Bug | Severity | Fixed? | Where |
+|---|-----|----------|--------|-------|
+| B1 | `detectBmalph()` function not implemented — story 3-2 AC3 (bmalph detection) has no corresponding code in `src/lib/bmad.ts` or `src/commands/init.ts`. Task 1.5 specified it, but it was never built. | High | No | `src/lib/bmad.ts` — missing function; `src/commands/init.ts` — missing detection step (Task 5.2) and warning message (Task 5.5) |
+
+### 2.2 Workarounds Applied (Tech Debt)
+
+| # | Workaround | Debt Level | Tracking |
+|---|-----------|------------|----------|
+| W1 | Story 3-1 AC3 (sub-1s latency) escalated because there is no way to measure actual timing without a real `beads` installation. The implementation is structurally sound but the NFR is unverifiable in the current test environment. | Low | Escalated — requires integration test environment |
+| W2 | Showboat verify output filtering — timestamps and durations in `npm run test:unit` output cause diffs between runs. Resolved by filtering to deterministic lines only (`Test Files` and `Tests` counts). Initial proof had to be deleted and recreated because `showboat init` refuses to overwrite. | Medium | Recurring — same issue hit in morning session |
+
+### 2.3 Verification Gaps
+
+| # | Gap | Impact |
+|---|-----|--------|
+| V1 | Story 3-2 only detected 1/12 ACs in the proof document — the verifier subagent again failed to produce `## AC N:` section headers. This is the same recurring proof format issue from stories 3-1, 1-2, and 0-1. | High — recurring |
+| V2 | Story 3-2 verification was attempted despite the code gap (missing `detectBmalph()`). Time was spent generating a proof document before the verifier discovered the implementation was incomplete. A pre-verification code completeness check would have caught this earlier. | Medium — wasted effort |
+
+### 2.4 Tooling/Infrastructure Problems
+
+| # | Problem | Impact |
+|---|---------|--------|
+| T1 | `showboat init` refuses to overwrite existing proof files. When a proof needs to be regenerated from scratch (e.g., after format fix), the old file must be manually deleted first. | Low — manual workaround exists |
+| T2 | Time budget exhaustion — story 3-2 could not complete a full dev-review-verify cycle because not enough time remained in the session. Story stays at `in-progress` for the next session. | Medium — story carries over |
+
+---
+
+## 3. What Went Well
+
+- **Story 3-1 re-verification succeeded.** After the proof format issues from the first attempt, the re-verification cleanly verified 8/9 ACs with no code changes needed. The implementation was solid.
+- **Real code gap caught.** Story 3-2 verification correctly identified that `detectBmalph()` was never implemented. The verification process did what it is supposed to do — catch missing features before marking stories done.
+- **Session issues log continues to work.** All four issue entries from this session provided clear, actionable information for this retrospective.
+- **Test suite remains stable.** 1,470 tests passing consistently. No flakiness across any run today.
+
+---
+
+## 4. What Went Wrong
+
+- **Story 3-2 has a real code gap.** The `detectBmalph()` function was specified in the story tasks but never implemented. This means the story was pushed to verification prematurely — the dev or review phase should have caught this.
+- **Proof format issue is STILL recurring.** This is now the 6th instance of the verifier subagent producing proof documents that the parser cannot read. Despite four parser format fixes earlier today, the verifier continues to produce novel formats. The root cause is in the verifier agent's prompt, not just the parser.
+- **Time budget ran out.** Story 3-2 could not be fixed and re-verified within the remaining session time. It carries over to the next session as `in-progress`.
+- **Showboat init/overwrite friction.** Having to delete proof files before regenerating them adds manual steps and slows down re-verification cycles.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+- **Re-verification works when the underlying code is correct.** Story 3-1 verified cleanly on the second pass — the issue was always the proof format, not the code. This confirms that parser fixes are high-leverage.
+- **Catching code gaps at verification is better than missing them entirely.** Story 3-2's missing `detectBmalph()` would have been a latent bug if the story had been rubber-stamped.
+
+### Patterns to Avoid
+- **Do not push stories to verification without a code completeness check.** Story 3-2 should have been caught at review. The review subagent should verify that all tasks listed in the story file have corresponding code.
+- **Stop fixing the parser incrementally.** Six format variants in one day. The verifier agent prompt needs to be constrained to produce a SPECIFIC format, AND the parser needs to be lenient enough to handle minor deviations. Fix both ends simultaneously.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| # | Item | Owner |
+|---|------|-------|
+| 1 | **Implement `detectBmalph()` for story 3-2.** The function is specified in Task 1.5 — needs to be added to `src/lib/bmad.ts` with detection step in `src/commands/init.ts` (Task 5.2) and warning message (Task 5.5). | Dev |
+| 2 | **Resolve story 2-2 escalated ACs (AC5/AC6).** Still blocking done status from the afternoon session. Decide: remove or rewrite to match mandatory-observability architecture. | PM/Dev |
+
+### Fix Soon (Next Sprint)
+
+| # | Item | Owner |
+|---|------|-------|
+| 3 | **Constrain verifier agent prompt to produce exact proof format.** The root cause of recurring parser failures is the verifier producing arbitrary formats. Add explicit format template to the verifier prompt with `## AC N:` headers as mandatory structure. | Dev |
+| 4 | **Add pre-verification code completeness check.** Before running verification, scan the story file's task list and confirm each task has corresponding code. Would have caught 3-2's missing `detectBmalph()` without wasting a verification cycle. | Dev |
+| 5 | **Fix `showboat init` to support `--force` overwrite.** Eliminate the manual delete-then-init cycle for proof regeneration. | Dev |
+
+### Backlog (Track but Not Urgent)
+
+| # | Item | Owner |
+|---|------|-------|
+| 6 | **Add integration test environment for beads-dependent stories.** Story 3-1 AC3 (sub-1s latency) requires a real `bd` binary. Currently there is no test environment with a live beads installation. | Infra |
+| 7 | **Track verification attempt efficiency.** Story 3-2 burned a full verification cycle before discovering missing code. Measure how often verification fails due to code gaps vs. proof format issues vs. real bugs. | PM |
+
+---
+
+## Session Metrics
+
+- **Stories attempted this sub-session:** 2 (3-1 re-verify, 3-2 first verify)
+- **Stories completed:** 0
+- **Stories stuck at verifying:** 1 (3-1, 8/9 ACs, 1 escalated)
+- **Stories sent back to dev:** 1 (3-2, missing `detectBmalph()`)
+- **Bugs found:** 1 (missing implementation in 3-2)
+- **Bugs fixed:** 0 (time budget exhausted)
+- **Parser/format issues hit:** 1 (recurring — 3-2 proof format)
+- **Total tests:** 1,470 (all passing)
+- **Coverage:** 95.33% statement
+- **Epics completed to date:** 3 (Epic 0, Epic 1, Epic 12)
+- **Overall progress:** 8/52 stories done (15.4%)
+
+---
+
+## Full-Day Summary (2026-03-16)
+
+Across all sessions today:
+
+- **8 retro sections** covering the full day's work
+- **Stories moved to done today:** 5 (12-1, 12-2, 12-3, 2-1, 2-3) — all from verification, no new implementation
+- **Stories stuck at verifying:** 3 (2-2 escalated ACs, 3-1 escalated AC, 3-3/3-4/4-x/5-x etc. not attempted)
+- **Stories sent back to dev:** 1 (3-2 missing `detectBmalph()`)
+- **Recurring theme of the day:** AC proof format parser fragility — 6 format variants encountered, 4 parser fixes applied, and the issue is still not fully resolved
+- **Second theme:** Showboat verify's exact-match diffing clashes with non-deterministic test output (timestamps, durations)
+- **Key systemic improvement:** Epic 12 fixed the verification pipeline fundamentals (proof quality validation, escalation mechanism, sprint execution ownership)
+- **Total releases cut today:** 10+ (v0.12.0 through v0.13.2)
+- **Total tests at end of day:** 1,470, all passing
+- **Coverage:** 95.33% statement

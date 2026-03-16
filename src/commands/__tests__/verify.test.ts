@@ -299,7 +299,6 @@ describe('verify command — story mode', () => {
 
     expect(fail).toHaveBeenCalledWith(
       expect.stringContaining('Showboat verify failed'),
-      expect.any(Object),
     );
     expect(process.exitCode).toBe(1);
   });

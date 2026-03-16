@@ -48,7 +48,7 @@ development_status:
   13-1-verification-dockerfile-generator: done
   13-2-documentation-gate-for-verification: done
   13-3-black-box-verifier-agent: verifying
-  13-4-verification-environment-sprint-workflow: backlog
+  13-4-verification-environment-sprint-workflow: done
   epic-13-retrospective: optional
 
   # === Previously "done" stories reset to verifying ===

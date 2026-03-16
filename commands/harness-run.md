@@ -162,117 +162,157 @@ After the Agent completes:
    - If `in-progress` → Code review found issues and sent story back for fixes. Increment cycle_count. If cycle_count >= max_cycles, go to Step 6 (failure — stuck in dev↔review loop). Print `[WARN] Story {story_key}: review → in-progress (issues found, re-developing, cycle {cycle_count}/{max_cycles})`. Go to Step 3b to re-run dev-story.
    - If still `review` → Code review may have failed silently. Increment retry_count. If retry_count >= max_retries, go to Step 6. Otherwise retry this step.
 
-### 3d: If status is `verifying` — Run Acceptance Verification
+### 3d: If status is `verifying` — Run Black-Box Acceptance Verification
 
-Verification produces a showboat proof document with real, executable evidence. This step runs tests, captures CLI output, and fixes any issues discovered.
+Verification runs in a Docker container with NO source code access. The verifier exercises the built CLI and queries observability endpoints to produce a proof document. This is the entire point of codeharness — no fallback to white-box verification exists.
 
-**Pre-verification: Run tests and coverage in the main session first.**
+**Total timeout: 10 minutes for the entire verification flow (build → prepare → verify → validate → cleanup).**
+
+Record `verify_start_time = current timestamp` at the start of this step. At any point during the flow, if elapsed time exceeds 10 minutes, abort the current operation, treat it as a failure, and jump to cleanup (step 3d-viii).
+
+**Pre-verification: Read retry state from `ralph/.story_retries`.**
+
+Read the file `ralph/.story_retries`. If the file contains a line matching `{story_key}={N}`, set `retry_count = N`. If no matching line exists, set `retry_count = 0`. This ensures retry budgets persist across sessions.
+
+**Pre-verification: Check observability infrastructure.**
 
 ```bash
-npm run test:unit 2>&1
-codeharness coverage 2>&1
+codeharness status --check-docker 2>&1
 ```
 
-If tests fail, fix them before proceeding. If coverage is below target, note it but continue.
-
-**Spawn the verifier subagent:**
-
-```
-Use the Agent tool with:
-  subagent_type: "codeharness:verifier"
-  prompt: "Verify story {story_key}.
-
-Story file: _bmad-output/implementation-artifacts/{story_key}.md
-Proof output: verification/{story_key}-proof.md
-
-Read the story file, extract all acceptance criteria, and produce a showboat proof document.
-
-You MUST:
-1. Run `showboat init` to create the proof document
-2. For each AC, run real CLI commands via `showboat exec` to prove the AC is met
-3. Every AC MUST have at least one `showboat exec bash \"...\"` block with a real CLI command
-4. If ANY step fails — fix the underlying issue (code, tests, config), use `showboat pop` to remove the failed entry, then re-capture the passing result
-5. Run a final `npm run test:unit` via `showboat exec` to confirm fixes haven't broken anything
-6. Run `showboat verify` to confirm all evidence is reproducible
-
-VERIFICATION STRATEGY — Docker is the default for ALL ACs:
-- **docker** (default): Run verification in an isolated Docker container. This is the safest approach — it can't corrupt the host environment, and works for everything: CLI commands, Agent tool integration, workflows, services, database checks. Uses `tests/docker/Dockerfile.harness-test` which has Claude Code pre-installed.
-- **cli-direct** (fallback): If Docker is unavailable, run CLI commands in the current session. Only for read-only checks that can't cause side effects.
-- **escalate** (last resort): AC truly cannot be automated — requires physical hardware or human visual judgement. Almost nothing should reach this tier.
-
-For Docker verification:
+If the output indicates the observability stack is down:
 ```bash
-showboat exec bash \"docker build -t codeharness-verify -f tests/docker/Dockerfile.harness-test . 2>&1 | tail -5\"
-showboat exec bash \"docker run --rm -e ANTHROPIC_API_KEY=\\\"$ANTHROPIC_API_KEY\\\" codeharness-verify '{verification prompt}' 2>&1 | tail -40\"
+codeharness stack start 2>&1
 ```
 
-The verification prompt should exercise the exact behavior described in the AC. Docker gives you a throwaway environment — be aggressive, test destructive paths, simulate failures. That's the whole point of isolation.
+If `codeharness stack start` fails, log `[FAIL] Observability stack failed to start — cannot verify` and go to Step 6 (failure handling).
 
-If Docker is unavailable (no daemon, no API key), fall back to cli-direct for safe read-only checks, escalate for anything else.
+**Pre-verification: Build dist/.**
 
-NEVER fake evidence — use real execution.
-
-MANDATORY — `showboat exec` rules:
-- Every AC MUST use `showboat exec` with real CLI commands (e.g., `codeharness verify ...`, `cat <file> | grep <expected>`, running the actual binary)
-- Unit test output (`npm run test:unit`) is NEVER valid as PRIMARY AC evidence — it may be used as supplementary evidence only
-- Each AC must prove the feature works from the user/consumer perspective, not just that tests pass
-
-Valid evidence examples:
-  - `showboat exec bash \"codeharness verify --story 4-1-test --json\"` → shows CLI output proving verification works
-  - `showboat exec bash \"cat verification/4-1-test-proof.md | grep 'PASS'\"` → proves proof file has correct content
-  - `showboat exec bash \"codeharness status --json | jq .stories\"` → shows real CLI output
-
-Invalid evidence examples:
-  - `showboat exec bash \"npm run test:unit\"` as the ONLY evidence for an AC
-  - Hand-written markdown claiming evidence without a `showboat exec` block
-  - Copy-pasting test output without running it through `showboat exec`
-
-Do NOT write proof markdown by hand — use showboat CLI exclusively.
-Do NOT skip tests — they are mandatory evidence.
-Fix all failures found during verification.
-Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
-
-MANDATORY — End your response with a `## Session Issues` section listing:
-- Verification failures discovered (code bugs, broken tests, missing functionality)
-- Code fixes applied during verification (what was broken and how you fixed it)
-- Escalated ACs and why they couldn't be verified (what would be needed to verify them)
-- Evidence quality concerns (ACs with weak evidence, reproducibility issues)
-- Showboat/tooling issues (CLI problems, format mismatches, sandbox restrictions)
-If nothing to report, write `## Session Issues\n\nNone.`"
+```bash
+npm run build 2>&1
 ```
 
-**After the verifier completes:**
+If the build fails, fix errors before proceeding. The Docker image needs current dist/.
 
-1. Confirm the proof document exists: `verification/{story_key}-proof.md`
-2. Parse the proof file to check AC quality — run `codeharness verify --story {story_key} --json` and check:
-   - If `proofQuality.pending > 0` → re-spawn the verifier to fill in missing evidence (up to max_retries)
-   - If `proofQuality.escalated > 0` → verifier correctly identified unverifiable ACs (do NOT re-spawn)
-   - If `proofQuality.pending === 0` → proof quality passed, proceed
-   - Do NOT trust the verifier agent's claim that all ACs are verified — the CLI must independently validate
-3. Run `showboat verify verification/{story_key}-proof.md` in the main session to double-check reproducibility
-4. If showboat verify fails:
-   - Check if `proofQuality.pending === 0` (all ACs have evidence). If yes, the failure is due to non-deterministic output (test counts, timestamps, durations). Log the showboat diff as a **warning** but do NOT re-spawn the verifier — the structural proof quality is what matters:
-     ```
-     [WARN] showboat verify failed for {story_key} — non-deterministic output diff (proof quality OK, proceeding)
-     ```
-   - If `proofQuality.pending > 0`, the failure is real (missing evidence) — re-spawn the verifier (up to max_retries)
-5. Run `codeharness verify --story {story_key}` to update state (this will also re-check proof quality)
-6. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
-7. Handle escalated ACs separately from pending:
-   - `pending > 0` means verifier failed to produce evidence → re-spawn verifier (up to max_retries)
-   - `escalated > 0` means verifier correctly identified ACs that cannot be verified — story is **blocked**:
-     - Print: `[WARN] Story {story_key} has {N} escalated ACs — story stays at verified`
-     - Do NOT mark story as `done` — story stays at `verifying` status
-     - Do NOT re-spawn the verifier — escalation is the correct outcome
-     - The story is blocked — Step 2 skip logic will advance past it to other stories/epics
-8. If `pending === 0` and `escalated === 0`: Update sprint-status.yaml: change `{story_key}` status to `done`
-9. Print: `[OK] Story {story_key}: verifying → done`
+**Verification flow — execute these steps sequentially:**
 
-**If verification reveals unfixable issues:**
-1. The story status stays at `verifying` (not done)
-2. Increment retry_count
-3. If retry_count >= max_retries, go to Step 6 (failure handling)
-4. Otherwise, go to Step 3b to re-implement the failing parts
+**3d-i: Build Docker verify image**
+
+```bash
+codeharness verify-env build 2>&1
+```
+
+If this fails:
+```
+[FAIL] verify-env build failed: {error}
+```
+Leave story at `verifying`, go to Step 6. No fallback.
+
+**3d-ii: Start Docker container**
+
+```bash
+docker run -d --name codeharness-verify --network host codeharness-verify sleep infinity
+```
+
+`--network host` allows the container to reach OTEL Collector at `localhost:4318`, VictoriaLogs at `:9428`, VictoriaMetrics at `:8428`, and VictoriaTraces at `:16686`.
+
+If `docker run` fails, log `[FAIL] docker run failed: {error}`, leave story at `verifying`, and go to Step 6. No cleanup needed — the container never started.
+
+**3d-iii: Prepare clean workspace**
+
+```bash
+codeharness verify-env prepare --story {story_key} 2>&1
+```
+
+This creates `/tmp/codeharness-verify-{story_key}` with built artifacts, docs, and story file — but NO source code.
+
+If this fails, log `[FAIL] verify-env prepare failed: {error}`, leave story at `verifying`, and go to cleanup (step 3d-viii) then Step 6. The container is running and must be cleaned up.
+
+**3d-iv: Run verifier session**
+
+Build the verification prompt and spawn the verifier:
+
+1. Read the story content from `/tmp/codeharness-verify-{story_key}/story.md`
+2. Read the prompt template from `src/templates/verify-prompt.ts` — use `verifyPromptTemplate()` with the story content, container name `codeharness-verify`, and default observability endpoints
+3. Run the verifier:
+
+```bash
+cd /tmp/codeharness-verify-{story_key} && claude --print --max-budget-usd 3 -p "{verification_prompt}"
+```
+
+The prompt (from `src/templates/verify-prompt.ts`) instructs the verifier that:
+
+- It has **NO source code access** — `src/` does not exist in the workspace
+- **ALL CLI commands** must run via `docker exec codeharness-verify <command>`
+- It should read `README.md` for usage guidance
+- It should query observability endpoints from the host:
+  - VictoriaLogs: `http://localhost:9428`
+  - VictoriaMetrics: `http://localhost:8428`
+  - VictoriaTraces: `http://localhost:16686`
+- The proof document goes in `verification/{story_key}-proof.md` within the clean workspace
+- REAL failures must be reported — never fabricate evidence
+- ACs that cannot be verified should be marked `[ESCALATE]`
+
+If the verifier process exits non-zero or times out, treat as failure (proceed to retry logic in step 3d-vii).
+
+**3d-v: Copy proof document back**
+
+```bash
+cp /tmp/codeharness-verify-{story_key}/verification/{story_key}-proof.md verification/
+```
+
+If the proof file does not exist (verifier crashed or failed to produce one), treat as failure (step 3d-vii).
+
+**3d-vi: Validate proof quality**
+
+```bash
+codeharness verify --story {story_key} 2>&1
+```
+
+Parse the output/exit code:
+
+- If `pending === 0` and `escalated === 0` → proof quality passed. Update sprint-status.yaml: change `{story_key}` status to `done`. Print: `[OK] Story {story_key}: verifying → done`. Proceed to cleanup (step 3d-viii).
+- If `escalated > 0` and `pending === 0` → verifier correctly identified unverifiable ACs. Story is **blocked**:
+  - Print: `[WARN] Story {story_key} has {N} escalated ACs — story stays at verifying`
+  - Do NOT mark story as `done` — it stays at `verifying`
+  - Do NOT retry — escalation is the correct outcome
+  - Step 2 skip logic will advance past blocked stories
+  - Proceed to cleanup (step 3d-viii)
+- If `pending > 0` → proof has gaps. Treat as failure (step 3d-vii).
+
+If the verifier made code fixes (detected by checking `git diff` after verification), run:
+```bash
+npm run build && npm run test:unit
+```
+to confirm fixes haven't broken anything. Then proceed to cleanup (step 3d-viii).
+
+**3d-vii: Retry logic (on failure)**
+
+If the verifier session failed (non-zero exit, timeout, no proof produced, or `pending > 0`):
+
+1. Increment `retry_count`
+2. Update `ralph/.story_retries`: write/replace the line `{story_key}={retry_count}` in the file. Read the existing file first to preserve other story entries.
+3. If `retry_count >= max_retries` (3):
+   - Run cleanup (step 3d-viii)
+   - Go to Step 6 (failure handling)
+4. If `retry_count < max_retries`:
+   - Print: `[WARN] Verification attempt {retry_count}/{max_retries} failed for {story_key} — retrying`
+   - Run `codeharness verify-env prepare --story {story_key}` to recreate the clean workspace (the container and image may be reused)
+   - Retry from step 3d-iv
+
+**3d-viii: Cleanup (unconditional — runs on both success and failure)**
+
+```bash
+codeharness verify-env cleanup --story {story_key} 2>&1
+```
+
+This removes the temp workspace at `/tmp/codeharness-verify-{story_key}` and stops/removes the Docker container. This step MUST run even if verification failed — leaked containers and temp directories accumulate.
+
+If cleanup fails, log a warning but continue:
+```
+[WARN] verify-env cleanup failed for {story_key}: {error}
+```
 
 ### 3e: Sync Beads Status
 

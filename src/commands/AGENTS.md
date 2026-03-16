@@ -21,9 +21,9 @@ Executes the autonomous coding loop by spawning the Ralph shell script. Resolves
 - **Subcommands:** none (single action with many options)
 
 ### verify.ts
-Runs the verification pipeline on completed work. Two modes: (1) story verification via `--story <id>` — parses acceptance criteria, checks preconditions, creates proof document, optionally runs Showboat, updates state, closes Beads issue, moves exec-plan to completed; (2) retrospective verification via `--retro --epic <n>` — checks that `epic-N-retrospective.md` exists, marks it done in sprint-status.yaml.
-- **Key deps:** `lib/verify-parser`, `lib/verify`, `lib/doc-health` (exec-plan completion), `lib/beads-sync` (sprint status for retro)
-- **Flags:** `--story <id>` (story mode), `--retro` + `--epic <n>` (retro mode)
+Runs the verification pipeline on completed work. Two modes: (1) story verification via `--story <id>` — parses acceptance criteria, checks preconditions, validates proof quality (rejects proofs with PENDING ACs), creates proof document, runs Showboat verify, updates state, closes Beads issue, moves exec-plan to completed; (2) retrospective verification via `--retro --epic <n>` — checks that `epic-N-retrospective.md` exists, marks it done in sprint-status.yaml. JSON output includes `proofQuality` metrics.
+- **Key deps:** `lib/verify-parser`, `lib/verify` (`validateProofQuality`), `lib/doc-health` (exec-plan completion), `lib/beads-sync` (sprint status for retro)
+- **Flags:** `--story <id>` (story mode), `--retro` + `--epic <n>` (retro mode), `--json`
 
 ### status.ts
 Displays current harness status and health. Shows version, stack, enforcement settings, Docker/observability state (mode-aware: local-shared, remote-direct, remote-routed), Beads summary, onboarding progress, session flags, coverage, and verification log. Supports `--check` for pass/fail health checks.

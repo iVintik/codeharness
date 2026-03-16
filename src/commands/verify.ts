@@ -7,13 +7,13 @@ import {
   checkPreconditions,
   createProofDocument,
   runShowboatVerify,
-  proofHasContent,
+  validateProofQuality,
   updateVerificationState,
   closeBeadsIssue,
 } from '../lib/verify.js';
 import { completeExecPlan } from '../lib/doc-health.js';
 import { updateSprintStatus } from '../lib/beads-sync.js';
-import type { VerifyResult } from '../lib/verify.js';
+import type { VerifyResult, ProofQuality } from '../lib/verify.js';
 
 const STORY_DIR = '_bmad-output/implementation-artifacts';
 
@@ -167,48 +167,68 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
   // 4. Extract story title from file
   const storyTitle = extractStoryTitle(storyFilePath);
 
-  // 5. Create proof document skeleton
-  const proofPath = createProofDocument(storyId, storyTitle, acs, root);
+  // 5. Create proof document skeleton (only if one doesn't already exist)
+  const expectedProofPath = join(root, 'verification', `${storyId}-proof.md`);
+  const proofPath = existsSync(expectedProofPath)
+    ? expectedProofPath
+    : createProofDocument(storyId, storyTitle, acs, root);
 
-  // 6. Run showboat verify if proof has content
-  let showboatStatus: 'pass' | 'fail' | 'skipped' = 'skipped';
-  if (proofHasContent(proofPath)) {
-    const showboatResult = runShowboatVerify(proofPath);
-    if (showboatResult.output === 'showboat not available') {
-      showboatStatus = 'skipped';
-      warn('Showboat not installed — skipping re-verification');
+  // 6. Check proof quality — reject if any ACs are PENDING
+  const proofQuality = validateProofQuality(proofPath);
+  if (!proofQuality.passed) {
+    if (isJson) {
+      jsonOutput({
+        status: 'fail',
+        message: `Proof quality check failed: ${proofQuality.verified}/${proofQuality.total} ACs verified`,
+        proofQuality: { verified: proofQuality.verified, pending: proofQuality.pending, escalated: proofQuality.escalated, total: proofQuality.total },
+      });
     } else {
-      showboatStatus = showboatResult.passed ? 'pass' : 'fail';
-      if (!showboatResult.passed) {
-        fail(`Showboat verify failed: ${showboatResult.output}`, { json: isJson });
-        process.exitCode = 1;
-        return;
-      }
+      fail(`Proof quality check failed: ${proofQuality.verified}/${proofQuality.total} ACs verified`);
+    }
+    process.exitCode = 1;
+    return;
+  }
+
+  // 6b. Warn about escalated ACs (passed but some ACs are integration-required)
+  if (proofQuality.escalated > 0) {
+    warn(`Story ${storyId} has ${proofQuality.escalated} ACs requiring integration verification`);
+    info('Run these ACs manually or in a dedicated verification session');
+  }
+
+  // 7. Run showboat verify — proof quality passed so we know there's real content
+  let showboatStatus: 'pass' | 'fail' | 'skipped' = 'skipped';
+  const showboatResult = runShowboatVerify(proofPath);
+  if (showboatResult.output === 'showboat not available') {
+    showboatStatus = 'skipped';
+    warn('Showboat not installed — skipping re-verification');
+  } else {
+    showboatStatus = showboatResult.passed ? 'pass' : 'fail';
+    if (!showboatResult.passed) {
+      fail(`Showboat verify failed: ${showboatResult.output}`, { json: isJson });
+      process.exitCode = 1;
+      return;
     }
   }
 
-  // 7. Build result
-  // ACs are marked verified only if showboat verify passed.
-  // For skeleton-only (no showboat content), ACs are pending.
-  const acsVerified = showboatStatus === 'pass';
-  const verifiedCount = acsVerified ? acs.length : 0;
+  // 8. Build result
   const result: VerifyResult = {
     storyId,
     success: true,
-    totalACs: acs.length,
-    verifiedCount,
-    failedCount: acs.length - verifiedCount,
+    totalACs: proofQuality.total,
+    verifiedCount: proofQuality.verified,
+    failedCount: proofQuality.pending,
+    escalatedCount: proofQuality.escalated,
     proofPath: `verification/${storyId}-proof.md`,
     showboatVerifyStatus: showboatStatus,
     perAC: acs.map(ac => ({
       id: ac.id,
       description: ac.description,
-      verified: acsVerified,
+      verified: true,
       evidencePaths: [],
     })),
   };
 
-  // 8. Update state
+  // 9. Update state
   try {
     updateVerificationState(storyId, result, root);
   } catch (err: unknown) {
@@ -216,7 +236,7 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     warn(`Failed to update state: ${message}`);
   }
 
-  // 9. Close beads issue
+  // 10. Close beads issue
   try {
     closeBeadsIssue(storyId, root);
   } catch (err: unknown) {
@@ -224,7 +244,7 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     warn(`Failed to close beads issue: ${message}`);
   }
 
-  // 10. Complete exec-plan
+  // 11. Complete exec-plan
   try {
     const completedPath = completeExecPlan(storyId, root);
     if (completedPath) {
@@ -241,9 +261,12 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     warn(`Failed to complete exec-plan: ${message}`);
   }
 
-  // 11. Output result
+  // 12. Output result
   if (isJson) {
-    jsonOutput(result as unknown as Record<string, unknown>);
+    jsonOutput({
+      ...(result as unknown as Record<string, unknown>),
+      proofQuality: { verified: proofQuality.verified, pending: proofQuality.pending, escalated: proofQuality.escalated, total: proofQuality.total },
+    });
   } else {
     ok(`Story ${storyId}: verified — proof at verification/${storyId}-proof.md`);
   }

@@ -17,6 +17,14 @@ export function storyVerificationPatch(): string {
 - [ ] All acceptance criteria verified with real-world evidence
 - [ ] Test coverage meets target (100%)
 
+### Verification Tags
+
+For each AC, append a verification tag to indicate how it can be verified:
+- \`<!-- verification: cli-verifiable -->\` — AC can be verified by running CLI commands in a subprocess
+- \`<!-- verification: integration-required -->\` — AC requires integration testing, multi-system interaction, or manual verification
+
+ACs referencing workflows, sprint planning, user sessions, or external system interactions should be tagged as \`integration-required\`. If no tag is present, a heuristic classifier will attempt to determine verifiability at runtime.
+
 ## Documentation Requirements
 
 - [ ] Relevant AGENTS.md files updated (list modules touched)

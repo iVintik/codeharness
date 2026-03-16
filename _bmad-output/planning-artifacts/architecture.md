@@ -376,6 +376,22 @@ codeharness verify --story <story-id>
 
 **Rationale:** Verification consumes significant context. Isolating it prevents implementation context pollution. CLI handles bookkeeping.
 
+**Amendment (2026-03-16): Three-Layer Proof Validation & Evidence Rules**
+
+The verification pipeline validates proof quality at three independent layers. No layer trusts another:
+
+1. **Verifier agent:** Must use `showboat exec bash "<command>"` for every AC. Captures real CLI output (run the binary, check files, inspect state). Self-checks own proof before reporting.
+2. **CLI verify (`codeharness verify`):** Parses proof file, counts AC statuses. Rejects if any AC is `PENDING` or summary shows `Showboat Verify: FAIL`.
+3. **harness-run Step 3d:** Parses proof after verifier completes, rejects if ACs are unverified. Runs `showboat verify` in main session and checks exit code.
+
+**Critical evidence rule:** Unit test output is NEVER valid AC evidence. ACs must be verified by simulating how a user or consuming system sees it:
+- Valid: `codeharness <command>` output, `cat <file> | grep <expected>`, binary exit codes, file content checks
+- Invalid: `npm run test:unit`, `vitest` output, test count assertions, coverage reports
+
+**AC classification:**
+- `cli-verifiable`: Can run a command and check output in current session
+- `integration-required`: Needs real user session, workflow invocation, or multi-system interaction — verifier escalates instead of faking evidence
+
 ### Decision 9: Brownfield Onboarding
 
 **Decision:** Multi-phase CLI command: scan → coverage → audit → epic → beads import → Ralph execution.
@@ -427,6 +443,33 @@ retro_issue_targets:
 ```
 
 **Rationale:** Beads remains the universal store (per Decision 3). GitHub issues are an external source/destination, not a replacement for beads. The `retro_issue_targets` config makes cross-project issue creation pluggable without hardcoding repos.
+
+### Decision 11: Commit & Status Ownership
+
+**Decision:** harness-run owns all git commits and sprint-status.yaml updates. Subagents make code changes but do NOT commit or update status files.
+
+**Commit messages (structured):**
+```
+Story created:    chore(sprint): story {key} created
+Story implemented: feat: story {key} — {short title}
+Story verified:   chore(sprint): story {key} verified
+Epic complete:    chore(sprint): epic {N} complete
+```
+
+**Status update flow:**
+- Subagent completes → returns result text
+- harness-run confirms result (re-reads files, checks proof)
+- harness-run updates sprint-status.yaml
+- harness-run commits all changes with structured message
+
+**Subagent prompt rule:** All Agent tool invocations include: `Do NOT run git commit. Do NOT modify sprint-status.yaml.`
+
+**Implementation artifacts tracking:**
+- `_bmad-output/implementation-artifacts/` is tracked by git (not ignored)
+- sprint-status.yaml, story files, retro files, sprint change proposals — all committed
+- Planning artifacts in `_bmad-output/planning-artifacts/` already tracked (force-added)
+
+**Rationale:** Subagent commits in Epic 11 were fragmented with misleading messages ("docs: update AGENTS.md" containing major implementation). Status updates by subagents didn't persist reliably. The main loop has full context to write accurate commit messages and verify status transitions.
 
 ### Decision Impact Analysis
 

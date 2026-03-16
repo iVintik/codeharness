@@ -9,7 +9,7 @@ vi.mock('../../lib/verify.js', () => ({
   checkPreconditions: vi.fn(),
   createProofDocument: vi.fn(),
   runShowboatVerify: vi.fn(),
-  proofHasContent: vi.fn(),
+  validateProofQuality: vi.fn(),
   updateVerificationState: vi.fn(),
   closeBeadsIssue: vi.fn(),
 }));
@@ -30,17 +30,21 @@ vi.mock('../../lib/beads-sync.js', () => ({
   updateSprintStatus: vi.fn(),
 }));
 
+vi.mock('../../lib/doc-health.js', () => ({
+  completeExecPlan: vi.fn(),
+}));
+
 import { registerVerifyCommand } from '../verify.js';
 import {
   checkPreconditions,
   createProofDocument,
   runShowboatVerify,
-  proofHasContent,
+  validateProofQuality,
   updateVerificationState,
   closeBeadsIssue,
 } from '../../lib/verify.js';
 import { parseStoryACs } from '../../lib/verify-parser.js';
-import { ok, fail, warn, jsonOutput } from '../../lib/output.js';
+import { ok, fail, warn, info, jsonOutput } from '../../lib/output.js';
 import { updateSprintStatus } from '../../lib/beads-sync.js';
 
 let testDir: string;
@@ -114,13 +118,28 @@ describe('verify command — story mode', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('succeeds and prints OK when verification passes', async () => {
+  it('fails when proof quality check fails (skeleton proof)', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test AC', type: 'general' },
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
-    vi.mocked(proofHasContent).mockReturnValue(false);
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 0, pending: 1, escalated: 0, total: 1, passed: false });
+
+    await runVerify(['--story', '4-1-test']);
+
+    expect(fail).toHaveBeenCalledWith('Proof quality check failed: 0/1 ACs verified');
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('succeeds and prints OK when proof quality passes', async () => {
+    vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const },
+    ]);
+    vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
+    vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
     vi.mocked(updateVerificationState).mockImplementation(() => {});
     vi.mocked(closeBeadsIssue).mockImplementation(() => {});
 
@@ -130,13 +149,14 @@ describe('verify command — story mode', () => {
     expect(process.exitCode).toBeUndefined();
   });
 
-  it('outputs JSON when --json flag is set', async () => {
+  it('outputs JSON with proofQuality when --json flag is set', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test AC', type: 'general' },
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
-    vi.mocked(proofHasContent).mockReturnValue(false);
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
+    vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
     vi.mocked(updateVerificationState).mockImplementation(() => {});
     vi.mocked(closeBeadsIssue).mockImplementation(() => {});
 
@@ -147,13 +167,32 @@ describe('verify command — story mode', () => {
         storyId: '4-1-test',
         success: true,
         totalACs: 1,
-        verifiedCount: 0,
-        failedCount: 1,
+        verifiedCount: 1,
+        failedCount: 0,
         proofPath: 'verification/4-1-test-proof.md',
-        showboatVerifyStatus: 'skipped',
-        perAC: expect.any(Array),
+        proofQuality: { verified: 1, pending: 0, escalated: 0, total: 1 },
       }),
     );
+  });
+
+  it('outputs JSON with proofQuality on failure when --json flag is set', async () => {
+    vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'AC 1', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '2', description: 'AC 2', type: 'general', verifiability: 'cli-verifiable' as const },
+    ]);
+    vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
+
+    await runVerify(['--story', '4-1-test', '--json']);
+
+    expect(jsonOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'fail',
+        proofQuality: { verified: 1, pending: 1, escalated: 0, total: 2 },
+      }),
+    );
+    expect(process.exitCode).toBe(1);
   });
 
   it('handles missing story file gracefully', async () => {
@@ -167,23 +206,29 @@ describe('verify command — story mode', () => {
 
   it('continues when showboat is unavailable', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
-    vi.mocked(parseStoryACs).mockReturnValue([]);
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+    ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
-    vi.mocked(proofHasContent).mockReturnValue(false);
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
+    vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
     vi.mocked(updateVerificationState).mockImplementation(() => {});
     vi.mocked(closeBeadsIssue).mockImplementation(() => {});
 
     await runVerify(['--story', '4-1-test']);
 
-    // Should succeed without showboat
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Showboat not installed'));
     expect(ok).toHaveBeenCalled();
   });
 
   it('continues when beads is unavailable', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
-    vi.mocked(parseStoryACs).mockReturnValue([]);
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+    ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
-    vi.mocked(proofHasContent).mockReturnValue(false);
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
+    vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
     vi.mocked(updateVerificationState).mockImplementation(() => {});
     vi.mocked(closeBeadsIssue).mockImplementation(() => {
       throw new Error('beads not initialized');
@@ -225,13 +270,13 @@ describe('verify command — story mode', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('runs showboat verify when proof has content and passes', async () => {
+  it('runs showboat verify when proof quality passes and showboat passes', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general' },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
-    vi.mocked(proofHasContent).mockReturnValue(true);
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
     vi.mocked(runShowboatVerify).mockReturnValue({ passed: true, output: 'All passed' });
     vi.mocked(updateVerificationState).mockImplementation(() => {});
     vi.mocked(closeBeadsIssue).mockImplementation(() => {});
@@ -244,10 +289,10 @@ describe('verify command — story mode', () => {
   it('fails when showboat verify reports failure', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general' },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
-    vi.mocked(proofHasContent).mockReturnValue(true);
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
     vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'Diff found' });
 
     await runVerify(['--story', '4-1-test']);
@@ -261,9 +306,11 @@ describe('verify command — story mode', () => {
 
   it('skips showboat verify when showboat not available', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
-    vi.mocked(parseStoryACs).mockReturnValue([]);
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+    ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
-    vi.mocked(proofHasContent).mockReturnValue(true);
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
     vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
     vi.mocked(updateVerificationState).mockImplementation(() => {});
     vi.mocked(closeBeadsIssue).mockImplementation(() => {});
@@ -276,9 +323,12 @@ describe('verify command — story mode', () => {
 
   it('warns when updateVerificationState throws', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
-    vi.mocked(parseStoryACs).mockReturnValue([]);
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+    ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
-    vi.mocked(proofHasContent).mockReturnValue(false);
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
+    vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
     vi.mocked(updateVerificationState).mockImplementation(() => {
       throw new Error('state write failed');
     });
@@ -288,6 +338,20 @@ describe('verify command — story mode', () => {
 
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to update state'));
     expect(ok).toHaveBeenCalled();
+  });
+
+  it('does NOT mark story as verified when proof quality fails', async () => {
+    vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+    ]);
+    vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 0, pending: 1, escalated: 0, total: 1, passed: false });
+
+    await runVerify(['--story', '4-1-test']);
+
+    expect(updateVerificationState).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
   });
 
   it('rejects story IDs with path traversal sequences', async () => {
@@ -315,6 +379,50 @@ describe('verify command — story mode', () => {
       expect.any(Object),
     );
     expect(process.exitCode).toBe(1);
+  });
+
+  it('warns about escalated ACs when proof passes with escalations', async () => {
+    vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'CLI test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '2', description: 'Needs integration', type: 'general', verifiability: 'integration-required' as const },
+    ]);
+    vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true });
+    vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
+    vi.mocked(updateVerificationState).mockImplementation(() => {});
+    vi.mocked(closeBeadsIssue).mockImplementation(() => {});
+
+    await runVerify(['--story', '4-1-test']);
+
+    expect(warn).toHaveBeenCalledWith('Story 4-1-test has 1 ACs requiring integration verification');
+    expect(info).toHaveBeenCalledWith('Run these ACs manually or in a dedicated verification session');
+    expect(ok).toHaveBeenCalled();
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('includes escalatedCount in JSON output', async () => {
+    vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
+    vi.mocked(parseStoryACs).mockReturnValue([
+      { id: '1', description: 'CLI test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '2', description: 'Integration AC', type: 'general', verifiability: 'integration-required' as const },
+    ]);
+    vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
+    vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true });
+    vi.mocked(runShowboatVerify).mockReturnValue({ passed: false, output: 'showboat not available' });
+    vi.mocked(updateVerificationState).mockImplementation(() => {});
+    vi.mocked(closeBeadsIssue).mockImplementation(() => {});
+
+    await runVerify(['--story', '4-1-test', '--json']);
+
+    expect(jsonOutput).toHaveBeenCalledWith(
+      expect.objectContaining({
+        storyId: '4-1-test',
+        success: true,
+        escalatedCount: 1,
+        proofQuality: { verified: 1, pending: 0, escalated: 1, total: 2 },
+      }),
+    );
   });
 
   it('outputs JSON precondition failures when --json is set', async () => {

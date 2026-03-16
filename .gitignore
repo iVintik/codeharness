@@ -1,5 +1,5 @@
 .ralph/logs/
-_bmad-output/
+_bmad-output/planning-artifacts/research/
 internal-claude-plugins/
 .env
 .env.*

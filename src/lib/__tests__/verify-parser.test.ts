@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseStoryACs, classifyAC } from '../verify-parser.js';
+import { parseStoryACs, classifyAC, classifyVerifiability, parseVerificationTag, INTEGRATION_KEYWORDS } from '../verify-parser.js';
 
 // Mock output.ts to suppress warnings during tests
 vi.mock('../output.js', () => ({
@@ -102,9 +102,11 @@ As a developer...
     expect(acs[0].id).toBe('1');
     expect(acs[0].description).toContain('developer runs the command');
     expect(acs[0].type).toBe('general');
+    expect(acs[0].verifiability).toBe('cli-verifiable');
     expect(acs[1].id).toBe('2');
     expect(acs[1].description).toContain('click submit');
     expect(acs[1].type).toBe('ui');
+    expect(acs[1].verifiability).toBe('cli-verifiable');
   });
 
   it('handles multi-line ACs', () => {
@@ -203,5 +205,111 @@ As a developer...
     const acs = parseStoryACs(filePath);
     expect(acs).toHaveLength(1);
     expect(acs[0].description).toContain('last section');
+    expect(acs[0].verifiability).toBe('cli-verifiable');
+  });
+
+  it('reads verification tag from AC line and sets verifiability accordingly', () => {
+    const filePath = writeStoryFile('story.md', `# Story 12.3: Tags
+
+## Acceptance Criteria
+
+1. **Given** a CLI command, **Then** output is shown. <!-- verification: cli-verifiable -->
+
+2. **Given** sprint planning surfaces retro items, **Then** items appear. <!-- verification: integration-required -->
+
+## Tasks
+`);
+
+    const acs = parseStoryACs(filePath);
+    expect(acs).toHaveLength(2);
+    expect(acs[0].verifiability).toBe('cli-verifiable');
+    expect(acs[1].verifiability).toBe('integration-required');
+  });
+
+  it('falls back to heuristic classification when no verification tag is present', () => {
+    const filePath = writeStoryFile('story.md', `# Story 12.3: Heuristic
+
+## Acceptance Criteria
+
+1. **Given** a CLI command, **Then** output is correct.
+
+2. **Given** sprint planning surfaces retro action items, **Then** they appear.
+
+3. **Given** a user session is active, **Then** context is preserved.
+
+## Tasks
+`);
+
+    const acs = parseStoryACs(filePath);
+    expect(acs).toHaveLength(3);
+    expect(acs[0].verifiability).toBe('cli-verifiable');
+    expect(acs[1].verifiability).toBe('integration-required');
+    expect(acs[2].verifiability).toBe('integration-required');
+  });
+
+  it('verification tag overrides heuristic classification', () => {
+    const filePath = writeStoryFile('story.md', `# Story 12.3: Override
+
+## Acceptance Criteria
+
+1. **Given** sprint planning runs, **Then** output is correct. <!-- verification: cli-verifiable -->
+
+## Tasks
+`);
+
+    const acs = parseStoryACs(filePath);
+    expect(acs).toHaveLength(1);
+    // "sprint planning" would heuristically classify as integration-required,
+    // but the explicit tag overrides it to cli-verifiable
+    expect(acs[0].verifiability).toBe('cli-verifiable');
+  });
+});
+
+// ─── classifyVerifiability ───────────────────────────────────────────────────
+
+describe('classifyVerifiability', () => {
+  it('returns integration-required for descriptions mentioning integration keywords', () => {
+    expect(classifyVerifiability('sprint planning surfaces retro action items')).toBe('integration-required');
+    expect(classifyVerifiability('the workflow executes correctly')).toBe('integration-required');
+    expect(classifyVerifiability('run /command to start the process')).toBe('integration-required');
+    expect(classifyVerifiability('user session is active and preserved')).toBe('integration-required');
+    expect(classifyVerifiability('requires multi-step verification')).toBe('integration-required');
+    expect(classifyVerifiability('connects to external system')).toBe('integration-required');
+    expect(classifyVerifiability('uses real infrastructure for testing')).toBe('integration-required');
+    expect(classifyVerifiability('needs integration test coverage')).toBe('integration-required');
+    expect(classifyVerifiability('requires manual verification')).toBe('integration-required');
+  });
+
+  it('returns cli-verifiable for descriptions without integration keywords', () => {
+    expect(classifyVerifiability('CLI output contains expected text')).toBe('cli-verifiable');
+    expect(classifyVerifiability('file exists at the expected path')).toBe('cli-verifiable');
+    expect(classifyVerifiability('command returns exit code 0')).toBe('cli-verifiable');
+    expect(classifyVerifiability('JSON contains the expected field')).toBe('cli-verifiable');
+    expect(classifyVerifiability('verify the output is correct')).toBe('cli-verifiable');
+  });
+
+  it('is case insensitive', () => {
+    expect(classifyVerifiability('SPRINT PLANNING runs correctly')).toBe('integration-required');
+    expect(classifyVerifiability('User Session persists')).toBe('integration-required');
+  });
+});
+
+// ─── parseVerificationTag ────────────────────────────────────────────────────
+
+describe('parseVerificationTag', () => {
+  it('parses cli-verifiable tag', () => {
+    expect(parseVerificationTag('some text <!-- verification: cli-verifiable -->')).toBe('cli-verifiable');
+  });
+
+  it('parses integration-required tag', () => {
+    expect(parseVerificationTag('some text <!-- verification: integration-required -->')).toBe('integration-required');
+  });
+
+  it('returns null when no tag is present', () => {
+    expect(parseVerificationTag('some text without a tag')).toBeNull();
+  });
+
+  it('handles extra whitespace in tag', () => {
+    expect(parseVerificationTag('text <!--  verification:  cli-verifiable  -->')).toBe('cli-verifiable');
   });
 });

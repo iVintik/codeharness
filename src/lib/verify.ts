@@ -20,12 +20,21 @@ import type { AcceptanceCriterion } from '../templates/showboat-template.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+export interface ProofQuality {
+  verified: number;
+  pending: number;
+  escalated: number;
+  total: number;
+  passed: boolean;
+}
+
 export interface VerifyResult {
   storyId: string;
   success: boolean;
   totalACs: number;
   verifiedCount: number;
   failedCount: number;
+  escalatedCount: number;
   proofPath: string;
   showboatVerifyStatus: 'pass' | 'fail' | 'skipped';
   perAC: {
@@ -154,14 +163,78 @@ export function runShowboatVerify(proofPath: string): ShowboatVerifyResult {
 }
 
 /**
- * Checks if a proof document has actual showboat exec/image content
- * (beyond the skeleton template).
+ * Validates proof quality by parsing AC sections and counting their statuses.
+ * Returns detailed quality metrics including per-AC verified/pending counts.
+ *
+ * AC sections are identified by `## AC N:` headers.
+ * A section is considered "verified" if it contains a `<!-- /showboat exec -->` or
+ * `<!-- showboat image:` marker. Otherwise it is "pending".
+ *
+ * `passed` is true only when `pending === 0 && verified > 0`.
+ */
+export function validateProofQuality(proofPath: string): ProofQuality {
+  if (!existsSync(proofPath)) {
+    return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
+  }
+
+  const content = readFileSync(proofPath, 'utf-8');
+
+  // Split into AC sections by ## AC N: headers
+  const acHeaderPattern = /^## AC \d+:/gm;
+  const matches = [...content.matchAll(acHeaderPattern)];
+
+  if (matches.length === 0) {
+    return { verified: 0, pending: 0, escalated: 0, total: 0, passed: false };
+  }
+
+  let verified = 0;
+  let pending = 0;
+  let escalated = 0;
+
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i].index!;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : content.length;
+    const section = content.slice(start, end);
+
+    // Check for [ESCALATE] marker first — escalated ACs are explicitly
+    // unverifiable, distinct from pending (missing evidence).
+    if (section.includes('[ESCALATE]')) {
+      escalated++;
+      continue;
+    }
+
+    // Recognise both the codeharness template markers AND showboat's native
+    // format (```bash + ```output pairs produced by `showboat exec`).
+    const hasEvidence =
+      section.includes('<!-- /showboat exec -->') ||
+      section.includes('<!-- showboat image:') ||
+      /```(?:bash|shell)\n[\s\S]*?```\n+```output\n/m.test(section);
+
+    if (hasEvidence) {
+      verified++;
+    } else {
+      pending++;
+    }
+  }
+
+  const total = verified + pending + escalated;
+  return {
+    verified,
+    pending,
+    escalated,
+    total,
+    // Proof passes when no pending ACs remain and at least one is verified.
+    // Escalated ACs are allowed — they are explicitly acknowledged as unverifiable.
+    passed: pending === 0 && verified > 0,
+  };
+}
+
+/**
+ * @deprecated Use `validateProofQuality()` instead. This function is kept
+ * for backward compatibility and returns `validateProofQuality(proofPath).passed`.
  */
 export function proofHasContent(proofPath: string): boolean {
-  if (!existsSync(proofPath)) return false;
-  const content = readFileSync(proofPath, 'utf-8');
-  // Check for showboat exec blocks that have been filled in (not just skeleton)
-  return content.includes('<!-- /showboat exec -->') || content.includes('<!-- showboat image:');
+  return validateProofQuality(proofPath).passed;
 }
 
 // ─── State Update ───────────────────────────────────────────────────────────

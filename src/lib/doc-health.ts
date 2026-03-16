@@ -190,10 +190,110 @@ function getNewestSourceMtime(dir: string): Date | null {
   return newest;
 }
 
+// ─── AGENTS.md Content Completeness (Story 12.2) ────────────────────────────
+
+/**
+ * Lists all source files (.ts, .js, .py — excluding tests) in a module directory.
+ * Returns filenames only (not full paths).
+ */
+export function getSourceFilesInModule(modulePath: string): string[] {
+  const files: string[] = [];
+
+  function walk(current: string): void {
+    let entries: string[];
+    try {
+      entries = readdirSync(current);
+    } catch {
+      return;
+    }
+
+    const dirName = current.split('/').pop() ?? '';
+    if (
+      dirName === 'node_modules' ||
+      dirName === '.git' ||
+      dirName === '__tests__' ||
+      dirName === 'dist' ||
+      dirName === 'coverage' ||
+      (dirName.startsWith('.') && current !== modulePath)
+    ) return;
+
+    for (const entry of entries) {
+      const fullPath = join(current, entry);
+      let stat;
+      try {
+        stat = statSync(fullPath);
+      } catch {
+        continue;
+      }
+
+      if (stat.isDirectory()) {
+        walk(fullPath);
+      } else if (stat.isFile()) {
+        const ext = getExtension(entry);
+        if (SOURCE_EXTENSIONS.has(ext) && !isTestFile(entry)) {
+          files.push(entry);
+        }
+      }
+    }
+  }
+
+  walk(modulePath);
+  return files;
+}
+
+/**
+ * Parses AGENTS.md and extracts all filenames mentioned in the document.
+ * Looks for filenames in code blocks, inline code, bullet lists, and tables.
+ */
+export function getMentionedFilesInAgentsMd(agentsPath: string): string[] {
+  if (!existsSync(agentsPath)) return [];
+
+  const content = readFileSync(agentsPath, 'utf-8');
+  const mentioned = new Set<string>();
+
+  // Match filenames with source extensions in various contexts:
+  // - inline code: `filename.ts`
+  // - code blocks, bullet items, table cells, plain text
+  // Pattern: word characters, hyphens, dots forming a filename with a known extension
+  const filenamePattern = /[\w./-]*[\w-]+\.(?:ts|js|py)\b/g;
+  let match;
+  while ((match = filenamePattern.exec(content)) !== null) {
+    // Extract just the filename (last segment of any path)
+    const fullMatch = match[0];
+    const basename = fullMatch.split('/').pop()!;
+    // Skip test files
+    if (!isTestFile(basename)) {
+      mentioned.add(basename);
+    }
+  }
+
+  return Array.from(mentioned);
+}
+
+/**
+ * Compares source files in a module against files mentioned in AGENTS.md.
+ * Returns completeness status and list of missing files.
+ */
+export function checkAgentsMdCompleteness(
+  agentsPath: string,
+  modulePath: string,
+): { complete: boolean; missing: string[] } {
+  const sourceFiles = getSourceFilesInModule(modulePath);
+  const mentionedFiles = new Set(getMentionedFilesInAgentsMd(agentsPath));
+
+  const missing = sourceFiles.filter(f => !mentionedFiles.has(f));
+
+  return {
+    complete: missing.length === 0,
+    missing,
+  };
+}
+
 // ─── AGENTS.md Checking (Task 1.6) ─────────────────────────────────────────
 
 /**
  * Checks if a module has a corresponding AGENTS.md and whether it's fresh.
+ * Uses content completeness (are all source files mentioned?) instead of mtime.
  */
 export function checkAgentsMdForModule(
   modulePath: string,
@@ -222,13 +322,17 @@ export function checkAgentsMdForModule(
   const docMtime = statSync(agentsPath).mtime;
   const codeMtime = getNewestSourceMtime(fullModulePath);
 
-  if (codeMtime !== null && codeMtime.getTime() > docMtime.getTime()) {
+  // Use content completeness check instead of mtime comparison
+  const { complete, missing } = checkAgentsMdCompleteness(agentsPath, fullModulePath);
+
+  if (!complete) {
+    const missingList = missing.join(', ');
     return {
       path: relative(root, agentsPath),
       grade: 'stale',
       lastModified: docMtime,
       codeLastModified: codeMtime,
-      reason: `AGENTS.md stale for module: ${modulePath}`,
+      reason: `AGENTS.md stale for module: ${modulePath} — missing: ${missingList}`,
     };
   }
 
@@ -272,30 +376,42 @@ export function scanDocHealth(dir?: string): DocHealthReport {
   // Compute modules once for reuse
   const modules = findModules(root);
 
-  // 1. Root AGENTS.md
+  // 1. Root AGENTS.md — use content completeness check
   const rootAgentsPath = join(root, 'AGENTS.md');
   if (existsSync(rootAgentsPath)) {
     if (modules.length > 0) {
-      // Check AGENTS.md freshness against all module source code
       const docMtime = statSync(rootAgentsPath).mtime;
-      let newestCode: Date | null = null;
+
+      // Collect all source files across all modules and check completeness
+      let allMissing: string[] = [];
       let staleModule = '';
+      let newestCode: Date | null = null;
 
       for (const mod of modules) {
-        const modMtime = getNewestSourceMtime(join(root, mod));
+        const fullModPath = join(root, mod);
+        // Only check root AGENTS.md for modules that don't have their own AGENTS.md
+        const modAgentsPath = join(fullModPath, 'AGENTS.md');
+        if (existsSync(modAgentsPath)) continue;
+
+        const { missing } = checkAgentsMdCompleteness(rootAgentsPath, fullModPath);
+        if (missing.length > 0 && staleModule === '') {
+          staleModule = mod;
+          allMissing = missing;
+        }
+
+        const modMtime = getNewestSourceMtime(fullModPath);
         if (modMtime !== null && (newestCode === null || modMtime.getTime() > newestCode.getTime())) {
           newestCode = modMtime;
-          staleModule = mod;
         }
       }
 
-      if (newestCode !== null && newestCode.getTime() > docMtime.getTime()) {
+      if (allMissing.length > 0) {
         documents.push({
           path: 'AGENTS.md',
           grade: 'stale',
           lastModified: docMtime,
           codeLastModified: newestCode,
-          reason: `AGENTS.md stale for module: ${staleModule}`,
+          reason: `AGENTS.md stale for module: ${staleModule} — missing: ${allMissing.join(', ')}`,
         });
       } else {
         documents.push({

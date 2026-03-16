@@ -208,6 +208,11 @@ FR71: Epic 11 — retro findings → beads issues + GitHub issues
 FR72: Epic 11 — GitHub issues → beads import
 FR73: Epic 11 — cross-project harness issue creation from retro
 FR74: Epic 11 — sprint planning consumes retro + GitHub issues
+FR75: Epic 12 — verify CLI rejects proofs with unverified ACs
+FR76: Epic 12 — verifier agent uses showboat exec for real evidence
+FR77: Epic 12 — harness-run validates proof content, not agent text
+FR78: Epic 12 — harness-run owns commits and status updates
+FR79: Epic 12 — unverifiable AC detection and escalation
 
 ## Epic List
 
@@ -1798,3 +1803,146 @@ Retrospective findings become actionable work items through beads and GitHub iss
   3. Run `codeharness github-import` to pull latest labeled issues
   4. Present combined `bd ready` output
 - Uses marker-based patching per Architecture Decision 7
+
+---
+
+### Epic 12: Verification Pipeline Integrity & Sprint Infrastructure
+
+The verification pipeline is broken at three independent layers — verifier agent, CLI verify, and harness-run all fail to catch empty proofs. All Epic 11 stories were marked `done` with skeleton proof documents containing zero evidence. Additionally, sprint infrastructure has gaps: implementation artifacts untracked by git, subagent commits fragmented with misleading messages, AGENTS.md staleness creates false-positive blocks.
+
+**Critical rule established:** Unit test output is NEVER valid AC evidence. All ACs must be verified by simulating how a user or consuming system sees it — run the actual binary, check real output, inspect real file changes.
+
+**FRs covered:** FR75, FR76, FR77, FR78, FR79
+
+**GitHub issues addressed:** #1, #2, #3, #4, #5, #6, #7, #8
+
+**Stories:**
+- 12-1: Fix verification pipeline (all three layers)
+- 12-2: Sprint execution ownership (commits, tracking, staleness)
+- 12-3: Unverifiable AC detection & escalation
+
+## Epic 12: Verification Pipeline Integrity & Sprint Infrastructure
+
+### Story 12.1: Fix Verification Pipeline
+
+**As a** developer using codeharness,
+**I want** the verification pipeline to reject empty or fake proof documents at every layer,
+**So that** stories marked `done` actually have real, reproducible evidence.
+
+**Scope:** Fix three layers: (1) `codeharness verify` CLI rejects proofs with PENDING ACs, (2) verifier agent uses `showboat exec` for real user-facing evidence, (3) harness-run validates proof content after verifier completes. Establish rule: unit test output is never valid AC evidence.
+
+#### Acceptance Criteria
+
+**Given** a proof file with all ACs showing `PENDING` and `<!-- No evidence captured yet -->`
+**When** `codeharness verify --story <id>` runs
+**Then** it exits 1 with `[FAIL] Proof quality check failed: 0/N ACs verified`
+**And** does NOT mark the story as verified
+
+**Given** a proof file where all ACs have `showboat exec` evidence blocks
+**When** `codeharness verify --story <id>` runs
+**Then** it passes the proof quality check
+**And** proceeds to showboat verify and state update
+
+**Given** the verifier agent is spawned for a story
+**When** it produces evidence for each AC
+**Then** each AC has a `showboat exec bash "..."` block running real CLI commands (e.g., `codeharness verify --retro --epic 1`, `cat .claude/codeharness.local.md | grep key`)
+**And** NO AC uses unit test output (`npm run test:unit`) as its primary evidence
+
+**Given** the verifier agent completes
+**When** harness-run Step 3d checks the proof
+**Then** it parses the proof file and counts AC statuses
+**And** if any AC is PENDING, it rejects and re-spawns the verifier (up to max_retries)
+**And** it runs `showboat verify` in the main session and checks exit code (not agent's claim)
+
+**Given** `--json` flag on `codeharness verify`
+**When** proof quality is checked
+**Then** output includes `"proofQuality": {"verified": N, "pending": M, "total": K}`
+
+#### Technical Notes
+
+- Modify `src/lib/verify.ts`: replace `proofHasContent()` with `validateProofQuality()` — regex parse AC sections, count PENDING vs verified
+- Modify verifier agent spec: explicit instruction that `showboat exec` is mandatory, unit test output is forbidden as AC evidence
+- Modify `commands/harness-run.md` Step 3d: add proof parsing between "verifier completes" and "run codeharness verify"
+- Valid evidence examples: `codeharness <command>` output, `cat <file> | grep <expected>`, `showboat verify` exit code
+- Invalid evidence: `npm run test:unit`, `vitest` output, test count assertions
+
+---
+
+### Story 12.2: Sprint Execution Ownership
+
+**As a** developer using codeharness,
+**I want** harness-run to own git commits and sprint-status updates,
+**So that** git history is coherent and implementation artifacts are tracked.
+
+**Scope:** (1) Remove `_bmad-output/` from `.gitignore` or add selective tracking for implementation artifacts, (2) harness-run commits after each story transition with structured messages, (3) subagent prompts instruct agents NOT to commit or update sprint-status.yaml, (4) fix AGENTS.md staleness to check content completeness not mtimes.
+
+#### Acceptance Criteria
+
+**Given** `_bmad-output/implementation-artifacts/` contains sprint-status.yaml, story files, and retros
+**When** `git status` runs
+**Then** these files are trackable (not ignored)
+
+**Given** harness-run completes a story (status → `done`)
+**When** it proceeds to the next story
+**Then** it commits all changes with message `feat: story {key} — {short title}`
+**And** the commit includes source code, tests, story file, sprint-status.yaml, and proof
+
+**Given** a subagent (dev-story, code-review, verifier) runs
+**When** it makes changes
+**Then** it does NOT run `git commit` or `git add`
+**And** it does NOT update sprint-status.yaml directly
+
+**Given** AGENTS.md lists all source files in a module
+**When** `codeharness verify` checks staleness
+**Then** it passes regardless of file modification timestamps
+**And** it only fails if a source file exists in the directory but is not mentioned in AGENTS.md
+
+**Given** AGENTS.md is missing a reference to a newly added source file
+**When** `codeharness verify` runs
+**Then** it reports `[FAIL] AGENTS.md stale for module: {module} — missing: {filename}`
+
+#### Technical Notes
+
+- `.gitignore`: change `_bmad-output/` to `_bmad-output/planning-artifacts/research/` (or whatever should stay ignored) — keep tracking implementation artifacts
+- `commands/harness-run.md`: add commit step after Step 3d (story done), Step 5 (epic done)
+- Subagent prompts: add `Do NOT run git commit. Do NOT modify sprint-status.yaml.` to all Agent tool invocations
+- `src/lib/doc-health.ts`: change staleness from mtime comparison to content completeness — list source files, check each is mentioned in AGENTS.md
+
+---
+
+### Story 12.3: Unverifiable AC Detection & Escalation
+
+**As a** developer using codeharness,
+**I want** stories with ACs that cannot be verified in the current session to be detected and escalated,
+**So that** the verifier fails explicitly instead of producing fake evidence.
+
+**Scope:** (1) classify ACs during create-story as `cli-verifiable` (can run command and check output) vs `integration-required` (needs real session, real infrastructure, or multi-system interaction), (2) verifier detects when it can't produce real evidence and fails with actionable message, (3) harness-run handles escalation — halts with instructions instead of accepting empty proofs.
+
+#### Acceptance Criteria
+
+**Given** a story with an AC like "sprint planning surfaces retro action items"
+**When** the verifier attempts to verify it
+**Then** it recognizes it cannot run sprint-planning in a subprocess
+**And** it marks the AC as `[ESCALATE] Requires integration test — cannot verify in current session`
+**And** the proof file shows the AC as unverified with escalation reason
+
+**Given** the verifier produces a proof with escalated ACs
+**When** harness-run Step 3d parses the proof
+**Then** it halts with `[WARN] Story {key} has {N} ACs requiring integration verification`
+**And** prints instructions: "Run these ACs manually or in a dedicated verification session"
+**And** does NOT mark the story as `done`
+
+**Given** create-story generates a story file
+**When** ACs reference workflows, multi-step user journeys, or external system interactions
+**Then** those ACs are tagged with `<!-- verification: integration-required -->` in the story file
+
+**Given** all ACs in a story are `cli-verifiable`
+**When** the verifier runs
+**Then** it proceeds normally without escalation
+
+#### Technical Notes
+
+- Verifier agent prompt: add heuristic — if AC mentions "sprint planning", "workflow", "run /command", or "user session", it's integration-required
+- Story file format: add optional `<!-- verification: cli-verifiable|integration-required -->` tag per AC
+- Proof file format: add `[ESCALATE]` status alongside `PENDING` and verified
+- harness-run: distinguish between PENDING (verifier failed) and ESCALATE (verifier correctly identified it can't verify) — different handling for each

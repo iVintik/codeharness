@@ -8,10 +8,13 @@ import { warn } from './output.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+export type Verifiability = 'cli-verifiable' | 'integration-required';
+
 export interface ParsedAC {
   id: string;
   description: string;
   type: 'ui' | 'api' | 'db' | 'general';
+  verifiability: Verifiability;
 }
 
 // ─── Keywords for Classification ────────────────────────────────────────────
@@ -43,6 +46,50 @@ const DB_KEYWORDS = [
   'sql',
   'table',
 ];
+
+// ─── Integration Keywords ───────────────────────────────────────────────────
+
+export const INTEGRATION_KEYWORDS = [
+  'sprint planning',
+  'workflow',
+  'run /command',
+  'user session',
+  'multi-step',
+  'external system',
+  'real infrastructure',
+  'integration test',
+  'manual verification',
+];
+
+// ─── Verifiability Classification ───────────────────────────────────────────
+
+/**
+ * Classifies whether an AC can be verified in a CLI subprocess or requires
+ * integration testing. Checks description against integration keywords
+ * (case-insensitive). Falls back to 'cli-verifiable'.
+ */
+export function classifyVerifiability(description: string): Verifiability {
+  const lower = description.toLowerCase();
+
+  for (const kw of INTEGRATION_KEYWORDS) {
+    if (lower.includes(kw)) return 'integration-required';
+  }
+
+  return 'cli-verifiable';
+}
+
+// ─── Verification Tag Parsing ───────────────────────────────────────────────
+
+const VERIFICATION_TAG_PATTERN = /<!--\s*verification:\s*(cli-verifiable|integration-required)\s*-->/;
+
+/**
+ * Parses a `<!-- verification: cli-verifiable|integration-required -->` HTML
+ * comment tag from a string. Returns the tag value if found, or null.
+ */
+export function parseVerificationTag(text: string): Verifiability | null {
+  const match = VERIFICATION_TAG_PATTERN.exec(text);
+  return match ? (match[1] as Verifiability) : null;
+}
 
 // ─── Classification ─────────────────────────────────────────────────────────
 
@@ -123,10 +170,14 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
     if (currentId !== null && currentDesc.length > 0) {
       const description = currentDesc.join(' ').trim();
       if (description) {
+        // Check for explicit verification tag (authoritative), fall back to heuristic
+        const tag = parseVerificationTag(description);
+        const verifiability = tag ?? classifyVerifiability(description);
         acs.push({
           id: currentId,
           description,
           type: classifyAC(description),
+          verifiability,
         });
       } else {
         warn(`Skipping malformed AC #${currentId}: empty description`);

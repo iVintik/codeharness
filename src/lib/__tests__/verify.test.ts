@@ -38,10 +38,11 @@ import {
   createProofDocument,
   runShowboatVerify,
   proofHasContent,
+  validateProofQuality,
   updateVerificationState,
   closeBeadsIssue,
 } from '../verify.js';
-import type { VerifyResult } from '../verify.js';
+import type { VerifyResult, ProofQuality } from '../verify.js';
 import { writeState, readState } from '../state.js';
 import { getDefaultState } from '../state.js';
 
@@ -112,7 +113,7 @@ describe('checkPreconditions', () => {
 describe('createProofDocument', () => {
   it('creates directories and writes proof file', () => {
     const proofPath = createProofDocument('4-1-test', 'Story 4.1: Test', [
-      { id: '1', description: 'First AC', type: 'general' },
+      { id: '1', description: 'First AC', type: 'general', verifiability: 'cli-verifiable' },
     ], testDir);
 
     expect(existsSync(proofPath)).toBe(true);
@@ -166,29 +167,263 @@ describe('runShowboatVerify', () => {
   });
 });
 
-// ─── proofHasContent ────────────────────────────────────────────────────────
+// ─── validateProofQuality ────────────────────────────────────────────────────
+
+describe('validateProofQuality', () => {
+  it('returns zeros and passed=false for nonexistent file', () => {
+    const result = validateProofQuality('/nonexistent/proof.md');
+    expect(result).toEqual({ verified: 0, pending: 0, escalated: 0, total: 0, passed: false });
+  });
+
+  it('returns all PENDING for skeleton proof (all ACs have no evidence)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof: test-story',
+      '',
+      '## AC 1: PENDING',
+      '',
+      '> Given something, Then something',
+      '',
+      '<!-- No evidence captured yet -->',
+      '',
+      '## AC 2: PENDING',
+      '',
+      '> Given something else, Then something else',
+      '',
+      '<!-- No evidence captured yet -->',
+      '',
+      '## AC 3: PENDING',
+      '',
+      '> Third AC',
+      '',
+      '<!-- No evidence captured yet -->',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 0, pending: 3, escalated: 0, total: 3, passed: false });
+  });
+
+  it('returns all verified for fully verified proof (all showboat exec blocks)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof: test-story',
+      '',
+      '## AC 1: PASS',
+      '',
+      '> First AC',
+      '',
+      '<!-- showboat exec: codeharness verify --story test -->',
+      '```',
+      '[OK] verified',
+      '```',
+      '<!-- /showboat exec -->',
+      '',
+      '## AC 2: PASS',
+      '',
+      '> Second AC',
+      '',
+      '<!-- showboat exec: cat file.txt -->',
+      '```',
+      'content',
+      '```',
+      '<!-- /showboat exec -->',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
+  });
+
+  it('returns passed=false for mixed proof (some verified, some PENDING)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof: test-story',
+      '',
+      '## AC 1: PASS',
+      '',
+      '> First AC',
+      '',
+      '<!-- showboat exec: codeharness verify -->',
+      '```',
+      'ok',
+      '```',
+      '<!-- /showboat exec -->',
+      '',
+      '## AC 2: PENDING',
+      '',
+      '> Second AC',
+      '',
+      '<!-- No evidence captured yet -->',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
+  });
+
+  it('considers showboat image markers as verified evidence', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof: test-story',
+      '',
+      '## AC 1: PASS',
+      '',
+      '> First AC',
+      '',
+      '<!-- showboat image: screenshots/test.png -->',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true });
+  });
+
+  it('returns total=0 and passed=false for file with no AC sections', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, '# Proof: test-story\n\nNo AC sections here.');
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 0, pending: 0, escalated: 0, total: 0, passed: false });
+  });
+
+  it('recognises showboat native format (bash + output code blocks) as evidence', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '## AC 1: Evidence via showboat exec',
+      '',
+      '> AC description',
+      '',
+      '```bash',
+      'node dist/index.js verify --story test',
+      '```',
+      '',
+      '```output',
+      '[FAIL] Proof quality check failed',
+      '```',
+      '',
+      '## AC 2: Also showboat native',
+      '',
+      '```shell',
+      'cat file.txt',
+      '```',
+      '',
+      '```output',
+      'contents here',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 2, pending: 0, escalated: 0, total: 2, passed: true });
+  });
+
+  it('counts [ESCALATE] sections as escalated (not pending)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof: test-story',
+      '',
+      '## AC 1: PASS',
+      '',
+      '> First AC',
+      '',
+      '<!-- showboat exec: codeharness verify -->',
+      '```',
+      'ok',
+      '```',
+      '<!-- /showboat exec -->',
+      '',
+      '## AC 2: ESCALATE',
+      '',
+      '> Second AC — requires integration test',
+      '',
+      '[ESCALATE] Requires integration test — cannot verify in current session',
+      '',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true });
+  });
+
+  it('returns passed=true for mixed verified/escalated ACs with no pending', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '## AC 1: PASS',
+      '',
+      '> Verified AC',
+      '',
+      '<!-- showboat exec: echo ok -->',
+      '```',
+      'ok',
+      '```',
+      '<!-- /showboat exec -->',
+      '',
+      '## AC 2: PASS',
+      '',
+      '> Another verified AC',
+      '',
+      '<!-- showboat exec: echo ok2 -->',
+      '```',
+      'ok2',
+      '```',
+      '<!-- /showboat exec -->',
+      '',
+      '## AC 3: ESCALATE',
+      '',
+      '> Integration-required AC',
+      '',
+      '[ESCALATE] Requires integration test — cannot verify in current session',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 2, pending: 0, escalated: 1, total: 3, passed: true });
+  });
+
+  it('returns passed=false for pending + escalated ACs', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '## AC 1: PENDING',
+      '',
+      '> Missing evidence',
+      '',
+      '<!-- No evidence captured yet -->',
+      '',
+      '## AC 2: ESCALATE',
+      '',
+      '> Integration-required',
+      '',
+      '[ESCALATE] Requires integration test',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toEqual({ verified: 0, pending: 1, escalated: 1, total: 2, passed: false });
+  });
+});
+
+// ─── proofHasContent (deprecated alias) ─────────────────────────────────────
 
 describe('proofHasContent', () => {
   it('returns false for non-existent file', () => {
     expect(proofHasContent('/nonexistent/proof.md')).toBe(false);
   });
 
-  it('returns false for skeleton without showboat blocks', () => {
+  it('returns false for skeleton without showboat blocks in any AC section', () => {
     const path = join(testDir, 'proof.md');
-    writeFileSync(path, '# Proof\n\n## AC 1\n\n<!-- No evidence -->');
+    writeFileSync(path, '# Proof\n\n## AC 1: PENDING\n\n<!-- No evidence -->');
     expect(proofHasContent(path)).toBe(false);
   });
 
-  it('returns true when showboat exec block exists', () => {
+  it('returns true when all AC sections have showboat exec blocks', () => {
     const path = join(testDir, 'proof.md');
-    writeFileSync(path, '# Proof\n\n<!-- showboat exec: npm test -->\n```\nok\n```\n<!-- /showboat exec -->');
+    writeFileSync(path, '# Proof\n\n## AC 1: PASS\n\n<!-- showboat exec: npm test -->\n```\nok\n```\n<!-- /showboat exec -->');
     expect(proofHasContent(path)).toBe(true);
   });
 
-  it('returns true when showboat image block exists', () => {
+  it('returns true when all AC sections have showboat image blocks', () => {
     const path = join(testDir, 'proof.md');
-    writeFileSync(path, '# Proof\n\n<!-- showboat image: screenshots/test.png -->');
+    writeFileSync(path, '# Proof\n\n## AC 1: PASS\n\n<!-- showboat image: screenshots/test.png -->');
     expect(proofHasContent(path)).toBe(true);
+  });
+
+  it('returns false when file has no AC sections', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, '# Proof\n\nNo AC sections');
+    expect(proofHasContent(path)).toBe(false);
   });
 });
 
@@ -203,6 +438,7 @@ describe('updateVerificationState', () => {
       totalACs: 1,
       verifiedCount: 1,
       failedCount: 0,
+      escalatedCount: 0,
       proofPath: 'verification/4-1-test-proof.md',
       showboatVerifyStatus: 'pass',
       perAC: [{ id: '1', description: 'Test', verified: true, evidencePaths: [] }],
@@ -221,6 +457,7 @@ describe('updateVerificationState', () => {
       totalACs: 1,
       verifiedCount: 1,
       failedCount: 0,
+      escalatedCount: 0,
       proofPath: 'verification/4-1-test-proof.md',
       showboatVerifyStatus: 'pass',
       perAC: [],
@@ -240,6 +477,7 @@ describe('updateVerificationState', () => {
       totalACs: 2,
       verifiedCount: 1,
       failedCount: 1,
+      escalatedCount: 0,
       proofPath: 'verification/4-1-test-proof.md',
       showboatVerifyStatus: 'fail',
       perAC: [],
@@ -262,6 +500,7 @@ describe('updateVerificationState', () => {
       totalACs: 1,
       verifiedCount: 1,
       failedCount: 0,
+      escalatedCount: 0,
       proofPath: 'verification/4-1-test-proof.md',
       showboatVerifyStatus: 'pass',
       perAC: [],

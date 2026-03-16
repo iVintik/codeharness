@@ -22,6 +22,9 @@ import {
   getExecPlanStatus,
   formatDocHealthOutput,
   printDocHealthOutput,
+  getSourceFilesInModule,
+  getMentionedFilesInAgentsMd,
+  checkAgentsMdCompleteness,
 } from '../doc-health.js';
 import type { DocHealthReport } from '../doc-health.js';
 
@@ -169,23 +172,29 @@ describe('isDocStale', () => {
 // ─── checkAgentsMdForModule ──────────────────────────────────────────────────
 
 describe('checkAgentsMdForModule', () => {
-  it('returns fresh when module AGENTS.md is newer than code', () => {
-    const agentsPath = createFile('src/AGENTS.md', '# Agents');
-    const srcPath = createFile('src/a.ts', 'code');
-
-    const past = new Date(Date.now() - 10000);
-    const future = new Date(Date.now() + 10000);
-
-    setMtime(srcPath, past);
-    setMtime(agentsPath, future);
+  it('returns fresh when all source files are mentioned in AGENTS.md', () => {
+    createFile('src/AGENTS.md', '# Agents\n\nFiles: `a.ts`\n');
+    createFile('src/a.ts', 'code');
 
     const result = checkAgentsMdForModule('src', testDir);
     expect(result.grade).toBe('fresh');
     expect(result.reason).toBe('Up to date');
   });
 
-  it('returns stale when code is newer than AGENTS.md', () => {
-    const agentsPath = createFile('src/AGENTS.md', '# Agents');
+  it('returns stale when source files are missing from AGENTS.md', () => {
+    createFile('src/AGENTS.md', '# Agents\n\nFiles: `a.ts`\n');
+    createFile('src/a.ts', 'code');
+    createFile('src/b.ts', 'code');
+
+    const result = checkAgentsMdForModule('src', testDir);
+    expect(result.grade).toBe('stale');
+    expect(result.reason).toContain('AGENTS.md stale for module: src');
+    expect(result.reason).toContain('missing: b.ts');
+  });
+
+  it('returns fresh regardless of mtime when all files are mentioned', () => {
+    // AGENTS.md is older than code, but all files are mentioned — should be fresh
+    const agentsPath = createFile('src/AGENTS.md', '# Agents\n\n- `a.ts` — main module\n');
     const srcPath = createFile('src/a.ts', 'code');
 
     const past = new Date(Date.now() - 10000);
@@ -195,19 +204,12 @@ describe('checkAgentsMdForModule', () => {
     setMtime(srcPath, future);
 
     const result = checkAgentsMdForModule('src', testDir);
-    expect(result.grade).toBe('stale');
-    expect(result.reason).toContain('AGENTS.md stale for module: src');
+    expect(result.grade).toBe('fresh');
   });
 
   it('falls back to root AGENTS.md when module has none', () => {
-    const agentsPath = createFile('AGENTS.md', '# Root');
-    const srcPath = createFile('src/a.ts', 'code');
-
-    const past = new Date(Date.now() - 10000);
-    const future = new Date(Date.now() + 10000);
-
-    setMtime(srcPath, past);
-    setMtime(agentsPath, future);
+    createFile('AGENTS.md', '# Root\n\nFiles: `a.ts`\n');
+    createFile('src/a.ts', 'code');
 
     const result = checkAgentsMdForModule('src', testDir);
     expect(result.grade).toBe('fresh');
@@ -219,6 +221,17 @@ describe('checkAgentsMdForModule', () => {
     const result = checkAgentsMdForModule('src', testDir);
     expect(result.grade).toBe('missing');
     expect(result.reason).toContain('No AGENTS.md found for module: src');
+  });
+
+  it('includes missing filenames in stale reason', () => {
+    createFile('src/AGENTS.md', '# Agents\n');
+    createFile('src/a.ts', 'code');
+    createFile('src/b.ts', 'code');
+
+    const result = checkAgentsMdForModule('src', testDir);
+    expect(result.grade).toBe('stale');
+    expect(result.reason).toMatch(/missing: .*a\.ts/);
+    expect(result.reason).toMatch(/missing: .*b\.ts/);
   });
 });
 
@@ -253,33 +266,24 @@ describe('checkDoNotEditHeaders', () => {
 // ─── scanDocHealth ───────────────────────────────────────────────────────────
 
 describe('scanDocHealth', () => {
-  it('produces correct grades for fresh AGENTS.md', () => {
-    // Create AGENTS.md and source files where doc is newest
-    const agentsPath = createFile('AGENTS.md', '# Agents');
+  it('produces correct grades for fresh AGENTS.md when all files mentioned', () => {
+    // Create AGENTS.md mentioning all source files
+    createFile('AGENTS.md', '# Agents\n\nFiles: `a.ts`, `b.ts`, `c.ts`\n');
     createFile('src/a.ts', 'code');
     createFile('src/b.ts', 'code');
     createFile('src/c.ts', 'code');
 
-    const future = new Date(Date.now() + 10000);
-    setMtime(agentsPath, future);
-
     const report = scanDocHealth(testDir);
-    const agentsResult = report.documents.find(d => d.path === 'AGENTS.md' && d.grade !== 'fresh' || d.path === 'AGENTS.md');
+    const agentsResult = report.documents.find(d => d.path === 'AGENTS.md' && !d.reason.includes('exceeds'));
     expect(agentsResult).toBeDefined();
     expect(agentsResult!.grade).toBe('fresh');
   });
 
-  it('produces stale grade when code is newer than AGENTS.md', () => {
-    const agentsPath = createFile('AGENTS.md', '# Agents');
-    const srcPath = createFile('src/a.ts', 'code');
+  it('produces stale grade when source files are missing from AGENTS.md', () => {
+    createFile('AGENTS.md', '# Agents\n\nFiles: `a.ts`\n');
+    createFile('src/a.ts', 'code');
     createFile('src/b.ts', 'code');
     createFile('src/c.ts', 'code');
-
-    const past = new Date(Date.now() - 10000);
-    const future = new Date(Date.now() + 10000);
-
-    setMtime(agentsPath, past);
-    setMtime(srcPath, future);
 
     const report = scanDocHealth(testDir);
     expect(report.passed).toBe(false);
@@ -351,14 +355,12 @@ describe('scanDocHealth', () => {
   });
 
   it('warns when AGENTS.md exceeds 100 lines (NFR24)', () => {
-    const lines = Array.from({ length: 120 }, (_, i) => `Line ${i}`).join('\n');
+    // Include source file mentions so it's not stale
+    const lines = ['# Agents', '`a.ts` `b.ts` `c.ts`', ...Array.from({ length: 120 }, (_, i) => `Line ${i}`)].join('\n');
     createFile('AGENTS.md', lines);
     createFile('src/a.ts', 'code');
     createFile('src/b.ts', 'code');
     createFile('src/c.ts', 'code');
-
-    const future = new Date(Date.now() + 10000);
-    setMtime(join(testDir, 'AGENTS.md'), future);
 
     const report = scanDocHealth(testDir);
     const warnings = report.documents.filter(d => d.reason.includes('exceeds 100 lines'));
@@ -389,43 +391,31 @@ describe('scanDocHealth', () => {
 
 describe('checkStoryDocFreshness', () => {
   it('checks AGENTS.md freshness for modules', () => {
-    const agentsPath = createFile('AGENTS.md', '# Agents');
+    createFile('AGENTS.md', '# Agents\n\n`a.ts` `b.ts` `c.ts`\n');
     createFile('src/a.ts', 'code');
     createFile('src/b.ts', 'code');
     createFile('src/c.ts', 'code');
-
-    const future = new Date(Date.now() + 10000);
-    setMtime(agentsPath, future);
 
     // Without git, falls back to full scan
     const report = checkStoryDocFreshness('test-story', testDir);
     expect(report.documents.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('returns passed when all docs are fresh', () => {
-    const agentsPath = createFile('AGENTS.md', '# Agents');
+  it('returns passed when all source files are mentioned', () => {
+    createFile('AGENTS.md', '# Agents\n\n`a.ts` `b.ts` `c.ts`\n');
     createFile('src/a.ts', 'code');
     createFile('src/b.ts', 'code');
     createFile('src/c.ts', 'code');
-
-    const future = new Date(Date.now() + 10000);
-    setMtime(agentsPath, future);
 
     const report = checkStoryDocFreshness('test-story', testDir);
     expect(report.passed).toBe(true);
   });
 
-  it('returns not passed when AGENTS.md is stale', () => {
-    const agentsPath = createFile('AGENTS.md', '# Agents');
-    const srcPath = createFile('src/a.ts', 'code');
+  it('returns not passed when AGENTS.md is missing source files', () => {
+    createFile('AGENTS.md', '# Agents\n\nOnly `a.ts`\n');
+    createFile('src/a.ts', 'code');
     createFile('src/b.ts', 'code');
     createFile('src/c.ts', 'code');
-
-    const past = new Date(Date.now() - 10000);
-    const future = new Date(Date.now() + 10000);
-
-    setMtime(agentsPath, past);
-    setMtime(srcPath, future);
 
     const report = checkStoryDocFreshness('test-story', testDir);
     expect(report.passed).toBe(false);
@@ -438,6 +428,204 @@ describe('checkStoryDocFreshness', () => {
     const report = checkStoryDocFreshness('test-story', testDir);
     const agentsDoc = report.documents.find(d => d.path === 'AGENTS.md');
     expect(agentsDoc).toBeDefined();
+  });
+});
+
+// ─── getSourceFilesInModule ───────────────────────────────────────────────
+
+describe('getSourceFilesInModule', () => {
+  it('returns .ts and .js files', () => {
+    createFile('src/a.ts', 'code');
+    createFile('src/b.js', 'code');
+    createFile('src/c.py', 'code');
+
+    const files = getSourceFilesInModule(join(testDir, 'src'));
+    expect(files).toContain('a.ts');
+    expect(files).toContain('b.js');
+    expect(files).toContain('c.py');
+  });
+
+  it('excludes test files', () => {
+    createFile('src/a.ts', 'code');
+    createFile('src/a.test.ts', 'test');
+    createFile('src/b.spec.ts', 'test');
+    createFile('src/test_c.ts', 'test');
+
+    const files = getSourceFilesInModule(join(testDir, 'src'));
+    expect(files).toContain('a.ts');
+    expect(files).not.toContain('a.test.ts');
+    expect(files).not.toContain('b.spec.ts');
+    expect(files).not.toContain('test_c.ts');
+  });
+
+  it('excludes node_modules', () => {
+    createFile('src/a.ts', 'code');
+    createFile('src/node_modules/pkg/b.ts', 'code');
+
+    const files = getSourceFilesInModule(join(testDir, 'src'));
+    expect(files).toContain('a.ts');
+    expect(files).not.toContain('b.ts');
+  });
+
+  it('excludes __tests__ directories', () => {
+    createFile('src/a.ts', 'code');
+    createFile('src/__tests__/a.test.ts', 'test');
+
+    const files = getSourceFilesInModule(join(testDir, 'src'));
+    expect(files).toContain('a.ts');
+    expect(files).not.toContain('a.test.ts');
+  });
+
+  it('returns empty for directory with no source files', () => {
+    createFile('src/readme.md', 'text');
+
+    const files = getSourceFilesInModule(join(testDir, 'src'));
+    expect(files).toHaveLength(0);
+  });
+
+  it('excludes dist and coverage directories', () => {
+    createFile('src/a.ts', 'code');
+    createFile('src/dist/a.js', 'compiled');
+    createFile('src/coverage/lcov.js', 'report');
+
+    const files = getSourceFilesInModule(join(testDir, 'src'));
+    expect(files).toContain('a.ts');
+    expect(files).not.toContain('a.js');
+    expect(files).not.toContain('lcov.js');
+  });
+
+  it('excludes hidden directories', () => {
+    createFile('src/a.ts', 'code');
+    createFile('src/.cache/temp.js', 'cached');
+
+    const files = getSourceFilesInModule(join(testDir, 'src'));
+    expect(files).toContain('a.ts');
+    expect(files).not.toContain('temp.js');
+  });
+});
+
+// ─── getMentionedFilesInAgentsMd ─────────────────────────────────────────────
+
+describe('getMentionedFilesInAgentsMd', () => {
+  it('extracts filenames from inline code', () => {
+    const path = createFile('AGENTS.md', '# Module\n\n- `foo.ts` — does stuff\n- `bar.js` — more stuff\n');
+
+    const files = getMentionedFilesInAgentsMd(path);
+    expect(files).toContain('foo.ts');
+    expect(files).toContain('bar.js');
+  });
+
+  it('extracts filenames from code blocks', () => {
+    const path = createFile('AGENTS.md', '# Module\n\n```\nfoo.ts\nbar.ts\n```\n');
+
+    const files = getMentionedFilesInAgentsMd(path);
+    expect(files).toContain('foo.ts');
+    expect(files).toContain('bar.ts');
+  });
+
+  it('extracts filenames from tables', () => {
+    const path = createFile('AGENTS.md', '| File | Purpose |\n|------|--------|\n| foo.ts | Main |\n| bar.py | Script |\n');
+
+    const files = getMentionedFilesInAgentsMd(path);
+    expect(files).toContain('foo.ts');
+    expect(files).toContain('bar.py');
+  });
+
+  it('extracts filenames from paths', () => {
+    const path = createFile('AGENTS.md', '# Module\n\nSee `src/lib/foo.ts` for details.\n');
+
+    const files = getMentionedFilesInAgentsMd(path);
+    expect(files).toContain('foo.ts');
+  });
+
+  it('returns empty for nonexistent file', () => {
+    const files = getMentionedFilesInAgentsMd(join(testDir, 'nonexistent.md'));
+    expect(files).toHaveLength(0);
+  });
+
+  it('excludes test files from mentions', () => {
+    const path = createFile('AGENTS.md', '# Module\n\n- `foo.ts`\n- `foo.test.ts`\n');
+
+    const files = getMentionedFilesInAgentsMd(path);
+    expect(files).toContain('foo.ts');
+    expect(files).not.toContain('foo.test.ts');
+  });
+});
+
+// ─── checkAgentsMdCompleteness ───────────────────────────────────────────────
+
+describe('checkAgentsMdCompleteness', () => {
+  it('returns complete when all source files are mentioned', () => {
+    const agentsPath = createFile('AGENTS.md', '# Module\n\n- `a.ts` — main\n- `b.ts` — helper\n');
+    createFile('src/a.ts', 'code');
+    createFile('src/b.ts', 'code');
+
+    const result = checkAgentsMdCompleteness(agentsPath, join(testDir, 'src'));
+    expect(result.complete).toBe(true);
+    expect(result.missing).toHaveLength(0);
+  });
+
+  it('returns incomplete with missing files listed', () => {
+    const agentsPath = createFile('AGENTS.md', '# Module\n\n- `a.ts` — main\n');
+    createFile('src/a.ts', 'code');
+    createFile('src/b.ts', 'code');
+
+    const result = checkAgentsMdCompleteness(agentsPath, join(testDir, 'src'));
+    expect(result.complete).toBe(false);
+    expect(result.missing).toContain('b.ts');
+  });
+
+  it('handles empty module directory', () => {
+    const agentsPath = createFile('AGENTS.md', '# Module\n');
+    mkdirSync(join(testDir, 'empty-src'), { recursive: true });
+
+    const result = checkAgentsMdCompleteness(agentsPath, join(testDir, 'empty-src'));
+    expect(result.complete).toBe(true);
+    expect(result.missing).toHaveLength(0);
+  });
+
+  it('ignores test files when checking completeness', () => {
+    const agentsPath = createFile('AGENTS.md', '# Module\n\n- `a.ts`\n');
+    createFile('src/a.ts', 'code');
+    createFile('src/a.test.ts', 'test');
+
+    const result = checkAgentsMdCompleteness(agentsPath, join(testDir, 'src'));
+    expect(result.complete).toBe(true);
+  });
+});
+
+// ─── scanDocHealth with content completeness ─────────────────────────────────
+
+describe('scanDocHealth content completeness', () => {
+  it('uses completeness check for AGENTS.md entries', () => {
+    // AGENTS.md mentions all files — should be fresh regardless of mtime
+    const agentsPath = createFile('AGENTS.md', '# Agents\n\n`a.ts` `b.ts` `c.ts`\n');
+    createFile('src/a.ts', 'code');
+    createFile('src/b.ts', 'code');
+    createFile('src/c.ts', 'code');
+
+    // Make code newer than AGENTS.md — should still be fresh because content is complete
+    const past = new Date(Date.now() - 10000);
+    const future = new Date(Date.now() + 10000);
+    setMtime(agentsPath, past);
+    setMtime(join(testDir, 'src/a.ts'), future);
+
+    const report = scanDocHealth(testDir);
+    const agentsResult = report.documents.find(d => d.path === 'AGENTS.md' && !d.reason.includes('exceeds'));
+    expect(agentsResult).toBeDefined();
+    expect(agentsResult!.grade).toBe('fresh');
+  });
+
+  it('detects missing files in root AGENTS.md', () => {
+    createFile('AGENTS.md', '# Agents\n\nOnly `a.ts`\n');
+    createFile('src/a.ts', 'code');
+    createFile('src/b.ts', 'code');
+    createFile('src/c.ts', 'code');
+
+    const report = scanDocHealth(testDir);
+    const agentsResult = report.documents.find(d => d.path === 'AGENTS.md' && d.grade === 'stale');
+    expect(agentsResult).toBeDefined();
+    expect(agentsResult!.reason).toContain('missing:');
   });
 });
 
@@ -621,22 +809,13 @@ describe('checkStoryDocFreshness with git repo', () => {
   });
 
   it('uses git to detect changed modules', () => {
-    // Touch AGENTS.md to be newer
-    const future = new Date(Date.now() + 10000);
-    setMtime(join(gitDir, 'AGENTS.md'), future);
-
     const report = checkStoryDocFreshness('test-story', gitDir);
     // Should detect src as a changed module via git
     expect(report.documents.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('detects stale AGENTS.md via git-based checking', () => {
-    // AGENTS.md committed before the src change, so it's stale
-    const past = new Date(Date.now() - 10000);
-    setMtime(join(gitDir, 'AGENTS.md'), past);
-    const future = new Date(Date.now() + 10000);
-    setMtime(join(gitDir, 'src', 'a.ts'), future);
-
+  it('detects stale AGENTS.md when source files are not mentioned', () => {
+    // AGENTS.md has content '# Agents' which doesn't mention a.ts, b.ts, c.ts
     const report = checkStoryDocFreshness('test-story', gitDir);
     expect(report.passed).toBe(false);
   });

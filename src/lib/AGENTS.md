@@ -35,7 +35,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | verify-parser.ts | Parses story ACs with type classification (ui/api/db/general) | `parseStoryACs`, `classifyAC`, `ParsedAC` |
-| verify.ts | Verification orchestrator — preconditions, proof docs, Showboat, state | `checkPreconditions`, `createProofDocument`, `runShowboatVerify`, `closeBeadsIssue` |
+| verify.ts | Verification orchestrator — preconditions, proof quality validation, Showboat, state | `checkPreconditions`, `validateProofQuality`, `ProofQuality`, `createProofDocument`, `runShowboatVerify`, `closeBeadsIssue`, `proofHasContent` (deprecated) |
 
 ## Documentation Health
 

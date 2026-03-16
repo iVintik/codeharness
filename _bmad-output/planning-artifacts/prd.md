@@ -503,6 +503,14 @@ No formal migration command. `codeharness onboard` handles existing projects inc
 - FR73: System can create cross-project harness issues from retro findings (user's project repo + codeharness repo, configurable via `retro_issue_targets`)
 - FR74: Sprint planning workflow consumes retro action items and GitHub-imported issues via beads (`bd ready`)
 
+### Verification Pipeline Integrity & Sprint Infrastructure
+
+- FR75: `codeharness verify` rejects proof files with unverified ACs — parses proof markdown, counts AC statuses, exits 1 if any are PENDING or showboat summary is FAIL
+- FR76: Verifier agent captures real user-facing evidence via `showboat exec` (run binary, check output, check files) — unit test output is never valid AC evidence
+- FR77: harness-run validates proof content after verification (parses proof, checks AC statuses, runs `showboat verify`) — does not trust agent text reports
+- FR78: harness-run owns sprint-status.yaml updates and git commits — subagents do not commit or update sprint status
+- FR79: Stories with ACs requiring integration testing (real session, real infrastructure) are detected during planning and flagged; verifier fails explicitly when it cannot produce real evidence
+
 ### Out of Scope (Explicitly Excluded)
 
 - Go stack support (Phase 2)

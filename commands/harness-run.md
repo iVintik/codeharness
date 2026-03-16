@@ -61,7 +61,7 @@ Invoke the create-story workflow via Agent tool to generate the story file:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /create-story for story {story_key}. The sprint-status.yaml is at _bmad-output/implementation-artifacts/sprint-status.yaml. Auto-discover the next backlog story and create it. Do NOT ask the user any questions — proceed autonomously."
+  prompt: "Run /create-story for story {story_key}. The sprint-status.yaml is at _bmad-output/implementation-artifacts/sprint-status.yaml. Auto-discover the next backlog story and create it. For each AC, append `<!-- verification: cli-verifiable -->` or `<!-- verification: integration-required -->` based on whether the AC can be verified by running CLI commands in a subprocess. ACs referencing workflows, sprint planning, user sessions, or external system interactions should be tagged as integration-required. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
   subagent_type: "general-purpose"
 ```
 
@@ -77,7 +77,7 @@ Invoke the dev-story workflow via Agent tool to implement the story:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /bmad-dev-story for the story at _bmad-output/implementation-artifacts/{story_key}.md — implement all tasks, write tests, and mark the story for review. Do NOT ask the user any questions — proceed autonomously through all tasks until complete."
+  prompt: "Run /bmad-dev-story for the story at _bmad-output/implementation-artifacts/{story_key}.md — implement all tasks, write tests, and mark the story for review. Do NOT ask the user any questions — proceed autonomously through all tasks until complete. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
   subagent_type: "general-purpose"
 ```
 
@@ -95,7 +95,7 @@ Invoke the code-review workflow via Agent tool:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found. After fixing, run `codeharness coverage --min-file 80` and ensure all files pass the per-file floor and the overall 90% target. Update the story status to `verified` when all issues are fixed and coverage passes. Do NOT ask the user any questions — proceed autonomously."
+  prompt: "Run /bmad-code-review for the story at _bmad-output/implementation-artifacts/{story_key}.md — perform adversarial review, fix all HIGH and MEDIUM issues found. After fixing, run `codeharness coverage --min-file 80` and ensure all files pass the per-file floor and the overall 90% target. Update the story status to `verified` when all issues are fixed and coverage passes. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
   subagent_type: "general-purpose"
 ```
 
@@ -133,32 +133,79 @@ Read the story file, extract all acceptance criteria, and produce a showboat pro
 
 You MUST:
 1. Run `showboat init` to create the proof document
-2. Run `npm run test:unit` via `showboat exec` and capture output as evidence
-3. For each AC, run real commands via `showboat exec` to prove the AC is met
+2. For each AC, run real CLI commands via `showboat exec` to prove the AC is met
+3. Every AC MUST have at least one `showboat exec bash \"...\"` block with a real CLI command
 4. If ANY step fails — fix the underlying issue (code, tests, config), use `showboat pop` to remove the failed entry, then re-capture the passing result
 5. Run a final `npm run test:unit` via `showboat exec` to confirm fixes haven't broken anything
 6. Run `showboat verify` to confirm all evidence is reproducible
 
+ESCALATION RULES — for ACs that cannot be verified in the current session:
+- If an AC mentions 'sprint planning', 'workflow', 'run /command', 'user session', or references multi-system interaction, it is integration-required
+- If an AC has a `<!-- verification: integration-required -->` tag, it is explicitly integration-required
+- For integration-required ACs, write `[ESCALATE] Requires integration test — cannot verify in current session` in the proof section instead of attempting fake evidence
+- Use `showboat exec bash \"echo '[ESCALATE] AC {N}: {reason}'\"` to formally record the escalation in the proof document
+- NEVER fake evidence for integration-required ACs — that is the exact problem escalation solves
+
+MANDATORY — `showboat exec` rules:
+- Every AC MUST use `showboat exec` with real CLI commands (e.g., `codeharness verify ...`, `cat <file> | grep <expected>`, running the actual binary)
+- Unit test output (`npm run test:unit`) is NEVER valid as PRIMARY AC evidence — it may be used as supplementary evidence only
+- Each AC must prove the feature works from the user/consumer perspective, not just that tests pass
+
+Valid evidence examples:
+  - `showboat exec bash \"codeharness verify --story 4-1-test --json\"` → shows CLI output proving verification works
+  - `showboat exec bash \"cat verification/4-1-test-proof.md | grep 'PASS'\"` → proves proof file has correct content
+  - `showboat exec bash \"codeharness status --json | jq .stories\"` → shows real CLI output
+
+Invalid evidence examples:
+  - `showboat exec bash \"npm run test:unit\"` as the ONLY evidence for an AC
+  - Hand-written markdown claiming evidence without a `showboat exec` block
+  - Copy-pasting test output without running it through `showboat exec`
+
 Do NOT write proof markdown by hand — use showboat CLI exclusively.
 Do NOT skip tests — they are mandatory evidence.
-Fix all failures found during verification."
+Fix all failures found during verification.
+Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
 ```
 
 **After the verifier completes:**
 
 1. Confirm the proof document exists: `verification/{story_key}-proof.md`
-2. Run `showboat verify verification/{story_key}-proof.md` in the main session to double-check reproducibility
-3. If showboat verify fails, re-spawn the verifier to fix the non-reproducible step (up to max_retries)
-4. Run `codeharness verify --story {story_key}` to update state
-5. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
-6. Update sprint-status.yaml: change `{story_key}` status to `done`
-7. Print: `[OK] Story {story_key}: verified → done`
+2. Parse the proof file to check AC quality — run `codeharness verify --story {story_key} --json` and check:
+   - If `proofQuality.pending > 0` → re-spawn the verifier to fill in missing evidence (up to max_retries)
+   - If `proofQuality.escalated > 0` → verifier correctly identified unverifiable ACs (do NOT re-spawn)
+   - If `proofQuality.pending === 0` → proof quality passed, proceed
+   - Do NOT trust the verifier agent's claim that all ACs are verified — the CLI must independently validate
+3. Run `showboat verify verification/{story_key}-proof.md` in the main session to double-check reproducibility
+4. If showboat verify fails, re-spawn the verifier to fix the non-reproducible step (up to max_retries)
+5. Run `codeharness verify --story {story_key}` to update state (this will also re-check proof quality)
+6. If the verifier made code fixes, run `npm run build && npm run test:unit` to confirm everything still works
+7. Handle escalated ACs separately from pending:
+   - `pending > 0` means verifier failed to produce evidence → re-spawn verifier (up to max_retries)
+   - `escalated > 0` means verifier correctly identified unverifiable ACs → halt with instructions:
+     - Print: `[WARN] Story {story_key} has {N} ACs requiring integration verification`
+     - Print: `Run these ACs manually or in a dedicated verification session`
+     - Do NOT mark story as `done` — story stays at `verified` status
+     - Do NOT re-spawn the verifier — escalation is the correct outcome
+8. If no escalated ACs: Update sprint-status.yaml: change `{story_key}` status to `done`
+9. Print: `[OK] Story {story_key}: verified → done`
 
 **If verification reveals unfixable issues:**
 1. The story status stays at `verified` (not done)
 2. Increment retry_count
 3. If retry_count >= max_retries, go to Step 6 (failure handling)
 4. Otherwise, go to Step 3b to re-implement the failing parts
+
+### 3e: Commit Story Changes
+
+After the story reaches `done`, commit all changes with a coherent message.
+
+1. Stage all changes: `git add -A`
+2. Commit with message: `feat: story {story_key} — {short title from story file}`
+3. The commit must include source code, tests, story file, sprint-status.yaml, proof document, and any other changed files
+4. If `git commit` fails (e.g., pre-commit hooks), log the error and continue — do not halt the sprint:
+   ```
+   [WARN] git commit failed for story {story_key}: {error message}
+   ```
 
 ## Step 4: Story Complete — Continue or Finish Epic
 
@@ -180,7 +227,7 @@ All stories in the current epic are done.
    - If yes, run the retrospective:
      ```
      Use the Agent tool with:
-       prompt: "Run /retrospective for Epic {N}. All stories are complete. Review the epic's work, extract lessons learned, and produce the retrospective document. Do NOT ask the user any questions — proceed autonomously."
+       prompt: "Run /retrospective for Epic {N}. All stories are complete. Review the epic's work, extract lessons learned, and produce the retrospective document. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml."
        subagent_type: "general-purpose"
      ```
    - After retrospective completes:
@@ -189,12 +236,18 @@ All stories in the current epic are done.
 
 2. Update `epic-{N}` status to `done` in sprint-status.yaml (use Edit tool)
 
-3. Print:
+3. Commit epic completion: `git add -A && git commit -m "feat: epic {N} complete"`
+   - If `git commit` fails, log the error and continue:
+     ```
+     [WARN] git commit failed for epic {N}: {error message}
+     ```
+
+4. Print:
    ```
    [OK] Epic {N}: DONE (all stories complete, retrospective run)
    ```
 
-4. Check if more epics remain (any `epic-M` with status != `done` where M > N):
+5. Check if more epics remain (any `epic-M` with status != `done` where M > N):
    - If yes, go to Step 2 to start the next epic
    - If no, go to Step 7 (sprint complete)
 

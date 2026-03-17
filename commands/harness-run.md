@@ -28,12 +28,8 @@ Initialize tracking variables (once, before the loop):
 - `stories_failed = 0`
 - `stories_skipped = 0`
 - `skipped_reasons = []` (list of `{story_key}: {reason}` strings)
-- `retry_count = 0` (per story, resets for each new story)
-- `cycle_count = 0` (per story, counts dev↔review round-trips, resets for each new story)
-- `max_retries = 3`
-- `max_cycles = 5` (max dev↔review round-trips before halting)
-- `verify_dev_cycles = 0` (per story, counts verify→dev round-trips triggered by code bugs, resets for each new story)
-- `max_verify_dev_cycles = 10` (max verify→dev round-trips before skipping)
+- `attempts = 0` (per story, resets for each new story — counts ALL retries: dev failures, review round-trips, verify→dev loops)
+- `max_attempts = 10` (single limit for all retry types)
 - `start_time = current timestamp`
 
 ## Step 2: Find Next Actionable Story (Cross-Epic Scan)
@@ -44,9 +40,9 @@ Scan ALL stories across ALL epics to find the highest-priority actionable story.
 
 2. **Filter out non-actionable stories.** Remove any story that matches ANY of these conditions:
    - Status is `done`
-   - **Retry-exhausted:** Read `ralph/.story_retries`. If a line `{story_key}={count}` exists and `count >= max_retries` (3), the story is retry-exhausted. Increment `stories_skipped`, append `{story_key}: retry-exhausted ({count}/{max_retries})` to `skipped_reasons`, and print:
+   - **Retry-exhausted:** Read `ralph/.story_retries`. If a line `{story_key}={count}` exists and `count >= max_attempts` (10), the story is retry-exhausted. Increment `stories_skipped`, append `{story_key}: retry-exhausted ({count}/{max_attempts})` to `skipped_reasons`, and print:
      ```
-     [INFO] Skipping {story_key}: retry-exhausted ({count}/{max_retries})
+     [INFO] Skipping {story_key}: retry-exhausted ({count}/{max_attempts})
      ```
    - **Blocked (escalated):** A `verifying` story that already has a proof document (`verification/{story_key}-proof.md` exists) with `escalated > 0` and `pending === 0` is blocked. Increment `stories_skipped`, append `{story_key}: blocked (escalated ACs)` to `skipped_reasons`, and print:
      ```
@@ -63,7 +59,7 @@ Scan ALL stories across ALL epics to find the highest-priority actionable story.
 
 5. **Determine the story's parent epic** (epic number N from the story key `N-M-slug`).
 
-6. **Reset per-story counters:** Set `retry_count = 0`, `cycle_count = 0`, and `verify_dev_cycles = 0` for the new story. (Note: if the story has persisted retry state in `ralph/.story_retries` that is below `max_retries`, read that count and set `retry_count` accordingly — this applies only to `verifying` stories entering Step 3d.)
+6. **Reset per-story counter:** Set `attempts = 0` for the new story. (Note: if the story has persisted retry state in `ralph/.story_retries` that is below `max_attempts`, read that count and set `attempts` accordingly — this ensures retry budgets persist across sessions.)
 
 7. Print the plan:
    ```
@@ -120,7 +116,7 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 After the Agent completes:
 1. Re-read `sprint-status.yaml`
 2. Verify the story status changed from `backlog` to `ready-for-dev`
-3. If status didn't change, increment retry_count and retry this step (up to max_retries)
+3. If status didn't change, increment attempts and retry this step (up to max_attempts)
 4. Print: `[OK] Story {story_key}: backlog → ready-for-dev`
 
 ### 3b: If status is `ready-for-dev` or `in-progress` — Run Dev Story
@@ -154,8 +150,8 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 After the Agent completes:
 1. Re-read `sprint-status.yaml`
 2. Verify the story status changed to `review`
-3. If status is still `in-progress` or `ready-for-dev`, this may indicate failure — increment retry_count
-4. If retry_count >= max_retries, go to Step 6 (failure handling)
+3. If status is still `in-progress` or `ready-for-dev`, this may indicate failure — increment attempts
+4. If attempts >= max_attempts, go to Step 6 (failure handling)
 5. If status didn't reach `review`, retry this step
 6. Print: `[OK] Story {story_key}: → review`
 
@@ -181,8 +177,8 @@ After the Agent completes:
 1. Re-read `sprint-status.yaml`
 2. Check the story status:
    - If `verifying` → Code review passed and coverage verified. Print `[OK] Story {story_key}: review → verifying`. Go to Step 3d.
-   - If `in-progress` → Code review found issues and sent story back for fixes. Increment cycle_count. If cycle_count >= max_cycles, go to Step 6 (failure — stuck in dev↔review loop). Print `[WARN] Story {story_key}: review → in-progress (issues found, re-developing, cycle {cycle_count}/{max_cycles})`. Go to Step 3b to re-run dev-story.
-   - If still `review` → Code review may have failed silently. Increment retry_count. If retry_count >= max_retries, go to Step 6. Otherwise retry this step.
+   - If `in-progress` → Code review found issues and sent story back for fixes. Increment `attempts`. If `attempts >= max_attempts`, go to Step 6 (failure). Print `[WARN] Story {story_key}: review → in-progress (issues found, re-developing, attempt {attempts}/{max_attempts})`. Go to Step 3b to re-run dev-story.
+   - If still `review` → Code review may have failed silently. Increment attempts. If attempts >= max_attempts, go to Step 6. Otherwise retry this step.
 
 ### 3d: If status is `verifying` — Run Black-Box Acceptance Verification
 
@@ -194,7 +190,7 @@ Record `verify_start_time = current timestamp` at the start of this step. At any
 
 **Pre-verification: Read retry state from `ralph/.story_retries`.**
 
-Read the file `ralph/.story_retries`. If the file contains a line matching `{story_key}={N}`, set `retry_count = N`. If no matching line exists, set `retry_count = 0`. This ensures retry budgets persist across sessions.
+Read the file `ralph/.story_retries`. If the file contains a line matching `{story_key}={N}`, set `attempts = N`. If no matching line exists, set `attempts = 0`. This ensures retry budgets persist across sessions.
 
 **Pre-verification: Check observability infrastructure.**
 
@@ -341,7 +337,7 @@ A proof document exists and `codeharness verify` reported `pending > 0`. This me
    {repeat for each failing AC}
    ```
 
-3. **Increment `verify_dev_cycles`.** If `verify_dev_cycles >= max_verify_dev_cycles` (10):
+3. **Increment `attempts`.** If `attempts >= max_attempts` (10):
    - Increment `stories_skipped`
    - Append `{story_key}: verify↔dev cycle limit (10)` to `skipped_reasons`
    - Print: `[WARN] Story {story_key}: verify↔dev cycle limit reached — skipping`
@@ -352,7 +348,7 @@ A proof document exists and `codeharness verify` reported `pending > 0`. This me
 
 5. **Reset retry count.** Update `ralph/.story_retries`: write/replace the line `{story_key}=0` in the file (read existing file first to preserve other entries). This resets the infra retry budget since the story is going back to dev.
 
-6. Print: `[WARN] Story {story_key}: verification found {N} failing ACs — returning to dev (cycle {verify_dev_cycles}/{max_verify_dev_cycles})`
+6. Print: `[WARN] Story {story_key}: verification found {N} failing ACs — returning to dev (attempt {attempts}/{max_attempts})`
 
 7. Run cleanup (step 3d-viii).
 
@@ -362,16 +358,16 @@ A proof document exists and `codeharness verify` reported `pending > 0`. This me
 
 The verification could not complete due to infrastructure issues — NOT code quality. Only infrastructure failures count against the retry budget.
 
-1. Increment `retry_count`.
-2. Update `ralph/.story_retries`: write/replace the line `{story_key}={retry_count}` in the file. Read the existing file first to preserve other story entries.
-3. If `retry_count >= max_retries` (3):
+1. Increment `attempts`.
+2. Update `ralph/.story_retries`: write/replace the line `{story_key}={attempts}` in the file. Read the existing file first to preserve other story entries.
+3. If `attempts >= max_attempts` (3):
    - Increment `stories_skipped`
-   - Append `{story_key}: infra-retry-exhausted ({retry_count}/{max_retries})` to `skipped_reasons`
-   - Print: `[WARN] Story {story_key}: infrastructure retry budget exhausted ({retry_count}/{max_retries}) — skipping`
+   - Append `{story_key}: infra-retry-exhausted ({attempts}/{max_attempts})` to `skipped_reasons`
+   - Print: `[WARN] Story {story_key}: infrastructure retry budget exhausted ({attempts}/{max_attempts}) — skipping`
    - Run cleanup (step 3d-viii)
    - Go to Step 2 (next story). Do NOT halt the sprint.
-4. If `retry_count < max_retries`:
-   - Print: `[WARN] Verification attempt {retry_count}/{max_retries} failed for {story_key} (infra issue) — retrying`
+4. If `attempts < max_attempts`:
+   - Print: `[WARN] Verification attempt {attempts}/{max_attempts} failed for {story_key} (infra issue) — retrying`
    - Run `codeharness verify-env prepare --story {story_key}` to recreate the clean workspace (the container and image may be reused)
    - Retry from step 3d-iv
 
@@ -422,7 +418,7 @@ A story just completed successfully.
 3. Determine the story's parent epic (epic number N from the story key)
 4. Check if all stories in epic N are `done` (every `N-M-slug` has status `done`):
    - If yes → go to Step 5 (epic completion). After Step 5, return to Step 2 for the next cross-epic scan.
-   - If no → go directly to Step 2 for the next cross-epic scan (retry_count and cycle_count will be reset there for the new story)
+   - If no → go directly to Step 2 for the next cross-epic scan (attempts will be reset there for the new story)
 
 ## Step 5: Epic Completion
 
@@ -463,15 +459,15 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 
 ## Step 6: Failure Handling
 
-A story has exceeded max_retries (3 stagnation retries) or max_cycles (5 dev↔review round-trips).
+A story has exceeded max_attempts (10).
 
 1. Increment `stories_failed`
 2. Increment `stories_skipped`
 3. Append `{story_key}: failed ({reason})` to `skipped_reasons` where reason is `retry-exhausted` or `max-cycles-exceeded`
-4. Update `ralph/.story_retries`: write/replace the line `{story_key}={retry_count}` in the file (read existing file first to preserve other entries). This persists the retry state so future sessions skip this story immediately via the retry-exhausted check in Step 2.
+4. Update `ralph/.story_retries`: write/replace the line `{story_key}={attempts}` in the file (read existing file first to preserve other entries). This persists the retry state so future sessions skip this story immediately via the retry-exhausted check in Step 2.
 5. Print:
    ```
-   [FAIL] Story {story_key}: exceeded {max_retries} retries or {max_cycles} dev↔review cycles
+   [FAIL] Story {story_key}: exceeded {max_attempts} attempts
    [FAIL] Last status: {current_status}
    [INFO] Skipping story — continuing to next actionable story
    ```

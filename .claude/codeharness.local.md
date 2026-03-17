@@ -50,8 +50,12 @@ verification_log:
     2026-03-17T08:16:36.378Z"
   - "2-1-dependency-auto-install-otlp-instrumentation: pass at
     2026-03-17T08:39:40.233Z"
+  - "3-2-bmad-installation-workflow-patching: pass at 2026-03-17T08:41:15.013Z"
+  - "3-2-bmad-installation-workflow-patching: pass at 2026-03-17T08:41:17.349Z"
 verify_env_dist_hash: f0a1114860c10cb1ed4dc3d918d4789fe9b6ac54dd947b9c073309f296d6e646
 ---
+
+
 
 
 

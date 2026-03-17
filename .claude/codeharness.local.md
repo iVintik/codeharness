@@ -44,8 +44,14 @@ verification_log:
   - "0-1-sprint-execution-skill: pass at 2026-03-16T19:13:59.947Z"
   - "1-2-core-libraries-state-stack-detection-templates: pass at
     2026-03-16T20:32:19.931Z"
+  - "2-1-dependency-auto-install-otlp-instrumentation: pass at
+    2026-03-17T08:15:27.528Z"
+  - "2-1-dependency-auto-install-otlp-instrumentation: pass at
+    2026-03-17T08:16:36.378Z"
 verify_env_dist_hash: d71781389daba9e448edca75b66e6b80ba009fd922ec33504902d4232c2e5b56
 ---
+
+
 
 
 

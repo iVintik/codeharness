@@ -63,7 +63,7 @@ vi.mock('../../lib/deps.js', () => ({
       displayName: 'beads',
       installCommands: [{ cmd: 'pip', args: ['install', 'beads'] }],
       checkCommand: { cmd: 'bd', args: ['--version'] },
-      critical: true,
+      critical: false,
     },
   ],
   CriticalDependencyError: class CriticalDependencyError extends Error {
@@ -772,6 +772,8 @@ describe('init command — dependency install', () => {
     const parsed = JSON.parse(jsonLine!);
     expect(parsed.status).toBe('fail');
     expect(parsed.error).toContain('beads');
+    // When init aborts before reaching documentation scaffold, readme should be 'skipped'
+    expect(parsed.documentation.readme).toBe('skipped');
   });
 
   it('continues init when non-critical dependency fails', async () => {
@@ -1018,7 +1020,7 @@ describe('init command — beads initialization', () => {
     expect(stdout).toContain('[INFO] Beads: .beads/ already exists');
   });
 
-  it('halts init when bd init fails (beads is critical)', async () => {
+  it('continues init when bd init fails (beads is optional)', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsBeadsInitialized.mockReturnValue(false);
     mockInitBeads.mockImplementation(() => {
@@ -1026,8 +1028,12 @@ describe('init command — beads initialization', () => {
     });
 
     const { stdout, exitCode } = await runCli(['init']);
-    expect(exitCode).toBe(1);
-    expect(stdout).toContain('[FAIL] Beads init failed');
+    // Beads failure is non-fatal — init continues
+    expect(exitCode).toBeUndefined();
+    expect(stdout).toContain('[WARN] Beads init failed');
+    expect(stdout).toContain('Beads is optional');
+    // Should still create documentation
+    expect(stdout).toContain('[OK]');
   });
 
   it('JSON output includes beads initialization result', async () => {
@@ -1052,7 +1058,7 @@ describe('init command — beads initialization', () => {
     expect(parsed.beads.status).toBe('already-initialized');
   });
 
-  it('JSON output shows failed when bd init fails', async () => {
+  it('JSON output shows beads failed but init succeeds when bd init fails', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsBeadsInitialized.mockReturnValue(false);
     mockInitBeads.mockImplementation(() => {
@@ -1060,12 +1066,13 @@ describe('init command — beads initialization', () => {
     });
 
     const { stdout, exitCode } = await runCli(['--json', 'init']);
-    expect(exitCode).toBe(1);
+    // Beads failure is non-fatal — init continues successfully
+    expect(exitCode).toBeUndefined();
     const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
     const parsed = JSON.parse(jsonLine!);
     expect(parsed.beads.status).toBe('failed');
     expect(parsed.beads.error).toContain('Beads failed');
-    expect(parsed.status).toBe('fail');
+    expect(parsed.status).toBe('ok');
   });
 
   it('detects beads hooks and logs coexistence message', async () => {

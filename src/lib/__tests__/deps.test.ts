@@ -172,12 +172,13 @@ describe('installAllDependencies', () => {
     expect(results.every(r => r.status === 'already-installed')).toBe(true);
   });
 
-  it('throws CriticalDependencyError when critical dep (beads) fails', () => {
+  it('does not throw when all deps fail (none are critical)', () => {
     mockExecFileSync.mockImplementation(() => {
       throw new Error('command failed');
     });
 
-    expect(() => installAllDependencies({})).toThrow(CriticalDependencyError);
+    const results = installAllDependencies({});
+    expect(results.every(r => r.status === 'failed')).toBe(true);
   });
 
   it('continues when non-critical dep fails', () => {
@@ -287,9 +288,9 @@ describe('DEPENDENCY_REGISTRY', () => {
     expect(names).toContain('beads');
   });
 
-  it('beads is marked as critical', () => {
+  it('beads is not critical', () => {
     const beads = DEPENDENCY_REGISTRY.find(d => d.name === 'beads');
-    expect(beads?.critical).toBe(true);
+    expect(beads?.critical).toBe(false);
   });
 
   it('showboat and agent-browser are not critical', () => {

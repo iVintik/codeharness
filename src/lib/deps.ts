@@ -50,7 +50,7 @@ export const DEPENDENCY_REGISTRY: readonly DependencySpec[] = [
       { cmd: 'pipx', args: ['install', 'beads'] },
     ],
     checkCommand: { cmd: 'bd', args: ['--version'] },
-    critical: true,
+    critical: false,
   },
 ];
 

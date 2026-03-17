@@ -344,9 +344,12 @@ export function checkVerifyEnv(): CheckResult {
     return result;
   }
 
-  // 2. Check CLI works inside container
+  // 2. Check CLI works inside the container
+  //    Uses `docker run --rm` to spin up a fresh container from the image and run
+  //    `codeharness --help`. This verifies the installed binary actually works.
+  //    Exit code 0 = pass, non-zero = build/packaging bug.
   try {
-    execFileSync('docker', ['run', '--rm', IMAGE_TAG, 'codeharness', '--version'], {
+    execFileSync('docker', ['run', '--rm', IMAGE_TAG, 'codeharness', '--help'], {
       stdio: 'pipe',
       timeout: 30_000,
     });

@@ -402,18 +402,22 @@ describe('checkVerifyEnv', () => {
   });
 
   it('returns imageExists=true, cliWorks=true, otelReachable=false when otel fails', () => {
+    let runCallCount = 0;
     mockExecFileSync.mockImplementation((_cmd: unknown, args: unknown) => {
       const argArr = args as string[];
       // image inspect succeeds
       if (argArr.includes('inspect') && argArr.includes('codeharness-verify')) {
         return Buffer.from('[{"Id":"abc"}]');
       }
-      // codeharness --version succeeds
-      if (argArr.includes('--version')) {
-        return Buffer.from('0.13.2');
+      // docker run --rm codeharness-verify codeharness --help succeeds (first run call)
+      if (argArr.includes('run') && argArr.includes('--help')) {
+        runCallCount++;
+        if (runCallCount === 1) {
+          return Buffer.from('Usage: codeharness');
+        }
       }
-      // curl to otel fails
-      if (argArr.includes('curl')) {
+      // curl to otel fails (second docker run call)
+      if (argArr.includes('run') && argArr.includes('curl')) {
         throw new Error('curl failed');
       }
       return Buffer.from('');
@@ -432,6 +436,26 @@ describe('checkVerifyEnv', () => {
     expect(result.imageExists).toBe(true);
     expect(result.cliWorks).toBe(true);
     expect(result.otelReachable).toBe(true);
+  });
+
+  it('returns cliWorks=false when docker run fails (broken CLI inside container)', () => {
+    mockExecFileSync.mockImplementation((_cmd: unknown, args: unknown) => {
+      const argArr = args as string[];
+      // image inspect succeeds
+      if (argArr.includes('inspect') && argArr.includes('codeharness-verify')) {
+        return Buffer.from('[{"Id":"abc"}]');
+      }
+      // docker run --rm fails — CLI broken or missing inside image
+      if (argArr.includes('run') && argArr.includes('--help')) {
+        throw new Error('command not found');
+      }
+      // otel check — won't reach this since cliWorks failure doesn't short-circuit
+      return Buffer.from('ok');
+    });
+
+    const result = checkVerifyEnv();
+    expect(result.imageExists).toBe(true);
+    expect(result.cliWorks).toBe(false);
   });
 });
 

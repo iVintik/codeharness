@@ -113,6 +113,50 @@ So that the verifier can install and use the project from docs alone.
 - [Source: _bmad-output/planning-artifacts/prd.md, FR85]
 - [Source: _bmad-output/planning-artifacts/prd.md, Known Gap #7 (README flagged but never generated)]
 
+## Verification Findings
+
+_Last updated: 2026-03-17T11:12:00Z_
+
+The following ACs failed black-box verification:
+
+### AC 2: Init scaffolds README.md with required sections
+**Verdict:** FAIL
+**Error output:**
+```
+codeharness init aborts because `beads` (a pip package) is marked as a "critical dependency"
+and Python/pip is not installed in the Docker container. The README scaffold step is never reached.
+
+Two bugs:
+1. `beads` being "critical" prevents init from completing in environments without Python —
+   README generation should not depend on beads availability. Init should continue past
+   optional dependency failures and still scaffold documentation files.
+2. JSON output reports `readme: "created"` even when init aborted before creating the file —
+   the JSON result is inconsistent with actual filesystem state.
+```
+
+### AC 3: Generated README includes Quick Start section
+**Verdict:** FAIL
+**Error output:**
+```
+Cannot verify — init never completes (see AC 2). README.md is never generated.
+Fix AC 2 and this will be re-verifiable.
+```
+
+### AC 5: verify-env check fails when CLI broken inside container
+**Verdict:** FAIL
+**Error output:**
+```
+After removing the codeharness binary from the container:
+  docker exec codeharness-verify bash -c "codeharness --version" → "command not found"
+
+But verify-env check still reports:
+  [INFO] CLI works in container: yes
+
+The cliWorks check in verify-env is not actually live-testing the CLI inside the container.
+It appears to use a cached or hardcoded result. It must run `docker exec codeharness-verify
+codeharness --help` and check the exit code to properly detect broken installations.
+```
+
 <!-- CODEHARNESS-PATCH-START:story-verification -->
 ## Verification Requirements
 

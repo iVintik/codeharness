@@ -43,9 +43,9 @@ interface InitResult {
     api: boolean;
   };
   documentation: {
-    agents_md: 'created' | 'exists';
-    docs_scaffold: 'created' | 'exists';
-    readme: 'created' | 'exists';
+    agents_md: 'created' | 'exists' | 'skipped';
+    docs_scaffold: 'created' | 'exists' | 'skipped';
+    readme: 'created' | 'exists' | 'skipped';
   };
   dependencies?: DependencyResult[];
   beads?: {
@@ -201,9 +201,9 @@ export function registerInitCommand(program: Command): void {
           api: options.api,
         },
         documentation: {
-          agents_md: 'created',
-          docs_scaffold: 'created',
-          readme: 'created',
+          agents_md: 'skipped',
+          docs_scaffold: 'skipped',
+          readme: 'skipped',
         },
       };
 
@@ -399,18 +399,15 @@ export function registerInitCommand(program: Command): void {
         }
       } catch (err) {
         if (err instanceof BeadsError) {
-          result.status = 'fail';
           result.beads = { status: 'failed', hooks_detected: false, error: err.message };
-          result.error = err.message;
-          if (isJson) {
-            jsonOutput(result as unknown as Record<string, unknown>);
-          } else {
-            fail(`Beads init failed: ${err.message}`);
+          if (!isJson) {
+            warn(`Beads init failed: ${err.message}`);
+            info('Beads is optional — continuing without it');
           }
-          process.exitCode = 1;
-          return;
+          // Beads is optional — do NOT abort init. Continue to scaffold docs, BMAD, etc.
+        } else {
+          throw err;
         }
-        throw err;
       }
 
       // --- BMAD installation and patching ---

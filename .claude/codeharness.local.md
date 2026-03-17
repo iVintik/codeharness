@@ -12,9 +12,9 @@ coverage:
   current: 95.3
 session_flags:
   logs_queried: false
-  tests_passed: true
-  coverage_met: true
-  verification_run: true
+  tests_passed: false
+  coverage_met: false
+  verification_run: false
 verification_log:
   - "0-1-sprint-execution-skill: pass at 2026-03-15T15:01:09.093Z"
   - "11-1-fix-retro-status-lifecycle: pass at 2026-03-15T17:49:50.752Z"
@@ -57,6 +57,7 @@ verification_log:
   - "13-2-documentation-gate-for-verification: pass at 2026-03-17T11:26:26.959Z"
 verify_env_dist_hash: c2bacaf655bfb8e3ce66e7f97ad1feaf67e08ceb700d8e3bf216d2ad341757a8
 ---
+
 
 
 

@@ -174,7 +174,7 @@ describe('installBmad', () => {
       installBmad(testDir);
     } catch (err) {
       const bmadErr = err as BmadError;
-      expect(bmadErr.command).toBe('npx bmad-method install');
+      expect(bmadErr.command).toBe('npx bmad-method install --yes --tools claude-code');
       expect(bmadErr.originalMessage).toBe('npx not found');
     }
   });

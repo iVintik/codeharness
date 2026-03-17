@@ -76,6 +76,11 @@ Imports GitHub issues labeled for sprint planning into beads. Queries GitHub via
 - **Key deps:** `lib/github` (isGhAvailable, ghIssueSearch, getRepoFromRemote), `lib/beads` (createOrFindIssue, buildGapId), `lib/output`
 - **Subcommands:** none; supports `--repo <owner/repo>`, `--label <label>`, `--json`
 
+### retry.ts
+Manages retry state for stories. Shows retry counts and flagged-story status, resets counters per-story or globally. Validates story keys against path traversal.
+- **Key deps:** `lib/retry-state` (readRetries, readFlaggedStories, resetRetry), `lib/output`
+- **Subcommands:** none; supports `--reset`, `--story <key>`, `--status`, `--json`
+
 ### query.ts
 Queries observability data (logs, metrics, traces) scoped to the current project. Automatically injects service_name filtering into LogsQL and PromQL queries. Resolves endpoints from state (local or remote).
 - **Key deps:** `lib/state` (service name, endpoint resolution)

@@ -80,10 +80,16 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | epic-generator.ts | Generates onboarding epic from scan findings, imports to beads | `generateOnboardingEpic`, `writeOnboardingEpic`, `formatEpicSummary`, `promptApproval`, `importOnboardingEpic` |
 | onboard-checks.ts | Precondition checks and gap filtering for onboarding | `runPreconditions`, `findVerificationGaps`, `findPerFileCoverageGaps`, `findObservabilityGaps`, `getOnboardingProgress`, `filterTrackedGaps` |
 
+## Retry State Management
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| retry-state.ts | Persistent story retry counters and flagged-story tracking in `ralph/.story_retries` and `ralph/.flagged_stories` | `readRetries`, `writeRetries`, `getRetryCount`, `setRetryCount`, `resetRetry`, `readFlaggedStories`, `writeFlaggedStories`, `removeFlaggedStory` |
+
 ## Dependency Management
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, beads) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-**Total: 24 library files across 10 categories.**
+**Total: 25 library files across 11 categories.**

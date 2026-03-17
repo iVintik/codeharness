@@ -436,6 +436,32 @@ describe('validateProofQuality', () => {
     expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 0, total: 1 });
   });
 
+  it('does not treat [FAIL] inside inline code backticks as a verdict', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '## AC 1: Expected failure output',
+      '',
+      '> AC description',
+      '',
+      '```bash',
+      'docker exec test codeharness status --check-docker',
+      '```',
+      '',
+      '```output',
+      '[FAIL] VictoriaMetrics stack: not running',
+      '```',
+      '',
+      'The command correctly reports `[FAIL] VictoriaMetrics stack: not running`.',
+      '',
+      '**Verdict:** PASS',
+      '',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    // [FAIL] in inline code (`...`) should NOT be treated as a verdict
+    expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 0, total: 1 });
+  });
+
   it('counts [ESCALATE] sections as escalated (not pending)', () => {
     const path = join(testDir, 'proof.md');
     writeFileSync(path, [

@@ -40,7 +40,7 @@ export interface ProofQuality {
 
 // ─── Evidence Command Classification ─────────────────────────────────────────
 
-export type EvidenceCommandType = 'docker-exec' | 'observability' | 'grep-src' | 'other';
+export type EvidenceCommandType = 'docker-exec' | 'docker-host' | 'observability' | 'grep-src' | 'other';
 
 export interface ClassifiedCommand {
   command: string;
@@ -80,6 +80,12 @@ function classifyCommand(cmd: string): EvidenceCommandType {
   // docker exec commands
   if (/docker\s+exec\b/.test(cmd)) {
     return 'docker-exec';
+  }
+
+  // Docker host commands (docker ps, docker logs, docker inspect, etc.)
+  // These are legitimate black-box evidence — querying container state from the host
+  if (/docker\s+(ps|logs|inspect|stats|top|port)\b/.test(cmd)) {
+    return 'docker-host';
   }
 
   // Observability queries (curl to known endpoints)
@@ -137,10 +143,13 @@ export function checkBlackBoxEnforcement(proofContent: string): {
       // Skip escalated ACs
       if (section.includes('[ESCALATE]')) continue;
 
-      // Check if this section has docker exec commands
+      // Check if this section has black-box evidence commands
+      // (docker exec, docker host commands, or observability queries)
       const sectionCommands = classifyEvidenceCommands(section);
-      const hasDockerExec = sectionCommands.some(c => c.type === 'docker-exec');
-      if (!hasDockerExec) {
+      const hasBlackBoxEvidence = sectionCommands.some(c =>
+        c.type === 'docker-exec' || c.type === 'docker-host' || c.type === 'observability'
+      );
+      if (!hasBlackBoxEvidence) {
         acsMissingDockerExec.push(acNum);
       }
     }
@@ -170,9 +179,11 @@ export function checkBlackBoxEnforcement(proofContent: string): {
  * Returns true only if [FAIL] appears in prose/headers, not inside ```output blocks.
  */
 function hasFailVerdict(section: string): boolean {
-  // Strip code blocks (```...```) to avoid matching [FAIL] in command output
+  // Strip fenced code blocks (```...```) and inline code (`...`) to avoid
+  // matching [FAIL] in command output or inline code references
   const withoutCodeBlocks = section.replace(/```[\s\S]*?```/g, '');
-  return withoutCodeBlocks.includes('[FAIL]');
+  const withoutInlineCode = withoutCodeBlocks.replace(/`[^`]+`/g, '');
+  return withoutInlineCode.includes('[FAIL]');
 }
 
 export interface VerifyResult {

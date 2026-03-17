@@ -37,6 +37,15 @@ Use `plugin-ops` skills for releases, audits, diagnostics — not manual git tag
 
 After `/plugin-ops:release` bumps `plugin.json`, you MUST also update `package.json` version to match BEFORE creating the GitHub Release. The CI pipeline's `Verify version sync` step will fail if they differ. Do this in the same commit or immediately after.
 
+### Post-release: update instructions for the user
+
+After a successful release, always tell the user to run BOTH:
+```
+claude plugin update codeharness@ivintik
+npm install -g codeharness@latest
+```
+The plugin update gets the new skills/hooks/commands. The npm update gets the new CLI binary. Both are needed.
+
 ## BMAD-METHOD Integration
 
 Use `/bmad-help` to discover all commands. Use `/harness-status` for a quick overview. See `_bmad/COMMANDS.md` for a full command reference.

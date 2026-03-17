@@ -5,10 +5,8 @@
 #
 # Usage: ralph/ralph.sh --plugin-dir ./codeharness [OPTIONS]
 
-set -e
-
-# DEBUG: catch unexpected exits from set -e
-trap 'echo "[$(date "+%Y-%m-%d %H:%M:%S")] [FATAL] ralph.sh died at line $LINENO (exit code: $?)" >> "${LOG_DIR:-ralph/logs}/ralph_crash.log" 2>/dev/null' ERR
+# NOTE: set -e intentionally NOT used — it causes silent crashes in the main
+# loop when grep/jq/sed return non-zero. The loop handles errors via exit codes.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/date_utils.sh"
@@ -624,11 +622,8 @@ execute_iteration() {
             sleep 10
         done
 
-        # Protect wait from set -e — capture exit code without crashing
-        set +e
         wait $claude_pid
         exit_code=$?
-        set -e
         log_status "DEBUG" "Claude exited with code: $exit_code, output size: $(wc -c < "$output_file" 2>/dev/null || echo 0) bytes"
 
         # If output is empty and exit code is non-zero, log diagnostic info

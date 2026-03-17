@@ -1197,3 +1197,184 @@ None — verification failed; no workarounds were applied. The bugs need code fi
 3. Fix B23 (verify-env actually verifies) — correctness issue
 4. Re-verify 13-2
 5. Continue verification backlog (13-3, 13-4, then other verifying stories)
+
+---
+
+# Session Retrospective — 2026-03-17 (Session 4, ~15:03–15:39 UTC)
+
+**Appended:** 2026-03-17T15:45Z
+**Sprint Scope:** Epic 13 (verification), Epic 3 (verification), verification pipeline fixes, releases
+**Ralph Sessions:** 1 (2 iterations, ~35m elapsed, user cancelled during iteration 2)
+**Stories Attempted:** 3 (13-2, 3-2, 13-3)
+**Stories Completed:** 2 (13-2, 3-2)
+**Stories Still Stuck:** 1 (13-3 — retry 1/3, session interrupted before completion)
+**Git Commits This Session:** 11 (ae8d386 through 57b03fb)
+**Releases:** v0.17.1, v0.17.2, v0.17.3
+
+---
+
+## 1. Session Summary
+
+This was the most productive session of the day. It combined **dev work** (fixing bugs found in Session 3), **verification**, **multiple releases**, and **tooling fixes**. Two stories reached done, and three patch releases shipped.
+
+| Story | Title | Outcome | Notes |
+|-------|-------|---------|-------|
+| 3-2 | BMAD Installation & Workflow Patching | **done** | Fixed bmad-method install command. Verified. Proof accepted. |
+| 13-2 | Documentation Gate for Verification | **done** | Fixed beads blocking init (B21), verify-env CLI check (B23). Verified. |
+| 13-3 | Black-Box Verifier Agent | **still verifying** | Retry 1/3. `claude --print` verifier timed out after 10 minutes. Session interrupted before retry 2. |
+
+**Session timeline:**
+- 15:03 — Ralph session start
+- 15:29 — Iteration 1 complete: 13-2 done, 3-2 done, 13-3 retry 1
+- 15:39 — Session interrupted by user during iteration 2
+
+**Between-session work (12:20–15:03, manual + ralph):**
+- Ralph iteration at 12:20 attempted 13-2 but it was still in `verifying` with unfixed bugs. Timed out at 13:17 (exit code 124, 0 bytes output).
+- User/dev fixed B21 (beads graceful degradation), B23 (verify-env), verify parser bug, and hooks.json schema issue.
+- Three releases shipped: v0.17.1 (verify parser fix), v0.17.2 (version sync), v0.17.3 (hooks fix + version sync).
+
+**Net progress:** 12/65 -> 14/65 stories done.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Fixed This Session
+
+| ID | From Session | Fix Commit | Description |
+|----|-------------|------------|-------------|
+| B21 | Session 3 | e96563e | `codeharness init` no longer aborts on beads install failure. Beads treated as optional dependency. |
+| B23 | Session 3 | e96563e | `verify-env check` now performs actual CLI verification. |
+| T6 | Session 2 | bc5a1a7 | Verify parser now detects FAIL verdicts and narrows integration keywords to avoid false positives. |
+| - | New | 596fb9e | `hooks.json` wrapped in `{ hooks: {} }` per Claude Code schema requirement. |
+| - | New | 5910c64 | Hooks moved out of `.claude-plugin/` to repo root `hooks/` for correct resolution. |
+
+### 2.2 Bugs NOT Fixed This Session
+
+| ID | From Session | Status | Description |
+|----|-------------|--------|-------------|
+| B22 | Session 3 | Open | Init JSON output still reports `readme: "created"` even when file was not written. Not blocking verification but still a trust issue. |
+
+### 2.3 Verification Gaps
+
+| # | Gap | Impact |
+|---|-----|--------|
+| V10 | **13-3 (Black-Box Verifier Agent) still cannot pass.** `claude --print` verifier timed out after 10 minutes on retry 1. This is the same meta-verification problem from Session 1 — verifying the verifier requires nested Claude sessions inside Docker, which exceeds the timeout budget. | High — structural problem, not a flaky test. |
+| V11 | **13-4 (Verification Environment Sprint Workflow) not attempted.** Still at `verifying`. Blocked behind 13-3 in the queue. | Medium — may have similar meta-verification challenges. |
+
+### 2.4 Tooling/Infrastructure Problems
+
+| # | Problem | Impact |
+|---|---------|--------|
+| T10 | **Ralph iteration produced 0 bytes output and exit code 124 (timeout).** The 12:47 iteration ran for 30 minutes and produced nothing. Claude binary was confirmed responsive afterward. Root cause unknown — possibly the session got stuck waiting for docker exec permissions or an unresponsive subprocess. | Medium — wasted 30 minutes of compute. One-off, not recurring. |
+| T11 | **Hooks location confusion.** hooks.json was inside `.claude-plugin/` but Claude Code expects hooks at repo root. Required a fix (5910c64) and a release (v0.17.3). | Low — fixed. But indicates the plugin packaging documentation is incomplete. |
+| T12 | **Three patch releases in one session.** v0.17.1 (verify parser), v0.17.2 (version sync missed), v0.17.3 (hooks location + version sync). Each release exposed a new issue that required the next release. | Low — churn, but each fix was legitimate. The version sync step was missed twice, suggesting the release process needs a checklist or automation. |
+
+### 2.5 Process Concerns
+
+| # | Concern | Notes |
+|---|---------|-------|
+| P6 | **Release churn.** Three releases in quick succession suggests the release process is being used for incremental hotfixes rather than batched fixes. Each release has CI overhead (test, publish, marketplace). | Consider batching fixes and releasing once per session instead of per-fix. |
+| P7 | **B22 (JSON output integrity) was deprioritized.** It was identified in Session 3 as HIGH severity but not fixed in Session 4. The story (13-2) was still marked done without this fix. | Acceptable if the AC does not require JSON integrity, but this is tech debt. |
+
+---
+
+## 3. What Went Well
+
+1. **Two stories completed.** After three sessions of zero net completions, this session moved the needle. 13-2 and 3-2 both reached done with legitimate black-box verification proofs.
+
+2. **Bug-fix-then-verify loop worked.** Session 3 found bugs. Between sessions, the bugs were fixed. Session 4's ralph run verified the fixes. This is the correct dev-verify feedback loop that was missing earlier.
+
+3. **Verify parser fix (bc5a1a7) eliminated false positives.** The parser was previously marking failing stories as done because it could not detect FAIL verdicts. This was the CRITICAL tooling bug from Session 2. Now fixed and released.
+
+4. **Hooks infrastructure corrected.** Two issues (schema format, file location) were found and fixed, preventing future plugin installation failures.
+
+5. **Ralph correctly identified 13-3 as stuck** and moved to 13-2/3-2 first. The non-sequential story selection (from Epic 15 improvements) is working — ralph is no longer blocked by a single stuck story.
+
+---
+
+## 4. What Went Wrong
+
+1. **30-minute timeout with zero output.** The 12:47 ralph iteration (exit code 124) produced nothing. This is the worst failure mode — time burned with no diagnostics. No error log, no partial output, nothing to debug.
+
+2. **13-3 remains fundamentally stuck.** This is the 5th+ attempt across sessions. The story requires verifying the verifier itself, which demands nested `claude --print` sessions inside Docker. The 10-minute verifier timeout is structurally insufficient for this use case. Continuing to retry will waste more compute.
+
+3. **Three releases to fix one session's worth of bugs.** The release-per-fix pattern created churn. v0.17.1 fixed the parser, v0.17.2 was a version sync miss, v0.17.3 fixed hooks that broke in v0.17.1. Each release is a ~5-minute CI cycle plus user update friction.
+
+4. **B22 not addressed.** JSON output lying about file creation state is still present. This was flagged as HIGH in Session 3 but deferred. If any downstream consumer trusts `init` JSON output, they will get incorrect results.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Fix bugs between sessions, verify in next session.** The Session 3 -> Session 4 cycle was efficient: identify bugs, fix them outside ralph, then let ralph verify. This avoids burning ralph iterations on dev work.
+- **Non-sequential story selection.** Ralph successfully skipped the stuck 13-3 to complete 13-2 and 3-2. This is the Epic 15 improvement in action.
+- **Verify parser must detect negative results.** The bc5a1a7 fix is a safety-critical change. A parser that only detects PASS will silently approve failures.
+
+### Patterns to Avoid
+
+- **Releasing per-fix instead of per-batch.** Batch all fixes, verify they work together, release once. Three releases in 30 minutes is excessive.
+- **Retrying structurally impossible stories.** 13-3 has failed 5+ times with the same root cause (nested claude sessions timeout). Stop retrying and either redesign the verification approach or escalate the ACs.
+- **Forgetting version sync on release.** The package.json/plugin.json sync was missed twice (v0.17.2 and v0.17.3 commits exist solely to fix this). Automate this step.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| ID | Action | Owner | Notes |
+|----|--------|-------|-------|
+| A47 | **Stop retrying 13-3.** Flag it as needing redesigned verification criteria. The meta-verification problem (verifier verifying itself) cannot be solved within the current 10-minute timeout + nested Docker constraint. Either escalate ACs or create a manual verification pathway. | SM | 5+ failed attempts, same root cause every time. |
+| A48 | **Fix B22 (init JSON output integrity).** Init should not report `readme: "created"` unless the file actually exists on disk. | Dev | Carried forward from Session 3, still open. |
+
+### Fix Soon (Next Sprint)
+
+| ID | Action | Owner | Notes |
+|----|--------|-------|-------|
+| A49 | **Automate version sync in release process.** The `/plugin-ops:release` skill should update both `plugin.json` and `package.json` atomically. Two missed syncs in one session = process gap. | Dev | Prevents releases like v0.17.2 and v0.17.3 sync-only patches. |
+| A50 | **Add timeout diagnostics to ralph.** When a Claude iteration exits with code 124 and 0 bytes, ralph should log the last few lines of the subprocess stderr, the docker state, and any permission errors. Currently there is zero diagnostic information for timeout failures. | Dev | Would have helped debug the 12:47 ghost iteration. |
+| A51 | **Batch releases per session.** Update release SOP: accumulate fixes, run tests once, release once at session end. | SM | Reduces CI overhead and user update friction. |
+
+### Backlog (Track but Not Urgent)
+
+| ID | Action | Notes |
+|----|--------|-------|
+| A52 | Design manual verification pathway for meta-stories (stories that test the verification infrastructure itself). Not every story can be verified by the automated black-box pipeline. |
+| A53 | Investigate 0-byte timeout failures. The 12:47 iteration may have been a sandbox permission issue, a docker exec hang, or a Claude API timeout. Need more data before fixing. |
+| A54 | Audit all action items from Sessions 1-4 for staleness. There are now 54 action items across 4 retro addendums. Many may be duplicates or already fixed. Consolidate. |
+
+---
+
+## Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories done (start of session) | 12/65 |
+| Stories done (end of session) | 14/65 |
+| Net stories completed | 2 |
+| Bugs fixed this session | 4 (B21, B23, T6, hooks) |
+| Bugs still open | 1 (B22) |
+| Releases shipped | 3 (v0.17.1, v0.17.2, v0.17.3) |
+| Ralph iterations | 2 (1 productive, 1 interrupted) |
+| Wasted iterations (timeout/0-output) | 1 (12:47 iteration, 30 min lost) |
+| Session wall time | ~36m (15:03-15:39) |
+| Total wall time including between-session work | ~3h (12:20-15:39) |
+| Time per completed story | ~18 min (within ralph session) |
+| Stories still at `verifying` | 46 |
+| Stories flagged/stuck | 1 (13-3) |
+| Cumulative action items (all sessions) | 54 |
+
+---
+
+## Verdict
+
+**Two stories completed. Four bugs fixed. Three releases shipped. One story still structurally stuck.**
+
+This was the best session of the day by throughput. The dev-fix-verify feedback loop worked correctly for the first time: Session 3 found bugs, manual dev work fixed them, Session 4's ralph verified the fixes and marked stories done.
+
+The remaining blocker is 13-3 (Black-Box Verifier Agent), which has failed 5+ times across all sessions with the same root cause: meta-verification requires nested Claude sessions that exceed the timeout budget. This story needs a redesigned verification approach, not more retries.
+
+**Sprint state:** 14/65 stories done (21.5%). 46 stories at `verifying`. Next priority: stop retrying 13-3, fix B22, then continue verification backlog clearance starting with 13-4.

@@ -49,7 +49,7 @@ development_status:
   # 13-2, 13-3, 13-4: proofs were weak/fake (source grep, not docker exec). Reset for re-verification.
   13-2-documentation-gate-for-verification: done
   13-3-black-box-verifier-agent: verifying
-  13-4-verification-environment-sprint-workflow: verifying
+  13-4-verification-environment-sprint-workflow: done
   epic-13-retrospective: optional
 
   # === Previously "done" stories reset to verifying ===

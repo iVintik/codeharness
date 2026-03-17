@@ -1,167 +1,106 @@
 /**
- * Embedded patch templates for BMAD workflow files.
- * Each function returns patch content (without markers — the patch engine adds those).
- * Patch names use kebab-case matching the marker format.
+ * BMAD workflow patch templates.
+ * Reads patch content from `patches/*.md` files at runtime.
+ * Falls back to inline defaults if files are not found (e.g., in npm package).
  *
- * Architecture Decision 6: All templates are TypeScript string literals.
+ * Architecture Decision 6: Templates as files, not hardcoded strings.
+ * This allows patches to be updated without rebuilding — learnings from
+ * verification failures, agent misbehavior, and architectural changes
+ * are captured in the patch files and applied on next init.
  */
+
+import { readFileSync, existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Patch for story template: verification, documentation, and testing requirements.
- * Target: _bmad/bmm/workflows/4-implementation/create-story/template.md
+ * Reads a patch file from the patches/ directory.
+ * Searches: project root patches/, then package patches/ relative to this file.
  */
+function readPatchFile(name: string): string | null {
+  // Try project root first (development / plugin install)
+  const projectRoot = join(__dirname, '..', '..');
+  const projectPath = join(projectRoot, 'patches', `${name}.md`);
+  if (existsSync(projectPath)) {
+    return readFileSync(projectPath, 'utf-8').trim();
+  }
+
+  // Try relative to package (npm install)
+  const pkgPath = join(__dirname, '..', '..', 'patches', `${name}.md`);
+  if (existsSync(pkgPath)) {
+    return readFileSync(pkgPath, 'utf-8').trim();
+  }
+
+  return null;
+}
+
 export function storyVerificationPatch(): string {
-  return `## Verification Requirements
+  return readPatchFile('story-verification') ?? `## Verification Requirements
 
-- [ ] Showboat proof document created (\`docs/exec-plans/active/<story-key>.proof.md\`)
-- [ ] All acceptance criteria verified with real-world evidence
+- [ ] Showboat proof document created (verification/<story-key>-proof.md)
+- [ ] All acceptance criteria verified with real-world evidence via docker exec
 - [ ] Test coverage meets target (100%)
-
-### Verification Tags
-
-For each AC, append a verification tag to indicate how it can be verified:
-- \`<!-- verification: cli-verifiable -->\` — AC can be verified by running CLI commands in a subprocess
-- \`<!-- verification: integration-required -->\` — AC requires integration testing, multi-system interaction, or manual verification
-
-ACs referencing workflows, sprint planning, user sessions, or external system interactions should be tagged as \`integration-required\`. If no tag is present, a heuristic classifier will attempt to determine verifiability at runtime.
 
 ## Documentation Requirements
 
-- [ ] Relevant AGENTS.md files updated (list modules touched)
-- [ ] Exec-plan created in \`docs/exec-plans/active/<story-key>.md\`
+- [ ] Relevant AGENTS.md files updated
+- [ ] Exec-plan created in docs/exec-plans/active/<story-key>.md
 
 ## Testing Requirements
 
 - [ ] Unit tests written for all new/changed code
-- [ ] Integration tests for cross-module interactions
 - [ ] Coverage target: 100%`;
 }
 
-/**
- * Patch for dev-story workflow: observability, docs update, and test enforcement.
- * Target: _bmad/bmm/workflows/4-implementation/dev-story/checklist.md
- */
 export function devEnforcementPatch(): string {
-  return `## Codeharness Enforcement
+  return readPatchFile('dev-enforcement') ?? `## Codeharness Enforcement
 
 ### Observability Check
 - [ ] Query VictoriaLogs after test runs to verify telemetry flows
-- [ ] Confirm logs, metrics, and traces are being collected
 
 ### Documentation Update
 - [ ] AGENTS.md updated for all changed modules
-- [ ] Exec-plan reflects current implementation state
 
 ### Test Enforcement
-- [ ] All tests pass (\`npm test\` / \`pytest\`)
-- [ ] Coverage gate: 100% of new/changed code
-- [ ] No skipped or pending tests without justification`;
+- [ ] All tests pass
+- [ ] Coverage gate: 100% of new/changed code`;
 }
 
-/**
- * Patch for code-review workflow: Showboat proof, AGENTS.md freshness, coverage delta.
- * Target: _bmad/bmm/workflows/4-implementation/code-review/checklist.md
- */
 export function reviewEnforcementPatch(): string {
-  return `## Codeharness Review Gates
+  return readPatchFile('review-enforcement') ?? `## Codeharness Review Gates
 
 ### Verification
-- [ ] Showboat proof document exists and passes \`showboat verify\`
+- [ ] Proof document exists and passes codeharness verify
 - [ ] All acceptance criteria have evidence in proof document
 
-### Documentation Freshness
-- [ ] AGENTS.md is current for all changed modules
-- [ ] No stale references to removed or renamed modules
-
 ### Coverage
-- [ ] Coverage delta reported (before vs after)
-- [ ] No coverage regression in changed files
-- [ ] Overall coverage meets project target`;
+- [ ] No coverage regression in changed files`;
 }
 
-/**
- * Patch for retrospective workflow: verification effectiveness, doc health, test quality.
- * Target: _bmad/bmm/workflows/4-implementation/retrospective/instructions.md
- */
 export function retroEnforcementPatch(): string {
-  return `## Codeharness Quality Metrics
+  return readPatchFile('retro-enforcement') ?? `## Codeharness Quality Metrics
 
 ### Verification Effectiveness
 - [ ] How many ACs were caught by verification vs manual review?
-- [ ] Were there any false positives in Showboat proofs?
-- [ ] Time spent on verification vs value delivered
-
-### Documentation Health
-- [ ] AGENTS.md accuracy grade (A/B/C/D/F)
-- [ ] Exec-plans completeness — are all active stories documented?
-- [ ] Stale documentation identified and cleaned up
+- [ ] Were there any false positives in proofs?
 
 ### Test Quality
-- [ ] Coverage trend (improving, stable, declining)
-- [ ] Test reliability — any flaky tests introduced?
-- [ ] Integration test coverage for cross-module interactions`;
+- [ ] Coverage trend (improving, stable, declining)`;
 }
 
-/**
- * Patch for sprint-planning workflow: bd ready integration, beads issue status.
- * Target: _bmad/bmm/workflows/4-implementation/sprint-planning/checklist.md
- */
 export function sprintBeadsPatch(): string {
-  return `## Codeharness Backlog Integration
+  return readPatchFile('sprint-planning') ?? `## Codeharness Sprint Planning
 
-### Pre-Triage Import Verification
-- [ ] Confirm \`codeharness retro-import\` was run for all completed retrospectives
-- [ ] Confirm \`codeharness github-import\` was run to pull labeled GitHub issues
-- [ ] Verify all sources are reflected in beads before starting triage
-
-### Beads Issue Status
-- [ ] Run \`bd ready\` to display issues ready for development
-- [ ] Review beads issue counts by status (open, in-progress, done)
-- [ ] Verify issues from all sources are visible: retro (\`[gap:retro:...]\`), GitHub (\`[source:github:...]\`), and manual
-- [ ] Verify no blocked issues without documented reason
-
-### Sprint Readiness
-- [ ] All selected stories have corresponding beads issues
-- [ ] Dependencies between stories are reflected in beads deps
-- [ ] Capacity aligns with estimated story complexity`;
+- [ ] Review unresolved retrospective action items
+- [ ] Import from all backlog sources before triage
+- [ ] Verify story ACs are testable via CLI + Docker`;
 }
 
-/**
- * Patch for sprint-planning workflow: surface unresolved retrospective action items.
- * Target: _bmad/bmm/workflows/4-implementation/sprint-planning/instructions.md
- */
 export function sprintPlanningRetroPatch(): string {
-  return `## Retrospective Action Items Review
-
-### Unresolved Action Items from Previous Retrospectives
-
-Before starting sprint planning, review all completed retrospectives for unresolved action items:
-
-1. **Scan for retrospective files:** Look for all \`epic-N-retrospective.md\` files in \`_bmad-output/implementation-artifacts/\`
-2. **Import retro findings to beads:** For each retrospective not yet imported, run \`codeharness retro-import --epic N\` to classify findings and create beads issues with \`[gap:retro:epic-N-item-M]\` gap-ids
-3. **Import GitHub issues to beads:** Run \`codeharness github-import\` to pull labeled issues into beads with \`[source:github:owner/repo#N]\` gap-ids
-4. **Display combined backlog:** Run \`bd ready\` to present the unified backlog containing retro findings, GitHub issues, and manually created issues
-5. **Identify unresolved items:** Filter for action items that are NOT marked as completed/done
-6. **Surface during planning:** Present unresolved items to the team before selecting stories for the sprint
-
-### Source-Aware Backlog Presentation
-
-When presenting the backlog during triage, issues should be identifiable by source:
-
-- **Retro findings** have gap-ids matching \`[gap:retro:...]\` — originated from retrospective action items
-- **GitHub issues** have gap-ids matching \`[source:github:...]\` — imported from GitHub via label query
-- **Manual issues** have no gap-id prefix — created directly in beads
-
-### Integration with Sprint Planning
-
-- [ ] All \`epic-N-retrospective.md\` files scanned for action items
-- [ ] \`codeharness retro-import --epic N\` run for each unimported retrospective
-- [ ] \`codeharness github-import\` run to pull labeled GitHub issues
-- [ ] \`bd ready\` run to display combined backlog from all sources
-- [ ] Unresolved action items listed and reviewed
-- [ ] Relevant action items incorporated into sprint goals or new stories
-- [ ] Recurring issues from multiple retros flagged for systemic fixes
-- [ ] All sources (retro, GitHub, manual) triaged uniformly — no source left unreviewed`;
+  // Merged into sprint-planning patch — no longer separate
+  return sprintBeadsPatch();
 }
 
 /**

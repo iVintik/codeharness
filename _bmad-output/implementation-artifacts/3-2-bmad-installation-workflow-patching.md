@@ -259,6 +259,20 @@ None. BMAD Method is installed via `npx bmad-method init` (subprocess). Patch en
 - [Source: _bmad/bmm/workflows/4-implementation/create-story/template.md — Existing story-verification patch as reference]
 - [Source: src/templates/docker-compose.ts — Pattern for embedded template modules]
 
+## Verification Findings
+
+_Last updated: 2026-03-17T12:55Z_
+
+### Adversarial Code Review (2026-03-17)
+
+**AC 1 (previously FAIL):** RESOLVED. Code uses `npx bmad-method install` (not `init`). The prior verification finding was stale — the fix was already applied.
+
+**AC 12 (previously FAIL):** RESOLVED. The re-run path (init.ts line 260) prints `[INFO] BMAD: already installed, patches verified` correctly. The first-run path (line 433) prints `[INFO] BMAD: existing installation detected, patches applied`. Both match their respective ACs. The prior verification finding was stale.
+
+**Coverage:** bmad.ts 98.69%, patch-engine.ts 100%, bmad-patches.ts 100%, init.ts 96.53%. Overall 95.39% (target 90%). All 50 files above 80% per-file floor.
+
+**All ACs PASS.**
+
 <!-- CODEHARNESS-PATCH-START:story-verification -->
 ## Verification Requirements
 

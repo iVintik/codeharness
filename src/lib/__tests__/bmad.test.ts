@@ -33,15 +33,15 @@ afterEach(() => {
 
 describe('BmadError', () => {
   it('includes command and original message in error message', () => {
-    const err = new BmadError('npx bmad-method init', 'command not found');
-    expect(err.message).toBe('BMAD failed: command not found. Command: npx bmad-method init');
+    const err = new BmadError('npx bmad-method install', 'command not found');
+    expect(err.message).toBe('BMAD failed: command not found. Command: npx bmad-method install');
     expect(err.name).toBe('BmadError');
-    expect(err.command).toBe('npx bmad-method init');
+    expect(err.command).toBe('npx bmad-method install');
     expect(err.originalMessage).toBe('command not found');
   });
 
   it('is an instance of Error', () => {
-    const err = new BmadError('npx bmad-method init', 'failed');
+    const err = new BmadError('npx bmad-method install', 'failed');
     expect(err).toBeInstanceOf(Error);
   });
 });
@@ -130,8 +130,8 @@ describe('detectBmadVersion', () => {
 });
 
 describe('installBmad', () => {
-  it('runs npx bmad-method init when _bmad/ does not exist', () => {
-    // Simulate npx bmad-method init creating the _bmad/ directory
+  it('runs npx bmad-method install when _bmad/ does not exist', () => {
+    // Simulate npx bmad-method install creating the _bmad/ directory
     mockExecFileSync.mockImplementation(() => {
       mkdirSync(join(testDir, '_bmad'), { recursive: true });
       return Buffer.from('');
@@ -140,7 +140,7 @@ describe('installBmad', () => {
     const result = installBmad(testDir);
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'npx',
-      ['bmad-method', 'init'],
+      ['bmad-method', 'install'],
       expect.objectContaining({ cwd: testDir, stdio: 'pipe', timeout: 60_000 }),
     );
     expect(result.status).toBe('installed');
@@ -164,7 +164,7 @@ describe('installBmad', () => {
     expect(result.version).toBe('6.0.0');
   });
 
-  it('throws BmadError when npx bmad-method init fails', () => {
+  it('throws BmadError when npx bmad-method install fails', () => {
     mockExecFileSync.mockImplementation(() => {
       throw new Error('npx not found');
     });
@@ -174,7 +174,7 @@ describe('installBmad', () => {
       installBmad(testDir);
     } catch (err) {
       const bmadErr = err as BmadError;
-      expect(bmadErr.command).toBe('npx bmad-method init');
+      expect(bmadErr.command).toBe('npx bmad-method install');
       expect(bmadErr.originalMessage).toBe('npx not found');
     }
   });

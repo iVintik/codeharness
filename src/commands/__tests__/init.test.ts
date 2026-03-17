@@ -1150,7 +1150,7 @@ describe('init command — BMAD installation', () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsBmadInstalled.mockReturnValue(false);
     mockInstallBmad.mockImplementation(() => {
-      throw new BmadError('npx bmad-method init', 'npx not found');
+      throw new BmadError('npx bmad-method install', 'npx not found');
     });
 
     const { stdout, exitCode } = await runCli(['init']);
@@ -1198,7 +1198,7 @@ describe('init command — BMAD installation', () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsBmadInstalled.mockReturnValue(false);
     mockInstallBmad.mockImplementation(() => {
-      throw new BmadError('npx bmad-method init', 'timeout');
+      throw new BmadError('npx bmad-method install', 'timeout');
     });
 
     const { stdout } = await runCli(['--json', 'init']);
@@ -1292,7 +1292,7 @@ describe('init command — bmalph detection', () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsBmadInstalled.mockReturnValue(false);
     mockInstallBmad.mockImplementation(() => {
-      throw new BmadError('npx bmad-method init', 'timeout');
+      throw new BmadError('npx bmad-method install', 'timeout');
     });
     mockDetectBmalph.mockReturnValue({ detected: true, files: ['.ralph/.ralphrc'] });
 
@@ -1310,7 +1310,7 @@ describe('init command — bmalph detection', () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsBmadInstalled.mockReturnValue(false);
     mockInstallBmad.mockImplementation(() => {
-      throw new BmadError('npx bmad-method init', 'timeout');
+      throw new BmadError('npx bmad-method install', 'timeout');
     });
     mockDetectBmalph.mockReturnValue({ detected: true, files: ['.ralph/.ralphrc'] });
 

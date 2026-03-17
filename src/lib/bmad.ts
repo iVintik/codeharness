@@ -97,7 +97,7 @@ export function detectBmadVersion(dir?: string): string | null {
 }
 
 /**
- * Installs BMAD Method via `npx bmad-method init`.
+ * Installs BMAD Method via `npx bmad-method install`.
  * If `_bmad/` already exists, skips installation and returns `already-installed`.
  * On failure, throws BmadError.
  */
@@ -113,9 +113,9 @@ export function installBmad(dir?: string): BmadInstallResult {
     };
   }
 
-  const cmdStr = 'npx bmad-method init';
+  const cmdStr = 'npx bmad-method install';
   try {
-    execFileSync('npx', ['bmad-method', 'init'], {
+    execFileSync('npx', ['bmad-method', 'install'], {
       stdio: 'pipe',
       timeout: 60_000,
       cwd: root,
@@ -127,7 +127,7 @@ export function installBmad(dir?: string): BmadInstallResult {
 
   // Verify that _bmad/ was actually created
   if (!isBmadInstalled(root)) {
-    throw new BmadError(cmdStr, '_bmad/ directory was not created after successful npx bmad-method init');
+    throw new BmadError(cmdStr, '_bmad/ directory was not created after successful npx bmad-method install');
   }
 
   const version = detectBmadVersion(root);

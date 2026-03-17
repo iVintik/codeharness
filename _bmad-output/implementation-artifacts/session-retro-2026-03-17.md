@@ -687,3 +687,397 @@ The stale binary problem (V2) is a symptom of a broader issue: the verification 
 The next ralph run should benefit from non-sequential story selection (15-1), the verify-to-dev feedback loop (15-2), and clean retry state (15-3). The 44 stories at `verifying` across epics 3-11 are now reachable.
 
 Remaining risk: 0-1 still needs AC reclassification, 2-2 and 2-3 need proof regeneration, and the 5 deferred debt items need tracking. But the sprint is no longer halted.
+
+---
+
+# Session Retrospective — 2026-03-17T19:00Z (Story 3-2 + 2-1 Finalization)
+
+**Covering:** 2026-03-17 ~07:55Z through ~12:20Z (the 3-2 work gap not covered by prior retros, plus 2-1 final verification)
+**Focus:** Story 3-2 (BMAD installation workflow patching), Story 2-1 (second dev pass + verification)
+**Stories Attempted:** 2 (3-2, 2-1)
+**Stories Completed:** 1 (2-1 reached done; 3-2 reached verifying)
+**Epics Completed:** 0
+
+---
+
+## 1. Session Summary
+
+This retrospective covers work that fell in the gap between the prior retros. Story 3-2 (BMAD installation workflow patching) went through full implementation, code review, and a second code review -- but remains at `verifying`. Story 2-1 had a second dev pass confirming that AC fixes were already present from a prior session, followed by a second code review that caught 2 more HIGH-severity bugs, and then passed verification on all 8 ACs.
+
+| Story | Title | Outcome | Phases | Notes |
+|-------|-------|---------|--------|-------|
+| 3-2 | BMAD Installation Workflow Patching | **verifying** | dev, code-review, code-review-2 | 6 patches implemented (story spec called for 5). Two code reviews found 4 HIGH and 3 MEDIUM bugs, all fixed. Still awaiting verification. |
+| 2-1 | Dependency Auto-Install & OTLP Instrumentation | **done** | dev (re-run), code-review-2, verification | Second dev pass confirmed fixes were already in uncommitted changes. Stale global binary was root cause of prior failures. All 8 ACs verified. |
+
+**Session timeline:**
+- 07:55Z -- 2-1 dev-story (second pass): confirmed AC 3, 5, 7 fixes already present
+- 08:10Z -- 2-1 code-review #1: 3 fixes (pipx fallback test, redundant ternary, non-nodejs configureWeb test)
+- 08:25Z -- 3-2 dev-story: implemented 6 BMAD patches + detectBmalph function
+- 08:30Z -- 3-2 code-review #1: 4 fixes (idempotent re-run skip, variable typo, mock cleanup, bmalph detection tests)
+- 08:34Z -- 3-2 code-review #2: 4 fixes (post-install directory verification, wrong PATCH_TARGETS files, half-open marker corruption, re-run test mocks)
+- 11:50Z -- 2-1 dev-story (third pass): no new code, verified stale binary was the verifier issue
+- 12:10Z -- 2-1 code-review #2: 2 HIGH fixes (malformed package.json crash, hardcoded localhost)
+- 12:10Z -- 2-1 verification: all 8 ACs passed
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Discovered During Implementation
+
+| # | Bug | Severity | Story | Status |
+|---|-----|----------|-------|--------|
+| B11 | `installBmad` lacks post-install directory verification -- npx can exit 0 without creating `_bmad/` | High | 3-2 | Fixed in code-review-2 |
+| B12 | `PATCH_TARGETS` mapped dev-enforcement and review-enforcement to wrong files (checklist.md instead of instructions.xml) | High | 3-2 | Fixed in code-review-2 |
+| B13 | `applyPatch` corrupts files with half-open markers (start marker without end marker) | Medium | 3-2 | Fixed in code-review-2 |
+| B14 | AC #12 idempotent re-run path completely skipped BMAD patch verification | High | 3-2 | Fixed in code-review-1 |
+| B15 | Variable name typo `bmalpResult` inconsistent with function `detectBmalph` | Medium | 3-2 | Fixed in code-review-1 |
+| B16 | Missing tests for bmalph detection when BMAD install fails | Medium | 3-2 | Fixed (2 tests added) |
+| B17 | `patchNodeStartScript` crashes on malformed `package.json` | High | 2-1 | Fixed in code-review-2 |
+| B18 | `configureWeb` hardcoded `localhost:4318` in generated web snippet | Medium | 2-1 | Fixed in code-review-2 |
+
+### 2.2 Workarounds Applied (Tech Debt Introduced)
+
+| # | Workaround | Debt Level | Story |
+|---|-----------|------------|-------|
+| W6 | `detectBmalph` limited to `.ralph`/`.ralphrc` only -- does not detect other bmalph indicators | Low | 3-2 |
+| W7 | 6 patches implemented vs story spec's 5 -- extra `sprint-retro` patch added beyond scope | Low | 3-2 |
+| W8 | init.ts re-run path duplicates BMAD logic instead of sharing with initial path | Low | 3-2 |
+| W9 | Patch-level errors silently dropped from JSON output | Low | 3-2 |
+| W10 | `configureOtlpEnvVars` imported but unused in init.ts | Low | 3-2 |
+| W11 | `BmadInstallResult` type imported but never used as type annotation | Low | 3-2 |
+
+### 2.3 Code Quality Concerns
+
+| # | Concern | Story | Severity |
+|---|---------|-------|----------|
+| C5 | init.ts now ~719-743 lines -- growing toward maintenance threshold | 3-2 | Medium |
+| C6 | bmad.ts lines 162-169 unreachable defensive guard -- 98.65% line coverage vs 100% target | 3-2 | Low |
+| C7 | Task 9 (Epic 2 retro actions A3/A4) not fully addressed: branch coverage targets (95%+) for deps.ts/docker.ts/otlp.ts/state.ts remain below target | 3-2 | Medium |
+| C8 | Re-run BMAD block catches all errors silently | 3-2 | Low |
+
+### 2.4 Verification Gaps
+
+| # | Gap | Story | Impact |
+|---|-----|-------|--------|
+| V4 | 3-2 completed two code reviews but has not yet entered verification | 3-2 | Story at `verifying` with no proof generated yet |
+| V5 | `claude --print` verifier returned empty output during 2-1 verification -- had to use Agent tool spawning | 2-1 | Infrastructure issue with headless claude CLI |
+| V6 | AGENTS.md stale check blocked 2-1 verification -- `retry.ts` and `retry-state.ts` missing | 2-1 | Fixed during verification |
+| V7 | Proof document combined `## AC 1 + AC 4:` heading caused parser to see 7/8 ACs | 2-1 | Fixed by restructuring to individual headings |
+
+### 2.5 Tooling/Infrastructure Problems
+
+| # | Problem | Impact |
+|---|---------|--------|
+| T6 | Stale globally installed `codeharness` binary (v0.16.1) caused false verification failures for 2-1 | High -- wasted an entire dev iteration |
+| T7 | Observability stack port conflict on 8428 between project and shared docker-compose | Low -- resolved by awareness |
+| T8 | Lingering `codeharness-verify` container from prior session needed manual cleanup | Low |
+| T9 | Commander.js `--story` stderr messages during test runs (cosmetic, expected parser output) | Low |
+
+---
+
+## 3. What Went Well
+
+1. **Two-pass code review on 3-2 was highly effective.** The first code review caught 4 bugs (1 HIGH, 2 MEDIUM, 1 test gap). The second code review caught 4 more (2 HIGH, 1 MEDIUM, 1 test gap). The second pass found `PATCH_TARGETS` pointing to wrong files -- a bug that would have caused silent data corruption in production.
+
+2. **2-1 root cause identified correctly.** The second dev pass at 11:50Z confirmed that all AC fixes (AC 3, 5, 7) were already present in uncommitted source changes. The real blocker was the stale global binary. This saved time that would have been wasted writing duplicate code.
+
+3. **Story 2-1 finally completed after being stuck for 6+ sessions.** This was the longest-blocked story in the sprint. Reaching `done` unblocked the rest of Epic 2.
+
+4. **3-2 implementation handled scope expansion well.** The story specified 5 patches but implementation added a 6th (`sprint-retro`) plus the `detectBmalph` function that was missing from the original spec. Both code reviews deemed the additions appropriate.
+
+---
+
+## 4. What Went Wrong
+
+1. **3-2 required two full code reviews to reach acceptable quality.** The first review missed the `PATCH_TARGETS` file mapping error and the `applyPatch` marker corruption bug -- both HIGH severity. For stories involving file patching (which modify other files' content), a single code review is insufficient.
+
+2. **init.ts continues to grow unchecked.** At ~719-743 lines, it is becoming a maintenance burden. Story 3-2 added BMAD re-run logic that duplicates the initial path. No refactoring was done to address this, and no story exists to address it.
+
+3. **2-1 wasted a dev iteration due to environment drift.** The verifier tested the globally installed binary instead of the local build. This is a repeat of V2 from the prior retro -- the same root cause, still unfixed.
+
+4. **3-2 left 6 LOW-severity debt items unfixed.** Combined with the 5 from the prior retro, there are now 11 deferred debt items accumulating.
+
+5. **Coverage targets not met.** Task 9 of 3-2 (addressing Epic 2 retro actions) was only partially completed. Branch coverage for deps.ts/docker.ts/otlp.ts/state.ts remains below the 95% target.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Two-pass code review for stories that modify other files' content.** File patching logic (applyPatch, PATCH_TARGETS) is particularly error-prone. The second review caught the wrong target files and marker corruption. This pattern should be mandatory for any story that programmatically modifies user files.
+- **Confirming root cause before writing new code.** The 2-1 second dev pass correctly identified "stale binary" as the blocker instead of writing redundant fixes. This saved at least one wasted iteration.
+- **Session issues log as the single source of truth.** All subagents (dev-story, code-review, code-review-2, verification) contributed entries. The log now serves as an audit trail for every bug found and fixed.
+
+### Patterns to Avoid
+
+- **Leaving init.ts as a monolith.** Each story adds more logic to init.ts without extracting. The re-run path for BMAD duplicates the initial path. This makes both code review and testing harder.
+- **Ignoring repeated environment drift warnings.** The stale binary problem (V2 in prior retro, T6 in this one) has now wasted time in two consecutive sessions. The action item (A24: test local build) was identified but not implemented.
+- **Accumulating LOW debt without tracking.** 11 deferred items with no systematic tracking mechanism. The session issues log captures them but there is no aggregated debt register.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next session)
+
+| # | Action | Owner | Notes |
+|---|--------|-------|-------|
+| A29 | **Run 3-2 through verification.** Story has passed two code reviews but has no proof. It is the next story that should be verified. | Ralph/User | Currently at `verifying` in sprint-status.yaml. |
+| A30 | **Create a debt register.** Extract all W1-W11 items into a single tracking file (or GitHub issues). 11 deferred items across 2 retros with no aggregation. | User/SM | Without this, items will continue to be silently dropped. |
+
+### Fix Soon (next sprint)
+
+| # | Action | Owner | Notes |
+|---|--------|-------|-------|
+| A31 | **Refactor init.ts.** Extract BMAD logic into a dedicated `bmad-init.ts` module. Extract re-run detection into `init-rerun.ts`. Target: init.ts under 400 lines. | Dev | Currently ~719-743 lines and growing each sprint. |
+| A32 | **Implement A24 (verifier uses local build).** Two sessions have now been impacted by stale binary testing. Add pre-verification step: `npm run build && node ./dist/cli.js verify` instead of `codeharness verify`. | Dev | Prevents V2/T6 recurrence. |
+| A33 | **Address coverage gaps from 3-2 Task 9.** Branch coverage targets (95%+) for deps.ts, docker.ts, otlp.ts, state.ts were not met. Create focused testing story or add to 14-x backlog. | SM/Dev | Retro action A3/A4 from Epic 2 still unresolved. |
+
+### Carried Forward (still pending)
+
+| # | Action | Sessions Pending |
+|---|--------|-----------------|
+| A10/A16 | Reclassify 0-1 ACs as integration-required | 3 sessions |
+| A8 | Early-exit heuristic for repeated identical failures | 4 sessions |
+| A9 | Parallel verification containers | 4 sessions |
+| A12 | Regenerate proofs for 2-2 and 2-3 | 3 sessions |
+| A20 | Retro action verification in ralph pre-flight | 2 sessions |
+| A24 | Verifier should test local build, not global binary | 1 session (escalated to A32) |
+| A25 | Remove `installAgentOtlp` dead code | 1 session |
+| A26 | Fix `configureWeb` to be stack-aware | 1 session |
+
+### Backlog (new)
+
+| # | Action | Notes |
+|---|--------|-------|
+| A34 | **Mandatory two-pass code review for file-patching stories.** Stories that programmatically modify other files' content (applyPatch, patchNodeStartScript) should require two code reviews before entering verification. |
+| A35 | **Silent error policy for init re-run path.** The BMAD re-run block catches all errors silently (C8). Define a policy: should re-run errors be logged, warned, or surfaced to the user? |
+
+---
+
+## Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories done (start of this segment) | 12/65 |
+| Stories done (end of this segment) | 12/65 (2-1 was already counted in prior retro; 3-2 not yet done) |
+| Bugs found in code review | 8 (4 HIGH, 3 MEDIUM, 1 test gap) |
+| Bugs fixed | 8 |
+| New debt items deferred | 6 (W6-W11, all LOW) |
+| Total accumulated debt items | 11 (W1-W11 across 2 retros) |
+| Code reviews run | 4 (2 for 3-2, 2 for 2-1) |
+| Carried-forward actions | 8 (growing) |
+| init.ts line count | ~719-743 (up from prior sprint) |
+| Stories still at `verifying` | 44 |
+
+---
+
+## Verdict
+
+**Incremental progress, growing maintenance burden.** Story 2-1 finally reached done after resolving the stale binary issue. Story 3-2 received thorough code review (two passes, 7 bugs found and fixed) but still needs verification.
+
+The two dominant risks going forward are: (1) init.ts monolith growth making each new story harder to implement and review, and (2) accumulated debt items (11 and counting) with no tracking mechanism. The stale binary problem has now wasted time in two consecutive sessions and should be fixed before the next verification run.
+
+Story 3-2 is ready for verification and should be the next story processed by ralph.
+
+---
+
+# Session Retrospective — 2026-03-17T20:00Z (Story 3-2 Verification Failure + Tooling Bugs)
+
+**Covering:** 2026-03-17 afternoon — 3-2 black-box verification attempt and tooling bug discovery
+**Focus:** Story 3-2-bmad-installation-workflow-patching verification, verify parser bug, hook auto-transition bug
+**Stories Attempted:** 1 (3-2)
+**Stories Completed:** 0
+**Net Progress:** Story returned to in-progress with 2 code bugs. 2 tooling bugs discovered.
+
+---
+
+## 1. Session Summary
+
+Story 3-2 entered black-box verification after passing two code reviews (covered in the prior retro entry). Verification found 2 real bugs that both code reviews missed. Separately, 2 tooling bugs were discovered in the verification infrastructure itself.
+
+| Story | Title | Status Before | Status After | Outcome |
+|-------|-------|---------------|--------------|---------|
+| 3-2 | BMAD Installation Workflow Patching | verifying | **in-progress** | 2 bugs found in verification; returned to dev |
+
+**Bugs found by verification:**
+
+1. **AC 1 — Wrong install command.** Code calls `npx bmad-method init` but the correct command is `npx bmad-method install`. Fresh BMAD installation never works. This is a fatal bug — the core feature is broken.
+2. **AC 12 — Wrong message text on re-run.** Code prints `[INFO] BMAD: existing installation detected, patches applied` but the spec requires `[INFO] BMAD: already installed, patches verified`. Spec compliance failure.
+
+**Tooling bugs discovered during session:**
+
+3. **Verify parser false positive (T6).** `codeharness verify` reported `[OK]` on the proof document despite 2 explicit FAIL verdicts in the text. The parser checks for structural completeness (AC headings present) but does not validate that verdicts are PASS.
+4. **Hook auto-transition on false positive (T7).** The sprint-status hook automatically set 3-2 to `done` based on the parser's incorrect `[OK]` output. Had to be manually reverted to `in-progress`.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Code Bugs (returned to dev)
+
+| # | Bug | Severity | Found By | Root Cause |
+|---|-----|----------|----------|------------|
+| B19 | `npx bmad-method init` should be `npx bmad-method install` | HIGH | Black-box verification | Wrong command string in `installBmad()`. Neither code review caught it because the string looks plausible — only runtime execution reveals it fails. |
+| B20 | Re-run message text doesn't match spec | MEDIUM | Black-box verification | Developer used a reasonable-sounding phrase instead of the exact spec wording. Code review compared logic, not exact strings. |
+
+### 2.2 Tooling Bugs (affect all stories)
+
+| # | Bug | Severity | Impact |
+|---|-----|----------|--------|
+| T6 | `codeharness verify` parser reports `[OK]` despite FAIL verdicts in proof | **CRITICAL** | Any story can be falsely marked done. The parser is the root of the trust chain: parser -> hook -> sprint-status -> ralph. A false positive here propagates through the entire system. |
+| T7 | Sprint-status hook auto-transitions to `done` on parser `[OK]` without independent validation | **HIGH** | Compounds T6. Even if a human reads the proof and sees FAIL, the hook has already changed the state. Manual revert required. |
+
+### 2.3 Trust Chain Analysis
+
+The verification pipeline has a trust chain:
+
+```
+proof document -> codeharness verify (parser) -> hook -> sprint-status.yaml -> ralph
+```
+
+T6 breaks the parser (root of chain). T7 means the hook trusts the broken parser blindly. Together, they create a scenario where:
+- A story fails verification with explicit FAIL verdicts
+- The parser says OK
+- The hook marks it done
+- Ralph sees it as done and moves on
+- Nobody notices unless a human reads the proof
+
+This session caught it because the user was watching. In an unattended ralph run, the false completion would have gone undetected.
+
+### 2.4 Additional Observations from Session Issues Log
+
+- Extra `sprint-retro` patch (6th, not in spec) was noted but not treated as a bug. AC 10 was escalated because the verifier attempted source code inspection from a black-box context.
+- The `detectBmalph()` function was missing from the original implementation and had to be added during the initial dev pass.
+
+---
+
+## 3. What Went Well
+
+1. **Code review caught AC #12 idempotent skip before verification.** In the prior session's code review, the HIGH bug where AC #12's re-run path completely skipped BMAD patch verification was found and fixed. Without that fix, verification would have encountered even more failures.
+
+2. **Black-box verification validated its own purpose.** The two bugs found (wrong command, wrong message) are exactly the kind of bugs that code review cannot catch — they require actually running the code. This is strong evidence that the two-gate approach (review + verify) catches different bug classes.
+
+3. **Verify-to-dev feedback loop (story 15-2) worked as designed.** Verification failed, findings were documented, story was returned to `in-progress`. The pipeline fix from earlier this session is functioning correctly at the workflow level.
+
+4. **Tooling bugs were caught and documented.** The parser false positive and hook auto-transition could have gone unnoticed for many sessions, silently producing false completions.
+
+---
+
+## 4. What Went Wrong
+
+### 4.1 Verify Parser Cannot Detect Failures
+
+The `codeharness verify` parser's job is to read a proof document and determine if verification passed. It reported `[OK]` on a document containing 2 FAIL verdicts. This means the parser is checking structure (are AC headings present?) but not semantics (did each AC pass?).
+
+This is not a minor bug. The parser is the foundation of automated verification. Every automated state transition downstream depends on it being correct. A parser that cannot detect FAIL is equivalent to having no parser at all.
+
+### 4.2 Hook Auto-Transition Creates Incorrect State
+
+The sprint-status hook trusts the parser output and automatically transitions the story to `done`. When the parser is wrong (T6), the hook creates incorrect state that must be manually reverted. This is the second time in this sprint that automated state management has created problems (the first was the `.story_retries` format corruption from story 15-3).
+
+The hook should either:
+- Not auto-transition (require explicit human confirmation), or
+- Perform its own independent validation of the proof content, or
+- At minimum, check for the presence of FAIL/ESCALATE keywords before transitioning
+
+### 4.3 Two Code Reviews Missed a Wrong Command Name
+
+`npx bmad-method init` vs `npx bmad-method install` — this is a single-word difference in a string literal. Two code reviewers read through the implementation and neither caught it. This is a known limitation of code review: reviewers focus on logic, control flow, and edge cases, not on verifying that external command names are correct.
+
+### 4.4 No Stories Completed
+
+Despite significant effort (two code reviews + verification), net progress is zero. The story is back where it started — in development. The two bugs are small fixes, but the cycle of review-verify-fail-return is expensive.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Black-box verification after code review.** This session proves the two-gate model works. Code review caught structural bugs (AC #12 skip, wrong PATCH_TARGETS). Verification caught runtime bugs (wrong command, wrong message). Neither gate alone would have caught all bugs.
+- **Document tooling bugs with the same rigor as code bugs.** T6 and T7 are more impactful than B19 and B20. A code bug affects one story; a tooling bug affects every story.
+- **Manual verification of parser output when stakes are high.** Until T6 is fixed, a human must read the proof document — the parser cannot be trusted.
+
+### Patterns to Avoid
+
+- **Trusting `codeharness verify` output.** Until the parser is fixed to detect FAIL/ESCALATE verdicts, its output is unreliable. Any automated workflow depending on it (hooks, ralph) will produce false positives.
+- **Running ralph unattended without fixing parser.** An unattended ralph run with the current parser will silently mark failing stories as done. This is worse than not running ralph at all.
+- **Assuming external command names are correct without testing.** Dev should run `npx bmad-method --help` or equivalent to verify the correct subcommand before hardcoding it.
+
+### New Insight: "Two-Gate Verification Catches Orthogonal Bug Classes"
+
+| Bug Class | Caught By Code Review | Caught By Black-Box Verification |
+|-----------|----------------------|----------------------------------|
+| Logic errors (skipped code paths) | Yes (AC #12 skip) | Sometimes |
+| Data mapping errors (wrong targets) | Yes (PATCH_TARGETS) | Sometimes |
+| Wrong external commands | No | **Yes** (init vs install) |
+| Wrong message strings | No | **Yes** (text mismatch) |
+| Edge case crashes | Yes (malformed JSON) | Sometimes |
+| Integration failures | No | **Yes** |
+
+This table confirms that code review and black-box verification are complementary, not redundant. Removing either gate increases the false-positive rate.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next verification attempt on 3-2)
+
+| # | Action | Owner | Why |
+|---|--------|-------|-----|
+| A36 | **Fix B19: change `npx bmad-method init` to `npx bmad-method install` in `installBmad()`.** | Dev | Core functionality broken. |
+| A37 | **Fix B20: change re-run message to `already installed, patches verified`** to match spec. | Dev | Spec compliance. Will fail verification again otherwise. |
+
+### Fix Before Next Ralph Run (tooling bugs)
+
+| # | Action | Owner | Why |
+|---|--------|-------|-----|
+| A38 | **Fix `codeharness verify` parser to detect FAIL/ESCALATE verdicts.** The parser must scan verdict text in each AC section. If any AC has a FAIL or ESCALATE verdict, the overall result must be FAIL. | Dev | T6. Without this, ralph will silently produce false completions. Running ralph with a broken parser is actively harmful. |
+| A39 | **Fix sprint-status hook to respect FAIL verdicts.** Either remove auto-transition to `done`, or add independent proof validation that checks for FAIL keywords before transitioning. | Dev | T7. Prevents incorrect state requiring manual revert. |
+
+### Carried Forward
+
+| # | Action | Sessions Pending |
+|---|--------|-----------------|
+| A10/A16 | Reclassify 0-1 ACs | 3 sessions |
+| A8 | Early-exit heuristic | 4 sessions |
+| A9 | Parallel verification containers | 4 sessions |
+| A12 | Regenerate proofs for 2-2 and 2-3 | 3 sessions |
+| A20 | Retro action verification in ralph pre-flight | 2 sessions |
+| A24/A32 | Verifier uses local build | 2 sessions |
+| A25 | Remove `installAgentOtlp` dead code | 1 session |
+| A31 | Refactor init.ts monolith | 1 session |
+
+---
+
+## Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories done (start) | 12/65 |
+| Stories done (end) | 12/65 |
+| Net stories completed | 0 |
+| Code bugs found in verification | 2 (1 HIGH, 1 MEDIUM) |
+| Tooling bugs found | 2 (1 CRITICAL, 1 HIGH) |
+| Code reviews passed prior | 2 (both missed the verification bugs) |
+| Verification attempts | 1 (failed) |
+| Story status | in-progress (returned from verifying) |
+| Carried-forward actions (total) | 8 + 4 new = 12 |
+| Parser trust level | **None** — produces false positives |
+
+---
+
+## Verdict
+
+**Zero stories completed. Two bugs returned to dev. Two tooling bugs discovered.**
+
+The story-level bugs (B19, B20) are small fixes — probably 15 minutes of dev work. The real finding this session is the tooling bugs. The verify parser (T6) and the auto-transition hook (T7) form a broken trust chain that can mark failing stories as done without human intervention. This is the highest-priority fix in the sprint right now.
+
+**Priority order for next session:**
+1. Fix the verify parser (A38) — this is CRITICAL; ralph cannot be trusted without it
+2. Fix the hook auto-transition (A39) — defense in depth
+3. Fix 3-2 code bugs (A36, A37) — small, quick
+4. Re-verify 3-2 — should pass after fixes

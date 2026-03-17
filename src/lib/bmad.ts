@@ -36,8 +36,8 @@ export interface PatchResult {
  */
 export const PATCH_TARGETS: Record<string, string> = {
   'story-verification': 'bmm/workflows/4-implementation/create-story/template.md',
-  'dev-enforcement': 'bmm/workflows/4-implementation/dev-story/checklist.md',
-  'review-enforcement': 'bmm/workflows/4-implementation/code-review/checklist.md',
+  'dev-enforcement': 'bmm/workflows/4-implementation/dev-story/instructions.xml',
+  'review-enforcement': 'bmm/workflows/4-implementation/code-review/instructions.xml',
   'retro-enforcement': 'bmm/workflows/4-implementation/retrospective/instructions.md',
   'sprint-beads': 'bmm/workflows/4-implementation/sprint-planning/checklist.md',
   'sprint-retro': 'bmm/workflows/4-implementation/sprint-planning/instructions.md',
@@ -125,6 +125,11 @@ export function installBmad(dir?: string): BmadInstallResult {
     throw new BmadError(cmdStr, message);
   }
 
+  // Verify that _bmad/ was actually created
+  if (!isBmadInstalled(root)) {
+    throw new BmadError(cmdStr, '_bmad/ directory was not created after successful npx bmad-method init');
+  }
+
   const version = detectBmadVersion(root);
   return {
     status: 'installed',
@@ -191,6 +196,35 @@ export function applyAllPatches(dir?: string): PatchResult[] {
   }
 
   return results;
+}
+
+/**
+ * Detects bmalph (predecessor to codeharness) artifacts in the project.
+ * Checks for `.ralph/.ralphrc` and other bmalph-specific config files.
+ * Returns detection result with list of found files.
+ */
+export function detectBmalph(dir?: string): { detected: boolean; files: string[] } {
+  const root = dir ?? process.cwd();
+  const files: string[] = [];
+
+  // Check for .ralph/.ralphrc (bmalph configuration file)
+  const ralphRcPath = join(root, '.ralph', '.ralphrc');
+  if (existsSync(ralphRcPath)) {
+    files.push('.ralph/.ralphrc');
+  }
+
+  // Check for .ralph/ directory itself (not to be confused with ralph/ used by codeharness)
+  const dotRalphDir = join(root, '.ralph');
+  if (existsSync(dotRalphDir)) {
+    // Only count .ralph/ if it contains bmalph-specific files
+    // The presence of .ralphrc is the key indicator
+    if (files.length === 0) {
+      // .ralph/ exists but no .ralphrc — still note the directory
+      files.push('.ralph/');
+    }
+  }
+
+  return { detected: files.length > 0, files };
 }
 
 // ─── BMAD Epics/Stories Parser ───────────────────────────────────────────────

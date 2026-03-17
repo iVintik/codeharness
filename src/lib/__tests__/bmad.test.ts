@@ -12,6 +12,7 @@ import {
   isBmadInstalled,
   installBmad,
   detectBmadVersion,
+  detectBmalph,
   applyAllPatches,
   BmadError,
   PATCH_TARGETS,
@@ -130,7 +131,11 @@ describe('detectBmadVersion', () => {
 
 describe('installBmad', () => {
   it('runs npx bmad-method init when _bmad/ does not exist', () => {
-    mockExecFileSync.mockReturnValue(Buffer.from(''));
+    // Simulate npx bmad-method init creating the _bmad/ directory
+    mockExecFileSync.mockImplementation(() => {
+      mkdirSync(join(testDir, '_bmad'), { recursive: true });
+      return Buffer.from('');
+    });
 
     const result = installBmad(testDir);
     expect(mockExecFileSync).toHaveBeenCalledWith(
@@ -185,6 +190,44 @@ describe('installBmad', () => {
     } catch (err) {
       expect((err as BmadError).originalMessage).toBe('string error');
     }
+  });
+
+  it('throws BmadError when npx succeeds but _bmad/ is not created', () => {
+    // npx exits successfully but doesn't create _bmad/
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    expect(() => installBmad(testDir)).toThrow(BmadError);
+    try {
+      installBmad(testDir);
+    } catch (err) {
+      const bmadErr = err as BmadError;
+      expect(bmadErr.originalMessage).toContain('_bmad/ directory was not created');
+    }
+  });
+});
+
+describe('detectBmalph', () => {
+  it('detects .ralph/.ralphrc file', () => {
+    mkdirSync(join(testDir, '.ralph'), { recursive: true });
+    writeFileSync(join(testDir, '.ralph', '.ralphrc'), 'bmalph config');
+
+    const result = detectBmalph(testDir);
+    expect(result.detected).toBe(true);
+    expect(result.files).toContain('.ralph/.ralphrc');
+  });
+
+  it('detects .ralph/ directory without .ralphrc', () => {
+    mkdirSync(join(testDir, '.ralph'), { recursive: true });
+
+    const result = detectBmalph(testDir);
+    expect(result.detected).toBe(true);
+    expect(result.files).toContain('.ralph/');
+  });
+
+  it('returns detected: false when no bmalph artifacts exist', () => {
+    const result = detectBmalph(testDir);
+    expect(result.detected).toBe(false);
+    expect(result.files).toEqual([]);
   });
 });
 

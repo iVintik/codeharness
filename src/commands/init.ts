@@ -10,7 +10,7 @@ import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollect
 import { installAllDependencies, CriticalDependencyError, checkInstalled, DEPENDENCY_REGISTRY } from '../lib/deps.js';
 import { instrumentProject, configureOtlpEnvVars } from '../lib/otlp.js';
 import { initBeads, isBeadsInitialized, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../lib/beads.js';
-import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, BmadError } from '../lib/bmad.js';
+import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, detectBmalph, BmadError } from '../lib/bmad.js';
 import { getComposeFilePath } from '../lib/stack-path.js';
 import { readmeTemplate } from '../templates/readme.js';
 import type { HarnessState } from '../lib/state.js';
@@ -57,6 +57,7 @@ interface InitResult {
     status: 'installed' | 'already-installed' | 'patched' | 'failed';
     version: string | null;
     patches_applied: string[];
+    bmalph_detected: boolean;
     error?: string;
   };
   otlp?: OtlpResult;
@@ -242,6 +243,30 @@ export function registerInitCommand(program: Command): void {
             }
             result.dependencies = depResults;
 
+            // --- BMAD patch verification on re-run (AC #12) ---
+            if (isBmadInstalled(projectDir)) {
+              try {
+                const patchResults = applyAllPatches(projectDir);
+                const patchNames = patchResults.filter(r => r.applied).map(r => r.patchName);
+                const version = detectBmadVersion(projectDir);
+                const bmalpHDetection = detectBmalph(projectDir);
+                result.bmad = {
+                  status: 'already-installed',
+                  version,
+                  patches_applied: patchNames,
+                  bmalph_detected: bmalpHDetection.detected,
+                };
+                if (!isJson) {
+                  info('BMAD: already installed, patches verified');
+                  if (bmalpHDetection.detected) {
+                    warn('bmalph detected — superseded files noted for cleanup');
+                  }
+                }
+              } catch {
+                // BMAD verification is non-critical during re-run
+              }
+            }
+
             if (isJson) {
               jsonOutput(result as unknown as Record<string, unknown>);
             } else {
@@ -401,6 +426,7 @@ export function registerInitCommand(program: Command): void {
             status: 'already-installed',
             version,
             patches_applied: patchNames,
+            bmalph_detected: false,
           };
 
           if (!isJson) {
@@ -415,10 +441,20 @@ export function registerInitCommand(program: Command): void {
             status: installResult.status,
             version: installResult.version,
             patches_applied: patchNames,
+            bmalph_detected: false,
           };
 
           if (!isJson) {
             ok(`BMAD: installed (v${installResult.version ?? 'unknown'}), harness patches applied`);
+          }
+        }
+
+        // --- bmalph detection ---
+        const bmalpHDetection = detectBmalph(projectDir);
+        if (bmalpHDetection.detected && result.bmad) {
+          result.bmad.bmalph_detected = true;
+          if (!isJson) {
+            warn('bmalph detected — superseded files noted for cleanup');
           }
         }
 
@@ -428,6 +464,7 @@ export function registerInitCommand(program: Command): void {
             status: 'failed',
             version: null,
             patches_applied: [],
+            bmalph_detected: false,
             error: err.message,
           };
           if (!isJson) {

@@ -125,6 +125,30 @@ describe('applyPatch', () => {
     expect(() => applyPatch(filePath, 'test-patch', 'New content')).toThrow('Corrupted patch markers');
   });
 
+  it('throws on half-open markers (only start marker exists)', () => {
+    const filePath = join(testDir, 'workflow.md');
+    writeFileSync(filePath, [
+      '# Workflow',
+      '',
+      '<!-- CODEHARNESS-PATCH-START:test-patch -->',
+      'Orphaned content',
+    ].join('\n'));
+
+    expect(() => applyPatch(filePath, 'test-patch', 'New content')).toThrow('only start marker found');
+  });
+
+  it('throws on half-open markers (only end marker exists)', () => {
+    const filePath = join(testDir, 'workflow.md');
+    writeFileSync(filePath, [
+      '# Workflow',
+      '',
+      'Some content',
+      '<!-- CODEHARNESS-PATCH-END:test-patch -->',
+    ].join('\n'));
+
+    expect(() => applyPatch(filePath, 'test-patch', 'New content')).toThrow('only end marker found');
+  });
+
   it('handles multiple different patches in the same file', () => {
     const filePath = join(testDir, 'workflow.md');
     writeFileSync(filePath, '# Workflow\n');

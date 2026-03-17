@@ -112,6 +112,7 @@ vi.mock('../../lib/bmad.js', () => ({
     { patchName: 'sprint-beads', targetFile: 'checklist.md', applied: true, updated: false },
   ]),
   detectBmadVersion: vi.fn(() => '6.0.0'),
+  detectBmalph: vi.fn(() => ({ detected: false, files: [] })),
   BmadError: class BmadError extends Error {
     command: string;
     originalMessage: string;
@@ -139,12 +140,13 @@ import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollect
 import { installAllDependencies, CriticalDependencyError, checkInstalled } from '../../lib/deps.js';
 import { instrumentProject } from '../../lib/otlp.js';
 import { isBeadsInitialized, initBeads, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../../lib/beads.js';
-import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, BmadError } from '../../lib/bmad.js';
+import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, detectBmalph, BmadError } from '../../lib/bmad.js';
 
 const mockIsBmadInstalled = vi.mocked(isBmadInstalled);
 const mockInstallBmad = vi.mocked(installBmad);
 const mockApplyAllPatches = vi.mocked(applyAllPatches);
 const mockDetectBmadVersion = vi.mocked(detectBmadVersion);
+const mockDetectBmalph = vi.mocked(detectBmalph);
 
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);
 const mockIsSharedStackRunning = vi.mocked(isSharedStackRunning);
@@ -185,6 +187,7 @@ beforeEach(() => {
     { patchName: 'sprint-beads', targetFile: 'checklist.md', applied: true, updated: false },
   ]);
   mockDetectBmadVersion.mockReturnValue('6.0.0');
+  mockDetectBmalph.mockReturnValue({ detected: false, files: [] });
   mockStartSharedStack.mockReturnValue({
     started: true,
     services: [
@@ -558,6 +561,40 @@ describe('init command — idempotent re-run', () => {
     expect(parsed.dependencies).toBeDefined();
     expect(parsed.dependencies).toHaveLength(3);
     expect(parsed.dependencies[0].status).toBe('already-installed');
+  });
+
+  it('verifies BMAD patches on re-run (AC #12)', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+
+    // First run
+    await runCli(['init']);
+
+    // Simulate BMAD being installed (as it would be after first init)
+    mockIsBmadInstalled.mockReturnValue(true);
+
+    // Second run — should verify BMAD patches
+    const { stdout } = await runCli(['init']);
+    expect(stdout).toContain('[INFO] BMAD: already installed, patches verified');
+    expect(mockApplyAllPatches).toHaveBeenCalled();
+  });
+
+  it('includes BMAD result in JSON re-run output', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+
+    // First run
+    await runCli(['init']);
+
+    // Simulate BMAD being installed (as it would be after first init)
+    mockIsBmadInstalled.mockReturnValue(true);
+
+    // Second run with JSON
+    const { stdout } = await runCli(['--json', 'init']);
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    const parsed = JSON.parse(jsonLine!);
+
+    expect(parsed.bmad).toBeDefined();
+    expect(parsed.bmad.status).toBe('already-installed');
+    expect(parsed.bmad.patches_applied).toBeDefined();
   });
 
   it('does not regenerate docs on re-run', async () => {
@@ -1222,6 +1259,69 @@ describe('init command — BMAD installation', () => {
       patches_applied: [],
 
     });
+  });
+});
+
+describe('init command — bmalph detection', () => {
+  it('prints warning when bmalph artifacts are detected', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockDetectBmalph.mockReturnValue({ detected: true, files: ['.ralph/.ralphrc'] });
+
+    const { stdout } = await runCli(['init']);
+    expect(stdout).toContain('[WARN] bmalph detected');
+  });
+
+  it('does not print warning when no bmalph artifacts found', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockDetectBmalph.mockReturnValue({ detected: false, files: [] });
+
+    const { stdout } = await runCli(['init']);
+    expect(stdout).not.toContain('bmalph');
+  });
+
+  it('JSON output includes bmalph_detected field', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockDetectBmalph.mockReturnValue({ detected: true, files: ['.ralph/.ralphrc'] });
+
+    const { stdout } = await runCli(['init', '--json']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.bmad.bmalph_detected).toBe(true);
+  });
+
+  it('skips bmalph detection when BMAD install fails', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockIsBmadInstalled.mockReturnValue(false);
+    mockInstallBmad.mockImplementation(() => {
+      throw new BmadError('npx bmad-method init', 'timeout');
+    });
+    mockDetectBmalph.mockReturnValue({ detected: true, files: ['.ralph/.ralphrc'] });
+
+    const { stdout } = await runCli(['init']);
+    // BMAD failed — bmalph detection should be skipped
+    expect(stdout).not.toContain('bmalph detected');
+    // But BMAD failure message should be present
+    expect(stdout).toContain('[FAIL] BMAD install failed');
+
+    // Restore mocks
+    mockInstallBmad.mockReturnValue({ status: 'installed', version: '6.0.0', patches_applied: [] });
+  });
+
+  it('JSON output has bmalph_detected: false when BMAD install fails', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockIsBmadInstalled.mockReturnValue(false);
+    mockInstallBmad.mockImplementation(() => {
+      throw new BmadError('npx bmad-method init', 'timeout');
+    });
+    mockDetectBmalph.mockReturnValue({ detected: true, files: ['.ralph/.ralphrc'] });
+
+    const { stdout } = await runCli(['--json', 'init']);
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed.bmad.bmalph_detected).toBe(false);
+    expect(parsed.bmad.status).toBe('failed');
+
+    // Restore mocks
+    mockInstallBmad.mockReturnValue({ status: 'installed', version: '6.0.0', patches_applied: [] });
   });
 });
 

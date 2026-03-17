@@ -59,6 +59,13 @@ export function applyPatch(filePath: string, patchName: string, patchContent: st
   const startIdx = content.indexOf(markers.start);
   const endIdx = content.indexOf(markers.end);
 
+  // Guard against half-open markers (one exists without the other)
+  if ((startIdx !== -1) !== (endIdx !== -1)) {
+    throw new Error(
+      `Corrupted patch markers for '${patchName}': only ${startIdx !== -1 ? 'start' : 'end'} marker found in ${filePath}`,
+    );
+  }
+
   if (startIdx !== -1 && endIdx !== -1) {
     // Guard against corrupted marker ordering (end before start)
     if (endIdx < startIdx) {

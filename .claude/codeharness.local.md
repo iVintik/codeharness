@@ -9,7 +9,7 @@ enforcement:
 coverage:
   target: 90
   baseline: 0
-  current: 95.38
+  current: 95.39
 session_flags:
   logs_queried: false
   tests_passed: true
@@ -48,8 +48,18 @@ verification_log:
     2026-03-17T08:15:27.528Z"
   - "2-1-dependency-auto-install-otlp-instrumentation: pass at
     2026-03-17T08:16:36.378Z"
-verify_env_dist_hash: d71781389daba9e448edca75b66e6b80ba009fd922ec33504902d4232c2e5b56
+  - "2-1-dependency-auto-install-otlp-instrumentation: pass at
+    2026-03-17T08:39:40.233Z"
+verify_env_dist_hash: f0a1114860c10cb1ed4dc3d918d4789fe9b6ac54dd947b9c073309f296d6e646
 ---
+
+
+
+
+
+
+
+
 
 
 

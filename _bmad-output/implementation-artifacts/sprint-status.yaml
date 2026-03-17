@@ -73,7 +73,7 @@ development_status:
 
   epic-3: in-progress
   3-1-beads-installation-cli-wrapper: verifying
-  3-2-bmad-installation-workflow-patching: in-progress
+  3-2-bmad-installation-workflow-patching: verifying
   3-3-bmad-parser-story-bridge-command: verifying
   3-4-beads-sync-issue-lifecycle: verifying
   epic-3-retrospective: optional

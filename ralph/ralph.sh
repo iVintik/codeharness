@@ -951,7 +951,7 @@ main() {
                         fi
                         local retry_count
                         retry_count=$(increment_story_retry "$skey")
-                        if [[ $retry_count -gt $MAX_STORY_RETRIES ]]; then
+                        if [[ $retry_count -ge $MAX_STORY_RETRIES ]]; then
                             log_status "WARN" "Story ${skey} exceeded retry limit (${retry_count}) — flagging and moving on"
                             flag_story "$skey"
                         else
@@ -998,8 +998,28 @@ main() {
                 break
                 ;;
             *)
-                # Failure — retry with backoff
+                # Failure (timeout or crash) — increment retry for the story that was being worked on
                 consecutive_failures=$((consecutive_failures + 1))
+
+                # Increment retry for the first non-done, non-flagged story (the one that caused the timeout)
+                local after_snap_fail
+                after_snap_fail=$(snapshot_story_statuses)
+                while IFS=: read -r fkey fstatus; do
+                    [[ -z "$fkey" ]] && continue
+                    [[ "$fstatus" == "done" ]] && continue
+                    if ! is_story_flagged "$fkey"; then
+                        local fail_retry
+                        fail_retry=$(increment_story_retry "$fkey")
+                        if [[ $fail_retry -ge $MAX_STORY_RETRIES ]]; then
+                            log_status "WARN" "Story ${fkey} exceeded retry limit (${fail_retry}) after timeout — flagging"
+                            flag_story "$fkey"
+                        else
+                            log_status "WARN" "Story ${fkey} — timeout retry ${fail_retry}/${MAX_STORY_RETRIES}"
+                        fi
+                        break
+                    fi
+                done <<< "$after_snap_fail"
+
                 if [[ $consecutive_failures -ge $max_consecutive_failures ]]; then
                     log_status "ERROR" "$max_consecutive_failures consecutive failures — halting"
                     update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "consecutive_failures" "halted"

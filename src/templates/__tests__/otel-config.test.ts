@@ -35,12 +35,12 @@ describe('otelCollectorConfigTemplate', () => {
     expect(parsed.exporters.prometheusremotewrite.endpoint).toBe('http://victoria-metrics:8428/api/v1/write');
   });
 
-  it('configures traces exporter to victoria-traces', () => {
+  it('configures traces exporter to victoria-traces via OTLP HTTP', () => {
     const result = otelCollectorConfigTemplate();
     const parsed = parse(result) as { exporters: Record<string, { endpoint: string }> };
-    const tracesExporter = parsed.exporters['otlp/traces'];
+    const tracesExporter = parsed.exporters['otlphttp/traces'];
     expect(tracesExporter).toBeDefined();
-    expect(tracesExporter.endpoint).toBe('http://victoria-traces:14268');
+    expect(tracesExporter.endpoint).toBe('http://victoria-traces:4318');
   });
 
   it('defines logs pipeline with otlp receiver and logs exporter', () => {
@@ -61,7 +61,7 @@ describe('otelCollectorConfigTemplate', () => {
     const result = otelCollectorConfigTemplate();
     const parsed = parse(result) as { service: { pipelines: { traces: { receivers: string[]; exporters: string[] } } } };
     expect(parsed.service.pipelines.traces.receivers).toContain('otlp');
-    expect(parsed.service.pipelines.traces.exporters).toContain('otlp/traces');
+    expect(parsed.service.pipelines.traces.exporters).toContain('otlphttp/traces');
   });
 
   it('has exactly three pipelines', () => {
@@ -116,10 +116,10 @@ describe('otelCollectorRemoteTemplate', () => {
     expect(parsed.exporters.prometheusremotewrite.endpoint).toBe('https://metrics.company.com/api/v1/write');
   });
 
-  it('routes traces exporter to remote tracesUrl', () => {
+  it('routes traces exporter to remote tracesUrl via OTLP HTTP', () => {
     const result = otelCollectorRemoteTemplate(remoteConfig);
     const parsed = parse(result) as { exporters: Record<string, { endpoint: string }> };
-    const tracesExporter = parsed.exporters['otlp/traces'];
+    const tracesExporter = parsed.exporters['otlphttp/traces'];
     expect(tracesExporter).toBeDefined();
     expect(tracesExporter.endpoint).toBe('https://traces.company.com:4317');
   });
@@ -140,7 +140,7 @@ describe('otelCollectorRemoteTemplate', () => {
     const parsed = parse(result) as { exporters: Record<string, { endpoint: string }> };
     expect(parsed.exporters['otlphttp/logs'].endpoint).toBe('https://logs.company.com/insert/opentelemetry');
     expect(parsed.exporters.prometheusremotewrite.endpoint).toBe('https://metrics.company.com/api/v1/write');
-    expect(parsed.exporters['otlp/traces'].endpoint).toBe('https://traces.company.com:4317');
+    expect(parsed.exporters['otlphttp/traces'].endpoint).toBe('https://traces.company.com:4317');
   });
 
   it('uses different URLs than the local template', () => {

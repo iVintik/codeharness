@@ -293,17 +293,15 @@ describe('init command — enforcement flags', () => {
 });
 
 describe('init command — Docker check', () => {
-  it('degrades gracefully when Docker not installed', async () => {
+  it('fails with exit code 1 when Docker not installed and observability ON', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsDockerAvailable.mockReturnValue(false);
 
     const { stdout, exitCode } = await runCli(['init']);
-    expect(stdout).toContain('[WARN] Docker not available — observability will use remote mode');
+    expect(stdout).toContain('[FAIL] Docker not installed');
     expect(stdout).toContain('[INFO] → Install Docker: https://docs.docker.com/engine/install/');
-    expect(stdout).toContain('[INFO] → Or use remote endpoints: codeharness init --otel-endpoint <url>');
-    expect(stdout).toContain('Observability: deferred');
-    // Init should NOT fail
-    expect(exitCode).toBeUndefined();
+    expect(stdout).toContain('[INFO] → Or skip observability: codeharness init --no-observability');
+    expect(exitCode).toBe(1);
   });
 
   it('succeeds when Docker is available', async () => {
@@ -632,7 +630,7 @@ describe('init command — JSON output', () => {
     expect(parsed.documentation.readme).toBe('created');
   });
 
-  it('JSON output succeeds with deferred observability when Docker unavailable', async () => {
+  it('JSON output fails with docker object when Docker unavailable and observability ON', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsDockerAvailable.mockReturnValue(false);
 
@@ -642,9 +640,13 @@ describe('init command — JSON output', () => {
     expect(jsonLine).toBeDefined();
     const parsed = JSON.parse(jsonLine!);
 
-    // Init should succeed even without Docker
-    expect(parsed.status).toBe('ok');
-    expect(exitCode).toBeUndefined();
+    // AC 6: Docker not installed + observability ON → fail
+    expect(parsed.status).toBe('fail');
+    expect(parsed.error).toBe('Docker not installed');
+    // AC 7: docker object present even on failure
+    expect(parsed.docker).toBeDefined();
+    expect(parsed.docker.stack_running).toBe(false);
+    expect(exitCode).toBe(1);
   });
 
   it('JSON re-run output shows exists status', async () => {
@@ -663,6 +665,27 @@ describe('init command — JSON output', () => {
     expect(parsed.documentation.agents_md).toBe('exists');
     expect(parsed.documentation.docs_scaffold).toBe('exists');
     expect(parsed.documentation.readme).toBe('exists');
+  });
+
+  it('JSON re-run output includes docker object from existing state (AC 7)', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+
+    // First run creates state with docker info
+    await runCli(['init']);
+
+    // Re-run with JSON
+    const { stdout } = await runCli(['--json', 'init']);
+
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    const parsed = JSON.parse(jsonLine!);
+
+    // AC 7: docker object must be present in re-run JSON output
+    expect(parsed.docker).toBeDefined();
+    expect(parsed.docker.compose_file).toBe('/mock/.codeharness/stack/docker-compose.harness.yml');
+    expect(parsed.docker.stack_running).toBe(true);
+    expect(parsed.docker.ports).toBeDefined();
+    expect(parsed.docker.ports.logs).toBe(9428);
+    expect(parsed.docker.ports.metrics).toBe(8428);
   });
 
   it('suppresses human output in JSON mode', async () => {
@@ -1550,28 +1573,24 @@ describe('init command — legacy state migration', () => {
   });
 });
 
-describe('init command — Docker not available graceful degradation', () => {
-  it('continues init when Docker is not available', async () => {
+describe('init command — Docker not available behavior', () => {
+  it('fails with exit code 1 when Docker is not available and observability ON', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsDockerAvailable.mockReturnValue(false);
 
     const { exitCode } = await runCli(['init']);
-    expect(exitCode).toBeUndefined();
-
-    // State file should still be created
-    const state = readState(testDir);
-    expect(state.initialized).toBe(true);
+    expect(exitCode).toBe(1);
   });
 
-  it('creates state with OTLP configured even without Docker', async () => {
+  it('succeeds when Docker is not available and observability OFF', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsDockerAvailable.mockReturnValue(false);
 
-    await runCli(['init']);
+    const { exitCode } = await runCli(['init', '--no-observability']);
+    expect(exitCode).toBeUndefined();
 
     const state = readState(testDir);
-    expect(state.otlp).toBeDefined();
-    expect(state.otlp?.enabled).toBe(true);
+    expect(state.initialized).toBe(true);
   });
 });
 

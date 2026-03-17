@@ -1,6 +1,6 @@
 # Story 2.2: Docker Compose & VictoriaMetrics Stack Management
 
-Status: ready-for-dev
+Status: verifying
 
 ## Story
 

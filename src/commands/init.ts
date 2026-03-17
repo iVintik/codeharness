@@ -243,6 +243,18 @@ export function registerInitCommand(program: Command): void {
             }
             result.dependencies = depResults;
 
+            // --- Populate docker status from existing state (AC 7) ---
+            if (existingState.docker) {
+              result.docker = {
+                compose_file: existingState.docker.compose_file,
+                stack_running: existingState.docker.stack_running,
+                services: [],
+                ports: existingState.docker.ports,
+              };
+            } else {
+              result.docker = null;
+            }
+
             // --- BMAD patch verification on re-run (AC #12) ---
             if (isBmadInstalled(projectDir)) {
               try {
@@ -337,14 +349,30 @@ export function registerInitCommand(program: Command): void {
 
       // --- Docker check (skip for remote-direct mode) ---
       let dockerAvailable = true;
-      if (!options.otelEndpoint) {
+      if (!options.otelEndpoint && !options.logsUrl) {
         if (!isDockerAvailable()) {
           dockerAvailable = false;
-          if (!isJson) {
-            warn('Docker not available — observability will use remote mode');
-            info('→ Install Docker: https://docs.docker.com/engine/install/');
-            info('→ Or use remote endpoints: codeharness init --otel-endpoint <url>');
+          if (options.observability) {
+            // AC 6: Docker required when observability is ON — halt with exit code 1
+            result.status = 'fail';
+            result.error = 'Docker not installed';
+            result.docker = {
+              compose_file: '',
+              stack_running: false,
+              services: [],
+              ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+            };
+            if (isJson) {
+              jsonOutput(result as unknown as Record<string, unknown>);
+            } else {
+              fail('Docker not installed');
+              info('→ Install Docker: https://docs.docker.com/engine/install/');
+              info('→ Or skip observability: codeharness init --no-observability');
+            }
+            process.exitCode = 1;
+            return;
           }
+          // Observability OFF — Docker absence is fine, skip silently
         } else {
           if (!isJson) {
             ok('Docker: available');
@@ -589,7 +617,14 @@ export function registerInitCommand(program: Command): void {
 
       // --- Docker stack setup (shared / remote-direct / remote-routed) ---
       {
-        if (options.otelEndpoint) {
+        if (!options.observability) {
+          // AC 5: Observability OFF — skip Docker entirely
+          result.docker = null;
+          writeState(state, projectDir);
+          if (!isJson) {
+            info('Observability: disabled, skipping Docker stack');
+          }
+        } else if (options.otelEndpoint) {
           // Remote-direct mode: no Docker, direct OTLP export
           state.otlp = {
             ...state.otlp!,
@@ -712,7 +747,13 @@ export function registerInitCommand(program: Command): void {
             }
           }
         } else {
-          // Docker not available — deferred observability
+          // Docker not available — deferred observability (should be unreachable when obs ON due to AC 6 early exit)
+          result.docker = {
+            compose_file: '',
+            stack_running: false,
+            services: [],
+            ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
+          };
           writeState(state, projectDir);
           if (!isJson) {
             info('Observability: deferred (configure Docker or remote endpoint to activate)');

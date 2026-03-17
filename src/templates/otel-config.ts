@@ -37,7 +37,7 @@ exporters:
     tls:
       insecure: true
 
-  otlp/traces:
+  otlphttp/traces:
     endpoint: ${tracesUrl}
     tls:
       insecure: true
@@ -64,7 +64,7 @@ service:
       processors:
         - resource/default
       exporters:
-        - otlp/traces
+        - otlphttp/traces
 `;
 }
 
@@ -114,8 +114,8 @@ exporters:
     tls:
       insecure: true
 
-  otlp/traces:
-    endpoint: http://victoria-traces:14268
+  otlphttp/traces:
+    endpoint: http://victoria-traces:4318
     tls:
       insecure: true
 
@@ -141,6 +141,6 @@ service:
       processors:
         - resource/default
       exporters:
-        - otlp/traces
+        - otlphttp/traces
 `;
 }

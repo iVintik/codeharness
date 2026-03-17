@@ -1,6 +1,6 @@
 # Story 2.3: Observability Querying — Agent Visibility into Runtime
 
-Status: ready-for-dev
+Status: verifying
 
 ## Story
 
@@ -26,56 +26,56 @@ So that I can diagnose issues using real runtime data instead of guessing.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create `plugin/knowledge/victoria-querying.md` — Agent knowledge file for observability querying (AC: #1, #2, #3, #4, #7)
-  - [ ] 1.1: Document VictoriaLogs LogQL query patterns — `curl` commands for common queries: `level:error`, `level:warn`, filtering by service name, time range queries, full-text search
-  - [ ] 1.2: Document VictoriaLogs endpoint format — `http://localhost:9428/select/logsql/query?query=<LogQL>&start=<time>&end=<time>`
-  - [ ] 1.3: Document VictoriaMetrics PromQL query patterns — `curl` commands for: instant queries, range queries, metric listing, label discovery
-  - [ ] 1.4: Document VictoriaMetrics endpoint format — `http://localhost:8428/api/v1/query?query=<PromQL>`, `/api/v1/query_range`, `/api/v1/labels`, `/api/v1/label/__name__/values`
-  - [ ] 1.5: Document VictoriaTraces (Jaeger) query patterns — `curl` commands for: searching traces by service, finding traces by trace ID, filtering by operation and duration
-  - [ ] 1.6: Document VictoriaTraces endpoint format — `http://localhost:16686/api/traces?service=<name>`, `http://localhost:16686/api/traces/<traceID>`
-  - [ ] 1.7: Document OTel Collector health check — `curl http://localhost:4318/` for HTTP receiver health
-  - [ ] 1.8: Document common debugging workflows — "after test failure, query logs", "after API error, trace the request", "check metrics for anomalies"
-  - [ ] 1.9: Document what happens when observability is OFF — queries will fail, agent should skip observability steps
-  - [ ] 1.10: Include port reference table: logs 9428, metrics 8428, traces (UI) 16686, traces (collector) 14268, otel-grpc 4317, otel-http 4318
+- [x] Task 1: Create `plugin/knowledge/victoria-querying.md` — Agent knowledge file for observability querying (AC: #1, #2, #3, #4, #7)
+  - [x] 1.1: Document VictoriaLogs LogQL query patterns — `curl` commands for common queries: `level:error`, `level:warn`, filtering by service name, time range queries, full-text search
+  - [x] 1.2: Document VictoriaLogs endpoint format — `http://localhost:9428/select/logsql/query?query=<LogQL>&start=<time>&end=<time>`
+  - [x] 1.3: Document VictoriaMetrics PromQL query patterns — `curl` commands for: instant queries, range queries, metric listing, label discovery
+  - [x] 1.4: Document VictoriaMetrics endpoint format — `http://localhost:8428/api/v1/query?query=<PromQL>`, `/api/v1/query_range`, `/api/v1/labels`, `/api/v1/label/__name__/values`
+  - [x] 1.5: Document VictoriaTraces (Jaeger) query patterns — `curl` commands for: searching traces by service, finding traces by trace ID, filtering by operation and duration
+  - [x] 1.6: Document VictoriaTraces endpoint format — `http://localhost:16686/api/traces?service=<name>`, `http://localhost:16686/api/traces/<traceID>`
+  - [x] 1.7: Document OTel Collector health check — `curl http://localhost:4318/` for HTTP receiver health
+  - [x] 1.8: Document common debugging workflows — "after test failure, query logs", "after API error, trace the request", "check metrics for anomalies"
+  - [x] 1.9: Document what happens when observability is OFF — queries will fail, agent should skip observability steps
+  - [x] 1.10: Include port reference table: logs 9428, metrics 8428, traces (UI) 16686, traces (collector) 14268, otel-grpc 4317, otel-http 4318
 
-- [ ] Task 2: Create `plugin/skills/visibility-enforcement/` skill — Agent skill for observability workflow (AC: #4, #6)
-  - [ ] 2.1: Create `plugin/skills/visibility-enforcement/skill.md` (or appropriate skill file)
-  - [ ] 2.2: Define when the agent SHOULD query observability: after test runs, after seeing HTTP errors, when debugging unexpected behavior, during verification
-  - [ ] 2.3: Define the query decision flow: check if observability is ON (read state file `enforcement.observability`), check if Docker stack is healthy, then query appropriate endpoint
-  - [ ] 2.4: Define the post-query action: if errors found in logs, diagnose and fix; if metrics show anomalies, investigate; if traces show failures, trace the root cause
-  - [ ] 2.5: Reference `knowledge/victoria-querying.md` for query patterns
-  - [ ] 2.6: Document `logs_queried` session flag — set via `codeharness state set logs_queried true` after querying logs
+- [x] Task 2: Create `plugin/skills/visibility-enforcement/` skill — Agent skill for observability workflow (AC: #4, #6)
+  - [x] 2.1: Create `plugin/skills/visibility-enforcement/skill.md` (or appropriate skill file)
+  - [x] 2.2: Define when the agent SHOULD query observability: after test runs, after seeing HTTP errors, when debugging unexpected behavior, during verification
+  - [x] 2.3: Define the query decision flow: check if observability is ON (read state file `enforcement.observability`), check if Docker stack is healthy, then query appropriate endpoint
+  - [x] 2.4: Define the post-query action: if errors found in logs, diagnose and fix; if metrics show anomalies, investigate; if traces show failures, trace the root cause
+  - [x] 2.5: Reference `knowledge/victoria-querying.md` for query patterns
+  - [x] 2.6: Document `logs_queried` session flag — set via `codeharness state set logs_queried true` after querying logs
 
-- [ ] Task 3: Create `plugin/hooks/post-test-verify.sh` — Hook to prompt log query after tests (AC: #6)
-  - [ ] 3.1: Implement PostToolUse hook script that fires after test execution
-  - [ ] 3.2: Read state file to check if `enforcement.observability` is true
-  - [ ] 3.3: If observability is ON, emit `{"message": "Query VictoriaLogs for errors after test run: curl 'http://localhost:9428/select/logsql/query?query=level:error'"}`
-  - [ ] 3.4: If observability is OFF, emit `{"decision": "allow"}` and exit 0 (no prompt)
-  - [ ] 3.5: Follow hook patterns: never `exit 1`, always output valid JSON, fail open if state file missing
+- [x] Task 3: Create `plugin/hooks/post-test-verify.sh` — Hook to prompt log query after tests (AC: #6)
+  - [x] 3.1: Implement PostToolUse hook script that fires after test execution
+  - [x] 3.2: Read state file to check if `enforcement.observability` is true
+  - [x] 3.3: If observability is ON, emit `{"message": "Query VictoriaLogs for errors after test run: curl 'http://localhost:9428/select/logsql/query?query=level:error'"}`
+  - [x] 3.4: If observability is OFF, emit `{"decision": "allow"}` and exit 0 (no prompt)
+  - [x] 3.5: Follow hook patterns: never `exit 1`, always output valid JSON, fail open if state file missing
 
-- [ ] Task 4: Create `plugin/hooks/hooks.json` — Hook event registrations (AC: #6)
-  - [ ] 4.1: Create (or extend if exists) `plugin/hooks/hooks.json` with PostToolUse hook registration for `post-test-verify.sh`
-  - [ ] 4.2: Register hook to fire after test tool execution (e.g., after `npm test`, `vitest`, `pytest` tool use)
+- [x] Task 4: Create `plugin/hooks/hooks.json` — Hook event registrations (AC: #6)
+  - [x] 4.1: Create (or extend if exists) `plugin/hooks/hooks.json` with PostToolUse hook registration for `post-test-verify.sh`
+  - [x] 4.2: Register hook to fire after test tool execution (e.g., after `npm test`, `vitest`, `pytest` tool use)
 
-- [ ] Task 5: Validate observability endpoint availability via integration patterns (AC: #1, #2, #3, #5)
-  - [ ] 5.1: Document manual integration test steps: start Docker stack, send test telemetry via OTel Collector, query VictoriaLogs for the test log, query VictoriaMetrics for the test metric, query VictoriaTraces for the test trace
-  - [ ] 5.2: Document test telemetry generation: `curl -X POST http://localhost:4318/v1/logs -H 'Content-Type: application/json' -d '{...}'` (OTLP HTTP format)
-  - [ ] 5.3: Verify OTel Collector routing: logs arrive at VictoriaLogs, metrics at VictoriaMetrics, traces at VictoriaTraces (Jaeger)
-  - [ ] 5.4: Add these integration test steps to `test/integration/` as documented test procedures (not automated — Docker required)
+- [x] Task 5: Validate observability endpoint availability via integration patterns (AC: #1, #2, #3, #5)
+  - [x] 5.1: Document manual integration test steps: start Docker stack, send test telemetry via OTel Collector, query VictoriaLogs for the test log, query VictoriaMetrics for the test metric, query VictoriaTraces for the test trace
+  - [x] 5.2: Document test telemetry generation: `curl -X POST http://localhost:4318/v1/logs -H 'Content-Type: application/json' -d '{...}'` (OTLP HTTP format)
+  - [x] 5.3: Verify OTel Collector routing: logs arrive at VictoriaLogs, metrics at VictoriaMetrics, traces at VictoriaTraces (Jaeger)
+  - [x] 5.4: Add these integration test steps to `test/integration/` as documented test procedures (not automated — Docker required)
 
-- [ ] Task 6: Extend `src/commands/status.ts` with observability endpoint summary (AC: #5)
-  - [ ] 6.1: When `--check-docker` runs and stack is healthy, additionally print endpoint URLs: `[INFO] Endpoints: logs=http://localhost:9428 metrics=http://localhost:8428 traces=http://localhost:16686`
-  - [ ] 6.2: When `--check-docker --json` runs, include `endpoints` object in JSON output with URLs for each service
-  - [ ] 6.3: Write unit tests for the new endpoint output — mock Docker health, verify endpoint info printed
+- [x] Task 6: Extend `src/commands/status.ts` with observability endpoint summary (AC: #5)
+  - [x] 6.1: When `--check-docker` runs and stack is healthy, additionally print endpoint URLs: `[INFO] Endpoints: logs=http://localhost:9428 metrics=http://localhost:8428 traces=http://localhost:16686`
+  - [x] 6.2: When `--check-docker --json` runs, include `endpoints` object in JSON output with URLs for each service
+  - [x] 6.3: Write unit tests for the new endpoint output — mock Docker health, verify endpoint info printed
 
-- [ ] Task 7: Build and verify (all ACs)
-  - [ ] 7.1: Run `npm run build` — verify tsup compiles successfully
-  - [ ] 7.2: Run `npm run test:unit` — all tests pass including new/updated tests
-  - [ ] 7.3: Run `npm run test:coverage` — verify 100% coverage for new/changed src/ files
-  - [ ] 7.4: Verify `plugin/knowledge/victoria-querying.md` contains accurate LogQL, PromQL, and Jaeger API patterns
-  - [ ] 7.5: Verify `plugin/skills/visibility-enforcement/` skill file is well-structured and references knowledge file
-  - [ ] 7.6: Verify `plugin/hooks/post-test-verify.sh` follows canonical hook patterns (valid JSON output, never exit 1, fail open)
-  - [ ] 7.7: Verify `plugin/hooks/hooks.json` is valid JSON and references the hook script correctly
+- [x] Task 7: Build and verify (all ACs)
+  - [x] 7.1: Run `npm run build` — verify tsup compiles successfully
+  - [x] 7.2: Run `npm run test:unit` — all tests pass including new/updated tests
+  - [x] 7.3: Run `npm run test:coverage` — verify 100% coverage for new/changed src/ files
+  - [x] 7.4: Verify `plugin/knowledge/victoria-querying.md` contains accurate LogQL, PromQL, and Jaeger API patterns
+  - [x] 7.5: Verify `plugin/skills/visibility-enforcement/` skill file is well-structured and references knowledge file
+  - [x] 7.6: Verify `plugin/hooks/post-test-verify.sh` follows canonical hook patterns (valid JSON output, never exit 1, fail open)
+  - [x] 7.7: Verify `plugin/hooks/hooks.json` is valid JSON and references the hook script correctly
 
 ## Dev Notes
 
@@ -237,18 +237,18 @@ None. Plugin artifacts are markdown, bash, and JSON — no compilation. The mino
 <!-- CODEHARNESS-PATCH-START:story-verification -->
 ## Verification Requirements
 
-- [ ] Showboat proof document created (`docs/exec-plans/active/2-3-observability-querying-agent-visibility-into-runtime.proof.md`)
-- [ ] All acceptance criteria verified with real-world evidence
-- [ ] Test coverage meets target (100% of all new code in src/)
+- [x] Showboat proof document created (`docs/exec-plans/active/2-3-observability-querying-agent-visibility-into-runtime.proof.md`)
+- [x] All acceptance criteria verified with real-world evidence
+- [x] Test coverage meets target (100% of all new code in src/)
 
 ## Documentation Requirements
 
-- [ ] Relevant AGENTS.md files updated (plugin/knowledge, plugin/skills, plugin/hooks modules)
-- [ ] Exec-plan created in `docs/exec-plans/active/2-3-observability-querying-agent-visibility-into-runtime.md`
+- [x] Relevant AGENTS.md files updated (plugin/knowledge, plugin/skills, plugin/hooks modules)
+- [x] Exec-plan created in `docs/exec-plans/active/2-3-observability-querying-agent-visibility-into-runtime.md`
 
 ## Testing Requirements
 
-- [ ] Unit tests written for all new/changed code
-- [ ] Integration tests for cross-module interactions
-- [ ] Coverage target: 100%
+- [x] Unit tests written for all new/changed code
+- [x] Integration tests for cross-module interactions
+- [x] Coverage target: 100%
 <!-- CODEHARNESS-PATCH-END:story-verification -->

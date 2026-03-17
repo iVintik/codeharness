@@ -52,6 +52,20 @@ if command -v bd >/dev/null 2>&1; then
 fi
 
 # Observability is ON — prompt agent to query logs
-HARNESS_CLI="${CLAUDE_PLUGIN_ROOT}/bin/codeharness"
-echo "{\"message\": \"Tests complete. Query VictoriaLogs for errors:\\n-> curl 'http://localhost:9428/select/logsql/query?query=level:error&start=5m'\\n-> Then run: ${HARNESS_CLI} state set session_flags.logs_queried true\"}"
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -x "${CLAUDE_PLUGIN_ROOT}/bin/codeharness" ]; then
+  HARNESS_CLI="${CLAUDE_PLUGIN_ROOT}/bin/codeharness"
+else
+  HARNESS_CLI="codeharness"
+fi
+
+# Read service_name directly from state file for scoped queries (fail open if unavailable)
+# Avoids Node.js CLI startup latency to stay within 500ms NFR
+SERVICE_NAME=$(grep 'service_name:' "$STATE_FILE" 2>/dev/null | head -1 | sed 's/.*service_name:[[:space:]]*//' | tr -d '"' || true)
+if [ -n "$SERVICE_NAME" ]; then
+  QUERY="level:error%20AND%20service_name:${SERVICE_NAME}"
+else
+  QUERY="level:error"
+fi
+
+echo "{\"message\": \"Tests complete. Query VictoriaLogs for errors:\\n-> curl 'http://localhost:9428/select/logsql/query?query=${QUERY}&start=5m'\\n-> Then run: ${HARNESS_CLI} state set session_flags.logs_queried true\"}"
 exit 0

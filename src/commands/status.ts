@@ -126,29 +126,19 @@ function handleFullStatus(isJson: boolean): void {
       const stackDir = getStackDir();
       const isShared = composeFile.startsWith(stackDir);
 
-      if (isShared) {
-        console.log(`Docker: shared stack at ~/.codeharness/stack/`);
-        const sharedComposeFile = getComposeFilePath();
-        const health = getStackHealth(sharedComposeFile, 'codeharness-shared');
-        for (const svc of health.services) {
-          console.log(`  ${svc.name}: ${svc.running ? 'running' : 'stopped'}`);
-        }
-        if (health.healthy) {
-          console.log(
-            `  Endpoints: logs=${DEFAULT_ENDPOINTS.logs} metrics=${DEFAULT_ENDPOINTS.metrics} traces=${DEFAULT_ENDPOINTS.traces}`,
-          );
-        }
-      } else {
-        const health = getStackHealth(composeFile);
-        console.log('Docker:');
-        for (const svc of health.services) {
-          console.log(`  ${svc.name}: ${svc.running ? 'running' : 'stopped'}`);
-        }
-        if (health.healthy) {
-          console.log(
-            `  Endpoints: logs=${DEFAULT_ENDPOINTS.logs} metrics=${DEFAULT_ENDPOINTS.metrics} traces=${DEFAULT_ENDPOINTS.traces}`,
-          );
-        }
+      const resolvedComposeFile = isShared ? getComposeFilePath() : composeFile;
+      const projectName = isShared ? 'codeharness-shared' : undefined;
+      const header = isShared ? 'Docker: shared stack at ~/.codeharness/stack/' : 'Docker:';
+
+      console.log(header);
+      const health = getStackHealth(resolvedComposeFile, projectName);
+      for (const svc of health.services) {
+        console.log(`  ${svc.name}: ${svc.running ? 'running' : 'stopped'}`);
+      }
+      if (health.healthy) {
+        console.log(
+          `  Endpoints: logs=${DEFAULT_ENDPOINTS.logs} metrics=${DEFAULT_ENDPOINTS.metrics} traces=${DEFAULT_ENDPOINTS.traces}`,
+        );
       }
     }
   }

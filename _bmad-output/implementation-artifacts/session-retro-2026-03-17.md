@@ -1635,3 +1635,172 @@ The key decisions that drove this outcome:
 4. Consolidate action items before they become unmanageable
 
 Ralph is currently running (started 15:53, loop #1). Sprint status shows 14/65 done (21.5%).
+
+---
+
+# Session 6 Retrospective — 2026-03-17T19:33Z
+
+**Session Date:** 2026-03-17 (covering ralph run from ~15:53 onward + manual work)
+**Stories Attempted:** 4 (2-2, 2-3, 13-3, 13-4)
+**Stories Completed:** 3 (2-2 done, 13-3 done, 13-4 already done)
+**Stories Still In Progress:** 1 (2-3 at review status)
+**Epics Completed:** Epic 13 (all 4 stories done)
+**Releases Shipped:** v0.17.4 through v0.17.7 (4 releases)
+
+---
+
+## 1. Session Summary
+
+This session combined ralph-driven verification with manual bug-fixing between iterations. The focus was on completing Epic 13 (black-box verification) and progressing Epic 2 (observability).
+
+| Story | Title | Outcome | Notes |
+|-------|-------|---------|-------|
+| 13-4 | Verification Environment Sprint Workflow | **done** | Verified early in session. |
+| 2-2 | Docker Compose VictoriaMetrics Stack Management | **done** | Required 2 bug fixes (verify parser, blackbox enforcement), then passed verification. |
+| 13-3 | Black-Box Verifier Agent | **done** | Previously stuck for 5+ attempts. Finally passed after infrastructure fixes. Stale Docker container cleanup was needed. |
+| 2-3 | Observability Querying Agent Visibility into Runtime | **review** | Verifier timed out (10+ min). Implementation exists but verification incomplete. Set to retry 1/3. Later found no code changes needed — just test doc + story file update. |
+
+**Key fixes shipped this session:**
+- v0.17.4: Removed `set -e` from ralph.sh (caused silent loop crashes)
+- v0.17.5: Added `--allowedTools` to verifier claude sessions
+- v0.17.6: Unified retry counters, blackbox enforcement accepts docker-host/observability evidence
+- v0.17.7: harness-init uses shared stack instead of per-project compose
+
+**Major milestone: Epic 13 complete.** The black-box verification infrastructure that all other story verification depends on is now fully verified and done.
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Discovered During Implementation/Verification
+
+| ID | Severity | Description | Status |
+|----|----------|-------------|--------|
+| B23 | HIGH | `hasFailVerdict()` in `verify.ts` did not strip inline code backticks — `[FAIL]` inside code spans in proof narratives was falsely treated as a failed AC. | Fixed (v0.17.6) |
+| B24 | HIGH | `checkBlackBoxEnforcement()` rejected valid black-box evidence (`docker ps`, `curl` to observability endpoints) — only `docker exec` was accepted. | Fixed (v0.17.6) |
+| B25 | HIGH | `set -e` in ralph.sh caused the entire loop to crash silently on any non-zero exit from a subcommand. | Fixed (v0.17.4) |
+| B26 | MEDIUM | `codeharness status --check-docker` reports shared stack as down because it only looks for project-level containers. | Open — cosmetic but misleading. |
+
+### 2.2 Workarounds / Tech Debt Introduced
+
+| # | Workaround | Debt Level | Impact |
+|---|-----------|------------|--------|
+| W12 | Stale Docker containers from previous sessions must be manually removed before verification. No automated cleanup. | LOW | Manual step before each session. |
+| W13 | `post-test-verify.sh` does not check observability enforcement state despite observability now being mandatory per architecture. | MEDIUM | Gap between architecture spec and enforcement. |
+
+### 2.3 Verification Gaps
+
+| Story | Gap | Status |
+|-------|-----|--------|
+| 2-3 | Verifier timed out after 10+ minutes. 7 ACs with substantial scope (plugin knowledge files, skills, hooks, observability endpoints). Budget/timeout insufficient. | Retry 1/3. At `review` status — implementation complete but not yet verified. |
+| 2-3 | `status.ts` coverage at 88.33% — uncovered lines are pre-existing, not from this story. | Acceptable but noted. |
+
+### 2.4 Infrastructure / Tooling Problems
+
+| # | Problem | Recurrence | Impact |
+|---|---------|------------|--------|
+| Stale binary | Global `codeharness` binary was stale vs local build with fixes. Required `npm install -g .` to sync. | 3rd occurrence across sessions | Wasted dev iteration on 2-2. |
+| Verifier timeout | `claude --print` subprocess for verification timed out on 2-3. 10-minute budget too tight for 7-AC stories with Docker interactions. | 2nd occurrence | Story could not complete verification. |
+| Version sync churn | 4 more releases this session (v0.17.4-v0.17.7). Each required separate package.json/plugin.json sync. | Ongoing | Process overhead. |
+
+---
+
+## 3. What Went Well
+
+1. **Epic 13 completed.** The black-box verification foundation is done. All 4 stories (13-1 through 13-4) are verified. This was the highest-priority epic and the blocker for all other verification work.
+
+2. **13-3 finally passed.** After 5+ failed attempts across sessions 1-5, the accumulated infrastructure fixes (allowedTools, retry management, stale container cleanup) resolved the structural issues that were preventing verification.
+
+3. **Dev-fix-verify loop proved out again.** Session 5 identified bugs in verify.ts and blackbox enforcement. Fixes were shipped between sessions. This session verified the fixes worked. The feedback loop is reliable.
+
+4. **Bug fixes had compound impact.** The `hasFailVerdict()` backtick fix (B23) and blackbox enforcement fix (B24) together unblocked 2-2 verification. Single fixes resolved multiple downstream failures.
+
+5. **`set -e` removal prevented future ghost crashes.** B25 was a silent killer — ralph would crash mid-loop with no output and no diagnostics. Removing `set -e` means errors are now visible.
+
+---
+
+## 4. What Went Wrong
+
+1. **4 releases in a single session is still too many.** v0.17.4, v0.17.5, v0.17.6, v0.17.7 — each was a targeted fix. Batching would have reduced this to 1-2 releases.
+
+2. **2-3 verifier timeout.** 10+ minutes with no output. The story has 7 ACs spanning knowledge files, skills, hooks, and observability endpoints. The verification budget is structurally insufficient for stories of this scope.
+
+3. **Stale binary problem recurred for the 3rd time.** This has been flagged in every retro since session 2. No automated solution implemented yet.
+
+4. **2-3 ended at `review` not `done`.** Despite implementation being complete and needing no code changes, the story could not be verified due to timeout constraints. It is blocked on infrastructure, not implementation.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Accumulated fixes create compound unblocking.** The 5+ failures on 13-3 were not wasted — each failure surfaced a different issue (permissions, retry logic, container state, timeout). Fixing them all made the 6th attempt succeed. Persistence on high-value stories pays off.
+- **Ship fixes between sessions, verify in next session.** The overnight/between-session fix-and-verify cadence is the most productive pattern for this project.
+
+### Patterns to Avoid
+
+- **Per-fix releases.** Batch fixes, test together, release once. Four releases in one session is overhead.
+- **Ignoring the stale binary problem.** Three sessions, same issue. Automate `npm install -g .` in ralph pre-flight or switch to local binary execution.
+- **Running 7-AC stories through the 10-minute verifier.** Stories with many ACs and Docker interactions need a longer timeout or should be split into smaller verification units.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next session)
+
+| ID | Action | Owner | Priority |
+|----|--------|-------|----------|
+| A56 | **Fix B26: `status --check-docker` for shared stack.** Report shared containers correctly. | Dev | MEDIUM |
+| A57 | **Increase verifier timeout for large stories (7+ ACs).** 10 minutes is insufficient. | Dev | HIGH |
+| A58 | **Split 2-3 verification into smaller units** or reduce AC scope to fit within timeout. | SM | HIGH |
+
+### Fix Soon (next sprint)
+
+| ID | Action | Owner | Notes |
+|----|--------|-------|-------|
+| A59 | **Add `npm install -g .` to ralph pre-flight** or use local binary path. | Dev | 3rd recurrence of stale binary. |
+| A60 | **Batch releases per session, not per fix.** Adopt a session-end release cadence. | SM/Dev | 11 releases today total. |
+| A61 | **Add observability enforcement to post-test-verify.sh.** | Dev | W13 — architecture says mandatory but enforcement is missing. |
+| A62 | **Automated stale Docker container cleanup** before verification runs. | Dev | W12 — manual step is fragile. |
+
+### Carried Forward (still pending from prior retros)
+
+| ID | Action | Sessions Pending |
+|----|--------|-----------------|
+| A10/A16 | Reclassify 0-1 ACs as integration-required | 4+ sessions |
+| A8 | Early-exit heuristic for repeated identical failures | 5+ sessions |
+| A9 | Parallel verification containers | 5+ sessions |
+| A30 | Create a debt register for W1-W13 | 2+ sessions |
+| A54 | Consolidate all 56+ action items | 2+ sessions |
+
+---
+
+## Session Metrics
+
+| Metric | Start of Session | End of Session | Delta |
+|--------|-----------------|----------------|-------|
+| Stories done | 14/65 | 17/65 | +3 (2-2, 13-3, 13-4) |
+| Epics done | 4 (0, 1, 12, 15) | 5 (0, 1, 12, 13, 15) | +1 (Epic 13) |
+| Stories at `verifying` | 44 | 42 | -2 |
+| Stories at `review` | 0 | 1 | +1 (2-3) |
+| Releases shipped | 7 (day total) | 11 (day total) | +4 (v0.17.4-v0.17.7) |
+| Bugs found | 2 open | 3 open (B22, B2, B26) | +1 new, B23-B25 fixed |
+| Debt items | 11 | 13 | +2 (W12, W13) |
+| Action items | 56 | 62 | +6 new |
+
+### Sprint Progress: 17/65 stories done (26.2%), 5/16 epics done (31.3%)
+
+---
+
+## Verdict
+
+**Solid session.** Epic 13 is complete — the verification foundation that everything else depends on is done. Three stories closed. The 13-3 breakthrough after 5+ failed attempts validates the incremental-fix approach.
+
+The main concern is action item growth: 62 items, growing faster than they are resolved. A54 (consolidation) is overdue.
+
+Next priorities:
+1. Get 2-3 through verification (increase timeout or reduce scope)
+2. Resume ralph against the 42 `verifying` stories — the pipeline is fully operational
+3. Consolidate action items before the list becomes unmanageable

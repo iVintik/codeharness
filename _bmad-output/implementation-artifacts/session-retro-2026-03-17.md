@@ -1081,3 +1081,119 @@ The story-level bugs (B19, B20) are small fixes — probably 15 minutes of dev w
 2. Fix the hook auto-transition (A39) — defense in depth
 3. Fix 3-2 code bugs (A36, A37) — small, quick
 4. Re-verify 3-2 — should pass after fixes
+
+---
+
+# Session Retrospective — 2026-03-17 (Session 3, ~11:00–11:30 UTC)
+
+**Appended:** 2026-03-17T11:27Z
+**Sprint Scope:** Epic 13 (verification pass), Epic 3 (validation)
+**Stories Attempted:** 2 (3-2, 13-2)
+**Stories Completed:** 1 (3-2 validated as done)
+**Stories Failed Verification:** 1 (13-2 — multiple bugs found)
+
+---
+
+## 1. Session Summary
+
+Short session focused on validation and verification of two stories.
+
+| Story | Title | Outcome | Notes |
+|-------|-------|---------|-------|
+| 3-2 | BMAD Installation & Workflow Patching | **done** (validated) | All 12 ACs passing. Prior proof confirmed. No issues. |
+| 13-2 | Documentation Gate for Verification | **failed verification** | 3 code bugs + 2 infrastructure issues discovered. Cannot pass. |
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Verification
+
+| ID | Severity | Description |
+|----|----------|-------------|
+| B21 | HIGH | `codeharness init` aborts on beads install failure. Beads is a pip package unavailable in Node.js-only environments. Init never reaches README scaffold step, so AC2 and AC3 fail. The "critical dependency" classification is wrong — beads should be optional or gracefully degraded. |
+| B22 | HIGH | `codeharness init` JSON output reports `readme: "created"` even when init aborted before writing the file. JSON result is inconsistent with filesystem state. This is a lying API — downstream consumers will trust the JSON and get wrong answers. |
+| B23 | MEDIUM | `verify-env check` reports `cliWorks: yes` without actually running `docker exec` to test CLI functionality. Removing the binary from the container does not change the result. The check is a no-op. |
+
+### Infrastructure / Tooling Issues
+
+| ID | Severity | Description |
+|----|----------|-------------|
+| T8 | HIGH | `claude --print` subprocess blocked by docker exec permissions. Verifier subprocess could not get permission to run `docker exec` commands, forcing manual verification. This blocks automated black-box verification. |
+| T9 | MEDIUM | Harness docker-compose conflicts with shared stack on port 9428. Both compose files try to bind the same port. Cannot run both stacks simultaneously. |
+
+### Workarounds Applied
+
+None — verification failed; no workarounds were applied. The bugs need code fixes.
+
+### Verification Gaps
+
+13-2 cannot be verified until B21, B22, and B23 are fixed. The story needs to go back to dev.
+
+## 3. What Went Well
+
+- **3-2 clean validation.** All 12 ACs passed with existing proof. No drama.
+- **Thorough bug discovery on 13-2.** The verifier found 3 distinct code bugs and 2 infrastructure issues rather than accepting weak evidence. This is the verification pipeline working as intended — catching real problems.
+- **Session issues log is working.** All bugs were documented in real time with enough detail to act on.
+
+## 4. What Went Wrong
+
+- **13-2 is further from done than expected.** It was marked `done` in sprint status, but verification exposed that the init command has fundamental issues (beads dependency handling, JSON output integrity, verify-env check validity). These are not cosmetic — they indicate the init command's error handling was never tested against real failure scenarios.
+- **Docker exec permission model is still a blocker.** T8 is a recurring theme from prior sessions. Automated black-box verification requires subprocess docker exec access, which is still not reliably available.
+- **Port conflicts between stacks (T9)** prevent running verification and observability simultaneously. This was known but not fixed.
+
+## 5. Lessons Learned
+
+- **"Done" stories can hide significant bugs.** 13-2 was marked done, but its ACs were passing only in the happy path. The verification step caught failure-path bugs that code review missed.
+- **JSON output integrity matters.** When a CLI reports structured output, that output must match reality. B22 (lying JSON) is a trust violation that undermines programmatic consumers. Always validate JSON output against filesystem state in tests.
+- **Optional dependencies should fail gracefully.** B21 exists because beads was classified as critical when it should be optional. Dependencies that may not exist in the target environment must degrade gracefully, not abort the entire operation.
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| ID | Action | Owner |
+|----|--------|-------|
+| A40 | Fix `codeharness init` to handle beads install failure gracefully (skip beads, continue to README scaffold) | Dev |
+| A41 | Fix init JSON output to report actual filesystem state, not assumed state | Dev |
+| A42 | Fix `verify-env check` to actually run `docker exec` for cliWorks check | Dev |
+
+### Fix Soon (Next Sprint)
+
+| ID | Action | Owner |
+|----|--------|-------|
+| A43 | Resolve docker-compose port conflict (T9) — use dynamic port allocation or separate port ranges for harness vs shared stack | Dev |
+| A44 | Investigate docker exec permission model for `claude --print` subprocesses (T8) — determine if this is a sandbox limitation or a configuration issue | Dev |
+
+### Backlog
+
+| ID | Action | Owner |
+|----|--------|-------|
+| A45 | Add failure-path integration tests for `codeharness init` — test with missing pip, missing beads, missing docker, etc. | Dev |
+| A46 | Audit all CLI commands for JSON output integrity — ensure structured output always matches filesystem/runtime state | Dev |
+
+---
+
+## Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories done (start of session) | 12/65 |
+| Stories done (end of session) | 12/65 (3-2 was already done; validation confirmed it) |
+| Net stories completed | 0 new (1 validated) |
+| Code bugs found in verification | 3 (2 HIGH, 1 MEDIUM) |
+| Tooling/infra issues found | 2 (1 HIGH, 1 MEDIUM) |
+| Stories returned to dev | 0 (13-2 still shows done in sprint-status but needs re-work) |
+
+---
+
+## Verdict
+
+**One story validated, one story failed verification with 3 code bugs.**
+
+3-2 is genuinely done. 13-2 needs dev work on three bugs (B21, B22, B23) before re-verification. The bugs are real — init aborts on optional dependency failure, JSON output lies about file creation, and verify-env doesn't actually verify. These are not edge cases; they are fundamental correctness issues.
+
+**Priority order for next session:**
+1. Fix B21 (init beads graceful degradation) — unblocks 13-2 AC2/AC3
+2. Fix B22 (JSON output integrity) — trust issue
+3. Fix B23 (verify-env actually verifies) — correctness issue
+4. Re-verify 13-2
+5. Continue verification backlog (13-3, 13-4, then other verifying stories)

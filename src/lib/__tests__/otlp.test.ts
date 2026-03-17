@@ -80,6 +80,17 @@ describe('installNodeOtlp', () => {
     expect(result.error).toContain('Failed to install Node.js OTLP packages');
   });
 
+  it('truncates long error messages from npm install failures', () => {
+    const longStderr = 'E'.repeat(500);
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error(longStderr);
+    });
+    const result = installNodeOtlp(testDir);
+    expect(result.error).toBeDefined();
+    expect(result.error!.length).toBeLessThan(500);
+    expect(result.error).toContain('(truncated)');
+  });
+
   it('includes all four OTLP packages in install command', () => {
     mockExecFileSync.mockReturnValue(Buffer.from(''));
     installNodeOtlp(testDir);
@@ -160,6 +171,12 @@ describe('patchNodeStartScript', () => {
   });
 
   it('returns false when no package.json', () => {
+    const patched = patchNodeStartScript(testDir);
+    expect(patched).toBe(false);
+  });
+
+  it('returns false when package.json is malformed JSON', () => {
+    writeFileSync(join(testDir, 'package.json'), '{ invalid json !!!');
     const patched = patchNodeStartScript(testDir);
     expect(patched).toBe(false);
   });
@@ -294,7 +311,7 @@ describe('configureWeb', () => {
     );
   });
 
-  it('creates otel-web-init.js snippet', () => {
+  it('creates otel-web-init.js snippet with endpoint from state', () => {
     initStateWithOtlp('nodejs');
     mockExecFileSync.mockReturnValue(Buffer.from(''));
 
@@ -304,7 +321,26 @@ describe('configureWeb', () => {
     const content = readFileSync(join(testDir, 'otel-web-init.js'), 'utf-8');
     expect(content).toContain('WebTracerProvider');
     expect(content).toContain('FetchInstrumentation');
-    expect(content).toContain('localhost:4318');
+    expect(content).toContain('http://localhost:4318/v1/traces');
+  });
+
+  it('uses custom endpoint from state in web snippet', () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    state.otlp = {
+      enabled: true,
+      endpoint: 'https://otel.company.com:4318',
+      service_name: 'test-project',
+      mode: 'remote-direct',
+    };
+    writeState(state, testDir);
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    configureWeb(testDir, 'nodejs');
+
+    const content = readFileSync(join(testDir, 'otel-web-init.js'), 'utf-8');
+    expect(content).toContain('https://otel.company.com:4318/v1/traces');
+    expect(content).not.toContain('localhost');
   });
 
   it('sets web_snippet_path in state', () => {
@@ -326,6 +362,18 @@ describe('configureWeb', () => {
     // Should not throw
     configureWeb(testDir, 'nodejs');
 
+    // Snippet should still be created
+    expect(existsSync(join(testDir, 'otel-web-init.js'))).toBe(true);
+  });
+
+  it('skips npm install for non-nodejs stack but still creates snippet', () => {
+    initStateWithOtlp('python');
+    mockExecFileSync.mockClear();
+
+    configureWeb(testDir, 'python');
+
+    // npm should not be called for python stack
+    expect(mockExecFileSync).not.toHaveBeenCalled();
     // Snippet should still be created
     expect(existsSync(join(testDir, 'otel-web-init.js'))).toBe(true);
   });
@@ -368,7 +416,7 @@ describe('configureAgent', () => {
     expect(state.otlp!.agent_sdk).toBe('traceloop');
   });
 
-  it('does not fail when agent package install fails', () => {
+  it('does not fail when agent package install fails for Node.js', () => {
     initStateWithOtlp('nodejs');
     mockExecFileSync.mockImplementation(() => {
       throw new Error('npm failed');
@@ -378,6 +426,49 @@ describe('configureAgent', () => {
     configureAgent(testDir, 'nodejs');
 
     // State should still be updated
+    const state = readState(testDir);
+    expect(state.otlp!.agent_sdk).toBe('traceloop');
+  });
+
+  it('falls back to pipx when pip fails for Python agent packages', () => {
+    initStateWithOtlp('python');
+    mockExecFileSync.mockImplementation((cmd) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+      if (cmdStr === 'pip') throw new Error('pip not found');
+      // pipx succeeds
+      return Buffer.from('');
+    });
+
+    configureAgent(testDir, 'python');
+
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'pipx',
+      expect.arrayContaining(['install', 'traceloop-sdk']),
+      expect.objectContaining({ cwd: testDir }),
+    );
+    const state = readState(testDir);
+    expect(state.otlp!.agent_sdk).toBe('traceloop');
+  });
+
+  it('does not fail when both pip and pipx fail for Python agent packages', () => {
+    initStateWithOtlp('python');
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error('command not found');
+    });
+
+    // Should not throw
+    configureAgent(testDir, 'python');
+
+    // State should still be updated
+    const state = readState(testDir);
+    expect(state.otlp!.agent_sdk).toBe('traceloop');
+  });
+
+  it('does nothing for null stack', () => {
+    initStateWithOtlp(null);
+
+    configureAgent(testDir, null);
+
     const state = readState(testDir);
     expect(state.otlp!.agent_sdk).toBe('traceloop');
   });
@@ -415,6 +506,17 @@ describe('installAgentOtlp', () => {
     expect(result.status).toBe('failed');
     expect(result.error).toContain('Failed to install agent OTLP packages');
   });
+
+  it('truncates long error messages from install failures', () => {
+    const longStderr = 'E'.repeat(500);
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error(longStderr);
+    });
+    const result = installAgentOtlp(testDir, 'nodejs');
+    expect(result.error).toBeDefined();
+    expect(result.error!.length).toBeLessThan(500);
+    expect(result.error).toContain('(truncated)');
+  });
 });
 
 describe('instrumentProject', () => {
@@ -451,7 +553,7 @@ describe('instrumentProject', () => {
     expect(result.packages_installed).toBe(false);
   });
 
-  it('handles Node.js install failure gracefully', () => {
+  it('handles Node.js install failure gracefully — env vars still configured', () => {
     initState('nodejs');
     mockExecFileSync.mockImplementation(() => {
       throw new Error('npm failed');
@@ -459,10 +561,16 @@ describe('instrumentProject', () => {
 
     const result = instrumentProject(testDir, 'nodejs');
     expect(result.status).toBe('failed');
-    expect(result.env_vars_configured).toBe(false);
+    // Env vars are always configured even when package install fails
+    expect(result.env_vars_configured).toBe(true);
+
+    // State should have node_require set
+    const state = readState(testDir);
+    expect(state.otlp).toBeDefined();
+    expect(state.otlp!.node_require).toContain('--require');
   });
 
-  it('handles Python install failure gracefully', () => {
+  it('handles Python install failure gracefully — env vars still configured', () => {
     initState('python');
     mockExecFileSync.mockImplementation(() => {
       throw new Error('pip failed');
@@ -470,7 +578,13 @@ describe('instrumentProject', () => {
 
     const result = instrumentProject(testDir, 'python');
     expect(result.status).toBe('failed');
-    expect(result.env_vars_configured).toBe(false);
+    // Env vars are always configured even when package install fails
+    expect(result.env_vars_configured).toBe(true);
+
+    // State should have python_wrapper set
+    const state = readState(testDir);
+    expect(state.otlp).toBeDefined();
+    expect(state.otlp!.python_wrapper).toBe('opentelemetry-instrument');
   });
 
   it('prints messages in non-json mode for Node.js', () => {

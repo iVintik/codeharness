@@ -7,7 +7,7 @@ import type { AppType } from '../lib/stack-detect.js';
 import { readState, writeState, getDefaultState, getStatePath } from '../lib/state.js';
 import { generateFile } from '../lib/templates.js';
 import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollectorOnly } from '../lib/docker.js';
-import { installAllDependencies, CriticalDependencyError } from '../lib/deps.js';
+import { installAllDependencies, CriticalDependencyError, checkInstalled, DEPENDENCY_REGISTRY } from '../lib/deps.js';
 import { instrumentProject, configureOtlpEnvVars } from '../lib/otlp.js';
 import { initBeads, isBeadsInitialized, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../lib/beads.js';
 import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, BmadError } from '../lib/bmad.js';
@@ -26,6 +26,7 @@ interface InitOptions {
   frontend: boolean;
   database: boolean;
   api: boolean;
+  observability: boolean;
   otelEndpoint?: string;
   logsUrl?: string;
   metricsUrl?: string;
@@ -180,6 +181,7 @@ export function registerInitCommand(program: Command): void {
     .option('--no-frontend', 'Disable frontend enforcement')
     .option('--no-database', 'Disable database enforcement')
     .option('--no-api', 'Disable API enforcement')
+    .option('--no-observability', 'Skip OTLP package installation')
     .option('--otel-endpoint <url>', 'Remote OTLP endpoint (skips local Docker stack)')
     .option('--logs-url <url>', 'Remote VictoriaLogs URL')
     .option('--metrics-url <url>', 'Remote VictoriaMetrics URL')
@@ -217,6 +219,28 @@ export function registerInitCommand(program: Command): void {
             result.documentation.agents_md = 'exists';
             result.documentation.docs_scaffold = 'exists';
             result.documentation.readme = 'exists';
+
+            // Check each dependency individually and report status (AC 7)
+            const depResults: DependencyResult[] = [];
+            for (const spec of DEPENDENCY_REGISTRY) {
+              const check = checkInstalled(spec);
+              const depResult: DependencyResult = {
+                name: spec.name,
+                displayName: spec.displayName,
+                status: check.installed ? 'already-installed' : 'failed',
+                version: check.version,
+              };
+              depResults.push(depResult);
+              if (!isJson) {
+                if (check.installed) {
+                  const versionStr = check.version ? ` (v${check.version})` : '';
+                  ok(`${spec.displayName}: already installed${versionStr}`);
+                } else {
+                  fail(`${spec.displayName}: not found`);
+                }
+              }
+            }
+            result.dependencies = depResults;
 
             if (isJson) {
               jsonOutput(result as unknown as Record<string, unknown>);
@@ -489,8 +513,21 @@ export function registerInitCommand(program: Command): void {
         }
       }
 
-      // --- OTLP instrumentation (always — observability is mandatory) ---
-      const otlpResult = instrumentProject(projectDir, stack, { json: isJson, appType });
+      // --- OTLP instrumentation (skip when --no-observability is set) ---
+      let otlpResult: OtlpResult;
+      if (!options.observability) {
+        otlpResult = {
+          status: 'skipped',
+          packages_installed: false,
+          start_script_patched: false,
+          env_vars_configured: false,
+        };
+        if (!isJson) {
+          info('OTLP: skipped (--no-observability)');
+        }
+      } else {
+        otlpResult = instrumentProject(projectDir, stack, { json: isJson, appType });
+      }
       result.otlp = otlpResult;
 
       // Sync in-memory state with what configureOtlpEnvVars() wrote to disk.

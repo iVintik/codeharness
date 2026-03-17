@@ -48,6 +48,9 @@ driver_valid_tools() {
         "Bash(showboat *)"
         "Bash(codeharness *)"
         "NotebookEdit"
+        "Skill"
+        "Agent"
+        "ToolSearch"
     )
 }
 

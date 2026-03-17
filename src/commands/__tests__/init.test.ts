@@ -42,6 +42,30 @@ vi.mock('../../lib/deps.js', () => ({
     { name: 'agent-browser', displayName: 'agent-browser', status: 'already-installed', version: '1.0.0' },
     { name: 'beads', displayName: 'beads', status: 'already-installed', version: '2.0.0' },
   ]),
+  checkInstalled: vi.fn(() => ({ installed: true, version: '1.0.0' })),
+  DEPENDENCY_REGISTRY: [
+    {
+      name: 'showboat',
+      displayName: 'Showboat',
+      installCommands: [{ cmd: 'pip', args: ['install', 'showboat'] }],
+      checkCommand: { cmd: 'showboat', args: ['--version'] },
+      critical: false,
+    },
+    {
+      name: 'agent-browser',
+      displayName: 'agent-browser',
+      installCommands: [{ cmd: 'npm', args: ['install', '-g', '@anthropic/agent-browser'] }],
+      checkCommand: { cmd: 'agent-browser', args: ['--version'] },
+      critical: false,
+    },
+    {
+      name: 'beads',
+      displayName: 'beads',
+      installCommands: [{ cmd: 'pip', args: ['install', 'beads'] }],
+      checkCommand: { cmd: 'bd', args: ['--version'] },
+      critical: true,
+    },
+  ],
   CriticalDependencyError: class CriticalDependencyError extends Error {
     dependencyName: string;
     reason: string;
@@ -112,7 +136,7 @@ vi.mock('../../lib/otlp.js', () => ({
 }));
 
 import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollectorOnly } from '../../lib/docker.js';
-import { installAllDependencies, CriticalDependencyError } from '../../lib/deps.js';
+import { installAllDependencies, CriticalDependencyError, checkInstalled } from '../../lib/deps.js';
 import { instrumentProject } from '../../lib/otlp.js';
 import { isBeadsInitialized, initBeads, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../../lib/beads.js';
 import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, BmadError } from '../../lib/bmad.js';
@@ -127,6 +151,7 @@ const mockIsSharedStackRunning = vi.mocked(isSharedStackRunning);
 const mockStartSharedStack = vi.mocked(startSharedStack);
 const mockStartCollectorOnly = vi.mocked(startCollectorOnly);
 const mockInstallAllDependencies = vi.mocked(installAllDependencies);
+const mockCheckInstalled = vi.mocked(checkInstalled);
 const mockInstrumentProject = vi.mocked(instrumentProject);
 const mockIsBeadsInitialized = vi.mocked(isBeadsInitialized);
 const mockInitBeads = vi.mocked(initBeads);
@@ -506,6 +531,35 @@ describe('init command — idempotent re-run', () => {
     expect(afterState.session_flags.tests_passed).toBe(true);
   });
 
+  it('reports per-dependency status on re-run', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+
+    // First run
+    await runCli(['init']);
+
+    // Second run — should show per-dependency status
+    const { stdout } = await runCli(['init']);
+    expect(stdout).toContain('Showboat: already installed');
+    expect(stdout).toContain('agent-browser: already installed');
+    expect(stdout).toContain('beads: already installed');
+  });
+
+  it('includes dependencies in JSON re-run output', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+
+    // First run
+    await runCli(['init']);
+
+    // Second run with JSON
+    const { stdout } = await runCli(['--json', 'init']);
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    const parsed = JSON.parse(jsonLine!);
+
+    expect(parsed.dependencies).toBeDefined();
+    expect(parsed.dependencies).toHaveLength(3);
+    expect(parsed.dependencies[0].status).toBe('already-installed');
+  });
+
   it('does not regenerate docs on re-run', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
 
@@ -780,6 +834,36 @@ describe('init command — OTLP instrumentation', () => {
     const parsed = JSON.parse(jsonLine!);
     expect(parsed.otlp).toBeDefined();
     expect(parsed.otlp.status).toBe('configured');
+  });
+
+  it('skips OTLP when --no-observability is set', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockInstrumentProject.mockClear();
+
+    const { stdout, exitCode } = await runCli(['init', '--no-observability']);
+    expect(exitCode).toBeUndefined();
+    expect(mockInstrumentProject).not.toHaveBeenCalled();
+    expect(stdout).toContain('OTLP: skipped (--no-observability)');
+  });
+
+  it('skips OTLP in JSON mode when --no-observability is set', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockInstrumentProject.mockClear();
+
+    const { stdout } = await runCli(['--json', 'init', '--no-observability']);
+    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
+    const parsed = JSON.parse(jsonLine!);
+    expect(parsed.otlp).toBeDefined();
+    expect(parsed.otlp.status).toBe('skipped');
+    expect(mockInstrumentProject).not.toHaveBeenCalled();
+  });
+
+  it('still installs dependencies when --no-observability is set', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockInstallAllDependencies.mockClear();
+
+    await runCli(['init', '--no-observability']);
+    expect(mockInstallAllDependencies).toHaveBeenCalledTimes(1);
   });
 });
 

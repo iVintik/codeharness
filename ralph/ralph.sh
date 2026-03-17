@@ -7,6 +7,9 @@
 
 set -e
 
+# DEBUG: catch unexpected exits from set -e
+trap 'echo "[$(date "+%Y-%m-%d %H:%M:%S")] [FATAL] ralph.sh died at line $LINENO (exit code: $?)" >> "${LOG_DIR:-ralph/logs}/ralph_crash.log" 2>/dev/null' ERR
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/lib/date_utils.sh"
 source "$SCRIPT_DIR/lib/timeout_utils.sh"
@@ -581,6 +584,11 @@ execute_iteration() {
     local deadline=$(( $(date +%s) + timeout_seconds ))
     echo "$deadline" > "ralph/.iteration_deadline"
 
+    # DEBUG: log the command being run
+    log_status "DEBUG" "Command: ${CLAUDE_CMD_ARGS[*]}"
+    log_status "DEBUG" "Output file: $output_file"
+    log_status "DEBUG" "LIVE_OUTPUT=$LIVE_OUTPUT, timeout=${timeout_seconds}s"
+
     log_status "INFO" "Starting $(driver_display_name) (timeout: ${ITERATION_TIMEOUT_MINUTES}m)..."
 
     # Execute with timeout
@@ -606,6 +614,8 @@ execute_iteration() {
         local claude_pid=$!
         local progress_counter=0
 
+        log_status "DEBUG" "Background PID: $claude_pid"
+
         while kill -0 $claude_pid 2>/dev/null; do
             progress_counter=$((progress_counter + 1))
             if [[ -f "$output_file" && -s "$output_file" ]]; then
@@ -614,8 +624,23 @@ execute_iteration() {
             sleep 10
         done
 
+        # Protect wait from set -e — capture exit code without crashing
+        set +e
         wait $claude_pid
         exit_code=$?
+        set -e
+        log_status "DEBUG" "Claude exited with code: $exit_code, output size: $(wc -c < "$output_file" 2>/dev/null || echo 0) bytes"
+
+        # If output is empty and exit code is non-zero, log diagnostic info
+        if [[ ! -s "$output_file" && $exit_code -ne 0 ]]; then
+            log_status "ERROR" "Claude produced no output and exited with code $exit_code"
+            log_status "DEBUG" "Checking if claude binary is responsive..."
+            if claude --version > /dev/null 2>&1; then
+                log_status "DEBUG" "claude binary OK: $(claude --version 2>&1)"
+            else
+                log_status "ERROR" "claude binary not responding"
+            fi
+        fi
     fi
 
     if [[ $exit_code -eq 0 ]]; then

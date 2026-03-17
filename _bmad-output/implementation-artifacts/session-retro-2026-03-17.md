@@ -160,3 +160,312 @@ No new code bugs were discovered this session — all work was verification-only
 | Stories still at `verifying` | 48 |
 | Stories flagged (retry exhausted) | 2 (13-3, and 0-1 from prior sessions) |
 | Estimated time to clear backlog at current rate | ~60h |
+
+---
+
+# Session Retrospective Addendum — 2026-03-17T01:00Z
+
+**Covering:** Iterations 6-7 (00:30 through end of ralph session ~00:44)
+**Trigger:** Post-session retrospective requested after ralph loop completed.
+
+---
+
+## 1. Session Summary (addendum)
+
+Iterations 6-7 completed the ralph session that began at 21:56. The final outcomes:
+
+| Story | Title | Outcome | Notes |
+|-------|-------|---------|-------|
+| 1-2 | Core Libraries — State, Stack Detection, Templates | **done** | Confirmed at 00:41. Prior proof accepted via `codeharness verify`. AC8 (unit test coverage) flagged as integration-required but overall proof passed. |
+| 0-1 | Sprint Execution Skill | **stuck** (retry 2/3 -> retry exhausted at 3/3) | Verifier timed out after 10 minutes with $3 budget. ACs require spawning full Claude Code sessions inside Docker — fundamentally too slow for current timeout/budget. |
+| 2-1 | Dependency Auto-Install & OTLP Instrumentation | **stuck** (retry exhausted at 4/3) | Retry budget exceeded across 6 sessions. AC5 (`--no-observability` flag) and AC6 (dependencies JSON) need actual dev work. Verification cannot succeed without code fixes. |
+| 2-2 | Docker Compose VictoriaMetrics Stack Management | **blocked** | Proofs fail Showboat re-execution (block mismatches). Not reached this session. |
+| 2-3 | Observability Querying | **blocked** | Same as 2-2 — proof block mismatches. Not reached this session. |
+
+**Epic 1: DONE.** All 3 stories (1-1, 1-2, 1-3) verified. First epic fully completed under black-box verification.
+
+**Final sprint state:** 9/62 stories done. Sprint halted on Epic 2 — 2-1 blocks forward progress.
+
+---
+
+## 2. Issues Analysis (addendum)
+
+### New issues surfaced in iterations 6-7
+
+| # | Category | Issue | Severity |
+|---|----------|-------|----------|
+| I1 | Verification gap | **0-1 verification timeout.** Verifier needs to spawn `claude` inside Docker which itself spawns sub-processes. The $3 budget and 10-min timeout are structurally insufficient for stories whose ACs require running full Claude Code sessions with BMAD workflows. | High |
+| I2 | Blocked story pattern | **2-1 blocks all of Epic 2 and everything after it.** harness-run processes epics sequentially. 2-1 needs dev work (AC5/AC6 code fixes), not more verification retries. But there is no `verifying` -> `in-progress` transition. | Critical |
+| I3 | Process gap | **No mechanism to batch-process or skip retry-exhausted stories** to reach actionable ones. The sprint has ~40 stories at `verifying` but the loop cannot reach stories in epics 3-11 because 2-1 blocks Epic 2. | High |
+| I4 | State discrepancy | **2-1 shows `verifying` in sprint-status.yaml** but was logged as done on 2026-03-16 at 14:49. The `.story_retries` file shows `2-1=4`. There may have been a state reset between sessions (the story was re-verified under black-box rules after being initially verified under white-box rules). | Medium |
+
+### Systemic pattern: the "verification wall"
+
+The sprint has hit a structural bottleneck:
+- **48 stories at `verifying`** cannot make progress because of sequential epic ordering
+- **3 stories are retry-exhausted** (13-3, 0-1, 2-1) and block their respective epics
+- **2 stories need dev work** (2-1 AC5/AC6) but the workflow has no path from `verifying` back to `in-progress`
+- **2 stories have stale proofs** (2-2, 2-3) that could pass with regeneration but can't be reached
+
+The current harness-run loop is designed for forward implementation, not for a verification backlog clearance. This mismatch is the root cause of the low throughput.
+
+---
+
+## 3. What Went Well (addendum)
+
+1. **Epic 1 fully verified.** Three stories confirmed done under black-box verification. This validates that the verification pipeline works for straightforward CLI/library stories.
+
+2. **Session issues log captured systemic observations.** The subagent identified the "verification wall" pattern, the missing state transition, and specific root causes for each stuck story. This is high-quality diagnostic output.
+
+3. **Proof reuse was efficient.** Story 1-2 was verified in seconds by accepting an existing proof, demonstrating that not every story needs a full Docker cycle.
+
+---
+
+## 4. What Went Wrong (addendum)
+
+1. **Sprint is halted.** 2-1 blocks Epic 2, which blocks all subsequent epics. The loop cannot reach any of the 40+ stories in epics 3-11 even though many are likely trivial to verify.
+
+2. **0-1 wasted compute on an unverifiable story.** The story's ACs require running Claude Code sessions inside Docker — a fundamentally different verification challenge than CLI output inspection. Two more retries were burned knowing this would fail.
+
+3. **2-1 has been stuck across 6 sessions.** The root cause (missing code for AC5/AC6) was identified sessions ago but no dev work was dispatched. The verification loop keeps retrying what it cannot fix.
+
+4. **Net throughput for this addendum window: 1 story in ~14 minutes** (1-2 via proof reuse). The two stuck stories (0-1, 2-1) consumed the remaining iterations with zero value.
+
+---
+
+## 5. Lessons Learned (addendum)
+
+### Reinforced from prior retro
+- **Sequential epic ordering is the primary throughput bottleneck** during verification passes. This was identified in the initial retro and remains the #1 issue.
+- **Retry-exhausted stories need a different path** — not more retries, but dev work or AC reclassification.
+
+### New
+- **Budget/timeout limits for verification must be story-aware.** Stories like 0-1 that require nested agent execution need either (a) higher budgets/timeouts, or (b) their ACs reclassified to `integration-required`. One size does not fit all.
+- **"Stuck across N sessions" should trigger automatic escalation.** If a story has been retry-exhausted in 2+ sessions, it should be escalated to the user, not silently retried.
+
+---
+
+## 6. Action Items (addendum)
+
+### Fix Now (before next session)
+
+| # | Action | Owner | Notes |
+|---|--------|-------|-------|
+| A10 | **Manually mark 0-1 as done or escalate all ACs.** This story is a markdown skill file; its ACs cannot be verified via Docker CLI. Either reclassify ACs as integration-required and accept, or move it to a different verification track. | User/SM | Prevents burning more retries. |
+| A11 | **Send 2-1 back to `in-progress` for dev work.** AC5 (`--no-observability` flag) and AC6 (dependencies JSON) need code changes. No amount of verification retries will fix missing code. | User/SM | Unblocks Epic 2 and all downstream epics. |
+| A12 | **Regenerate proofs for 2-2 and 2-3.** These have Showboat block mismatches that may be fixable with fresh proof generation. Try once before declaring them stuck. | Dev | Quick wins if the underlying code is correct. |
+| A13 | **Reset `.story_retries` for 2-1 after dev work is done.** Remove the `2-1=4` entry so it gets fresh retries. | User/SM | Currently at 4/3 — will be immediately flagged without reset. |
+
+### Fix Soon (reinforced from initial retro)
+
+| # | Action | Priority | Notes |
+|---|--------|----------|-------|
+| A4 | **Add `verifying` -> `in-progress` state transition.** | **Elevated to critical.** | 2-1 is the concrete proof this is needed. Without it, the sprint cannot make progress. |
+| A5 | **Non-sequential story ordering for verification passes.** | **Elevated to critical.** | 40+ stories are unreachable due to epic ordering. Process by readiness, not epic number. |
+
+### Backlog (new)
+
+| # | Action | Notes |
+|---|--------|-------|
+| A14 | **Story-aware verification budgets.** Stories with nested agent execution ACs should get higher timeout/budget or be auto-classified as integration-required. |
+| A15 | **"Stuck across sessions" auto-escalation.** If a story has been retry-exhausted in 2+ consecutive sessions, auto-escalate to user with a summary of failure reasons. |
+
+---
+
+## Updated Metrics (end of full session)
+
+| Metric | Value |
+|--------|-------|
+| Stories done (start of session) | 6/62 |
+| Stories done (end of session) | 9/62 |
+| Net stories completed | 3 (1-1, 1-2, 1-3) |
+| Epics completed | 1 (Epic 1) |
+| Ralph iterations (total session) | 7 |
+| Session wall time (total) | ~2h45m |
+| Time per completed story | ~55 min |
+| Iterations wasted on stuck stories | 5 (4 on 13-3, 1 on 0-1) |
+| Stories still at `verifying` | 46 |
+| Stories flagged (retry exhausted) | 3 (13-3, 0-1, 2-1) |
+| Stories needing dev work | 1 confirmed (2-1), 1 suspected (13-3) |
+| Stories needing proof regeneration | 2 (2-2, 2-3) |
+| Sprint blocked by | 2-1 (blocks Epic 2 and all downstream) |
+
+---
+
+# Session Retrospective — 2026-03-17T01:08Z (Loop #8)
+
+**Session Start:** 2026-03-17T01:08:04Z
+**Time Budget:** 30 minutes (deadline: 2026-03-17T01:38:04Z)
+**Ralph Loop:** #8 (iteration 8 of the outer ralph session that started at 21:56)
+**Stories Attempted:** 1 (0-1-sprint-execution-skill)
+**Stories Completed:** 0
+**Cost:** $2.20 USD (claude-opus-4-6, 39 turns, 26 minutes)
+**Result:** HALTED_ON_FAILURE — verification timeout, retry budget exhausted
+
+---
+
+## 1. Session Summary
+
+This was a single-story session. Ralph loop #8 dispatched the Claude Code subagent at 01:08:04Z to work on 0-1-sprint-execution-skill (the only remaining `verifying` story before Epic 2's blocking wall). The subagent ran for ~26 minutes (1,575 seconds), consumed $2.20 in API costs across 39 turns, and produced no proof. The story's retry count reached 3/3 (max), making it retry-exhausted.
+
+| Story | Title | Status Before | Status After | Outcome |
+|-------|-------|---------------|--------------|---------|
+| 0-1 | Sprint Execution Skill | verifying (retry 2/3) | verifying (retry 3/3, exhausted) | Verification timeout. ACs require spawning full Claude Code sessions inside Docker. $3 budget and 10-min verifier timeout are insufficient. |
+
+**No other stories were attempted.** The session had only 30 minutes of budget, and the single verification attempt consumed nearly all of it.
+
+**Subagent's own summary (from log):**
+- 0 stories completed
+- 1 failed (verification timeout)
+- Key blockers identified: 0-1 needs AC reclassification, 2-1 needs code fixes, 13-3 has escalated ACs
+- Called out the missing `verifying -> in-progress` state transition (again)
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Issues from Session Issues Log
+
+The session issues log (`.session-issues.md`) documents problems accumulated across the full ralph session (loops 1-8). For loop #8 specifically, no new issues were logged — the subagent re-identified the same systemic problems from prior loops.
+
+**Categorized issue inventory (all from session log):**
+
+| Category | Count | Issues |
+|----------|-------|--------|
+| Verification design flaws | 3 | Missing `verifying->in-progress` transition; sequential epic ordering; no batch-process/skip mechanism for retry-exhausted stories |
+| Budget/timeout insufficient | 2 | 0-1 needs nested Claude Code sessions ($3/10min too tight); 13-3 self-referential verification |
+| Stale proofs | 2 | 2-2 and 2-3 have Showboat block mismatches, need regeneration |
+| Code bugs blocking verification | 1 | 2-1 AC5/AC6 need dev work, not more retries |
+| State management | 1 | `.story_retries` persists across sessions with no reset mechanism |
+
+### 2.2 Loop #8 Specific Observations
+
+1. **$2.20 spent for zero output.** The subagent ran 39 turns over 26 minutes and produced nothing usable. This is the third consecutive attempt on 0-1 with the same result.
+2. **Retry count inconsistency in `.story_retries`.** The file shows both `0-1-sprint-execution-skill=3` (from a prior session) and `0-1-sprint-execution-skill 1` (inconsistent format, likely from a different write). The retry tracking has format corruption.
+3. **Circuit breaker stayed closed** (consecutive_no_progress: 0, last_progress_loop: 7). This means loop 7 made progress (1-2 marked done), so the breaker reset. Loop 8 is the first no-progress loop since that reset.
+
+---
+
+## 3. What Went Well
+
+1. **The subagent correctly diagnosed the situation.** Rather than burning more time on futile verification, it produced a clear summary identifying that 0-1's ACs are structurally unverifiable under current constraints, and recommended AC reclassification.
+
+2. **Session issues log continues to accumulate useful meta-observations.** The log is now a comprehensive diagnostic of the sprint's structural problems, not just individual story failures.
+
+3. **Cost was contained.** At $2.20 for a failed attempt, the per-iteration cost is reasonable. The problem is not cost per attempt but the number of futile attempts.
+
+---
+
+## 4. What Went Wrong
+
+### 4.1 Zero Progress Despite Known Root Cause
+
+Story 0-1 has failed verification for the same reason across multiple sessions: its ACs require running full Claude Code sessions with BMAD workflows inside a Docker container, and the $3 budget / 10-minute timeout for the verifier is structurally insufficient. This was identified in the prior retro addendum (action item A10). No action was taken between sessions, so loop #8 burned another $2.20 and 26 minutes rediscovering the same problem.
+
+### 4.2 Sprint Is Completely Stuck
+
+Current state of blockage:
+- **0-1**: retry-exhausted (3/3). Needs AC reclassification.
+- **13-3**: retry-exhausted (4/3). Flagged. 3 escalated ACs.
+- **2-1**: retry-exhausted (4/3). Needs dev work on AC5/AC6. But sprint-status still shows `verifying`.
+- **2-2**: `verifying` but stale proof (Showboat block mismatch). Blocks rest of Epic 2.
+- **3-2**: `in-progress` but unreachable — sequential epic processing means Epic 3 is behind Epic 2.
+
+The ralph loop has no actionable stories left. Every `verifying` story it can reach (in epic order) is either retry-exhausted or blocked. The 40+ stories in epics 3-11 are unreachable.
+
+### 4.3 Action Items from Prior Retro Were Not Executed
+
+The prior retro (earlier today) listed specific "Fix Now" actions:
+- A10: Mark 0-1 as done or escalate all ACs -- **not done**
+- A11: Send 2-1 back to in-progress for dev work -- **not done**
+- A12: Regenerate proofs for 2-2 and 2-3 -- **not done**
+- A13: Reset `.story_retries` for 2-1 -- **not done**
+
+None were executed between loops 7 and 8, so loop #8 was doomed to fail before it started.
+
+### 4.4 Retry Count Corruption
+
+`.story_retries` contains mixed formats:
+```
+13-3-black-box-verifier-agent 4
+2-1-dependency-auto-install-otlp-instrumentation=4
+0-1-sprint-execution-skill=3
+0-1-sprint-execution-skill 1
+```
+Story 0-1 has two entries with different delimiters (space vs `=`) and different values (3 vs 1). This suggests multiple code paths writing to the file with inconsistent serialization. The parser likely reads the last match, explaining why the subagent saw retry 2/3 -> 3/3 (it read the `1` entry, not the `=3` entry).
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+- **Subagent self-diagnosis on futile tasks.** The subagent spent time writing a clear failure summary rather than mindlessly retrying. This is good behavior.
+- **Keeping session issues log as a cumulative record.** It now serves as a complete audit trail of the sprint's structural problems.
+
+### Patterns to Avoid
+- **Running ralph without executing prior retro action items.** If retro actions are identified but not executed, the next loop will fail in the same way. Retros without follow-through are waste.
+- **Launching a 30-minute session on a story known to need 10+ minutes per verification attempt.** The budget was barely enough for one attempt, and the attempt was on a known-failing story. This session was structurally unable to make progress.
+- **Allowing retry-exhausted stories to block the entire sprint.** The sequential epic ordering combined with no skip mechanism means one stuck story can halt progress on 40+ other stories.
+
+### New Pattern Identified: "Retro Debt"
+Action items from retros accumulate like technical debt. When they are not executed between sessions, each subsequent session wastes compute rediscovering the same problems. The cost of "retro debt" this session: $2.20 + 26 minutes + zero progress.
+
+---
+
+## 6. Action Items
+
+### Mandatory Before Next Ralph Run (not optional — sprint is halted without these)
+
+| # | Action | Owner | Why |
+|---|--------|-------|-----|
+| A16 | **Reclassify 0-1 ACs as integration-required and mark done.** This is a markdown skill file. Docker-based CLI verification cannot exercise it. | User/SM | Unblocks Epic 0 completion. Prevents further wasted retries. |
+| A17 | **Fix `.story_retries` format corruption.** The file has mixed delimiters and duplicate entries. Either clean it manually or fix the serialization code in ralph. | Dev | Incorrect retry tracking causes unpredictable behavior. |
+| A18 | **Clear retry counts for all stories OR implement per-session reset.** 40+ stories at `verifying` have accumulated retries across sessions. Many will be immediately flagged as retry-exhausted on next run. | User/Dev | Without this, the next ralph run will flag most stories and halt. |
+| A19 | **Implement non-sequential story selection.** The #1 throughput blocker. 40+ stories are verifiable but unreachable because of epic ordering. Process by readiness, not epic number. | Dev | This single change would unlock the entire verification backlog. |
+
+### Carried Forward (from prior retros — still not done)
+
+| # | Action | Sessions Pending | Status |
+|---|--------|-----------------|--------|
+| A4 | Add `verifying` -> `in-progress` state transition | 2 sessions | Not started |
+| A5 | Non-sequential story ordering (same as A19) | 2 sessions | Not started |
+| A10 | Mark 0-1 done or escalate ACs (same as A16) | 1 session | Not started |
+| A11 | Send 2-1 back to in-progress for dev work | 1 session | Not started |
+| A12 | Regenerate proofs for 2-2 and 2-3 | 1 session | Not started |
+| A13 | Reset `.story_retries` for 2-1 | 1 session | Not started |
+
+### Backlog
+
+| # | Action | Notes |
+|---|--------|-------|
+| A20 | **Add "retro action verification" step to ralph pre-flight.** Before starting iterations, check if prior retro had mandatory actions and whether they were executed. If not, halt with a message rather than wasting compute. |
+| A8 | Early-exit heuristic for repeated identical failures (carried from prior retro) |
+| A9 | Parallel verification containers (carried from prior retro) |
+
+---
+
+## Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories done (start of loop #8) | 9/62 |
+| Stories done (end of loop #8) | 9/62 |
+| Net stories completed | 0 |
+| Epics completed | 0 |
+| Loop duration | ~26 min |
+| API cost | $2.20 |
+| Subagent turns | 39 |
+| Stories retry-exhausted (total) | 3 (0-1, 13-3, 2-1) |
+| Stories at `verifying` | 46 |
+| Stories reachable by ralph | 0 (all reachable stories are retry-exhausted or blocked) |
+| Action items carried forward (unexecuted) | 6 |
+| Sessions since action items first identified | 1-2 |
+| Cumulative cost of retro debt (this session) | $2.20 + 26 min |
+
+---
+
+## Verdict
+
+**The sprint is halted.** Ralph cannot make further progress without manual intervention. The three immediate blockers (0-1 retry-exhausted, 2-1 needs dev work, sequential epic ordering) must be resolved before the next run. Running ralph again without addressing these will produce the same zero-progress result at the same $2+ cost per attempt.
+
+The single highest-impact action is **A19: non-sequential story selection**. This would bypass all three blocking stories and unlock the 40+ verifiable stories in epics 3-11. Everything else is a point fix; this is the structural fix.

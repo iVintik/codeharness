@@ -113,30 +113,16 @@ export function installBmad(dir?: string): BmadInstallResult {
     };
   }
 
-  const cmdStr = 'npx bmad-method install';
-  const maxAttempts = 3;
-  let lastError = '';
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      execFileSync('npx', ['bmad-method', 'install'], {
-        stdio: 'pipe',
-        timeout: 120_000, // 2 min — npx may download the package
-        cwd: root,
-      });
-      lastError = '';
-      break;
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err);
-      if (attempt < maxAttempts) {
-        // Brief pause before retry
-        execFileSync('sleep', ['2']);
-      }
-    }
-  }
-
-  if (lastError) {
-    throw new BmadError(cmdStr, lastError);
+  const cmdStr = 'npx bmad-method install --yes --tools claude-code';
+  try {
+    execFileSync('npx', ['bmad-method', 'install', '--yes', '--tools', 'claude-code'], {
+      stdio: 'pipe',
+      timeout: 120_000, // 2 min — npx may need to download the package first time
+      cwd: root,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    throw new BmadError(cmdStr, message);
   }
 
   // Verify that _bmad/ was actually created

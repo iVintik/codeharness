@@ -142,7 +142,7 @@ codeharness init --logs-url <url> --metrics-url <url> --traces-url <url>
    - Output: `[OK] BMAD: existing installation detected, harness patches applied`
 
 2. If NO `_bmad/` directory:
-   - Install BMAD: run `npx bmad-method install`
+   - Install BMAD: run `npx bmad-method install --yes --tools claude-code`
    - Must complete within 60 seconds (NFR18)
    - Output: `[OK] BMAD: installed (v6.x), harness patches applied`
 

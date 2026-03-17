@@ -132,17 +132,15 @@ describe('detectBmadVersion', () => {
 describe('installBmad', () => {
   it('runs npx bmad-method install when _bmad/ does not exist', () => {
     // Simulate npx bmad-method install creating the _bmad/ directory
-    mockExecFileSync.mockImplementation((cmd: string, args: string[]) => {
-      if (cmd === 'npx') {
-        mkdirSync(join(testDir, '_bmad'), { recursive: true });
-      }
+    mockExecFileSync.mockImplementation(() => {
+      mkdirSync(join(testDir, '_bmad'), { recursive: true });
       return Buffer.from('');
     });
 
     const result = installBmad(testDir);
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'npx',
-      ['bmad-method', 'install'],
+      ['bmad-method', 'install', '--yes', '--tools', 'claude-code'],
       expect.objectContaining({ cwd: testDir, stdio: 'pipe', timeout: 120_000 }),
     );
     expect(result.status).toBe('installed');
@@ -166,22 +164,24 @@ describe('installBmad', () => {
     expect(result.version).toBe('6.0.0');
   });
 
-  it('throws BmadError after 3 retries when npx bmad-method install fails', () => {
-    mockExecFileSync.mockImplementation((cmd: string) => {
-      if (cmd === 'npx') throw new Error('npx not found');
-      return Buffer.from(''); // sleep calls
+  it('throws BmadError when npx bmad-method install fails', () => {
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error('npx not found');
     });
 
     expect(() => installBmad(testDir)).toThrow(BmadError);
-    // 3 npx attempts + 2 sleep calls = 5 total
-    const npxCalls = mockExecFileSync.mock.calls.filter(c => c[0] === 'npx');
-    expect(npxCalls).toHaveLength(3);
+    try {
+      installBmad(testDir);
+    } catch (err) {
+      const bmadErr = err as BmadError;
+      expect(bmadErr.command).toBe('npx bmad-method install');
+      expect(bmadErr.originalMessage).toBe('npx not found');
+    }
   });
 
   it('wraps non-Error throws with BmadError', () => {
-    mockExecFileSync.mockImplementation((cmd: string) => {
-      if (cmd === 'npx') throw 'string error';
-      return Buffer.from(''); // sleep calls
+    mockExecFileSync.mockImplementation(() => {
+      throw 'string error';
     });
 
     expect(() => installBmad(testDir)).toThrow(BmadError);

@@ -430,7 +430,7 @@ export function registerInitCommand(program: Command): void {
           };
 
           if (!isJson) {
-            info('BMAD: existing installation detected, patches applied');
+            info('BMAD: already installed, patches verified');
           }
         } else {
           const installResult = installBmad(projectDir);

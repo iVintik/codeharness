@@ -233,31 +233,6 @@ export function configureAgent(projectDir: string, stack: string | null): void {
   writeState(state, projectDir, body);
 }
 
-export function installAgentOtlp(projectDir: string, stack: string): OtlpResult {
-  const packages = stack === 'nodejs' ? AGENT_OTLP_PACKAGES_NODE : AGENT_OTLP_PACKAGES_PYTHON;
-  const cmd = stack === 'nodejs' ? 'npm' : 'pip';
-  const args = ['install', ...packages];
-
-  try {
-    execFileSync(cmd, args, { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-    return {
-      status: 'configured',
-      packages_installed: true,
-      start_script_patched: false,
-      env_vars_configured: false,
-    };
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return {
-      status: 'failed',
-      packages_installed: false,
-      start_script_patched: false,
-      env_vars_configured: false,
-      error: `Failed to install agent OTLP packages: ${truncateError(message)}`,
-    };
-  }
-}
-
 export function ensureServiceNameEnvVar(projectDir: string, serviceName: string): void {
   const envFilePath = join(projectDir, '.env.codeharness');
   // Sanitize service name: replace characters unsafe for env values and URLs

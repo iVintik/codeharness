@@ -18,7 +18,6 @@ import {
   configureCli,
   configureWeb,
   configureAgent,
-  installAgentOtlp,
   WEB_OTLP_PACKAGES,
   AGENT_OTLP_PACKAGES_NODE,
   AGENT_OTLP_PACKAGES_PYTHON,
@@ -471,51 +470,6 @@ describe('configureAgent', () => {
 
     const state = readState(testDir);
     expect(state.otlp!.agent_sdk).toBe('traceloop');
-  });
-});
-
-describe('installAgentOtlp', () => {
-  it('installs Node.js agent packages', () => {
-    mockExecFileSync.mockReturnValue(Buffer.from(''));
-    const result = installAgentOtlp(testDir, 'nodejs');
-    expect(result.status).toBe('configured');
-    expect(result.packages_installed).toBe(true);
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'npm',
-      expect.arrayContaining(['install', '@traceloop/node-server-sdk']),
-      expect.objectContaining({ cwd: testDir }),
-    );
-  });
-
-  it('installs Python agent packages', () => {
-    mockExecFileSync.mockReturnValue(Buffer.from(''));
-    const result = installAgentOtlp(testDir, 'python');
-    expect(result.status).toBe('configured');
-    expect(mockExecFileSync).toHaveBeenCalledWith(
-      'pip',
-      expect.arrayContaining(['install', 'traceloop-sdk']),
-      expect.objectContaining({ cwd: testDir }),
-    );
-  });
-
-  it('returns failed when install fails', () => {
-    mockExecFileSync.mockImplementation(() => {
-      throw new Error('install failed');
-    });
-    const result = installAgentOtlp(testDir, 'nodejs');
-    expect(result.status).toBe('failed');
-    expect(result.error).toContain('Failed to install agent OTLP packages');
-  });
-
-  it('truncates long error messages from install failures', () => {
-    const longStderr = 'E'.repeat(500);
-    mockExecFileSync.mockImplementation(() => {
-      throw new Error(longStderr);
-    });
-    const result = installAgentOtlp(testDir, 'nodejs');
-    expect(result.error).toBeDefined();
-    expect(result.error!.length).toBeLessThan(500);
-    expect(result.error).toContain('(truncated)');
   });
 });
 

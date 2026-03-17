@@ -1135,7 +1135,7 @@ describe('init command — BMAD installation', () => {
 
     const { stdout } = await runCli(['init']);
     expect(mockInstallBmad).not.toHaveBeenCalled();
-    expect(stdout).toContain('[INFO] BMAD: existing installation detected, patches applied');
+    expect(stdout).toContain('[INFO] BMAD: already installed, patches verified');
   });
 
   it('applies patches after BMAD install', async () => {

@@ -64,14 +64,8 @@ const DB_KEYWORDS = [
 // ─── Integration Keywords ───────────────────────────────────────────────────
 
 export const INTEGRATION_KEYWORDS = [
-  'sprint planning',
-  'workflow',
-  'run /command',
-  'user session',
-  'multi-step',
   'external system',
   'real infrastructure',
-  'integration test',
   'manual verification',
 ];
 

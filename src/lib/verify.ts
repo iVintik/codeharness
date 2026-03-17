@@ -165,6 +165,16 @@ export function checkBlackBoxEnforcement(proofContent: string): {
   };
 }
 
+/**
+ * Checks if a section contains a [FAIL] verdict outside of code blocks.
+ * Returns true only if [FAIL] appears in prose/headers, not inside ```output blocks.
+ */
+function hasFailVerdict(section: string): boolean {
+  // Strip code blocks (```...```) to avoid matching [FAIL] in command output
+  const withoutCodeBlocks = section.replace(/```[\s\S]*?```/g, '');
+  return withoutCodeBlocks.includes('[FAIL]');
+}
+
 export interface VerifyResult {
   storyId: string;
   success: boolean;
@@ -359,6 +369,13 @@ export function validateProofQuality(proofPath: string): ProofQuality {
         continue;
       }
 
+      // Check for FAIL verdict — AC failed verification
+      // Only match [FAIL] outside of code blocks (not in command output)
+      if (hasFailVerdict(section)) {
+        pending++;
+        continue;
+      }
+
       const hasEvidence =
         section.includes('<!-- /showboat exec -->') ||
         section.includes('<!-- showboat image:') ||
@@ -405,6 +422,8 @@ export function validateProofQuality(proofPath: string): ProofQuality {
           const bulletText = bulletMatch[1].toLowerCase();
           if (bulletText.includes('n/a') || bulletText.includes('escalat') || bulletText.includes('superseded')) {
             bEscalated++;
+          } else if (bulletText.includes('fail')) {
+            bPending++;
           } else {
             // Check if the proof has evidence blocks (```bash + ```output) anywhere in the document
             // For bullet-list format, evidence is distributed throughout the proof body
@@ -444,6 +463,8 @@ export function validateProofQuality(proofPath: string): ProofQuality {
 
         if (section.includes('[ESCALATE]')) {
           escalated++;
+        } else if (hasFailVerdict(section)) {
+          pending++;
         } else if (/```output/m.test(section)) {
           verified++;
         } else {
@@ -474,6 +495,8 @@ export function validateProofQuality(proofPath: string): ProofQuality {
 
       if (section.includes('[ESCALATE]')) {
         escalated++;
+      } else if (hasFailVerdict(section)) {
+        pending++;
       } else if (/```output\n/m.test(section)) {
         verified++;
       } else {

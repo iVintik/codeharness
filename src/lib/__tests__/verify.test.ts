@@ -389,6 +389,53 @@ describe('validateProofQuality', () => {
     expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 0, total: 2, blackBoxPass: false, passed: false });
   });
 
+  it('counts [FAIL] verdict outside code blocks as pending (not verified)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '## AC 1: Verified',
+      '',
+      '> First AC',
+      '',
+      '<!-- showboat exec: codeharness verify -->',
+      '```',
+      'ok',
+      '```',
+      '<!-- /showboat exec -->',
+      '',
+      '## AC 2: Failed',
+      '',
+      '> Second AC',
+      '',
+      '[FAIL] Command output did not match expected value',
+      '',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toMatchObject({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false });
+  });
+
+  it('does not treat [FAIL] inside code blocks as a verdict', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '## AC 1: Evidence with FAIL in output',
+      '',
+      '> AC description',
+      '',
+      '```bash',
+      'docker exec test node verify.js',
+      '```',
+      '',
+      '```output',
+      '[FAIL] Some check failed but this is command output not a verdict',
+      '```',
+      '',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    // [FAIL] is inside a code block, so it should NOT be treated as a verdict
+    expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 0, total: 1 });
+  });
+
   it('counts [ESCALATE] sections as escalated (not pending)', () => {
     const path = join(testDir, 'proof.md');
     writeFileSync(path, [

@@ -233,9 +233,9 @@ As a developer...
 
 1. **Given** a CLI command, **Then** output is correct.
 
-2. **Given** sprint planning surfaces retro action items, **Then** they appear.
+2. **Given** an external system connection, **Then** data syncs.
 
-3. **Given** a user session is active, **Then** context is preserved.
+3. **Given** manual verification is needed, **Then** flag for human review.
 
 ## Tasks
 `);
@@ -252,14 +252,14 @@ As a developer...
 
 ## Acceptance Criteria
 
-1. **Given** sprint planning runs, **Then** output is correct. <!-- verification: cli-verifiable -->
+1. **Given** an external system is connected, **Then** output is correct. <!-- verification: cli-verifiable -->
 
 ## Tasks
 `);
 
     const acs = parseStoryACs(filePath);
     expect(acs).toHaveLength(1);
-    // "sprint planning" would heuristically classify as integration-required,
+    // "external system" would heuristically classify as integration-required,
     // but the explicit tag overrides it to cli-verifiable
     expect(acs[0].verifiability).toBe('cli-verifiable');
   });
@@ -269,15 +269,17 @@ As a developer...
 
 describe('classifyVerifiability', () => {
   it('returns integration-required for descriptions mentioning integration keywords', () => {
-    expect(classifyVerifiability('sprint planning surfaces retro action items')).toBe('integration-required');
-    expect(classifyVerifiability('the workflow executes correctly')).toBe('integration-required');
-    expect(classifyVerifiability('run /command to start the process')).toBe('integration-required');
-    expect(classifyVerifiability('user session is active and preserved')).toBe('integration-required');
-    expect(classifyVerifiability('requires multi-step verification')).toBe('integration-required');
     expect(classifyVerifiability('connects to external system')).toBe('integration-required');
     expect(classifyVerifiability('uses real infrastructure for testing')).toBe('integration-required');
-    expect(classifyVerifiability('needs integration test coverage')).toBe('integration-required');
     expect(classifyVerifiability('requires manual verification')).toBe('integration-required');
+  });
+
+  it('returns cli-verifiable for descriptions that were previously over-classified', () => {
+    expect(classifyVerifiability('sprint planning surfaces retro action items')).toBe('cli-verifiable');
+    expect(classifyVerifiability('the workflow executes correctly')).toBe('cli-verifiable');
+    expect(classifyVerifiability('run /command to start the process')).toBe('cli-verifiable');
+    expect(classifyVerifiability('user session is active and preserved')).toBe('cli-verifiable');
+    expect(classifyVerifiability('requires multi-step verification')).toBe('cli-verifiable');
   });
 
   it('returns cli-verifiable for descriptions without integration keywords', () => {
@@ -289,8 +291,8 @@ describe('classifyVerifiability', () => {
   });
 
   it('is case insensitive', () => {
-    expect(classifyVerifiability('SPRINT PLANNING runs correctly')).toBe('integration-required');
-    expect(classifyVerifiability('User Session persists')).toBe('integration-required');
+    expect(classifyVerifiability('EXTERNAL SYSTEM connection')).toBe('integration-required');
+    expect(classifyVerifiability('Manual Verification required')).toBe('integration-required');
   });
 });
 

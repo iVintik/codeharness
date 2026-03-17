@@ -98,41 +98,39 @@ After all checks, output a summary:
 
 If any required dependency failed, do not proceed to the next step.
 
-## Step 3.5: Docker Compose Generation & VictoriaMetrics Stack
+## Step 3.5: Observability Stack
 
-### Generate Docker Compose
+The observability stack is **shared across all projects** at `~/.codeharness/stack/`. Do NOT generate per-project compose files.
 
-Copy `templates/docker-compose.harness.yml` to the project root as `docker-compose.harness.yml`.
-Copy `templates/otel-collector-config.yaml` to the project root.
-
-If tracing enforcement is NOT enabled, remove the victoria-traces service block (between `# TRACES_START` and `# TRACES_END` markers) from the generated compose file.
-
-### Start the Stack
+### Check if shared stack is already running
 
 ```bash
-docker compose -f docker-compose.harness.yml up -d
+docker compose -p codeharness-shared -f ~/.codeharness/stack/docker-compose.harness.yml ps --format json
 ```
 
-Must start within 30 seconds (NFR4). All Docker images use pinned versions (NFR8).
-
-Wait for health checks to pass, then output:
+If running:
 ```
-[OK] VictoriaMetrics stack: started (logs:9428, metrics:8428, traces:14268)
+[OK] Observability stack: already running (shared at ~/.codeharness/stack/)
+```
+Skip to Step 4. Do NOT start new containers.
+
+### If not running, start via CLI
+
+```bash
+codeharness init
 ```
 
-Or if traces disabled:
-```
-[OK] VictoriaMetrics stack: started (logs:9428, metrics:8428)
-```
+The CLI handles shared stack setup, compose file generation, and port management. Do NOT generate compose files manually or run `docker compose up` directly — the CLI manages the shared stack lifecycle.
 
-If start fails:
+### Remote/OpenSearch mode
+
+If the user wants remote observability (e.g., OpenSearch), use:
+```bash
+codeharness init --otel-endpoint <url>
 ```
-[FAIL] VictoriaMetrics stack failed to start.
-
-The observability stack could not start. Check Docker logs.
-
-→ Run: docker compose -f docker-compose.harness.yml logs
-→ Ensure ports 9428, 8428, 4317, 4318 are available
+Or for separate endpoints:
+```bash
+codeharness init --logs-url <url> --metrics-url <url> --traces-url <url>
 ```
 
 ## Step 4: BMAD Installation & Harness Patches
@@ -144,7 +142,7 @@ The observability stack could not start. Check Docker logs.
    - Output: `[OK] BMAD: existing installation detected, harness patches applied`
 
 2. If NO `_bmad/` directory:
-   - Install BMAD: run `npx bmad-method init`
+   - Install BMAD: run `npx bmad-method install`
    - Must complete within 60 seconds (NFR18)
    - Output: `[OK] BMAD: installed (v6.x), harness patches applied`
 

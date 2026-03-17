@@ -265,3 +265,24 @@ None. Docker commands are invoked as subprocesses via `child_process`. Templates
 - [ ] Integration tests for cross-module interactions
 - [ ] Coverage target: 100%
 <!-- CODEHARNESS-PATCH-END:story-verification -->
+
+## Verification Findings
+
+_Last updated: 2026-03-17T12:10:00Z_
+
+The following ACs failed black-box verification:
+
+### AC 6: Docker not installed behavior
+**Verdict:** FAIL
+**Error output:**
+When Docker is absent, `codeharness init` exits with code 0 (AC requires exit code 1). Uses `[WARN] Docker not available — observability will use remote mode` instead of `[FAIL] Docker not installed`. Does not halt init — gracefully degrades instead of failing. AC requires: exit code 1, `[FAIL]` message, and halt.
+
+### AC 7: JSON output includes docker object
+**Verdict:** FAIL
+**Error output:**
+`codeharness init --json` output does NOT include a `docker` object. The AC requires JSON output to include a `docker` object with compose file path, service statuses, and port mappings. The field is absent entirely — should be present even when Docker is unavailable (with status indicating unavailability).
+
+### AC 8: OTEL Collector routes telemetry correctly
+**Verdict:** FAIL
+**Error output:**
+Trace pipeline uses gRPC `otlp/traces` exporter to Jaeger's HTTP port 14268, causing protocol mismatch error: `http2: frame too large`. Log routing works (verified end-to-end). Metric routing config is correct. Fix: use `otlphttp/traces` exporter, or target Jaeger's gRPC OTLP port on a non-conflicting mapped port.

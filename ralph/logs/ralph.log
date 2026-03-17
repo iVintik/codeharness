@@ -564,3 +564,8 @@ until verification passes.
 [2026-03-17 12:47:02] [DEBUG] LIVE_OUTPUT=false, timeout=1800s
 [2026-03-17 12:47:02] [INFO] Starting Claude Code (timeout: 30m)...
 [2026-03-17 12:47:02] [DEBUG] Background PID: 32828
+[2026-03-17 13:17:04] [DEBUG] Claude exited with code: 124, output size:        0 bytes
+[2026-03-17 13:17:04] [ERROR] Claude produced no output and exited with code 124
+[2026-03-17 13:17:04] [DEBUG] Checking if claude binary is responsive...
+[2026-03-17 13:17:04] [DEBUG] claude binary OK: 2.1.77 (Claude Code)
+[2026-03-17 13:17:04] [WARN] Iteration timed out after 30m

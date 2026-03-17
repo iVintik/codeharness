@@ -1,66 +1,118 @@
 # codeharness
 
-## Quick Start
+Makes autonomous coding agents produce software that actually works — not software that passes tests.
 
-```bash
-# Install
-npm install -g codeharness
+codeharness is an **npm CLI** + **Claude Code plugin** that packages verification-driven development as an installable tool: black-box verification via Docker, agent-first observability via VictoriaMetrics, and mechanical enforcement via hooks that make skipping verification architecturally impossible.
 
-# Initialize the project
-codeharness init
+## What it does
 
-# Check project status
-codeharness status
-```
+1. **Verifies features work** — not just that tests pass. Black-box verification runs the built CLI inside a Docker container with no source code access. If the feature doesn't work from a user's perspective, verification fails.
+2. **Fixes what it finds** — verification failures with code bugs automatically return to development with specific findings. The dev agent gets told exactly what's broken and why.
+3. **Runs sprints autonomously** — reads your sprint plan, picks the highest-priority story, implements it, reviews it, verifies it, and moves to the next one. Cross-epic prioritization, retry management, and session handoff built in.
+4. **Makes agents see runtime** — ephemeral VictoriaMetrics stack (logs, metrics, traces) that agents query programmatically during development. No guessing at what the code does at runtime.
 
 ## Installation
 
+Two components — install both:
+
 ```bash
+# CLI (npm package)
 npm install -g codeharness
+
+# Claude Code plugin (slash commands, hooks, skills)
+claude plugin install github:iVintik/codeharness
 ```
 
-## Usage
-
-After installation, initialize codeharness in your project directory:
+## Quick Start
 
 ```bash
+# Initialize in your project
 codeharness init
+
+# Start autonomous sprint execution (inside Claude Code)
+/harness-run
 ```
 
-This sets up the harness with stack detection, observability, and documentation scaffolding.
+## How it works
 
-## CLI Reference
+### As a CLI (`codeharness`)
+
+The CLI handles all mechanical work — stack detection, Docker management, verification, coverage, retry state.
+
+| Command | Purpose |
+|---------|---------|
+| `codeharness init` | Detect stack, install dependencies, start observability, scaffold docs |
+| `codeharness run` | Execute the autonomous coding loop (Ralph) |
+| `codeharness verify --story <key>` | Run verification pipeline for a story |
+| `codeharness status` | Show harness health, sprint progress, Docker stack |
+| `codeharness coverage` | Run tests with coverage and evaluate against targets |
+| `codeharness onboard epic` | Scan codebase for gaps, generate onboarding stories |
+| `codeharness retry --status` | Show retry counts and flagged stories |
+| `codeharness retry --reset` | Clear retry state for re-verification |
+| `codeharness verify-env build` | Build Docker image for black-box verification |
+| `codeharness stack start` | Start the shared observability stack |
+| `codeharness teardown` | Remove harness from project |
+
+All commands support `--json` for machine-readable output.
+
+### As a Claude Code plugin (`/harness-*`)
+
+The plugin provides slash commands that orchestrate the CLI within Claude Code sessions:
+
+| Command | Purpose |
+|---------|---------|
+| `/harness-run` | Autonomous sprint execution — picks stories by priority, runs create → dev → review → verify loop |
+| `/harness-init` | Interactive project initialization |
+| `/harness-status` | Quick overview of sprint progress and harness health |
+| `/harness-onboard` | Scan project and generate onboarding plan |
+| `/harness-verify` | Verify a story with real-world evidence |
+
+### BMAD Method integration
+
+codeharness integrates with [BMAD Method](https://github.com/bmadcode/BMAD-METHOD) for structured sprint planning:
+
+| Phase | Commands |
+|-------|----------|
+| Analysis | `/create-brief`, `/brainstorm-project`, `/market-research` |
+| Planning | `/create-prd`, `/create-ux` |
+| Solutioning | `/create-architecture`, `/create-epics-stories` |
+| Implementation | `/sprint-planning`, `/create-story`, then `/harness-run` |
+
+## Verification architecture
 
 ```
-Usage: codeharness [options] [command]
-
-Makes autonomous coding agents produce software that actually works
-
-Options:
-  -V, --version            output the version number
-  --json                   Output in machine-readable JSON format
-  -h, --help               display help for command
-
-Commands:
-  init [options]           Initialize the harness in a project
-  bridge [options]         Bridge BMAD epics/stories into beads task store
-  run [options]            Execute the autonomous coding loop
-  verify [options]         Run verification pipeline on completed work
-  status [options]         Show current harness status and health
-  onboard [options]        Onboard an existing codebase into the harness
-  teardown [options]       Remove harness from a project
-  state                    Manage harness state
-  sync [options]           Synchronize beads issue statuses with story files and
-                           sprint-status.yaml
-  coverage [options]       Run tests with coverage and evaluate against targets
-  doc-health [options]     Scan documentation for freshness and quality issues
-  stack                    Manage the shared observability stack
-  query                    Query observability data (logs, metrics, traces)
-                           scoped to current project
-  retro-import [options]   Import retrospective action items as beads issues
-  github-import [options]  Import GitHub issues labeled for sprint planning into
-                           beads
-  verify-env               Manage verification environment (Docker image + clean
-                           workspace)
-  help [command]           display help for command
+┌─────────────────────────────────────────┐
+│  Claude Code Session                     │
+│  /harness-run picks next story           │
+│  → create-story → dev → review → verify  │
+└────────────────────┬────────────────────┘
+                     │ verify
+                     ▼
+┌─────────────────────────────────────────┐
+│  Docker Container (no source code)       │
+│  - codeharness CLI installed from tarball│
+│  - claude CLI for nested verification    │
+│  - curl/jq for observability queries     │
+│  Exercises CLI as a real user would      │
+└────────────────────┬────────────────────┘
+                     │ queries
+                     ▼
+┌─────────────────────────────────────────┐
+│  Observability Stack (VictoriaMetrics)   │
+│  - VictoriaLogs  :9428 (LogQL)          │
+│  - VictoriaMetrics :8428 (PromQL)       │
+│  - OTEL Collector :4318                  │
+└─────────────────────────────────────────┘
 ```
+
+When verification finds code bugs → story returns to dev with findings → dev fixes → re-verify. This loop runs up to 10 times per story. Infrastructure failures (timeouts, Docker errors) retry 3 times then skip.
+
+## Requirements
+
+- Node.js >= 18
+- Docker (for observability and verification)
+- Claude Code (for plugin features)
+
+## License
+
+MIT

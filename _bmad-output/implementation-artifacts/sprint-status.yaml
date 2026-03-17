@@ -44,7 +44,7 @@ development_status:
   # === Epic 13: BLACK-BOX VERIFICATION (highest priority) ===
   # Must complete before any other verification runs.
   # Sprint Change Proposal: sprint-change-proposal-2026-03-16.md
-  epic-13: in-progress
+  epic-13: done
   13-1-verification-dockerfile-generator: done
   # 13-2, 13-3, 13-4: proofs were weak/fake (source grep, not docker exec). Reset for re-verification.
   13-2-documentation-gate-for-verification: done

@@ -65,7 +65,7 @@ development_status:
   1-3-init-command-full-harness-initialization: done
   epic-1-retrospective: optional
 
-  epic-2: in-progress
+  epic-2: done
   2-1-dependency-auto-install-otlp-instrumentation: done
   2-2-docker-compose-victoriametrics-stack-management: done
   2-3-observability-querying-agent-visibility-into-runtime: done

@@ -33,6 +33,10 @@ This is a **Claude Code plugin** (`.claude-plugin/plugin.json`) AND an **npm pac
 
 Use `plugin-ops` skills for releases, audits, diagnostics — not manual git tags.
 
+### CRITICAL: Version sync on release
+
+After `/plugin-ops:release` bumps `plugin.json`, you MUST also update `package.json` version to match BEFORE creating the GitHub Release. The CI pipeline's `Verify version sync` step will fail if they differ. Do this in the same commit or immediately after.
+
 ## BMAD-METHOD Integration
 
 Use `/bmad-help` to discover all commands. Use `/harness-status` for a quick overview. See `_bmad/COMMANDS.md` for a full command reference.

@@ -202,7 +202,9 @@ describe('spawnVerifierSession', () => {
 
     spawnVerifierSession({ storyKey, projectDir: testDir });
 
-    const promptArg = (mockExecFileSync.mock.calls[0][1] as string[])[4]; // -p argument
+    const args = mockExecFileSync.mock.calls[0][1] as string[];
+    const pIndex = args.indexOf('-p');
+    const promptArg = args[pIndex + 1];
     expect(promptArg).toContain('My Unique Story Title');
     expect(promptArg).toContain('Unique AC text 12345');
 
@@ -226,7 +228,9 @@ describe('spawnVerifierSession', () => {
       },
     });
 
-    const promptArg = (mockExecFileSync.mock.calls[0][1] as string[])[4];
+    const args2 = mockExecFileSync.mock.calls[0][1] as string[];
+    const pIdx = args2.indexOf('-p');
+    const promptArg = args2[pIdx + 1];
     expect(promptArg).toContain('my-custom-container');
     expect(promptArg).toContain('http://custom:9428');
 

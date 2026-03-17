@@ -262,7 +262,7 @@ Build the verification prompt and spawn the verifier:
 3. Run the verifier:
 
 ```bash
-cd /tmp/codeharness-verify-{story_key} && claude --print --max-budget-usd 3 -p "{verification_prompt}"
+cd /tmp/codeharness-verify-{story_key} && claude --print --max-budget-usd 5 --allowedTools Bash Read Write Glob Grep Edit -p "{verification_prompt}"
 ```
 
 The prompt (from `src/templates/verify-prompt.ts`) instructs the verifier that:

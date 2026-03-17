@@ -113,11 +113,13 @@ export function spawnVerifierSession(options: VerifierSessionOptions): VerifierS
     observabilityEndpoints,
   });
 
-  // 5. Spawn claude --print
+  // 5. Spawn claude --print with allowed tools so it doesn't hang on permissions
   const args = [
     '--print',
     '--max-budget-usd',
     String(maxBudgetUsd),
+    '--allowedTools',
+    'Bash', 'Read', 'Write', 'Glob', 'Grep', 'Edit',
     '-p',
     prompt,
   ];

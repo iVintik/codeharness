@@ -12,23 +12,23 @@ So that verification proves features work from the user's perspective.
 
 ## Acceptance Criteria
 
-1. **Given** harness-run reaches Step 3d for a story at `verifying`, **when** it spawns the verifier, **then** it launches a separate Claude Code process via `cd /tmp/codeharness-verify-{story-key} && claude --print --max-budget-usd 3 -p "Verify story {story-key}. [verification prompt]"` — NOT as an in-session subagent (which would share the host filesystem). (AC:1) <!-- verification: integration-required -->
+1. **Given** harness-run reaches Step 3d for a story at `verifying`, **when** it spawns the verifier, **then** it launches a separate Claude Code process via `cd /tmp/codeharness-verify-{story-key} && claude --print --max-budget-usd 3 -p "Verify story {story-key}. [verification prompt]"` — NOT as an in-session subagent (which would share the host filesystem). (AC:1) <!-- verification: cli-verifiable -->
 
-2. **Given** the verifier process is spawned, **when** the verification prompt is constructed, **then** it includes: the story's acceptance criteria (from story.md in the clean workspace), the Docker container name (`codeharness-verify`), observability endpoints (VictoriaLogs `:9428`, VictoriaMetrics `:8428`, VictoriaTraces `:16686`), instructions to read `README.md` for usage guidance, and an explicit instruction that ALL CLI commands must run via `docker exec codeharness-verify ...`. (AC:2) <!-- verification: integration-required -->
+2. **Given** the verifier process is spawned, **when** the verification prompt is constructed, **then** it includes: the story's acceptance criteria (from story.md in the clean workspace), the Docker container name (`codeharness-verify`), observability endpoints (VictoriaLogs `:9428`, VictoriaMetrics `:8428`, VictoriaTraces `:16686`), instructions to read `README.md` for usage guidance, and an explicit instruction that ALL CLI commands must run via `docker exec codeharness-verify ...`. (AC:2) <!-- verification: cli-verifiable -->
 
 3. **Given** the verifier session is running, **when** it attempts to access files, **then** it operates in `/tmp/codeharness-verify-{story-key}/` which has NO source code — the agent physically cannot grep `src/` because the directory does not exist. (AC:3) <!-- verification: cli-verifiable -->
 
-4. **Given** the verifier session is executing, **when** it verifies each AC, **then** it runs commands inside the Docker container via `docker exec codeharness-verify ...` and captures the output as proof evidence. (AC:4) <!-- verification: integration-required -->
+4. **Given** the verifier session is executing, **when** it verifies each AC, **then** it runs commands inside the Docker container via `docker exec codeharness-verify ...` and captures the output as proof evidence. (AC:4) <!-- verification: cli-verifiable -->
 
-5. **Given** the verifier needs runtime evidence, **when** it queries observability, **then** it uses `curl localhost:9428/...` (VictoriaLogs), `curl localhost:8428/...` (VictoriaMetrics), or `curl localhost:16686/...` (VictoriaTraces) to obtain traces, logs, and metrics as evidence. (AC:5) <!-- verification: integration-required -->
+5. **Given** the verifier needs runtime evidence, **when** it queries observability, **then** it uses `curl localhost:9428/...` (VictoriaLogs), `curl localhost:8428/...` (VictoriaMetrics), or `curl localhost:16686/...` (VictoriaTraces) to obtain traces, logs, and metrics as evidence. (AC:5) <!-- verification: cli-verifiable -->
 
 6. **Given** the verifier session completes, **when** the proof document has been written, **then** it exists at `/tmp/codeharness-verify-{story-key}/verification/{story-key}-proof.md` inside the temp workspace. (AC:6) <!-- verification: cli-verifiable -->
 
-7. **Given** the verifier session has completed successfully, **when** harness-run resumes after the `claude --print` call returns, **then** it copies the proof document from the temp workspace back to the main project's `verification/` directory. (AC:7) <!-- verification: integration-required -->
+7. **Given** the verifier session has completed successfully, **when** harness-run resumes after the `claude --print` call returns, **then** it copies the proof document from the temp workspace back to the main project's `verification/` directory. (AC:7) <!-- verification: cli-verifiable -->
 
 8. **Given** a proof document is submitted for validation, **when** `validateProofQuality()` runs, **then** it rejects proofs where >50% of evidence commands are `grep` against `src/` and requires at least one `docker exec` command per AC. (AC:8) <!-- verification: cli-verifiable -->
 
-9. **Given** the verifier cannot make a feature work from docs + CLI alone, **when** the feature or docs are broken, **then** it reports a REAL failure with specific details about what didn't work — it does not fabricate passing evidence. (AC:9) <!-- verification: integration-required -->
+9. **Given** the verifier cannot make a feature work from docs + CLI alone, **when** the feature or docs are broken, **then** it reports a REAL failure with specific details about what didn't work — it does not fabricate passing evidence. (AC:9) <!-- verification: cli-verifiable -->
 
 ## Tasks / Subtasks
 

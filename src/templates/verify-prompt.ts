@@ -80,7 +80,7 @@ For EACH acceptance criterion, you must:
 - ALL CLI commands MUST run via: \`docker exec ${container} <command>\`
 - Example: \`docker exec ${container} codeharness --version\`
 - Example: \`docker exec ${container} codeharness init --json\`
-- Example: \`docker exec ${container} claude --print -p "Run /harness-run" --max-budget-usd 1\`
+- Example: \`docker exec ${container} claude --print --allowedTools Bash Read Write Glob Grep Edit -p "Run /harness-run" --max-budget-usd 1\`
 
 The container has the following tools installed:
 - \`codeharness\` — the project CLI
@@ -128,6 +128,6 @@ docker exec ${container} <command>
 4. **Every AC needs functional evidence** — reading docs alone is not evidence. You must execute commands and capture output.
 5. **Verify aggressively, escalate narrowly.** If an AC has 5 parts and you can verify 4, verify those 4 and escalate ONLY the specific part you cannot reach. Never blanket-escalate an entire AC because one aspect requires something unavailable.
 6. **[ESCALATE] is a last resort.** Before escalating, try: running the CLI command, spawning a \`claude\` session inside the container, querying observability data, or testing the behavior indirectly. Only escalate if you have genuinely exhausted all options.
-7. **\`claude\` CLI is available** inside the container. If an AC requires spawning a Claude Code session, running a slash command, or testing agent behavior, use \`docker exec ${container} claude --print -p "..." --max-budget-usd 1\` to actually test it. Do NOT escalate just because "it needs a Claude session."
+7. **\`claude\` CLI is available** inside the container. If an AC requires spawning a Claude Code session, running a slash command, or testing agent behavior, use \`docker exec ${container} claude --print --allowedTools Bash Read Write Glob Grep Edit -p "..." --max-budget-usd 1\` to actually test it. Do NOT escalate just because "it needs a Claude session."
 `;
 }

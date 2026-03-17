@@ -1378,3 +1378,260 @@ This was the best session of the day by throughput. The dev-fix-verify feedback 
 The remaining blocker is 13-3 (Black-Box Verifier Agent), which has failed 5+ times across all sessions with the same root cause: meta-verification requires nested Claude sessions that exceed the timeout budget. This story needs a redesigned verification approach, not more retries.
 
 **Sprint state:** 14/65 stories done (21.5%). 46 stories at `verifying`. Next priority: stop retrying 13-3, fix B22, then continue verification backlog clearance starting with 13-4.
+
+---
+
+# Session Retrospective — 2026-03-17T15:53Z (Session 5, End-of-Day Summary)
+
+**Appended:** 2026-03-17T15:53Z
+**Covering:** Full day 2026-03-17 — all sessions from overnight ralph runs through current active session
+**Focus:** Epic 13 (verification infrastructure), Epic 15 (pipeline fixes), Epic 2 (2-1 unblocking), Epic 3 (3-2 verification)
+**Ralph Sessions:** 6 distinct ralph runs across the day (overnight through afternoon)
+**Stories Attempted:** 10 unique (0-1, 1-1, 1-2, 1-3, 2-1, 3-2, 13-2, 13-3, 13-4, 15-1/15-2/15-3)
+**Stories Completed Today:** 8 (1-1, 1-2, 1-3, 2-1, 3-2, 13-2, 13-4, Epic 15 all 3)
+**Stories Still Stuck:** 2 (13-3, 0-1)
+**Epics Completed:** 3 (Epic 1, Epic 15, Epic 12 previously done)
+**Releases Shipped:** 6 (v0.15.0, v0.16.0, v0.16.1, v0.17.0, v0.17.1, v0.17.2, v0.17.3)
+**Git Commits:** 42 commits today
+
+---
+
+## 1. Session Summary
+
+This was a high-output day that broke through the "verification wall" that had halted the sprint. The day started with 6/62 stories done and ended at 14/65 (3 new stories added via Epic 15).
+
+**Phases of the day:**
+
+| Time (approx) | Activity | Outcome |
+|---------------|----------|---------|
+| 00:30-04:14 | Overnight ralph run (loops 6-8) | 1 story done (1-2 confirmed). 0-1 retry-exhausted. Sprint halted on 2-1. |
+| 09:56-10:15 | Manual: Epic 15 implementation | 3 stories done (15-1, 15-2, 15-3). v0.16.0 released. Pipeline fixed. |
+| 11:34-12:17 | Manual: 2-1 dev + verification | 1 story done (2-1). v0.16.1, v0.17.0 released. |
+| 12:20-13:17 | Ralph run (2 iterations) | 13-2 retry 1 (bugs not yet fixed). Iteration 2 timed out (0 bytes, exit 124). |
+| ~13:17-15:03 | Manual: Bug fixes + releases | B21, B23, T6 fixed. v0.17.1, v0.17.2, v0.17.3 released. Hooks fixed. |
+| 15:03-15:39 | Ralph run (2 iterations) | 2 stories done (13-2, 3-2). 13-3 retry 1/3. Interrupted. |
+| 15:53-ongoing | Ralph run (active) | Working on 13-3 or next story. |
+
+**Stories completed today (all with black-box verification proofs):**
+
+| Story | Title | Completion Path |
+|-------|-------|-----------------|
+| 1-1 | Project Scaffold & CLI Entry Point | Overnight ralph verification |
+| 1-2 | Core Libraries | Prior proof accepted |
+| 1-3 | Init Command | Overnight ralph verification |
+| 15-1 | Non-Sequential Story Selection | Manual dev (Epic 15) |
+| 15-2 | Verification-to-Dev Feedback Loop | Manual dev (Epic 15) |
+| 15-3 | Retry State Management | Manual dev (Epic 15) |
+| 2-1 | Dependency Auto-Install & OTLP | Manual dev + verification |
+| 3-2 | BMAD Installation Workflow Patching | Ralph verification (after manual bug fixes) |
+| 13-2 | Documentation Gate for Verification | Ralph verification (after manual bug fixes) |
+| 13-4 | Verification Environment Sprint Workflow | Ralph verification (committed d02948d) |
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Discovered and Fixed Today
+
+| ID | Severity | Description | Fix | Story |
+|----|----------|-------------|-----|-------|
+| B19 | HIGH | `npx bmad-method init` should be `install` | bac54bb | 3-2 |
+| B20 | MEDIUM | Re-run message text doesn't match spec | bac54bb | 3-2 |
+| B21 | HIGH | Init aborts on beads install failure (pip unavailable in Node.js env) | e96563e | 13-2 |
+| B23 | MEDIUM | verify-env check is a no-op (not live-testing CLI) | e96563e | 13-2 |
+| T6 | CRITICAL | Verify parser reports OK despite FAIL verdicts | bc5a1a7 | Tooling |
+| T7 | HIGH | Hook auto-transitions to done on parser false positive | Fixed with T6 | Tooling |
+| B7 | HIGH | patchNodeStartScript crashes on malformed package.json | 2-1 commit | 2-1 |
+| B8 | MEDIUM | configureWeb hardcoded localhost:4318 | 2-1 commit | 2-1 |
+| - | MEDIUM | hooks.json wrong schema format | 596fb9e | Tooling |
+| - | MEDIUM | Hooks in wrong directory (.claude-plugin/ vs repo root) | 5910c64 | Tooling |
+
+**Total: 10 bugs fixed.** 4 HIGH, 1 CRITICAL, 5 MEDIUM.
+
+### 2.2 Bugs NOT Fixed (Carried Forward)
+
+| ID | Severity | Description | Sessions Open |
+|----|----------|-------------|---------------|
+| B22 | HIGH | Init JSON output lies about file creation | 1 session |
+| B2 | LOW | stories_skipped counter overcounts on repeated scans | 1 session |
+
+### 2.3 Workarounds / Tech Debt Introduced Today
+
+11 items (W1-W11) tracked across Sessions 2-3. All LOW severity. Key items:
+- `run.ts` reads `.flagged_stories` directly instead of shared module (W1)
+- `installAgentOtlp` dead code left in place (W2)
+- `configureAgent` writes misleading state for null stack (W3)
+- init.ts re-run path duplicates BMAD logic (W8)
+- Patch-level errors silently dropped from JSON output (W9)
+
+### 2.4 Infrastructure / Tooling Problems
+
+| # | Problem | Recurrence | Impact |
+|---|---------|------------|--------|
+| Stale binary | Verifier tested global install instead of local build | 2 sessions | Wasted dev iteration on 2-1 |
+| 0-byte timeout | Ralph iteration 12:47 — 30 min, exit 124, no output | 1 occurrence | 30 min lost with zero diagnostics |
+| Port conflicts | Docker compose port 9428/8428 conflicts between stacks | Recurring | Requires manual awareness |
+| docker exec permissions | `claude --print` cannot auto-approve bash in non-interactive mode | Recurring | `--allowedTools` flag resolves this |
+| Version sync misses | package.json/plugin.json out of sync on release | 2 occurrences today | Required v0.17.2 and v0.17.3 fix-only releases |
+
+### 2.5 Verification Gaps
+
+| Story | Gap | Status |
+|-------|-----|--------|
+| 13-3 | Meta-verification: verifier cannot verify itself within timeout. Nested claude sessions inside Docker exceed 10-min budget. | 5+ failed attempts. Needs redesigned verification or AC escalation. |
+| 0-1 | Sprint execution skill ACs require running full Claude Code sessions with BMAD workflows inside Docker. $3 budget insufficient. | Retry-exhausted. Needs AC reclassification. |
+| 2-2 | Docker compose stack management. AC 6 requires exit code 1 when Docker absent (impl uses graceful degradation exit 0). AC 7 missing docker JSON object. AC 8 gRPC/HTTP protocol mismatch on trace pipeline. | Returned to dev — 3 bugs need code fixes. |
+
+---
+
+## 3. What Went Well
+
+1. **Broke the verification wall.** The sprint was halted at the start of the day with 0 reachable stories. By implementing Epic 15 (non-sequential selection, verify-to-dev loop, retry management), the structural bottleneck was removed. Ralph can now reach all 46+ verifying stories across epics 3-11.
+
+2. **8 stories completed in one day.** From 6/62 to 14/65. This is more progress than the previous 3 days combined.
+
+3. **Dev-fix-verify loop proved out.** Session 3 found bugs via black-box verification. Manual dev work fixed them. Session 4's ralph verified the fixes. This is the intended workflow and it worked correctly for the first time.
+
+4. **Two-gate verification caught orthogonal bug classes.** Code review caught logic errors and data mapping errors. Black-box verification caught wrong commands and wrong messages. Neither gate alone would have caught all bugs. The data from 3-2 and 2-1 proves the two-gate model is worth the overhead.
+
+5. **Verify parser fix (T6) was the single highest-impact change.** A parser that cannot detect FAIL verdicts undermines the entire automated verification pipeline. Fixing this before running more ralph sessions was critical.
+
+6. **Non-sequential story selection working.** Ralph successfully skipped stuck 13-3 to complete 13-2 and 3-2. Epic 15 improvements are delivering value.
+
+7. **`--allowedTools` fix for docker exec permissions.** Discovered that adding `--allowedTools 'Bash Read Write Glob Grep'` to `claude --print` resolves the permission blocking issue for all verification runs.
+
+---
+
+## 4. What Went Wrong
+
+1. **13-3 consumed significant compute across the day with zero result.** Multiple attempts, same failure mode every time. The meta-verification problem is structural — continuing to retry is waste.
+
+2. **0-1 consumed 4+ iterations overnight with zero result.** The story's ACs are structurally unverifiable under current constraints (nested agent sessions, $3 budget). This was identified in the first retro but no action was taken for multiple sessions.
+
+3. **Release churn: 7 releases in one day.** Several were fix-only releases for version sync misses or hook location errors. The release process lacks guardrails against incremental hotfixes.
+
+4. **30-minute ghost iteration (12:47).** Claude exited with code 124 and 0 bytes output. No diagnostics available. 30 minutes of compute evaporated with nothing to show or debug.
+
+5. **11 debt items accumulated with no tracking.** Every session flags LOW-severity workarounds but there is no debt register. Without tracking, these will be forgotten until they cause a production issue.
+
+6. **54 action items across 5 retro addendums.** Many are duplicates, some are resolved, some are stale. The action item list has become unmanageable. Needs consolidation.
+
+7. **2-2 returned to dev with 3 bugs.** AC 6 (exit code on Docker absent), AC 7 (missing docker JSON), AC 8 (gRPC/HTTP protocol mismatch) all need code fixes. One more story blocked at verification boundary.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Fix the pipeline before running more stories through it.** Epic 15 was the right response to the verification wall. Meta-work that improves throughput is higher leverage than any individual story.
+- **Dev-fix-verify across sessions.** Find bugs in one session, fix between sessions, verify in next session. Do not try to find + fix + verify within a single ralph iteration.
+- **Two-gate quality model (code review + black-box verification).** The data proves they catch different bug classes. Keep both gates.
+- **Manual intervention for structural blockers.** The user's decision to create Epic 15 and manually fix 2-1 was more effective than running ralph 50 more times against blocked stories.
+- **`--allowedTools` for verification subprocess permissions.** Apply to all future verification runs.
+
+### Patterns to Avoid
+
+- **Retrying structurally impossible stories.** 13-3 and 0-1 have failed 5+ times each with the same root cause. Retrying is waste. Flag and redesign verification approach.
+- **Releasing per-fix instead of per-batch.** 7 releases in a day is excessive. Batch fixes, test together, release once per session.
+- **Skipping version sync on release.** The package.json/plugin.json sync was missed twice. Automate or add a pre-release check.
+- **Ignoring retro action items between sessions.** The overnight ralph run (loops 6-8) repeated the same failures identified in the first retro because no actions were taken between loops. Retros without follow-through are waste.
+
+### Key Insight: "Meta-Work is the Highest-Leverage Work"
+
+The single most impactful action today was not completing any individual story — it was Epic 15, which fixed the pipeline that runs stories. Before Epic 15: ralph could reach ~3 stories (all stuck). After Epic 15: ralph can reach 46+ stories. This is a ~15x throughput multiplier.
+
+When the pipeline is broken, fixing the pipeline is always more valuable than pushing more work through the broken pipeline.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next ralph session)
+
+| ID | Action | Owner | Priority | Notes |
+|----|--------|-------|----------|-------|
+| A47 | **Stop retrying 13-3.** Escalate ACs or create manual verification pathway. | SM | CRITICAL | 5+ failed attempts, same root cause. |
+| A48 | **Fix B22 (init JSON output integrity).** | Dev | HIGH | Init lies about readme creation. |
+| A55 | **Fix 2-2 bugs (AC 6, 7, 8).** Exit code on Docker absent, missing docker JSON, gRPC trace pipeline mismatch. | Dev | HIGH | 2-2 is next Epic 2 blocker. |
+
+### Fix Soon (next sprint)
+
+| ID | Action | Owner | Notes |
+|----|--------|-------|-------|
+| A49 | **Automate version sync in release.** | Dev | 2 missed syncs today. |
+| A50 | **Add timeout diagnostics to ralph.** | Dev | 0-byte exits need debug info. |
+| A31 | **Refactor init.ts monolith.** | Dev | ~719-743 lines, growing. |
+| A32 | **Verifier uses local build, not global.** | Dev | 2 sessions impacted by stale binary. |
+| A54 | **Consolidate all 54+ action items.** | SM | Deduplicate, close resolved, track open. |
+| A30 | **Create a debt register** for W1-W11. | SM | 11 items with no tracking. |
+
+### Carried Forward (still pending from prior retros)
+
+| ID | Action | Sessions Pending |
+|----|--------|-----------------|
+| A10/A16 | Reclassify 0-1 ACs as integration-required | 3+ sessions |
+| A8 | Early-exit heuristic for repeated identical failures | 4+ sessions |
+| A9 | Parallel verification containers | 4+ sessions |
+| A20 | Retro action verification in ralph pre-flight | 2+ sessions |
+| A25 | Remove installAgentOtlp dead code | 1+ sessions |
+| A52 | Manual verification pathway for meta-stories | 1 session |
+
+---
+
+## Day-End Metrics
+
+| Metric | Start of Day | End of Day | Delta |
+|--------|-------------|------------|-------|
+| Stories done | 6/62 | 14/65 | +8 (+3 new stories from Epic 15) |
+| Epics done | 2 (0, 12) | 4 (0, 1, 12, 15) | +2 |
+| Stories at `verifying` | 48 | 44 | -4 |
+| Stories at `in-progress` | 2 | 2 | 0 (different stories) |
+| Releases shipped | - | 7 | v0.15.0 through v0.17.3 |
+| Bugs found | - | 12 | 10 fixed, 2 open |
+| Code reviews run | - | 6 | |
+| Ralph iterations (total) | - | ~12 | Across 6 ralph runs |
+| Ralph iterations productive | - | ~5 | ~42% productive |
+| Ralph iterations wasted | - | ~7 | On stuck stories or timeouts |
+| Debt items accumulated | - | 11 | All LOW, untracked |
+| Action items (total) | 20 | 56 | Growing faster than resolved |
+| API cost (estimated) | - | ~$25 | Across all ralph sessions + manual |
+
+### Throughput Analysis
+
+| Period | Stories/hour | Notes |
+|--------|-------------|-------|
+| Overnight (00:30-04:14) | 0.27 | Stuck on 0-1, 2-1 blocking |
+| Manual Epic 15 (09:56-10:15) | 9.47 | 3 stories in 19 min |
+| Manual 2-1 (11:34-12:17) | 1.40 | Complex story, multiple reviews |
+| Ralph afternoon (15:03-15:29) | 4.62 | 2 stories in 26 min |
+| **Overall day average** | **0.53** | 8 stories in ~15 hours wall time |
+
+The throughput swing is dramatic: overnight ralph was 0.27 stories/hour; manual pipeline-fix work was 9.47 stories/hour; post-fix ralph was 4.62 stories/hour. Fixing the pipeline increased ralph throughput by 17x.
+
+---
+
+## Verdict
+
+**Best day of the sprint.** 8 stories completed, 2 epics closed, 10 bugs fixed, 7 releases shipped. The verification wall is broken.
+
+The key decisions that drove this outcome:
+1. Creating Epic 15 to fix the pipeline (non-sequential selection, verify-to-dev loop)
+2. Manually fixing 2-1 instead of letting ralph retry
+3. Fixing the verify parser before running more automated verification
+4. Fixing bugs between sessions and letting ralph verify
+
+**Remaining risks:**
+- 13-3 needs redesigned verification (meta-verification problem)
+- 0-1 needs AC reclassification (structurally unverifiable)
+- 2-2 needs dev work (3 bugs found in verification)
+- 56 action items growing faster than they are resolved — needs consolidation
+- 11 untracked debt items
+
+**Next priorities:**
+1. Resolve 13-3 (escalate ACs or manual verify) to unblock Epic 13 completion
+2. Fix 2-2 bugs to unblock Epic 2 completion
+3. Let ralph run against the 44 `verifying` stories — the pipeline is now capable of processing them
+4. Consolidate action items before they become unmanageable
+
+Ralph is currently running (started 15:53, loop #1). Sprint status shows 14/65 done (21.5%).

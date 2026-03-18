@@ -115,7 +115,7 @@ export function registerRunCommand(program: Command): void {
     .option('--iteration-timeout <minutes>', 'Per-iteration timeout in minutes', '30')
     .option('--live', 'Show live output streaming', false)
     .option('--calls <n>', 'Max API calls per hour', '100')
-    .option('--max-story-retries <n>', 'Max retries per story before flagging', '3')
+    .option('--max-story-retries <n>', 'Max retries per story before flagging', '10')
     .option('--reset', 'Clear retry counters, flagged stories, and circuit breaker before starting', false)
     .action(async (options, cmd) => {
       const globalOpts = cmd.optsWithGlobals();

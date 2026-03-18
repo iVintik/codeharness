@@ -1,43 +1,44 @@
 ---
-stepsCompleted: [1]
-lastStep: 1
+stepsCompleted: [1, 2]
+lastStep: 2
 status: complete
-completedAt: '2026-03-15'
+completedAt: '2026-03-17'
 inputDocuments:
-  - prd.md (v2)
-  - architecture.md (v2)
+  - prd-overhaul.md
+  - product-brief-codeharness-arch-overhaul-2026-03-17.md
+  - ux-design-specification.md (v1, reworked)
 workflowType: 'ux-design'
-note: 'Minimal CLI UX spec — full UX workflow N/A for CLI tool'
+note: 'Full CLI UX spec — reworked for architecture overhaul with status visibility, failure detail, live mode'
 ---
 
-# CLI UX Specification — codeharness
+# CLI UX Specification — codeharness (v2)
 
-**Date:** 2026-03-15
+**Date:** 2026-03-17
+**Revision:** Architecture overhaul — reworked for visibility, responsiveness, and clear failure reporting
 
 ## Overview
 
 codeharness is a CLI tool. No GUI, no web interface, no visual design. The UX is the developer experience in the terminal: command output, error messages, progress reporting, hook feedback, and proof document structure.
 
-**Core UX principle:** Trust through proof. Dense, actionable output. No noise.
+**Core UX principle:** One screen, full picture. Progressive detail. Failures are specific and actionable.
 
-**Target user:** Senior developer, CLI-native, values clarity over polish. Has been burned by false "done" signals and wants reproducible evidence.
+**Target user:** Developer who runs codeharness and checks back later. Needs to understand what happened in 10 seconds, drill into failures in 2 minutes, and never spelunk through log files.
 
 ## Command Surface
-
-### Global CLI
 
 ```
 codeharness <command> [options]
 
 Commands:
   init        Initialize harness in current project
-  bridge      Import BMAD stories into beads
   run         Start autonomous execution loop
   verify      Run verification pipeline for a story
-  status      Show harness health and sprint progress
+  status      Show project state, run progress, and action items
+  bridge      Import BMAD stories into beads
   onboard     Scan existing project and generate onboarding plan
   teardown    Remove harness artifacts (preserves project code)
   state       Read/write harness state flags
+  retry       Manage story retry state
 
 Options:
   --json      Machine-readable JSON output (all commands)
@@ -50,13 +51,17 @@ Options:
 
 ```
 codeharness init [--no-observability] [--no-frontend] [--no-database] [--no-api]
-codeharness bridge --epics <path> [--dry-run]
-codeharness run [--max-iterations <n>] [--timeout <seconds>] [--live]
+                 [--opensearch-url <url>]
+                 [--otel-endpoint <url>]
+                 [--logs-url <url>] [--metrics-url <url>] [--traces-url <url>]
+codeharness run  [--live] [--stop] [--max-iterations <n>] [--timeout <seconds>]
 codeharness verify --story <story-id>
-codeharness status [--check] [--check-docker]
-codeharness onboard [scan|coverage|audit|epic] [--project-dir <path>] [--min-module-size <n>]
+codeharness status [--story <id>] [--check-docker]
+codeharness bridge --epics <path> [--dry-run]
+codeharness onboard [scan|coverage|audit|epic] [--project-dir <path>]
 codeharness teardown [--keep-docker] [--keep-beads]
 codeharness state [get <key>|set <key> <value>|reset]
+codeharness retry [--status] [--reset] [--reset --story <id>] [--json]
 ```
 
 ## Output Patterns
@@ -72,260 +77,398 @@ Every line of output uses a prefix:
 [INFO] Informational — progress update or context
 ```
 
-### Init Output Example
+### Symbols for Live/Status Views
 
 ```
-codeharness init
-
-[INFO] Stack detected: Node.js (package.json)
-[INFO] Installing dependencies...
-[OK]   Showboat: installed (v0.6.1)
-[OK]   agent-browser: installed (v1.2.0)
-[OK]   beads: installed (v0.4.0)
-[OK]   OTLP: @opentelemetry/auto-instrumentations-node installed
-[INFO] Docker: checking...
-[OK]   Docker: running
-[OK]   VictoriaMetrics stack: started (logs:9428, metrics:8428, traces:14268)
-[OK]   BMAD: installed (v6.2), harness patches applied
-[OK]   Plugin: installed to .claude-plugin/
-[OK]   State file: .claude/codeharness.local.md created
-[OK]   Documentation: AGENTS.md + docs/ scaffold created
-[OK]   Enforcement: frontend:ON database:ON api:ON observability:ON
-
-Harness initialized. Run: codeharness bridge --epics <path>
+✓  completed successfully
+✗  failed
+◆  in progress
+○  pending
+✕  blocked/exhausted
 ```
 
-### Status Output Example
+## Command UX: `codeharness status`
+
+### Default Output (One Screen)
 
 ```
-codeharness status
+codeharness v0.18.1 | nodejs | enforcement: front:OFF db:OFF api:OFF obs:ON
 
-Harness: codeharness v1.0.0
-Stack: nodejs | Enforcement: front:ON db:ON api:ON obs:ON
+── Project State ──────────────────────────────────────────────
+Sprint: 17/65 done (26%) | 5/16 epics complete
+Current epic: Epic 3 — BMAD Integration (2/4 stories done)
+Modules: infra:OK verify:OK sprint:OK dev:OK review:OK
 
-Docker:
-  victoria-logs:   running (port 9428)
-  victoria-metrics: running (port 8428)
-  otel-collector:  running (port 4318)
+── Active Run ─────────────────────────────────────────────────
+Status: running (iteration 7, 2h14m elapsed)
+Current: 3-3-bmad-parser-story-bridge → verifying (AC 4/7)
+Last action: docker exec codeharness-verify codeharness bridge --dry-run
+Budget: $23.40 spent | 47 stories remaining
 
-Beads:
-  Total issues: 12 (8 story, 3 bug, 1 task)
-  Ready: 3 | In progress: 1 | Done: 8
+── This Run ───────────────────────────────────────────────────
+Completed:  4 stories (3-1, 3-2, 4-1, 4-2)
+Failed:     1 story
+  └ 2-3: AC 4 — status --check-docker exit 1 (attempt 3/10)
+Blocked:    2 stories
+  └ 0-1: retry-exhausted (10/10)
+  └ 13-3: retry-exhausted (10/10)
+Skipped:    3 stories (retry-exhausted)
+In progress: 1 story (3-3)
 
-Session flags:
-  tests_passed:     true
-  coverage_met:     true
-  verification_run: false
-  logs_queried:     true
-
-Coverage: 94% (target: 100%)
+── Action Items (this run) ────────────────────────────────────
+NEW: 2-3 needs fix: status checks project-level containers, not shared
+CARRIED: A56 status --check-docker wrong containers (3 sessions)
 ```
 
-### Error Output Pattern
-
-Every error must be **actionable** — tell the user what happened AND what to do:
+### No Active Run
 
 ```
-[FAIL] Docker not installed.
+codeharness v0.18.1 | nodejs | enforcement: front:OFF db:OFF api:OFF obs:ON
 
-Docker is required for the observability stack.
-→ Install: https://docs.docker.com/engine/install/
-→ Or disable: codeharness init --no-observability
+── Project State ──────────────────────────────────────────────
+Sprint: 17/65 done (26%) | 5/16 epics complete
+Last run: 2h14m ago (4 completed, 1 failed, 2 blocked)
+Modules: infra:OK verify:OK sprint:OK dev:OK review:OK
+
+── Last Run Summary ───────────────────────────────────────────
+Duration: 2h14m | Cost: $23.40 | Iterations: 7
+Completed:  4 stories (3-1, 3-2, 4-1, 4-2)
+Failed:     1 story
+  └ 2-3: AC 4 — status --check-docker exit 1 (attempt 3/10)
+Blocked:    2 stories (retry-exhausted)
+Skipped:    3 stories
+
+── Action Items ───────────────────────────────────────────────
+[1] FIX 2-3: status checks project-level containers, not shared stack
+[2] CARRIED A56: status --check-docker wrong containers (3 sessions)
+
+→ Run: codeharness status --story 2-3 for details
+→ Run: codeharness run to resume
 ```
 
-```
-[FAIL] Beads not installed.
-
-→ Install: pip install beads
-→ Or: pipx install beads
-```
+### Story Drill-Down: `codeharness status --story <id>`
 
 ```
-[FAIL] Cannot start harness loop — no tasks found.
+Story: 2-3-observability-querying-agent-visibility-into-runtime
+Status: failed (attempt 3/10)
+Epic: 2 — Observability Stack
+Last attempt: 2026-03-18T03:42:15Z
 
-→ Import BMAD stories: codeharness bridge --epics <path>
-→ Or create manually: bd create "Task title" --type task
+── AC Results ─────────────────────────────────────────────────
+AC 1: [PASS] VictoriaLogs query returns structured logs
+AC 2: [PASS] VictoriaMetrics query returns metrics
+AC 3: [PASS] Agent queries logs during dev workflow
+AC 4: [FAIL] Status command reports stack health correctly
+  Command:  docker exec codeharness-verify codeharness status --check-docker
+  Expected: exit 0 with "running" for all services
+  Actual:   exit 1
+  Output:   [FAIL] VictoriaMetrics stack: not running
+  Reason:   Checks project-level container names (codeharness-victoria-logs-1)
+            but shared stack uses (codeharness-shared-victoria-logs-1)
+  Suggest:  Fix container name matching in src/commands/status.ts
+AC 5: [PASS] Query endpoints accessible from verification container
+AC 6: [ESCALATE] Observability data persists across sessions
+AC 7: [PASS] OTLP instrumentation auto-configured
+
+── History ────────────────────────────────────────────────────
+Attempt 1: verify failed (AC 4, same error)
+Attempt 2: dev fix applied → verify failed (AC 4, same error)
+Attempt 3: dev fix applied → verify failed (AC 4, same error)
+
+Proof: verification/2-3-proof.md (5/7 pass, 1 fail, 1 escalate)
 ```
 
-### JSON Mode
+## Command UX: `codeharness run`
 
-All commands support `--json` for machine consumption:
+### Default (Background with Status File)
 
-```json
-{
-  "status": "ok",
-  "stack": "nodejs",
-  "enforcement": {
-    "frontend": true,
-    "database": true,
-    "api": true,
-    "observability": true
-  },
-  "docker": {
-    "running": true,
-    "services": ["victoria-logs", "victoria-metrics", "otel-collector"]
-  },
-  "beads": {
-    "total": 12,
-    "ready": 3,
-    "in_progress": 1,
-    "done": 8
-  }
-}
+```
+$ codeharness run
+[INFO] Starting autonomous execution — 6 ready, 1 in progress, 42 verifying
+[INFO] Observability: shared stack running (VictoriaMetrics)
+[INFO] Verification container: ready
+
+Running in background. Check progress:
+  → codeharness status          (one-screen summary)
+  → codeharness run --live      (streaming output)
+  → codeharness run --stop      (graceful stop after current story)
+```
+
+### Live Mode: `codeharness run --live`
+
+Rolling status that updates in place:
+
+```
+$ codeharness run --live
+
+codeharness run | iteration 3 | 47m elapsed | $12.30 spent
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Story: 3-2-bmad-installation-workflow-patching
+Phase: verify → AC 8/12 (docker exec ... codeharness init --json)
+
+Done: 3-1 ✓  4-1 ✓  4-2 ✓
+This: 3-2 ◆ verifying (8/12 ACs)
+Next: 3-3 (verifying, no proof yet)
+
+Blocked: 0-1 ✕ (10/10)  13-3 ✕ (10/10)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Story Completes
+
+```
+[OK] Story 3-2: DONE — 12/12 ACs verified
+  └ Proof: verification/3-2-proof.md
+  └ Duration: 18m | Cost: $4.20
+[INFO] Sprint: 18/65 done (28%) — moving to 3-3
+```
+
+### Story Returned to Dev
+
+```
+[WARN] Story 3-3: verification found 2 failing ACs → returning to dev
+  └ AC 3: bridge --dry-run output missing epic headers
+  └ AC 7: bridge creates duplicate beads issues
+  └ Attempt 2/10 — dev will fix and re-verify
+```
+
+### Story Failed
+
+```
+[FAIL] Story 2-3: verification failed at AC 4 (attempt 3/10)
+  └ docker exec codeharness-verify codeharness status --check-docker → exit 1
+  └ Output: "[FAIL] VictoriaMetrics stack: not running"
+  └ Returning to dev for fix (attempt 4)
+[INFO] Moving to next story: 3-3-bmad-parser-story-bridge
+```
+
+### Timeout
+
+```
+[WARN] Story 5-2: verification timed out after 30m (attempt 2/10)
+  └ Partial proof saved: verification/5-2-proof.md (3/7 ACs before timeout)
+  └ Git changes captured: 2 files modified
+  └ Moving to next story
+```
+
+## Command UX: `codeharness init`
+
+### Successful Init
+
+```
+$ codeharness init
+
+── Stack Detection ────────────────────────────────────────────
+[OK] Stack: Node.js (package.json)
+[OK] App type: CLI
+
+── Dependencies ───────────────────────────────────────────────
+[OK] Docker: running
+[OK] Showboat: installed (v0.6.1)
+[OK] agent-browser: installed (v1.2.0)
+[OK] OTLP: Node.js packages installed
+
+── Observability ──────────────────────────────────────────────
+[OK] Shared stack: already running at ~/.codeharness/stack/
+     └ VictoriaLogs :9428  VictoriaMetrics :8428  OTel :4318
+
+── BMAD ───────────────────────────────────────────────────────
+[OK] BMAD: installed (v6.2.0)
+[OK] Patches: 5 applied (story, dev, review, retro, sprint)
+
+── Project Setup ──────────────────────────────────────────────
+[OK] State: .claude/codeharness.local.md created
+[OK] Docs: AGENTS.md + docs/ scaffold created
+[OK] Enforcement: front:OFF db:OFF api:OFF obs:ON
+
+Ready. Run: codeharness run
+```
+
+### Init with OpenSearch
+
+```
+$ codeharness init --opensearch-url https://search.example.com
+
+── Observability ──────────────────────────────────────────────
+[OK] OpenSearch: connected (https://search.example.com)
+     └ Logs: ✓  Metrics: ✓  Traces: ✓
+[INFO] No local Docker stack needed — using remote OpenSearch
+```
+
+### Init Failure (Actionable)
+
+```
+$ codeharness init
+
+── Dependencies ───────────────────────────────────────────────
+[OK] Docker: running
+[FAIL] Showboat: not found
+       → Install: pip install showboat
+       → Or: uv tool install showboat
+[OK] OTLP: Node.js packages installed
+
+── Observability ──────────────────────────────────────────────
+[WARN] Port 9428 already in use
+       → Shared stack may be running from another project
+       → Check: docker compose -p codeharness-shared ps
+       → Or use remote: codeharness init --opensearch-url <url>
+```
+
+## Command UX: `codeharness verify --story <id>`
+
+### During Verification (Streaming)
+
+```
+$ codeharness verify --story 3-2
+
+[INFO] Story: 3-2-bmad-installation-workflow-patching (12 ACs)
+[INFO] Preparing verification container...
+[OK] Container: codeharness-verify ready
+[OK] Clean workspace: /tmp/codeharness-verify-3-2/
+
+Verifying ACs:
+  AC  1: ✓ BMAD installs via npx bmad-method install
+  AC  2: ✓ _bmad/ directory created with correct structure
+  AC  3: ✓ BMAD version detected from module.yaml
+  AC  4: ◆ Running... (docker exec codeharness-verify codeharness init)
+```
+
+### Verification Complete
+
+```
+  AC 12: ✓ Re-run detects existing install and verifies patches
+
+[OK] Story 3-2: 12/12 ACs verified
+[OK] Proof: verification/3-2-proof.md
+[OK] Sprint status: 3-2 → done
+
+Duration: 14m | Cost: $3.80
+```
+
+### Verification Failed
+
+```
+  AC  4: ✗ FAIL — status --check-docker exit 1
+         Output: "[FAIL] VictoriaMetrics stack: not running"
+  AC  5: ✓ Query endpoints accessible
+  ...
+  AC 12: ✓ Re-run verifies patches
+
+[FAIL] Story 2-3: 5/7 ACs verified, 1 failed, 1 escalated
+[INFO] Proof: verification/2-3-proof.md (partial)
+[INFO] Story returned to in-progress for dev fix
+
+→ Run: codeharness status --story 2-3 for failure details
+```
+
+## Proof Document UX
+
+### Standard Proof (Docker Exec)
+
+```markdown
+## AC 1: BMAD installs via npx
+
+​```bash
+docker exec codeharness-verify npx bmad-method install --yes --tools claude-code
+​```
+
+​```output
+Installing BMAD Core agents and tools...
+✓ Installed to _bmad/
+​```
+
+**Verdict:** PASS
+```
+
+### Agent-Browser Proof (Web App)
+
+```markdown
+## AC 3: Login page renders and accepts credentials
+
+​```bash
+docker exec codeharness-verify agent-browser navigate http://localhost:3000/login
+​```
+
+​```output
+Navigated to http://localhost:3000/login (200 OK)
+Page title: "Login — MyApp"
+​```
+
+![Login page](screenshots/ac3-login-before.png)
+
+​```bash
+docker exec codeharness-verify agent-browser click "[ref=email-input]"
+docker exec codeharness-verify agent-browser type "test@example.com"
+docker exec codeharness-verify agent-browser click "[ref=submit-btn]"
+​```
+
+​```output
+Clicked ref=email-input
+Typed "test@example.com"
+Clicked ref=submit-btn
+Navigation: /login → /dashboard (302)
+​```
+
+![After login](screenshots/ac3-login-after.png)
+
+**Verdict:** PASS — redirect to /dashboard confirms authentication
+```
+
+### OpenSearch Evidence
+
+```markdown
+## AC 5: Runtime logs captured in OpenSearch
+
+​```bash
+curl -s 'https://search.example.com/codeharness-logs/_search' \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"match":{"service":"codeharness-verify"}},"size":5}'
+​```
+
+​```output
+{"hits":{"total":{"value":23},"hits":[
+  {"_source":{"timestamp":"2026-03-18T03:42:15Z","level":"info","message":"init complete","service":"codeharness-verify"}},
+  ...
+]}}
+​```
+
+**Verdict:** PASS — 23 log entries from verification session
 ```
 
 ## Hook Interaction Patterns
 
-### PreToolUse: Commit Gate
-
-When agent tries to commit without quality gates:
+### PreToolUse: Commit Gate (Specific)
 
 ```json
 {
   "decision": "block",
-  "reason": "Quality gates not met.\n\n  tests_passed: false\n  coverage_met: false\n\n→ Run tests and check coverage before committing.\n→ Then: codeharness state set tests_passed true"
+  "reason": "Cannot commit — 2 quality gates not met:\n\n  ✗ tests_passed: false → Run: npm test\n  ✗ coverage_met: false → Run: npm test -- --coverage\n\nAfter tests pass:\n  → codeharness state set tests_passed true\n  → codeharness state set coverage_met true"
 }
 ```
 
-**UX principle:** Block message tells the agent exactly what's missing and how to fix it.
-
-### PostToolUse: Verification Prompt
-
-After file writes:
+### PostToolUse: After Test Run
 
 ```json
 {
-  "message": "New code written. Verify OTLP instrumentation is present.\n→ Check that new endpoints emit traces and structured logs.\n→ Query VictoriaLogs: curl 'localhost:9428/select/logsql/query?query=level:error'"
+  "message": "Tests completed. Next steps:\n  → Query logs: curl 'localhost:9428/select/logsql/query?query=_stream:{service=\"codeharness\"}&limit=5'\n  → Update flag: codeharness state set tests_passed true\n  → Check coverage: npm test -- --coverage"
 }
 ```
-
-**UX principle:** Prompts are specific and actionable, not generic reminders.
 
 ### SessionStart: Health Check
 
 ```json
 {
-  "message": "Harness health: OK\n  Docker: running\n  Beads: 3 tasks ready\n  Session flags: reset"
+  "message": "Harness health: OK\n  Docker: running (shared stack)\n  Sprint: 17/65 done\n  Current: 3-3 verifying\n  Session flags: reset"
 }
 ```
 
-## Proof Document Structure
+## Design Principles
 
-Showboat proof documents are the primary trust artifact. Their UX matters.
-
-### Naming
-
-`verification/{story-id}-proof.md`
-
-### Structure
-
-```markdown
-# Verification Proof: 3.2
-
-## Story: User can reset password via email
-
-## Acceptance Criteria Verification
-
-### AC1: Reset email is sent when user submits valid email
-
-​```showboat exec
-curl -s -X POST localhost:3000/api/reset-password \
-  -H "Content-Type: application/json" \
-  -d '{"email": "test@example.com"}'
-​```
-
-Expected: 200 with `{"message": "Reset email sent"}`
-
-### AC2: Reset token exists in database after request
-
-​```showboat exec
-curl -s localhost:3000/api/admin/db-query \
-  -d '{"query": "SELECT token FROM reset_tokens WHERE email = '\''test@example.com'\''"}'
-​```
-
-Expected: One row with non-null token
-
-## Verification Summary
-
-- Total ACs: 5
-- Verified: 5
-- Failed: 0
-- showboat verify: PASS
-```
-
-**UX principle:** Every AC has real command output, not descriptions of what should happen. Anyone can re-run `showboat verify` and see the same results.
-
-## Progress Reporting (Ralph Loop)
-
-During autonomous execution:
-
-```
-codeharness run
-
-[INFO] Starting autonomous execution — 5 stories ready
-[INFO] Iteration 1: Story 3.1 — User registration
-  [OK]   Implementation complete
-  [OK]   Tests: 12 passed, 0 failed
-  [OK]   Coverage: 100%
-  [OK]   Verification: 4/4 ACs verified
-  [OK]   Proof: verification/3.1-proof.md
-  [OK]   Story 3.1: DONE (bd close bd-42)
-
-[INFO] Iteration 2: Story 3.2 — Password reset
-  [OK]   Implementation complete
-  [WARN] Tests: 8 passed, 1 failed — retrying...
-  [OK]   Tests: 9 passed (fix applied)
-  [OK]   Coverage: 100%
-  [OK]   Verification: 5/5 ACs verified
-  [OK]   Proof: verification/3.2-proof.md
-  [OK]   Story 3.2: DONE (bd close bd-43)
-
-[INFO] Progress: 2/5 stories complete (iterations: 2, elapsed: 47m)
-```
-
-## Beads Integration UX
-
-### Bridge Output
-
-```
-codeharness bridge --epics _bmad-output/planning-artifacts/epics.md
-
-[INFO] Parsing BMAD epics...
-[OK]   Epic 1: Project Scaffold — 2 stories
-[OK]   Epic 2: Core Libraries — 4 stories
-[OK]   Epic 3: CLI Commands — 7 stories
-[OK]   Epic 4: Plugin & Hooks — 4 stories
-[OK]   Epic 5: Brownfield Onboarding — 3 stories
-
-[OK]   Bridge: 20 stories imported into beads
-
-Ready to run: codeharness run
-```
-
-### Issue Discovery During Development
-
-When the agent or a hook discovers a problem:
-
-```bash
-bd create "API returns 200 but empty body for /admin/activity" \
-  --type bug --priority 1 \
-  --description "Discovered during Story 3.5 verification" \
-  --deps discovered-from:bd-47
-```
-
-Shows up in next `codeharness status`:
-
-```
-Beads:
-  Total issues: 13 (8 story, 4 bug, 1 task)    ← new bug
-  Ready: 3 | In progress: 1 | Done: 8
-```
-
-## Design Principles Summary
-
-1. **Every output line is actionable** — if something failed, say what to do next
-2. **Dense over verbose** — one `[OK]` line per completed step, not paragraphs
-3. **JSON mode everywhere** — `--json` on every command for programmatic use
-4. **Proof over trust** — Showboat documents with real command output, not status badges
-5. **Fail with remedy** — never just say "error", always say "error → fix with X"
-6. **Status at a glance** — `codeharness status` shows everything in one screen
+1. **One screen, full picture.** `codeharness status` shows everything — project state, active run, results, action items. No scrolling through multiple files.
+2. **Progressive detail.** Status → story drill-down → proof document. Each level adds depth without repeating the previous level.
+3. **Failures are specific.** Never "exit code 124". Always: story, AC, command, output, reason, suggested fix.
+4. **Live visibility.** `--live` shows what's happening in real time. Background mode writes to a status file that `codeharness status` reads.
+5. **Actionable everything.** Every `[FAIL]` has a `→` remedy. Every blocked story has a reason. Every action item has context.
+6. **Project-agnostic.** The same UX works for CLI tools, web apps, libraries, plugins. Verification approach changes, output format doesn't.
+7. **JSON everywhere.** `--json` on every command for programmatic consumption. Same information, machine-readable.
+8. **Dense over verbose.** One `[OK]` line per completed step. Summaries, not paragraphs. The user is a senior developer, not a novice.

@@ -1,0 +1,6 @@
+3-2-bmad-installation-workflow-patching=0 
+13-2-documentation-gate-for-verification=0 
+13-3-black-box-verifier-agent=3 
+2-2-docker-compose-victoriametrics-stack-management=1 
+2-3-observability-querying-agent-visibility-into-runtime=1 
+2-3-observability-querying-agent-visibility-into-runtime 2

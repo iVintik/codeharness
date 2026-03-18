@@ -692,6 +692,10 @@ execute_iteration() {
         if grep -qi "5.*hour.*limit\|limit.*reached.*try.*back\|usage.*limit.*reached" "$output_file" 2>/dev/null; then
             log_status "ERROR" "Claude API usage limit reached"
             return 2
+        # Check for transient API errors (500, 529, overloaded) — don't count against story
+        elif grep -qi "Internal server error\|api_error\|overloaded\|529\|503" "$output_file" 2>/dev/null; then
+            log_status "WARN" "Transient API error (not story's fault) — will retry"
+            return 4
         else
             log_status "ERROR" "$(driver_display_name) execution failed (exit code: $exit_code)"
             return 1
@@ -996,6 +1000,12 @@ main() {
                 log_status "ERROR" "Circuit breaker opened — halting loop"
                 update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker" "halted"
                 break
+                ;;
+            4)
+                # Transient API error — retry after brief pause, don't count against story
+                consecutive_failures=0  # reset — this isn't the story's fault
+                log_status "INFO" "Transient API error — retrying in 30s (not counting against story)"
+                sleep 30
                 ;;
             *)
                 # Failure (timeout or crash) — increment retry for the story that was being worked on

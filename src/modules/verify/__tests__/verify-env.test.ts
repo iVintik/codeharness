@@ -46,7 +46,7 @@ import {
   prepareVerifyWorkspace,
   checkVerifyEnv,
   cleanupVerifyEnv,
-} from '../../../lib/verify-env.js';
+} from '../env.js';
 
 const mockExecFileSync = vi.mocked(execFileSync);
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);

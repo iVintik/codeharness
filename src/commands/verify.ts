@@ -2,31 +2,24 @@ import { Command } from 'commander';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ok, fail, warn, info, jsonOutput } from '../lib/output.js';
-import { parseStoryACs } from '../lib/verify-parser.js';
 import {
+  parseStoryACs,
   checkPreconditions,
   createProofDocument,
   runShowboatVerify,
   validateProofQuality,
   updateVerificationState,
   closeBeadsIssue,
-} from '../lib/verify.js';
+} from '../modules/verify/index.js';
 import { completeExecPlan } from '../lib/doc-health.js';
 import { updateSprintStatus } from '../lib/beads-sync.js';
-import type { VerifyResult, ProofQuality } from '../lib/verify.js';
+import type { VerifyResult, ProofQuality } from '../modules/verify/index.js';
 
 const STORY_DIR = '_bmad-output/implementation-artifacts';
 
-/**
- * Validates that a story ID is safe for use in file paths.
- * Rejects path traversal sequences and characters that could escape the project directory.
- */
+/** Validates that a story ID is safe for file paths (no traversal or special chars). */
 function isValidStoryId(storyId: string): boolean {
-  // Reject empty, path traversal, absolute paths, and special characters
-  if (!storyId || storyId.includes('..') || storyId.includes('/') || storyId.includes('\\')) {
-    return false;
-  }
-  // Only allow alphanumeric, hyphens, and underscores
+  if (!storyId || storyId.includes('..') || storyId.includes('/') || storyId.includes('\\')) return false;
   return /^[a-zA-Z0-9_-]+$/.test(storyId);
 }
 

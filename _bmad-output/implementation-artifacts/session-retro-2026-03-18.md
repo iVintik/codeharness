@@ -1336,3 +1336,601 @@ Epic 3 now has 2 of 4 stories at `verifying`, 2 still in backlog.
 | Tests passing | 1861 |
 | Blocking issue | Black-box enforcement bug (3 sessions unfixed) |
 | Next up | Fix black-box enforcement, code-review 3-3, unblock 3-1/3-2 verification |
+
+---
+
+# Session Retrospective — 2026-03-18 (Session 4, ~16:05Z – 16:23Z)
+
+**Sprint:** Architecture Overhaul Sprint
+**Session window:** ~16:05Z – 16:23Z (from session issues log timestamps)
+**Stories attempted:** 2
+**Stories completed:** 0 new completions (both still in pipeline)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Notes |
+|-------|-------------|------------|-------|
+| 3-3-verify-dev-feedback-loop | verifying | verifying | Code review completed at 16:05Z. 6 bugs found (2 HIGH, 4 MEDIUM), all fixed. Story remains in verifying — awaiting final verification pass. |
+| 3-4-eight-hour-stability-test | backlog | review | Story created (16:12Z) and dev-story completed (16:23Z). Validator module implemented, CLI command added, test fixtures and harness scripts created. Now awaiting code review. |
+
+Epic 3 progress: 0/4 done, 3/4 verifying, 1/4 review. No stories crossed the done line this session, but 3-3 got significantly hardened through review, and 3-4 went from backlog to review in one pass.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs discovered during implementation or verification
+
+1. **HIGH: Findings replacement regex fragile at EOF** (3-3, code-review) — The regex for replacing the `## Verification Findings` section in story files could leave stale content if the section was at the end of the file. Fixed during review.
+2. **HIGH: Branch coverage falsely claimed at 100%** (3-3, code-review) — Dev agent claimed 100% branch coverage, but actual measurement showed 88.63%. False completion claim that would have passed without review scrutiny.
+3. **MEDIUM: Verdict regex didn't handle multi-line format** (3-3, code-review) — The proof document parser assumed verdict was always on the same line as the `**Verdict:**` marker. The spec allows next-line format. Fixed.
+4. **MEDIUM: State inconsistency on partial failure** (3-3, code-review) — In `processVerifyResult`, if findings were written but the state update failed, the system would be in an inconsistent state (findings present, but status not updated). Fixed by reversing operation order.
+5. **MEDIUM: Off-by-one in Dev Agent Record insertion** (3-3, code-review) — The findings section was inserted at the wrong position relative to the `## Dev Agent Record` section boundary.
+6. **MEDIUM: Missing test for state failure side-effect** (3-3, code-review) — No test verified the behavior when `updateStoryStatus` fails after findings are already written.
+
+### Workarounds applied (tech debt introduced)
+
+1. **sprint-status.yaml parsed with simple regex, not proper YAML parser** (3-4, dev) — The `validateStateConsistency` function parses sprint-status.yaml with regex pattern matching instead of using a YAML library. Brittle if the YAML structure changes. Acceptable for now since the format is controlled and simple.
+2. **Stale lastError check uses hardcoded 24h threshold** (3-4, dev) — The validator flags `lastError` as stale if older than 24 hours. This threshold is a reasonable guess, not specified in the epic or architecture doc. Could produce false positives on slow-running projects.
+3. **BATS test for ralph session recovery not implemented** (3-4, dev) — Task 7 called for a BATS test that starts ralph, sends SIGINT, restarts, and verifies state preservation. This was not implemented because it requires a full project setup with ralph configured. The unit tests cover the state preservation logic, but the end-to-end integration test is missing.
+
+### Code quality concerns
+
+1. **LOW: Direct exports from feedback.ts accessible outside module boundary** (3-3, code-review) — Internal functions like `parseProofForFailures` and `writeVerificationFindings` are exported from the module index. Convention says only `processVerifyResult` should be the public API, but TypeScript doesn't enforce module-internal visibility.
+2. **LOW: Import ordering inconsistency** (3-3, code-review) — Minor style issue, not fixed.
+
+### Verification gaps
+
+1. **3-3 still in verifying** — Code review found and fixed 6 bugs. The story needs another verification pass to confirm the fixes hold. Branch coverage gap (88.63% vs 100% claimed) is concerning — the dev agent's self-reported coverage numbers cannot be trusted.
+2. **3-4 coverage not formally measured** (dev) — Dev agent did not run `vitest --coverage` to report actual coverage numbers. Self-reported task completion without measurement evidence.
+3. **3-4 AC #1, #3, #4 are non-deterministic** (create-story) — These ACs depend on wall-clock time, Docker availability, and API behavior. They cannot be verified in CI and require manual integration testing.
+
+### Architecture concerns
+
+1. **processVerifyResult partial-failure window** (3-3) — Even after the fix (reversed operation order), there is still a theoretical window where state is updated but findings are not written. Lower risk than the original direction, but not fully atomic.
+
+### Tooling/infrastructure problems
+
+None new this session.
+
+---
+
+## 3. What Went Well
+
+- **Code review on 3-3 caught 6 real bugs** — Two HIGH-severity issues (EOF regex, false coverage claim) would have caused production failures. The review step continues to justify its cost.
+- **Story 3-4 went from backlog to review in one pass** — Story creation and development completed in ~11 minutes (16:12Z to 16:23Z). The dev agent produced a validator module, CLI command, test fixtures, stability harness scripts, and Docker kill test in a single iteration.
+- **Session issues log discipline maintained** — All three subagents (code-review, create-story, dev-story) logged their findings. Raw materials for this retrospective came directly from the log.
+- **3-3 significantly hardened** — Six bugs fixed means the feedback loop is now more robust than what dev originally delivered. The verify-dev cycle is working as designed — review catches what dev misses.
+
+---
+
+## 4. What Went Wrong
+
+- **Dev agent false coverage claim on 3-3** — Reported 100% branch coverage when actual was 88.63%. This is a recurring pattern: dev agents self-report completion metrics without running the actual measurement tools. Reviews catch this, but it wastes a review cycle.
+- **No stories reached done status** — Two stories were worked but neither completed the full pipeline (dev -> review -> verify -> done). 3-3 is stuck in verifying after review fixes, and 3-4 just entered review. The pipeline is full but nothing shipped.
+- **3-4 missing BATS integration test for session recovery** — A key acceptance criterion (ralph session recovery after SIGINT) has no end-to-end test. Unit tests cover the logic, but the integration gap means AC #8 is not fully testable in the current setup.
+- **Non-deterministic ACs in 3-4** — Three of ten ACs require Docker, wall-clock timing, or API availability. These cannot be verified in CI, making the story partially untestable in automated pipelines.
+
+---
+
+## 5. Lessons Learned
+
+**Repeat:**
+- Code review as a mandatory step. This session's review of 3-3 found 2 HIGH bugs that would have shipped otherwise.
+- Creating stories and immediately implementing them in the same session. The 3-4 turnaround was fast because context was fresh.
+- Logging session issues from every subagent. The retrospective writes itself when the data is already captured.
+
+**Avoid:**
+- Trusting dev agent self-reported coverage numbers. Always require actual `vitest --coverage` output as evidence. Consider adding a post-dev automated coverage check.
+- Accepting non-deterministic ACs without flagging them at story creation time. ACs #1, #3, #4 on story 3-4 should have been marked `integration-required` from the start (they were, but the implications for CI were not discussed).
+- Leaving regex-based parsers as permanent solutions. The sprint-status.yaml regex parser in validator.ts will break on any structural change.
+
+---
+
+## 6. Action Items
+
+### Fix now (before next session)
+
+- [ ] **Run verification pass on 3-3** — Code review fixed 6 bugs. The story needs re-verification to confirm fixes hold and branch coverage is now actually at target.
+- [ ] **Run code review on 3-4** — Story is at review status. Code review should check validator logic, coverage claims, and the regex YAML parser.
+
+### Fix soon (next sprint)
+
+- [ ] **Add automated post-dev coverage check** — Dev agents repeatedly over-report coverage. Add a CI step or hook that runs `vitest --coverage` and fails if below threshold, independent of dev agent claims.
+- [ ] **Implement BATS session recovery test for 3-4** — AC #8 needs an end-to-end test. May require a lightweight test harness that simulates ralph startup/SIGINT/restart.
+- [ ] **Replace regex YAML parser in validator.ts** — Use a proper YAML library (js-yaml) to parse sprint-status.yaml. The regex approach is brittle.
+- [ ] **Make lastError staleness threshold configurable** — The hardcoded 24h threshold should be a parameter or read from project config.
+
+### Backlog (track but not urgent)
+
+- [ ] **Enforce module-internal visibility** — `parseProofForFailures` and `writeVerificationFindings` should not be part of the sprint module's public API. Consider barrel export patterns or `@internal` annotations.
+- [ ] **Address processVerifyResult atomicity gap** — The partial-failure window (state updated, findings not written) is low-risk but not zero-risk. Consider a transaction-like pattern or compensating action.
+- [ ] **Document non-deterministic AC testing strategy** — ACs requiring Docker, wall-clock time, or external APIs need a documented approach (manual test checklist, dedicated CI environment, or conditional skip).
+
+---
+
+## Cumulative Session Stats (2026-03-18, all 4 sessions)
+
+| Metric | Value |
+|--------|-------|
+| Total stories attempted today | 10 (sessions 1-3: 1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 2-4, 3-1, 3-2; session 4: 3-3, 3-4) |
+| Stories at done | 7 (1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 2-4) |
+| Stories at verifying | 3 (3-1, 3-2, 3-3) |
+| Stories at review | 1 (3-4) |
+| Epics completed | 2 (Epic 1, Epic 2) |
+| Epic 3 progress | 0/4 done, 3/4 verifying, 1/4 review |
+| Bugs found this session | 6 (all fixed in code review of 3-3) |
+| Workarounds applied this session | 3 (regex YAML parser, 24h threshold, missing BATS test) |
+| Review findings fixed this session | 2 HIGH + 4 MEDIUM = 6 |
+| Tests passing | 1888+ (71 files) |
+| Blocking issue | Black-box enforcement bug (4 sessions unfixed), 3-1/3-2/3-3 stuck in verifying |
+| Next up | Verify 3-3 post-review, code-review 3-4, unblock 3-1/3-2 |
+
+---
+
+# Session 5 Retrospective — 2026-03-18T19:59Z
+
+**Sprint:** Architecture Overhaul Sprint
+**Session window:** ~17:00Z – 20:56Z (estimated from issue timestamps and ralph logs)
+**Stories attempted:** 2 (3-3, 3-4)
+**Stories completed:** 0 (both remain at `verifying`)
+
+---
+
+## 1. Session Summary
+
+| Story | Entry State | Exit State | Cycles | Notes |
+|-------|------------|------------|--------|-------|
+| 3-3-verify-dev-feedback-loop | verifying | verifying | 0 | No new activity logged in session issues this session. Remains stuck in verifying from session 4. |
+| 3-4-eight-hour-stability-test | verifying | verifying | 4 (verify → dev fix → code review → re-verify) | Went through a full feedback loop but re-verification still fails: 2/10 ACs verified. |
+
+Ralph ran 3 iterations this session (3 claude_output logs created). All changes remain uncommitted.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered
+
+| # | Severity | Description | Status |
+|---|----------|-------------|--------|
+| 1 | MEDIUM | `validate-state.ts` used `path.join()` instead of `path.resolve()` for path construction — breaks with absolute paths | Fixed in code review cycle |
+| 2 | LOW | Type assertions in `validate-state.ts` (no runtime schema validation) | Noted, not fixed |
+| 3 | LOW | No runtime schema validation in `validator.ts` | Noted, not fixed |
+
+### Workarounds Applied (Tech Debt)
+
+None new this session. Previous session workarounds remain in place.
+
+### Code Quality
+
+- Coverage reached **95.83%** across all 75 files (all above 80% floor)
+- All **1925 tests pass**
+- `validator.ts` went from 92.18% to 100% coverage after adding 4 defensive catch-block tests
+
+### Verification Gaps
+
+This was the dominant problem this session:
+
+1. **AC10 (coverage)** — initially failed at 92.18%, fixed by adding tests for defensive catch blocks
+2. **ACs 5, 6, 7, 8** — lack `bash+output` evidence pairs. The showboat verifier counts them as pending because proof format doesn't meet the expected template (2/10 verified)
+3. **ACs 1, 3, 4** — correctly escalated (require actual 8-hour integration runs)
+4. **Root cause identified**: Story 3.4 is a mixed story. It has unit-testable ACs (validator, CLI, coverage) and integration-required ACs (stability scripts, 8-hour runs). The Docker black-box container only has the npm package installed — test fixtures and `tests/stability/` scripts are dev-only artifacts not in `dist/`. This makes it impossible to verify integration ACs via the standard black-box pathway.
+
+### Tooling/Infrastructure Problems
+
+| Problem | Impact |
+|---------|--------|
+| Black-box enforcement gap | Stability test scripts (`tests/stability/`) are not included in the npm package. Docker container cannot run them. This is a structural issue — not a bug in the verifier. |
+| Proof format mismatch | Non-escalated ACs with CLI evidence are being rejected because they lack `bash+output` formatting that the showboat verifier expects. 5 ACs affected. |
+
+---
+
+## 3. What Went Well
+
+- **Full feedback loop executed**: Story 3-4 went through verify → dev fix → code review → re-verify in a single session. The pipeline worked as designed even though the outcome was still "verifying".
+- **Coverage gap closed**: validator.ts went from 92.18% to 100% with targeted defensive tests. Dev agent identified and fixed the gap quickly.
+- **Code review caught a real bug**: `join()` vs `resolve()` path issue in validate-state.ts would have caused failures with absolute paths. Fixed before merge.
+- **All 1925 tests still pass**: No regressions introduced despite significant changes (560 lines added/changed across 21 files).
+
+---
+
+## 4. What Went Wrong
+
+- **Story 3-4 remains stuck in verifying** after 4 cycles. The problem is structural: the story mixes unit-testable and integration-testable ACs, and the verification pathway can only handle one or the other.
+- **Proof format rigidity**: ACs that have valid CLI evidence are being rejected because the format doesn't match what the showboat expects. This wastes verify-dev cycles on formatting problems, not actual code quality issues.
+- **No stories moved to done this session**. Stories 3-1, 3-2, 3-3, 3-4 all remain at `verifying`. Epic 3 has zero completions.
+- **3 ralph iterations consumed with no forward progress on story state**. The verify-dev loop cycled but the structural blocker means it will keep cycling without resolution.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- Code review as a gate before re-verification catches real bugs (path.join → path.resolve).
+- Dev agent adding targeted tests for uncovered branches is effective — went from 92% to 100% in one cycle.
+
+### Patterns to Avoid
+
+- **Mixed-tier stories**: Stories that combine unit-testable ACs and integration-required ACs create verification deadlocks. The black-box verifier can't verify integration ACs, and splitting verification mid-story is not supported.
+- **Burning cycles on format issues**: Multiple verify attempts failed because of proof formatting, not code quality. The verifier should be more lenient about evidence format or provide clearer feedback about what format it expects.
+- **Leaving 4 stories in `verifying` simultaneously**: Creates a pile-up. Should focus on unblocking one story at a time.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+- [ ] **Reformat proof for story 3-4 ACs 5/6/7/8**: Add proper `bash+output` evidence pairs so the showboat verifier accepts them. These ACs have valid evidence — it's a formatting problem.
+- [ ] **Decide on 3-4 integration ACs**: Either mark ACs 1, 3, 4 as permanently escalated (they require 8-hour runs nobody will do in CI), or restructure the story to separate them.
+
+### Fix Soon (Next Sprint)
+
+- [ ] **Split mixed-tier stories at planning time**: Add a constraint to story creation that prevents mixing `cli-verifiable` and `integration-required` ACs in the same story, OR teach the verifier to handle partial verification (some ACs verified, some escalated = story passes).
+- [ ] **Unblock stories 3-1 and 3-2**: These have been stuck in `verifying` since session 2. Diagnose and resolve or force-complete.
+- [ ] **Include test fixtures in Docker build** (or create a separate verification image): The npm-package-only Docker image is insufficient for stories that test dev-only scripts.
+
+### Backlog
+
+- [ ] **Proof format documentation**: Document what the showboat verifier expects for `bash+output` evidence pairs so agents produce correct proofs on first attempt.
+- [ ] **Runtime schema validation**: Add Zod or similar validation to `validator.ts` and `validate-state.ts` to replace type assertions (LOW issues from code review).
+- [ ] **Verifier feedback quality**: When the verifier rejects proof for formatting reasons, it should say "wrong format" not just "pending" — agents waste cycles trying to fix code when the code is fine.
+
+---
+
+## Updated Running Totals
+
+| Metric | Value |
+|--------|-------|
+| Total stories attempted today | 10 (sessions 1-4: 1-1 through 3-4; session 5: 3-3, 3-4) |
+| Stories at done | 7 (1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 2-4) |
+| Stories at verifying | 4 (3-1, 3-2, 3-3, 3-4) |
+| Epics completed | 2 (Epic 1, Epic 2) |
+| Epic 3 progress | 0/4 done, 4/4 verifying |
+| Bugs found this session | 1 MEDIUM (path.join), 2 LOW (type assertions) |
+| Tests passing | 1925 (75 files) |
+| Coverage | 95.83% overall, all files above 80% floor |
+| Blocking issue | Verification pathway cannot handle mixed-tier stories; 4 stories stuck in verifying |
+| Next up | Reformat 3-4 proof, unblock 3-1/3-2/3-3, then push Epic 3 to done |
+
+---
+
+# Session Retrospective — 2026-03-18 (Session 6, ~17:00Z – 21:42Z)
+
+**Sprint:** Architecture Overhaul Sprint
+**Session window:** ~17:00Z – 21:42Z (from session issues log timestamps and file modification times)
+**Stories attempted:** 3 (3-3, 3-4, 4-1)
+**Stories completed:** 0 (3-3 and 3-4 remain at `verifying`, 4-1 at `review`)
+**Ralph iterations this session:** 4 (claude_output logs at 19:59, 20:26, 20:56, 21:19)
+
+---
+
+## 1. Session Summary
+
+| Story | Entry State | Exit State | Cycles | Notes |
+|-------|------------|------------|--------|-------|
+| 3-3-verify-dev-feedback-loop | verifying | verifying | 0 new | No new activity logged. Remains stuck from session 4. |
+| 3-4-eight-hour-stability-test | verifying | verifying | 4 (verify, dev fix, code review, re-verify) | Full feedback loop executed. AC10 coverage gap fixed (92% -> 100%). Code review caught `join()` vs `resolve()` bug. Re-verification still fails: 2/10 ACs verified due to proof format mismatch and Docker image lacking test scripts. |
+| 4-1-verify-module-extraction | backlog | review | 1 (create-story, dev-story) | Story created and implemented. ~1,307 lines of verify code reorganized into module structure. Session time exhausted before code review or verification could run. |
+
+**Sprint progress:** Epic 3 at 0/4 done, 4/4 verifying. Epic 4 started with 4-1 at review. No stories crossed the done line this session.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs discovered during implementation or verification
+
+1. **MEDIUM: `validate-state.ts` used `path.join()` instead of `path.resolve()`** (3-4, code-review) — Path construction breaks with absolute paths. Found and fixed during code review. This is the kind of bug that only surfaces in production when paths differ from development defaults.
+
+2. **AC10 coverage gap: `validator.ts` at 92.18%** (3-4, verification) — Defensive catch blocks had no test coverage. Fixed by adding 4 targeted tests, reaching 100% on all metrics.
+
+3. **Proof parser format mismatch** (3-4, re-verification) — Non-escalated ACs 5, 6, 7, 8 have valid CLI evidence but lack the `bash+output` evidence pair format that the showboat verifier expects. Result: 2/10 ACs verified when the actual number with valid evidence is higher. This is the same class of problem reported in session 5 — the verifier rejects valid proof because of formatting, not substance.
+
+### Workarounds applied (tech debt introduced)
+
+1. **Duplicate proof parser in feedback.ts** (3-3, carried forward) — The verify module is still a stub, so the feedback loop implements its own proof markdown parser. Story 4-1's verify module extraction will eventually absorb this, but until then there are two independent proof parsers in the codebase.
+
+2. **`verify-env.ts` at 472 lines needs splitting** (4-1, create-story) — Identified during story creation. Exceeds NFR18 300-line limit. The module extraction in 4-1 will need to split this file during migration, adding scope to an already large story.
+
+3. **`commands/verify.ts` at 303 lines** (4-1, create-story) — Also exceeds NFR18. Needs refactoring to under 100 lines as part of the extraction, but 4-1's dev agent chose to delegate logic rather than fully decompose.
+
+### Code quality concerns
+
+1. **`index.ts` at 141 lines in verify module** (4-1, dev) — Exceeds the 100-line target for module indexes. Needed for re-exports and delegation. Acceptable but above target.
+
+2. **`proof.ts` lines 207, 242 uncovered** (4-1, dev) — Edge-case parser branches for unusual proof document formats. Overall 91.6% statements / 97.9% lines. Close to target but not at 100%.
+
+3. **5 `as any` assertions in verify-env tests** (4-1, dev) — Test-only type-casting to mock complex interfaces. Technically violates NFR19 (no `any` types) but pragmatic for test mocks.
+
+4. **`commands/verify.ts` still 303 lines** (4-1, dev) — Pre-existing, not addressed this session. Delegates logic to the new module but the file itself was not shrunk.
+
+5. **Overall coverage at 95.83%, all 75 files above 80% floor** — Healthy baseline maintained despite significant code reorganization.
+
+### Verification gaps
+
+1. **Story 3-4: 2/10 ACs verified** — Root cause identified: story mixes unit-testable ACs (validator, CLI, coverage) and integration-required ACs (stability scripts, 8-hour runs). The Docker container only has the npm package — `tests/stability/` scripts and test fixtures are dev-only artifacts not included in `dist/`. The standard black-box verification pathway cannot access them.
+
+2. **Story 3-4: ACs 1, 3, 4 correctly escalated** — These require actual 8-hour runs. Nobody is going to run these in CI. They need to be accepted as permanently escalated or the story needs restructuring.
+
+3. **Story 4-1: No code review or verification** — Session time ran out after dev-story completed. The story has ~1,307 lines of reorganized code with no review gate yet. Historical pattern shows reviews catch 2-4 bugs per story.
+
+4. **Old story file collision risk** (4-1) — `4-1-verification-pipeline-showboat-integration.md` (v1 archive) exists alongside the new `4-1-verify-module-extraction.md`. Could confuse agents that search by story key prefix.
+
+### Tooling/infrastructure problems
+
+1. **Docker image lacks dev-only test artifacts** — The npm-package-only Docker image is structurally insufficient for stories that test scripts in `tests/stability/` or `tests/fixtures/`. This blocks verification for any story with integration ACs about dev tooling.
+
+2. **Proof format rigidity** — The showboat verifier rejects valid evidence because of formatting (missing `bash+output` pairs), not substance. Multiple sessions have now reported this. Agents waste verify-dev cycles on format problems.
+
+3. **sprint-status.yaml not auto-updated by agents** — Dev agents note manual sync is needed but don't actually update the YAML. Status drift between `sprint-state.json` and `sprint-status.yaml` accumulates.
+
+---
+
+## 3. What Went Well
+
+- **Story 3-4 feedback loop executed correctly.** Verify found a real gap (92% coverage), dev fixed it (added 4 tests, reached 100%), code review caught a real bug (`join` vs `resolve`), re-verify confirmed the fix held. The pipeline worked as designed, even though the story remains stuck on verification format issues.
+
+- **Story 4-1 created and implemented in one pass.** A large story (~1,307 lines of code reorganization) went from backlog to review in a single session. The verify module now has proper structure: `proof.ts`, `container.ts`, `verify-env.ts` split into the module, with `index.ts` orchestrating.
+
+- **Coverage maintained at 95.83%.** Despite significant code moves and reorganization across 21+ files, no coverage regression. All 75 files stay above 80% floor.
+
+- **All 1925 tests pass.** No regressions from either the 3-4 fixes or the 4-1 module extraction.
+
+- **Root cause for 3-4 verification failure identified.** The problem is structural (Docker image missing dev scripts), not a code quality issue. This diagnosis prevents further wasted cycles trying to fix the code when the verification infrastructure is the bottleneck.
+
+---
+
+## 4. What Went Wrong
+
+- **Zero stories moved to done.** This is the second consecutive session with no completions. Epic 3 has all 4 stories stuck at `verifying`. The pipeline is producing work but nothing is shipping.
+
+- **4 stories remain stuck at `verifying` simultaneously.** Stories 3-1, 3-2, 3-3, and 3-4 are all in verification limbo. The backlog is clear but the verification stage is clogged. This indicates the verification pathway is the bottleneck, not development.
+
+- **Verification format issues continue to waste cycles.** Story 3-4 went through a full verify-dev-review-re-verify loop this session, but re-verification still reports 2/10 ACs verified because of proof formatting. The dev agent fixed real code issues, but the format problem persists independent of code quality.
+
+- **Story 4-1 shipped to review without code review gate.** Session time exhaustion meant ~1,307 lines of reorganized code have no review. Based on historical patterns (2-4 bugs caught per review), there are likely undetected issues.
+
+- **"Fix now" items from prior sessions still unfixed.** The black-box enforcement bug (reported in session 1) and stale `epics.md` (reported in session 2) were both "Fix now" action items that have persisted for 5+ sessions. The "Fix now" category has no enforcement mechanism.
+
+- **Epic 3 has zero completions after 6 sessions of work.** All 4 stories have been through dev and review, but none have cleared verification. The epic is 100% implemented and 0% complete by the sprint status definition.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Diagnosing root causes before cycling.** The session correctly identified that 3-4's verification failure is structural (Docker image missing dev scripts) rather than trying another verify-dev cycle. This prevents wasting future iterations on a problem that code changes cannot fix.
+
+- **Code review catching path bugs.** The `join()` vs `resolve()` fix is exactly the kind of issue that only surfaces in production with non-default path configurations. Review continues to justify its cost.
+
+- **Large module extractions in single sessions.** Story 4-1 moved ~1,307 lines across 3 lib files into a proper module structure in one pass. The module skeleton from Epic 1 provided a clear target architecture, making the extraction mechanical rather than creative.
+
+### Patterns to Avoid
+
+- **Accumulating stories in `verifying`.** Four stories stuck simultaneously creates a pile-up that no single session can resolve. Stories should be unblocked one at a time, not left to accumulate.
+
+- **Ignoring "Fix now" action items.** Both the black-box enforcement bug and stale epics.md have been "Fix now" for 5+ sessions. If an item is truly "Fix now", it should be the first thing addressed in the next session, not deferred behind story work.
+
+- **Starting new stories (4-1) while old stories (3-1 through 3-4) are stuck.** Moving forward to Epic 4 before Epic 3 clears verification creates a longer unreviewed pipeline. Better to unblock the verification bottleneck first.
+
+- **Mixed-tier stories.** Story 3-4 combines unit-testable ACs and integration-required ACs. The verification pathway can only handle one tier at a time. Stories should be split by verification tier at planning time.
+
+---
+
+## 6. Action Items
+
+### Fix now (before next session)
+
+1. **Unblock Epic 3 stories from `verifying`.** Stories 3-1, 3-2, 3-3, and 3-4 are all stuck. For each: if non-escalated ACs have valid evidence, manually advance to done with escalated ACs tracked as follow-up stories. Four stories in verification limbo is the highest-priority problem in the sprint.
+
+2. **Fix proof format for story 3-4 ACs 5/6/7/8.** These have valid CLI evidence in the wrong format. Reformat to `bash+output` pairs so the verifier accepts them. Alternatively, make the verifier more lenient about evidence format.
+
+3. **Run code review on story 4-1.** ~1,307 lines of reorganized code with no review gate. Historical bug rate is 2-4 per story. This should not sit in review overnight.
+
+### Fix soon (next sprint)
+
+4. **Fix the black-box enforcement bug.** `checkBlackBoxEnforcement()` must respect verification tier. This has been a "Fix now" item since session 1 and is still unfixed after 6 sessions. It is the single most persistent blocker in the sprint.
+
+5. **Include test fixtures in Docker verification build (or create a dev-mode image).** The npm-package-only Docker image cannot verify stories about dev tooling scripts. Either add `tests/` to the Docker build context or create a separate image for integration verification.
+
+6. **Split mixed-tier stories at planning time.** Add a constraint: no story should have both `cli-verifiable` and `integration-required` ACs unless the story explicitly defines how each tier is verified.
+
+7. **Add a mechanism to enforce "Fix now" items.** These items persist for sessions because nothing prevents the next session from starting story work instead. Consider: the first Ralph iteration of each session runs "Fix now" items before picking new stories.
+
+### Backlog (track but not urgent)
+
+8. **Remove old story file `4-1-verification-pipeline-showboat-integration.md`.** Archive-v1 artifact that could confuse agents searching by story key prefix.
+
+9. **Refactor `commands/verify.ts` below 100 lines.** Still at 303 lines after 4-1 extraction. The module now handles the logic, but the command file needs further trimming.
+
+10. **Address `as any` assertions in verify-env tests.** 5 instances. Low priority but violates NFR19.
+
+11. **Cover `proof.ts` edge-case branches (lines 207, 242).** Parser branches for unusual proof formats. Not critical but prevents 100% coverage.
+
+---
+
+## Updated Running Totals
+
+| Metric | Value |
+|--------|-------|
+| Total stories attempted today | 12 (1-1 through 3-4 from sessions 1-5; 3-3, 3-4, 4-1 in session 6) |
+| Stories at done | 7 (1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 2-4) |
+| Stories at verifying | 4 (3-1, 3-2, 3-3, 3-4) |
+| Stories at review | 1 (4-1) |
+| Epics completed | 2 (Epic 1, Epic 2) |
+| Epic 3 progress | 0/4 done, 4/4 verifying (fully implemented, nothing shipped) |
+| Epic 4 progress | 0/3 done, 1/3 review, 2/3 backlog |
+| Ralph iterations this session | 4 |
+| Ralph iterations total (est.) | ~18 |
+| Bugs found this session | 2 (join vs resolve, coverage gap — both fixed) |
+| Tests passing | 1925 (75 files) |
+| Coverage | 95.83% overall, all files above 80% floor |
+| Blocking issue | Verification bottleneck: 4 stories stuck, mixed-tier format issues, Docker image missing dev scripts |
+| "Fix now" items unfixed from prior sessions | 2 (black-box enforcement bug since session 1, stale epics.md since session 2) |
+| Sessions with zero completions | 2 consecutive (sessions 5 and 6) |
+| Next up | Unblock Epic 3 verification, review 4-1, fix black-box enforcement |
+
+---
+
+# Session Retrospective — 2026-03-18 (Session 7, ~17:52Z – 21:50Z+)
+
+**Sprint:** Architecture Overhaul Sprint
+**Session window:** ~17:52Z – 21:50Z+ (from session issues log timestamps and ralph log)
+**Stories attempted:** 2 (4-1 code review + verification; 3-1 verification retries)
+**Stories completed:** 0 (4-1 moved from review to blocked-on-verification; 3-1 at retry 9/10)
+**Ralph iterations this session:** 5 (19:59, 20:26, 20:56, 21:19, 21:46 — all on 3-1)
+
+---
+
+## 1. Session Summary
+
+| Story | Entry State | Exit State | Cycles | Notes |
+|-------|------------|------------|--------|-------|
+| 4-1-verify-module-extraction | review | review (verification ran, 7/8 PASS, 1 ESCALATE, blocked by blackBoxPass=false) | 1 (code review + verify) | Code review found and fixed 2 bugs (HIGH: missing `strategy` field in 11 test mocks; MEDIUM: mutation of readonly fields). Verification produced strong proof: 7 PASS, 0 FAIL, 1 ESCALATE. But `codeharness verify` exit code 1 because blackBoxPass=false for a unit-testable story. Same blocker as session 1. |
+| 3-1-error-capture-on-timeout | verifying | verifying (retry 9/10) | 5 ralph iterations | All 5 iterations targeted 3-1 verification. One timed out (iteration 2, exit 124, empty output). Four completed successfully but story remains at verifying. At retry 9/10 — one more failure flags it as blocked. |
+
+**Sprint progress:** No stories moved to done. 7/25 done, unchanged from session 6. Epic 3 still 0/4 done, all verifying. Epic 4 still 0/3 done. Third consecutive session with zero completions.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs discovered during implementation or verification
+
+1. **HIGH: 11 test mocks missing `strategy` field** (4-1, code review, 17:52Z) — `src/commands/__tests__/verify.test.ts` had 11 `ParsedAC` mock objects that lacked the required `strategy` field, causing 6 TS2741 compile errors. Found and fixed in code review. Root cause: the `ParsedAC` type was extended during module extraction but test mocks were not updated.
+
+2. **MEDIUM: `checkVerifyEnv()` mutated readonly fields** (4-1, code review, 17:52Z) — `src/modules/verify/env.ts` wrote to `CheckResult` fields that are declared `readonly`. This would fail at runtime under strict frozen-object scenarios. Found and fixed in code review.
+
+3. **Design issue: `codeharness verify` conflates blackBoxPass with overall pass** (4-1, verification, 17:58Z) — Unit-testable stories with valid proofs (7/8 PASS, 1 ESCALATE) get exit code 1 because `blackBoxPass=false`. The verifier assumes every story needs Docker-exec evidence. This is the same bug reported in session 1, session 3, session 5, and session 6. It is now the single longest-lived unfixed bug in the project.
+
+### Workarounds applied (tech debt introduced)
+
+None new this session. Prior workarounds (duplicate proof parser, 303-line verify command) persist.
+
+### Code quality concerns
+
+1. **LOW not fixed: `perAC[].verified` hardcoded true for escalated ACs** (4-1, code review) — `index.ts` marks escalated ACs as `verified: true` which overstates proof quality. Escalated ACs should be `verified: false` with an `escalated: true` flag or similar.
+
+2. **LOW not fixed: Hardcoded paths duplicated between index.ts and commands/verify.ts** (4-1, code review) — Path construction for proof and story files is copy-pasted in two locations. Should be centralized.
+
+3. **LOW not fixed: Unsafe `as unknown as Record<string, unknown>` casts in env.ts** (4-1, code review) — Type-system escape hatches that bypass TypeScript's safety guarantees.
+
+4. **Coverage improved to 96.16%** — Up from 95.83% last session. All 76 files (up from 75) above 80% floor. 1937 tests passing (up from 1925).
+
+### Verification gaps
+
+1. **Story 4-1: 7 PASS, 0 FAIL, 1 ESCALATE but blocked** — AC8 (sprint loop resilience) correctly escalated as `integration-required`. The remaining 7 ACs all verified. But `codeharness verify` returns exit 1 due to `blackBoxPass=false`. The story is functionally verified but cannot be marked done through the automated pipeline.
+
+2. **Story 3-1: 9 retries consumed, 1 remaining** — Ralph has spent 5 iterations this session (plus 4 from prior sessions) trying to verify 3-1. One iteration timed out entirely (30 minutes, zero output). At retry 9/10, one more failure will flag it as blocked. No evidence of forward progress across iterations.
+
+### Tooling/infrastructure problems
+
+1. **Iteration timeout (3-1, iteration 2)** — Claude produced zero output in 30 minutes and exited with code 124. The timeout report shows no partial output captured. This is a complete waste of an iteration with no diagnostic value.
+
+2. **blackBoxPass enforcement remains unfixed** — Now in its 7th session as a known blocker. It prevents unit-testable stories from passing automated verification. Every session reports it. No session fixes it. It is the root cause of the verification bottleneck.
+
+3. **Ralph grinding on a stuck story** — Ralph spent all 5 iterations on 3-1, which has shown no progress across 9 retries. The retry mechanism lacks intelligence: it does not detect that a story is making no forward progress and should be skipped or escalated sooner.
+
+---
+
+## 3. What Went Well
+
+- **4-1 code review caught 2 real bugs.** The HIGH-severity missing `strategy` field would have caused compile failures. The MEDIUM mutation bug would violate immutability guarantees at runtime. Review continues to justify its cost (2 bugs found, matching the 2-4 per story historical average).
+
+- **4-1 verification produced strong proof.** 7/8 ACs passed with legitimate evidence. The one escalated AC (sprint loop resilience) is genuinely integration-required and correctly identified. The verification pipeline produced accurate results despite ultimately returning exit 1.
+
+- **Coverage and test count both improved.** 95.83% -> 96.16% coverage, 1925 -> 1937 tests. Upward trend despite no stories completing.
+
+- **Session issues log was useful.** The 4 entries from code review and verification provided concrete, actionable data for this retrospective. The log format works.
+
+---
+
+## 4. What Went Wrong
+
+- **Third consecutive session with zero completions.** Sessions 5, 6, and 7 all produced zero done stories. The sprint is in a completion drought. Work is being done (code review, verification, bug fixes) but nothing crosses the finish line.
+
+- **5 ralph iterations spent on a single stuck story (3-1) with no progress.** 3-1 is at retry 9/10 with no evidence it is closer to passing than it was at retry 1. Ralph does not distinguish between "fixable on retry" and "structurally blocked."
+
+- **The blackBoxPass bug is now 7 sessions old.** It was identified in session 1. It was a "Fix now" item in sessions 2, 3, 4, 5, and 6. It remains unfixed. It is now the longest-lived, highest-impact unfixed bug. It blocks every unit-testable story from automated verification. The "Fix now" label has no enforcement mechanism.
+
+- **4-1 cannot be marked done despite 7/8 ACs passing.** A story with strong verification evidence is blocked by a known bug in the verifier. This is the verification bottleneck in its purest form: the code is correct, the proof is valid, but the tooling rejects it.
+
+- **One iteration completely wasted on timeout.** Iteration 2 ran for 30 minutes, produced zero output, and exited 124. No diagnostic data was captured. 30 minutes of compute with zero information gain.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Code review before verification.** The 4-1 sequence (review -> fix 2 bugs -> verify) worked correctly. The bugs found in review would have caused verification failures, so the review saved at least one wasted verify-dev cycle.
+
+- **Session issues log as retrospective input.** The structured entries with severity, location, and fix status made this retrospective straightforward. Continue logging issues in this format.
+
+### Patterns to Avoid
+
+- **Letting ralph grind on stuck stories.** 9 retries with no progress is wasted compute. The retry limit should be accompanied by a progress check: if the error message is identical across retries, skip immediately instead of waiting for the retry limit.
+
+- **Deferring "Fix now" items indefinitely.** The blackBoxPass bug has been "Fix now" for 6 sessions. At this point it should be treated as a story in the sprint, not an action item in a retrospective. Action items without enforcement are suggestions.
+
+- **Starting new epics while old epics are stuck.** Session 6 started Epic 4 (4-1) while Epic 3 has 4 stories in verification limbo. 4-1 is now also stuck in the same verification bottleneck. Adding stories to a clogged pipeline does not increase throughput.
+
+---
+
+## 6. Action Items
+
+### Fix now (before next session)
+
+1. **Fix the blackBoxPass enforcement bug.** This is no longer optional. It has been "Fix now" for 6 consecutive sessions. Either modify `checkBlackBoxEnforcement()` to respect the `cli-verifiable` / `unit-testable` verification tier, or remove it entirely for non-black-box stories. Until this is fixed, no unit-testable story can be marked done through automated verification.
+
+2. **Manually advance 4-1 to done.** 7/8 ACs verified, 1 correctly escalated. The only reason it is not done is the blackBoxPass bug. If the bug cannot be fixed immediately, manually mark the story as done with the escalated AC tracked as follow-up.
+
+3. **Decide on 3-1.** It is at retry 9/10 with no forward progress across 9 attempts. Either fix the underlying verification issue manually or mark it blocked and move on. Do not let ralph burn the 10th retry.
+
+### Fix soon (next sprint)
+
+4. **Add progress detection to ralph retry logic.** If the same story fails with the same error across N retries, skip it before reaching the retry limit. Current behavior wastes iterations on structurally blocked stories.
+
+5. **Unblock remaining Epic 3 stories (3-2, 3-3, 3-4).** All have been at `verifying` for 4+ sessions. Same approach as 4-1: review proof quality, advance stories with valid evidence, track gaps as follow-up.
+
+6. **Add timeout diagnostics.** Iteration 2 timed out with zero output. The timeout report captured no partial output. Add a mechanism to capture in-progress state (e.g., periodic snapshots of Claude's conversation) so timeouts produce actionable data.
+
+### Backlog (track but not urgent)
+
+7. **Fix `perAC[].verified` for escalated ACs.** Hardcoded `true` overstates proof quality.
+
+8. **Centralize path construction.** Duplicated between `index.ts` and `commands/verify.ts`.
+
+9. **Remove `as unknown as Record<string, unknown>` casts in env.ts.** Type-safety escape hatches.
+
+10. **Refactor `commands/verify.ts` below 100 lines.** Still at 303 lines, carried from session 6.
+
+---
+
+## Updated Running Totals
+
+| Metric | Value |
+|--------|-------|
+| Total stories attempted today | 13 (prior 12 + 3-1 verification retries this session) |
+| Stories at done | 7 (1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 2-4) |
+| Stories at verifying | 5 (3-1, 3-2, 3-3, 3-4, 4-1 effectively) |
+| Stories at review | 1 (4-1 formally) |
+| Epics completed | 2 (Epic 1, Epic 2) |
+| Epic 3 progress | 0/4 done, 4/4 verifying |
+| Epic 4 progress | 0/3 done, 1/3 review (7/8 ACs verified), 2/3 backlog |
+| Ralph iterations this session | 5 (all on 3-1) |
+| Ralph iterations total (est.) | ~23 |
+| Bugs found this session | 2 (missing strategy field, readonly mutation — both fixed in review) |
+| Tests passing | 1937 (76 files) |
+| Coverage | 96.16% statements, 86.45% branches, 98.59% functions, 96.66% lines |
+| Blocking issue | blackBoxPass enforcement bug (7 sessions old, prevents all unit-testable stories from automated verification) |
+| "Fix now" items unfixed from prior sessions | 2 (blackBoxPass since session 1, stale epics.md since session 2) |
+| Sessions with zero completions | 3 consecutive (sessions 5, 6, 7) |
+| Story 3-1 retry count | 9/10 (one more failure = blocked) |
+| Next up | FIX blackBoxPass bug, advance 4-1 to done, decide on 3-1 fate |

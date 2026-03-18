@@ -28,6 +28,8 @@ import { selectNextStory } from './selector.js';
 import { generateReport as generateReportImpl, getStoryDrillDown as getStoryDrillDownImpl } from './reporter.js';
 import { captureTimeoutReport as captureTimeoutReportImpl } from './timeout.js';
 import { processVerifyResult as processVerifyResultImpl } from './feedback.js';
+import { validateStateConsistency as validateStateConsistencyImpl } from './validator.js';
+import type { ValidationReport, ValidationIssue } from './validator.js';
 
 export type {
   StorySelection,
@@ -43,6 +45,8 @@ export type {
   FeedbackResult,
   FailingAc,
 };
+
+export type { ValidationReport, ValidationIssue };
 
 /**
  * Select the next actionable story.
@@ -112,4 +116,11 @@ export function processVerifyResult(
   opts?: { maxAttempts?: number },
 ): Result<FeedbackResult> {
   return processVerifyResultImpl(storyKey, opts);
+}
+
+export function validateStateConsistency(
+  statePath: string,
+  sprintStatusPath: string,
+): Result<ValidationReport> {
+  return validateStateConsistencyImpl(statePath, sprintStatusPath);
 }

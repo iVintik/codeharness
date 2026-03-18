@@ -8,8 +8,8 @@ vi.mock('node:child_process', () => ({
   execFileSync: vi.fn(),
 }));
 
-// Mock verify-env for isValidStoryKey — use real implementation
-vi.mock('../../../lib/verify-env.js', () => ({
+// Mock verify module for isValidStoryKey — use real implementation
+vi.mock('../index.js', () => ({
   isValidStoryKey: vi.fn((k: string) => /^[a-zA-Z0-9_-]+$/.test(k)),
 }));
 

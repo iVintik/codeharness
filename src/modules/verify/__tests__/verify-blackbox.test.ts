@@ -3,11 +3,6 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-// Mock child_process before importing verify module
-vi.mock('node:child_process', () => ({
-  execFileSync: vi.fn(),
-}));
-
 // Mock output
 vi.mock('../../../lib/output.js', () => ({
   ok: vi.fn(),
@@ -17,29 +12,12 @@ vi.mock('../../../lib/output.js', () => ({
   jsonOutput: vi.fn(),
 }));
 
-// Mock beads
-vi.mock('../../../lib/beads.js', () => ({
-  isBeadsInitialized: vi.fn(),
-  listIssues: vi.fn(),
-  closeIssue: vi.fn(),
-}));
-
-// Mock beads-sync
-vi.mock('../../../lib/beads-sync.js', () => ({
-  syncClose: vi.fn(),
-}));
-
-// Mock doc-health
-vi.mock('../../../lib/doc-health.js', () => ({
-  checkStoryDocFreshness: vi.fn(),
-}));
-
 import {
   classifyEvidenceCommands,
   checkBlackBoxEnforcement,
   validateProofQuality,
-} from '../../../lib/verify.js';
-import type { ProofQuality, ClassifiedCommand } from '../../../lib/verify.js';
+} from '../proof.js';
+import type { ClassifiedCommand } from '../types.js';
 
 let testDir: string;
 
@@ -112,6 +90,18 @@ describe('classifyEvidenceCommands', () => {
     const result = classifyEvidenceCommands(content);
     expect(result).toHaveLength(1);
     expect(result[0].type).toBe('other');
+  });
+
+  it('classifies docker host commands (ps, logs, inspect)', () => {
+    const content = [
+      '```bash',
+      'docker ps --filter name=codeharness-verify',
+      '```',
+    ].join('\n');
+
+    const result = classifyEvidenceCommands(content);
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe('docker-host');
   });
 
   it('handles shell code blocks too', () => {
@@ -328,7 +318,6 @@ describe('checkBlackBoxEnforcement', () => {
     ].join('\n');
 
     const result = checkBlackBoxEnforcement(content);
-    // No ## AC headers means no per-AC check, and grep ratio is 0
     expect(result.blackBoxPass).toBe(true);
   });
 });
@@ -479,7 +468,6 @@ describe('validateProofQuality — black-box enforcement', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    // 1 docker exec + 1 grep src/ = 50% exactly, which should pass
     expect(result.grepSrcCount).toBe(1);
     expect(result.dockerExecCount).toBe(1);
     expect(result.blackBoxPass).toBe(true);

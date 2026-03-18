@@ -22,7 +22,7 @@ Executes the autonomous coding loop by spawning the Ralph shell script. Resolves
 
 ### verify.ts
 Runs the verification pipeline on completed work. Two modes: (1) story verification via `--story <id>` — parses acceptance criteria, checks preconditions, validates proof quality (rejects proofs with PENDING ACs), creates proof document, runs Showboat verify, updates state, closes Beads issue, moves exec-plan to completed; (2) retrospective verification via `--retro --epic <n>` — checks that `epic-N-retrospective.md` exists, marks it done in sprint-status.yaml. JSON output includes `proofQuality` metrics.
-- **Key deps:** `lib/verify-parser`, `lib/verify` (`validateProofQuality`), `lib/doc-health` (exec-plan completion), `lib/beads-sync` (sprint status for retro)
+- **Key deps:** `modules/verify` (parseStoryACs, validateProofQuality, checkPreconditions, etc.), `lib/doc-health` (exec-plan completion), `lib/beads-sync` (sprint status for retro)
 - **Flags:** `--story <id>` (story mode), `--retro` + `--epic <n>` (retro mode), `--json`
 
 ### status.ts
@@ -81,6 +81,11 @@ Manages retry state for stories. Shows retry counts and flagged-story status, re
 - **Key deps:** `lib/retry-state` (readRetries, readFlaggedStories, resetRetry), `lib/output`
 - **Subcommands:** none; supports `--reset`, `--story <key>`, `--status`, `--json`
 
+### validate-state.ts
+Validates sprint-state.json consistency against sprint-status.yaml. Thin CLI wrapper that delegates to the sprint module's `validateStateConsistency`.
+- **Key deps:** `modules/sprint` (validateStateConsistency), `lib/output`
+- **Subcommands:** none; supports `--state <path>`, `--sprint-status <path>`
+
 ### timeout-report.ts
 Captures diagnostic data from a timed-out iteration. Called by ralph.sh on exit code 124 to preserve git diff, state delta, and partial stderr in a structured markdown report.
 - **Key deps:** `modules/sprint` (captureTimeoutReport), `lib/output`
@@ -93,7 +98,7 @@ Queries observability data (logs, metrics, traces) scoped to the current project
 
 ### verify-env.ts
 Manages the verification environment for black-box story verification. Builds a Docker image from project artifacts (no source code), prepares clean temp workspaces with only story docs, validates the environment, and cleans up.
-- **Key deps:** `lib/verify-env` (build, prepare, check, cleanup), `lib/output`
+- **Key deps:** `modules/verify` (buildVerifyImage, prepareVerifyWorkspace, checkVerifyEnv, cleanupVerifyEnv), `lib/output`
 - **Subcommands:** `build` (build Docker image, supports `--json`), `prepare --story <key>` (create clean workspace), `check` (validate image/CLI/otel), `cleanup --story <key>` (remove workspace and container)
 
 ## Adding a New Command

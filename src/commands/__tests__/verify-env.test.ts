@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Command } from 'commander';
 
-// Mock verify-env lib
-vi.mock('../../lib/verify-env.js', () => ({
+// Mock verify module
+vi.mock('../../modules/verify/index.js', () => ({
   buildVerifyImage: vi.fn(() => ({
     imageTag: 'codeharness-verify',
     imageSize: '250.0MB',
@@ -25,7 +25,7 @@ import {
   prepareVerifyWorkspace,
   checkVerifyEnv,
   cleanupVerifyEnv,
-} from '../../lib/verify-env.js';
+} from '../../modules/verify/index.js';
 
 const mockBuild = vi.mocked(buildVerifyImage);
 const mockPrepare = vi.mocked(prepareVerifyWorkspace);

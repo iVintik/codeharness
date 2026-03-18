@@ -14,7 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, mkdirSync, cpSync } from 'node:fs';
 import { join } from 'node:path';
 import { verifyPromptTemplate } from '../templates/verify-prompt.js';
-import { isValidStoryKey } from './verify-env.js';
+import { isValidStoryKey } from '../modules/verify/index.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

@@ -43,12 +43,14 @@ import {
   checkPreconditions,
   createProofDocument,
   runShowboatVerify,
-  proofHasContent,
-  validateProofQuality,
   updateVerificationState,
   closeBeadsIssue,
-} from '../../../lib/verify.js';
-import type { VerifyResult, ProofQuality } from '../../../lib/verify.js';
+} from '../orchestrator.js';
+import {
+  validateProofQuality,
+  proofHasContent,
+} from '../proof.js';
+import type { VerifyResult, ProofQuality } from '../types.js';
 import { writeState, readState } from '../../../lib/state.js';
 import { getDefaultState } from '../../../lib/state.js';
 
@@ -118,9 +120,10 @@ describe('checkPreconditions', () => {
     vi.mocked(checkStoryDocFreshness).mockReturnValue({
       passed: false,
       documents: [
-        { path: 'AGENTS.md', grade: 'stale', reason: 'AGENTS.md is stale', freshness: 'stale', module: 'src' },
+        { path: 'AGENTS.md', grade: 'stale', reason: 'AGENTS.md is stale', lastModified: null, codeLastModified: null },
       ],
-      durationMs: 10,
+      summary: { fresh: 0, stale: 1, missing: 0, total: 1 },
+      scanDurationMs: 10,
     });
 
     const result = checkPreconditions(testDir, 'test-story');
@@ -133,9 +136,10 @@ describe('checkPreconditions', () => {
     vi.mocked(checkStoryDocFreshness).mockReturnValue({
       passed: false,
       documents: [
-        { path: 'AGENTS.md', grade: 'missing', reason: 'AGENTS.md not found', freshness: 'missing', module: 'src' },
+        { path: 'AGENTS.md', grade: 'missing', reason: 'AGENTS.md not found', lastModified: null, codeLastModified: null },
       ],
-      durationMs: 5,
+      summary: { fresh: 0, stale: 0, missing: 1, total: 1 },
+      scanDurationMs: 5,
     });
 
     const result = checkPreconditions(testDir, 'test-story');
@@ -148,9 +152,10 @@ describe('checkPreconditions', () => {
     vi.mocked(checkStoryDocFreshness).mockReturnValue({
       passed: false,
       documents: [
-        { path: 'AGENTS.md', grade: 'present', reason: '', freshness: 'fresh', module: 'src' },
+        { path: 'AGENTS.md', grade: 'fresh', reason: '', lastModified: new Date(), codeLastModified: new Date() },
       ],
-      durationMs: 5,
+      summary: { fresh: 1, stale: 0, missing: 0, total: 1 },
+      scanDurationMs: 5,
     });
 
     const result = checkPreconditions(testDir, 'test-story');
@@ -163,7 +168,8 @@ describe('checkPreconditions', () => {
     vi.mocked(checkStoryDocFreshness).mockReturnValue({
       passed: true,
       documents: [],
-      durationMs: 5,
+      summary: { fresh: 0, stale: 0, missing: 0, total: 0 },
+      scanDurationMs: 5,
     });
 
     const result = checkPreconditions(testDir, 'test-story');
@@ -187,7 +193,7 @@ describe('checkPreconditions', () => {
 describe('createProofDocument', () => {
   it('creates directories and writes proof file', () => {
     const proofPath = createProofDocument('4-1-test', 'Story 4.1: Test', [
-      { id: '1', description: 'First AC', type: 'general', verifiability: 'cli-verifiable' },
+      { id: '1', description: 'First AC', type: 'general', verifiability: 'cli-verifiable', strategy: 'docker' },
     ], testDir);
 
     expect(existsSync(proofPath)).toBe(true);
@@ -384,8 +390,6 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    // verified=2 (evidence exists), but passed=false because black-box
-    // enforcement requires docker exec per AC when bash blocks are present
     expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 0, total: 2, blackBoxPass: false, passed: false });
   });
 
@@ -432,7 +436,6 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    // [FAIL] is inside a code block, so it should NOT be treated as a verdict
     expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 0, total: 1 });
   });
 
@@ -458,7 +461,6 @@ describe('validateProofQuality', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    // [FAIL] in inline code (`...`) should NOT be treated as a verdict
     expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 0, total: 1 });
   });
 
@@ -602,8 +604,6 @@ describe('validateProofQuality — no-space AC header format', () => {
     ].join('\n'));
 
     const result = validateProofQuality(path);
-    // verified=2 (evidence exists), but passed=false because black-box
-    // enforcement requires docker exec per AC when bash blocks are present
     expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 0, total: 2, blackBoxPass: false, passed: false });
   });
 });
@@ -743,6 +743,84 @@ describe('validateProofQuality — narrative === AC N: format', () => {
 
     const result = validateProofQuality(path);
     expect(result).toMatchObject({ verified: 0, pending: 2, escalated: 0, total: 2, passed: false });
+  });
+});
+
+describe('validateProofQuality — inline --- AC N: format', () => {
+  it('parses --- AC N: markers with output blocks', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '# Proof',
+      '',
+      '--- AC1: First check',
+      '',
+      '```output',
+      'verified data',
+      '```',
+      '',
+      '--- AC2: Second check',
+      '',
+      '```output',
+      'more data',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toMatchObject({ verified: 2, pending: 0, escalated: 0, total: 2 });
+  });
+
+  it('detects ESCALATE in inline AC format', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '--- AC1: First check',
+      '',
+      '```output',
+      'verified data',
+      '```',
+      '',
+      '--- AC2: Second check',
+      '',
+      '[ESCALATE] Requires hardware',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toMatchObject({ verified: 1, pending: 0, escalated: 1, total: 2 });
+  });
+
+  it('detects FAIL in inline AC format', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '--- AC1: First check',
+      '',
+      '```output',
+      'verified data',
+      '```',
+      '',
+      '--- AC2: Second check',
+      '',
+      '[FAIL] Something broke',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toMatchObject({ verified: 1, pending: 1, escalated: 0, total: 2 });
+  });
+
+  it('marks pending when no output in inline AC format', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '--- AC1: First check',
+      '',
+      '```output',
+      'verified',
+      '```',
+      '',
+      '--- AC2: Missing evidence',
+      '',
+      'No evidence here.',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result).toMatchObject({ verified: 1, pending: 1, escalated: 0, total: 2 });
   });
 });
 

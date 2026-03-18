@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "sprint": {
+    "total": 2,
+    "done": 0,
+    "failed": 0,
+    "blocked": 0,
+    "inProgress": null
+  },
+  "stories": {
+    "trivial-pass-1": {
+      "status": "invalid-status",
+      "attempts": -1,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    }
+  },
+  "run": {
+    "active": false,
+    "startedAt": null,
+    "iteration": 0,
+    "cost": 0,
+    "completed": [],
+    "failed": []
+  },
+  "actionItems": []
+}

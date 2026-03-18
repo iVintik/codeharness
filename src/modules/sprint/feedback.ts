@@ -49,8 +49,9 @@ export function parseProofForFailures(proofPath: string): Result<FailingAc[]> {
       const end = i + 1 < matches.length ? matches[i + 1].index : content.length;
       const section = content.slice(start, end);
 
-      // Extract verdict line
-      const verdictMatch = section.match(/\*\*Verdict:\*\*\s*(.+)/);
+      // Extract verdict line (may be on same line or next line after Verdict:)
+      const verdictMatch = section.match(/\*\*Verdict:\*\*\s*(.+)/) ??
+        section.match(/\*\*Verdict:\*\*\s*\n\s*(.+)/);
       if (!verdictMatch) continue;
 
       const verdict = verdictMatch[1].trim();
@@ -131,8 +132,9 @@ export function writeVerificationFindings(
 
     const findingsText = lines.join('\n');
 
-    // Remove existing findings section if present
-    const findingsPattern = /## Verification Findings\n[\s\S]*?(?=\n## (?!Verification Findings)|$)/;
+    // Remove existing findings section if present.
+    // Greedy match captures everything until the next ## heading (not Verification Findings) or EOF.
+    const findingsPattern = /## Verification Findings\n[\s\S]*?(?=\n## (?!Verification Findings))|## Verification Findings\n[\s\S]*$/;
     let updated: string;
 
     if (findingsPattern.test(content)) {
@@ -142,7 +144,7 @@ export function writeVerificationFindings(
       // Insert before ## Dev Agent Record, or append
       const devAgentIdx = content.indexOf('\n## Dev Agent Record');
       if (devAgentIdx !== -1) {
-        updated = content.slice(0, devAgentIdx) + '\n' + findingsText + '\n' + content.slice(devAgentIdx + 1);
+        updated = content.slice(0, devAgentIdx) + '\n\n' + findingsText + content.slice(devAgentIdx);
       } else {
         updated = content.trimEnd() + '\n\n' + findingsText;
       }
@@ -222,15 +224,15 @@ export function processVerifyResult(
     }
 
     // Failures exist and under limit → return to dev
-    const findingsResult = writeVerificationFindings(storyKey, failingAcs);
-    if (!findingsResult.success) {
-      return fail(findingsResult.error);
-    }
-
-    // updateStoryStatus with 'in-progress' increments attempts automatically
+    // Update state FIRST so we don't write findings to disk if state update fails
     const updateResult = updateStoryStatusImpl(storyKey, 'in-progress');
     if (!updateResult.success) {
       return fail(updateResult.error);
+    }
+
+    const findingsResult = writeVerificationFindings(storyKey, failingAcs);
+    if (!findingsResult.success) {
+      return fail(findingsResult.error);
     }
 
     return ok({

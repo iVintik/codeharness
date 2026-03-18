@@ -1,6 +1,6 @@
 # Story 3.3: Verify-Dev Feedback Loop
 
-Status: review
+Status: verifying
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

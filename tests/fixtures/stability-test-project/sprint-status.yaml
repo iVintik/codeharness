@@ -1,0 +1,19 @@
+trivial-pass-1:
+  status: backlog
+  title: Trivially passing story 1
+
+trivial-pass-2:
+  status: backlog
+  title: Trivially passing story 2
+
+deliberate-fail:
+  status: backlog
+  title: Deliberately failing story
+
+timeout-loop:
+  status: backlog
+  title: Timeout-inducing infinite loop story
+
+verify-cycle:
+  status: backlog
+  title: Story that cycles through verify-dev feedback

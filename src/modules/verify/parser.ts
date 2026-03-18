@@ -4,32 +4,8 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
-import { warn } from './output.js';
-
-// ─── Types ──────────────────────────────────────────────────────────────────
-
-export type Verifiability = 'cli-verifiable' | 'integration-required';
-
-/**
- * Verification strategy — how the verifier should approach proving an AC.
- *
- * - docker:    Run in a Docker container (default, safest — isolated environment,
- *              can't corrupt host, works for ALL verification including Agent tool,
- *              workflows, CLI commands, integration tests)
- * - cli-direct: Run CLI commands in the current subprocess (fallback when Docker
- *               is unavailable — faster but risks host environment side effects)
- * - escalate:   Truly impossible — requires physical hardware, external paid
- *               service, or human judgement. Last resort only.
- */
-export type VerificationStrategy = 'docker' | 'cli-direct' | 'escalate';
-
-export interface ParsedAC {
-  id: string;
-  description: string;
-  type: 'ui' | 'api' | 'db' | 'general';
-  verifiability: Verifiability;
-  strategy: VerificationStrategy;
-}
+import { warn } from '../../lib/output.js';
+import type { ParsedAC, Verifiability, VerificationStrategy } from './types.js';
 
 // ─── Keywords for Classification ────────────────────────────────────────────
 
@@ -69,10 +45,6 @@ export const INTEGRATION_KEYWORDS = [
   'manual verification',
 ];
 
-// Note: Black-box verification is the DEFAULT for all stories.
-// Unit-testable is opt-in via <!-- verification-tier: unit-testable --> tag in story file.
-// Only for stories with zero external effect (refactoring, types, docs).
-
 // Keywords that indicate true escalation (cannot be automated at all)
 const ESCALATE_KEYWORDS = [
   'physical hardware',
@@ -104,8 +76,7 @@ export function classifyVerifiability(description: string): Verifiability {
  * Determines the best verification strategy for an AC.
  *
  * Docker is the DEFAULT — it's the safest approach because it runs in an
- * isolated container that can't corrupt the host environment. It works for
- * everything: CLI commands, Agent tool integration, workflows, services.
+ * isolated container that can't corrupt the host environment.
  *
  * cli-direct is the fallback when Docker is unavailable (checked at runtime).
  * escalate is the last resort for things that truly can't be automated.
@@ -118,7 +89,7 @@ export function classifyStrategy(description: string): VerificationStrategy {
     if (lower.includes(kw)) return 'escalate';
   }
 
-  // Default: Docker for everything — safe, isolated, works for all AC types
+  // Default: Docker for everything
   return 'docker';
 }
 
@@ -201,8 +172,7 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
 
   const acSection = lines.slice(acSectionStart, acSectionEnd).join('\n');
 
-  // Parse numbered ACs: lines starting with a number followed by a period
-  // ACs may span multiple lines — collect until the next numbered item or section end
+  // Parse numbered ACs
   const acPattern = /^\s*(\d+)\.\s+/;
   const acs: ParsedAC[] = [];
   const acLines = acSection.split('\n');
@@ -214,7 +184,6 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
     if (currentId !== null && currentDesc.length > 0) {
       const description = currentDesc.join(' ').trim();
       if (description) {
-        // Check for explicit verification tag (authoritative), fall back to heuristic
         const tag = parseVerificationTag(description);
         const verifiability = tag ?? classifyVerifiability(description);
         const strategy = classifyStrategy(description);
@@ -238,7 +207,6 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
       currentId = match[1];
       currentDesc = [line.replace(acPattern, '').trim()];
     } else if (currentId !== null && line.trim()) {
-      // Continuation line for current AC
       currentDesc.push(line.trim());
     }
   }

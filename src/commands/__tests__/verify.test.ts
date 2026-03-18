@@ -4,17 +4,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
 
-// Mock the verify library modules
-vi.mock('../../lib/verify.js', () => ({
+// Mock the verify module
+vi.mock('../../modules/verify/index.js', () => ({
   checkPreconditions: vi.fn(),
   createProofDocument: vi.fn(),
   runShowboatVerify: vi.fn(),
   validateProofQuality: vi.fn(),
   updateVerificationState: vi.fn(),
   closeBeadsIssue: vi.fn(),
-}));
-
-vi.mock('../../lib/verify-parser.js', () => ({
   parseStoryACs: vi.fn(),
 }));
 
@@ -42,8 +39,8 @@ import {
   validateProofQuality,
   updateVerificationState,
   closeBeadsIssue,
-} from '../../lib/verify.js';
-import { parseStoryACs } from '../../lib/verify-parser.js';
+  parseStoryACs,
+} from '../../modules/verify/index.js';
 import { ok, fail, warn, info, jsonOutput } from '../../lib/output.js';
 import { updateSprintStatus } from '../../lib/beads-sync.js';
 
@@ -119,7 +116,7 @@ describe('verify command — README gate', () => {
     // README.md exists (created in beforeEach)
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -171,7 +168,7 @@ describe('verify command — story mode', () => {
   it('fails when proof quality check fails (skeleton proof)', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 0, pending: 1, escalated: 0, total: 1, passed: false, grepSrcCount: 0, dockerExecCount: 0, observabilityCount: 0, otherCount: 0, blackBoxPass: false });
@@ -185,7 +182,7 @@ describe('verify command — story mode', () => {
   it('succeeds and prints OK when proof quality passes', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -202,7 +199,7 @@ describe('verify command — story mode', () => {
   it('outputs JSON with proofQuality when --json flag is set', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -228,8 +225,8 @@ describe('verify command — story mode', () => {
   it('outputs JSON with proofQuality on failure when --json flag is set', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'AC 1', type: 'general', verifiability: 'cli-verifiable' as const },
-      { id: '2', description: 'AC 2', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'AC 1', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
+      { id: '2', description: 'AC 2', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 1, escalated: 0, total: 2, passed: false, grepSrcCount: 0, dockerExecCount: 0, observabilityCount: 0, otherCount: 0, blackBoxPass: false });
@@ -257,7 +254,7 @@ describe('verify command — story mode', () => {
   it('continues when showboat is unavailable', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -274,7 +271,7 @@ describe('verify command — story mode', () => {
   it('continues when beads is unavailable', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -323,7 +320,7 @@ describe('verify command — story mode', () => {
   it('runs showboat verify when proof quality passes and showboat passes', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -339,7 +336,7 @@ describe('verify command — story mode', () => {
   it('fails when showboat verify reports failure', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -356,7 +353,7 @@ describe('verify command — story mode', () => {
   it('skips showboat verify when showboat not available', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -373,7 +370,7 @@ describe('verify command — story mode', () => {
   it('warns when updateVerificationState throws', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 0, total: 1, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -392,7 +389,7 @@ describe('verify command — story mode', () => {
   it('does NOT mark story as verified when proof quality fails', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const },
+      { id: '1', description: 'Test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 0, pending: 1, escalated: 0, total: 1, passed: false, grepSrcCount: 0, dockerExecCount: 0, observabilityCount: 0, otherCount: 0, blackBoxPass: false });
@@ -433,8 +430,8 @@ describe('verify command — story mode', () => {
   it('warns about escalated ACs when proof passes with escalations', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'CLI test', type: 'general', verifiability: 'cli-verifiable' as const },
-      { id: '2', description: 'Needs integration', type: 'general', verifiability: 'integration-required' as const },
+      { id: '1', description: 'CLI test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
+      { id: '2', description: 'Needs integration', type: 'general', verifiability: 'integration-required' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });
@@ -453,8 +450,8 @@ describe('verify command — story mode', () => {
   it('includes escalatedCount in JSON output', async () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'CLI test', type: 'general', verifiability: 'cli-verifiable' as const },
-      { id: '2', description: 'Integration AC', type: 'general', verifiability: 'integration-required' as const },
+      { id: '1', description: 'CLI test', type: 'general', verifiability: 'cli-verifiable' as const, strategy: 'docker' as const },
+      { id: '2', description: 'Integration AC', type: 'general', verifiability: 'integration-required' as const, strategy: 'docker' as const },
     ]);
     vi.mocked(createProofDocument).mockReturnValue(join(testDir, 'verification', '4-1-test-proof.md'));
     vi.mocked(validateProofQuality).mockReturnValue({ verified: 1, pending: 0, escalated: 1, total: 2, passed: true, grepSrcCount: 0, dockerExecCount: 1, observabilityCount: 0, otherCount: 0, blackBoxPass: true });

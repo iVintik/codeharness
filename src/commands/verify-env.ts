@@ -6,7 +6,7 @@ import {
   checkVerifyEnv,
   cleanupVerifyEnv,
   isValidStoryKey,
-} from '../lib/verify-env.js';
+} from '../modules/verify/index.js';
 
 export function registerVerifyEnvCommand(program: Command): void {
   const verifyEnv = program

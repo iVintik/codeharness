@@ -1958,3 +1958,376 @@ until verification passes.
 [2026-03-18 12:32:20] [INFO]   Stories completed: 7/25
 [2026-03-18 12:32:20] [INFO]   Elapsed: 243m
 [2026-03-18 12:32:20] [INFO]   API calls: 11
+[2026-03-18 19:59:25] [INFO] Platform driver: Claude Code (claude)
+[2026-03-18 19:59:25] [INFO] Resuming from last completed story
+[2026-03-18 19:59:25] [SUCCESS] Ralph loop starting
+[2026-03-18 19:59:25] [INFO] Plugin: /Users/ivintik/dev/personal/codeharness/.claude
+[2026-03-18 19:59:25] [INFO] Max iterations: 50 | Timeout: 4h
+[2026-03-18 19:59:25] [INFO] Prompt: /Users/ivintik/dev/personal/codeharness/ralph/.harness-prompt.md
+[2026-03-18 19:59:25] [INFO] Sprint status: /Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml
+[2026-03-18 19:59:25] [INFO] Max story retries: 10
+[2026-03-18 19:59:25] [LOOP] === Iteration #1 ===
+[2026-03-18 19:59:26] [LOOP] Iteration 1 — Task: '(reading from prompt)'
+[2026-03-18 19:59:26] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format json --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite WebFetch WebSearch Bash Bash(git *) Bash(npm *) Bash(npx *) Bash(bats *) Bash(python *) Bash(node *) Bash(showboat *) Bash(codeharness *) NotebookEdit Skill Agent ToolSearch --append-system-prompt Loop #1. Time budget: 30 minutes (started: 2026-03-18T15:59:26Z). Reserve the last 5 minutes for Step 8 (session retrospective) — do not start new story work if less than 10 minutes remain. -p You are an autonomous coding agent executing a sprint for the codeharness project.
+
+## Your Mission
+
+Run the `/harness-run` command to execute the next story in the sprint.
+
+## Instructions
+
+1. **Run `/harness-run`** — this is the sprint execution skill that:
+   - Reads sprint-status.yaml at `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml` to find the next story
+   - Picks the first story with status NOT `done` (handles `backlog`, `ready-for-dev`, `in-progress`, `review`, and `verified`)
+   - Executes the appropriate BMAD workflow for the story's current status
+   - Updates sprint-status.yaml when the story is complete
+
+2. **Follow all BMAD workflows** — the /harness-run skill handles this, but if prompted:
+   - Use `/bmad-dev-story` for implementation
+   - Use code-review workflow for quality checks
+   - Ensure tests pass and coverage meets targets
+
+3. **Update sprint-status.yaml** — after each story completes, the skill updates
+   the story status to `done` in `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`.
+
+4. **Do not skip verification** — every story must pass verification gates
+   (tests, coverage, showboat proof) before being marked done.
+
+## Verification Gates
+
+After completing a story, run `codeharness verify --story <id>` to verify.
+If verification fails, fix the issues and re-verify. The story is not done
+until verification passes.
+
+## Project Context
+
+- **Project directory:** `/Users/ivintik/dev/personal/codeharness`
+- **Sprint status:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Important
+
+- Do NOT implement your own task-picking logic. Let /harness-run handle it.
+- Do NOT modify sprint-status.yaml directly. Let the skill manage it.
+- Focus on one story per session. Ralph will spawn a new session for the next story.
+
+## Flagged Stories (Skip These)
+
+The following stories have exceeded the retry limit and should be skipped:
+- `story-x`
+- `story-y`
+[2026-03-18 19:59:26] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-03-18_19-59-26.log
+[2026-03-18 19:59:26] [DEBUG] LIVE_OUTPUT=false, timeout=1800s
+[2026-03-18 19:59:26] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-03-18 19:59:26] [DEBUG] Background PID: 1405
+[2026-03-18 20:26:08] [DEBUG] Claude exited with code: 0, output size:     1687 bytes
+[2026-03-18 20:26:08] [SUCCESS] Claude Code iteration completed successfully
+[2026-03-18 20:26:09] [WARN] Story 3-1-error-capture-on-timeout — retry 6/10
+[2026-03-18 20:26:14] [INFO] Progress: 7/25 done, 18 remaining (iterations: 1, elapsed: 26m49s)
+[2026-03-18 20:26:14] [INFO] Next up: 3-1-error-capture-on-timeout (verifying)
+[2026-03-18 20:26:14] [INFO] ━━━ Session Issues (3 entries) ━━━
+[2026-03-18 20:26:14] [INFO] ━━━ Session Retro ━━━
+[2026-03-18 20:26:14] [LOOP] === End Iteration #1 ===
+[2026-03-18 20:26:15] [LOOP] === Iteration #2 ===
+[2026-03-18 20:26:16] [LOOP] Iteration 2 — Task: '(reading from prompt)'
+[2026-03-18 20:26:16] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format json --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite WebFetch WebSearch Bash Bash(git *) Bash(npm *) Bash(npx *) Bash(bats *) Bash(python *) Bash(node *) Bash(showboat *) Bash(codeharness *) NotebookEdit Skill Agent ToolSearch --append-system-prompt Loop #2. Time budget: 30 minutes (started: 2026-03-18T16:26:16Z). Reserve the last 5 minutes for Step 8 (session retrospective) — do not start new story work if less than 10 minutes remain. -p You are an autonomous coding agent executing a sprint for the codeharness project.
+
+## Your Mission
+
+Run the `/harness-run` command to execute the next story in the sprint.
+
+## Instructions
+
+1. **Run `/harness-run`** — this is the sprint execution skill that:
+   - Reads sprint-status.yaml at `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml` to find the next story
+   - Picks the first story with status NOT `done` (handles `backlog`, `ready-for-dev`, `in-progress`, `review`, and `verified`)
+   - Executes the appropriate BMAD workflow for the story's current status
+   - Updates sprint-status.yaml when the story is complete
+
+2. **Follow all BMAD workflows** — the /harness-run skill handles this, but if prompted:
+   - Use `/bmad-dev-story` for implementation
+   - Use code-review workflow for quality checks
+   - Ensure tests pass and coverage meets targets
+
+3. **Update sprint-status.yaml** — after each story completes, the skill updates
+   the story status to `done` in `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`.
+
+4. **Do not skip verification** — every story must pass verification gates
+   (tests, coverage, showboat proof) before being marked done.
+
+## Verification Gates
+
+After completing a story, run `codeharness verify --story <id>` to verify.
+If verification fails, fix the issues and re-verify. The story is not done
+until verification passes.
+
+## Project Context
+
+- **Project directory:** `/Users/ivintik/dev/personal/codeharness`
+- **Sprint status:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Important
+
+- Do NOT implement your own task-picking logic. Let /harness-run handle it.
+- Do NOT modify sprint-status.yaml directly. Let the skill manage it.
+- Focus on one story per session. Ralph will spawn a new session for the next story.
+
+## Flagged Stories (Skip These)
+
+The following stories have exceeded the retry limit and should be skipped:
+- `story-x`
+- `story-y`
+[2026-03-18 20:26:16] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-03-18_20-26-16.log
+[2026-03-18 20:26:16] [DEBUG] LIVE_OUTPUT=false, timeout=1800s
+[2026-03-18 20:26:16] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-03-18 20:26:16] [DEBUG] Background PID: 19169
+[2026-03-18 20:56:18] [DEBUG] Claude exited with code: 124, output size:        0 bytes
+[2026-03-18 20:56:18] [ERROR] Claude produced no output and exited with code 124
+[2026-03-18 20:56:18] [DEBUG] Checking if claude binary is responsive...
+[2026-03-18 20:56:18] [DEBUG] claude binary OK: 2.1.78 (Claude Code)
+[2026-03-18 20:56:18] [WARN] Iteration timed out after 30m
+[2026-03-18 20:56:18] [INFO] Capturing timeout report...
+[2026-03-18 20:56:19] [INFO] Timeout report saved
+[2026-03-18 20:56:19] [INFO] Timeout report verified: ralph/logs/timeout-report-2-unknown.md
+[2026-03-18 20:56:19] [WARN] Story 3-1-error-capture-on-timeout — timeout retry 7/10
+[2026-03-18 20:56:20] [WARN] Iteration failed (1/3). Waiting 30s...
+[2026-03-18 20:56:50] [INFO] Progress: 7/25 done, 18 remaining (iterations: 2, elapsed: 57m25s)
+[2026-03-18 20:56:50] [INFO] Next up: 3-1-error-capture-on-timeout (verifying)
+[2026-03-18 20:56:50] [INFO] ━━━ Session Issues (4 entries) ━━━
+[2026-03-18 20:56:50] [INFO] ━━━ Session Retro ━━━
+[2026-03-18 20:56:50] [LOOP] === End Iteration #2 ===
+[2026-03-18 20:56:51] [LOOP] === Iteration #3 ===
+[2026-03-18 20:56:51] [LOOP] Iteration 3 — Task: '(reading from prompt)'
+[2026-03-18 20:56:51] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format json --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite WebFetch WebSearch Bash Bash(git *) Bash(npm *) Bash(npx *) Bash(bats *) Bash(python *) Bash(node *) Bash(showboat *) Bash(codeharness *) NotebookEdit Skill Agent ToolSearch --append-system-prompt Loop #3. Time budget: 30 minutes (started: 2026-03-18T16:56:51Z). Reserve the last 5 minutes for Step 8 (session retrospective) — do not start new story work if less than 10 minutes remain. -p You are an autonomous coding agent executing a sprint for the codeharness project.
+
+## Your Mission
+
+Run the `/harness-run` command to execute the next story in the sprint.
+
+## Instructions
+
+1. **Run `/harness-run`** — this is the sprint execution skill that:
+   - Reads sprint-status.yaml at `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml` to find the next story
+   - Picks the first story with status NOT `done` (handles `backlog`, `ready-for-dev`, `in-progress`, `review`, and `verified`)
+   - Executes the appropriate BMAD workflow for the story's current status
+   - Updates sprint-status.yaml when the story is complete
+
+2. **Follow all BMAD workflows** — the /harness-run skill handles this, but if prompted:
+   - Use `/bmad-dev-story` for implementation
+   - Use code-review workflow for quality checks
+   - Ensure tests pass and coverage meets targets
+
+3. **Update sprint-status.yaml** — after each story completes, the skill updates
+   the story status to `done` in `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`.
+
+4. **Do not skip verification** — every story must pass verification gates
+   (tests, coverage, showboat proof) before being marked done.
+
+## Verification Gates
+
+After completing a story, run `codeharness verify --story <id>` to verify.
+If verification fails, fix the issues and re-verify. The story is not done
+until verification passes.
+
+## Project Context
+
+- **Project directory:** `/Users/ivintik/dev/personal/codeharness`
+- **Sprint status:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Important
+
+- Do NOT implement your own task-picking logic. Let /harness-run handle it.
+- Do NOT modify sprint-status.yaml directly. Let the skill manage it.
+- Focus on one story per session. Ralph will spawn a new session for the next story.
+
+## Flagged Stories (Skip These)
+
+The following stories have exceeded the retry limit and should be skipped:
+- `story-x`
+- `story-y`
+[2026-03-18 20:56:51] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-03-18_20-56-51.log
+[2026-03-18 20:56:51] [DEBUG] LIVE_OUTPUT=false, timeout=1800s
+[2026-03-18 20:56:51] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-03-18 20:56:51] [DEBUG] Background PID: 26379
+[2026-03-18 21:19:33] [DEBUG] Claude exited with code: 0, output size:     1879 bytes
+[2026-03-18 21:19:33] [SUCCESS] Claude Code iteration completed successfully
+[2026-03-18 21:19:34] [WARN] Story 3-1-error-capture-on-timeout — retry 8/10
+[2026-03-18 21:19:39] [INFO] Progress: 7/25 done, 18 remaining (iterations: 3, elapsed: 1h20m)
+[2026-03-18 21:19:39] [INFO] Next up: 3-1-error-capture-on-timeout (verifying)
+[2026-03-18 21:19:39] [INFO] ━━━ Session Issues (4 entries) ━━━
+[2026-03-18 21:19:39] [INFO] ━━━ Session Retro ━━━
+[2026-03-18 21:19:39] [LOOP] === End Iteration #3 ===
+[2026-03-18 21:19:40] [LOOP] === Iteration #4 ===
+[2026-03-18 21:19:40] [LOOP] Iteration 4 — Task: '(reading from prompt)'
+[2026-03-18 21:19:40] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format json --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite WebFetch WebSearch Bash Bash(git *) Bash(npm *) Bash(npx *) Bash(bats *) Bash(python *) Bash(node *) Bash(showboat *) Bash(codeharness *) NotebookEdit Skill Agent ToolSearch --append-system-prompt Loop #4. Time budget: 30 minutes (started: 2026-03-18T17:19:40Z). Reserve the last 5 minutes for Step 8 (session retrospective) — do not start new story work if less than 10 minutes remain. -p You are an autonomous coding agent executing a sprint for the codeharness project.
+
+## Your Mission
+
+Run the `/harness-run` command to execute the next story in the sprint.
+
+## Instructions
+
+1. **Run `/harness-run`** — this is the sprint execution skill that:
+   - Reads sprint-status.yaml at `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml` to find the next story
+   - Picks the first story with status NOT `done` (handles `backlog`, `ready-for-dev`, `in-progress`, `review`, and `verified`)
+   - Executes the appropriate BMAD workflow for the story's current status
+   - Updates sprint-status.yaml when the story is complete
+
+2. **Follow all BMAD workflows** — the /harness-run skill handles this, but if prompted:
+   - Use `/bmad-dev-story` for implementation
+   - Use code-review workflow for quality checks
+   - Ensure tests pass and coverage meets targets
+
+3. **Update sprint-status.yaml** — after each story completes, the skill updates
+   the story status to `done` in `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`.
+
+4. **Do not skip verification** — every story must pass verification gates
+   (tests, coverage, showboat proof) before being marked done.
+
+## Verification Gates
+
+After completing a story, run `codeharness verify --story <id>` to verify.
+If verification fails, fix the issues and re-verify. The story is not done
+until verification passes.
+
+## Project Context
+
+- **Project directory:** `/Users/ivintik/dev/personal/codeharness`
+- **Sprint status:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Important
+
+- Do NOT implement your own task-picking logic. Let /harness-run handle it.
+- Do NOT modify sprint-status.yaml directly. Let the skill manage it.
+- Focus on one story per session. Ralph will spawn a new session for the next story.
+
+## Flagged Stories (Skip These)
+
+The following stories have exceeded the retry limit and should be skipped:
+- `story-x`
+- `story-y`
+[2026-03-18 21:19:40] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-03-18_21-19-40.log
+[2026-03-18 21:19:40] [DEBUG] LIVE_OUTPUT=false, timeout=1800s
+[2026-03-18 21:19:40] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-03-18 21:19:40] [DEBUG] Background PID: 34251
+[2026-03-18 21:46:32] [DEBUG] Claude exited with code: 0, output size:     1644 bytes
+[2026-03-18 21:46:32] [SUCCESS] Claude Code iteration completed successfully
+[2026-03-18 21:46:33] [WARN] Story 3-1-error-capture-on-timeout — retry 9/10
+[2026-03-18 21:46:39] [INFO] Progress: 7/25 done, 18 remaining (iterations: 4, elapsed: 1h47m)
+[2026-03-18 21:46:39] [INFO] Next up: 3-1-error-capture-on-timeout (verifying)
+[2026-03-18 21:46:39] [INFO] ━━━ Session Issues (6 entries) ━━━
+[2026-03-18 21:46:39] [INFO] ━━━ Session Retro ━━━
+[2026-03-18 21:46:39] [LOOP] === End Iteration #4 ===
+[2026-03-18 21:46:39] [LOOP] === Iteration #5 ===
+[2026-03-18 21:46:40] [LOOP] Iteration 5 — Task: '(reading from prompt)'
+[2026-03-18 21:46:40] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format json --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite WebFetch WebSearch Bash Bash(git *) Bash(npm *) Bash(npx *) Bash(bats *) Bash(python *) Bash(node *) Bash(showboat *) Bash(codeharness *) NotebookEdit Skill Agent ToolSearch --append-system-prompt Loop #5. Time budget: 30 minutes (started: 2026-03-18T17:46:40Z). Reserve the last 5 minutes for Step 8 (session retrospective) — do not start new story work if less than 10 minutes remain. -p You are an autonomous coding agent executing a sprint for the codeharness project.
+
+## Your Mission
+
+Run the `/harness-run` command to execute the next story in the sprint.
+
+## Instructions
+
+1. **Run `/harness-run`** — this is the sprint execution skill that:
+   - Reads sprint-status.yaml at `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml` to find the next story
+   - Picks the first story with status NOT `done` (handles `backlog`, `ready-for-dev`, `in-progress`, `review`, and `verified`)
+   - Executes the appropriate BMAD workflow for the story's current status
+   - Updates sprint-status.yaml when the story is complete
+
+2. **Follow all BMAD workflows** — the /harness-run skill handles this, but if prompted:
+   - Use `/bmad-dev-story` for implementation
+   - Use code-review workflow for quality checks
+   - Ensure tests pass and coverage meets targets
+
+3. **Update sprint-status.yaml** — after each story completes, the skill updates
+   the story status to `done` in `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`.
+
+4. **Do not skip verification** — every story must pass verification gates
+   (tests, coverage, showboat proof) before being marked done.
+
+## Verification Gates
+
+After completing a story, run `codeharness verify --story <id>` to verify.
+If verification fails, fix the issues and re-verify. The story is not done
+until verification passes.
+
+## Project Context
+
+- **Project directory:** `/Users/ivintik/dev/personal/codeharness`
+- **Sprint status:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Important
+
+- Do NOT implement your own task-picking logic. Let /harness-run handle it.
+- Do NOT modify sprint-status.yaml directly. Let the skill manage it.
+- Focus on one story per session. Ralph will spawn a new session for the next story.
+
+## Flagged Stories (Skip These)
+
+The following stories have exceeded the retry limit and should be skipped:
+- `story-x`
+- `story-y`
+[2026-03-18 21:46:40] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-03-18_21-46-40.log
+[2026-03-18 21:46:40] [DEBUG] LIVE_OUTPUT=false, timeout=1800s
+[2026-03-18 21:46:40] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-03-18 21:46:40] [DEBUG] Background PID: 42166
+[2026-03-18 21:59:31] [DEBUG] Claude exited with code: 0, output size:     1718 bytes
+[2026-03-18 21:59:31] [SUCCESS] Claude Code iteration completed successfully
+[2026-03-18 21:59:32] [WARN] Story 3-1-error-capture-on-timeout exceeded retry limit (10) — flagging and moving on
+[2026-03-18 21:59:37] [INFO] Progress: 7/25 done, 18 remaining (iterations: 5, elapsed: 2h0m)
+[2026-03-18 21:59:37] [INFO] Next up: 3-2-graceful-dev-module (verifying)
+[2026-03-18 21:59:37] [INFO] ━━━ Session Issues (2 entries) ━━━
+[2026-03-18 21:59:37] [INFO] ━━━ Session Retro ━━━
+[2026-03-18 21:59:37] [LOOP] === End Iteration #5 ===
+[2026-03-18 21:59:38] [LOOP] === Iteration #6 ===
+[2026-03-18 21:59:38] [LOOP] Iteration 6 — Task: '(reading from prompt)'
+[2026-03-18 21:59:38] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format json --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite WebFetch WebSearch Bash Bash(git *) Bash(npm *) Bash(npx *) Bash(bats *) Bash(python *) Bash(node *) Bash(showboat *) Bash(codeharness *) NotebookEdit Skill Agent ToolSearch --append-system-prompt Loop #6. Time budget: 30 minutes (started: 2026-03-18T17:59:38Z). Reserve the last 5 minutes for Step 8 (session retrospective) — do not start new story work if less than 10 minutes remain. -p You are an autonomous coding agent executing a sprint for the codeharness project.
+
+## Your Mission
+
+Run the `/harness-run` command to execute the next story in the sprint.
+
+## Instructions
+
+1. **Run `/harness-run`** — this is the sprint execution skill that:
+   - Reads sprint-status.yaml at `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml` to find the next story
+   - Picks the first story with status NOT `done` (handles `backlog`, `ready-for-dev`, `in-progress`, `review`, and `verified`)
+   - Executes the appropriate BMAD workflow for the story's current status
+   - Updates sprint-status.yaml when the story is complete
+
+2. **Follow all BMAD workflows** — the /harness-run skill handles this, but if prompted:
+   - Use `/bmad-dev-story` for implementation
+   - Use code-review workflow for quality checks
+   - Ensure tests pass and coverage meets targets
+
+3. **Update sprint-status.yaml** — after each story completes, the skill updates
+   the story status to `done` in `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`.
+
+4. **Do not skip verification** — every story must pass verification gates
+   (tests, coverage, showboat proof) before being marked done.
+
+## Verification Gates
+
+After completing a story, run `codeharness verify --story <id>` to verify.
+If verification fails, fix the issues and re-verify. The story is not done
+until verification passes.
+
+## Project Context
+
+- **Project directory:** `/Users/ivintik/dev/personal/codeharness`
+- **Sprint status:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`
+
+## Important
+
+- Do NOT implement your own task-picking logic. Let /harness-run handle it.
+- Do NOT modify sprint-status.yaml directly. Let the skill manage it.
+- Focus on one story per session. Ralph will spawn a new session for the next story.
+
+## Flagged Stories (Skip These)
+
+The following stories have exceeded the retry limit and should be skipped:
+- `story-x`
+- `story-y`
+[2026-03-18 21:59:38] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-03-18_21-59-38.log
+[2026-03-18 21:59:38] [DEBUG] LIVE_OUTPUT=false, timeout=1800s
+[2026-03-18 21:59:38] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-03-18 21:59:38] [DEBUG] Background PID: 47991

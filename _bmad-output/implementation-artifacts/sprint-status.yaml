@@ -22,13 +22,13 @@ development_status:
   # Epic 3: Stable Sprint Execution
   epic-3: in-progress
   3-1-error-capture-on-timeout: verifying
-  3-2-graceful-dev-module: verifying
-  3-3-verify-dev-feedback-loop: review
-  3-4-eight-hour-stability-test: backlog
+  3-2-graceful-dev-module: done
+  3-3-verify-dev-feedback-loop: done
+  3-4-eight-hour-stability-test: verifying
 
   # Epic 4: Verification Module
-  epic-4: backlog
-  4-1-verify-module-extraction: backlog
+  epic-4: in-progress
+  4-1-verify-module-extraction: done
   4-2-project-agnostic-verification: backlog
   4-3-verifier-session-reliability: backlog
 

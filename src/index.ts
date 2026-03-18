@@ -17,6 +17,7 @@ import { registerGithubImportCommand } from './commands/github-import.js';
 import { registerVerifyEnvCommand } from './commands/verify-env.js';
 import { registerRetryCommand } from './commands/retry.js';
 import { registerTimeoutReportCommand } from './commands/timeout-report.js';
+import { registerValidateStateCommand } from './commands/validate-state.js';
 
 declare const __PKG_VERSION__: string;
 const VERSION = typeof __PKG_VERSION__ !== 'undefined' ? __PKG_VERSION__ : '0.0.0-dev';
@@ -48,6 +49,7 @@ export function createProgram(): Command {
   registerVerifyEnvCommand(program);
   registerRetryCommand(program);
   registerTimeoutReportCommand(program);
+  registerValidateStateCommand(program);
 
   return program;
 }

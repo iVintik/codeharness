@@ -113,6 +113,34 @@ const PROOF_ESCALATE_ONLY = `# Verification Proof: 3-3-test
 **Verdict:** PASS
 `;
 
+const PROOF_NO_VERDICT = `# Verification Proof: test
+
+## AC 1: Criterion with no verdict
+
+Some text but no verdict line at all.
+
+## AC 2: Criterion that fails
+
+**Verdict:** FAIL
+`;
+
+const PROOF_FAIL_NO_CODE_BLOCKS = `# Verification Proof: test
+
+## AC 1: Criterion fails without code blocks
+
+Just some text describing the failure.
+
+**Verdict:** FAIL
+`;
+
+const PROOF_MULTILINE_VERDICT = `# Verification Proof: test
+
+## AC 1: Criterion with multiline verdict
+
+**Verdict:**
+FAIL
+`;
+
 describe('parseProofForFailures', () => {
   it('extracts failing ACs from proof markdown', () => {
     mockedExistsSync.mockReturnValue(true);
@@ -161,6 +189,41 @@ describe('parseProofForFailures', () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.error).toContain('Proof file not found');
+  });
+
+  it('skips AC sections with no verdict line', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockReturnValue(PROOF_NO_VERDICT);
+
+    const result = parseProofForFailures('/tmp/proof.md');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    // Only AC 2 has a verdict, and it FAILs
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].acNumber).toBe(2);
+  });
+
+  it('extracts failing AC with empty errorOutput when no code blocks present', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockReturnValue(PROOF_FAIL_NO_CODE_BLOCKS);
+
+    const result = parseProofForFailures('/tmp/proof.md');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].acNumber).toBe(1);
+    expect(result.data[0].errorOutput).toBe('');
+  });
+
+  it('handles verdict on next line after Verdict: label', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockReturnValue(PROOF_MULTILINE_VERDICT);
+
+    const result = parseProofForFailures('/tmp/proof.md');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data).toHaveLength(1);
+    expect(result.data[0].verdict).toBe('FAIL');
   });
 
   it('returns fail() on read error', () => {
@@ -257,6 +320,42 @@ old error
     expect(written).not.toContain('old error');
     // Should still have Dev Agent Record
     expect(written).toContain('## Dev Agent Record');
+  });
+
+  it('replaces existing findings section when it is the last section (no following heading)', () => {
+    const storyFindingsAtEnd = `# Story 3.3
+
+## Acceptance Criteria
+
+1. Some AC
+
+## Verification Findings
+
+_Last updated: 2026-01-01T00:00:00.000Z_
+
+The following ACs failed black-box verification:
+
+### AC 1: Old finding
+**Verdict:** FAIL
+**Error output:**
+\`\`\`
+old error
+\`\`\`
+`;
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockReturnValue(storyFindingsAtEnd);
+
+    const failingAcs = [
+      { acNumber: 3, description: 'New fail', errorOutput: 'new err', verdict: 'FAIL' },
+    ];
+
+    const result = writeVerificationFindings('3-3-test', failingAcs);
+    expect(result.success).toBe(true);
+
+    const written = mockedWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('### AC 3: New fail');
+    expect(written).not.toContain('Old finding');
+    expect(written).not.toContain('old error');
   });
 
   it('returns fail() on missing story file', () => {
@@ -493,11 +592,9 @@ describe('processVerifyResult', () => {
     expect(result.error).toContain('Story file not found');
   });
 
-  it('returns fail() when updateStoryStatus fails during return-to-dev', () => {
+  it('returns fail() when updateStoryStatus fails during return-to-dev (before findings write)', () => {
     mockedExistsSync.mockReturnValue(true);
-    mockedReadFileSync
-      .mockReturnValueOnce(PROOF_WITH_FAILURES)
-      .mockReturnValueOnce('# Story\n\n## Dev Agent Record\n');
+    mockedReadFileSync.mockReturnValueOnce(PROOF_WITH_FAILURES);
     mockState(2);
     mockedUpdateStoryStatus.mockReturnValue({
       success: false,
@@ -508,6 +605,8 @@ describe('processVerifyResult', () => {
     expect(result.success).toBe(false);
     if (result.success) return;
     expect(result.error).toContain('disk full during return-to-dev');
+    // Findings should NOT have been written since state update failed first
+    expect(mockedWriteFileSync).not.toHaveBeenCalled();
   });
 
   it('handles story with no prior state entry (defaults to 0 attempts)', () => {
@@ -559,6 +658,16 @@ describe('all functions return Result<T> — never throw', () => {
     expect(result.success).toBe(false);
   });
 
+  it('parseProofForFailures handles non-Error thrown values', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockImplementation(() => { throw 'string error'; });
+    const result = parseProofForFailures('/tmp/proof.md');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('string error');
+    }
+  });
+
   it('writeVerificationFindings never throws', () => {
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockImplementation(() => { throw new Error('crash'); });
@@ -567,10 +676,34 @@ describe('all functions return Result<T> — never throw', () => {
     expect(result.success).toBe(false);
   });
 
+  it('writeVerificationFindings handles non-Error thrown values', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockImplementation(() => { throw 42; });
+    const result = writeVerificationFindings('key', []);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('42');
+    }
+  });
+
   it('processVerifyResult never throws', () => {
     mockedExistsSync.mockImplementation(() => { throw new Error('crash'); });
     expect(() => processVerifyResult('key')).not.toThrow();
     const result = processVerifyResult('key');
     expect(result.success).toBe(false);
+  });
+
+  it('processVerifyResult handles non-Error thrown values in outer catch', () => {
+    // Make existsSync and readFileSync work for parseProofForFailures,
+    // then make getSprintState throw a non-Error value
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockReturnValueOnce(PROOF_ALL_PASS);
+    mockedGetSprintState.mockImplementation(() => { throw 'non-error string'; });
+    const result = processVerifyResult('key');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('Failed to process verify result');
+      expect(result.error).toContain('non-error string');
+    }
   });
 });

@@ -37,7 +37,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | verify-parser.ts | Parses story ACs with type classification (ui/api/db/general) | `parseStoryACs`, `classifyAC`, `ParsedAC` |
 | verify.ts | Verification orchestrator — preconditions, proof quality validation, Showboat, state | `checkPreconditions`, `validateProofQuality`, `ProofQuality`, `createProofDocument`, `runShowboatVerify`, `closeBeadsIssue`, `proofHasContent` (deprecated) |
 | verify-env.ts | Black-box verification environment — Docker image build (npm pack/pip install), clean workspace prep, env check, cleanup | `buildVerifyImage`, `prepareVerifyWorkspace`, `checkVerifyEnv`, `cleanupVerifyEnv`, `computeDistHash`, `isValidStoryKey` |
-| verifier-session.ts | Black-box verifier session spawner — runs `claude --print` in clean workspace, copies proof back to project | `spawnVerifierSession`, `copyProofToProject`, `VerifierSessionResult` |
+| verifier-session.ts | Black-box verifier session spawner — runs `claude --print` in clean workspace, returns `Result<VerifyResult>`, copies proof back to project | `spawnVerifierSession`, `copyProofToProject` |
 
 ## Documentation Health
 

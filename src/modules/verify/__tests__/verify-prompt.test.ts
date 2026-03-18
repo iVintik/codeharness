@@ -101,6 +101,12 @@ describe('verifyPromptTemplate', () => {
     expect(prompt).toContain('ANTHROPIC_API_KEY');
   });
 
+  it('includes nested --allowedTools instruction for Docker exec scenarios', () => {
+    const prompt = verifyPromptTemplate(baseConfig);
+    expect(prompt).toContain('--allowedTools Bash Read Write Glob Grep Edit');
+    expect(prompt).toContain('nested session');
+  });
+
   it('instructs verifier to escalate narrowly, not blanket-escalate', () => {
     const prompt = verifyPromptTemplate(baseConfig);
     expect(prompt).toContain('escalate narrowly');

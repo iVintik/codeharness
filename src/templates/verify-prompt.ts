@@ -125,6 +125,8 @@ The container has the following tools installed:
 - \`showboat\` — for proof document validation
 - \`node\`, \`npm\` — Node.js runtime
 
+**IMPORTANT: When invoking \`claude --print\` inside Docker, always pass \`--allowedTools Bash Read Write Glob Grep Edit\` to prevent the nested session from hanging on tool permission prompts.**
+
 ${projectTypeGuidance(projectType, container)}
 
 ### Observability Endpoints

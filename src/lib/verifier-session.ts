@@ -1,20 +1,16 @@
 /**
- * Verifier session spawner.
- * Spawns a separate Claude Code process in a clean workspace for black-box verification.
- *
- * Architecture Decision 8: CLI orchestrates all verification.
- * Architecture Decision 10: Two-layer isolation — clean workspace + Docker container.
- *
- * The verifier runs as `claude --print --max-budget-usd N -p "..."` with cwd set
- * to the clean workspace. This is fundamentally different from the Agent tool —
- * the subprocess has a completely different filesystem view with NO source code.
+ * Verifier session spawner — clean workspace + Docker container isolation.
+ * AD8: CLI orchestrates verification. AD10: Two-layer isolation.
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, mkdirSync, cpSync } from 'node:fs';
+import { existsSync, readFileSync, mkdirSync, cpSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { ok, fail } from '../types/result.js';
+import type { Result } from '../types/result.js';
 import { verifyPromptTemplate } from '../templates/verify-prompt.js';
-import { isValidStoryKey } from '../modules/verify/index.js';
+import { isValidStoryKey, cleanupStaleContainers } from '../modules/verify/index.js';
+import type { VerifyResult } from '../modules/verify/index.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -37,17 +33,14 @@ export interface VerifierSessionOptions {
   };
 }
 
-export interface VerifierSessionResult {
-  /** Whether the verifier session completed successfully and produced a proof */
-  success: boolean;
-  /** Absolute path to the proof file, or null if not found */
-  proofPath: string | null;
-  /** Exit code of the claude process */
-  exitCode: number;
-  /** Stdout from the claude process */
-  output: string;
-  /** Duration in milliseconds */
-  duration: number;
+/** Error shape from Node.js child_process spawn failures. */
+interface SpawnError {
+  status?: number;
+  stdout?: Buffer;
+  stderr?: Buffer;
+  message?: string;
+  code?: string;
+  killed?: boolean;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -56,121 +49,218 @@ const TEMP_PREFIX = '/tmp/codeharness-verify-';
 const DEFAULT_BUDGET = 3;
 const DEFAULT_TIMEOUT = 0; // No timeout — ralph's iteration timeout is the safety net
 const DEFAULT_CONTAINER = 'codeharness-verify';
+const TIMEOUT_EXIT_CODE = 124;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+/** Returns true if the error indicates a timeout. */
+function isTimeoutError(error: SpawnError): boolean {
+  return (
+    error.killed === true ||
+    error.code === 'ETIMEDOUT' ||
+    error.message?.includes('ETIMEDOUT') === true ||
+    error.message?.includes('timed out') === true
+  );
+}
+
+/** Guarantees non-empty output: falls back to stderr, then descriptive message. */
+function ensureNonEmptyOutput(stdout: string, stderr: string, fallback: string): string {
+  if (stdout.length > 0) return stdout;
+  if (stderr.length > 0) return stderr;
+  return fallback;
+}
+
+/** Saves partial proof on timeout. Returns true if saved. */
+function savePartialProof(
+  workspace: string,
+  storyKey: string,
+  duration: number,
+  partialOutput: string,
+  errorMessage: string,
+): boolean {
+  const proofDir = join(workspace, 'verification');
+  const proofPath = join(proofDir, `${storyKey}-proof.md`);
+  // If a partial proof already exists (verifier wrote some before timeout), keep it
+  if (existsSync(proofPath)) return true;
+  try {
+    mkdirSync(proofDir, { recursive: true });
+    const report = [
+      `# Timeout Report: ${storyKey}`,
+      '',
+      `**Duration:** ${duration}ms`,
+      `**Error:** ${errorMessage}`,
+      `**Partial output length:** ${partialOutput.length} bytes`,
+      '',
+      '## Partial Output',
+      '',
+      '```text',
+      partialOutput.slice(0, 5000),
+      '```',
+    ].join('\n');
+    writeFileSync(proofPath, report, 'utf-8');
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 // ─── Session Spawner ────────────────────────────────────────────────────────
 
-/**
- * Spawns a verifier as a separate Claude Code process in the clean workspace.
- *
- * Flow:
- * 1. Resolve clean workspace path
- * 2. Verify workspace exists (prepareVerifyWorkspace must be called first)
- * 3. Read story.md from workspace
- * 4. Build verification prompt from template
- * 5. Spawn `claude --print --max-budget-usd N -p "..."` with cwd = workspace
- * 6. Check for proof file after process completes
- * 7. Return result with success/failure, proof path, output, duration
- */
-export function spawnVerifierSession(options: VerifierSessionOptions): VerifierSessionResult {
-  const {
-    storyKey,
-    projectDir,
-    maxBudgetUsd = DEFAULT_BUDGET,
-    timeoutMs = DEFAULT_TIMEOUT,
-    containerName = DEFAULT_CONTAINER,
-    observabilityEndpoints,
-  } = options;
-
-  // 0. Validate story key to prevent path traversal
-  if (!isValidStoryKey(storyKey)) {
-    throw new Error(
-      `Invalid story key: ${storyKey}. Keys must contain only alphanumeric characters, hyphens, and underscores.`,
-    );
-  }
-
-  // 1. Resolve workspace path
-  const workspace = `${TEMP_PREFIX}${storyKey}`;
-
-  // 2. Verify workspace exists
-  if (!existsSync(workspace)) {
-    throw new Error(
-      `Clean workspace not found at ${workspace}. Call prepareVerifyWorkspace() first.`,
-    );
-  }
-
-  // 3. Read story.md from workspace
-  const storyPath = join(workspace, 'story.md');
-  if (!existsSync(storyPath)) {
-    throw new Error(`story.md not found in workspace at ${storyPath}`);
-  }
-  const storyContent = readFileSync(storyPath, 'utf-8');
-
-  // 4. Build verification prompt
-  const prompt = verifyPromptTemplate({
-    storyKey,
-    storyContent,
-    containerName,
-    observabilityEndpoints,
-  });
-
-  // 5. Spawn claude --print with allowed tools so it doesn't hang on permissions
-  const args = [
-    '--print',
-    '--max-budget-usd',
-    String(maxBudgetUsd),
-    '--allowedTools',
-    'Bash', 'Read', 'Write', 'Glob', 'Grep', 'Edit',
-    '-p',
-    prompt,
-  ];
-
-  const startTime = Date.now();
-  let output = '';
-  let exitCode = 0;
-
+/** Spawns a verifier subprocess. Returns Result<VerifyResult> — never throws. */
+export function spawnVerifierSession(
+  options: VerifierSessionOptions,
+): Result<VerifyResult> {
   try {
-    const result = execFileSync('claude', args, {
-      cwd: workspace,
-      stdio: 'pipe',
-      timeout: timeoutMs,
-      maxBuffer: 10 * 1024 * 1024, // 10MB
-    });
-    output = result.toString('utf-8');
-  } catch (err: unknown) {
-    const error = err as { status?: number; stdout?: Buffer; stderr?: Buffer; message?: string };
-    exitCode = error.status ?? 1;
-    output = error.stdout?.toString('utf-8') ?? error.stderr?.toString('utf-8') ?? error.message ?? '';
+    const {
+      storyKey,
+      maxBudgetUsd = DEFAULT_BUDGET,
+      timeoutMs = DEFAULT_TIMEOUT,
+      containerName = DEFAULT_CONTAINER,
+      observabilityEndpoints,
+    } = options;
 
-    // Check for specific failure modes
-    if (error.message?.includes('ETIMEDOUT') || error.message?.includes('timed out')) {
-      output = `Verifier session timed out after ${timeoutMs}ms. ${output}`;
+    // 0. Validate story key to prevent path traversal
+    if (!isValidStoryKey(storyKey)) {
+      return fail(
+        `Invalid story key: ${storyKey}. Keys must contain only alphanumeric characters, hyphens, and underscores.`,
+      );
     }
+
+    // 1. Clean up stale containers before spawning
+    cleanupStaleContainers();
+
+    // 2. Resolve workspace path
+    const workspace = `${TEMP_PREFIX}${storyKey}`;
+
+    // 3. Verify workspace exists
+    if (!existsSync(workspace)) {
+      return fail(
+        `Clean workspace not found at ${workspace}. Call prepareVerifyWorkspace() first.`,
+      );
+    }
+
+    // 4. Read story.md from workspace
+    const storyPath = join(workspace, 'story.md');
+    if (!existsSync(storyPath)) {
+      return fail(`story.md not found in workspace at ${storyPath}`);
+    }
+    const storyContent = readFileSync(storyPath, 'utf-8');
+
+    // 5. Build verification prompt
+    const prompt = verifyPromptTemplate({
+      storyKey,
+      storyContent,
+      containerName,
+      observabilityEndpoints,
+    });
+
+    // 6. Spawn claude --print with allowed tools so it doesn't hang on permissions
+    const args = [
+      '--print',
+      '--max-budget-usd',
+      String(maxBudgetUsd),
+      '--allowedTools',
+      'Bash', 'Read', 'Write', 'Glob', 'Grep', 'Edit',
+      '-p',
+      prompt,
+    ];
+
+    const startTime = Date.now();
+    let output = '';
+    let exitCode = 0;
+    let isTimeout = false;
+
+    try {
+      const result = execFileSync('claude', args, {
+        cwd: workspace,
+        stdio: 'pipe',
+        timeout: timeoutMs,
+        maxBuffer: 10 * 1024 * 1024, // 10MB
+      });
+      output = result.toString('utf-8');
+    } catch (err: unknown) {
+      const error = err as SpawnError;
+      exitCode = error.status ?? 1;
+      const stdout = error.stdout?.toString('utf-8') ?? '';
+      const stderr = error.stderr?.toString('utf-8') ?? '';
+      isTimeout = isTimeoutError(error);
+
+      if (isTimeout) {
+        exitCode = TIMEOUT_EXIT_CODE;
+        output = ensureNonEmptyOutput(
+          stdout,
+          stderr,
+          `Verifier session timed out after ${timeoutMs}ms`,
+        );
+      } else {
+        output = ensureNonEmptyOutput(
+          stdout,
+          stderr,
+          error.message ?? `Verifier process exited with code ${exitCode}`,
+        );
+      }
+    }
+
+    const duration = Date.now() - startTime;
+
+    // 7. On timeout: save partial proof
+    let proofSaved = false;
+    if (isTimeout) {
+      proofSaved = savePartialProof(
+        workspace, storyKey, duration, output, `Timeout after ${duration}ms`,
+      );
+    }
+
+    // 8. Guarantee non-zero output (final safety net)
+    if (output.length === 0) {
+      output = `Verifier session produced no output (exit code: ${exitCode}, duration: ${duration}ms)`;
+    }
+
+    // 9. Check for proof file
+    const proofPath = join(workspace, 'verification', `${storyKey}-proof.md`);
+    const proofExists = existsSync(proofPath);
+    const sessionSuccess = exitCode === 0 && proofExists;
+
+    // Build a minimal VerifyResult for the session outcome
+    const verifyResult: VerifyResult = {
+      storyId: storyKey,
+      success: sessionSuccess,
+      totalACs: 0,
+      verifiedCount: 0,
+      failedCount: 0,
+      escalatedCount: 0,
+      proofPath: proofExists ? proofPath : '',
+      showboatVerifyStatus: 'skipped',
+      perAC: [],
+    };
+
+    if (!sessionSuccess) {
+      return fail(
+        isTimeout
+          ? `Verifier session timed out after ${duration}ms`
+          : `Verifier session failed (exit code: ${exitCode})`,
+        {
+          duration,
+          partialOutputLength: output.length,
+          proofSaved,
+          exitCode,
+          output,
+          proofPath: proofExists ? proofPath : null,
+        },
+      );
+    }
+
+    return ok(verifyResult);
+  } catch (err: unknown) {
+    // Catch-all: never throw an unhandled exception
+    const message = err instanceof Error ? err.message : String(err);
+    return fail(`Unexpected error in spawnVerifierSession: ${message}`);
   }
-
-  const duration = Date.now() - startTime;
-
-  // 6. Check for proof file
-  const proofPath = join(workspace, 'verification', `${storyKey}-proof.md`);
-  const proofExists = existsSync(proofPath);
-
-  return {
-    success: exitCode === 0 && proofExists,
-    proofPath: proofExists ? proofPath : null,
-    exitCode,
-    output,
-    duration,
-  };
 }
 
 // ─── Proof Copy ─────────────────────────────────────────────────────────────
 
-/**
- * Copies the proof document from the temp workspace to the main project's
- * verification/ directory.
- *
- * Creates the verification/ directory if it doesn't exist.
- * Returns the destination path.
- */
+/** Copies proof from temp workspace to project's verification/ directory. */
 export function copyProofToProject(
   storyKey: string,
   workspace: string,

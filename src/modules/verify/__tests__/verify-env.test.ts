@@ -47,6 +47,7 @@ import {
   prepareVerifyWorkspace,
   checkVerifyEnv,
   cleanupVerifyEnv,
+  cleanupStaleContainers,
 } from '../env.js';
 
 const mockExecFileSync = vi.mocked(execFileSync);
@@ -582,6 +583,65 @@ describe('cleanupVerifyEnv', () => {
     expect((stopCall![1] as string[])).toContain('codeharness-verify-my-story');
     expect(rmCall).toBeDefined();
     expect((rmCall![1] as string[])).toContain('codeharness-verify-my-story');
+  });
+});
+
+// ─── cleanupStaleContainers ──────────────────────────────────────────────────
+
+describe('cleanupStaleContainers', () => {
+  it('removes all matching containers', () => {
+    mockExecFileSync.mockImplementation((_cmd: unknown, args: unknown) => {
+      const argArr = args as string[];
+      if (argArr.includes('ps')) {
+        return Buffer.from('codeharness-verify-story-1\ncodeharness-verify-story-2\n');
+      }
+      // docker rm -f succeeds
+      return Buffer.from('');
+    });
+
+    cleanupStaleContainers();
+
+    const rmCalls = mockExecFileSync.mock.calls.filter(
+      c => (c[1] as string[]).includes('rm'),
+    );
+    expect(rmCalls.length).toBe(2);
+    expect((rmCalls[0][1] as string[])).toContain('codeharness-verify-story-1');
+    expect((rmCalls[1][1] as string[])).toContain('codeharness-verify-story-2');
+  });
+
+  it('handles no containers gracefully', () => {
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    // Should not throw
+    cleanupStaleContainers();
+  });
+
+  it('handles docker not available gracefully', () => {
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error('Docker not available');
+    });
+
+    // Should not throw
+    cleanupStaleContainers();
+  });
+
+  it('continues removing other containers if one rm fails', () => {
+    let rmCallCount = 0;
+    mockExecFileSync.mockImplementation((_cmd: unknown, args: unknown) => {
+      const argArr = args as string[];
+      if (argArr.includes('ps')) {
+        return Buffer.from('codeharness-verify-a\ncodeharness-verify-b\n');
+      }
+      if (argArr.includes('rm')) {
+        rmCallCount++;
+        if (rmCallCount === 1) throw new Error('container busy');
+        return Buffer.from('');
+      }
+      return Buffer.from('');
+    });
+
+    cleanupStaleContainers();
+    expect(rmCallCount).toBe(2); // Both attempted
   });
 });
 

@@ -11,7 +11,7 @@ and Docker environment management for isolated verification.
 | orchestrator.ts | Verification pipeline orchestration | `checkPreconditions`, `createProofDocument`, `runShowboatVerify`, `updateVerificationState`, `closeBeadsIssue` |
 | parser.ts | Story AC extraction and classification | `parseStoryACs`, `classifyAC`, `classifyVerifiability`, `classifyStrategy`, `parseVerificationTag` |
 | proof.ts | Proof quality validation + black-box enforcement | `validateProofQuality`, `proofHasContent`, `classifyEvidenceCommands`, `checkBlackBoxEnforcement` |
-| env.ts | Docker image lifecycle + clean workspace | `buildVerifyImage`, `prepareVerifyWorkspace`, `checkVerifyEnv`, `cleanupVerifyEnv`, `isValidStoryKey`, `computeDistHash` |
+| env.ts | Docker image lifecycle + clean workspace + stale container cleanup | `buildVerifyImage`, `prepareVerifyWorkspace`, `checkVerifyEnv`, `cleanupVerifyEnv`, `cleanupStaleContainers`, `isValidStoryKey`, `computeDistHash` |
 | types.ts | All verify domain types | `VerifyResult`, `ProofQuality`, `ParsedAC`, `BuildOptions`, `BuildResult`, `CheckResult`, etc. |
 
 ## Module Boundary

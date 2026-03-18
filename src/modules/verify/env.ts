@@ -190,6 +190,23 @@ export function checkVerifyEnv(): CheckResult {
   return { imageExists, cliWorks, otelReachable };
 }
 
+/** Cleans up all stale containers matching `codeharness-verify-*` pattern. Idempotent. */
+export function cleanupStaleContainers(): void {
+  try {
+    const output = execFileSync(
+      'docker', ['ps', '-a', '--filter', 'name=codeharness-verify-', '--format', '{{.Names}}'],
+      { stdio: 'pipe', timeout: 15_000 },
+    ).toString('utf-8').trim();
+    if (output.length === 0) return;
+    const containers = output.split('\n').filter(name => name.length > 0);
+    for (const name of containers) {
+      try {
+        execFileSync('docker', ['rm', '-f', name], { stdio: 'pipe', timeout: 15_000 });
+      } catch { /* container may already be removed */ }
+    }
+  } catch { /* docker not available or no containers — ignore */ }
+}
+
 /** Removes temp workspace and stops/removes the container. Idempotent. */
 export function cleanupVerifyEnv(storyKey: string): void {
   if (!isValidStoryKey(storyKey)) {

@@ -68,6 +68,7 @@ export {
   prepareVerifyWorkspace,
   checkVerifyEnv,
   cleanupVerifyEnv,
+  cleanupStaleContainers,
   isValidStoryKey,
   computeDistHash,
 } from './env.js';

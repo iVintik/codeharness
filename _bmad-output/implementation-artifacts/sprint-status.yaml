@@ -9,7 +9,7 @@ development_status:
   # Epic 1: Foundation — Result Types & Module Skeleton
   epic-1: in-progress
   1-1-result-type-shared-types: done
-  1-2-module-skeleton-index-pattern: backlog
+  1-2-module-skeleton-index-pattern: done
   1-3-migrate-existing-tests-to-module-structure: backlog
 
   # Epic 2: Unified State & Status Command

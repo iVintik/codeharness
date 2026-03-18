@@ -17,6 +17,19 @@ export interface StoryDetail {
   readonly proofPath?: string;
 }
 
+/** Info about a story blocked due to retry exhaustion */
+export interface RetryExhaustedInfo {
+  readonly key: string;
+  readonly attempts: number;
+  readonly reason: 'retry-exhausted';
+}
+
+/** Full result of story selection, including side-effect recommendations */
+export interface SelectionResult {
+  readonly selected: StorySelection | null;
+  readonly retryExhausted: ReadonlyArray<RetryExhaustedInfo>;
+}
+
 /** Summary report of sprint status */
 export interface StatusReport {
   readonly total: number;

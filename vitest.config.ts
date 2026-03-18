@@ -14,6 +14,7 @@ export default defineConfig({
       include: ['**/*.ts'],
       exclude: ['**/__tests__/**', '**/*.test.ts'],
       reporter: ['text', 'json-summary'],
+      reportsDirectory: '../coverage',
     },
   },
 });

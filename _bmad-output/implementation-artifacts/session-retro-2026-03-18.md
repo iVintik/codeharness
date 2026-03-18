@@ -218,3 +218,129 @@ None reported.
 | Review findings fixed | 5 (2 HIGH mutability + 3 MEDIUM documentation) |
 | Coverage | 95.37% statements (held at baseline) |
 | Next up | Epic 2: Unified State & Status Command |
+
+---
+
+# Session Retrospective — 2026-03-18 (Session 3, ~05:08Z – 09:26Z)
+
+**Sprint:** Architecture Overhaul Sprint
+**Session window:** ~05:08Z – 09:26Z (from issue timestamps and commit times)
+**Stories attempted:** 1
+**Stories completed:** 1
+**Epic 2 status:** 1/4 done (2-1 complete, 2-2 through 2-4 in backlog)
+
+---
+
+## 1. Session Summary
+
+| Story | Outcome | Notes |
+|-------|---------|-------|
+| 2-1-sprint-state-module-unified-state-file | Done | Full lifecycle: create-story, dev-story, code-review, verify. 8 ACs all verified. Code review found 2 HIGH and 4 MEDIUM issues, all fixed. |
+
+This is the first story in Epic 2 (Unified State & Status Command). It replaces the fragmented state files (sprint-status.yaml, ralph/status.json, .story_retries, etc.) with a single `sprint-state.json` managed by a TypeScript module. Migration from old format runs on first access.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs discovered
+
+1. **HIGH: `lastAttempt` overwritten on every status change** — The `lastAttempt` timestamp was being updated whenever story status changed, not only when transitioning to in-progress. Semantic bug — would make "last attempted" meaningless for debugging stuck stories. Found and fixed during code review.
+2. **HIGH: Test coverage gaps on error paths** — `writeStateAtomic` and `parseRalphStatus` error paths had no test coverage. Tests added during review.
+
+### Workarounds applied (tech debt introduced)
+
+1. **Concurrent write testing is sequential only** — AC #6 (concurrent write safety) is tested with sequential writes, not true multi-process concurrency. Fork-based testing was deemed out of scope for unit tests. This means the atomic-write claim is tested at the API level but not under real contention.
+2. **`process.cwd()` used as project root detection** — Fragile assumption. Works for Ralph (always invoked from project root) but would break if the module is imported from a different working directory. Not fixed (LOW).
+
+### Code quality concerns (found in review)
+
+1. **MEDIUM: DRY violation — duplicated `computeSprintCounts` logic** — Sprint count computation was duplicated across state read and migration paths. Extracted to a shared function during review.
+2. **MEDIUM: Mutable shared `EMPTY_STORY` object** — A `const EMPTY_STORY` object was shared across all callers. If anyone mutated it (bypassing TypeScript checks), all stories would be corrupted. Replaced with `emptyStory()` factory function.
+3. **MEDIUM: CJS `require()` in ESM test file** — A test file used `require()` to import a module, which is invalid in ESM context. Replaced with a proper helper.
+4. **MEDIUM: NFR18 violation — `state.test.ts` exceeded 300 lines** — Compacted from 310+ to 287 lines during review.
+
+### Verification gaps
+
+1. **Migration outer catch block uncovered** — `migrateFromOldFormat` has an outer try/catch that is never reached because inner parsers handle all expected errors. LOW risk — the code is defensive but the branch is dead unless a truly unexpected error occurs (e.g., out-of-memory).
+
+### Design ambiguities surfaced
+
+1. **YAML parsing approach** — Architecture doc said to replace sprint-status.yaml but didn't specify whether to add a YAML dependency. Resolved by using manual line-by-line parsing since the format is flat `key: value`.
+2. **Migration trigger timing** — Epic said "first access" triggers migration. Interpreted as: migration runs when `sprint-state.json` does not exist AND at least one old file exists.
+3. **Ralph race condition risk** — Ralph (bash process) writes `ralph/status.json` and `.story_retries` while this module reads them for migration. Migration should only run when Ralph is stopped. No guard was added — relies on operational discipline.
+
+### Unfixed issues carried forward
+
+- `getSprintState()` silently swallows migration errors, falls through to `defaultState()` — could mask real problems
+- No schema validation on `JSON.parse` result in `getSprintState` — malformed JSON that parses successfully would produce runtime errors downstream
+- `process.cwd()` as project root (mentioned above)
+
+---
+
+## 3. What Went Well
+
+- **First Epic 2 story completed cleanly** — Story 2-1 went through the full pipeline (create, dev, review, verify) without blockers. No verification workarounds needed.
+- **Code review caught 2 HIGH bugs** — The `lastAttempt` semantic bug and missing error-path tests would have been hard to find later. Review step continues to justify its cost.
+- **Design ambiguities resolved pragmatically** — YAML parsing without a dependency, migration trigger semantics, and race condition risk were all addressed in the story creation phase, not discovered mid-implementation.
+- **8 ACs all CLI-verifiable** — Every acceptance criterion was testable via local commands. No black-box enforcement issues (contrast with story 1-1).
+
+---
+
+## 4. What Went Wrong
+
+- **6 review findings in one story** — 2 HIGH + 4 MEDIUM is a lot for a single story. The dev subagent produced code with a semantic bug (lastAttempt), a security pattern issue (mutable shared state), and a DRY violation. These are not exotic edge cases — they should have been caught during implementation.
+- **Test file bloat** — `state.test.ts` exceeded 300 lines and had to be manually compacted. The dev subagent is not self-enforcing NFR limits.
+- **3 LOW issues left unfixed** — `process.cwd()` fragility, silent error swallowing, and missing schema validation are all carried forward. Each is individually low-risk but they accumulate.
+
+---
+
+## 5. Lessons Learned
+
+**Repeat:**
+- Resolving design ambiguities during create-story, not during dev. The YAML parsing and migration trigger decisions were made upfront, saving implementation churn.
+- Using factory functions (`emptyStory()`) instead of shared mutable objects. This pattern should be standard for any default/template objects.
+
+**Avoid:**
+- Relying on TypeScript's type system to prevent mutations at runtime. The `EMPTY_STORY` bug shows that `const` + `readonly` is not enough if the object is shared. Always use factory functions for default state.
+- Writing 300+ line test files. The dev subagent should split test files proactively, not wait for review to flag NFR violations.
+- Leaving `process.cwd()` as implicit project root. This works today but will break when the module is used outside Ralph's execution context.
+
+---
+
+## 6. Action Items
+
+### Fix now (before next session)
+
+- (No blocking items. All HIGH/MEDIUM issues were resolved during review.)
+
+### Fix soon (next sprint)
+
+- [ ] **Add schema validation to `getSprintState()` JSON parsing** — A malformed-but-parseable `sprint-state.json` would cause runtime errors. Add a lightweight shape check after `JSON.parse`.
+- [ ] **Replace `process.cwd()` with explicit project root parameter** — Pass the project root into state functions rather than relying on the current working directory.
+- [ ] **Make `getSprintState()` log migration errors instead of silently swallowing** — At minimum, write a warning to stderr or a debug log so migration failures are visible.
+- [ ] **Add Ralph race condition guard to migration** — Check for Ralph lock file or running process before migrating old state files. Prevent data corruption if someone runs migration while Ralph is active.
+
+### Backlog (track but not urgent)
+
+- [ ] **Add true concurrent write test for `writeStateAtomic`** — Current tests are sequential. A fork-based test would validate the atomic-write guarantee under real contention.
+- [ ] **Cover outer catch in `migrateFromOldFormat`** — Dead branch today, but if the function is refactored, this could become reachable. Add a test that forces an unexpected error.
+- [ ] **Dev subagent NFR self-check** — The dev subagent should check file line counts against NFR limits before finishing. Reduce review findings caused by known, automatable rules.
+
+---
+
+## Updated Full-Day Summary
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 4 |
+| Stories completed | 4 |
+| Epics completed | 1 (Epic 1: Foundation) |
+| Epic 2 progress | 1/4 stories done |
+| Bugs found | 3 (black-box enforcement, lastAttempt semantic, error path coverage) |
+| Workarounds applied | 3 (verification bypass, deep import paths, sequential-only concurrency test) |
+| Review findings fixed | 11 (2 HIGH mutability + 3 MEDIUM documentation + 2 HIGH bugs + 4 MEDIUM code quality) |
+| Unfixed LOW issues | 6 (carried forward) |
+| Coverage | 95.37% statements (held at baseline) |
+| Total API cost | ~$15.57 across 3 sessions |
+| Next up | Story 2-2: story-selection-cross-epic-prioritization |

@@ -17,6 +17,8 @@ const {
   generateReport,
 } = await import('../index.js');
 
+const { writeFileSync } = await import('node:fs');
+
 const STATE_FILE = join(process.cwd(), 'sprint-state.json');
 const TMP_FILE = join(process.cwd(), '.sprint-state.json.tmp');
 
@@ -30,9 +32,112 @@ describe('sprint module', () => {
   beforeEach(cleanup);
   afterEach(cleanup);
 
-  it('getNextStory returns fail("not implemented")', () => {
+  it('getNextStory returns ok with null selected when no stories exist', () => {
     const result = getNextStory();
-    expect(result).toEqual({ success: false, error: 'not implemented' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.selected).toBeNull();
+      expect(result.data.retryExhausted).toEqual([]);
+    }
+  });
+
+  it('getNextStory delegates to selector and returns selected story', () => {
+    // Write a state file with a backlog story
+    const state = {
+      version: 1,
+      sprint: { total: 1, done: 0, failed: 0, blocked: 0, inProgress: null },
+      stories: {
+        'test-story': {
+          status: 'backlog',
+          attempts: 0,
+          lastAttempt: null,
+          lastError: null,
+          proofPath: null,
+          acResults: null,
+        },
+      },
+      run: {
+        active: false,
+        startedAt: null,
+        iteration: 0,
+        cost: 0,
+        completed: [],
+        failed: [],
+      },
+      actionItems: [],
+    };
+    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+
+    const result = getNextStory();
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.selected).not.toBeNull();
+      expect(result.data.selected!.key).toBe('test-story');
+    }
+  });
+
+  it('getNextStory marks retry-exhausted stories as blocked', () => {
+    const state = {
+      version: 1,
+      sprint: { total: 2, done: 0, failed: 0, blocked: 0, inProgress: null },
+      stories: {
+        'exhausted-story': {
+          status: 'backlog',
+          attempts: 10,
+          lastAttempt: null,
+          lastError: null,
+          proofPath: null,
+          acResults: null,
+        },
+        'good-story': {
+          status: 'backlog',
+          attempts: 1,
+          lastAttempt: null,
+          lastError: null,
+          proofPath: null,
+          acResults: null,
+        },
+      },
+      run: {
+        active: false,
+        startedAt: null,
+        iteration: 0,
+        cost: 0,
+        completed: [],
+        failed: [],
+      },
+      actionItems: [],
+    };
+    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+
+    const result = getNextStory();
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.selected!.key).toBe('good-story');
+      expect(result.data.retryExhausted).toHaveLength(1);
+      expect(result.data.retryExhausted[0].key).toBe('exhausted-story');
+    }
+
+    // Verify the exhausted story was actually marked as blocked in state
+    const stateResult = getSprintState();
+    expect(stateResult.success).toBe(true);
+    if (stateResult.success) {
+      expect(stateResult.data.stories['exhausted-story'].status).toBe(
+        'blocked',
+      );
+      expect(stateResult.data.stories['exhausted-story'].lastError).toBe(
+        'retry-exhausted',
+      );
+    }
+  });
+
+  it('getNextStory returns fail on state read error', () => {
+    writeFileSync(STATE_FILE, '{invalid json!!!', 'utf-8');
+    const result = getNextStory();
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('Failed to read sprint state');
+    }
   });
 
   it('getSprintState returns ok with default state when no file exists', () => {

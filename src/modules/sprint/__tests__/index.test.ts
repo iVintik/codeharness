@@ -159,8 +159,64 @@ describe('sprint module', () => {
     expect(result.success).toBe(true);
   });
 
-  it('generateReport returns fail("not implemented")', () => {
+  it('generateReport returns a valid StatusReport from state', () => {
+    // Write a state file with some stories
+    const state = {
+      version: 1,
+      sprint: { total: 2, done: 1, failed: 0, blocked: 0, inProgress: null },
+      stories: {
+        '1-1-a': {
+          status: 'done',
+          attempts: 1,
+          lastAttempt: null,
+          lastError: null,
+          proofPath: null,
+          acResults: null,
+        },
+        '2-1-b': {
+          status: 'backlog',
+          attempts: 0,
+          lastAttempt: null,
+          lastError: null,
+          proofPath: null,
+          acResults: null,
+        },
+      },
+      run: {
+        active: false,
+        startedAt: null,
+        iteration: 0,
+        cost: 0,
+        completed: [],
+        failed: [],
+      },
+      actionItems: [],
+    };
+    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+
     const result = generateReport();
-    expect(result).toEqual({ success: false, error: 'not implemented' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.total).toBe(2);
+      expect(result.data.done).toBe(1);
+      expect(result.data.epicsTotal).toBe(2);
+      expect(result.data.sprintPercent).toBe(50);
+      expect(result.data.storyStatuses).toHaveLength(2);
+    }
+  });
+
+  it('generateReport returns ok with empty report when no state file', () => {
+    const result = generateReport();
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.total).toBe(0);
+      expect(result.data.done).toBe(0);
+    }
+  });
+
+  it('generateReport returns fail on corrupted state file', () => {
+    writeFileSync(STATE_FILE, '{bad json!!!', 'utf-8');
+    const result = generateReport();
+    expect(result.success).toBe(false);
   });
 });

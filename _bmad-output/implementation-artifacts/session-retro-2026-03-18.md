@@ -344,3 +344,121 @@ This is the first story in Epic 2 (Unified State & Status Command). It replaces 
 | Coverage | 95.37% statements (held at baseline) |
 | Total API cost | ~$15.57 across 3 sessions |
 | Next up | Story 2-2: story-selection-cross-epic-prioritization |
+
+---
+
+# Session Retrospective — 2026-03-18 (Session 4, ~09:26Z – 09:51Z)
+
+**Sprint:** Architecture Overhaul Sprint
+**Session window:** ~09:26Z – 09:51Z (from issue timestamps and commit f0eca86)
+**Stories attempted:** 1
+**Stories completed:** 1
+**Epic 2 status:** 2/4 done (2-1, 2-2 complete; 2-3, 2-4 in backlog)
+
+---
+
+## 1. Session Summary
+
+| Story | Outcome | Notes |
+|-------|---------|-------|
+| 2-2-story-selection-cross-epic-prioritization | Done | Full lifecycle: create-story, dev-story, code-review, verify. Code review found 1 HIGH (missing AC #2 implementation) and 2 MEDIUM issues, all fixed. |
+
+Story 2-2 implements cross-epic story selection with priority tiers (in-progress > verifying-with-proof > proof-exists > backlog) and retry exhaustion reporting. This is the decision engine that determines which story Ralph picks next.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs discovered
+
+1. **HIGH: AC #2 not implemented — retry-exhausted stories silently skipped** — `selectNextStory()` filtered out retry-exhausted stories without reporting them or updating their status to blocked. The caller had no way to know stories were being dropped. Fixed by adding `RetryExhaustedInfo[]` to `SelectionResult`.
+2. **Dead code in `priorityTier()`** — An `attempts >= MAX_STORY_ATTEMPTS` guard was unreachable after retry-exhaustion logic moved to the caller. Removed during review.
+
+### Workarounds applied (tech debt introduced)
+
+None new this session.
+
+### Code quality concerns (found in review)
+
+1. **MEDIUM: Missing test coverage for non-Error throws and empty key edge case** — Tests did not cover `throw "string"` paths or story keys that are empty strings. Added during review.
+2. **MEDIUM: Coverage report directory misconfigured** — vitest was writing coverage output to `src/coverage/` instead of `coverage/`. Fixed `reportsDirectory` in `vitest.config.ts`.
+3. **Architecture concern (not fixed): `getNextStory()` has side effects** — The function reads state AND writes state (updating retry-exhausted stories to blocked). This mixes query and command. Accepted per AC requirements — the selection and status update must be atomic to prevent race conditions.
+
+### Verification gaps
+
+1. **LOW (not fixed): `priorityTier` default branch uncoverable** — Defensive guard for unknown status values. TypeScript's exhaustive checking makes this branch unreachable at compile time, but it exists as a runtime safety net. Cannot be meaningfully tested without type-casting hacks.
+2. **LOW (not fixed): `getNextStory` line 35 selector fail path hard to trigger** — Requires the state file to become corrupted between the read and select calls. Integration-level concern, not unit-testable.
+
+### Design ambiguities surfaced
+
+1. **Priority ordering for `in-progress` vs `proof-exists`** — AC #1 listed `proof-exists` as highest priority, but `in-progress` logically should take precedence (a story already being worked on should not be preempted). Resolved during story creation by making `in-progress` priority 0 and `verifying-with-proof` priority 1.
+2. **`ready` status not in priority tiers** — `ready` exists in the `StoryStatus` union but is not mentioned in the epic's priority tier definition or PRD FR7. Resolved by treating `ready` as equivalent to `backlog`.
+3. **Missing story title source** — `StorySelection.title` is required by the type, but `SprintState` does not store story titles. Dev will need to derive titles from the story key or read story markdown files. Not resolved this session — surfaced as a known gap.
+
+### Tooling/infrastructure problems
+
+None reported.
+
+---
+
+## 3. What Went Well
+
+- **Story 2-2 completed end-to-end without blockers** — No verification workarounds, no sandbox issues, no pipeline failures.
+- **Code review caught a missing AC implementation** — AC #2 (retry-exhausted reporting) was entirely absent from the initial implementation. The review step prevented a story from being marked done with an unimplemented acceptance criterion. This is the most valuable review finding of the day.
+- **Design ambiguities resolved during story creation** — Priority ordering, `ready` status handling, and `in-progress` precedence were all decided before implementation, preventing dev churn.
+- **Coverage config bug found and fixed** — The `reportsDirectory` misconfiguration in vitest.config.ts would have caused confusion in CI. Caught opportunistically during review.
+
+---
+
+## 4. What Went Wrong
+
+- **AC #2 was entirely missing from the initial implementation** — The dev subagent implemented selection (AC #1) and persistence (AC #3+) but skipped retry-exhaustion reporting (AC #2). This is a process failure: the dev subagent should be checking off ACs as it implements them. An entire AC being absent is worse than a bug in an implemented AC.
+- **Dead code shipped to review** — The `priorityTier()` guard for `attempts >= MAX_STORY_ATTEMPTS` became unreachable after the retry logic was restructured but was not removed. Dev subagent did not clean up after refactoring.
+
+---
+
+## 5. Lessons Learned
+
+**Repeat:**
+- Resolving ambiguous priority orderings during story creation. The `in-progress` vs `proof-exists` decision was non-obvious and would have caused implementation confusion.
+- Logging design decisions (like treating `ready` as `backlog`) in the session issues log for future reference.
+
+**Avoid:**
+- Trusting that the dev subagent implements all ACs. A missing AC is fundamentally different from a buggy AC — it suggests the dev did not systematically enumerate the acceptance criteria before coding. Consider adding an AC checklist step to the dev pipeline.
+- Leaving dead code after refactoring. The dev subagent should do a cleanup pass when moving logic between functions.
+
+---
+
+## 6. Action Items
+
+### Fix now (before next session)
+
+- (No blocking items. All HIGH/MEDIUM issues were resolved during review.)
+
+### Fix soon (next sprint)
+
+- [ ] **Add AC checklist enforcement to dev subagent** — Before marking a story as dev-complete, the dev subagent should verify that every AC has at least one corresponding test or implementation touchpoint. Prevents the "missing AC #2" class of failures.
+- [ ] **Resolve `StorySelection.title` source** — The type requires a title but the state module has no title storage. Either add titles to `SprintState` or derive them from story file names. Needed before story 2-3 (status report) which will display titles.
+
+### Backlog (track but not urgent)
+
+- [ ] **Refactor `getNextStory()` to separate query from command** — Currently reads state, selects, and writes (updates blocked status) in one function. When the module stabilizes, consider splitting into `selectNext()` (pure) and `applySelection()` (side effects).
+- [ ] **Cover `priorityTier` default branch** — If TypeScript adds a new `StoryStatus` value in the future, this branch becomes reachable. Add a test using type assertion to future-proof.
+- [ ] **Cover `getNextStory` selector fail path** — Consider an integration test that corrupts state between read and select to validate error handling.
+
+---
+
+## Updated Full-Day Summary
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 5 |
+| Stories completed | 5 |
+| Epics completed | 1 (Epic 1: Foundation) |
+| Epic 2 progress | 2/4 stories done |
+| Bugs found | 4 (+1: missing AC #2 implementation) |
+| Workarounds applied | 3 (unchanged from session 3) |
+| Review findings fixed | 14 (+1 HIGH missing AC, +2 MEDIUM test/config) |
+| Unfixed LOW issues | 8 (+2: uncoverable branches) |
+| Coverage | 95.37% statements (held at baseline) |
+| Next up | Story 2-3: status-report-one-screen-overview |

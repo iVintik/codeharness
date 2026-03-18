@@ -5,8 +5,10 @@ import { readState, StateFileNotFoundError } from '../lib/state.js';
 import { listIssues, isBeadsInitialized } from '../lib/beads.js';
 import { getOnboardingProgress } from '../lib/onboard-checks.js';
 import { getStackDir, getComposeFilePath } from '../lib/stack-path.js';
+import { generateReport } from '../modules/sprint/index.js';
 import type { HarnessState } from '../lib/state.js';
 import type { DockerHealthResult } from '../lib/docker.js';
+import type { StatusReport } from '../modules/sprint/index.js';
 
 interface StatusOptions {
   checkDocker?: boolean;
@@ -89,6 +91,9 @@ function handleFullStatus(isJson: boolean): void {
     handleFullStatusJson(state);
     return;
   }
+
+  // Sprint state sections (Project State, Run, Action Items)
+  printSprintState();
 
   // Version & Stack
   console.log(`Harness: codeharness v${state.harness_version}`);
@@ -260,10 +265,14 @@ function handleFullStatusJson(state: HarnessState): void {
   // Onboarding progress
   const onboarding = getOnboardingProgressData();
 
+  // Sprint state
+  const sprint = getSprintReportData();
+
   jsonOutput({
     version: state.harness_version,
     stack: state.stack,
     ...(state.app_type ? { app_type: state.app_type } : {}),
+    ...(sprint ? { sprint } : {}),
     enforcement: state.enforcement,
     docker,
     endpoints,
@@ -484,6 +493,60 @@ async function handleDockerCheck(isJson: boolean): Promise<void> {
       info(`-> ${health.remedy}`);
     }
   }
+}
+
+// ─── Sprint State Helpers ────────────────────────────────────────────────────
+
+function printSprintState(): void {
+  const reportResult = generateReport();
+  if (!reportResult.success) {
+    console.log('Sprint state: unavailable');
+    return;
+  }
+
+  const r = reportResult.data;
+  console.log(`\u2500\u2500 Project State \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+  console.log(`Sprint: ${r.done}/${r.total} done (${r.sprintPercent}%) | ${r.epicsDone}/${r.epicsTotal} epics complete`);
+
+  if (r.activeRun) {
+    console.log('');
+    console.log(`\u2500\u2500 Active Run \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+    const currentStory = r.inProgress ?? 'none';
+    console.log(`Status: running (iteration ${r.activeRun.iterations}, ${r.activeRun.duration} elapsed)`);
+    console.log(`Current: ${currentStory}`);
+    console.log(`Budget: $${r.activeRun.cost.toFixed(2)} spent`);
+  } else if (r.lastRun) {
+    console.log('');
+    console.log(`\u2500\u2500 Last Run Summary \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+    console.log(`Duration: ${r.lastRun.duration} | Cost: $${r.lastRun.cost.toFixed(2)} | Iterations: ${r.lastRun.iterations}`);
+    console.log(`Completed:  ${r.lastRun.completed.length} stories${r.lastRun.completed.length > 0 ? ` (${r.lastRun.completed.join(', ')})` : ''}`);
+    if (r.failedDetails.length > 0) {
+      console.log(`Failed:     ${r.failedDetails.length} stor${r.failedDetails.length === 1 ? 'y' : 'ies'}`);
+      for (const fd of r.failedDetails) {
+        const acPart = fd.acNumber !== null ? `AC ${fd.acNumber}` : 'unknown AC';
+        console.log(`  \u2514 ${fd.key}: ${acPart} \u2014 ${fd.errorLine} (attempt ${fd.attempts}/${fd.maxAttempts})`);
+      }
+    }
+    if (r.lastRun.blocked.length > 0) {
+      console.log(`Blocked:    ${r.lastRun.blocked.length} stories (retry-exhausted)`);
+    }
+  }
+
+  if (r.actionItemsLabeled.length > 0) {
+    console.log('');
+    console.log(`\u2500\u2500 Action Items \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500`);
+    for (const la of r.actionItemsLabeled) {
+      console.log(`  [${la.label}] ${la.item.story}: ${la.item.description}`);
+    }
+  }
+
+  console.log('');
+}
+
+function getSprintReportData(): StatusReport | null {
+  const reportResult = generateReport();
+  if (!reportResult.success) return null;
+  return reportResult.data;
 }
 
 // ─── Beads Helpers ──────────────────────────────────────────────────────────

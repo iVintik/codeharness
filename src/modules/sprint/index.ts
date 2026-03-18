@@ -11,14 +11,26 @@ import type {
   StoryDetail,
   StatusReport,
   SelectionResult,
+  FailedStoryDetail,
+  LabeledActionItem,
+  RunSummary,
 } from './types.js';
 import {
   getSprintState as getSprintStateImpl,
   updateStoryStatus as updateStoryStatusImpl,
 } from './state.js';
 import { selectNextStory } from './selector.js';
+import { generateReport as generateReportImpl } from './reporter.js';
 
-export type { StorySelection, StoryDetail, StatusReport, SelectionResult };
+export type {
+  StorySelection,
+  StoryDetail,
+  StatusReport,
+  SelectionResult,
+  FailedStoryDetail,
+  LabeledActionItem,
+  RunSummary,
+};
 
 /**
  * Select the next actionable story.
@@ -58,5 +70,9 @@ export function getSprintState(): Result<SprintState> {
 }
 
 export function generateReport(): Result<StatusReport> {
-  return fail('not implemented');
+  const stateResult = getSprintStateImpl();
+  if (!stateResult.success) {
+    return fail(stateResult.error);
+  }
+  return generateReportImpl(stateResult.data);
 }

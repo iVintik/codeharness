@@ -42,18 +42,35 @@ vi.mock('../../lib/onboard-checks.js', () => ({
   getOnboardingProgress: vi.fn(() => null),
 }));
 
+// Mock the sprint module
+vi.mock('../../modules/sprint/index.js', () => ({
+  generateReport: vi.fn(() => ({
+    success: true,
+    data: {
+      total: 0, done: 0, failed: 0, blocked: 0,
+      inProgress: null, storyStatuses: [],
+      epicsTotal: 0, epicsDone: 0, sprintPercent: 0,
+      activeRun: null, lastRun: null,
+      failedDetails: [], actionItemsLabeled: [],
+    },
+  })),
+}));
+
 import { registerStatusCommand, DEFAULT_ENDPOINTS, buildScopedEndpoints } from '../status.js';
 import { getStackHealth, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker.js';
 import { isBeadsInitialized, listIssues } from '../../lib/beads.js';
 import { getOnboardingProgress } from '../../lib/onboard-checks.js';
+import { generateReport } from '../../modules/sprint/index.js';
 import { writeState, getDefaultState } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
+import type { StatusReport } from '../../modules/sprint/index.js';
 
 const mockGetStackHealth = vi.mocked(getStackHealth);
 const mockGetCollectorHealth = vi.mocked(getCollectorHealth);
 const mockCheckRemoteEndpoint = vi.mocked(checkRemoteEndpoint);
 const mockIsBeadsInitialized = vi.mocked(isBeadsInitialized);
 const mockListIssues = vi.mocked(listIssues);
+const mockGenerateReport = vi.mocked(generateReport);
 
 let testDir: string;
 let originalCwd: string;
@@ -1053,5 +1070,223 @@ describe('scoped endpoints in JSON output', () => {
     const { stdout } = await runCli(['--json', 'status']);
     const parsed = JSON.parse(stdout);
     expect(parsed.scoped_endpoints).toBeUndefined();
+  });
+});
+
+// ─── Sprint state display ────────────────────────────────────────────────────
+
+function makeReport(overrides?: Partial<StatusReport>): StatusReport {
+  return {
+    total: 0, done: 0, failed: 0, blocked: 0,
+    inProgress: null, storyStatuses: [],
+    epicsTotal: 0, epicsDone: 0, sprintPercent: 0,
+    activeRun: null, lastRun: null,
+    failedDetails: [], actionItemsLabeled: [],
+    ...overrides,
+  };
+}
+
+describe('status sprint state display', () => {
+  it('displays Project State section with sprint progress', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({ total: 65, done: 17, epicsTotal: 16, epicsDone: 5, sprintPercent: 26 }),
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Project State');
+    expect(stdout).toContain('Sprint: 17/65 done (26%) | 5/16 epics complete');
+  });
+
+  it('displays Active Run section when run is active', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({
+        inProgress: '3-3-bmad-parser',
+        activeRun: {
+          duration: '2h14m', cost: 23.40, iterations: 7,
+          completed: ['3-1', '3-2'], failed: [], blocked: [], skipped: [],
+        },
+      }),
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Active Run');
+    expect(stdout).toContain('running (iteration 7, 2h14m elapsed)');
+    expect(stdout).toContain('Current: 3-3-bmad-parser');
+    expect(stdout).toContain('$23.40 spent');
+  });
+
+  it('displays Last Run Summary section for completed runs', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({
+        lastRun: {
+          duration: '2h14m', cost: 23.40, iterations: 7,
+          completed: ['3-1', '3-2', '4-1', '4-2'], failed: ['2-3'],
+          blocked: ['5-1', '5-2'], skipped: [],
+        },
+        failedDetails: [{
+          key: '2-3', acNumber: 4, errorLine: 'status --check-docker exit 1',
+          attempts: 3, maxAttempts: 10,
+        }],
+      }),
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Last Run Summary');
+    expect(stdout).toContain('Duration: 2h14m | Cost: $23.40 | Iterations: 7');
+    expect(stdout).toContain('Completed:  4 stories (3-1, 3-2, 4-1, 4-2)');
+    expect(stdout).toContain('Failed:     1 story');
+    expect(stdout).toContain('2-3: AC 4');
+    expect(stdout).toContain('status --check-docker exit 1');
+    expect(stdout).toContain('attempt 3/10');
+    expect(stdout).toContain('Blocked:    2 stories (retry-exhausted)');
+  });
+
+  it('displays Action Items section with NEW/CARRIED labels', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({
+        actionItemsLabeled: [
+          { item: { id: 'ai-1', story: '1-1-a', description: 'Fix test', source: 'verification', resolved: false }, label: 'NEW' },
+          { item: { id: 'ai-2', story: '0-1-old', description: 'Old item', source: 'manual', resolved: false }, label: 'CARRIED' },
+        ],
+      }),
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Action Items');
+    expect(stdout).toContain('[NEW] 1-1-a: Fix test');
+    expect(stdout).toContain('[CARRIED] 0-1-old: Old item');
+  });
+
+  it('shows "Sprint state: unavailable" when generateReport fails', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: false,
+      error: 'Failed to generate report: kaboom',
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Sprint state: unavailable');
+  });
+
+  it('includes sprint data in JSON output', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({ total: 10, done: 5, epicsTotal: 3, epicsDone: 1, sprintPercent: 50 }),
+    });
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.sprint).toBeDefined();
+    expect(parsed.sprint.total).toBe(10);
+    expect(parsed.sprint.done).toBe(5);
+    expect(parsed.sprint.epicsTotal).toBe(3);
+    expect(parsed.sprint.sprintPercent).toBe(50);
+  });
+
+  it('omits sprint from JSON when generateReport fails', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockIsBeadsInitialized.mockReturnValue(false);
+    mockGenerateReport.mockReturnValue({
+      success: false,
+      error: 'broken',
+    });
+
+    const { stdout } = await runCli(['--json', 'status']);
+    const parsed = JSON.parse(stdout);
+    expect(parsed.sprint).toBeUndefined();
+  });
+
+  it('does not show Active Run or Last Run when no run data', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({ total: 5, done: 2, sprintPercent: 40 }),
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Project State');
+    expect(stdout).not.toContain('Active Run');
+    expect(stdout).not.toContain('Last Run Summary');
+  });
+
+  it('does not show Action Items section when array is empty', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({ actionItemsLabeled: [] }),
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).not.toContain('Action Items');
+  });
+
+  it('shows completed with no story list when empty', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({
+        lastRun: {
+          duration: '5m', cost: 1.00, iterations: 1,
+          completed: [], failed: [], blocked: [], skipped: [],
+        },
+      }),
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Completed:  0 stories');
+  });
+
+  it('shows multiple failed stories correctly', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+    mockGenerateReport.mockReturnValue({
+      success: true,
+      data: makeReport({
+        lastRun: {
+          duration: '1h', cost: 10, iterations: 5,
+          completed: [], failed: ['1-1', '2-1'], blocked: [], skipped: [],
+        },
+        failedDetails: [
+          { key: '1-1', acNumber: 2, errorLine: 'assertion failed', attempts: 3, maxAttempts: 10 },
+          { key: '2-1', acNumber: null, errorLine: 'unknown error', attempts: 1, maxAttempts: 10 },
+        ],
+      }),
+    });
+
+    const { stdout } = await runCli(['status']);
+    expect(stdout).toContain('Failed:     2 stories');
+    expect(stdout).toContain('1-1: AC 2');
+    expect(stdout).toContain('2-1: unknown AC');
   });
 });

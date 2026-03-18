@@ -43,6 +43,7 @@ import {
   isValidStoryKey,
   computeDistHash,
   buildVerifyImage,
+  detectProjectType,
   prepareVerifyWorkspace,
   checkVerifyEnv,
   cleanupVerifyEnv,
@@ -62,6 +63,7 @@ beforeEach(() => {
   // Create templates/Dockerfile.verify so buildVerifyImage can find it
   mkdirSync(join(testDir, 'templates'), { recursive: true });
   writeFileSync(join(testDir, 'templates', 'Dockerfile.verify'), 'FROM node:20-slim\nARG TARBALL=package.tgz\nCOPY ${TARBALL} /tmp/\n');
+  writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.generic'), 'FROM node:20-slim\nRUN apt-get update\n');
   // Reset default mock behaviors after clearAllMocks
   mockIsDockerAvailable.mockReturnValue(true);
   mockDetectStack.mockReturnValue('nodejs');
@@ -170,9 +172,22 @@ describe('buildVerifyImage', () => {
     expect(() => buildVerifyImage({ projectDir: testDir })).toThrow('Docker is not available');
   });
 
-  it('throws when stack is not detected', () => {
+  it('builds generic image when stack is not detected (AC #4, #8)', () => {
     mockDetectStack.mockReturnValue(null);
-    expect(() => buildVerifyImage({ projectDir: testDir })).toThrow('Cannot detect project stack');
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('50000000')); // docker image inspect (size)
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.cached).toBe(false);
+    expect(result.imageTag).toBe('codeharness-verify');
+
+    // Verify docker build was called (no --build-arg for generic)
+    const buildCall = mockExecFileSync.mock.calls.find(
+      c => (c[1] as string[]).includes('build'),
+    );
+    expect(buildCall).toBeDefined();
   });
 
   it('throws when dist/ does not exist', () => {
@@ -187,7 +202,7 @@ describe('buildVerifyImage', () => {
 
     const hash = computeDistHash(testDir)!;
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: hash } as any,
+      state: { verify_env_dist_hash: hash } as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -209,7 +224,7 @@ describe('buildVerifyImage', () => {
 
     // Return a different hash from state
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as any,
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -235,7 +250,7 @@ describe('buildVerifyImage', () => {
 
     const hash = computeDistHash(testDir)!;
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: hash } as any,
+      state: { verify_env_dist_hash: hash } as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -253,7 +268,7 @@ describe('buildVerifyImage', () => {
 
     mockDetectStack.mockReturnValue('python');
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as any,
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -274,13 +289,79 @@ describe('buildVerifyImage', () => {
     expect((buildCall![1] as string[]).join(' ')).toContain('TARBALL=mypackage-0.1.0.tar.gz');
   });
 
+  it('throws when Python dist/ has no .tar.gz or .whl files', () => {
+    const distDir = join(testDir, 'dist');
+    mkdirSync(distDir);
+    writeFileSync(join(distDir, 'README.md'), 'not a distribution file');
+
+    mockDetectStack.mockReturnValue('python');
+    mockReadStateWithBody.mockReturnValue({
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      body: '',
+    });
+
+    expect(() => buildVerifyImage({ projectDir: testDir })).toThrow('No distribution files found');
+  });
+
+  it('handles state read failure gracefully (returns null for stored hash)', () => {
+    const distDir = join(testDir, 'dist');
+    mkdirSync(distDir);
+    writeFileSync(join(distDir, 'index.js'), 'content');
+    writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
+
+    // State read throws — should fall back to no cached hash
+    mockReadStateWithBody.mockImplementation(() => {
+      throw new Error('State file not found');
+    });
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('codeharness-0.13.2.tgz')) // npm pack
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('50000000')); // size
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.cached).toBe(false);
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+  });
+
+  it('handles state write failure gracefully when storing dist hash', () => {
+    const distDir = join(testDir, 'dist');
+    mkdirSync(distDir);
+    writeFileSync(join(distDir, 'index.js'), 'content');
+    writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
+
+    // First call: readStateWithBody for getStoredDistHash — returns different hash
+    // Second call: readStateWithBody for storeDistHash — throws
+    let readCallCount = 0;
+    mockReadStateWithBody.mockImplementation(() => {
+      readCallCount++;
+      if (readCallCount === 1) {
+        return {
+          state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+          body: '',
+        };
+      }
+      throw new Error('Cannot write state');
+    });
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('codeharness-0.13.2.tgz')) // npm pack
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('50000000')); // size
+
+    // Should not throw even though state write fails
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.cached).toBe(false);
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+  });
+
   it('throws when npm pack produces empty output', () => {
     const distDir = join(testDir, 'dist');
     mkdirSync(distDir);
     writeFileSync(join(distDir, 'index.js'), 'content');
 
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as any,
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -501,5 +582,244 @@ describe('cleanupVerifyEnv', () => {
     expect((stopCall![1] as string[])).toContain('codeharness-verify-my-story');
     expect(rmCall).toBeDefined();
     expect((rmCall![1] as string[])).toContain('codeharness-verify-my-story');
+  });
+});
+
+// ─── detectProjectType ──────────────────────────────────────────────────────
+
+describe('detectProjectType', () => {
+  it('returns plugin when .claude-plugin/plugin.json exists', () => {
+    mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
+    writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
+    expect(detectProjectType(testDir)).toBe('plugin');
+  });
+
+  it('returns nodejs when detectStack returns nodejs', () => {
+    mockDetectStack.mockReturnValue('nodejs');
+    expect(detectProjectType(testDir)).toBe('nodejs');
+  });
+
+  it('returns python when detectStack returns python', () => {
+    mockDetectStack.mockReturnValue('python');
+    expect(detectProjectType(testDir)).toBe('python');
+  });
+
+  it('returns generic when detectStack returns null', () => {
+    mockDetectStack.mockReturnValue(null);
+    expect(detectProjectType(testDir)).toBe('generic');
+  });
+
+  it('returns generic when detectStack returns unrecognized value', () => {
+    mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
+    expect(detectProjectType(testDir)).toBe('generic');
+  });
+
+  it('prioritizes plugin over nodejs when both exist', () => {
+    mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
+    writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
+    mockDetectStack.mockReturnValue('nodejs');
+    expect(detectProjectType(testDir)).toBe('plugin');
+  });
+});
+
+// ─── buildVerifyImage — plugin and generic paths ────────────────────────────
+
+describe('buildVerifyImage — plugin project (AC #2)', () => {
+  it('builds plugin image when .claude-plugin/plugin.json exists', () => {
+    mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
+    writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{"name":"test"}');
+    mkdirSync(join(testDir, 'commands'), { recursive: true });
+    writeFileSync(join(testDir, 'commands', 'test.md'), '# Test command');
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('80000000')); // docker image inspect (size)
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.cached).toBe(false);
+    expect(result.imageTag).toBe('codeharness-verify');
+
+    const buildCall = mockExecFileSync.mock.calls.find(
+      c => (c[1] as string[]).includes('build'),
+    );
+    expect(buildCall).toBeDefined();
+  });
+
+  it('does not throw for plugin projects without dist/', () => {
+    mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
+    writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('50000000')); // docker image inspect (size)
+
+    expect(() => buildVerifyImage({ projectDir: testDir })).not.toThrow();
+  });
+});
+
+describe('buildVerifyImage — size formatting', () => {
+  it('formats GB-range sizes', () => {
+    const distDir = join(testDir, 'dist');
+    mkdirSync(distDir);
+    writeFileSync(join(distDir, 'index.js'), 'content');
+    writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
+
+    mockReadStateWithBody.mockReturnValue({
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      body: '',
+    });
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('codeharness-0.13.2.tgz')) // npm pack
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('2500000000')); // 2.5GB
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.imageSize).toBe('2.5GB');
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+  });
+
+  it('formats KB-range sizes', () => {
+    const distDir = join(testDir, 'dist');
+    mkdirSync(distDir);
+    writeFileSync(join(distDir, 'index.js'), 'content');
+    writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
+
+    mockReadStateWithBody.mockReturnValue({
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      body: '',
+    });
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('codeharness-0.13.2.tgz')) // npm pack
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('5000')); // 5KB
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.imageSize).toBe('5.0KB');
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+  });
+
+  it('formats B-range sizes', () => {
+    const distDir = join(testDir, 'dist');
+    mkdirSync(distDir);
+    writeFileSync(join(distDir, 'index.js'), 'content');
+    writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
+
+    mockReadStateWithBody.mockReturnValue({
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      body: '',
+    });
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('codeharness-0.13.2.tgz')) // npm pack
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('500')); // 500B
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.imageSize).toBe('500B');
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+  });
+
+  it('returns NaN output as-is', () => {
+    const distDir = join(testDir, 'dist');
+    mkdirSync(distDir);
+    writeFileSync(join(distDir, 'index.js'), 'content');
+    writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
+
+    mockReadStateWithBody.mockReturnValue({
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      body: '',
+    });
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('codeharness-0.13.2.tgz')) // npm pack
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('not-a-number')); // NaN
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.imageSize).toBe('not-a-number');
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+  });
+
+  it('returns unknown when docker inspect fails', () => {
+    const distDir = join(testDir, 'dist');
+    mkdirSync(distDir);
+    writeFileSync(join(distDir, 'index.js'), 'content');
+    writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
+
+    mockReadStateWithBody.mockReturnValue({
+      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      body: '',
+    });
+
+    let callCount = 0;
+    mockExecFileSync.mockImplementation((_cmd: unknown, args: unknown) => {
+      callCount++;
+      const argArr = args as string[];
+      // npm pack
+      if (argArr.includes('pack')) return Buffer.from('codeharness-0.13.2.tgz');
+      // docker build
+      if (argArr.includes('build')) return Buffer.from('');
+      // docker image inspect (size) — fail
+      if (argArr.includes('inspect')) throw new Error('inspect failed');
+      return Buffer.from('');
+    });
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.imageSize).toBe('unknown');
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+  });
+});
+
+describe('buildVerifyImage — template resolution', () => {
+  it('throws when neither local nor pkg Dockerfile template exists', () => {
+    mockDetectStack.mockReturnValue(null);
+    // Remove templates from testDir
+    rmSync(join(testDir, 'templates'), { recursive: true, force: true });
+
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    // Generic image build needs Dockerfile.verify.generic — should throw since neither location has it
+    expect(() => buildVerifyImage({ projectDir: testDir })).toThrow(
+      'Dockerfile.verify.generic not found',
+    );
+  });
+});
+
+describe('buildVerifyImage — generic project (AC #4, #8)', () => {
+  it('does not throw for unknown stack without dist/', () => {
+    mockDetectStack.mockReturnValue(null);
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('50000000')); // docker image inspect (size)
+
+    expect(() => buildVerifyImage({ projectDir: testDir })).not.toThrow();
+  });
+
+  it('returns success result for generic project', () => {
+    mockDetectStack.mockReturnValue(null);
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('50000000')); // docker image inspect (size)
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.imageTag).toBe('codeharness-verify');
+    expect(result.cached).toBe(false);
+    expect(result.buildTimeMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('uses generic Dockerfile template for fallback', () => {
+    mockDetectStack.mockReturnValue(null);
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('50000000')); // docker image inspect (size)
+
+    // Should not throw since templates/Dockerfile.verify.generic exists
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.imageTag).toBe('codeharness-verify');
   });
 });

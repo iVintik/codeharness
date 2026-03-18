@@ -29,7 +29,7 @@ development_status:
   # Epic 4: Verification Module
   epic-4: in-progress
   4-1-verify-module-extraction: done
-  4-2-project-agnostic-verification: backlog
+  4-2-project-agnostic-verification: done
   4-3-verifier-session-reliability: backlog
 
   # Epic 5: Code Review Module

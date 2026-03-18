@@ -1,0 +1,27 @@
+# Generic black-box verification environment
+# Minimal image with basic tools for projects with unrecognized stacks.
+# NO source code enters the image — only project metadata and basic utilities.
+FROM node:20-slim
+
+# System utilities for generic verification
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    curl \
+    jq \
+    git \
+  && rm -rf /var/lib/apt/lists/*
+
+# Verification tools + Claude Code CLI
+RUN npm install -g showboat @anthropic-ai/claude-code
+
+# OTEL environment pointing to host observability stack
+ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+ENV OTEL_SERVICE_NAME=codeharness-verify
+ENV OTEL_TRACES_EXPORTER=otlp
+ENV OTEL_METRICS_EXPORTER=otlp
+ENV OTEL_LOGS_EXPORTER=otlp
+
+WORKDIR /workspace
+
+# Copy any build context files into the workspace
+COPY . /workspace/

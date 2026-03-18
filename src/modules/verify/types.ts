@@ -90,6 +90,9 @@ export interface ShowboatVerifyResult {
 
 // ─── Env Types ───────────────────────────────────────────────────────────────
 
+/** Project type for verification strategy selection. */
+export type ProjectType = 'nodejs' | 'python' | 'plugin' | 'generic';
+
 export interface BuildOptions {
   readonly projectDir?: string;
 }

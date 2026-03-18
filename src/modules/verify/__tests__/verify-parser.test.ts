@@ -362,5 +362,41 @@ describe('classifyStrategy', () => {
     expect(acs[0].strategy).toBe('docker');
     expect(acs[1].strategy).toBe('docker');
   });
+
+  // ─── AC #6: classifyStrategy never refuses based on project type ──────
+
+  it('returns docker for empty description', () => {
+    expect(classifyStrategy('')).toBe('docker');
+  });
+
+  it('returns docker for unusual project keywords', () => {
+    expect(classifyStrategy('Rust cargo build and run tests')).toBe('docker');
+    expect(classifyStrategy('Go binary compilation with modules')).toBe('docker');
+    expect(classifyStrategy('Java Maven Spring Boot application')).toBe('docker');
+    expect(classifyStrategy('Ruby on Rails web server')).toBe('docker');
+  });
+
+  it('never returns escalate for project-type descriptions', () => {
+    const projectDescriptions = [
+      'CLI project with Node.js',
+      'Python library with pip install',
+      'Claude Code plugin with slash commands',
+      'Unknown project with no package.json',
+      'Generic container with basic tools',
+      'Web application with React frontend',
+      'API server with Express',
+      'Library published on npm',
+    ];
+    for (const desc of projectDescriptions) {
+      expect(classifyStrategy(desc)).toBe('docker');
+    }
+  });
+
+  it('only escalates for genuine escalation keywords', () => {
+    expect(classifyStrategy('requires physical hardware testing')).toBe('escalate');
+    expect(classifyStrategy('manual human review required')).toBe('escalate');
+    expect(classifyStrategy('visual inspection by human needed')).toBe('escalate');
+    expect(classifyStrategy('paid external service integration')).toBe('escalate');
+  });
 });
 

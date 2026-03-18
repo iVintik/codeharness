@@ -10,7 +10,7 @@ import { info } from '../../lib/output.js';
 import { detectStack } from '../../lib/stack-detect.js';
 import { readStateWithBody, writeState } from '../../lib/state.js';
 import { isDockerAvailable } from '../../lib/docker.js';
-import type { BuildOptions, BuildResult, CheckResult } from './types.js';
+import type { BuildOptions, BuildResult, CheckResult, ProjectType } from './types.js';
 
 const IMAGE_TAG = 'codeharness-verify';
 const STORY_DIR = '_bmad-output/implementation-artifacts';
@@ -65,29 +65,40 @@ function storeDistHash(projectDir: string, hash: string): void {
   }
 }
 
+/** Detects the project type for verification strategy selection. */
+export function detectProjectType(projectDir: string): ProjectType {
+  if (existsSync(join(projectDir, '.claude-plugin', 'plugin.json'))) return 'plugin';
+  const stack = detectStack(projectDir);
+  if (stack === 'nodejs') return 'nodejs';
+  if (stack === 'python') return 'python';
+  return 'generic';
+}
+
 /** Builds the verification Docker image with cache invalidation. */
 export function buildVerifyImage(options: BuildOptions = {}): BuildResult {
   const projectDir = options.projectDir ?? process.cwd();
   if (!isDockerAvailable()) {
     throw new Error('Docker is not available. Install Docker and ensure the daemon is running.');
   }
-  const stack = detectStack(projectDir);
-  if (!stack) {
-    throw new Error('Cannot detect project stack. Ensure package.json (Node.js) or requirements.txt/pyproject.toml (Python) exists.');
-  }
+  const projectType = detectProjectType(projectDir);
   const currentHash = computeDistHash(projectDir);
-  if (!currentHash) {
+  if (projectType === 'generic' || projectType === 'plugin') {
+    // Generic and plugin projects may not have dist/ — skip hash check
+  } else if (!currentHash) {
     throw new Error('No dist/ directory found. Run your build command first (e.g., npm run build).');
   }
-  const storedHash = getStoredDistHash(projectDir);
-  if (storedHash === currentHash && dockerImageExists(IMAGE_TAG)) {
-    return { imageTag: IMAGE_TAG, imageSize: getImageSize(IMAGE_TAG), buildTimeMs: 0, cached: true };
+  if (currentHash) {
+    const storedHash = getStoredDistHash(projectDir);
+    if (storedHash === currentHash && dockerImageExists(IMAGE_TAG)) {
+      return { imageTag: IMAGE_TAG, imageSize: getImageSize(IMAGE_TAG), buildTimeMs: 0, cached: true };
+    }
   }
   const startTime = Date.now();
-  if (stack === 'nodejs') { buildNodeImage(projectDir); }
-  else if (stack === 'python') { buildPythonImage(projectDir); }
-  else { throw new Error(`Unsupported stack for verify-env: ${stack}`); }
-  storeDistHash(projectDir, currentHash);
+  if (projectType === 'nodejs') { buildNodeImage(projectDir); }
+  else if (projectType === 'python') { buildPythonImage(projectDir); }
+  else if (projectType === 'plugin') { buildPluginImage(projectDir); }
+  else { buildGenericImage(projectDir); }
+  if (currentHash) { storeDistHash(projectDir, currentHash); }
   return { imageTag: IMAGE_TAG, imageSize: getImageSize(IMAGE_TAG), buildTimeMs: Date.now() - startTime, cached: false };
 }
 
@@ -193,13 +204,50 @@ export function cleanupVerifyEnv(storyKey: string): void {
   catch { /* container may not exist */ }
 }
 
-function resolveDockerfileTemplate(projectDir: string): string {
-  const local = join(projectDir, 'templates', 'Dockerfile.verify');
+function buildPluginImage(projectDir: string): void {
+  const buildContext = join('/tmp', `codeharness-verify-build-${Date.now()}`);
+  mkdirSync(buildContext, { recursive: true });
+  try {
+    // Copy plugin source into build context
+    const pluginDir = join(projectDir, '.claude-plugin');
+    cpSync(pluginDir, join(buildContext, '.claude-plugin'), { recursive: true });
+    // Copy any commands, hooks, knowledge, skills directories if they exist
+    for (const dir of ['commands', 'hooks', 'knowledge', 'skills']) {
+      const src = join(projectDir, dir);
+      if (existsSync(src) && statSync(src).isDirectory()) {
+        cpSync(src, join(buildContext, dir), { recursive: true });
+      }
+    }
+    cpSync(resolveDockerfileTemplate(projectDir, 'generic'), join(buildContext, 'Dockerfile'));
+    execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], {
+      cwd: buildContext, stdio: 'pipe', timeout: 120_000,
+    });
+  } finally {
+    rmSync(buildContext, { recursive: true, force: true });
+  }
+}
+
+function buildGenericImage(projectDir: string): void {
+  const buildContext = join('/tmp', `codeharness-verify-build-${Date.now()}`);
+  mkdirSync(buildContext, { recursive: true });
+  try {
+    cpSync(resolveDockerfileTemplate(projectDir, 'generic'), join(buildContext, 'Dockerfile'));
+    execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], {
+      cwd: buildContext, stdio: 'pipe', timeout: 120_000,
+    });
+  } finally {
+    rmSync(buildContext, { recursive: true, force: true });
+  }
+}
+
+function resolveDockerfileTemplate(projectDir: string, variant?: string): string {
+  const filename = variant === 'generic' ? 'Dockerfile.verify.generic' : 'Dockerfile.verify';
+  const local = join(projectDir, 'templates', filename);
   if (existsSync(local)) return local;
   const pkgDir = new URL('../../', import.meta.url).pathname;
-  const pkg = join(pkgDir, 'templates', 'Dockerfile.verify');
+  const pkg = join(pkgDir, 'templates', filename);
   if (existsSync(pkg)) return pkg;
-  throw new Error('Dockerfile.verify not found. Ensure templates/Dockerfile.verify exists.');
+  throw new Error(`${filename} not found. Ensure templates/${filename} exists.`);
 }
 
 function dockerImageExists(tag: string): boolean {

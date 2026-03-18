@@ -23,6 +23,7 @@ export type {
   ParsedAC,
   Verifiability,
   VerificationStrategy,
+  ProjectType,
   PreconditionResult,
   ShowboatVerifyResult,
   ClassifiedCommand,
@@ -63,6 +64,7 @@ export {
 // Re-export env functions
 export {
   buildVerifyImage,
+  detectProjectType,
   prepareVerifyWorkspace,
   checkVerifyEnv,
   cleanupVerifyEnv,

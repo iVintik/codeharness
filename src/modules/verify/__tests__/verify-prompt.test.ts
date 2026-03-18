@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { verifyPromptTemplate } from '../../../templates/verify-prompt.js';
+import { verifyPromptTemplate, projectTypeGuidance } from '../../../templates/verify-prompt.js';
+import type { PromptProjectType } from '../../../templates/verify-prompt.js';
 
 describe('verifyPromptTemplate', () => {
   const baseConfig = {
@@ -117,5 +118,80 @@ describe('verifyPromptTemplate', () => {
     expect(prompt).toContain('http://custom-logs:9999');
     expect(prompt).toContain('localhost:8428'); // default
     expect(prompt).toContain('localhost:16686'); // default
+  });
+
+  // ─── Project-type-specific guidance (AC #5) ──────────────────────────────
+
+  it('includes Node.js CLI guidance for nodejs project type', () => {
+    const prompt = verifyPromptTemplate({ ...baseConfig, projectType: 'nodejs' });
+    expect(prompt).toContain('Node.js CLI');
+    expect(prompt).toContain('docker exec');
+    expect(prompt).toContain('stdout/stderr');
+  });
+
+  it('includes Python CLI guidance for python project type', () => {
+    const prompt = verifyPromptTemplate({ ...baseConfig, projectType: 'python' });
+    expect(prompt).toContain('Python CLI');
+    expect(prompt).toContain('docker exec');
+  });
+
+  it('includes plugin guidance for plugin project type', () => {
+    const prompt = verifyPromptTemplate({ ...baseConfig, projectType: 'plugin' });
+    expect(prompt).toContain('Claude Code Plugin');
+    expect(prompt).toContain('claude --print');
+    expect(prompt).toContain('slash commands');
+  });
+
+  it('includes generic guidance for generic project type', () => {
+    const prompt = verifyPromptTemplate({ ...baseConfig, projectType: 'generic' });
+    expect(prompt).toContain('Unknown / Generic');
+    expect(prompt).toContain('Adapt');
+    expect(prompt).toContain('do not refuse verification');
+  });
+
+  it('defaults to nodejs when no projectType provided', () => {
+    const prompt = verifyPromptTemplate(baseConfig);
+    expect(prompt).toContain('Node.js CLI');
+  });
+
+  it('never says project type is not supported', () => {
+    const projectTypes: PromptProjectType[] = ['nodejs', 'python', 'plugin', 'generic'];
+    for (const pt of projectTypes) {
+      const prompt = verifyPromptTemplate({ ...baseConfig, projectType: pt });
+      expect(prompt).not.toContain("isn't supported");
+      expect(prompt).not.toContain('not supported');
+      expect(prompt).not.toContain('Unsupported');
+    }
+  });
+});
+
+// ─── projectTypeGuidance ──────────────────────────────────────────────────
+
+describe('projectTypeGuidance', () => {
+  const container = 'test-container';
+
+  it('returns docker exec guidance for nodejs', () => {
+    const guidance = projectTypeGuidance('nodejs', container);
+    expect(guidance).toContain('Node.js CLI');
+    expect(guidance).toContain(`docker exec ${container}`);
+    expect(guidance).toContain('installed globally');
+  });
+
+  it('returns docker exec guidance for python', () => {
+    const guidance = projectTypeGuidance('python', container);
+    expect(guidance).toContain('Python CLI');
+    expect(guidance).toContain(`docker exec ${container}`);
+  });
+
+  it('returns claude --print guidance for plugin', () => {
+    const guidance = projectTypeGuidance('plugin', container);
+    expect(guidance).toContain('Claude Code Plugin');
+    expect(guidance).toContain(`docker exec ${container} claude --print`);
+  });
+
+  it('returns adaptive guidance for generic', () => {
+    const guidance = projectTypeGuidance('generic', container);
+    expect(guidance).toContain('Unknown / Generic');
+    expect(guidance).toContain('do not refuse verification');
   });
 });

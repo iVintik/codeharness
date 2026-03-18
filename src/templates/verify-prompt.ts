@@ -8,6 +8,8 @@
  * exclusively via `docker exec` and observability queries.
  */
 
+export type PromptProjectType = 'nodejs' | 'python' | 'plugin' | 'generic';
+
 export interface VerifyPromptConfig {
   /** Story key, e.g. "13-3-black-box-verifier-agent" */
   storyKey: string;
@@ -15,6 +17,8 @@ export interface VerifyPromptConfig {
   storyContent: string;
   /** Docker container name (default: "codeharness-verify") */
   containerName?: string;
+  /** Project type for verification strategy guidance */
+  projectType?: PromptProjectType;
   /** Observability endpoint overrides */
   observabilityEndpoints?: {
     victoriaLogs?: string;
@@ -31,6 +35,37 @@ const DEFAULT_ENDPOINTS = {
   victoriaTraces: 'http://localhost:16686',
 };
 
+/** Returns project-type-specific verification guidance. */
+export function projectTypeGuidance(projectType: PromptProjectType, container: string): string {
+  switch (projectType) {
+    case 'nodejs':
+    case 'python':
+      return `### Project Type: ${projectType === 'nodejs' ? 'Node.js CLI' : 'Python CLI'}
+
+Execute commands inside the container and capture stdout/stderr as evidence:
+- \`docker exec ${container} <cli-command> [args]\`
+- Capture exit codes: \`docker exec ${container} sh -c '<command>; echo "EXIT:$?"'\`
+- For ${projectType === 'nodejs' ? 'Node.js' : 'Python'} projects, the built artifact is installed globally in the container.`;
+
+    case 'plugin':
+      return `### Project Type: Claude Code Plugin
+
+This is a Claude Code plugin project. Verify using \`claude --print\` inside the container:
+- \`docker exec ${container} claude --print -p "<prompt>" --allowedTools Bash Read Write Glob Grep Edit --max-budget-usd 1\`
+- Plugin commands and hooks are installed in the container's Claude Code environment.
+- Test slash commands by prompting Claude to run them inside the container.`;
+
+    case 'generic':
+      return `### Project Type: Unknown / Generic
+
+The project stack was not recognized. Adapt your verification approach to the tools available:
+- Use basic CLI tools: \`bash\`, \`curl\`, \`jq\`, \`node\`
+- Inspect any artifacts copied into the container
+- If the project provides a CLI binary, test it directly
+- Adapt to whatever tools and artifacts are available — do not refuse verification`;
+  }
+}
+
 /**
  * Generates the verification prompt for a black-box verifier session.
  * The prompt instructs the verifier to:
@@ -42,6 +77,7 @@ const DEFAULT_ENDPOINTS = {
  */
 export function verifyPromptTemplate(config: VerifyPromptConfig): string {
   const container = config.containerName ?? DEFAULT_CONTAINER;
+  const projectType = config.projectType ?? 'nodejs';
   const endpoints = {
     ...DEFAULT_ENDPOINTS,
     ...config.observabilityEndpoints,
@@ -88,6 +124,8 @@ The container has the following tools installed:
 - \`curl\`, \`jq\` — for querying observability endpoints
 - \`showboat\` — for proof document validation
 - \`node\`, \`npm\` — Node.js runtime
+
+${projectTypeGuidance(projectType, container)}
 
 ### Observability Endpoints
 

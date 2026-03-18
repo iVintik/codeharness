@@ -33,8 +33,8 @@ development_status:
   4-3-verifier-session-reliability: verifying
 
   # Epic 5: Code Review Module
-  epic-5: backlog
-  5-1-review-module-extraction: backlog
+  epic-5: in-progress
+  5-1-review-module-extraction: verifying
 
   # Epic 6: Infrastructure Module
   epic-6: backlog

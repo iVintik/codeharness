@@ -81,6 +81,11 @@ Manages retry state for stories. Shows retry counts and flagged-story status, re
 - **Key deps:** `lib/retry-state` (readRetries, readFlaggedStories, resetRetry), `lib/output`
 - **Subcommands:** none; supports `--reset`, `--story <key>`, `--status`, `--json`
 
+### timeout-report.ts
+Captures diagnostic data from a timed-out iteration. Called by ralph.sh on exit code 124 to preserve git diff, state delta, and partial stderr in a structured markdown report.
+- **Key deps:** `modules/sprint` (captureTimeoutReport), `lib/output`
+- **Subcommands:** none; requires `--story <key>`, `--iteration <n>`, `--duration <minutes>`, `--output-file <path>`, `--state-snapshot <path>`; supports `--json`
+
 ### query.ts
 Queries observability data (logs, metrics, traces) scoped to the current project. Automatically injects service_name filtering into LogsQL and PromQL queries. Resolves endpoints from state (local or remote).
 - **Key deps:** `lib/state` (service name, endpoint resolution)

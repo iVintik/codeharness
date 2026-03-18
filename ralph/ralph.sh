@@ -560,6 +560,12 @@ execute_iteration() {
         loop_start_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
     fi
 
+    # Snapshot sprint-state.json before iteration (for timeout delta capture)
+    local state_snapshot_path="ralph/.state-snapshot.json"
+    if [[ -f "sprint-state.json" ]]; then
+        cp "sprint-state.json" "$state_snapshot_path" 2>/dev/null || true
+    fi
+
     log_status "LOOP" "Iteration $iteration — Task: ${task_id:-'(reading from prompt)'}"
     local timeout_seconds=$((ITERATION_TIMEOUT_MINUTES * 60))
 
@@ -686,6 +692,26 @@ execute_iteration() {
         return 0
     elif [[ $exit_code -eq 124 ]]; then
         log_status "WARN" "Iteration timed out after ${ITERATION_TIMEOUT_MINUTES}m"
+
+        # Capture timeout report
+        if command -v npx &>/dev/null; then
+            log_status "INFO" "Capturing timeout report..."
+            npx codeharness timeout-report \
+                --story "${task_id:-unknown}" \
+                --iteration "$iteration" \
+                --duration "$ITERATION_TIMEOUT_MINUTES" \
+                --output-file "$output_file" \
+                --state-snapshot "$state_snapshot_path" 2>/dev/null && \
+                log_status "INFO" "Timeout report saved" || \
+                log_status "WARN" "Failed to capture timeout report"
+        fi
+
+        # Verify report file exists with non-zero content
+        local report_file="ralph/logs/timeout-report-${iteration}-${task_id:-unknown}.md"
+        if [[ -s "$report_file" ]]; then
+            log_status "INFO" "Timeout report verified: $report_file"
+        fi
+
         return 1
     else
         # Check for API limit

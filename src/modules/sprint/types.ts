@@ -97,6 +97,39 @@ export interface StoryDrillDown {
   readonly proofSummary: ProofSummary | null;
 }
 
+/** Data captured during a timeout event */
+export interface TimeoutCapture {
+  readonly storyKey: string;
+  readonly iteration: number;
+  readonly durationMinutes: number;
+  readonly gitDiff: string;
+  readonly stateDelta: string;
+  readonly partialStderr: string;
+  readonly timestamp: string;
+}
+
+/** A timeout report with file path and captured data */
+export interface TimeoutReport {
+  readonly filePath: string;
+  readonly capture: TimeoutCapture;
+}
+
+/** A single failing acceptance criterion extracted from a proof document */
+export interface FailingAc {
+  readonly acNumber: number;
+  readonly description: string;
+  readonly errorOutput: string;
+  readonly verdict: string;
+}
+
+/** Result of processing a verification proof for the feedback loop */
+export interface FeedbackResult {
+  readonly storyKey: string;
+  readonly action: 'return-to-dev' | 'mark-done' | 'mark-blocked';
+  readonly failingAcs: ReadonlyArray<FailingAc>;
+  readonly attempts: number;
+}
+
 /** Summary report of sprint status */
 export interface StatusReport {
   readonly total: number;

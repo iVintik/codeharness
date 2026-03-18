@@ -15,6 +15,10 @@ import type {
   LabeledActionItem,
   RunSummary,
   StoryDrillDown,
+  TimeoutReport,
+  TimeoutCapture,
+  FeedbackResult,
+  FailingAc,
 } from './types.js';
 import {
   getSprintState as getSprintStateImpl,
@@ -22,6 +26,8 @@ import {
 } from './state.js';
 import { selectNextStory } from './selector.js';
 import { generateReport as generateReportImpl, getStoryDrillDown as getStoryDrillDownImpl } from './reporter.js';
+import { captureTimeoutReport as captureTimeoutReportImpl } from './timeout.js';
+import { processVerifyResult as processVerifyResultImpl } from './feedback.js';
 
 export type {
   StorySelection,
@@ -32,6 +38,10 @@ export type {
   LabeledActionItem,
   RunSummary,
   StoryDrillDown,
+  TimeoutReport,
+  TimeoutCapture,
+  FeedbackResult,
+  FailingAc,
 };
 
 /**
@@ -85,4 +95,21 @@ export function getStoryDrillDown(key: string): Result<StoryDrillDown> {
     return fail(stateResult.error);
   }
   return getStoryDrillDownImpl(stateResult.data, key);
+}
+
+export function captureTimeoutReport(opts: {
+  storyKey: string;
+  iteration: number;
+  durationMinutes: number;
+  outputFile: string;
+  stateSnapshotPath: string;
+}): Result<TimeoutReport> {
+  return captureTimeoutReportImpl(opts);
+}
+
+export function processVerifyResult(
+  storyKey: string,
+  opts?: { maxAttempts?: number },
+): Result<FeedbackResult> {
+  return processVerifyResultImpl(storyKey, opts);
 }

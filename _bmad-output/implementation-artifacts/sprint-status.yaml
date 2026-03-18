@@ -20,10 +20,10 @@ development_status:
   2-4-status-story-drill-down: done
 
   # Epic 3: Stable Sprint Execution
-  epic-3: backlog
-  3-1-error-capture-on-timeout: backlog
-  3-2-graceful-dev-module: backlog
-  3-3-verify-dev-feedback-loop: backlog
+  epic-3: in-progress
+  3-1-error-capture-on-timeout: verifying
+  3-2-graceful-dev-module: verifying
+  3-3-verify-dev-feedback-loop: review
   3-4-eight-hour-stability-test: backlog
 
   # Epic 4: Verification Module

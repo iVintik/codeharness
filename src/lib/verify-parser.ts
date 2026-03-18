@@ -69,26 +69,20 @@ export const INTEGRATION_KEYWORDS = [
   'manual verification',
 ];
 
-// Keywords that indicate Docker-session verification (Agent tool, subagents, live sessions)
-const DOCKER_SESSION_KEYWORDS = [
-  'agent tool',
-  'subagent',
-  'via agent',
-  'invoke',
-  '/create-story',
-  '/bmad-dev-story',
-  '/bmad-code-review',
-  '/harness-run',
-  '/retrospective',
-  'sprint execution',
-  'fresh context',
-  'spawns',
-  'code review workflow',
-  'dev-story workflow',
-  'automatically proceeds',
-  'retries the current story',
-  'halts with status',
-  'prints summary',
+// Keywords that indicate black-box verification tier (needs Docker container)
+export const BLACKBOX_KEYWORDS = [
+  'docker exec',
+  'docker run',
+  'agent-browser',
+  'container',
+  'screenshot',
+  'observability',
+  'victorialogs',
+  'victoriametrics',
+  'opensearch',
+  'curl localhost',
+  'codeharness-verify',
+  '--print',
 ];
 
 // Keywords that indicate true escalation (cannot be automated at all)
@@ -114,6 +108,25 @@ export function classifyVerifiability(description: string): Verifiability {
   }
 
   return 'cli-verifiable';
+}
+
+// ─── Verification Tier ──────────────────────────────────────────────────────
+
+export type VerificationTier = 'unit-testable' | 'black-box';
+
+/**
+ * Classifies a story's verification tier based on its AC text.
+ * If ANY AC contains black-box keywords, the entire story is black-box.
+ * Otherwise it's unit-testable.
+ */
+export function classifyVerificationTier(acDescriptions: string[]): VerificationTier {
+  for (const desc of acDescriptions) {
+    const lower = desc.toLowerCase();
+    for (const kw of BLACKBOX_KEYWORDS) {
+      if (lower.includes(kw)) return 'black-box';
+    }
+  }
+  return 'unit-testable';
 }
 
 // ─── Verification Strategy ─────────────────────────────────────────────────

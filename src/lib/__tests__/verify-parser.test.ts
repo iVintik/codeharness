@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseStoryACs, classifyAC, classifyVerifiability, classifyStrategy, parseVerificationTag, INTEGRATION_KEYWORDS } from '../verify-parser.js';
+import { parseStoryACs, classifyAC, classifyVerifiability, classifyStrategy, parseVerificationTag, classifyVerificationTier, INTEGRATION_KEYWORDS, BLACKBOX_KEYWORDS } from '../verify-parser.js';
 
 // Mock output.ts to suppress warnings during tests
 vi.mock('../output.js', () => ({
@@ -361,5 +361,52 @@ describe('classifyStrategy', () => {
     expect(acs).toHaveLength(2);
     expect(acs[0].strategy).toBe('docker');
     expect(acs[1].strategy).toBe('docker');
+  });
+});
+
+// ─── classifyVerificationTier ────────────────────────────────────────────────
+
+describe('classifyVerificationTier', () => {
+  it('returns unit-testable when no ACs mention black-box keywords', () => {
+    const acs = [
+      'Given src/types/result.ts exists, When imported, Then exports Result<T>',
+      'Given ok(data) is called, When checked, Then result.success === true',
+    ];
+    expect(classifyVerificationTier(acs)).toBe('unit-testable');
+  });
+
+  it('returns black-box when any AC mentions docker exec', () => {
+    const acs = [
+      'Given tests pass, When checked, Then coverage is 100%',
+      'Given docker exec codeharness-verify codeharness init, When run, Then exits 0',
+    ];
+    expect(classifyVerificationTier(acs)).toBe('black-box');
+  });
+
+  it('returns black-box when any AC mentions agent-browser', () => {
+    const acs = [
+      'Given agent-browser navigates to login page, When clicked, Then redirects',
+    ];
+    expect(classifyVerificationTier(acs)).toBe('black-box');
+  });
+
+  it('returns black-box when any AC mentions observability', () => {
+    const acs = [
+      'Given observability stack running, When queried, Then returns metrics',
+    ];
+    expect(classifyVerificationTier(acs)).toBe('black-box');
+  });
+
+  it('returns black-box for screenshot keyword', () => {
+    expect(classifyVerificationTier(['capture screenshot of the page'])).toBe('black-box');
+  });
+
+  it('is case insensitive', () => {
+    expect(classifyVerificationTier(['DOCKER EXEC command'])).toBe('black-box');
+    expect(classifyVerificationTier(['VictoriaMetrics query'])).toBe('black-box');
+  });
+
+  it('returns unit-testable for empty AC list', () => {
+    expect(classifyVerificationTier([])).toBe('unit-testable');
   });
 });

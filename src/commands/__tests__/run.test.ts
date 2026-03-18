@@ -431,7 +431,7 @@ describe('run command', () => {
 
       const runCmd = program.commands.find(c => c.name() === 'run');
       const retryOpt = runCmd!.options.find(o => o.long === '--max-story-retries');
-      expect(retryOpt!.defaultValue).toBe('3');
+      expect(retryOpt!.defaultValue).toBe('10');
     });
   });
 });

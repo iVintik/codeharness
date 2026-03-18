@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { captureGitDiff, captureStateDelta, capturePartialStderr, captureTimeoutReport } from '../timeout.js';
+import { captureGitDiff, captureStateDelta, capturePartialStderr, captureTimeoutReport, findLatestTimeoutReport } from '../timeout.js';
 
 // Mock node:child_process
 vi.mock('node:child_process', () => ({
@@ -12,16 +12,18 @@ vi.mock('node:fs', () => ({
   writeFileSync: vi.fn(),
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
+  readdirSync: vi.fn(),
 }));
 
 import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 
 const mockedExecSync = vi.mocked(execSync);
 const mockedReadFileSync = vi.mocked(readFileSync);
 const mockedWriteFileSync = vi.mocked(writeFileSync);
 const mockedExistsSync = vi.mocked(existsSync);
 const mockedMkdirSync = vi.mocked(mkdirSync);
+const mockedReaddirSync = vi.mocked(readdirSync);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -399,6 +401,89 @@ describe('captureTimeoutReport', () => {
     if (result.success) return;
     expect(result.error).toContain('Failed to capture timeout report');
     expect(result.error).toContain('EACCES');
+  });
+});
+
+describe('findLatestTimeoutReport', () => {
+  it('returns null when ralph/logs directory does not exist', () => {
+    mockedExistsSync.mockReturnValue(false);
+
+    const result = findLatestTimeoutReport('3-1-timeout');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data).toBeNull();
+  });
+
+  it('returns null when no matching timeout reports exist', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReaddirSync.mockReturnValue(['other-file.md', 'timeout-report-1-different-story.md'] as unknown as ReturnType<typeof readdirSync>);
+
+    const result = findLatestTimeoutReport('3-1-timeout');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data).toBeNull();
+  });
+
+  it('returns the latest timeout report (highest iteration)', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReaddirSync.mockReturnValue([
+      'timeout-report-2-3-1-timeout.md',
+      'timeout-report-5-3-1-timeout.md',
+      'timeout-report-3-3-1-timeout.md',
+    ] as unknown as ReturnType<typeof readdirSync>);
+    mockedReadFileSync.mockReturnValue(
+      '# Timeout Report: Iteration 5\n\n- **Duration:** 30 minutes (timeout)\n\n## Git Changes\n\n 3 files changed\n',
+    );
+
+    const result = findLatestTimeoutReport('3-1-timeout');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data).not.toBeNull();
+    expect(result.data!.iteration).toBe(5);
+    expect(result.data!.durationMinutes).toBe(30);
+    expect(result.data!.filesChanged).toBe(3);
+    expect(result.data!.reportPath).toContain('timeout-report-5-3-1-timeout.md');
+  });
+
+  it('parses files changed count from git diff stat', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReaddirSync.mockReturnValue([
+      'timeout-report-1-my-story.md',
+    ] as unknown as ReturnType<typeof readdirSync>);
+    mockedReadFileSync.mockReturnValue(
+      '- **Duration:** 15 minutes\n\nUnstaged:\n 2 files changed\n\nStaged:\n 1 file changed\n',
+    );
+
+    const result = findLatestTimeoutReport('my-story');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data!.filesChanged).toBe(3);
+  });
+
+  it('returns 0 filesChanged when no git changes in report', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReaddirSync.mockReturnValue([
+      'timeout-report-1-my-story.md',
+    ] as unknown as ReturnType<typeof readdirSync>);
+    mockedReadFileSync.mockReturnValue(
+      '- **Duration:** 10 minutes\n\nNo changes detected\n',
+    );
+
+    const result = findLatestTimeoutReport('my-story');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data!.filesChanged).toBe(0);
+  });
+
+  it('never throws — returns fail on error', () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReaddirSync.mockImplementation(() => { throw new Error('EACCES'); });
+
+    expect(() => findLatestTimeoutReport('x')).not.toThrow();
+    const result = findLatestTimeoutReport('x');
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain('Failed to find timeout report');
   });
 });
 

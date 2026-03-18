@@ -95,6 +95,7 @@ export interface StoryDrillDown {
   readonly acDetails: ReadonlyArray<AcDetail>;
   readonly attemptHistory: ReadonlyArray<AttemptRecord>;
   readonly proofSummary: ProofSummary | null;
+  readonly timeoutSummary: TimeoutSummary | null;
 }
 
 /** Data captured during a timeout event */
@@ -112,6 +113,14 @@ export interface TimeoutCapture {
 export interface TimeoutReport {
   readonly filePath: string;
   readonly capture: TimeoutCapture;
+}
+
+/** Summary of the latest timeout for a story, shown in drill-down */
+export interface TimeoutSummary {
+  readonly reportPath: string;
+  readonly iteration: number;
+  readonly durationMinutes: number;
+  readonly filesChanged: number;
 }
 
 /** A single failing acceptance criterion extracted from a proof document */

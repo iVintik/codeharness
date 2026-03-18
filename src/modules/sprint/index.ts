@@ -19,6 +19,7 @@ import type {
   TimeoutCapture,
   FeedbackResult,
   FailingAc,
+  TimeoutSummary,
 } from './types.js';
 import {
   getSprintState as getSprintStateImpl,
@@ -26,7 +27,7 @@ import {
 } from './state.js';
 import { selectNextStory } from './selector.js';
 import { generateReport as generateReportImpl, getStoryDrillDown as getStoryDrillDownImpl } from './reporter.js';
-import { captureTimeoutReport as captureTimeoutReportImpl } from './timeout.js';
+import { captureTimeoutReport as captureTimeoutReportImpl, findLatestTimeoutReport as findLatestTimeoutReportImpl } from './timeout.js';
 import { processVerifyResult as processVerifyResultImpl } from './feedback.js';
 import { validateStateConsistency as validateStateConsistencyImpl } from './validator.js';
 import type { ValidationReport, ValidationIssue } from './validator.js';
@@ -42,6 +43,7 @@ export type {
   StoryDrillDown,
   TimeoutReport,
   TimeoutCapture,
+  TimeoutSummary,
   FeedbackResult,
   FailingAc,
 };
@@ -98,7 +100,12 @@ export function getStoryDrillDown(key: string): Result<StoryDrillDown> {
   if (!stateResult.success) {
     return fail(stateResult.error);
   }
-  return getStoryDrillDownImpl(stateResult.data, key);
+
+  // Look up latest timeout report for this story
+  const timeoutResult = findLatestTimeoutReportImpl(key);
+  const timeoutSummary = timeoutResult.success ? timeoutResult.data : null;
+
+  return getStoryDrillDownImpl(stateResult.data, key, { timeoutSummary });
 }
 
 export function captureTimeoutReport(opts: {

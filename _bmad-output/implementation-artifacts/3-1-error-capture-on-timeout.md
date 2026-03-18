@@ -201,6 +201,31 @@ src/modules/sprint/
 - [ ] Coverage target: 100%
 <!-- CODEHARNESS-PATCH-END:story-verification -->
 
+## Verification Findings
+
+_Last updated: 2026-03-18T19:30:00Z_
+
+The following ACs failed black-box verification:
+
+### AC 6: Status --story shows timeout report info
+**Verdict:** FAIL
+**Error output:**
+```text
+Story: 3-1
+Status: in-progress (attempt undefined/10)
+Epic: 3
+Last attempt: none
+
+-- AC Results -------------------------------------------------------
+No AC results recorded
+
+-- History ----------------------------------------------------------
+Attempt undefined: in-progress
+EXIT:0
+```
+
+The `codeharness status --story` drill-down does NOT show any timeout report path or summary line. No mention of "Last timeout" or report file path. The dev agent's completion notes confirm AC #6 was not implemented. This AC requires: when a timeout report exists at `ralph/logs/timeout-report-<iteration>-<story-key>.md`, the drill-down output should show the report path and a summary (e.g., "Last timeout: iteration 5, 30m, 3 files changed").
+
 ## Dev Agent Record
 
 ### Agent Model Used

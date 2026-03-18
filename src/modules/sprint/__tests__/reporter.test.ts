@@ -445,6 +445,52 @@ describe('getStoryDrillDown', () => {
     expect(result.data.proofSummary!.pendingCount).toBe(1);
   });
 
+  it('includes timeoutSummary when passed via opts', () => {
+    const state = makeState({
+      stories: {
+        '3-1-timeout': s({ status: 'in-progress', attempts: 2 }),
+      },
+    });
+    const timeoutSummary = {
+      reportPath: '/project/ralph/logs/timeout-report-5-3-1-timeout.md',
+      iteration: 5,
+      durationMinutes: 30,
+      filesChanged: 3,
+    };
+    const result = getStoryDrillDown(state, '3-1-timeout', { timeoutSummary });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.timeoutSummary).not.toBeNull();
+    expect(result.data.timeoutSummary!.iteration).toBe(5);
+    expect(result.data.timeoutSummary!.durationMinutes).toBe(30);
+    expect(result.data.timeoutSummary!.filesChanged).toBe(3);
+    expect(result.data.timeoutSummary!.reportPath).toContain('timeout-report-5-3-1-timeout.md');
+  });
+
+  it('returns null timeoutSummary when opts not provided', () => {
+    const state = makeState({
+      stories: {
+        '1-1-story': s({ status: 'backlog', attempts: 0 }),
+      },
+    });
+    const result = getStoryDrillDown(state, '1-1-story');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.timeoutSummary).toBeNull();
+  });
+
+  it('returns null timeoutSummary when opts.timeoutSummary is null', () => {
+    const state = makeState({
+      stories: {
+        '1-1-story': s({ status: 'backlog', attempts: 0 }),
+      },
+    });
+    const result = getStoryDrillDown(state, '1-1-story', { timeoutSummary: null });
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.timeoutSummary).toBeNull();
+  });
+
   it('extracts multi-digit epic prefix correctly', () => {
     const state = makeState({
       stories: {

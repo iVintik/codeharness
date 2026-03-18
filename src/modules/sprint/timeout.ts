@@ -3,12 +3,12 @@
  * All functions return Result<T>, never throw.
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
-import type { TimeoutCapture, TimeoutReport } from './types.js';
+import type { TimeoutCapture, TimeoutReport, TimeoutSummary } from './types.js';
 
 /** Git command timeout in milliseconds */
 const GIT_TIMEOUT_MS = 5000;
@@ -218,5 +218,77 @@ export function captureTimeoutReport(opts: {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return fail(`Failed to capture timeout report: ${msg}`);
+  }
+}
+
+/**
+ * Find the latest timeout report for a given story key.
+ * Scans ralph/logs/ for timeout-report-<N>-<storyKey>.md files,
+ * parses the report to extract summary info.
+ * Returns null if no timeout report exists.
+ */
+export function findLatestTimeoutReport(storyKey: string): Result<TimeoutSummary | null> {
+  try {
+    const reportDir = join(process.cwd(), 'ralph', 'logs');
+    if (!existsSync(reportDir)) {
+      return ok(null);
+    }
+
+    const safeStoryKey = storyKey.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const prefix = `timeout-report-`;
+    const suffix = `-${safeStoryKey}.md`;
+
+    const files = readdirSync(reportDir, { encoding: 'utf-8' });
+    const matches: Array<{ fileName: string; iteration: number }> = [];
+
+    for (const f of files) {
+      if (f.startsWith(prefix) && f.endsWith(suffix)) {
+        const iterStr = f.slice(prefix.length, f.length - suffix.length);
+        const iteration = parseInt(iterStr, 10);
+        if (!isNaN(iteration) && iteration > 0) {
+          matches.push({ fileName: f, iteration });
+        }
+      }
+    }
+
+    if (matches.length === 0) {
+      return ok(null);
+    }
+
+    // Pick the highest iteration
+    matches.sort((a, b) => b.iteration - a.iteration);
+    const latest = matches[0];
+    const reportPath = join(reportDir, latest.fileName);
+
+    // Parse the report to extract duration and files changed count
+    const content = readFileSync(reportPath, 'utf-8');
+    let durationMinutes = 0;
+    let filesChanged = 0;
+
+    const durationMatch = content.match(/\*\*Duration:\*\*\s*(\d+)\s*minutes/);
+    if (durationMatch) {
+      durationMinutes = parseInt(durationMatch[1], 10);
+    }
+
+    // Count "file changed" or "files changed" lines in git diff stat
+    const filesMatch = content.match(/(\d+)\s+files?\s+changed/g);
+    if (filesMatch) {
+      for (const m of filesMatch) {
+        const numMatch = m.match(/^(\d+)/);
+        if (numMatch) {
+          filesChanged += parseInt(numMatch[1], 10);
+        }
+      }
+    }
+
+    return ok({
+      reportPath,
+      iteration: latest.iteration,
+      durationMinutes,
+      filesChanged,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return fail(`Failed to find timeout report: ${msg}`);
   }
 }

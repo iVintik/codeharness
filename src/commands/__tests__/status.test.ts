@@ -1483,4 +1483,122 @@ describe('status --story', () => {
     const { stdout } = await runCli(['status', '--story', '1-1-story']);
     expect(stdout).not.toContain('Proof:');
   });
+
+  it('shows timeout summary when timeoutSummary is present', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '3-1-timeout',
+        status: 'in-progress',
+        epic: '3',
+        attempts: 5,
+        maxAttempts: 10,
+        lastAttempt: '2026-03-18T12:00:00Z',
+        acDetails: [],
+        attemptHistory: [],
+        proofSummary: null,
+        timeoutSummary: {
+          reportPath: '/project/ralph/logs/timeout-report-5-3-1-timeout.md',
+          iteration: 5,
+          durationMinutes: 30,
+          filesChanged: 3,
+        },
+      },
+    });
+
+    const { stdout } = await runCli(['status', '--story', '3-1-timeout']);
+    expect(stdout).toContain('Last timeout: iteration 5, 30m, 3 files changed');
+    expect(stdout).toContain('Report: /project/ralph/logs/timeout-report-5-3-1-timeout.md');
+  });
+
+  it('omits timeout section when no timeoutSummary', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '1-1-story',
+        status: 'backlog',
+        epic: '1',
+        attempts: 0,
+        maxAttempts: 10,
+        lastAttempt: null,
+        acDetails: [],
+        attemptHistory: [],
+        proofSummary: null,
+        timeoutSummary: null,
+      },
+    });
+
+    const { stdout } = await runCli(['status', '--story', '1-1-story']);
+    expect(stdout).not.toContain('Last timeout');
+    expect(stdout).not.toContain('Report:');
+  });
+
+  it('includes timeout in JSON output when timeoutSummary is present', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '3-1-timeout',
+        status: 'in-progress',
+        epic: '3',
+        attempts: 5,
+        maxAttempts: 10,
+        lastAttempt: '2026-03-18T12:00:00Z',
+        acDetails: [],
+        attemptHistory: [],
+        proofSummary: null,
+        timeoutSummary: {
+          reportPath: '/project/ralph/logs/timeout-report-5-3-1-timeout.md',
+          iteration: 5,
+          durationMinutes: 30,
+          filesChanged: 3,
+        },
+      },
+    });
+
+    const { stdout } = await runCli(['--json', 'status', '--story', '3-1-timeout']);
+    const json = JSON.parse(stdout);
+    expect(json.timeout).toBeDefined();
+    expect(json.timeout.iteration).toBe(5);
+    expect(json.timeout.durationMinutes).toBe(30);
+    expect(json.timeout.filesChanged).toBe(3);
+    expect(json.timeout.reportPath).toContain('timeout-report-5-3-1-timeout.md');
+  });
+
+  it('omits timeout from JSON output when no timeoutSummary', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '1-1-story',
+        status: 'backlog',
+        epic: '1',
+        attempts: 0,
+        maxAttempts: 10,
+        lastAttempt: null,
+        acDetails: [],
+        attemptHistory: [],
+        proofSummary: null,
+        timeoutSummary: null,
+      },
+    });
+
+    const { stdout } = await runCli(['--json', 'status', '--story', '1-1-story']);
+    const json = JSON.parse(stdout);
+    expect(json.timeout).toBeUndefined();
+  });
 });

@@ -2332,3 +2332,262 @@ None new. Coverage summary JSON appears to show stale/partial data (3.49% total)
 | New tech debt items | 2 LOW-severity workarounds |
 | "Fix now" items resolved | 0 (all carried forward) |
 | Consecutive completion sessions | 3 (Sessions 8, 9, 10) |
+
+---
+
+# Session Retrospective — 2026-03-18T23:04Z (Session 11)
+
+**Sprint:** Architecture Overhaul Sprint
+**Session window:** ~19:08Z – 19:21Z (from session issues timestamps and ralph logs)
+**Stories attempted:** 1
+**Stories completed:** 1 (5-1-review-module-extraction, now at `verifying`)
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Key Activity |
+|-------|-------------|------------|-------------|
+| 5-1-review-module-extraction | backlog | verifying | Full lifecycle: create-story (19:08Z), dev-story (19:12Z), code-review (19:16Z), verification proof generated. 7/8 ACs PASS, 1 ESCALATE. |
+
+### Throughput
+
+- 1 story completed dev+review+verification in a single session (backlog to verifying)
+- Story expanded from 4 epic-level ACs to 8 granular ACs during create-story — continuing the Epic 4/5 pattern of underspecified epics
+- +1383 / -270 lines across 28 files (includes ralph state, retro, and story artifacts)
+- Core implementation: new `orchestrator.ts` (165 lines), updated `index.ts` (14 line delta), updated `types.ts` (4 line delta), new `orchestrator.test.ts` (227 lines), expanded `index.test.ts` (+116 lines)
+- Test count: 2007 (up from 1971 in Session 9) across 74 test files (up from 73)
+- Verification: 7 PASS, 0 FAIL, 1 ESCALATE (AC3 — integration-required: sprint loop story status transition)
+
+## 2. Issues Analysis
+
+### Bugs Discovered
+
+| ID | Severity | Description | Fixed? |
+|----|----------|-------------|--------|
+| B1 | HIGH | Dead code — `captureFilesChanged()` and `execSync` import copy-pasted from dev orchestrator into review orchestrator but never wired up | Yes (code review) |
+| B2 | HIGH | Boolean tautology in `parseReviewOutput` — tautological expression in approval logic | Yes (code review) |
+| B3 | MEDIUM | Test mocks referenced removed dead code, causing stale mock registrations | Yes (code review) |
+
+### Workarounds / Tech Debt Introduced
+
+| Item | Severity | Location | Description |
+|------|----------|----------|-------------|
+| W1 | MEDIUM | `src/modules/review/orchestrator.ts` | `parseReviewOutput` uses simple substring matching ("changes requested", "not approved", "LGTM") — fragile against LLM output variations. No structured output contract. |
+| W2 | LOW | `src/modules/review/orchestrator.ts` | `isTimeoutError` checks `signal === 'SIGTERM'` which could misclassify non-timeout process kills |
+| W3 | MEDIUM | `src/modules/review/orchestrator.ts` | ~60% code duplication with `src/modules/dev/orchestrator.ts` — `truncateOutput`, `isTimeoutError`, and git diff logic are copy-pasted. Should be extracted to shared utility. |
+
+### Code Quality Concerns
+
+| Item | Severity | Fixed? | Description |
+|------|----------|--------|-------------|
+| Heuristic review parsing | MEDIUM | No | `parseReviewOutput` has no structured contract — relies on keyword matching against free-form LLM output. Will break when Claude's output format changes. |
+| Cross-module duplication | MEDIUM | No | Review orchestrator duplicates ~60% of dev orchestrator code. This will cause drift when one is fixed and the other is not. |
+
+### Verification Gaps
+
+| Story | Gap |
+|-------|-----|
+| 5-1 AC3 | Sprint loop integration — review module correctly returns `approved: false`, but no integration test verifies the sprint loop transitions the story back to `in-progress`. This is the same pattern as 4-3's escalated ACs. |
+
+### Tooling/Infrastructure Issues
+
+1. **BATS not installed locally** — `npm test` invokes BATS integration tests which are unavailable. Dev had to use `npx vitest run` directly to verify unit tests. This has been an issue since at least Session 9 but is not blocking (vitest covers the unit test suite).
+
+## 3. What Went Well
+
+1. **Fourth consecutive story completion.** Sessions 8, 9, 10, 11 each completed a story. The pipeline continues to operate smoothly after the Session 8 proof parser fix.
+2. **Code review caught 2 HIGH bugs.** Dead code (copy-pasted `captureFilesChanged`) and a boolean tautology would have shipped without review. Both are logic errors, not style issues.
+3. **Review module is no longer a stub.** `reviewStory()` was `fail('not implemented')` since Epic 1. It now has a real orchestrator with timeout handling, output parsing, and proper `Result<T>` return type.
+4. **Clean module boundary.** No external imports from review internals — only from `review/index.ts`. Module isolation pattern established in Epic 1 is holding.
+5. **Story spec correctly identified an integration risk.** The create-story step explicitly flagged that AC3 depends on sprint loop logic that may not exist yet. This was confirmed as the one ESCALATE.
+
+## 4. What Went Wrong
+
+1. **Code duplication shipped.** ~60% of the review orchestrator is copy-pasted from the dev orchestrator. The code review noted this but did not block on it, correctly (it's a LOW/MEDIUM concern, not a correctness bug). However, this creates a drift risk: if `truncateOutput` or `isTimeoutError` is fixed in one module, the other will remain broken.
+2. **Heuristic review parsing is inherently fragile.** `parseReviewOutput` matches keywords in free-form LLM output. There is no structured signal from `claude --print` indicating approval/rejection. This is an architectural gap — the tool does not provide a machine-readable review verdict. Any solution within the current tooling will be heuristic.
+3. **Epic AC expansion pattern continues.** 5-1 expanded from 4 to 8 ACs. This is the third story in a row (4-2: 3->11, 4-3: 4->10, 5-1: 4->8) where epic-level ACs were too coarse. The pattern is structural, not incidental.
+4. **Story 3-1 proof deleted.** The diff shows `verification/3-1-error-capture-on-timeout-proof.md` was removed (-103 lines). This was likely part of a cleanup, but 3-1 is still at `verifying` status — its proof file is now missing.
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Code review as bug filter.** 2 HIGH-severity logic bugs caught and fixed before merge. The adversarial review process continues to justify its cost — 2-3 bugs per story is the consistent hit rate.
+- **One-session story lifecycle.** Create-story, dev, review, verify in a single ralph iteration. This is the optimal cadence when stories are well-scoped.
+- **Explicit integration risk callouts in create-story.** The risk note about sprint loop dependency on `ReviewResult.approved === false` was accurate and saved wasted verification effort.
+
+### Patterns to Avoid
+
+- **Copy-pasting orchestrator code across modules.** The dev and review orchestrators share `truncateOutput`, `isTimeoutError`, git diff capture, and `execFileSync` invocation patterns. A shared `orchestrator-utils.ts` or `src/modules/shared/` would eliminate this.
+- **Keyword-matching on LLM output without a structured fallback.** `parseReviewOutput` is the weakest link in the review module. Consider passing `--output-format json` to `claude --print` if available, or defining a structured prompt that requests a specific approval/rejection format.
+
+## 6. Action Items
+
+### Fix Now (before next session)
+
+| # | Item | Owner | Context |
+|---|------|-------|---------|
+| 1 | Resolve 5-1 AC3 (review rejection -> in-progress transition) — either run integration test or accept escalation and mark done | Operator | Story at `verifying`, blocks Epic 5 completion |
+| 2 | Restore or regenerate 3-1 verification proof (file deleted this session) | Dev | 3-1 still at `verifying` but proof file is gone |
+| 3 | Fix story 3-4 AC10: validator.ts coverage | Dev | Carried forward from Sessions 8, 9, 10 |
+| 4 | Decide 3-4 integration ACs (1, 3, 4): escalate or schedule 8-hour run | Operator | Carried forward from Sessions 8, 9, 10 |
+
+### Fix Soon (next sprint)
+
+| # | Item | Context |
+|---|------|---------|
+| 5 | Extract shared orchestrator utilities (`truncateOutput`, `isTimeoutError`, git diff) to `src/modules/shared/` | W3 — ~60% duplication between dev and review orchestrators |
+| 6 | Improve `parseReviewOutput` — structured prompt or `--output-format json` if available | W1 — fragile keyword matching |
+| 7 | Fix flaky `sprint/state.test.ts > updateStoryStatus > attaches error detail` | Carried from Session 10 |
+| 8 | Convert `copyProofToProject()` to return `Result<T>` | Carried from Session 10 |
+| 9 | Remove unused `projectDir` from `VerifierSessionOptions` | Carried from Session 10 |
+| 10 | Move `detectProjectType` from `env.ts` to `stack-detect.ts` | Carried from Sessions 9, 10 |
+| 11 | Unify `PromptProjectType` and `ProjectType` | Carried from Sessions 9, 10 |
+| 12 | Fix `perAC[].verified` hardcoded to `true` | Carried from Sessions 8, 9, 10 |
+
+### Backlog
+
+| # | Item | Context |
+|---|------|---------|
+| 13 | Add dedicated `Dockerfile.verify.plugin` | Carried from Sessions 9, 10 |
+| 14 | Add branch-level coverage tests for `env.ts` uncovered paths | Carried from Sessions 9, 10 |
+| 15 | Add per-file new-code coverage gate to CI | Carried from Session 8 |
+| 16 | Monitor `index.ts` facade line count (approaching soft limit) | Carried from Session 8 |
+| 17 | Resolve story 3-1 (error-capture-on-timeout) — flagged by ralph | Carried from Session 8 |
+| 18 | Investigate Epic AC expansion pattern — improve epic-level granularity for future epics | Carried from Session 10. Now 3 consecutive stories with 2-4x expansion. |
+| 19 | Install BATS locally or skip BATS in `npm test` when unavailable | New — reported by dev in Session 11 |
+
+## Session Scorecard
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 1 (5-1, at `verifying`) |
+| Stories still verifying | 4 (3-1, 3-4, 4-3, 5-1) |
+| Bugs fixed this session | 2 HIGH (dead code, boolean tautology), 1 MEDIUM (stale mocks) |
+| Net lines changed | +1383 / -270 (28 files) |
+| Tests passing | 2007 (74 files) |
+| Verification result | 7 PASS, 0 FAIL, 1 ESCALATE |
+| Epics completed | 0 (Epic 3: 3-1/3-4 verifying; Epic 4: 4-3 verifying; Epic 5: 5-1 verifying) |
+| New tech debt items | 3 (1 MEDIUM duplication, 1 MEDIUM heuristic parsing, 1 LOW timeout detection) |
+| "Fix now" items resolved from prior sessions | 0 (all carried forward) |
+| "Fix now" items carried forward | 4 (growing — 2 from Session 8, 1 from Session 10, 1 new) |
+| Consecutive completion sessions | 4 (Sessions 8, 9, 10, 11) |
+| Cumulative sprint progress | 11/25 stories done, 4 verifying, 10 backlog |
+
+---
+
+# Session 12 Retrospective — 2026-03-18T23:45Z
+
+**Duration:** ~20 minutes (of 30-minute budget)
+**Focus:** Story 3-1-error-capture-on-timeout (AC 6 gap fix) + blocked story triage
+
+## 1. Session Summary
+
+| Story | Status In | Status Out | Work Done |
+|-------|-----------|------------|-----------|
+| 3-1-error-capture-on-timeout | verifying (Tier C) | verifying | Docker verification found AC 6 missing (5/6 PASS). Returned to dev, AC 6 implemented (findLatestTimeoutReport + status display). Code review found 1 HIGH + 3 MEDIUM issues, all fixed. Back at verifying — ran out of time before second Docker pass. |
+| 5-1-review-module-extraction | verifying | verifying | No work this session (processed in earlier session today — create/dev/review cycle completed, landed at verifying) |
+| 3-4-eight-hour-stability-test | verifying | verifying | Skipped — blocked by escalated ACs |
+| 4-3-verifier-session-reliability | verifying | verifying | Skipped — blocked by escalated ACs |
+
+**Net outcome:** 0 stories completed. 1 story significantly advanced (3-1: AC 6 implemented and review-clean, awaiting re-verification).
+
+## 2. Issues Analysis
+
+### Bugs Discovered
+
+| Severity | Issue | Story | Resolution |
+|----------|-------|-------|------------|
+| HIGH | No test coverage for timeout summary display in `status --story` (text + JSON modes) | 3-1 | Fixed — 4 tests added |
+| MEDIUM | `drill-down.ts` `opts` parameter untested | 3-1 | Fixed — 3 tests added |
+| MEDIUM | AGENTS.md stale — `findLatestTimeoutReport`, `TimeoutSummary`, `opts?` undocumented | 3-1 | Fixed |
+| MEDIUM | Pre-existing mock data missing `timeoutSummary` field | 3-1 | Fixed |
+
+### Workarounds / Tech Debt Introduced
+
+| Item | Impact | Story |
+|------|--------|-------|
+| `findLatestTimeoutReport` parses markdown with regex to extract duration/files-changed | Fragile — breaks if report format changes. JSON sidecar would be more robust. | 3-1 |
+| `status.ts` at 722 lines (NFR18 limit: 300) | Pre-existing debt, now worse with timeout display additions. Needs splitting. | 3-1 |
+| verify-env container missing codeharness CLI — required manual `npm install -g` inside container | Affects all future verifications. Build step should pre-install. | 3-1 |
+
+### Verification Gaps
+
+| Story | Gap |
+|-------|-----|
+| 3-1 | AC 6 now implemented and review-clean, but no Docker re-verification completed this session |
+| 3-4, 4-3 | Blocked — escalated ACs from prior sessions unresolved |
+| 5-1 | Landed at verifying in earlier session today; no Docker verification attempted |
+
+### Tooling/Infrastructure Problems
+
+- **verify-env build** does not pre-install the codeharness CLI into the Docker container. Every verification run requires a manual `npm install -g` workaround. This is a recurring cost.
+- **BATS not installed locally** — full integration test suite can't run outside Docker. Unit tests (vitest) pass fine (2007/2007).
+
+## 3. What Went Well
+
+- **Verification caught the gap.** Docker black-box testing correctly identified that AC 6 was not implemented. The verify-dev feedback loop worked as designed.
+- **Fast dev turnaround.** Dev agent implemented AC 6 (findLatestTimeoutReport + drill-down integration) quickly and correctly.
+- **Code review was thorough.** Found the missing test coverage (HIGH) and fixed it in the same session. All 4 issues resolved before returning to verification.
+- **Test coverage healthy.** 96.46% overall, all 77 files above 80%.
+- **Session issues log is working.** Every subagent logged their findings — this retro was easy to write because the raw materials were comprehensive.
+
+## 4. What Went Wrong
+
+- **Time ran out before re-verification.** 20 minutes wasn't enough for a full verify-dev-review-verify cycle. Story 3-1 is back at verifying (Tier C) and needs another Docker pass next session.
+- **3 stories blocked and stuck.** 3-4, 4-3, and 5-1 are all at `verifying` with escalated ACs from prior sessions. No progress on unblocking them. The `verifying` backlog is growing.
+- **Dev agent skipped AC 6 originally.** The dev explicitly called AC 6 "beyond scope" in an earlier session. Verification caught it, but this cost an entire verify-dev-review cycle that should have been avoided.
+- **verify-env container setup is still a manual workaround.** This has been reported in multiple sessions and still isn't fixed.
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+- **Docker black-box verification catches real gaps.** Trust the process — it found AC 6 missing when the dev agent said it was done.
+- **Session issues log as retro input.** Subagents logging their problems in real-time makes retrospectives accurate and fast.
+- **Code review before re-verification.** Catching the missing tests before the Docker pass saves a wasted verification cycle.
+
+### Patterns to Avoid
+- **Dev agents declaring ACs "beyond scope."** If an AC is in the story spec, it's in scope. The orchestrator should reject dev completions that skip ACs.
+- **Letting escalated ACs pile up.** 3 stories are stuck at `verifying` with escalated ACs. Each session they sit there is a session where no progress is made.
+- **Starting sessions without enough time for a full cycle.** A verify-dev-review-verify loop needs ~25 minutes minimum. A 20-minute session can start but not finish.
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| # | Item | Owner |
+|---|------|-------|
+| 1 | Re-verify 3-1 via Docker — AC 6 is implemented and review-clean, just needs a pass | Next session |
+| 2 | Triage escalated ACs for 3-4, 4-3, 5-1 — decide: fix the ACs, descope them, or accept current evidence | Next session |
+
+### Fix Soon (Next Sprint)
+
+| # | Item | Owner |
+|---|------|-------|
+| 1 | Fix verify-env build to pre-install codeharness CLI into container | Infra |
+| 2 | Split `status.ts` (722 lines) to comply with NFR18 300-line limit | Dev |
+| 3 | Replace markdown-regex parsing in `findLatestTimeoutReport` with JSON sidecar metadata | Dev |
+| 4 | Extract shared utilities between dev and review orchestrators (~60% code duplication) | Dev |
+
+### Backlog (Track, Not Urgent)
+
+| # | Item |
+|---|------|
+| 1 | Harden `parseReviewOutput` — current substring matching is fragile against LLM output format changes |
+| 2 | `isTimeoutError` signal check (`SIGTERM`) could misclassify non-timeout kills |
+| 3 | Install BATS locally so integration tests can run outside Docker |
+| 4 | Orchestrator should validate all ACs are addressed before accepting dev completion |
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 0 |
+| Stories advanced | 1 (3-1: AC 6 implemented + reviewed) |
+| Stories still verifying | 4 (3-1, 3-4, 4-3, 5-1) |
+| Bugs fixed this session | 1 HIGH (missing test coverage), 3 MEDIUM |
+| Tests passing | 2007+ (77 files) |
+| Test coverage | 96.46% |
+| Session duration | ~20 min / 30 min budget |
+| Verify-dev-review cycles | 1 (3-1 AC 6) |
+| Full verification passes | 0 (ran out of time) |
+| Cumulative sprint progress | 11/25 stories done, 4 verifying, 10 backlog |

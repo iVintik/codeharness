@@ -529,6 +529,7 @@ function handleStoryDrillDown(storyId: string, isJson: boolean): void {
       acResults: d.acDetails,
       attemptHistory: d.attemptHistory,
       proof: d.proofSummary,
+      ...(d.timeoutSummary ? { timeout: d.timeoutSummary } : {}),
     });
     return;
   }
@@ -538,6 +539,13 @@ function handleStoryDrillDown(storyId: string, isJson: boolean): void {
   console.log(`Status: ${d.status} (attempt ${d.attempts}/${d.maxAttempts})`);
   console.log(`Epic: ${d.epic}`);
   console.log(`Last attempt: ${d.lastAttempt ?? 'none'}`);
+
+  // Timeout summary
+  if (d.timeoutSummary) {
+    const ts = d.timeoutSummary;
+    console.log(`Last timeout: iteration ${ts.iteration}, ${ts.durationMinutes}m, ${ts.filesChanged} files changed`);
+    console.log(`Report: ${ts.reportPath}`);
+  }
 
   // AC Results
   console.log('');

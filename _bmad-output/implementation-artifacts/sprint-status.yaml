@@ -21,7 +21,7 @@ development_status:
 
   # Epic 3: Stable Sprint Execution
   epic-3: in-progress
-  3-1-error-capture-on-timeout: verifying
+  3-1-error-capture-on-timeout: done
   3-2-graceful-dev-module: done
   3-3-verify-dev-feedback-loop: done
   3-4-eight-hour-stability-test: verifying

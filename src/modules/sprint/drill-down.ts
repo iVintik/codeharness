@@ -11,6 +11,7 @@ import type {
   AcDetail,
   AttemptRecord,
   ProofSummary,
+  TimeoutSummary,
 } from './types.js';
 import { MAX_STORY_ATTEMPTS } from './selector.js';
 
@@ -107,6 +108,7 @@ function buildProofSummary(story: StoryState): ProofSummary | null {
 export function getStoryDrillDown(
   state: SprintState,
   key: string,
+  opts?: { timeoutSummary?: TimeoutSummary | null },
 ): Result<StoryDrillDown> {
   try {
     const story = state.stories[key];
@@ -129,6 +131,7 @@ export function getStoryDrillDown(
       acDetails,
       attemptHistory,
       proofSummary,
+      timeoutSummary: opts?.timeoutSummary ?? null,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

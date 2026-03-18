@@ -25,7 +25,7 @@ export interface VerifierSessionOptions {
   projectDir: string;
   /** Max budget in USD for the verifier session (default: 3) */
   maxBudgetUsd?: number;
-  /** Timeout in milliseconds (default: 600_000 = 10 min) */
+  /** Timeout in milliseconds (default: 0 = no timeout, ralph handles timeouts) */
   timeoutMs?: number;
   /** Docker container name (default: "codeharness-verify") */
   containerName?: string;
@@ -54,7 +54,7 @@ export interface VerifierSessionResult {
 
 const TEMP_PREFIX = '/tmp/codeharness-verify-';
 const DEFAULT_BUDGET = 3;
-const DEFAULT_TIMEOUT = 600_000; // 10 minutes
+const DEFAULT_TIMEOUT = 0; // No timeout — ralph's iteration timeout is the safety net
 const DEFAULT_CONTAINER = 'codeharness-verify';
 
 // ─── Session Spawner ────────────────────────────────────────────────────────

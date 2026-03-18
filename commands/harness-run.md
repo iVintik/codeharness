@@ -238,7 +238,6 @@ If build fails, treat as verification failure.
 
 6. If all ACs pass → update status to `done`. If any fail → return to dev with findings.
 
-**Total timeout for unit-testable: 5 minutes.**
 
 ---
 
@@ -246,9 +245,7 @@ If build fails, treat as verification failure.
 
 **Black-box verification** — full Docker container with no source code access.
 
-**Total timeout: 10 minutes for the entire verification flow (build → prepare → verify → validate → cleanup).**
-
-Record `verify_start_time = current timestamp` at the start of this step. At any point during the flow, if elapsed time exceeds 10 minutes, abort the current operation, treat it as a failure, and jump to cleanup (step 3d-viii).
+**No internal timeout.** Verification takes as long as it takes. Ralph's iteration timeout is the safety net.
 
 **Pre-verification: Read retry state from `ralph/.story_retries`.**
 

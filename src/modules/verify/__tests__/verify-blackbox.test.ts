@@ -9,7 +9,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 // Mock output
-vi.mock('../output.js', () => ({
+vi.mock('../../../lib/output.js', () => ({
   ok: vi.fn(),
   fail: vi.fn(),
   warn: vi.fn(),
@@ -18,19 +18,19 @@ vi.mock('../output.js', () => ({
 }));
 
 // Mock beads
-vi.mock('../beads.js', () => ({
+vi.mock('../../../lib/beads.js', () => ({
   isBeadsInitialized: vi.fn(),
   listIssues: vi.fn(),
   closeIssue: vi.fn(),
 }));
 
 // Mock beads-sync
-vi.mock('../beads-sync.js', () => ({
+vi.mock('../../../lib/beads-sync.js', () => ({
   syncClose: vi.fn(),
 }));
 
 // Mock doc-health
-vi.mock('../doc-health.js', () => ({
+vi.mock('../../../lib/doc-health.js', () => ({
   checkStoryDocFreshness: vi.fn(),
 }));
 
@@ -38,8 +38,8 @@ import {
   classifyEvidenceCommands,
   checkBlackBoxEnforcement,
   validateProofQuality,
-} from '../verify.js';
-import type { ProofQuality, ClassifiedCommand } from '../verify.js';
+} from '../../../lib/verify.js';
+import type { ProofQuality, ClassifiedCommand } from '../../../lib/verify.js';
 
 let testDir: string;
 

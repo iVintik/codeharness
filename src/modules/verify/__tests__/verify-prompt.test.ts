@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { verifyPromptTemplate } from '../../templates/verify-prompt.js';
+import { verifyPromptTemplate } from '../../../templates/verify-prompt.js';
 
 describe('verifyPromptTemplate', () => {
   const baseConfig = {

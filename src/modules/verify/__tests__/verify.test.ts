@@ -9,7 +9,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 // Mock output
-vi.mock('../output.js', () => ({
+vi.mock('../../../lib/output.js', () => ({
   ok: vi.fn(),
   fail: vi.fn(),
   warn: vi.fn(),
@@ -18,27 +18,27 @@ vi.mock('../output.js', () => ({
 }));
 
 // Mock beads
-vi.mock('../beads.js', () => ({
+vi.mock('../../../lib/beads.js', () => ({
   isBeadsInitialized: vi.fn(),
   listIssues: vi.fn(),
   closeIssue: vi.fn(),
 }));
 
 // Mock beads-sync
-vi.mock('../beads-sync.js', () => ({
+vi.mock('../../../lib/beads-sync.js', () => ({
   syncClose: vi.fn(),
 }));
 
 // Mock doc-health
-vi.mock('../doc-health.js', () => ({
+vi.mock('../../../lib/doc-health.js', () => ({
   checkStoryDocFreshness: vi.fn(),
 }));
 
 import { execFileSync } from 'node:child_process';
-import { warn } from '../output.js';
-import { isBeadsInitialized, listIssues, closeIssue } from '../beads.js';
-import { syncClose } from '../beads-sync.js';
-import { checkStoryDocFreshness } from '../doc-health.js';
+import { warn } from '../../../lib/output.js';
+import { isBeadsInitialized, listIssues, closeIssue } from '../../../lib/beads.js';
+import { syncClose } from '../../../lib/beads-sync.js';
+import { checkStoryDocFreshness } from '../../../lib/doc-health.js';
 import {
   checkPreconditions,
   createProofDocument,
@@ -47,10 +47,10 @@ import {
   validateProofQuality,
   updateVerificationState,
   closeBeadsIssue,
-} from '../verify.js';
-import type { VerifyResult, ProofQuality } from '../verify.js';
-import { writeState, readState } from '../state.js';
-import { getDefaultState } from '../state.js';
+} from '../../../lib/verify.js';
+import type { VerifyResult, ProofQuality } from '../../../lib/verify.js';
+import { writeState, readState } from '../../../lib/state.js';
+import { getDefaultState } from '../../../lib/state.js';
 
 let testDir: string;
 

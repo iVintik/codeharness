@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseStoryACs, classifyAC, classifyVerifiability, classifyStrategy, parseVerificationTag, classifyVerificationTier, INTEGRATION_KEYWORDS, BLACKBOX_KEYWORDS } from '../verify-parser.js';
+import { parseStoryACs, classifyAC, classifyVerifiability, classifyStrategy, parseVerificationTag, classifyVerificationTier, INTEGRATION_KEYWORDS, BLACKBOX_KEYWORDS } from '../../../lib/verify-parser.js';
 
 // Mock output.ts to suppress warnings during tests
-vi.mock('../output.js', () => ({
+vi.mock('../../../lib/output.js', () => ({
   ok: vi.fn(),
   fail: vi.fn(),
   warn: vi.fn(),

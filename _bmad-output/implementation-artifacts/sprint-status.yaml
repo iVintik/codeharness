@@ -10,7 +10,7 @@ development_status:
   epic-1: in-progress
   1-1-result-type-shared-types: done
   1-2-module-skeleton-index-pattern: done
-  1-3-migrate-existing-tests-to-module-structure: backlog
+  1-3-migrate-existing-tests-to-module-structure: done
 
   # Epic 2: Unified State & Status Command
   epic-2: backlog

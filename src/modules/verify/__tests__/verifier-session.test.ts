@@ -9,12 +9,12 @@ vi.mock('node:child_process', () => ({
 }));
 
 // Mock verify-env for isValidStoryKey — use real implementation
-vi.mock('../verify-env.js', () => ({
+vi.mock('../../../lib/verify-env.js', () => ({
   isValidStoryKey: vi.fn((k: string) => /^[a-zA-Z0-9_-]+$/.test(k)),
 }));
 
 import { execFileSync } from 'node:child_process';
-import { spawnVerifierSession, copyProofToProject } from '../verifier-session.js';
+import { spawnVerifierSession, copyProofToProject } from '../../../lib/verifier-session.js';
 
 const mockExecFileSync = vi.mocked(execFileSync);
 

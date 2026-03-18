@@ -9,12 +9,12 @@ vi.mock('node:child_process', () => ({
 }));
 
 // Mock docker module
-vi.mock('../docker.js', () => ({
+vi.mock('../../../lib/docker.js', () => ({
   isDockerAvailable: vi.fn(() => true),
 }));
 
 // Mock state module
-vi.mock('../state.js', () => ({
+vi.mock('../../../lib/state.js', () => ({
   readStateWithBody: vi.fn(() => ({
     state: {
       harness_version: '0.1.0',
@@ -31,14 +31,14 @@ vi.mock('../state.js', () => ({
 }));
 
 // Mock stack-detect module
-vi.mock('../stack-detect.js', () => ({
+vi.mock('../../../lib/stack-detect.js', () => ({
   detectStack: vi.fn(() => 'nodejs'),
 }));
 
 import { execFileSync } from 'node:child_process';
-import { isDockerAvailable } from '../docker.js';
-import { detectStack } from '../stack-detect.js';
-import { readStateWithBody, writeState } from '../state.js';
+import { isDockerAvailable } from '../../../lib/docker.js';
+import { detectStack } from '../../../lib/stack-detect.js';
+import { readStateWithBody, writeState } from '../../../lib/state.js';
 import {
   isValidStoryKey,
   computeDistHash,
@@ -46,7 +46,7 @@ import {
   prepareVerifyWorkspace,
   checkVerifyEnv,
   cleanupVerifyEnv,
-} from '../verify-env.js';
+} from '../../../lib/verify-env.js';
 
 const mockExecFileSync = vi.mocked(execFileSync);
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);

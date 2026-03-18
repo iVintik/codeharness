@@ -6,7 +6,7 @@ import { parseEpicsFile, getStoryFilePath } from '../bmad.js';
 
 const FIXTURES_DIR = resolve(__dirname, '../../../test/fixtures');
 const SAMPLE_EPICS = join(FIXTURES_DIR, 'sample-epics.md');
-const ACTUAL_EPICS = resolve(__dirname, '../../../_bmad-output/planning-artifacts/epics.md');
+const ACTUAL_EPICS = resolve(__dirname, '../../../_bmad-output/planning-artifacts/epics-archive-v1.md');
 
 describe('parseEpicsFile', () => {
   it('correctly extracts epic titles and story count from sample file', () => {

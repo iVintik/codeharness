@@ -69,21 +69,9 @@ export const INTEGRATION_KEYWORDS = [
   'manual verification',
 ];
 
-// Keywords that indicate black-box verification tier (needs Docker container)
-export const BLACKBOX_KEYWORDS = [
-  'docker exec',
-  'docker run',
-  'agent-browser',
-  'container',
-  'screenshot',
-  'observability',
-  'victorialogs',
-  'victoriametrics',
-  'opensearch',
-  'curl localhost',
-  'codeharness-verify',
-  '--print',
-];
+// Note: Black-box verification is the DEFAULT for all stories.
+// Unit-testable is opt-in via <!-- verification-tier: unit-testable --> tag in story file.
+// Only for stories with zero external effect (refactoring, types, docs).
 
 // Keywords that indicate true escalation (cannot be automated at all)
 const ESCALATE_KEYWORDS = [
@@ -108,25 +96,6 @@ export function classifyVerifiability(description: string): Verifiability {
   }
 
   return 'cli-verifiable';
-}
-
-// ─── Verification Tier ──────────────────────────────────────────────────────
-
-export type VerificationTier = 'unit-testable' | 'black-box';
-
-/**
- * Classifies a story's verification tier based on its AC text.
- * If ANY AC contains black-box keywords, the entire story is black-box.
- * Otherwise it's unit-testable.
- */
-export function classifyVerificationTier(acDescriptions: string[]): VerificationTier {
-  for (const desc of acDescriptions) {
-    const lower = desc.toLowerCase();
-    for (const kw of BLACKBOX_KEYWORDS) {
-      if (lower.includes(kw)) return 'black-box';
-    }
-  }
-  return 'unit-testable';
 }
 
 // ─── Verification Strategy ─────────────────────────────────────────────────

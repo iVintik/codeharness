@@ -182,68 +182,13 @@ After the Agent completes:
 
 ### 3d: If status is `verifying` — Run Verification
 
-**Step 3d-0: Classify verification tier.**
+**Default: Black-box verification.** Every story gets full Docker verification unless explicitly tagged otherwise.
 
-Read the story file at `_bmad-output/implementation-artifacts/{story_key}.md`. Scan ALL acceptance criteria text for black-box keywords:
+**Check for unit-testable tag:** Read the story file. If it contains `<!-- verification-tier: unit-testable -->`, use unit-testable verification. This tag is ONLY for stories with zero external effect: file moves, type definitions, internal refactoring, test additions, documentation updates. If no tag exists, black-box is used.
 
-**Black-box keywords:** `docker exec`, `docker run`, `agent-browser`, `container`, `screenshot`, `observability`, `VictoriaLogs`, `VictoriaMetrics`, `OpenSearch`, `curl localhost`, `codeharness-verify`, `--print`
+**If unit-testable (tagged):** Run `npm test` and `npm run build`. Check ACs directly (file existence, exports, line counts). Generate proof at `verification/{story_key}-proof.md`. Skip Docker.
 
-If ANY AC contains ANY black-box keyword → **black-box tier**. Otherwise → **unit-testable tier**.
-
-Print the classification:
-```
-[INFO] Story {story_key}: verification tier = {unit-testable|black-box}
-```
-
----
-
-#### If unit-testable tier:
-
-**Unit-testable verification** — verify via tests, file checks, and import validation. No Docker needed.
-
-1. **Run tests:**
-```bash
-npm test 2>&1
-```
-If tests fail, treat as verification failure — return to dev with test output.
-
-2. **Run build:**
-```bash
-npm run build 2>&1
-```
-If build fails, treat as verification failure.
-
-3. **Check ACs directly:** For each AC in the story, verify programmatically:
-   - "file exists" → check with `ls` or `stat`
-   - "exports X" → check with `node -e "import('...').then(m => console.log(Object.keys(m)))"`
-   - "returns Result<T>" → verified by tests passing (tests should cover this)
-   - "no file exceeds N lines" → check with `wc -l`
-
-4. **Generate proof document** at `verification/{story_key}-proof.md` with each AC result:
-```markdown
-## AC N: {description}
-
-```bash
-{command used to verify}
-```
-
-```output
-{actual output}
-```
-
-**Verdict:** PASS|FAIL
-```
-
-5. **Validate proof** — run `codeharness verify --story {story_key}` to check proof quality.
-
-6. If all ACs pass → update status to `done`. If any fail → return to dev with findings.
-
-
----
-
-#### If black-box tier:
-
-**Black-box verification** — full Docker container with no source code access.
+**If black-box (default):** Full Docker container with no source code access.
 
 **No internal timeout.** Verification takes as long as it takes. Ralph's iteration timeout is the safety net.
 

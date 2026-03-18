@@ -1,0 +1,358 @@
+{
+  "version": 1,
+  "sprint": {
+    "total": 28,
+    "done": 6,
+    "failed": 0,
+    "blocked": 2,
+    "inProgress": null
+  },
+  "stories": {
+    "1-1-result-type-shared-types": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-2-module-skeleton-index-pattern": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-3-migrate-existing-tests-to-module-structure": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-1-sprint-state-module-unified-state-file": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-2-story-selection-cross-epic-prioritization": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-3-status-report-one-screen-overview": {
+      "status": "done",
+      "attempts": 2,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-4-status-story-drill-down": {
+      "status": "verifying",
+      "attempts": 2,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-1-error-capture-on-timeout": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-2-graceful-dev-module": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-3-verify-dev-feedback-loop": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-4-eight-hour-stability-test": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-1-verify-module-extraction": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-2-project-agnostic-verification": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-3-verifier-session-reliability": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "5-1-review-module-extraction": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "6-1-infra-module-init-extraction": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "6-2-shared-stack-management": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "6-3-non-interactive-bmad-install": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "7-1-observability-backend-interface-victoria-implementation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "7-2-opensearch-implementation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-1-agent-browser-integration": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "9-1-per-module-patches-directory": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "10-1-validation-ac-suite": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "10-2-validation-infrastructure": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "10-3-self-validation-run": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "only-story": {
+      "status": "backlog",
+      "attempts": 2,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-x": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-y": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    }
+  },
+  "run": {
+    "active": true,
+    "startedAt": null,
+    "iteration": 8,
+    "cost": 0,
+    "completed": [],
+    "failed": []
+  },
+  "actionItems": [
+    {
+      "id": "migrated-1",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Workaround: StoryState lacks per-attempt history.** Current type only tracks `attempts: number`, not per-attempt logs. Drill-down will show synthetic attempt entries rather than real historical data.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-2",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Workaround: AcResult lacks detail fields.** Only has `id` and `verdict` — no command/expected/actual/reason/suggestedFix. Story recommends extending with optional fields.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-3",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Risk: AC #2 FAIL detail depends on enriched AcResult data** that the verifier must populate. If verifier doesn't write these fields, drill-down shows verdicts without detail.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Risk: AC #3 attempt history will be approximate** since StoryState doesn't store per-attempt logs.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Observation: reporter.ts at 203 lines** — adding getStoryDrillDown() should stay under 300 but will be close.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Pre-existing tech debt: status.ts now 714 lines** (was 629, NFR18 limit is 300). Not introduced by this story but worsened.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "2-4-status-story-drill-down",
+      "description": "**AcDetail enrichment limited:** Only `reason` populated from `lastError` for failed ACs. Other detail fields (command, expected, actual, suggestedFix) await upstream AcResult extension.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Attempt history is synthetic:** StoryState only has `attempts: number`, not per-attempt logs. Historical attempts show \"details unavailable\".",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Harmless stderr noise:** Two Commander option parsing errors during test runs — not failures, just import-time side effects.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "2-4-status-story-drill-down",
+      "description": "**HIGH: `AcDetail.verdict` typed as `string` instead of `AcVerdict`** — loses type safety. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "2-4-status-story-drill-down",
+      "description": "**HIGH: `StoryDrillDown.status` typed as `string` instead of `StoryStatus`** — same issue. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "2-4-status-story-drill-down",
+      "description": "**MEDIUM: `ProofSummary` missing `pendingCount`** — proof total was wrong when pending ACs existed. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "2-4-status-story-drill-down",
+      "description": "**LOW (not fixed): `MAX_ATTEMPTS` alias duplicated** in drill-down.ts and reporter.ts — minor, both one-liners.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "2-4-status-story-drill-down",
+      "description": "**LOW (not fixed): `status.ts` at 714 lines** exceeds 300-line NFR18 limit — pre-existing tech debt.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "2-4-status-story-drill-down",
+      "description": "**LOW (not fixed): `AttemptRecord.outcome` typed as `string`** instead of union type.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "2-4-status-story-drill-down",
+      "description": "**Coverage: drill-down.ts branch coverage 86.84%** — uncovered defensive paths on lines 26, 61, 91, 96, 134.",
+      "source": "retro",
+      "resolved": false
+    }
+  ]
+}

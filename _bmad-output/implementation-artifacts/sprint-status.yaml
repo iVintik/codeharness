@@ -17,7 +17,7 @@ development_status:
   2-1-sprint-state-module-unified-state-file: done
   2-2-story-selection-cross-epic-prioritization: done
   2-3-status-report-one-screen-overview: done
-  2-4-status-story-drill-down: backlog
+  2-4-status-story-drill-down: done
 
   # Epic 3: Stable Sprint Execution
   epic-3: backlog

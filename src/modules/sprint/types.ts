@@ -2,7 +2,7 @@
  * Types for the sprint module.
  */
 
-import type { StoryStatus, ActionItem } from '../../types/state.js';
+import type { StoryStatus, ActionItem, AcVerdict } from '../../types/state.js';
 
 /** A story selected for development */
 export interface StorySelection {
@@ -54,6 +54,47 @@ export interface RunSummary {
   readonly failed: ReadonlyArray<string>;
   readonly blocked: ReadonlyArray<string>;
   readonly skipped: ReadonlyArray<string>;
+}
+
+/** Detail for a single acceptance criterion in a drill-down view */
+export interface AcDetail {
+  readonly id: string;
+  readonly verdict: AcVerdict;
+  readonly command?: string;
+  readonly expected?: string;
+  readonly actual?: string;
+  readonly reason?: string;
+  readonly suggestedFix?: string;
+}
+
+/** Record of a single verification attempt */
+export interface AttemptRecord {
+  readonly number: number;
+  readonly outcome: string;
+  readonly failingAc?: string;
+  readonly timestamp?: string;
+}
+
+/** Summary of a proof document */
+export interface ProofSummary {
+  readonly path: string;
+  readonly passCount: number;
+  readonly failCount: number;
+  readonly escalateCount: number;
+  readonly pendingCount: number;
+}
+
+/** Full drill-down detail for a single story */
+export interface StoryDrillDown {
+  readonly key: string;
+  readonly status: StoryStatus;
+  readonly epic: string;
+  readonly attempts: number;
+  readonly maxAttempts: number;
+  readonly lastAttempt: string | null;
+  readonly acDetails: ReadonlyArray<AcDetail>;
+  readonly attemptHistory: ReadonlyArray<AttemptRecord>;
+  readonly proofSummary: ProofSummary | null;
 }
 
 /** Summary report of sprint status */

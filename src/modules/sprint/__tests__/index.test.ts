@@ -15,6 +15,7 @@ const {
   updateStoryStatus,
   getSprintState,
   generateReport,
+  getStoryDrillDown,
 } = await import('../index.js');
 
 const { writeFileSync } = await import('node:fs');
@@ -218,5 +219,52 @@ describe('sprint module', () => {
     writeFileSync(STATE_FILE, '{bad json!!!', 'utf-8');
     const result = generateReport();
     expect(result.success).toBe(false);
+  });
+
+  it('getStoryDrillDown delegates to reporter and returns drill-down data', () => {
+    const state = {
+      version: 1,
+      sprint: { total: 1, done: 0, failed: 1, blocked: 0, inProgress: null },
+      stories: {
+        '2-3-status': {
+          status: 'failed',
+          attempts: 3,
+          lastAttempt: '2026-03-18T03:42:15Z',
+          lastError: 'exit 1',
+          proofPath: null,
+          acResults: [{ id: 'AC1', verdict: 'pass' }, { id: 'AC4', verdict: 'fail' }],
+        },
+      },
+      run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [] },
+      actionItems: [],
+    };
+    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+
+    const result = getStoryDrillDown('2-3-status');
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.key).toBe('2-3-status');
+      expect(result.data.status).toBe('failed');
+      expect(result.data.epic).toBe('2');
+      expect(result.data.attempts).toBe(3);
+      expect(result.data.acDetails).toHaveLength(2);
+    }
+  });
+
+  it('getStoryDrillDown returns fail on state read error', () => {
+    writeFileSync(STATE_FILE, '{invalid json!!!', 'utf-8');
+    const result = getStoryDrillDown('anything');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('Failed to read sprint state');
+    }
+  });
+
+  it('getStoryDrillDown returns fail for nonexistent story', () => {
+    const result = getStoryDrillDown('nonexistent');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Story 'nonexistent' not found");
+    }
   });
 });

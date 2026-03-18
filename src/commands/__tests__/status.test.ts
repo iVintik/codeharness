@@ -54,13 +54,17 @@ vi.mock('../../modules/sprint/index.js', () => ({
       failedDetails: [], actionItemsLabeled: [],
     },
   })),
+  getStoryDrillDown: vi.fn(() => ({
+    success: false,
+    error: "Story 'unknown' not found in sprint state",
+  })),
 }));
 
 import { registerStatusCommand, DEFAULT_ENDPOINTS, buildScopedEndpoints } from '../status.js';
 import { getStackHealth, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker.js';
 import { isBeadsInitialized, listIssues } from '../../lib/beads.js';
 import { getOnboardingProgress } from '../../lib/onboard-checks.js';
-import { generateReport } from '../../modules/sprint/index.js';
+import { generateReport, getStoryDrillDown } from '../../modules/sprint/index.js';
 import { writeState, getDefaultState } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
 import type { StatusReport } from '../../modules/sprint/index.js';
@@ -71,6 +75,7 @@ const mockCheckRemoteEndpoint = vi.mocked(checkRemoteEndpoint);
 const mockIsBeadsInitialized = vi.mocked(isBeadsInitialized);
 const mockListIssues = vi.mocked(listIssues);
 const mockGenerateReport = vi.mocked(generateReport);
+const mockGetStoryDrillDown = vi.mocked(getStoryDrillDown);
 
 let testDir: string;
 let originalCwd: string;
@@ -1288,5 +1293,194 @@ describe('status sprint state display', () => {
     expect(stdout).toContain('Failed:     2 stories');
     expect(stdout).toContain('1-1: AC 2');
     expect(stdout).toContain('2-1: unknown AC');
+  });
+});
+
+// ─── Story Drill-Down tests ────────────────────────────────────────────────
+
+describe('status --story', () => {
+  it('shows drill-down with all AC verdicts and FAIL detail', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '2-3-status',
+        status: 'failed',
+        epic: '2',
+        attempts: 3,
+        maxAttempts: 10,
+        lastAttempt: '2026-03-18T03:42:15Z',
+        acDetails: [
+          { id: 'AC1', verdict: 'pass' },
+          { id: 'AC2', verdict: 'fail', command: 'docker exec test', expected: 'exit 0', actual: 'exit 1', reason: 'container mismatch', suggestedFix: 'Fix names' },
+          { id: 'AC3', verdict: 'escalate' },
+          { id: 'AC4', verdict: 'pending' },
+        ],
+        attemptHistory: [
+          { number: 1, outcome: 'details unavailable' },
+          { number: 2, outcome: 'details unavailable' },
+          { number: 3, outcome: 'verify failed', failingAc: 'AC2', timestamp: '2026-03-18T03:42:15Z' },
+        ],
+        proofSummary: { path: 'verification/2-3-proof.md', passCount: 1, failCount: 1, escalateCount: 1, pendingCount: 1 },
+      },
+    });
+
+    const { stdout } = await runCli(['status', '--story', '2-3-status']);
+    expect(stdout).toContain('Story: 2-3-status');
+    expect(stdout).toContain('Status: failed (attempt 3/10)');
+    expect(stdout).toContain('Epic: 2');
+    expect(stdout).toContain('Last attempt: 2026-03-18T03:42:15Z');
+    expect(stdout).toContain('AC1: [PASS]');
+    expect(stdout).toContain('AC2: [FAIL]');
+    expect(stdout).toContain('Command:  docker exec test');
+    expect(stdout).toContain('Expected: exit 0');
+    expect(stdout).toContain('Actual:   exit 1');
+    expect(stdout).toContain('Reason:   container mismatch');
+    expect(stdout).toContain('Suggest:  Fix names');
+    expect(stdout).toContain('AC3: [ESCALATE]');
+    expect(stdout).toContain('AC4: [PENDING]');
+    expect(stdout).toContain('Attempt 1: details unavailable');
+    expect(stdout).toContain('Attempt 3: verify failed (AC2)');
+    expect(stdout).toContain('Proof: verification/2-3-proof.md (1/4 pass, 1 fail, 1 escalate)');
+  });
+
+  it('returns JSON output when --json --story combined', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '2-3-status',
+        status: 'failed',
+        epic: '2',
+        attempts: 3,
+        maxAttempts: 10,
+        lastAttempt: '2026-03-18T03:42:15Z',
+        acDetails: [{ id: 'AC1', verdict: 'pass' }],
+        attemptHistory: [],
+        proofSummary: null,
+      },
+    });
+
+    const { stdout } = await runCli(['--json', 'status', '--story', '2-3-status']);
+    const json = JSON.parse(stdout);
+    expect(json.key).toBe('2-3-status');
+    expect(json.status).toBe('failed');
+    expect(json.epic).toBe('2');
+    expect(json.attempts).toBe(3);
+    expect(json.maxAttempts).toBe(10);
+    expect(json.acResults).toHaveLength(1);
+    expect(json.attemptHistory).toEqual([]);
+    expect(json.proof).toBeNull();
+  });
+
+  it('prints FAIL and exits non-zero for nonexistent story', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: false,
+      error: "Story 'nonexistent' not found in sprint state",
+    });
+
+    const { stdout, exitCode } = await runCli(['status', '--story', 'nonexistent']);
+    expect(stdout).toContain("Story 'nonexistent' not found");
+    expect(exitCode).toBe(1);
+  });
+
+  it('prints FAIL as JSON for nonexistent story with --json', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: false,
+      error: "Story 'nonexistent' not found in sprint state",
+    });
+
+    const { stdout, exitCode } = await runCli(['--json', 'status', '--story', 'nonexistent']);
+    const json = JSON.parse(stdout);
+    expect(json.status).toBe('fail');
+    expect(json.message).toContain('not found');
+    expect(exitCode).toBe(1);
+  });
+
+  it('shows "No AC results recorded" when acDetails is empty', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '1-1-story',
+        status: 'in-progress',
+        epic: '1',
+        attempts: 1,
+        maxAttempts: 10,
+        lastAttempt: null,
+        acDetails: [],
+        attemptHistory: [],
+        proofSummary: null,
+      },
+    });
+
+    const { stdout } = await runCli(['status', '--story', '1-1-story']);
+    expect(stdout).toContain('No AC results recorded');
+    expect(stdout).toContain('Last attempt: none');
+  });
+
+  it('omits history section when no attempt history', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '1-1-story',
+        status: 'backlog',
+        epic: '1',
+        attempts: 0,
+        maxAttempts: 10,
+        lastAttempt: null,
+        acDetails: [],
+        attemptHistory: [],
+        proofSummary: null,
+      },
+    });
+
+    const { stdout } = await runCli(['status', '--story', '1-1-story']);
+    expect(stdout).not.toContain('-- History');
+  });
+
+  it('omits proof section when no proof summary', async () => {
+    const state = getDefaultState('nodejs');
+    state.initialized = true;
+    writeState(state, testDir);
+
+    mockGetStoryDrillDown.mockReturnValue({
+      success: true,
+      data: {
+        key: '1-1-story',
+        status: 'backlog',
+        epic: '1',
+        attempts: 0,
+        maxAttempts: 10,
+        lastAttempt: null,
+        acDetails: [],
+        attemptHistory: [],
+        proofSummary: null,
+      },
+    });
+
+    const { stdout } = await runCli(['status', '--story', '1-1-story']);
+    expect(stdout).not.toContain('Proof:');
   });
 });

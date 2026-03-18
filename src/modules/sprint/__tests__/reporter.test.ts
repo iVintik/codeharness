@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateReport } from '../reporter.js';
+import { generateReport, getStoryDrillDown } from '../reporter.js';
 import type { SprintState, StoryState, AcResult } from '../../../types/state.js';
 
 const S_DEFAULTS: StoryState = {
@@ -238,5 +238,222 @@ describe('generateReport', () => {
     expect(result.data.lastRun!.blocked).toContain('1-2-b');
     expect(result.data.lastRun!.skipped).toEqual(['1-1-a']);
     expect(result.data.lastRun!.skipped).not.toContain('1-2-b');
+  });
+});
+
+describe('getStoryDrillDown', () => {
+  it('returns all AC verdicts: pass, fail, escalate, pending', () => {
+    const acResults: AcResult[] = [
+      { id: 'AC1', verdict: 'pass' },
+      { id: 'AC2', verdict: 'fail' },
+      { id: 'AC3', verdict: 'escalate' },
+      { id: 'AC4', verdict: 'pending' },
+    ];
+    const state = makeState({
+      stories: {
+        '2-3-status': s({
+          status: 'failed', attempts: 3, lastAttempt: '2026-03-18T03:42:15Z',
+          lastError: 'exit 1', acResults,
+        }),
+      },
+    });
+    const result = getStoryDrillDown(state, '2-3-status');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.acDetails).toHaveLength(4);
+    expect(result.data.acDetails[0].verdict).toBe('pass');
+    expect(result.data.acDetails[1].verdict).toBe('fail');
+    expect(result.data.acDetails[2].verdict).toBe('escalate');
+    expect(result.data.acDetails[3].verdict).toBe('pending');
+  });
+
+  it('includes reason for FAIL verdict from lastError', () => {
+    const state = makeState({
+      stories: {
+        '2-3-status': s({
+          status: 'failed', attempts: 1,
+          lastError: 'container name mismatch',
+          acResults: [{ id: 'AC4', verdict: 'fail' }],
+        }),
+      },
+    });
+    const result = getStoryDrillDown(state, '2-3-status');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    const failAc = result.data.acDetails[0];
+    expect(failAc.verdict).toBe('fail');
+    expect(failAc.reason).toBe('container name mismatch');
+  });
+
+  it('renders attempt history with synthetic entries for old attempts', () => {
+    const state = makeState({
+      stories: {
+        '2-3-status': s({
+          status: 'failed', attempts: 3,
+          lastAttempt: '2026-03-18T03:42:15Z',
+          lastError: 'exit 1',
+          acResults: [{ id: 'AC4', verdict: 'fail' }],
+        }),
+      },
+    });
+    const result = getStoryDrillDown(state, '2-3-status');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.attemptHistory).toHaveLength(3);
+    expect(result.data.attemptHistory[0]).toEqual({ number: 1, outcome: 'details unavailable' });
+    expect(result.data.attemptHistory[1]).toEqual({ number: 2, outcome: 'details unavailable' });
+    expect(result.data.attemptHistory[2].number).toBe(3);
+    expect(result.data.attemptHistory[2].outcome).toBe('verify failed');
+    expect(result.data.attemptHistory[2].failingAc).toBe('AC4');
+    expect(result.data.attemptHistory[2].timestamp).toBe('2026-03-18T03:42:15Z');
+  });
+
+  it('shows proof summary with counts', () => {
+    const acResults: AcResult[] = [
+      { id: 'AC1', verdict: 'pass' },
+      { id: 'AC2', verdict: 'pass' },
+      { id: 'AC3', verdict: 'fail' },
+      { id: 'AC4', verdict: 'escalate' },
+    ];
+    const state = makeState({
+      stories: {
+        '2-3-status': s({
+          status: 'failed', attempts: 1,
+          proofPath: 'verification/2-3-proof.md',
+          acResults,
+        }),
+      },
+    });
+    const result = getStoryDrillDown(state, '2-3-status');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.proofSummary).not.toBeNull();
+    expect(result.data.proofSummary!.path).toBe('verification/2-3-proof.md');
+    expect(result.data.proofSummary!.passCount).toBe(2);
+    expect(result.data.proofSummary!.failCount).toBe(1);
+    expect(result.data.proofSummary!.escalateCount).toBe(1);
+    expect(result.data.proofSummary!.pendingCount).toBe(0);
+  });
+
+  it('returns fail() for story not found', () => {
+    const state = makeState({ stories: {} });
+    const result = getStoryDrillDown(state, 'nonexistent');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("Story 'nonexistent' not found");
+    }
+  });
+
+  it('shows "No AC results recorded" equivalent — empty acDetails for null acResults', () => {
+    const state = makeState({
+      stories: {
+        '1-1-story': s({ status: 'in-progress', attempts: 1 }),
+      },
+    });
+    const result = getStoryDrillDown(state, '1-1-story');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.acDetails).toEqual([]);
+  });
+
+  it('returns fail() on malformed state — never throws', () => {
+    const result = getStoryDrillDown(null as unknown as SprintState, 'anything');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('Failed to get story drill-down');
+    }
+  });
+
+  it('header includes status with attempt count, epic, last attempt timestamp', () => {
+    const state = makeState({
+      stories: {
+        '2-3-status': s({
+          status: 'failed', attempts: 3, lastAttempt: '2026-03-18T03:42:15Z',
+          acResults: [{ id: 'AC1', verdict: 'pass' }],
+        }),
+      },
+    });
+    const result = getStoryDrillDown(state, '2-3-status');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.key).toBe('2-3-status');
+    expect(result.data.status).toBe('failed');
+    expect(result.data.attempts).toBe(3);
+    expect(result.data.maxAttempts).toBe(10);
+    expect(result.data.epic).toBe('2');
+    expect(result.data.lastAttempt).toBe('2026-03-18T03:42:15Z');
+  });
+
+  it('handles done story with attempt history showing passed', () => {
+    const state = makeState({
+      stories: {
+        '1-1-done': s({
+          status: 'done', attempts: 2, lastAttempt: '2026-03-18T10:00:00Z',
+          acResults: [{ id: 'AC1', verdict: 'pass' }, { id: 'AC2', verdict: 'pass' }],
+          proofPath: 'verification/1-1-proof.md',
+        }),
+      },
+    });
+    const result = getStoryDrillDown(state, '1-1-done');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.status).toBe('done');
+    expect(result.data.attemptHistory).toHaveLength(2);
+    expect(result.data.attemptHistory[1].outcome).toBe('passed');
+    expect(result.data.proofSummary).not.toBeNull();
+    expect(result.data.proofSummary!.passCount).toBe(2);
+    expect(result.data.proofSummary!.failCount).toBe(0);
+    expect(result.data.proofSummary!.pendingCount).toBe(0);
+  });
+
+  it('returns null proofSummary when no proofPath set', () => {
+    const state = makeState({
+      stories: {
+        '1-1-story': s({ status: 'backlog', attempts: 0 }),
+      },
+    });
+    const result = getStoryDrillDown(state, '1-1-story');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.proofSummary).toBeNull();
+    expect(result.data.attemptHistory).toEqual([]);
+  });
+
+  it('counts pending verdicts in proof summary', () => {
+    const acResults: AcResult[] = [
+      { id: 'AC1', verdict: 'pass' },
+      { id: 'AC2', verdict: 'fail' },
+      { id: 'AC3', verdict: 'pending' },
+      { id: 'AC4', verdict: 'escalate' },
+    ];
+    const state = makeState({
+      stories: {
+        '2-3-status': s({
+          status: 'failed', attempts: 1,
+          proofPath: 'verification/2-3-proof.md',
+          acResults,
+        }),
+      },
+    });
+    const result = getStoryDrillDown(state, '2-3-status');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.proofSummary).not.toBeNull();
+    expect(result.data.proofSummary!.passCount).toBe(1);
+    expect(result.data.proofSummary!.failCount).toBe(1);
+    expect(result.data.proofSummary!.escalateCount).toBe(1);
+    expect(result.data.proofSummary!.pendingCount).toBe(1);
+  });
+
+  it('extracts multi-digit epic prefix correctly', () => {
+    const state = makeState({
+      stories: {
+        '10-1-validation': s({ status: 'backlog', attempts: 0 }),
+      },
+    });
+    const result = getStoryDrillDown(state, '10-1-validation');
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.data.epic).toBe('10');
   });
 });

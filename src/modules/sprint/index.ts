@@ -14,13 +14,14 @@ import type {
   FailedStoryDetail,
   LabeledActionItem,
   RunSummary,
+  StoryDrillDown,
 } from './types.js';
 import {
   getSprintState as getSprintStateImpl,
   updateStoryStatus as updateStoryStatusImpl,
 } from './state.js';
 import { selectNextStory } from './selector.js';
-import { generateReport as generateReportImpl } from './reporter.js';
+import { generateReport as generateReportImpl, getStoryDrillDown as getStoryDrillDownImpl } from './reporter.js';
 
 export type {
   StorySelection,
@@ -30,6 +31,7 @@ export type {
   FailedStoryDetail,
   LabeledActionItem,
   RunSummary,
+  StoryDrillDown,
 };
 
 /**
@@ -75,4 +77,12 @@ export function generateReport(): Result<StatusReport> {
     return fail(stateResult.error);
   }
   return generateReportImpl(stateResult.data);
+}
+
+export function getStoryDrillDown(key: string): Result<StoryDrillDown> {
+  const stateResult = getSprintStateImpl();
+  if (!stateResult.success) {
+    return fail(stateResult.error);
+  }
+  return getStoryDrillDownImpl(stateResult.data, key);
 }

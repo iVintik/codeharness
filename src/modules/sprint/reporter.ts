@@ -12,19 +12,13 @@ import type {
   LabeledActionItem,
   RunSummary,
 } from './types.js';
+import { MAX_STORY_ATTEMPTS } from './selector.js';
 
-/** Max attempts constant used for display (matches selector logic) */
-const MAX_ATTEMPTS = 10;
+import { epicPrefix } from './drill-down.js';
+export { getStoryDrillDown } from './drill-down.js';
 
-/**
- * Extract the epic prefix from a story key.
- * E.g. "2-3-status-report..." -> "2", "10-1-validation..." -> "10"
- */
-function epicPrefix(key: string): string {
-  const dashIdx = key.indexOf('-');
-  if (dashIdx === -1) return key;
-  return key.slice(0, dashIdx);
-}
+/** Max attempts constant used for display */
+const MAX_ATTEMPTS = MAX_STORY_ATTEMPTS;
 
 /** Format milliseconds as a human-readable duration like "2h14m" or "5m" */
 function formatDuration(ms: number): string {
@@ -201,3 +195,4 @@ export function generateReport(
     return fail(`Failed to generate report: ${msg}`);
   }
 }
+

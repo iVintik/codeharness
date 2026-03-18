@@ -20,17 +20,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
  * Searches: project root patches/, then package patches/ relative to this file.
  */
 function readPatchFile(name: string): string | null {
-  // Try project root first (development / plugin install)
-  const projectRoot = join(__dirname, '..', '..');
-  const projectPath = join(projectRoot, 'patches', `${name}.md`);
-  if (existsSync(projectPath)) {
-    return readFileSync(projectPath, 'utf-8').trim();
-  }
-
-  // Try relative to package (npm install)
-  const pkgPath = join(__dirname, '..', '..', 'patches', `${name}.md`);
-  if (existsSync(pkgPath)) {
-    return readFileSync(pkgPath, 'utf-8').trim();
+  // Resolve patches/ relative to package root (works for both dev and npm install)
+  const patchPath = join(__dirname, '..', '..', 'patches', `${name}.md`);
+  if (existsSync(patchPath)) {
+    return readFileSync(patchPath, 'utf-8').trim();
   }
 
   return null;

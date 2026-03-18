@@ -2591,3 +2591,125 @@ None new. Coverage summary JSON appears to show stale/partial data (3.49% total)
 | Verify-dev-review cycles | 1 (3-1 AC 6) |
 | Full verification passes | 0 (ran out of time) |
 | Cumulative sprint progress | 11/25 stories done, 4 verifying, 10 backlog |
+
+---
+
+# Session Retrospective — 2026-03-18, Loop #2
+
+**Sprint:** Architecture Overhaul Sprint
+**Session timestamp:** ~2026-03-18T23:21Z – 23:43Z (~22 minutes)
+**Loop:** #2
+**Stories attempted:** 5 (1 completed, 3 skipped, 1 in progress)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Outcome |
+|-------|-------------|------------|---------|
+| 3-1-error-capture-on-timeout | verifying | done | Verification proof already valid. Marked complete. |
+| 3-4-eight-hour-stability-test | verifying | verifying (skipped) | Blocked — escalated ACs require real 8-hour runtime. |
+| 4-3-verifier-session-reliability | verifying | verifying (skipped) | Blocked — escalated ACs. |
+| 5-1-review-module-extraction | verifying | verifying (skipped) | Blocked — escalated ACs. |
+| 6-1-infra-module-init-extraction | backlog | review | Story created, dev completed. Time ran out before code review. |
+
+**Net progress:** 1 story completed (3-1), 1 new story advanced from backlog to review (6-1). Three stories remain stuck at `verifying` with escalated ACs that the loop cannot resolve autonomously.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found and Fixed
+
+1. **HIGH: Dead code in review orchestrator (5-1)** — `captureFilesChanged()` and `execSync` import copy-pasted from dev module but never wired up. Removed during code review.
+2. **HIGH: Boolean logic bug in `parseReviewOutput` (5-1)** — Tautological expression. Simplified.
+3. **HIGH: Missing test coverage for timeout summary in `status --story` (3-1)** — 4 tests added for both text and JSON output paths.
+4. **MEDIUM: Test mocking stale references (5-1)** — Mocks referencing removed dead code. Cleaned up.
+5. **MEDIUM: `drill-down.ts` opts parameter untested (3-1)** — 3 tests added.
+6. **MEDIUM: AGENTS.md stale (3-1)** — `findLatestTimeoutReport`, `TimeoutSummary`, `opts?` undocumented. Fixed.
+7. **MEDIUM: Pre-existing mock data missing `timeoutSummary` field (3-1)** — Updated.
+
+### Code Quality Issues (Not Fixed)
+
+- `parseReviewOutput` uses simple substring matching — fragile against LLM output variations.
+- `isTimeoutError` checks `signal === 'SIGTERM'` which can misclassify non-timeout kills.
+- ~60% code duplication between dev and review orchestrators. Needs shared utility extraction.
+- `status.ts` at 722 lines exceeds NFR18 300-line limit (pre-existing).
+- `src/lib/bmad.ts` at 521 lines exceeds NFR18 300-line limit (pre-existing).
+
+### Process Issues
+
+- **Three stories stuck at `verifying` with escalated ACs** — 3-4, 4-3, 5-1 all require conditions the loop cannot satisfy autonomously (8-hour runtime, Docker infrastructure, human judgment). These block epic completion without manual intervention.
+- **Verify-env container missing codeharness CLI** — `verify-env build` does not pre-install the project artifact. Manual `npm install -g codeharness` required inside container for every verification run.
+- **No machine-readable review signal** — `claude --print` output from code-review workflow has no standardized approval/rejection format. Review module relies on keyword heuristics ("LGTM", "not approved").
+
+### Risks
+
+- **6-1 test fragility** — Init test file is 1714 lines with heavy mocks. Extraction will require non-trivial test refactoring during review.
+- **6-1 AC#9 integration-required** — Verifying output parity across 4 Docker/observability modes requires real infrastructure.
+- **Review module approval parsing** — Substring matching against LLM output is inherently unreliable. Will produce false positives/negatives as Claude's phrasing drifts.
+
+---
+
+## 3. What Went Well
+
+- **3-1 completed cleanly.** Proof was already valid from previous session's dev+review work. Verification was a fast pass-through.
+- **6-1 story creation and dev completed in one session.** Full implementation from backlog to review in ~15 minutes, including test writing.
+- **High test coverage maintained.** 96.46% overall, all 77 files above 80%. 2007+ tests passing.
+- **Session issues log is working.** Every subagent (create-story, dev, code-review, verification) reported problems and observations consistently. This made the retrospective straightforward to write.
+- **Code review caught real bugs.** 2 HIGH and 3 MEDIUM issues fixed across 3-1 and 5-1 during review phases in earlier loop iterations that this session benefited from.
+
+---
+
+## 4. What Went Wrong
+
+- **3 stories permanently stuck.** 3-4, 4-3, 5-1 have escalated ACs that the autonomous loop cannot resolve. They consumed selection time each loop iteration only to be skipped. This is wasted work.
+- **Time ran out before 6-1 code review.** 22-minute session is tight for create-story + dev + review. The dev phase consumed most of the budget.
+- **Copy-paste code duplication shipped.** Review orchestrator (5-1) was built by copying ~60% of dev orchestrator code. This passed review with a "LOW, not fixed" tag. Technical debt is accumulating.
+- **verify-env missing CLI is a recurring blocker.** Reported in this session's issues and will affect every future verification run until the container build is fixed.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Session issues log as retrospective input.** Having every subagent write structured issue reports made this retro fast and accurate. Keep this practice.
+2. **Fast-tracking verification when proof exists.** 3-1 went from verifying to done with minimal time because the proof was already valid. The loop correctly recognized this.
+3. **Scoping story creation tightly.** 6-1 explicitly deferred full lib migration (beyond init.ts extraction), keeping the story implementable in one session.
+
+### Patterns to Avoid
+
+1. **Repeatedly selecting blocked stories.** The loop spent cycles evaluating 3-4, 4-3, 5-1 each iteration only to skip them. Need a mechanism to mark stories as "blocked-needs-human" so the loop stops considering them.
+2. **Shipping code duplication as LOW priority.** The dev/review orchestrator duplication (5-1) should have been addressed before merge. It will compound when more modules are added.
+3. **Starting stories without enough time for full cycle.** 6-1 dev finished but review couldn't run. Next session must pick it up cold, losing context.
+
+---
+
+## 6. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | **Mark 3-4, 4-3, 5-1 as `blocked`** in sprint status or add a skip-list so the loop stops wasting cycles on them. | HIGH | Human/SM |
+| 2 | **Fix verify-env container build** to pre-install `codeharness` CLI. Affects all future verifications. | HIGH | Dev |
+| 3 | **Complete 6-1 code review** as first action next session. Story is at `review` status. | HIGH | Loop |
+| 4 | **Extract shared orchestrator utilities** — `truncateOutput`, `captureFilesChanged`, `isTimeoutError`, git diff logic — into `src/modules/shared/` or `src/lib/orchestrator-utils.ts`. | MEDIUM | Dev (new story or tech-debt ticket) |
+| 5 | **Split `status.ts` (722 lines)** to comply with NFR18 300-line limit. Pre-existing debt, growing. | MEDIUM | Dev (tech-debt) |
+| 6 | **Design machine-readable review signal** — replace keyword heuristics in `parseReviewOutput` with structured output (JSON block or exit code convention). | LOW | Architect |
+
+---
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 1 (3-1) |
+| Stories advanced | 1 (6-1: backlog → review) |
+| Stories skipped (blocked) | 3 (3-4, 4-3, 5-1) |
+| Bugs fixed (cumulative from session work) | 2 HIGH, 5 MEDIUM |
+| Tests passing | 2007+ (77 files) |
+| Test coverage | 96.46% |
+| Session duration | ~22 min |
+| Full dev cycles completed | 1 (6-1 create+dev, no review) |
+| Verification passes | 1 (3-1) |
+| Cumulative sprint progress | 12/25 stories done, 3 verifying, 1 review, 9 backlog |

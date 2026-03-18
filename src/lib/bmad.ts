@@ -143,15 +143,16 @@ export function installBmad(dir?: string): BmadInstallResult {
  * Handles missing target files gracefully with warnings.
  * Returns array of results per patch.
  */
-export function applyAllPatches(dir?: string): PatchResult[] {
+export function applyAllPatches(dir?: string, options?: { silent?: boolean }): PatchResult[] {
   const root = dir ?? process.cwd();
+  const silent = options?.silent ?? false;
   const results: PatchResult[] = [];
 
   for (const [patchName, relativePath] of Object.entries(PATCH_TARGETS)) {
     const targetFile = join(root, '_bmad', relativePath);
 
     if (!existsSync(targetFile)) {
-      warn(`Patch target not found: ${relativePath}`);
+      if (!silent) warn(`Patch target not found: ${relativePath}`);
       results.push({
         patchName,
         targetFile,

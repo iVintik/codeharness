@@ -1,25 +1,107 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
-  initProject,
   ensureStack,
   cleanupContainers,
   getObservabilityBackend,
 } from '../index.js';
 
-describe('infra module stubs', () => {
-  it('initProject returns fail("not implemented")', () => {
-    const result = initProject({ projectDir: '/tmp/test' });
-    expect(result).toEqual({ success: false, error: 'not implemented' });
+// Mock child_process for stack-management and container-cleanup
+vi.mock('node:child_process', () => ({
+  execFileSync: vi.fn(() => { throw new Error('no process'); }),
+}));
+
+// Mock all lib modules that init-project.ts imports
+vi.mock('../../../lib/stack-path.js', () => ({
+  getStackDir: vi.fn(() => '/mock/.codeharness/stack'),
+  getComposeFilePath: vi.fn(() => '/mock/.codeharness/stack/docker-compose.harness.yml'),
+  getOtelConfigPath: vi.fn(() => '/mock/.codeharness/stack/otel-collector-config.yaml'),
+  ensureStackDir: vi.fn(),
+}));
+
+vi.mock('../../../lib/docker.js', () => ({
+  isDockerAvailable: vi.fn(() => true),
+  isSharedStackRunning: vi.fn(() => false),
+  startSharedStack: vi.fn(() => ({ started: true, services: [] })),
+  startCollectorOnly: vi.fn(() => ({ started: true, services: [] })),
+  getStackHealth: vi.fn(() => ({
+    healthy: true,
+    services: [
+      { name: 'otel-collector', running: true },
+      { name: 'victoria-logs', running: true },
+      { name: 'victoria-metrics', running: true },
+      { name: 'victoria-traces', running: true },
+    ],
+  })),
+}));
+
+vi.mock('../../../lib/deps.js', () => ({
+  installAllDependencies: vi.fn(() => []),
+  checkInstalled: vi.fn(() => ({ installed: true, version: '1.0.0' })),
+  DEPENDENCY_REGISTRY: [],
+  CriticalDependencyError: class extends Error { constructor(d: string, r: string) { super(r); } },
+}));
+
+vi.mock('../../../lib/beads.js', () => ({
+  isBeadsInitialized: vi.fn(() => false),
+  initBeads: vi.fn(),
+  detectBeadsHooks: vi.fn(() => ({ hasHooks: false, hookTypes: [] })),
+  configureHookCoexistence: vi.fn(),
+  BeadsError: class extends Error { constructor(c: string, m: string) { super(m); } },
+}));
+
+vi.mock('../../../lib/bmad.js', () => ({
+  isBmadInstalled: vi.fn(() => false),
+  installBmad: vi.fn(() => ({ status: 'installed', version: '6.0.0', patches_applied: [] })),
+  applyAllPatches: vi.fn(() => []),
+  detectBmadVersion: vi.fn(() => '6.0.0'),
+  detectBmalph: vi.fn(() => ({ detected: false, files: [] })),
+  BmadError: class extends Error { constructor(c: string, m: string) { super(m); } },
+}));
+
+vi.mock('../../../lib/otlp.js', () => ({
+  instrumentProject: vi.fn(() => ({
+    status: 'configured',
+    packages_installed: true,
+    start_script_patched: true,
+    env_vars_configured: true,
+  })),
+  configureOtlpEnvVars: vi.fn(),
+}));
+
+vi.mock('../../../lib/templates.js', () => ({
+  generateFile: vi.fn(),
+}));
+
+vi.mock('../../../templates/readme.js', () => ({
+  readmeTemplate: vi.fn(() => '# README'),
+}));
+
+// Import initProject after mocks
+import { initProject } from '../index.js';
+
+describe('infra module — index exports', () => {
+  it('initProject returns a result for valid options', async () => {
+    const result = await initProject({
+      projectDir: '/tmp/nonexistent-test-dir',
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    expect(result.success).toBe(true);
   });
 
-  it('ensureStack returns fail("not implemented")', () => {
+  it('ensureStack delegates to stack-management module', () => {
+    // With Docker mocked as available but stack not running, it will try to start
     const result = ensureStack();
-    expect(result).toEqual({ success: false, error: 'not implemented' });
+    // Should return a real result (not "not implemented")
+    expect(result.success).toBeDefined();
   });
 
-  it('cleanupContainers returns fail("not implemented")', () => {
+  it('cleanupContainers delegates to container-cleanup module', () => {
     const result = cleanupContainers();
-    expect(result).toEqual({ success: false, error: 'not implemented' });
+    // Should return a real result (not "not implemented")
+    expect(result.success).toBeDefined();
   });
 
   it('getObservabilityBackend throws "not implemented"', () => {

@@ -351,4 +351,18 @@ describe('applyAllPatches', () => {
       expect(r.applied).toBe(true);
     }
   });
+
+  it('suppresses warn() output when silent option is true', () => {
+    mkdirSync(join(testDir, '_bmad'), { recursive: true });
+    // Don't create workflow files — triggers warn() for missing targets
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    applyAllPatches(testDir, { silent: true });
+    const warnCalls = consoleSpy.mock.calls.filter(args =>
+      typeof args[0] === 'string' && args[0].includes('Patch target not found'),
+    );
+    consoleSpy.mockRestore();
+
+    expect(warnCalls).toHaveLength(0);
+  });
 });

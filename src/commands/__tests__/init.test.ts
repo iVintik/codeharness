@@ -6,6 +6,12 @@ import { Command } from 'commander';
 import { registerInitCommand, generateAgentsMdContent, generateDocsIndexContent, getCoverageTool, getStackLabel, getProjectName } from '../init.js';
 import { readState, writeState, getDefaultState } from '../../lib/state.js';
 
+// Mock the stack-detect module (wrap real implementation for overridability)
+vi.mock('../../lib/stack-detect.js', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../../lib/stack-detect.js')>();
+  return { ...orig, detectStack: vi.fn(orig.detectStack), detectAppType: vi.fn(orig.detectAppType) };
+});
+
 // Mock the stack-path module
 vi.mock('../../lib/stack-path.js', () => ({
   getStackDir: vi.fn(() => '/mock/.codeharness/stack'),
@@ -833,18 +839,14 @@ describe('init command — dependency install', () => {
     );
   });
 
-  it('re-throws non-CriticalDependencyError errors', async () => {
+  it('catches non-CriticalDependencyError and sets exit code (never throws)', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockInstallAllDependencies.mockImplementation(() => {
       throw new TypeError('unexpected type error');
     });
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const program = createCli();
-    await expect(
-      program.parseAsync(['node', 'codeharness', 'init']),
-    ).rejects.toThrow('unexpected type error');
-    consoleSpy.mockRestore();
+    const { exitCode } = await runCli(['init']);
+    expect(exitCode).toBe(1);
 
     // Restore mock for subsequent tests
     mockInstallAllDependencies.mockReturnValue([
@@ -1119,19 +1121,17 @@ describe('init command — beads initialization', () => {
     expect(parsed.beads.hooks_detected).toBe(true);
   });
 
-  it('re-throws non-BeadsError errors from beads init', async () => {
+  it('catches non-BeadsError and continues init (never throws)', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsBeadsInitialized.mockReturnValue(false);
     mockInitBeads.mockImplementation(() => {
       throw new TypeError('unexpected error in beads');
     });
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const program = createCli();
-    await expect(
-      program.parseAsync(['node', 'codeharness', 'init']),
-    ).rejects.toThrow('unexpected error in beads');
-    consoleSpy.mockRestore();
+    const { stdout, exitCode } = await runCli(['init']);
+    // Beads is non-critical, init should succeed
+    expect(exitCode).toBeUndefined();
+    expect(stdout).toContain('Beads init failed');
 
     // Restore mock for subsequent tests
     mockInitBeads.mockImplementation(() => {});
@@ -1246,26 +1246,23 @@ describe('init command — BMAD installation', () => {
     });
   });
 
-  it('re-throws non-BmadError errors from BMAD init', async () => {
+  it('catches non-BmadError and continues init (never throws)', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockIsBmadInstalled.mockReturnValue(false);
     mockInstallBmad.mockImplementation(() => {
       throw new TypeError('unexpected error in bmad');
     });
 
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const program = createCli();
-    await expect(
-      program.parseAsync(['node', 'codeharness', 'init']),
-    ).rejects.toThrow('unexpected error in bmad');
-    consoleSpy.mockRestore();
+    const { stdout, exitCode } = await runCli(['init']);
+    // BMAD is non-critical, init should succeed
+    expect(exitCode).toBeUndefined();
+    expect(stdout).toContain('BMAD install failed');
 
     // Restore mock
     mockInstallBmad.mockReturnValue({
       status: 'installed',
       version: '6.0.0',
       patches_applied: [],
-
     });
   });
 
@@ -1710,5 +1707,39 @@ describe('init command — app type detection', () => {
 
     const { stdout } = await runCli(['init']);
     expect(stdout).toContain('[INFO] App type: generic');
+  });
+});
+
+describe('init command — initProject fail() result handling', () => {
+  it('sets exit code 1 when initProject returns fail()', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    // Make deps throw a non-domain error that propagates to the top-level catch
+    // After extraction, deps-install catches and returns fail(), which causes
+    // initProject to return ok(failResult). To trigger the actual fail() path,
+    // we need an error in the orchestrator's own logic. We can achieve this by
+    // making detectStack throw — it's called before any try/catch in initProjectInner.
+    const { detectStack } = await import('../../lib/stack-detect.js');
+    const originalImpl = vi.mocked(detectStack).getMockImplementation?.() ?? detectStack;
+    vi.mocked(detectStack).mockImplementation(() => { throw new Error('boom'); });
+
+    const { exitCode } = await runCli(['init']);
+    expect(exitCode).toBe(1);
+
+    // Restore
+    if (originalImpl) vi.mocked(detectStack).mockImplementation(originalImpl as () => string | null);
+  });
+
+  it('outputs JSON error when initProject returns fail() in json mode', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    const { detectStack } = await import('../../lib/stack-detect.js');
+    const originalImpl = vi.mocked(detectStack).getMockImplementation?.() ?? detectStack;
+    vi.mocked(detectStack).mockImplementation(() => { throw new Error('boom'); });
+
+    const { stdout, exitCode } = await runCli(['--json', 'init']);
+    expect(exitCode).toBe(1);
+    expect(stdout).toContain('"status":"fail"');
+
+    // Restore
+    if (originalImpl) vi.mocked(detectStack).mockImplementation(originalImpl as () => string | null);
   });
 });

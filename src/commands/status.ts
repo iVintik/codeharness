@@ -476,6 +476,7 @@ async function handleDockerCheck(isJson: boolean): Promise<void> {
   if (isJson) {
     jsonOutput({
       status: health.healthy ? 'ok' : 'fail',
+      ...(projectName ? { project_name: projectName } : {}),
       docker: {
         healthy: health.healthy,
         services: health.services,
@@ -487,10 +488,13 @@ async function handleDockerCheck(isJson: boolean): Promise<void> {
   }
 
   if (health.healthy) {
-    ok('VictoriaMetrics stack: running');
+    ok(`VictoriaMetrics stack: running${projectName ? ` (project: ${projectName})` : ''}`);
+    for (const svc of health.services) {
+      info(`  ${svc.name}: ${svc.running ? 'running' : 'stopped'}`);
+    }
     info(`Endpoints: logs=${DEFAULT_ENDPOINTS.logs} metrics=${DEFAULT_ENDPOINTS.metrics} traces=${DEFAULT_ENDPOINTS.traces}`);
   } else {
-    fail('VictoriaMetrics stack: not running');
+    fail(`VictoriaMetrics stack: not running${projectName ? ` (project: ${projectName})` : ''}`);
     for (const svc of health.services) {
       if (!svc.running) {
         info(`  ${svc.name}: down`);

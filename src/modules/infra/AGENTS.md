@@ -1,0 +1,25 @@
+# Infra Module
+
+Project initialization, stack management, and observability infrastructure.
+
+## Files
+
+- `index.ts` — Public API: `initProject(opts)` (delegates to init-project.ts), `ensureStack()` (delegates to stack-management.ts), `cleanupContainers()` (delegates to container-cleanup.ts), `getObservabilityBackend()` (stub — story 7-1). Re-exports doc helpers and stack management types for backward compatibility.
+- `init-project.ts` — Orchestrator: `initProject(opts: InitOptions): Promise<Result<InitResult>>` — composes full init workflow: idempotent re-run check, URL validation, stack detection, dependency installation, beads init, BMAD setup, state file creation, documentation scaffold, OTLP instrumentation, Docker setup. Handles critical vs non-critical failures. Never throws.
+- `docker-setup.ts` — Docker/observability setup: `setupDocker(opts, stack)` — handles 4 modes: local-shared, remote-direct, remote-routed, no-observability. Also exports `handleLocalShared`, `handleRemoteDirect`, `handleRemoteRouted`, `handleCollectorOnly`. Returns `Result<InitDockerResult | null>`.
+- `bmad-setup.ts` — BMAD installation: `setupBmad(projectDir, json?)` — detects BMAD version, installs if missing, applies patches, detects bmalph. Returns `Result<InitBmadResult>`. Never throws.
+- `deps-install.ts` — Dependency installation: `installDeps(projectDir, stack, json?)` — installs project dependencies based on detected stack. Returns `Result<DependencyResult[]>`. Never throws.
+- `docs-scaffold.ts` — Documentation generation: `scaffoldDocs(projectDir, stack, enforcement, json?)` — creates AGENTS.md, docs/ scaffold, README.md. Also exports helpers: `generateAgentsMdContent`, `generateDocsIndexContent`, `getProjectName`, `getStackLabel`, `getCoverageTool`. Returns `Promise<Result<InitDocumentationResult>>`.
+- `beads-init.ts` — Beads initialization: `initBeads(projectDir, json?)` — initializes beads hooks and configuration. Returns `Result<InitBeadsResult>`. Never throws.
+- `stack-management.ts` — Stack lifecycle: `ensureStack(): Promise<Result<StackStatus>>` — orchestrates shared observability stack startup with port conflict detection and running stack reuse. Also exports `detectPortConflicts(ports)` and `detectRunningStack()`. Returns `Result<T>`, never throws.
+- `container-cleanup.ts` — Container cleanup: `cleanupContainers(): Result<CleanupResult>` — removes stale Docker containers matching `codeharness-shared-*` or `codeharness-collector-*` patterns. Handles Docker-not-available gracefully (returns ok with 0 removed). Never throws.
+- `types.ts` — Module types: `InitOptions`, `InitResult`, `InitDockerResult`, `InitBmadResult`, `InitBeadsResult`, `InitDocumentationResult`, `StackStatus`, `StackDetectionResult`, `PortConflictResult`, `CleanupResult`, `DEFAULT_PORTS`.
+
+## Patterns
+
+- All public functions return `Result<T>` (never throw)
+- ES module imports with `.js` extensions
+- Orchestrator pattern: `init-project.ts` composes sub-modules
+- Non-critical failures (beads, BMAD) don't halt the workflow
+- Critical failures (Docker required but unavailable) return `fail()`
+- Module boundary: only `index.ts` is imported externally

@@ -37,10 +37,10 @@ development_status:
   5-1-review-module-extraction: verifying
 
   # Epic 6: Infrastructure Module
-  epic-6: backlog
-  6-1-infra-module-init-extraction: backlog
-  6-2-shared-stack-management: backlog
-  6-3-non-interactive-bmad-install: backlog
+  epic-6: in-progress
+  6-1-infra-module-init-extraction: verifying
+  6-2-shared-stack-management: verifying
+  6-3-non-interactive-bmad-install: done
 
   # Epic 7: OpenSearch Backend
   epic-7: backlog

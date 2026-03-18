@@ -14,7 +14,7 @@ development_status:
 
   # Epic 2: Unified State & Status Command
   epic-2: backlog
-  2-1-sprint-state-module-unified-state-file: backlog
+  2-1-sprint-state-module-unified-state-file: done
   2-2-story-selection-cross-epic-prioritization: backlog
   2-3-status-report-one-screen-overview: backlog
   2-4-status-story-drill-down: backlog

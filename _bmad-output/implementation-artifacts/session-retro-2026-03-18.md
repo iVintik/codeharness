@@ -97,3 +97,124 @@ None reported this session.
 - [ ] **Handle types-only files in coverage reporting** — Either exclude `types.ts` files from coverage or set a per-file exception so 0% on interface-only files doesn't trigger alarms.
 - [ ] **Refine module-specific stub types** — `InitOptions`, `DevResult`, etc. are placeholders. Revisit as each module's story is implemented (Epics 2-6).
 - [ ] **Reduce command file line counts below 100** — 16/17 files exceed the limit. Track as ongoing tech debt to resolve as modules absorb logic.
+
+---
+
+# Session Retrospective — 2026-03-18 (continued, ~04:50Z – 09:03Z)
+
+**Sprint:** Architecture Overhaul Sprint
+**Session window:** ~04:50Z – 09:03Z (from issue timestamps and commit times)
+**Stories attempted:** 1
+**Stories completed:** 1
+**Epic 1 status:** COMPLETE (all 3 stories done)
+
+---
+
+## 1. Session Summary
+
+| Story | Outcome | Notes |
+|-------|---------|-------|
+| 1-3-migrate-existing-tests-to-module-structure | Done | 6 verify test files moved to `src/modules/verify/__tests__/`. All tests pass, coverage maintained at baseline. Code review found 3 MEDIUM issues, all resolved. |
+
+Epic 1 (Foundation -- Result Types & Module Skeleton) is now fully complete. All 3 stories (1-1, 1-2, 1-3) are done. The sprint moves to Epic 2 next.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs discovered
+
+None new this sub-session.
+
+### Workarounds applied (tech debt introduced)
+
+1. **Migrated tests still import from `../../../lib/` not from module index** -- Tests reference source files via deep relative paths instead of through the module's public API (`src/modules/verify/index.ts`). This is expected and documented -- source extraction happens in Story 4-1. But it means the module boundary is not enforced by the test imports yet. Every test in `src/modules/verify/__tests__/` bypasses the module's index.
+
+### Code quality concerns (found in review)
+
+1. **MEDIUM: Missing AGENTS.md for verify module** -- The verify module had no AGENTS.md documenting ownership, purpose, and test patterns. Created during review.
+2. **MEDIUM: Missing showboat proof document** -- Verification proof was not generated before review. Created at `verification/1-3-migrate-existing-tests-to-module-structure-proof.md`.
+3. **MEDIUM: Story referenced nonexistent exec-plan** -- The story doc referenced an execution plan that was never created. Updated story to note exec-plan is not required for migration-only stories.
+4. **LOW: `verify-prompt.test.ts` placement questionable** -- This test validates a template file (`src/templates/verify-prompt.ts`), not a verify module file. It was migrated with the verify tests because it's thematically related, but architecturally it belongs with template tests. Minor -- can be revisited when templates get their own module.
+5. **LOW: Noisy stderr from CLI parser tests** -- Commander.js outputs error messages to stderr during parser tests. Harmless but clutters test output.
+
+### Verification gaps
+
+None new. All 3 ACs are CLI-verifiable and passed cleanly.
+
+### Coverage
+
+Coverage held steady at baseline -- no regression from the migration:
+- Lines: 95.96%
+- Statements: 95.37%
+- Functions: 98.4%
+- Branches: 85.1%
+
+Lowest individual files remain `src/lib/coverage.ts` (88.94%) and `src/lib/verify.ts` (89.04%).
+
+### Tooling/infrastructure problems
+
+None reported.
+
+---
+
+## 3. What Went Well
+
+- **Epic 1 completed in a single day** -- All 3 foundation stories done. The module skeleton, shared types, and test migration are in place. This unblocks Epics 2-6.
+- **Story 1-3 was clean** -- No bugs, no blockers, no verification workarounds needed. The migration pattern (move tests, update imports, verify coverage) worked exactly as designed.
+- **Code review continued to add value** -- Caught missing documentation (AGENTS.md, proof doc) and a story metadata error (nonexistent exec-plan reference). These are process hygiene issues that would have caused confusion in future sessions.
+- **Session issues log captured useful context** -- The note about old story file `1-3-init-command-full-harness-initialization.md` from archive-v1 prevented a potential naming collision.
+
+---
+
+## 4. What Went Wrong
+
+- **No significant problems this sub-session.** Story 1-3 was straightforward migration work with no surprises.
+- **Minor: three MEDIUM review findings** indicate that the create-story and dev-story subagents are not consistently generating AGENTS.md, proof docs, or validating exec-plan references. These should be caught earlier in the pipeline, not during code review.
+
+---
+
+## 5. Lessons Learned
+
+**Repeat:**
+- Migration-only stories (no new code, just reorganization) are low-risk and fast. Good candidates for building momentum early in a sprint.
+- Keeping coverage baseline numbers in the story ACs provides a concrete, automated gate. No ambiguity about whether coverage regressed.
+
+**Avoid:**
+- Referencing exec-plans in stories where none exist. The story template should either require an exec-plan or explicitly mark it N/A.
+- Moving tests without updating them to use the module's public API. This creates a window where tests bypass the module boundary. Acceptable as documented tech debt, but should not become permanent.
+
+---
+
+## 6. Action Items
+
+### Fix now (before next session)
+
+- (No new "fix now" items from this sub-session. Previous session's action items still apply.)
+
+### Fix soon (next sprint)
+
+- [ ] **Ensure create-story generates AGENTS.md for new modules** -- The verify module was missing its AGENTS.md until code review caught it. The story creation pipeline should check for this.
+- [ ] **Ensure dev-story generates proof documents** -- Showboat proof was missing until review. Either dev or verify subagent should create it automatically.
+- [ ] **Add exec-plan validation to story template** -- Stories should explicitly state "exec-plan: N/A" for migration/simple stories, or reference a real plan. No dangling references.
+
+### Backlog (track but not urgent)
+
+- [ ] **Relocate `verify-prompt.test.ts` to templates module** -- Currently in verify module but tests a template file. Move when templates get their own module structure.
+- [ ] **Suppress Commander.js stderr noise in parser tests** -- Low priority cosmetic issue. Consider redirecting stderr in test setup.
+- [ ] **Update migrated verify tests to use module index imports** -- After Story 4-1 (source extraction), tests should import from `src/modules/verify/index.ts` instead of deep `../../../lib/` paths.
+
+---
+
+## Full-Day Summary
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 3 |
+| Stories completed | 3 |
+| Epics completed | 1 (Epic 1: Foundation) |
+| Bugs found | 1 (black-box enforcement, from earlier sub-session) |
+| Workarounds applied | 2 (verification bypass, deep import paths) |
+| Review findings fixed | 5 (2 HIGH mutability + 3 MEDIUM documentation) |
+| Coverage | 95.37% statements (held at baseline) |
+| Next up | Epic 2: Unified State & Status Command |

@@ -7,6 +7,10 @@ import type { Result } from '../../types/result.js';
 import type { StoryStatus } from '../../types/state.js';
 import type { SprintState } from '../../types/state.js';
 import type { StorySelection, StoryDetail, StatusReport } from './types.js';
+import {
+  getSprintState as getSprintStateImpl,
+  updateStoryStatus as updateStoryStatusImpl,
+} from './state.js';
 
 export type { StorySelection, StoryDetail, StatusReport };
 
@@ -15,15 +19,15 @@ export function getNextStory(): Result<StorySelection | null> {
 }
 
 export function updateStoryStatus(
-  _key: string,
-  _status: StoryStatus,
-  _detail?: StoryDetail,
+  key: string,
+  status: StoryStatus,
+  detail?: StoryDetail,
 ): Result<void> {
-  return fail('not implemented');
+  return updateStoryStatusImpl(key, status, detail);
 }
 
 export function getSprintState(): Result<SprintState> {
-  return fail('not implemented');
+  return getSprintStateImpl();
 }
 
 export function generateReport(): Result<StatusReport> {

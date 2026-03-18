@@ -1,30 +1,57 @@
-import { describe, it, expect } from 'vitest';
-import {
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { unlinkSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+// Mock migration so index tests are isolated from real project files
+vi.mock('../migration.js', () => ({
+  migrateFromOldFormat: vi.fn(() => ({
+    success: false,
+    error: 'No old format files found for migration',
+  })),
+}));
+
+const {
   getNextStory,
   updateStoryStatus,
   getSprintState,
   generateReport,
-} from '../index.js';
+} = await import('../index.js');
 
-describe('sprint module stubs', () => {
+const STATE_FILE = join(process.cwd(), 'sprint-state.json');
+const TMP_FILE = join(process.cwd(), '.sprint-state.json.tmp');
+
+function cleanup(): void {
+  for (const f of [STATE_FILE, TMP_FILE]) {
+    if (existsSync(f)) unlinkSync(f);
+  }
+}
+
+describe('sprint module', () => {
+  beforeEach(cleanup);
+  afterEach(cleanup);
+
   it('getNextStory returns fail("not implemented")', () => {
     const result = getNextStory();
     expect(result).toEqual({ success: false, error: 'not implemented' });
   });
 
-  it('updateStoryStatus returns fail("not implemented")', () => {
-    const result = updateStoryStatus('1.1', 'in-progress');
-    expect(result).toEqual({ success: false, error: 'not implemented' });
-  });
-
-  it('updateStoryStatus with detail returns fail("not implemented")', () => {
-    const result = updateStoryStatus('1.1', 'failed', { error: 'boom' });
-    expect(result).toEqual({ success: false, error: 'not implemented' });
-  });
-
-  it('getSprintState returns fail("not implemented")', () => {
+  it('getSprintState returns ok with default state when no file exists', () => {
     const result = getSprintState();
-    expect(result).toEqual({ success: false, error: 'not implemented' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.version).toBe(1);
+      expect(result.data.stories).toEqual({});
+    }
+  });
+
+  it('updateStoryStatus writes state successfully', () => {
+    const result = updateStoryStatus('1.1', 'in-progress');
+    expect(result.success).toBe(true);
+  });
+
+  it('updateStoryStatus with detail writes state successfully', () => {
+    const result = updateStoryStatus('1.1', 'failed', { error: 'boom' });
+    expect(result.success).toBe(true);
   });
 
   it('generateReport returns fail("not implemented")', () => {

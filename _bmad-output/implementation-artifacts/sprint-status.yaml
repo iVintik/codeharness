@@ -39,12 +39,12 @@ development_status:
   # Epic 6: Infrastructure Module
   epic-6: in-progress
   6-1-infra-module-init-extraction: verifying
-  6-2-shared-stack-management: verifying
+  6-2-shared-stack-management: done
   6-3-non-interactive-bmad-install: done
 
   # Epic 7: OpenSearch Backend
   epic-7: backlog
-  7-1-observability-backend-interface-victoria-implementation: backlog
+  7-1-observability-backend-interface-victoria-implementation: done
   7-2-opensearch-implementation: backlog
 
   # Epic 8: Agent-Browser Verification

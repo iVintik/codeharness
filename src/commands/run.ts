@@ -77,7 +77,7 @@ export function buildSpawnArgs(opts: {
   timeout: number;
   iterationTimeout: number;
   calls: number;
-  live: boolean;
+  quiet: boolean;
   maxStoryRetries?: number;
   reset?: boolean;
 }): string[] {
@@ -95,10 +95,6 @@ export function buildSpawnArgs(opts: {
     args.push('--max-story-retries', String(opts.maxStoryRetries));
   }
 
-  if (opts.live) {
-    args.push('--live');
-  }
-
   if (opts.reset) {
     args.push('--reset');
   }
@@ -113,7 +109,7 @@ export function registerRunCommand(program: Command): void {
     .option('--max-iterations <n>', 'Maximum loop iterations', '50')
     .option('--timeout <seconds>', 'Total loop timeout in seconds', '43200')
     .option('--iteration-timeout <minutes>', 'Per-iteration timeout in minutes', '30')
-    .option('--live', 'Show live output streaming', false)
+    .option('--quiet', 'Suppress terminal output (background mode)', false)
     .option('--calls <n>', 'Max API calls per hour', '100')
     .option('--max-story-retries <n>', 'Max retries per story before flagging', '10')
     .option('--reset', 'Clear retry counters, flagged stories, and circuit breaker before starting', false)
@@ -206,7 +202,7 @@ export function registerRunCommand(program: Command): void {
         timeout,
         iterationTimeout,
         calls,
-        live: options.live,
+        quiet: options.quiet,
         maxStoryRetries,
         reset: options.reset,
       });
@@ -217,13 +213,29 @@ export function registerRunCommand(program: Command): void {
         env.CLAUDE_OUTPUT_FORMAT = 'json';
       }
 
-      // 8. Spawn Ralph
+      // 8. Spawn Ralph — filter output to show only structured progress lines
       try {
+        const quiet = options.quiet;
         const child = spawn('bash', args, {
-          stdio: 'inherit',
+          stdio: quiet ? 'ignore' : ['inherit', 'pipe', 'pipe'],
           cwd: projectDir,
           env,
         });
+
+        if (!quiet && child.stdout && child.stderr) {
+          // Filter ralph output: show [OK], [FAIL], [WARN], [INFO], [LOOP], [SUCCESS] lines
+          // Suppress [DEBUG] lines and raw prompt text
+          const filterOutput = (data: Buffer): void => {
+            const lines = data.toString().split('\n');
+            for (const line of lines) {
+              if (line.includes('[DEBUG]')) continue;  // suppress debug
+              if (line.trim().length === 0) continue;  // suppress empty
+              process.stdout.write(line + '\n');
+            }
+          };
+          child.stdout.on('data', filterOutput);
+          child.stderr.on('data', filterOutput);
+        }
 
         const exitCode = await new Promise<number>((resolve, reject) => {
           child.on('error', (err) => {

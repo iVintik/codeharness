@@ -588,8 +588,12 @@ execute_iteration() {
     local deadline=$(( $(date +%s) + timeout_seconds ))
     echo "$deadline" > "ralph/.iteration_deadline"
 
-    # DEBUG: log the command being run
-    log_status "DEBUG" "Command: ${CLAUDE_CMD_ARGS[*]}"
+    # DEBUG: log command (truncate prompt content to avoid dumping entire prompt to terminal)
+    local cmd_summary="${CLAUDE_CMD_ARGS[*]}"
+    if [[ ${#cmd_summary} -gt 200 ]]; then
+        cmd_summary="${cmd_summary:0:200}... (truncated)"
+    fi
+    log_status "DEBUG" "Command: $cmd_summary"
     log_status "DEBUG" "Output file: $output_file"
     log_status "DEBUG" "LIVE_OUTPUT=$LIVE_OUTPUT, timeout=${timeout_seconds}s"
 

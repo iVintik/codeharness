@@ -151,7 +151,7 @@ describe('run command', () => {
       timeout: 14400,
       iterationTimeout: 15,
       calls: 100,
-      live: false,
+      quiet: false,
     };
 
     it('builds basic argument array', () => {
@@ -161,12 +161,9 @@ describe('run command', () => {
       expect(args).toContain('50');
     });
 
-    it('does not include --live when false', () => {
+    it('never includes --live flag (removed)', () => {
       expect(buildSpawnArgs(baseOpts)).not.toContain('--live');
-    });
-
-    it('includes --live when true', () => {
-      expect(buildSpawnArgs({ ...baseOpts, live: true })).toContain('--live');
+      expect(buildSpawnArgs({ ...baseOpts, quiet: true })).not.toContain('--live');
     });
 
     it('includes --max-story-retries when provided', () => {
@@ -235,7 +232,7 @@ describe('run command', () => {
       await p;
 
       expect(spawnMock).toHaveBeenCalledWith('bash', expect.any(Array), expect.objectContaining({
-        stdio: 'inherit', cwd: tmpDir,
+        cwd: tmpDir,
       }));
       expect(process.exitCode).toBe(0);
     });
@@ -419,7 +416,7 @@ describe('run command', () => {
       const optionNames = runCmd!.options.map(o => o.long);
       expect(optionNames).toContain('--max-iterations');
       expect(optionNames).toContain('--timeout');
-      expect(optionNames).toContain('--live');
+      expect(optionNames).toContain('--quiet');
       expect(optionNames).toContain('--max-story-retries');
     });
 

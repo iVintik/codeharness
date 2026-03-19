@@ -1,0 +1,68 @@
+rules:
+  - id: error-path-no-log
+    patterns:
+      - pattern-either:
+          - pattern: throw $ERR;
+          - pattern: return err(...);
+      - pattern-not-inside: |
+          {
+            ...
+            console.error(...)
+            ...
+            throw $ERR;
+          }
+      - pattern-not-inside: |
+          {
+            ...
+            console.warn(...)
+            ...
+            throw $ERR;
+          }
+      - pattern-not-inside: |
+          {
+            ...
+            logger.error(...)
+            ...
+            throw $ERR;
+          }
+      - pattern-not-inside: |
+          {
+            ...
+            logger.warn(...)
+            ...
+            throw $ERR;
+          }
+      - pattern-not-inside: |
+          {
+            ...
+            console.error(...)
+            ...
+            return err(...);
+          }
+      - pattern-not-inside: |
+          {
+            ...
+            console.warn(...)
+            ...
+            return err(...);
+          }
+      - pattern-not-inside: |
+          {
+            ...
+            logger.error(...)
+            ...
+            return err(...);
+          }
+      - pattern-not-inside: |
+          {
+            ...
+            logger.warn(...)
+            ...
+            return err(...);
+          }
+    message: "Error path without logging — observability gap"
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: observability
+      cwe: "CWE-778: Insufficient Logging"

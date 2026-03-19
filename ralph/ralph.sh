@@ -98,6 +98,14 @@ log_status() {
         "LOOP")    color=$PURPLE ;;
     esac
 
+    # DEBUG level: log file only, no terminal output
+    if [[ "$level" == "DEBUG" ]]; then
+        if [[ -n "$LOG_DIR" ]]; then
+            echo "[$timestamp] [$level] $message" >> "$LOG_DIR/ralph.log"
+        fi
+        return
+    fi
+
     echo -e "${color}[$timestamp] [$level] $message${NC}" >&2
     if [[ -n "$LOG_DIR" ]]; then
         echo "[$timestamp] [$level] $message" >> "$LOG_DIR/ralph.log"
@@ -444,6 +452,58 @@ detect_story_changes() {
     done <<< "$after_snapshot"
 }
 
+# ─── Sprint State Progress Polling ─────────────────────────────────────────
+
+# Previous state tracking for change detection
+PREV_STORY=""
+PREV_PHASE=""
+PREV_AC_PROGRESS=""
+PREV_LAST_ACTION=""
+
+# Poll sprint-state.json for progress changes during background execution.
+# Prints structured update lines when progress fields change.
+poll_sprint_state_progress() {
+    local state_file="sprint-state.json"
+    [[ -f "$state_file" ]] || return 0
+
+    # Single jq call to extract all fields (avoids 4 process spawns per poll cycle)
+    local raw
+    raw=$(jq -r '[.run.currentStory // "", .run.currentPhase // "", .run.lastAction // "", .run.acProgress // ""] | join("\t")' "$state_file" 2>/dev/null) || return 0
+    [[ -n "$raw" ]] || return 0
+
+    local cur_story cur_phase cur_action cur_ac
+    IFS=$'\t' read -r cur_story cur_phase cur_action cur_ac <<< "$raw"
+
+    # Nothing to report if no story is active
+    [[ -z "$cur_story" ]] && return 0
+
+    # Detect changes and print structured updates
+    if [[ "$cur_story" != "$PREV_STORY" || "$cur_phase" != "$PREV_PHASE" ]]; then
+        if [[ -n "$cur_action" && "$cur_action" != "null" ]]; then
+            log_status "INFO" "Story ${cur_story}: ${cur_phase} (${cur_action})"
+        else
+            log_status "INFO" "Story ${cur_story}: ${cur_phase}"
+        fi
+    elif [[ "$cur_ac" != "$PREV_AC_PROGRESS" && -n "$cur_ac" && "$cur_ac" != "null" ]]; then
+        log_status "INFO" "Story ${cur_story}: verify (AC ${cur_ac})"
+    elif [[ "$cur_action" != "$PREV_LAST_ACTION" && -n "$cur_action" && "$cur_action" != "null" ]]; then
+        log_status "INFO" "Story ${cur_story}: ${cur_phase} (${cur_action})"
+    fi
+
+    PREV_STORY="$cur_story"
+    PREV_PHASE="$cur_phase"
+    PREV_AC_PROGRESS="$cur_ac"
+    PREV_LAST_ACTION="$cur_action"
+}
+
+# Reset polling state between iterations
+reset_poll_state() {
+    PREV_STORY=""
+    PREV_PHASE=""
+    PREV_AC_PROGRESS=""
+    PREV_LAST_ACTION=""
+}
+
 # ─── Progress Summary ───────────────────────────────────────────────────────
 
 print_progress_summary() {
@@ -463,7 +523,51 @@ print_progress_summary() {
         elapsed_fmt="${elapsed}s"
     fi
 
-    log_status "INFO" "Progress: ${completed}/${total} done, ${remaining} remaining (iterations: ${loop_count}, elapsed: ${elapsed_fmt})"
+    # Read cost and failed stories from sprint-state.json (single jq call)
+    local cost=""
+    local cost_fmt=""
+    local failed_stories=""
+    if [[ -f "sprint-state.json" ]]; then
+        local state_data
+        state_data=$(jq -r '(.run.cost // 0 | tostring) + "\n" + ((.run.failed // []) | join("\n"))' "sprint-state.json" 2>/dev/null) || state_data=""
+        if [[ -n "$state_data" ]]; then
+            cost=$(head -1 <<< "$state_data")
+            failed_stories=$(tail -n +2 <<< "$state_data")
+            if [[ -n "$cost" && "$cost" != "0" && "$cost" != "null" ]]; then
+                cost_fmt=", cost: \$${cost}"
+            fi
+        fi
+    fi
+
+    log_status "INFO" "Progress: ${completed}/${total} done, ${remaining} remaining (iterations: ${loop_count}, elapsed: ${elapsed_fmt}${cost_fmt})"
+
+    # Show completed stories with ✓
+    if [[ -f "$SPRINT_STATUS_FILE" ]]; then
+        while IFS=: read -r key value; do
+            key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [[ -z "$key" || "$key" == \#* ]] && continue
+            if [[ "$key" =~ ^[0-9]+-[0-9]+- && "$value" == "done" ]]; then
+                log_status "SUCCESS" "  ✓ ${key}"
+            fi
+        done < "$SPRINT_STATUS_FILE"
+    fi
+
+    # Show failed stories with ✗ from sprint-state.json
+    if [[ -n "$failed_stories" ]]; then
+        while IFS= read -r fkey; do
+            [[ -z "$fkey" ]] && continue
+            log_status "ERROR" "  ✗ ${fkey}"
+        done <<< "$failed_stories"
+    fi
+
+    # Show flagged/blocked stories with ✕
+    if [[ -f "$FLAGGED_STORIES_FILE" ]]; then
+        while IFS= read -r bkey; do
+            [[ -z "$bkey" ]] && continue
+            log_status "WARN" "  ✕ ${bkey} (blocked)"
+        done < "$FLAGGED_STORIES_FILE"
+    fi
 
     # Show the next story in line (first non-done, non-flagged)
     if [[ -f "$SPRINT_STATUS_FILE" ]]; then
@@ -541,7 +645,7 @@ load_platform_driver() {
         CLAUDE_ALLOWED_TOOLS=$(IFS=','; echo "${VALID_TOOL_PATTERNS[*]}")
     fi
 
-    log_status "INFO" "Platform driver: $(driver_display_name) ($(driver_cli_binary))"
+    log_status "DEBUG" "Platform driver: $(driver_display_name) ($(driver_cli_binary))"
 }
 
 # ─── Execution ───────────────────────────────────────────────────────────────
@@ -624,11 +728,13 @@ execute_iteration() {
 
         log_status "DEBUG" "Background PID: $claude_pid"
 
+        reset_poll_state
         while kill -0 $claude_pid 2>/dev/null; do
             progress_counter=$((progress_counter + 1))
             if [[ -f "$output_file" && -s "$output_file" ]]; then
                 cp "$output_file" "$LIVE_LOG_FILE" 2>/dev/null
             fi
+            poll_sprint_state_progress
             sleep 10
         done
 
@@ -792,6 +898,41 @@ The loop:
 HELPEOF
 }
 
+# ─── Sprint Summary ──────────────────────────────────────────────────────────
+
+# Print a compact sprint summary at startup
+print_sprint_summary() {
+    local counts
+    counts=$(get_task_counts)
+    local total=${counts%% *}
+    local completed=${counts##* }
+    local remaining=$((total - completed))
+
+    # Find next story
+    local next_story=""
+    local next_status=""
+    if [[ -f "$SPRINT_STATUS_FILE" ]]; then
+        while IFS=: read -r key value; do
+            key=$(echo "$key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [[ -z "$key" || "$key" == \#* ]] && continue
+            if [[ "$key" =~ ^[0-9]+-[0-9]+- && "$value" != "done" ]]; then
+                if ! is_story_flagged "$key"; then
+                    next_story="$key"
+                    next_status="$value"
+                    break
+                fi
+            fi
+        done < "$SPRINT_STATUS_FILE"
+    fi
+
+    if [[ -n "$next_story" ]]; then
+        log_status "INFO" "Sprint: ${completed}/${total} done, ${remaining} remaining — next: ${next_story} (${next_status})"
+    else
+        log_status "INFO" "Sprint: ${completed}/${total} done, ${remaining} remaining"
+    fi
+}
+
 # ─── Main ────────────────────────────────────────────────────────────────────
 
 main() {
@@ -880,14 +1021,16 @@ main() {
     # .story_retries and .flagged_stories are file-based — they persist automatically
 
     log_status "SUCCESS" "Ralph loop starting"
-    log_status "INFO" "Plugin: $PLUGIN_DIR"
-    log_status "INFO" "Max iterations: $MAX_ITERATIONS | Timeout: $((LOOP_TIMEOUT_SECONDS / 3600))h"
-    log_status "INFO" "Prompt: $PROMPT_FILE"
-    log_status "INFO" "Sprint status: $SPRINT_STATUS_FILE"
-    log_status "INFO" "Max story retries: $MAX_STORY_RETRIES"
+    log_status "DEBUG" "Plugin: $PLUGIN_DIR"
+    log_status "DEBUG" "Max iterations: $MAX_ITERATIONS | Timeout: $((LOOP_TIMEOUT_SECONDS / 3600))h"
+    log_status "DEBUG" "Prompt: $PROMPT_FILE"
+    log_status "DEBUG" "Sprint status: $SPRINT_STATUS_FILE"
+    log_status "DEBUG" "Max story retries: $MAX_STORY_RETRIES"
 
     # Record loop start time for timeout
     loop_start_time=$(date +%s)
+
+    print_sprint_summary
 
     local consecutive_failures=0
     local max_consecutive_failures=3

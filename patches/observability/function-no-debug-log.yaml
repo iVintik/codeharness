@@ -1,0 +1,114 @@
+rules:
+  - id: function-no-debug-log
+    patterns:
+      - pattern-either:
+          - pattern: |
+              function $FUNC(...) { ... }
+          - pattern: |
+              const $FUNC = (...) => { ... }
+          - pattern: |
+              let $FUNC = (...) => { ... }
+          - pattern: |
+              $FUNC(...) { ... }
+      - pattern-not: |
+          function $FUNC(...) {
+            ...
+            console.log(...)
+            ...
+          }
+      - pattern-not: |
+          function $FUNC(...) {
+            ...
+            console.debug(...)
+            ...
+          }
+      - pattern-not: |
+          function $FUNC(...) {
+            ...
+            logger.debug(...)
+            ...
+          }
+      - pattern-not: |
+          function $FUNC(...) {
+            ...
+            logger.info(...)
+            ...
+          }
+      - pattern-not: |
+          const $FUNC = (...) => {
+            ...
+            console.log(...)
+            ...
+          }
+      - pattern-not: |
+          const $FUNC = (...) => {
+            ...
+            console.debug(...)
+            ...
+          }
+      - pattern-not: |
+          const $FUNC = (...) => {
+            ...
+            logger.debug(...)
+            ...
+          }
+      - pattern-not: |
+          const $FUNC = (...) => {
+            ...
+            logger.info(...)
+            ...
+          }
+      - pattern-not: |
+          let $FUNC = (...) => {
+            ...
+            console.log(...)
+            ...
+          }
+      - pattern-not: |
+          let $FUNC = (...) => {
+            ...
+            console.debug(...)
+            ...
+          }
+      - pattern-not: |
+          let $FUNC = (...) => {
+            ...
+            logger.debug(...)
+            ...
+          }
+      - pattern-not: |
+          let $FUNC = (...) => {
+            ...
+            logger.info(...)
+            ...
+          }
+      - pattern-not: |
+          $FUNC(...) {
+            ...
+            console.log(...)
+            ...
+          }
+      - pattern-not: |
+          $FUNC(...) {
+            ...
+            console.debug(...)
+            ...
+          }
+      - pattern-not: |
+          $FUNC(...) {
+            ...
+            logger.debug(...)
+            ...
+          }
+      - pattern-not: |
+          $FUNC(...) {
+            ...
+            logger.info(...)
+            ...
+          }
+    message: "Function without debug/info logging — observability gap"
+    languages: [typescript, javascript]
+    severity: INFO
+    metadata:
+      category: observability
+      cwe: "CWE-778: Insufficient Logging"

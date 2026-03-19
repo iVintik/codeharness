@@ -17,7 +17,20 @@ patches/
   retro/enforcement.md      — Retrospective quality metrics
 ```
 
-Subdirectories map to BMAD workflow roles.
+Subdirectories map to BMAD workflow roles (or analysis categories like `observability/`).
+
+## Observability Module (`observability/`)
+
+Semgrep YAML rules for static analysis of observability gaps. Each `.yaml` file is a standalone Semgrep config — no build step required. Deleting a rule file removes that check.
+
+**Rules:**
+- `catch-without-logging.yaml` — Detects catch blocks without error/warn logging (WARNING)
+- `function-no-debug-log.yaml` — Detects functions without debug/info logging (INFO)
+- `error-path-no-log.yaml` — Detects error paths (throw/return err) without preceding log (WARNING)
+
+**Testing:** `semgrep --test patches/observability/` runs annotated test fixtures (`.ts` files alongside rules).
+
+**Customization:** Edit YAML rules to add custom logger patterns (e.g., `logger.error(...)` for winston). Rules use `pattern-not` / `pattern-not-inside` to detect absence of logging.
 
 ## How Patches Work
 

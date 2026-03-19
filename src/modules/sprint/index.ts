@@ -20,12 +20,15 @@ import type {
   FeedbackResult,
   FailingAc,
   TimeoutSummary,
+  RunProgressUpdate,
 } from './types.js';
 import {
   getSprintState as getSprintStateImpl,
   updateStoryStatus as updateStoryStatusImpl,
   writeStateAtomic as writeStateAtomicImpl,
   computeSprintCounts as computeSprintCountsImpl,
+  updateRunProgress as updateRunProgressImpl,
+  clearRunProgress as clearRunProgressImpl,
 } from './state.js';
 import { selectNextStory } from './selector.js';
 import { generateReport as generateReportImpl, getStoryDrillDown as getStoryDrillDownImpl } from './reporter.js';
@@ -48,6 +51,7 @@ export type {
   TimeoutSummary,
   FeedbackResult,
   FailingAc,
+  RunProgressUpdate,
 };
 
 export type { ValidationReport, ValidationIssue };
@@ -142,4 +146,12 @@ export function computeSprintCounts(
   stories: Record<string, import('../../types/state.js').StoryState>,
 ): SprintState['sprint'] {
   return computeSprintCountsImpl(stories);
+}
+
+export function updateRunProgress(update: RunProgressUpdate): Result<void> {
+  return updateRunProgressImpl(update);
+}
+
+export function clearRunProgress(): Result<void> {
+  return clearRunProgressImpl();
 }

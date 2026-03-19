@@ -1,6 +1,5 @@
-3-4-eight-hour-stability-test=10 
-4-3-verifier-session-reliability=3 
-8-1-agent-browser-integration=1 
-9-1-per-module-patches-directory=1 
-10-1-validation-ac-suite 2
-10-2-validation-infrastructure 5
+story-a 3
+malformed-no-count
+
+story-b notanumber
+story-c 5

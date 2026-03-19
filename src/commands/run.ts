@@ -6,6 +6,7 @@ import { Command } from 'commander';
 import { fail, info, jsonOutput } from '../lib/output.js';
 import { readSprintStatus } from '../lib/beads-sync.js';
 import { generateRalphPrompt } from '../templates/ralph-prompt.js';
+import { DashboardFormatter } from '../lib/dashboard-formatter.js';
 
 const SPRINT_STATUS_REL = '_bmad-output/implementation-artifacts/sprint-status.yaml';
 const STORY_KEY_PATTERN = /^\d+-\d+-/;
@@ -222,26 +223,48 @@ export function registerRunCommand(program: Command): void {
           env,
         });
 
+        let tickerInterval: ReturnType<typeof setInterval> | null = null;
+
         if (!quiet && child.stdout && child.stderr) {
-          // Filter ralph output: show [OK], [FAIL], [WARN], [INFO], [LOOP], [SUCCESS] lines
-          // Suppress [DEBUG] lines and raw prompt text
-          const filterOutput = (data: Buffer): void => {
-            const lines = data.toString().split('\n');
-            for (const line of lines) {
-              if (line.includes('[DEBUG]')) continue;  // suppress debug
-              if (line.trim().length === 0) continue;  // suppress empty
-              process.stdout.write(line + '\n');
-            }
+          const formatter = new DashboardFormatter();
+
+          // Buffer partial lines across data events
+          const makeFilterOutput = (): ((data: Buffer) => void) => {
+            let partial = '';
+            return (data: Buffer): void => {
+              const text = partial + data.toString();
+              const parts = text.split('\n');
+              // Last element is either '' (line ended with \n) or a partial line
+              partial = parts.pop() ?? '';
+              for (const line of parts) {
+                if (line.trim().length === 0) continue;
+                const formatted = formatter.formatLine(line);
+                if (formatted !== null) {
+                  // Clear any ticker line before printing a real event
+                  process.stdout.write(`\r\x1b[K${formatted}\n`);
+                }
+              }
+            };
           };
-          child.stdout.on('data', filterOutput);
-          child.stderr.on('data', filterOutput);
+          child.stdout.on('data', makeFilterOutput());
+          child.stderr.on('data', makeFilterOutput());
+
+          // Start 10-second ticker for live progress when ralph is silent
+          tickerInterval = setInterval(() => {
+            const tickerLine = formatter.getTickerLine();
+            if (tickerLine) {
+              process.stdout.write(`\r\x1b[K${tickerLine}`);
+            }
+          }, 10_000);
         }
 
         const exitCode = await new Promise<number>((resolve, reject) => {
           child.on('error', (err) => {
+            if (tickerInterval) clearInterval(tickerInterval);
             reject(err);
           });
           child.on('close', (code) => {
+            if (tickerInterval) clearInterval(tickerInterval);
             resolve(code ?? 1);
           });
         });

@@ -3,31 +3,40 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { existsSync as origExistsSync, readFileSync as origReadFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { EventEmitter } from 'node:events';
 import { Command } from 'commander';
 import { resolveRalphPath, resolvePluginDir, countStories, buildSpawnArgs } from '../run.js';
 
 // --- Hoisted mocks ---
 // Capture the real existsSync before vi.mock replaces node:fs
-const { spawnMock, getChildOnHandlers, existsSyncMock, readSprintStatusMock, realExistsSync } = vi.hoisted(() => {
+const { spawnMock, getChildOnHandlers, existsSyncMock, readSprintStatusMock, realExistsSync, getStdoutEmitter, getStderrEmitter } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('node:fs');
   const realFn = fs.existsSync.bind(fs);
 
   const handlers: Record<string, (...args: unknown[]) => void> = {};
+  let stdoutEmitter: EventEmitter | null = null;
+  let stderrEmitter: EventEmitter | null = null;
   return {
-    spawnMock: vi.fn(() => ({
-      on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
-        handlers[event] = handler;
-      }),
-      pid: 12345,
-      stdin: null,
-      stdout: null,
-      stderr: null,
-    })),
+    spawnMock: vi.fn(() => {
+      stdoutEmitter = new EventEmitter();
+      stderrEmitter = new EventEmitter();
+      return {
+        on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+          handlers[event] = handler;
+        }),
+        pid: 12345,
+        stdin: null,
+        stdout: stdoutEmitter,
+        stderr: stderrEmitter,
+      };
+    }),
     getChildOnHandlers: () => handlers,
     existsSyncMock: vi.fn(realFn),
     readSprintStatusMock: vi.fn(() => ({}) as Record<string, string>),
     realExistsSync: realFn as (path: string) => boolean,
+    getStdoutEmitter: () => stdoutEmitter,
+    getStderrEmitter: () => stderrEmitter,
   };
 });
 
@@ -429,6 +438,118 @@ describe('run command', () => {
       const runCmd = program.commands.find(c => c.name() === 'run');
       const retryOpt = runCmd!.options.find(o => o.long === '--max-story-retries');
       expect(retryOpt!.defaultValue).toBe('10');
+    });
+  });
+
+  describe('dashboard integration (AC #1, #4)', () => {
+    it('formats ralph output through DashboardFormatter, not raw to stdout', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+
+      // Emit ralph output through stderr (ralph writes to stderr)
+      const stderr = getStderrEmitter();
+      stderr!.emit('data', Buffer.from('[2025-01-15 10:30:00] [SUCCESS] Story 1-1-foo: DONE\n'));
+      stderr!.emit('data', Buffer.from('[2025-01-15 10:30:00] [DEBUG] internal noise\n'));
+
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      // Should have formatted the SUCCESS line with checkmark
+      const writes = writeSpy.mock.calls.map(c => String(c[0]));
+      const successWrite = writes.find(w => w.includes('\u2713 Story 1-1-foo: DONE'));
+      expect(successWrite).toBeDefined();
+
+      // Should NOT have passed through the DEBUG line
+      const debugWrite = writes.find(w => w.includes('[DEBUG]'));
+      expect(debugWrite).toBeUndefined();
+    });
+
+    it('--quiet mode does not start ticker or produce formatted output', async () => {
+      // When quiet, spawn gets stdio: 'ignore' so stdout/stderr are null on the child
+      // We need to mock spawn to return null stdout/stderr for quiet mode
+      const quietHandlers: Record<string, (...args: unknown[]) => void> = {};
+      spawnMock.mockImplementationOnce(() => ({
+        on: vi.fn((event: string, handler: (...args: unknown[]) => void) => {
+          quietHandlers[event] = handler;
+        }),
+        pid: 12345,
+        stdin: null,
+        stdout: null,
+        stderr: null,
+      }));
+
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+      const p = runCommand(['--quiet']);
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+
+      // Verify spawn was called with stdio: 'ignore'
+      expect(spawnMock).toHaveBeenCalledWith('bash', expect.any(Array), expect.objectContaining({
+        stdio: 'ignore',
+      }));
+
+      quietHandlers['close'](0);
+      await p;
+
+      // No formatted output should appear (only console.log from info() before spawn)
+      const writes = writeSpy.mock.calls.map(c => String(c[0]));
+      const dashboardWrites = writes.filter(w => w.includes('\u2713') || w.includes('\u25c6'));
+      expect(dashboardWrites).toHaveLength(0);
+    });
+
+    it('formats sprint summary lines through formatter', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+
+      const stderr = getStderrEmitter();
+      stderr!.emit('data', Buffer.from('[2025-01-15 10:30:00] [INFO] Sprint: 5/12 done, 7 remaining\n'));
+
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      const writes = writeSpy.mock.calls.map(c => String(c[0]));
+      const sprintWrite = writes.find(w => w.includes('\u25c6 Sprint:'));
+      expect(sprintWrite).toBeDefined();
+    });
+
+    it('suppresses [INFO] noise lines through formatter', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      const writeSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+
+      const stderr = getStderrEmitter();
+      stderr!.emit('data', Buffer.from('[2025-01-15 10:30:00] [INFO] Plugin: /path/to/.claude\n'));
+      stderr!.emit('data', Buffer.from('[2025-01-15 10:30:00] [INFO] Story 1-1-foo: dev (coding)\n'));
+
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      const writes = writeSpy.mock.calls.map(c => String(c[0]));
+      // Plugin line should be suppressed
+      expect(writes.find(w => w.includes('Plugin:'))).toBeUndefined();
+      // Story phase line should also be suppressed (used for ticker state only)
+      expect(writes.find(w => w.includes('Story 1-1-foo: dev'))).toBeUndefined();
     });
   });
 });

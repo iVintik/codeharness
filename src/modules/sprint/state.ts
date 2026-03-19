@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
 import type { SprintState, StoryStatus, StoryState } from '../../types/state.js';
-import type { StoryDetail } from './types.js';
+import type { StoryDetail, RunProgressUpdate } from './types.js';
 import { migrateFromOldFormat } from './migration.js';
 
 /** Resolve project root (directory containing package.json) */
@@ -44,6 +44,10 @@ export function defaultState(): SprintState {
       cost: 0,
       completed: [],
       failed: [],
+      currentStory: null,
+      currentPhase: null,
+      lastAction: null,
+      acProgress: null,
     },
     actionItems: [],
   };
@@ -89,8 +93,18 @@ export function getSprintState(): Result<SprintState> {
   if (existsSync(fp)) {
     try {
       const raw = readFileSync(fp, 'utf-8');
-      const parsed = JSON.parse(raw) as SprintState;
-      return ok(parsed);
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      // Merge with defaults to handle old state files missing new fields
+      const defaults = defaultState();
+      const run = parsed.run as Record<string, unknown> | undefined;
+      const state: SprintState = {
+        ...(parsed as unknown as SprintState),
+        run: {
+          ...defaults.run,
+          ...(run as SprintState['run']),
+        },
+      };
+      return ok(state);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       return fail(`Failed to read sprint state: ${msg}`);
@@ -168,6 +182,58 @@ export function updateStoryStatus(
     ...current,
     sprint: updatedSprint,
     stories: updatedStories,
+  };
+
+  return writeStateAtomic(updatedState);
+}
+
+/**
+ * Update live run progress fields in sprint-state.json.
+ * Only provided fields are updated; omitted fields retain their current values.
+ */
+export function updateRunProgress(update: RunProgressUpdate): Result<void> {
+  const stateResult = getSprintState();
+  if (!stateResult.success) {
+    return fail(stateResult.error);
+  }
+
+  const current = stateResult.data;
+  const updatedRun = {
+    ...current.run,
+    ...(update.currentStory !== undefined && { currentStory: update.currentStory }),
+    ...(update.currentPhase !== undefined && { currentPhase: update.currentPhase }),
+    ...(update.lastAction !== undefined && { lastAction: update.lastAction }),
+    ...(update.acProgress !== undefined && { acProgress: update.acProgress }),
+  };
+
+  const updatedState: SprintState = {
+    ...current,
+    run: updatedRun,
+  };
+
+  return writeStateAtomic(updatedState);
+}
+
+/**
+ * Clear all live run progress fields to null.
+ * Called when a story completes or fails.
+ */
+export function clearRunProgress(): Result<void> {
+  const stateResult = getSprintState();
+  if (!stateResult.success) {
+    return fail(stateResult.error);
+  }
+
+  const current = stateResult.data;
+  const updatedState: SprintState = {
+    ...current,
+    run: {
+      ...current.run,
+      currentStory: null,
+      currentPhase: null,
+      lastAction: null,
+      acProgress: null,
+    },
   };
 
   return writeStateAtomic(updatedState);

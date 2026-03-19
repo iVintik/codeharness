@@ -62,6 +62,10 @@ export interface SprintState {
     readonly cost: number;
     readonly completed: string[];
     readonly failed: string[];
+    readonly currentStory: string | null;
+    readonly currentPhase: 'create' | 'dev' | 'review' | 'verify' | null;
+    readonly lastAction: string | null;
+    readonly acProgress: string | null;
   };
   readonly actionItems: ActionItem[];
 }

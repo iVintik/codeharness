@@ -4,6 +4,14 @@
 
 import type { StoryStatus, ActionItem, AcVerdict } from '../../types/state.js';
 
+/** Partial update for live run progress fields */
+export interface RunProgressUpdate {
+  readonly currentStory?: string | null;
+  readonly currentPhase?: 'create' | 'dev' | 'review' | 'verify' | null;
+  readonly lastAction?: string | null;
+  readonly acProgress?: string | null;
+}
+
 /** A story selected for development */
 export interface StorySelection {
   readonly key: string;

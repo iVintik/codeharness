@@ -1,0 +1,35 @@
+rules:
+  - id: catch-without-logging
+    patterns:
+      - pattern: |
+          try { ... } catch ($ERR) { ... }
+      - pattern-not: |
+          try { ... } catch ($ERR) {
+            ...
+            console.error(...)
+            ...
+          }
+      - pattern-not: |
+          try { ... } catch ($ERR) {
+            ...
+            console.warn(...)
+            ...
+          }
+      - pattern-not: |
+          try { ... } catch ($ERR) {
+            ...
+            logger.error(...)
+            ...
+          }
+      - pattern-not: |
+          try { ... } catch ($ERR) {
+            ...
+            logger.warn(...)
+            ...
+          }
+    message: "Catch block without error logging — observability gap"
+    languages: [typescript, javascript]
+    severity: WARNING
+    metadata:
+      category: observability
+      cwe: "CWE-778: Insufficient Logging"

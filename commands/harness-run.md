@@ -96,6 +96,14 @@ Initialize the issues file at the start of the session (Step 1) by writing a hea
 
 Based on the story's current status, determine which workflow(s) to run. Execute them in sequence, verifying status transitions after each.
 
+**Live progress updates:** Before executing each sub-step (3a/3b/3c/3d), update sprint-state.json with the current progress:
+
+```bash
+codeharness progress --story {story_key} --phase {create|dev|review|verify} --action "Starting {step description}"
+```
+
+This enables external tools to see what the session is doing in real time.
+
 ### 3a: If status is `backlog` — Run Create Story
 
 Invoke the create-story workflow via Agent tool to generate the story file:
@@ -294,7 +302,13 @@ If the proof file does not exist (verifier crashed or failed to produce one), tr
 codeharness verify --story {story_key} 2>&1
 ```
 
-Parse the output/exit code:
+Parse the output/exit code. After parsing each AC verdict from the proof, update the live progress:
+
+```bash
+codeharness progress --ac-progress "{passed}/{total}"
+```
+
+where `passed` is ACs with PASS verdict and `total` is all ACs.
 
 - If `pending === 0` and `escalated === 0` → proof quality passed. Update sprint-status.yaml: change `{story_key}` status to `done`. Print: `[OK] Story {story_key}: verifying → done`. Proceed to cleanup (step 3d-viii).
 - If `escalated > 0` and `pending === 0` → verifier could not reach some ACs. **Before accepting escalation, diagnose WHY:**
@@ -432,7 +446,11 @@ After the story reaches `done`, commit all changes with a coherent message.
 
 ## Step 4: Story Complete — Continue or Finish Epic
 
-A story just completed successfully.
+A story just completed successfully. Clear live run progress immediately:
+
+```bash
+codeharness progress --clear
+```
 
 1. Increment `stories_completed`
 2. Re-read `sprint-status.yaml` to get current state
@@ -480,7 +498,11 @@ If nothing to report, write `## Session Issues\n\nNone.`"
 
 ## Step 6: Failure Handling
 
-A story has exceeded max_attempts (10).
+A story has exceeded max_attempts (10). Clear live run progress immediately:
+
+```bash
+codeharness progress --clear
+```
 
 1. Increment `stories_failed`
 2. Increment `stories_skipped`
@@ -495,6 +517,12 @@ A story has exceeded max_attempts (10).
 6. Go to Step 2 to find the next actionable story. Do NOT halt the sprint. Step 2 will go to Step 7 only when zero actionable stories remain.
 
 ## Step 7: Sprint Execution Summary
+
+Clear live run progress to ensure clean state before printing summary:
+
+```bash
+codeharness progress --clear
+```
 
 Print the final summary:
 

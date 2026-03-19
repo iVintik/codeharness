@@ -96,6 +96,74 @@ export interface SemgrepRawOutput {
   readonly errors?: ReadonlyArray<unknown>;
 }
 
+// ============================================================
+// Coverage state types (Story 1.3)
+// ============================================================
+
+/** A single coverage history entry with timestamp */
+export interface CoverageHistoryEntry {
+  /** Coverage percentage at this point in time */
+  readonly coveragePercent: number;
+  /** ISO 8601 timestamp when this measurement was taken */
+  readonly timestamp: string;
+}
+
+/** Static analysis coverage state persisted in sprint-state.json */
+export interface StaticCoverageState {
+  /** Current coverage percentage */
+  readonly coveragePercent: number;
+  /** ISO 8601 timestamp of last scan */
+  readonly lastScanTimestamp: string;
+  /** Historical coverage entries */
+  readonly history: readonly CoverageHistoryEntry[];
+}
+
+/** Coverage targets configuration */
+export interface CoverageTargets {
+  /** Target coverage percentage for static analysis (default 80) */
+  readonly staticTarget: number;
+}
+
+/**
+ * Top-level observability coverage state in sprint-state.json.
+ *
+ * Only the `static` section is implemented now (Story 1.3).
+ * The `runtime` section will be added in Epic 2.
+ * Follows architecture Decision 2 (Separate Metrics).
+ */
+export interface ObservabilityCoverageState {
+  /** Static analysis coverage metrics */
+  readonly static: StaticCoverageState;
+  /** Coverage targets */
+  readonly targets: CoverageTargets;
+}
+
+/** Trend comparison between latest and previous coverage entries */
+export interface CoverageTrend {
+  /** Latest coverage percentage */
+  readonly current: number;
+  /** Previous coverage percentage, or null if only one entry */
+  readonly previous: number | null;
+  /** Delta: current - previous, or null if only one entry */
+  readonly delta: number | null;
+  /** Timestamp of latest measurement */
+  readonly currentTimestamp: string;
+  /** Timestamp of previous measurement, or null */
+  readonly previousTimestamp: string | null;
+}
+
+/** Result of checking coverage against a target */
+export interface CoverageTargetResult {
+  /** Whether coverage meets or exceeds the target */
+  readonly met: boolean;
+  /** Current coverage percentage */
+  readonly current: number;
+  /** Target coverage percentage */
+  readonly target: number;
+  /** Gap: target - current (0 if met) */
+  readonly gap: number;
+}
+
 /** A single result entry from Semgrep JSON output */
 export interface SemgrepResult {
   readonly check_id: string;

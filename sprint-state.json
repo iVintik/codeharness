@@ -2,10 +2,10 @@
   "version": 1,
   "sprint": {
     "total": 20,
-    "done": 4,
+    "done": 6,
     "failed": 0,
     "blocked": 2,
-    "inProgress": "1-2-analyzer-module-interface"
+    "inProgress": null
   },
   "stories": {
     "0-1-sprint-state-live-updates": {
@@ -41,7 +41,7 @@
       "acResults": null
     },
     "1-2-analyzer-module-interface": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -49,8 +49,8 @@
       "acResults": null
     },
     "1-3-observability-coverage-state-tracking": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -172,181 +172,129 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 3,
+    "iteration": 5,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "acProgress": "3/3"
   },
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Ambiguity in coverage computation (AC #5):** Epic AC says \"20 functions and 15 with log statements\" but Semgrep doesn't directly report total function count — it reports functions WITHOUT logs. Workaround: derive `totalFunctions = functionsWithLogs + matchCount` from the `function-no-debug-log` rule.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**Ambiguity in AC1:** AC says \"sprint-state.json stores `observability.static.coveragePercent`\" but architecture also includes `errorHandlerCoverage`. Scoped to AC only.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Risk — Semgrep JSON output format:** Story assumes specific Semgrep JSON output structure. No version pinning.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**Ambiguity in AC3:** No max history length or pruning strategy specified. Unbounded history array.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Observation:** AnalyzerResult/ObservabilityGap types should live in `src/modules/observability/types.ts` per module boundary convention, not shared `src/types/`.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**Risk:** `sprint-state.json` concurrent writes — no file locking, atomic write mitigates partial corruption but not lost updates.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Coverage computation design gap (Task 3.3):** Semgrep `--json` output doesn't provide total function count. Added optional `totalFunctions` parameter to `computeSummary()` so callers can provide count from external source. Without override, defaults to match count (pessimistic).",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**Observation:** AC2 \"audit reports gap\" depends on Epic 3 audit coordinator (not yet built). Story produces gap data structure only.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**`computeSummary` signature differs from spec:** Changed from `computeSummary(gaps, raw)` to `computeSummary(gaps, opts?)` because raw output doesn't contain needed stats. The `_raw` parameter would have been unused dead code.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**Workaround:** Scoped `errorHandlerCoverage` out to match ACs exactly.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**`index.ts` and `types.ts` show 0% coverage** — expected, they contain only type exports and re-exports with no runtime code.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**Branch coverage 93.75%** — Uncovered branches are defensive guards for corrupt JSON type narrowing. Statement and function coverage both 100%.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**HIGH — `runSemgrep` no JSON validation:** Blindly cast `JSON.parse` output to `SemgrepRawOutput` without validating `results` array exists. Malformed output would cause runtime TypeError. Fixed.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**Decoupled state I/O** — `coverage.ts` reads/writes `sprint-state.json` directly using raw JSON rather than going through sprint module's `getSprintState()`. `SprintState` type lacks `observability` key. Tech debt if sprint module refactored.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**HIGH — `parseSemgrepOutput` crash on missing results:** Would throw TypeError if called with `SemgrepRawOutput` where `results` is missing/not array. Fixed with defensive guard.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**No formal proof doc** — Proof document not generated during dev (expected — verification step generates it).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**MEDIUM — `index.ts` barrel had 0% coverage:** No test imported from barrel. Fixed by adding barrel import test.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**HIGH — Mock leak:** `vi.clearAllMocks()` doesn't reset `mockImplementation()`, causing ENOSPC mock to leak between tests. Fixed with `vi.resetAllMocks()`.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-10",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**MEDIUM — No tests for malformed Semgrep JSON:** Added 5 new test cases covering edge cases.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**HIGH — Branch coverage misreported:** Claimed 100% but was 93.75%. Fixed with 5 new edge case tests.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-11",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**LOW (unfixed) — `normalizeSeverity`:** Silently maps unrecognized severity strings to `info`. No logging/warning.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**HIGH — Missing proof doc:** Claimed as existing in verification checklist but not on disk.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-12",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**LOW (unfixed) — `computeSummary` rounding:** Rounds coverage to 2 decimal places via `Math.round(x * 100) / 100` — precision behavior undocumented.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**MEDIUM — No input validation:** Empty string projectDir would silently produce wrong paths. Fixed.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-13",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Infra: Tree-shaking removed analyzer module from dist/.** tsup only had `src/index.ts` as entry point. Analyzer module not referenced from CLI → bundler eliminated it. Fixed by adding `src/modules/observability/index.ts` as separate tsup entry point in `dist/modules/observability/`.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**MEDIUM — Unbounded history:** No cap on history entries. Fixed with MAX_HISTORY_ENTRIES=100 FIFO truncation.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-14",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Bug: AC5 FAIL — Rule ID mismatch in computeSummary().** Compares `g.type === \"function-no-debug-log\"` but Semgrep produces path-prefixed IDs like `\"tmp.test-ac5c.patches.observability.function-no-debug-log\"`. Needs endsWith() or includes() instead of strict equality.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**MEDIUM — Unsafe `as` cast:** Corrupt data would propagate. Fixed with runtime validation filter.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-15",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Bug: AC5 FAIL — totalFunctions derivation broken.** Defaults to functionsWithoutLogs count (0 due to rule ID bug). Even fixed, would report wrong coverage because totalFunctions must come from somewhere (not directly available from Semgrep).",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**MEDIUM — Test count mismatch:** Claimed 26 tests, only 25 existed. Now 35 post-review.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-16",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**4/5 ACs passed.** Story returned to in-progress for AC5 fix.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**LOW (not fixed):** `index.ts`/`types.ts` show 0% coverage — vitest may not instrument re-export-only modules.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-17",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Fixed rule ID mismatch:** Added `matchesRule()` helper using `endsWith()` for path-prefixed Semgrep check_ids.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Same fix applied to all rule matchers:** `catch-without-logging` and `error-path-no-log` also use `endsWith()` now.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-19",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**totalFunctions still caller-provided:** No automatic function counting — callers must pass `opts.totalFunctions`. Fallback is pessimistic (coverage = 0%).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-20",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**`matchesRule` not independently tested:** Private helper tested only through `computeSummary`. Acceptable for now.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-21",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**HIGH — `analyze()` never passed `totalFunctions` to `computeSummary()`:** Coverage always 0% in real usage. Fixed by adding `totalFunctions` to `AnalyzerConfig` and wiring through.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-22",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**MEDIUM — Empty `projectDir` accepted:** Would spawn Semgrep with empty path. Fixed with input validation.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-23",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**LOW (unfixed) — `computeSummary()` can produce negative `functionsWithLogs`:** No clamping when `totalFunctions < functionsWithoutLogs`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-24",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**LOW (unfixed) — `levelDistribution` field name misleading:** Tracks gap severity, not log levels.",
+      "story": "1-3-observability-coverage-state-tracking",
+      "description": "**Architecture concern:** `coverage.ts` uses own state I/O helpers instead of sprint module's. Parallel state management for same file.",
       "source": "retro",
       "resolved": false
     }

@@ -2,11 +2,15 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { StringDecoder } from 'node:string_decoder';
 import { Command } from 'commander';
 import { fail, info, jsonOutput } from '../lib/output.js';
 import { readSprintStatus } from '../lib/beads-sync.js';
 import { generateRalphPrompt } from '../templates/ralph-prompt.js';
-import { DashboardFormatter } from '../lib/dashboard-formatter.js';
+import { parseStreamLine } from '../lib/stream-parser.js';
+import { startRenderer } from '../lib/ink-renderer.js';
+import type { SprintInfo } from '../lib/ink-renderer.js';
+import { getSprintState } from '../modules/sprint/index.js';
 
 const SPRINT_STATUS_REL = '_bmad-output/implementation-artifacts/sprint-status.yaml';
 const STORY_KEY_PATTERN = /^\d+-\d+-/;
@@ -208,63 +212,89 @@ export function registerRunCommand(program: Command): void {
         reset: options.reset,
       });
 
-      // 7. Set environment for JSON mode
+      // 7. Set environment — stream-json is always the output format
       const env = { ...process.env };
       if (isJson) {
-        env.CLAUDE_OUTPUT_FORMAT = 'json';
+        env.CLAUDE_OUTPUT_FORMAT = 'stream-json';
       }
 
-      // 8. Spawn Ralph — filter output to show only structured progress lines
+      // 8. Spawn Ralph — pipe stdout/stderr through stream parser → Ink renderer
+      // Declare renderer handle outside try so cleanup is always reachable
+      const quiet = options.quiet;
+      const rendererHandle = startRenderer({ quiet });
+      let sprintStateInterval: ReturnType<typeof setInterval> | null = null;
+
       try {
-        const quiet = options.quiet;
+        // Read initial sprint state for the renderer header
+        const initialState = getSprintState();
+        if (initialState.success) {
+          const s = initialState.data;
+          const sprintInfo: SprintInfo = {
+            storyKey: s.run.currentStory ?? '',
+            phase: s.run.currentPhase ?? '',
+            done: s.sprint.done,
+            total: s.sprint.total,
+          };
+          rendererHandle.updateSprintState(sprintInfo);
+        }
+
         const child = spawn('bash', args, {
           stdio: quiet ? 'ignore' : ['inherit', 'pipe', 'pipe'],
           cwd: projectDir,
           env,
         });
 
-        let tickerInterval: ReturnType<typeof setInterval> | null = null;
-
         if (!quiet && child.stdout && child.stderr) {
-          const formatter = new DashboardFormatter();
-
-          // Buffer partial lines across data events
-          const makeFilterOutput = (): ((data: Buffer) => void) => {
+          // Buffer partial lines and feed through stream parser → Ink renderer.
+          // StringDecoder handles multi-byte UTF-8 chars split across Buffer boundaries.
+          const makeLineHandler = (): ((data: Buffer) => void) => {
             let partial = '';
+            const decoder = new StringDecoder('utf8');
             return (data: Buffer): void => {
-              const text = partial + data.toString();
+              const text = partial + decoder.write(data);
               const parts = text.split('\n');
-              // Last element is either '' (line ended with \n) or a partial line
               partial = parts.pop() ?? '';
               for (const line of parts) {
                 if (line.trim().length === 0) continue;
-                const formatted = formatter.formatLine(line);
-                if (formatted !== null) {
-                  // Clear any ticker line before printing a real event
-                  process.stdout.write(`\r\x1b[K${formatted}\n`);
+                const event = parseStreamLine(line);
+                if (event) {
+                  rendererHandle.update(event);
                 }
               }
             };
           };
-          child.stdout.on('data', makeFilterOutput());
-          child.stderr.on('data', makeFilterOutput());
+          child.stdout.on('data', makeLineHandler());
+          child.stderr.on('data', makeLineHandler());
 
-          // Start 10-second ticker for live progress when ralph is silent
-          tickerInterval = setInterval(() => {
-            const tickerLine = formatter.getTickerLine();
-            if (tickerLine) {
-              process.stdout.write(`\r\x1b[K${tickerLine}`);
+          // Periodically refresh sprint state for the header display
+          sprintStateInterval = setInterval(() => {
+            try {
+              const stateResult = getSprintState();
+              if (stateResult.success) {
+                const s = stateResult.data;
+                const sprintInfo: SprintInfo = {
+                  storyKey: s.run.currentStory ?? '',
+                  phase: s.run.currentPhase ?? '',
+                  done: s.sprint.done,
+                  total: s.sprint.total,
+                };
+                rendererHandle.updateSprintState(sprintInfo);
+              }
+            } catch {
+              // Ignore read errors during polling
             }
-          }, 10_000);
+          }, 5_000);
         }
 
         const exitCode = await new Promise<number>((resolve, reject) => {
           child.on('error', (err) => {
-            if (tickerInterval) clearInterval(tickerInterval);
+            if (sprintStateInterval) clearInterval(sprintStateInterval);
+            rendererHandle.cleanup();
             reject(err);
           });
           child.on('close', (code) => {
-            if (tickerInterval) clearInterval(tickerInterval);
+            if (sprintStateInterval) clearInterval(sprintStateInterval);
+            rendererHandle.cleanup();
             resolve(code ?? 1);
           });
         });
@@ -318,6 +348,8 @@ export function registerRunCommand(program: Command): void {
 
         process.exitCode = exitCode;
       } catch (err) {
+        if (sprintStateInterval) clearInterval(sprintStateInterval);
+        rendererHandle.cleanup();
         const message = err instanceof Error ? err.message : String(err);
         fail(`Failed to start Ralph: ${message}`, outputOpts);
         process.exitCode = 1;

@@ -47,7 +47,7 @@ RATE_LIMIT_SLEEP=3600  # 1 hour
 
 # Driver
 PLATFORM_DRIVER="${PLATFORM_DRIVER:-claude-code}"
-CLAUDE_OUTPUT_FORMAT="${CLAUDE_OUTPUT_FORMAT:-json}"
+CLAUDE_OUTPUT_FORMAT="${CLAUDE_OUTPUT_FORMAT:-stream-json}"
 CLAUDE_ALLOWED_TOOLS="${CLAUDE_ALLOWED_TOOLS:-}"
 CLAUDE_USE_CONTINUE="${CLAUDE_USE_CONTINUE:-false}"  # Fresh context per iteration by default
 
@@ -829,7 +829,8 @@ execute_iteration() {
             log_status "ERROR" "Claude API usage limit reached"
             return 2
         # Check for transient API errors (500, 529, overloaded) — don't count against story
-        elif grep -qi "Internal server error\|api_error\|overloaded\|529\|503" "$output_file" 2>/dev/null; then
+        # Status code patterns exclude decimal prefixes (e.g., cost_usd=0.503 ≠ HTTP 503)
+        elif grep -qiE 'Internal server error|api_error|overloaded|(^|[^0-9.])529([^0-9]|$)|(^|[^0-9.])503([^0-9]|$)' "$output_file" 2>/dev/null; then
             log_status "WARN" "Transient API error (not story's fault) — will retry"
             return 4
         else

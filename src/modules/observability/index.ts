@@ -17,6 +17,9 @@ export type {
   CoverageTargets,
   CoverageTrend,
   CoverageTargetResult,
+  RuntimeCoverageEntry,
+  RuntimeCoverageResult,
+  RuntimeCoverageState,
 } from './types.js';
 
 export { analyze } from './analyzer.js';
@@ -27,3 +30,8 @@ export {
   getCoverageTrend,
   checkCoverageTarget,
 } from './coverage.js';
+
+export {
+  computeRuntimeCoverage,
+  saveRuntimeCoverage,
+} from './runtime-coverage.js';

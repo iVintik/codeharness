@@ -113,6 +113,34 @@ describe('verifyPromptTemplate', () => {
     expect(prompt).toContain('genuinely impossible to automate');
   });
 
+  // ─── Observability check instructions (Story 2.1) ─────────────────────
+
+  it('includes observability check instructions after docker exec', () => {
+    const prompt = verifyPromptTemplate(baseConfig);
+    expect(prompt).toContain('Observability Check');
+    expect(prompt).toContain('[OBSERVABILITY GAP]');
+    expect(prompt).toContain('last 30 seconds');
+  });
+
+  it('includes observability query template with VictoriaLogs endpoint', () => {
+    const prompt = verifyPromptTemplate(baseConfig);
+    expect(prompt).toContain(
+      "curl 'http://localhost:9428/select/logsql/query?query=_stream_id:*&start=-30s&limit=100'",
+    );
+  });
+
+  it('uses custom VictoriaLogs endpoint in observability query template', () => {
+    const prompt = verifyPromptTemplate({
+      ...baseConfig,
+      observabilityEndpoints: {
+        victoriaLogs: 'http://custom-logs:9999',
+      },
+    });
+    expect(prompt).toContain(
+      "curl 'http://custom-logs:9999/select/logsql/query?query=_stream_id:*&start=-30s&limit=100'",
+    );
+  });
+
   it('merges partial observability endpoint overrides with defaults', () => {
     const prompt = verifyPromptTemplate({
       ...baseConfig,

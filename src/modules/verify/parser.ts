@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { warn } from '../../lib/output.js';
-import type { ParsedAC, Verifiability, VerificationStrategy } from './types.js';
+import type { ParsedAC, Verifiability, VerificationStrategy, ObservabilityGapResult, ObservabilityGapEntry } from './types.js';
 
 // ─── Keywords for Classification ────────────────────────────────────────────
 
@@ -215,4 +215,55 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
   flushCurrent();
 
   return acs;
+}
+
+// ─── Observability Gap Parser ────────────────────────────────────────────
+
+const AC_HEADING_PATTERN = /^##\s+AC\s+(\d+)/i;
+const OBSERVABILITY_GAP_TAG = '[OBSERVABILITY GAP]';
+
+/**
+ * Parses proof content for `[OBSERVABILITY GAP]` tags.
+ * Scans each AC section (delimited by `## AC N:` headings) for the gap tag.
+ *
+ * @param proofContent - Raw markdown content of the proof document
+ * @returns Per-AC gap presence and aggregate counts
+ */
+export function parseObservabilityGaps(proofContent: string): ObservabilityGapResult {
+  const lines = proofContent.split('\n');
+  const entries: ObservabilityGapEntry[] = [];
+
+  let currentAcId: string | null = null;
+  let currentSectionLines: string[] = [];
+
+  const flushSection = (): void => {
+    if (currentAcId !== null) {
+      const sectionText = currentSectionLines.join('\n');
+      const hasGap = sectionText.includes(OBSERVABILITY_GAP_TAG);
+      const gapNote = hasGap
+        ? 'No log events detected for this user interaction'
+        : undefined;
+      entries.push({ acId: currentAcId, hasGap, gapNote });
+    }
+  };
+
+  for (const line of lines) {
+    const match = AC_HEADING_PATTERN.exec(line);
+    if (match) {
+      flushSection();
+      currentAcId = match[1];
+      currentSectionLines = [line];
+    } else if (currentAcId !== null) {
+      currentSectionLines.push(line);
+    }
+  }
+
+  // Flush last section
+  flushSection();
+
+  const totalACs = entries.length;
+  const gapCount = entries.filter(e => e.hasGap).length;
+  const coveredCount = totalACs - gapCount;
+
+  return { entries, totalACs, gapCount, coveredCount };
 }

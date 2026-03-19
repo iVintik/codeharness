@@ -838,6 +838,8 @@ describe('updateVerificationState', () => {
       escalatedCount: 0,
       proofPath: 'verification/4-1-test-proof.md',
       showboatVerifyStatus: 'pass',
+      observabilityGapCount: 0,
+      runtimeCoveragePercent: 0,
       perAC: [{ id: '1', description: 'Test', verified: true, evidencePaths: [] }],
     };
 
@@ -857,6 +859,8 @@ describe('updateVerificationState', () => {
       escalatedCount: 0,
       proofPath: 'verification/4-1-test-proof.md',
       showboatVerifyStatus: 'pass',
+      observabilityGapCount: 0,
+      runtimeCoveragePercent: 0,
       perAC: [],
     };
 
@@ -877,6 +881,8 @@ describe('updateVerificationState', () => {
       escalatedCount: 0,
       proofPath: 'verification/4-1-test-proof.md',
       showboatVerifyStatus: 'fail',
+      observabilityGapCount: 0,
+      runtimeCoveragePercent: 0,
       perAC: [],
     };
 
@@ -900,6 +906,8 @@ describe('updateVerificationState', () => {
       escalatedCount: 0,
       proofPath: 'verification/4-1-test-proof.md',
       showboatVerifyStatus: 'pass',
+      observabilityGapCount: 0,
+      runtimeCoveragePercent: 0,
       perAC: [],
     };
 

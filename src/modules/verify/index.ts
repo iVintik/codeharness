@@ -3,6 +3,7 @@
  * Public interface: only this file should be imported from outside the module.
  */
 
+import { readFileSync } from 'node:fs';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
 import { validateProofQuality } from './proof.js';
@@ -13,13 +14,16 @@ import {
   updateVerificationState as updateVerificationStateImpl,
   closeBeadsIssue as closeBeadsIssueImpl,
 } from './orchestrator.js';
-import { parseStoryACs as parseStoryACsImpl } from './parser.js';
-import type { VerifyResult, ProofQuality } from './types.js';
-
-export type { VerifyResult, ProofQuality };
+import { parseStoryACs as parseStoryACsImpl, parseObservabilityGaps as parseObservabilityGapsImpl } from './parser.js';
+import { computeRuntimeCoverage as computeRuntimeCoverageImpl, saveRuntimeCoverage as saveRuntimeCoverageImpl } from '../observability/index.js';
+import type { VerifyResult, ProofQuality, ObservabilityGapResult } from './types.js';
 
 // Re-export all public types
 export type {
+  VerifyResult,
+  ProofQuality,
+  ObservabilityGapResult,
+  ObservabilityGapEntry,
   ParsedAC,
   Verifiability,
   VerificationStrategy,
@@ -55,6 +59,7 @@ export {
   classifyVerifiability,
   classifyStrategy,
   parseVerificationTag,
+  parseObservabilityGaps,
   INTEGRATION_KEYWORDS,
 } from './parser.js';
 
@@ -141,6 +146,27 @@ export function verifyStory(key: string): Result<VerifyResult> {
       showboatStatus = showboatResult.passed ? 'pass' : 'fail';
     }
 
+    // Parse observability gaps from proof content (Story 2.1)
+    let observabilityGapCount = 0;
+    let runtimeCoveragePercent = 0;
+    try {
+      const proofContent = readFileSync(proofPath, 'utf-8');
+      const gapResult = parseObservabilityGapsImpl(proofContent);
+      observabilityGapCount = gapResult.gapCount;
+      runtimeCoveragePercent =
+        gapResult.totalACs === 0
+          ? 0
+          : (gapResult.coveredCount / gapResult.totalACs) * 100;
+
+      // Persist runtime coverage to sprint-state.json (Story 2.1 AC #4)
+      if (gapResult.totalACs > 0) {
+        const runtimeResult = computeRuntimeCoverageImpl(gapResult);
+        saveRuntimeCoverageImpl('.', runtimeResult);
+      }
+    } catch {
+      // Proof file may not exist yet or may not be readable — proceed with defaults
+    }
+
     const result: VerifyResult = {
       storyId: key,
       success: true,
@@ -150,6 +176,8 @@ export function verifyStory(key: string): Result<VerifyResult> {
       escalatedCount: quality.escalated,
       proofPath,
       showboatVerifyStatus: showboatStatus,
+      observabilityGapCount,
+      runtimeCoveragePercent,
       perAC: acs.map(ac => ({
         id: ac.id,
         description: ac.description,

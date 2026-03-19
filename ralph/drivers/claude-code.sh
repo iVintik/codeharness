@@ -79,10 +79,8 @@ driver_build_command() {
         CLAUDE_CMD_ARGS+=("--plugin-dir" "$plugin_dir")
     fi
 
-    # Output format
-    if [[ "$CLAUDE_OUTPUT_FORMAT" == "json" ]]; then
-        CLAUDE_CMD_ARGS+=("--output-format" "json")
-    fi
+    # Output format — always stream-json for real-time NDJSON output
+    CLAUDE_CMD_ARGS+=("--output-format" "stream-json" "--verbose" "--include-partial-messages")
 
     # Allowed tools
     if [[ -n "$CLAUDE_ALLOWED_TOOLS" ]]; then
@@ -121,30 +119,6 @@ driver_supports_sessions() {
 # Claude Code supports stream-json live output
 driver_supports_live_output() {
     return 0
-}
-
-# Prepare command arguments for live stream-json output
-driver_prepare_live_command() {
-    LIVE_CMD_ARGS=()
-    local skip_next=false
-
-    for arg in "${CLAUDE_CMD_ARGS[@]}"; do
-        if [[ "$skip_next" == "true" ]]; then
-            LIVE_CMD_ARGS+=("stream-json")
-            skip_next=false
-        elif [[ "$arg" == "--output-format" ]]; then
-            LIVE_CMD_ARGS+=("$arg")
-            skip_next=true
-        else
-            LIVE_CMD_ARGS+=("$arg")
-        fi
-    done
-
-    if [[ "$skip_next" == "true" ]]; then
-        return 1
-    fi
-
-    LIVE_CMD_ARGS+=("--verbose" "--include-partial-messages")
 }
 
 # Stream filter for raw Claude stream-json events

@@ -83,6 +83,11 @@ FR26-28: Epic 5 — Workflow integration
 Real-time visibility into what's happening during `codeharness run`. Rolling status showing current story, phase, progress, done/blocked counts. Without this, every subsequent epic runs blind.
 **FRs covered:** UX spec (run command output), FR from overhaul PRD (FR27-31 reporting)
 
+### Epic 0.5: Stream-JSON Live Activity Display (TOP PRIORITY)
+Deep visibility into Claude's activity during execution. See last tool call, last thought, streaming text — like Claude Code's subagent display. Uses stream-json output format and Ink (React for terminals) for rendering.
+**FRs covered:** UX spec (live progress), operator visibility requirements
+**Depends on:** Epic 0 (foundation — state updates, dashboard formatter)
+
 ## Epic 0: Live Progress Dashboard
 
 Real-time visibility into what's happening during `codeharness run`. The operator sees current story, phase, progress, and results — not silence for 30 minutes.
@@ -142,6 +147,61 @@ Formalized Dockerfile rules. Template as starting point. Audit validates complia
 ### Epic 5: Workflow Integration
 Static analysis in code review. Runtime validation in verification. Patches updated with observability enforcement.
 **FRs covered:** FR26, FR27, FR28
+
+## Epic 0.5: Stream-JSON Live Activity Display
+
+Deep visibility into Claude's activity during execution. Switch from `--output-format json` (buffered, 0 bytes until exit) to `stream-json` (real-time events). Render with Ink (React for terminals) showing tool calls, text thoughts, and progress.
+
+### Story 0.5.1: Stream-JSON Claude Driver
+
+As an operator, I want ralph's Claude driver to use stream-json output format, So that tool calls and text are available in real time instead of buffered until exit.
+
+**Acceptance Criteria:**
+
+1. **Given** the claude-code driver, **When** it builds the command, **Then** it uses `--output-format stream-json --verbose --include-partial-messages` instead of `--output-format json`. <!-- verification: cli-verifiable -->
+2. **Given** stream-json output, **When** Claude runs, **Then** stdout produces NDJSON during execution — not 0 bytes until exit. <!-- verification: cli-verifiable -->
+3. **Given** the driver change, **When** the final result is needed, **Then** the last line with `type: "result"` contains session_id, cost, result text. <!-- verification: cli-verifiable -->
+4. **Given** stream-json piped through ralph, **When** an iteration completes, **Then** ralph detects success/failure/timeout from the output. <!-- verification: cli-verifiable -->
+
+### Story 0.5.2: Stream Event Parser
+
+As a developer, I want a stream event parser that extracts tool calls and text from NDJSON events, So that the renderer has structured data to display.
+
+**Acceptance Criteria:**
+
+1. **Given** `content_block_start` with `tool_use`, **When** parsed, **Then** emits `{ type: 'tool-start', name: 'Bash', id: 'toolu_xxx' }`. <!-- verification: cli-verifiable -->
+2. **Given** `content_block_delta` with `input_json_delta`, **When** parsed, **Then** accumulates tool input and emits `{ type: 'tool-input', partial: '...' }`. <!-- verification: cli-verifiable -->
+3. **Given** `content_block_stop` after a tool, **When** parsed, **Then** emits `{ type: 'tool-complete' }`. <!-- verification: cli-verifiable -->
+4. **Given** `content_block_delta` with `text_delta`, **When** parsed, **Then** emits `{ type: 'text', text: '...' }`. <!-- verification: cli-verifiable -->
+5. **Given** `system/api_retry`, **When** parsed, **Then** emits `{ type: 'retry', attempt: N, delay: ms }`. <!-- verification: cli-verifiable -->
+6. **Given** `result` event, **When** parsed, **Then** emits `{ type: 'result', cost: N, sessionId: '...' }`. <!-- verification: cli-verifiable -->
+
+### Story 0.5.3: Ink Terminal Renderer
+
+As an operator, I want a terminal UI built with Ink showing live Claude activity, So that I see tool calls, text thoughts, and progress.
+
+**Acceptance Criteria:**
+
+1. **Given** tool-start event, **When** rendered, **Then** shows `⚡ [ToolName]` with spinner. <!-- verification: cli-verifiable -->
+2. **Given** tool-complete event, **When** rendered, **Then** shows `✓ [ToolName] args...` as permanent line. <!-- verification: cli-verifiable -->
+3. **Given** text delta events, **When** rendered, **Then** shows `💭 {last thought}` on updating line. <!-- verification: cli-verifiable -->
+4. **Given** sprint state, **When** rendered, **Then** header shows `◆ {story_key} — {phase} | Sprint: {done}/{total}`. <!-- verification: cli-verifiable -->
+5. **Given** `--quiet` flag, **When** set, **Then** renderer not started. <!-- verification: cli-verifiable -->
+6. **Given** process exit, **When** Ink cleans up, **Then** no orphaned terminal state. <!-- verification: cli-verifiable -->
+
+### Story 0.5.4: Run Command Integration
+
+As an operator, I want `codeharness run` to use the Ink renderer by default, So that I see live Claude activity during execution.
+
+**Acceptance Criteria:**
+
+1. **Given** `codeharness run` starts, **When** Claude uses stream-json, **Then** Ink renderer shows live tool/text activity. <!-- verification: cli-verifiable -->
+2. **Given** old DashboardFormatter replaced, **When** Ink renders, **Then** same info (✓/✗ stories, progress) plus tool/text visibility. <!-- verification: cli-verifiable -->
+3. **Given** ralph reads Claude stdout (NDJSON), **When** piped, **Then** events go through parser → Ink renderer. <!-- verification: cli-verifiable -->
+4. **Given** `--quiet`, **When** run starts, **Then** no Ink, no output. <!-- verification: cli-verifiable -->
+5. **Given** result event at end, **When** ralph processes it, **Then** extracts same data as before for status updates. <!-- verification: cli-verifiable -->
+
+---
 
 ## Epic 1: Observability Static Analysis
 

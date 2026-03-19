@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { ok, fail } from '../types/result.js';
 import type { Result } from '../types/result.js';
 import { verifyPromptTemplate } from '../templates/verify-prompt.js';
-import { isValidStoryKey, cleanupStaleContainers } from '../modules/verify/index.js';
+import { isValidStoryKey, cleanupStaleContainers, parseObservabilityGaps } from '../modules/verify/index.js';
 import type { VerifyResult } from '../modules/verify/index.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -221,6 +221,23 @@ export function spawnVerifierSession(
     const proofExists = existsSync(proofPath);
     const sessionSuccess = exitCode === 0 && proofExists;
 
+    // Parse observability gaps from proof if available (Story 2.1)
+    let observabilityGapCount = 0;
+    let runtimeCoveragePercent = 0;
+    if (proofExists) {
+      try {
+        const proofContent = readFileSync(proofPath, 'utf-8');
+        const gapResult = parseObservabilityGaps(proofContent);
+        observabilityGapCount = gapResult.gapCount;
+        runtimeCoveragePercent =
+          gapResult.totalACs === 0
+            ? 0
+            : (gapResult.coveredCount / gapResult.totalACs) * 100;
+      } catch {
+        // Proof file may not be parseable — proceed with defaults
+      }
+    }
+
     // Build a minimal VerifyResult for the session outcome
     const verifyResult: VerifyResult = {
       storyId: storyKey,
@@ -231,6 +248,8 @@ export function spawnVerifierSession(
       escalatedCount: 0,
       proofPath: proofExists ? proofPath : '',
       showboatVerifyStatus: 'skipped',
+      observabilityGapCount,
+      runtimeCoveragePercent,
       perAC: [],
     };
 

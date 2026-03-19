@@ -70,6 +70,10 @@ export interface VerifyResult {
   readonly escalatedCount: number;
   readonly proofPath: string;
   readonly showboatVerifyStatus: 'pass' | 'fail' | 'skipped';
+  /** Number of ACs with observability gaps (Story 2.1) */
+  readonly observabilityGapCount: number;
+  /** Runtime coverage percentage: ACs with logs / total ACs * 100 (Story 2.1) */
+  readonly runtimeCoveragePercent: number;
   readonly perAC: ReadonlyArray<{
     readonly id: string;
     readonly description: string;
@@ -86,6 +90,30 @@ export interface PreconditionResult {
 export interface ShowboatVerifyResult {
   readonly passed: boolean;
   readonly output: string;
+}
+
+// ─── Observability Gap Types ─────────────────────────────────────────────
+
+/** Per-AC observability gap presence */
+export interface ObservabilityGapEntry {
+  /** Acceptance criterion identifier */
+  readonly acId: string;
+  /** Whether an observability gap was detected */
+  readonly hasGap: boolean;
+  /** The gap note text, if present */
+  readonly gapNote?: string;
+}
+
+/** Result of parsing observability gaps from proof content */
+export interface ObservabilityGapResult {
+  /** Per-AC gap presence */
+  readonly entries: readonly ObservabilityGapEntry[];
+  /** Total number of ACs found in proof */
+  readonly totalACs: number;
+  /** Number of ACs with observability gaps */
+  readonly gapCount: number;
+  /** Number of ACs without gaps (produced log events) */
+  readonly coveredCount: number;
 }
 
 // ─── Env Types ───────────────────────────────────────────────────────────────

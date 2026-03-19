@@ -10,6 +10,7 @@ import {
   validateProofQuality,
   updateVerificationState,
   closeBeadsIssue,
+  parseObservabilityGaps,
 } from '../modules/verify/index.js';
 import { completeExecPlan } from '../lib/doc-health.js';
 import { updateSprintStatus } from '../lib/beads-sync.js';
@@ -223,7 +224,22 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     }
   }
 
-  // 8. Build result
+  // 8. Parse observability gaps from proof (Story 2.1)
+  let observabilityGapCount = 0;
+  let runtimeCoveragePercent = 0;
+  try {
+    const proofContent = readFileSync(proofPath, 'utf-8');
+    const gapResult = parseObservabilityGaps(proofContent);
+    observabilityGapCount = gapResult.gapCount;
+    runtimeCoveragePercent =
+      gapResult.totalACs === 0
+        ? 0
+        : (gapResult.coveredCount / gapResult.totalACs) * 100;
+  } catch {
+    // Proof file may not be readable — proceed with defaults
+  }
+
+  // 9. Build result
   const result: VerifyResult = {
     storyId,
     success: true,
@@ -233,6 +249,8 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     escalatedCount: proofQuality.escalated,
     proofPath: `verification/${storyId}-proof.md`,
     showboatVerifyStatus: showboatStatus,
+    observabilityGapCount,
+    runtimeCoveragePercent,
     perAC: acs.map(ac => ({
       id: ac.id,
       description: ac.description,
@@ -241,7 +259,7 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     })),
   };
 
-  // 9. Update state
+  // 10. Update state
   try {
     updateVerificationState(storyId, result, root);
   } catch (err: unknown) {
@@ -249,7 +267,7 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     warn(`Failed to update state: ${message}`);
   }
 
-  // 10. Close beads issue
+  // 11. Close beads issue
   try {
     closeBeadsIssue(storyId, root);
   } catch (err: unknown) {
@@ -257,7 +275,7 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     warn(`Failed to close beads issue: ${message}`);
   }
 
-  // 11. Complete exec-plan
+  // 12. Complete exec-plan
   try {
     const completedPath = completeExecPlan(storyId, root);
     if (completedPath) {
@@ -274,7 +292,7 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
     warn(`Failed to complete exec-plan: ${message}`);
   }
 
-  // 12. Output result
+  // 13. Output result
   if (isJson) {
     jsonOutput({
       ...(result as unknown as Record<string, unknown>),

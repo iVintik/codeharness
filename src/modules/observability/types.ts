@@ -122,13 +122,14 @@ export interface StaticCoverageState {
 export interface CoverageTargets {
   /** Target coverage percentage for static analysis (default 80) */
   readonly staticTarget: number;
+  /** Target coverage percentage for runtime observability (default 60) */
+  readonly runtimeTarget?: number;
 }
 
 /**
  * Top-level observability coverage state in sprint-state.json.
  *
- * Only the `static` section is implemented now (Story 1.3).
- * The `runtime` section will be added in Epic 2.
+ * Contains `static` (Story 1.3) and optional `runtime` (Story 2.1) sections.
  * Follows architecture Decision 2 (Separate Metrics).
  */
 export interface ObservabilityCoverageState {
@@ -136,6 +137,50 @@ export interface ObservabilityCoverageState {
   readonly static: StaticCoverageState;
   /** Coverage targets */
   readonly targets: CoverageTargets;
+  /** Runtime observability coverage metrics (Story 2.1) */
+  readonly runtime?: RuntimeCoverageState;
+}
+
+// ============================================================
+// Runtime coverage types (Story 2.1)
+// ============================================================
+
+/** A single AC's runtime coverage entry from verification */
+export interface RuntimeCoverageEntry {
+  /** Acceptance criterion identifier */
+  readonly acId: string;
+  /** Whether log events were detected for this AC */
+  readonly logEventsDetected: boolean;
+  /** Number of log events detected */
+  readonly logEventCount: number;
+  /** Gap note if no log events detected */
+  readonly gapNote?: string;
+}
+
+/** Result of computing runtime coverage from parsed observability gaps */
+export interface RuntimeCoverageResult {
+  /** Per-AC runtime coverage entries */
+  readonly entries: readonly RuntimeCoverageEntry[];
+  /** Total number of ACs evaluated */
+  readonly totalACs: number;
+  /** Number of ACs that produced log events */
+  readonly acsWithLogs: number;
+  /** Runtime coverage percentage: acsWithLogs / totalACs * 100 */
+  readonly coveragePercent: number;
+}
+
+/** Runtime coverage state persisted in sprint-state.json */
+export interface RuntimeCoverageState {
+  /** Runtime coverage percentage */
+  readonly coveragePercent: number;
+  /** ISO 8601 timestamp of last validation */
+  readonly lastValidationTimestamp: string;
+  /** Number of modules with telemetry */
+  readonly modulesWithTelemetry: number;
+  /** Total number of modules */
+  readonly totalModules: number;
+  /** Whether telemetry was detected at all */
+  readonly telemetryDetected: boolean;
 }
 
 /** Trend comparison between latest and previous coverage entries */

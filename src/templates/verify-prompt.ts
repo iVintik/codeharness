@@ -140,6 +140,21 @@ Query these from the HOST (not inside the container) for runtime evidence:
 - **VictoriaTraces** (traces): \`${endpoints.victoriaTraces}\`
   - Example: \`curl '${endpoints.victoriaTraces}/api/traces?service=codeharness-verify&limit=10'\`
 
+## Step 3.5: Observability Check After Each Command
+
+After EACH \`docker exec\` command you run, query the observability backend for log events from the last 30 seconds:
+
+\`\`\`bash
+curl '${endpoints.victoriaLogs}/select/logsql/query?query=_stream_id:*&start=-30s&limit=100'
+\`\`\`
+
+- If the response contains **one or more log entries**, the code path has observability coverage. Note the count in your proof.
+- If the response contains **zero log entries**, the code path is a silent gap. Include this tag in the AC section of your proof:
+
+  \`[OBSERVABILITY GAP] No log events detected for this user interaction\`
+
+This check detects silent code paths — places where the application runs but produces no telemetry. Every AC should produce some log output when exercised.
+
 ## Step 4: Write Proof Document
 
 Write your verification proof to: \`verification/${config.storyKey}-proof.md\`

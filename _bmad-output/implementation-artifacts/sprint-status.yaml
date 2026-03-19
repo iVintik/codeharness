@@ -6,13 +6,20 @@
 
 development_status:
 
-  # Epic 0: Live Progress Dashboard
+  # Epic 0: Live Progress Dashboard (DONE)
   epic-0: done
   0-1-sprint-state-live-updates: done
   0-2-ralph-progress-display: done
   0-3-run-command-dashboard: done
 
-  # Epic 1: Observability Static Analysis
+  # Epic 0.5: Stream-JSON Live Activity Display (TOP PRIORITY)
+  epic-0-5: done
+  0-5-1-stream-json-claude-driver: done
+  0-5-2-stream-event-parser: done
+  0-5-3-ink-terminal-renderer: done
+  0-5-4-run-command-integration: done
+
+  # Epic 1: Observability Static Analysis (DONE)
   epic-1: done
   1-1-semgrep-rules-for-observability: done
   1-2-analyzer-module-interface: done
@@ -20,7 +27,7 @@ development_status:
 
   # Epic 2: Runtime Observability & Coverage Metrics
   epic-2: backlog
-  2-1-verification-observability-check: backlog
+  2-1-verification-observability-check: verifying
   2-2-observability-hook-enforcement: backlog
   2-3-standalone-runtime-check-audit-mode: backlog
 

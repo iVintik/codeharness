@@ -56,7 +56,7 @@ development_status:
   9-1-per-module-patches-directory: done
 
   # Epic 10: Self-Validation & Adaptation
-  epic-10: backlog
+  epic-10: done
   10-1-validation-ac-suite: done
-  10-2-validation-infrastructure: verifying
-  10-3-self-validation-run: verifying
+  10-2-validation-infrastructure: done
+  10-3-self-validation-run: done

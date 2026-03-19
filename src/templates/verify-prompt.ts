@@ -167,7 +167,8 @@ docker exec ${container} <command>
 3. **Report REAL failures** — if a feature does not work via the CLI or the documentation is insufficient to exercise it, report that as a verification failure with specific details about what went wrong. Do NOT fabricate passing evidence.
 4. **Every AC needs functional evidence** — reading docs alone is not evidence. You must execute commands and capture output.
 5. **Verify aggressively, escalate narrowly.** If an AC has 5 parts and you can verify 4, verify those 4 and escalate ONLY the specific part you cannot reach. Never blanket-escalate an entire AC because one aspect requires something unavailable.
-6. **[ESCALATE] is a last resort.** Before escalating, try: running the CLI command, spawning a \`claude\` session inside the container, querying observability data, or testing the behavior indirectly. Only escalate if you have genuinely exhausted all options.
+6. **[ESCALATE] is ONLY for things that are genuinely impossible to automate** — physical hardware, paid external services, human visual judgment. Infrastructure problems (missing binary, wrong version, tree-shaking, Docker config) are NOT valid escalation reasons. If a tool is missing from the container, that is a bug to report as [FAIL], not an [ESCALATE]. The harness will fix the infrastructure and re-verify.
 7. **\`claude\` CLI is available** inside the container. If an AC requires spawning a Claude Code session, running a slash command, or testing agent behavior, use \`docker exec ${container} claude --print --allowedTools Bash Read Write Glob Grep Edit -p "..." --max-budget-usd 1\` to actually test it. Do NOT escalate just because "it needs a Claude session."
+8. **Never switch to unit-testable verification.** If Docker verification doesn't work, report WHY as a [FAIL] — don't fall back to running tests on the host. The harness-run flow will fix the Docker problem and retry.
 `;
 }

@@ -110,7 +110,7 @@ describe('verifyPromptTemplate', () => {
   it('instructs verifier to escalate narrowly, not blanket-escalate', () => {
     const prompt = verifyPromptTemplate(baseConfig);
     expect(prompt).toContain('escalate narrowly');
-    expect(prompt).toContain('last resort');
+    expect(prompt).toContain('genuinely impossible to automate');
   });
 
   it('merges partial observability endpoint overrides with defaults', () => {

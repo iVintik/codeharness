@@ -297,12 +297,11 @@ codeharness verify --story {story_key} 2>&1
 Parse the output/exit code:
 
 - If `pending === 0` and `escalated === 0` → proof quality passed. Update sprint-status.yaml: change `{story_key}` status to `done`. Print: `[OK] Story {story_key}: verifying → done`. Proceed to cleanup (step 3d-viii).
-- If `escalated > 0` and `pending === 0` → verifier correctly identified unverifiable ACs. Story is **blocked**:
-  - Print: `[WARN] Story {story_key} has {N} escalated ACs — story stays at verifying`
-  - Do NOT mark story as `done` — it stays at `verifying`
-  - Do NOT retry — escalation is the correct outcome
-  - Step 2 skip logic will advance past blocked stories
-  - Proceed to cleanup (step 3d-viii)
+- If `escalated > 0` and `pending === 0` → verifier could not reach some ACs. **Before accepting escalation, diagnose WHY:**
+  1. Read the proof document. For each `[ESCALATE]` AC, check the reason.
+  2. **If the reason is infrastructure/tooling** (container missing binary, tree-shaking, Docker not configured, wrong version installed): this is NOT a valid escalation. The infrastructure needs fixing. Treat as **Path C** below.
+  3. **If the reason is genuinely impossible to automate** (requires physical hardware, paid external service, human visual judgment): accept the escalation. Print: `[WARN] Story {story_key} has {N} genuinely escalated ACs — marking done with known limitations`. Update status to `done`.
+  4. **Do NOT leave stories at `verifying` with escalated ACs.** Either fix the infra problem (Path C) or accept and mark done.
 - If `pending > 0` → proof has gaps. Treat as failure (step 3d-vii).
 
 If the verifier made code fixes (detected by checking `git diff` after verification), run:
@@ -360,20 +359,38 @@ A proof document exists and `codeharness verify` reported `pending > 0`. This me
 
 **Path B — Infrastructure failures (timeout, docker error, no proof produced, verifier non-zero exit WITHOUT a proof):**
 
-The verification could not complete due to infrastructure issues — NOT code quality. Only infrastructure failures count against the retry budget.
+The verification could not complete due to infrastructure issues — NOT code quality.
 
-1. Increment `attempts`.
-2. Update `ralph/.story_retries`: write/replace the line `{story_key}={attempts}` in the file. Read the existing file first to preserve other story entries.
-3. If `attempts >= max_attempts` (3):
-   - Increment `stories_skipped`
-   - Append `{story_key}: infra-retry-exhausted ({attempts}/{max_attempts})` to `skipped_reasons`
-   - Print: `[WARN] Story {story_key}: infrastructure retry budget exhausted ({attempts}/{max_attempts}) — skipping`
-   - Run cleanup (step 3d-viii)
-   - Go to Step 2 (next story). Do NOT halt the sprint.
-4. If `attempts < max_attempts`:
-   - Print: `[WARN] Verification attempt {attempts}/{max_attempts} failed for {story_key} (infra issue) — retrying`
-   - Run `codeharness verify-env prepare --story {story_key}` to recreate the clean workspace (the container and image may be reused)
-   - Retry from step 3d-iv
+**Before retrying blindly, diagnose the infra problem:**
+
+1. Read the verifier output/error. Identify what specifically failed:
+   - Container missing the project binary? → Fix `Dockerfile.verify` or `verify-env prepare` to install it correctly
+   - Tree-shaking removed needed code from dist/? → Add the entry point to tsup config or create a CLI command that exposes the functionality
+   - Wrong version of tool in container? → Fix the Docker image build to use local dist/
+   - Port conflict? → Fix shared stack detection
+   - Container didn't start? → Fix Docker configuration
+
+2. **Fix the infrastructure problem** by modifying the relevant files (Dockerfile, verify-env, tsup config, docker-compose). This is a code change — commit it.
+
+3. Rebuild: `npm run build`
+
+4. Retry verification with the fixed infrastructure.
+
+5. If after 3 infra fix attempts the problem persists, increment `attempts` and move to next story:
+   - Print: `[WARN] Story {story_key}: infra problem persists after 3 fix attempts — skipping (attempt {attempts}/{max_attempts})`
+   - Go to Step 2
+
+**The agent must NOT repeatedly retry the same broken infrastructure.** Each retry must include an actual fix attempt.
+
+**Path C — Escalated ACs due to infra/tooling problems:**
+
+An AC was marked `[ESCALATE]` but the reason is infrastructure, not impossibility. Fix the infrastructure:
+
+1. Identify the infra problem from the escalation reason (container missing binary, tree-shaking, Docker config, etc.)
+2. Fix the root cause — modify Dockerfile, tsup config, verify-env, or whatever is broken
+3. Delete the existing proof: `rm verification/{story_key}-proof.md`
+4. Return story to `verifying` and re-run verification from step 3d-i
+5. Do NOT accept infra problems as valid escalations
 
 **3d-viii: Cleanup (unconditional — runs on both success and failure)**
 

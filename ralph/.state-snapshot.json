@@ -42,7 +42,7 @@
     },
     "1-2-analyzer-module-interface": {
       "status": "in-progress",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -172,7 +172,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 3,
+    "iteration": 2,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -263,90 +263,6 @@
       "id": "migrated-12",
       "story": "1-2-analyzer-module-interface",
       "description": "**LOW (unfixed) — `computeSummary` rounding:** Rounds coverage to 2 decimal places via `Math.round(x * 100) / 100` — precision behavior undocumented.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-13",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Infra: Tree-shaking removed analyzer module from dist/.** tsup only had `src/index.ts` as entry point. Analyzer module not referenced from CLI → bundler eliminated it. Fixed by adding `src/modules/observability/index.ts` as separate tsup entry point in `dist/modules/observability/`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-14",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Bug: AC5 FAIL — Rule ID mismatch in computeSummary().** Compares `g.type === \"function-no-debug-log\"` but Semgrep produces path-prefixed IDs like `\"tmp.test-ac5c.patches.observability.function-no-debug-log\"`. Needs endsWith() or includes() instead of strict equality.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-15",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Bug: AC5 FAIL — totalFunctions derivation broken.** Defaults to functionsWithoutLogs count (0 due to rule ID bug). Even fixed, would report wrong coverage because totalFunctions must come from somewhere (not directly available from Semgrep).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-16",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**4/5 ACs passed.** Story returned to in-progress for AC5 fix.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-17",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Fixed rule ID mismatch:** Added `matchesRule()` helper using `endsWith()` for path-prefixed Semgrep check_ids.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**Same fix applied to all rule matchers:** `catch-without-logging` and `error-path-no-log` also use `endsWith()` now.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-19",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**totalFunctions still caller-provided:** No automatic function counting — callers must pass `opts.totalFunctions`. Fallback is pessimistic (coverage = 0%).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-20",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**`matchesRule` not independently tested:** Private helper tested only through `computeSummary`. Acceptable for now.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-21",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**HIGH — `analyze()` never passed `totalFunctions` to `computeSummary()`:** Coverage always 0% in real usage. Fixed by adding `totalFunctions` to `AnalyzerConfig` and wiring through.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-22",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**MEDIUM — Empty `projectDir` accepted:** Would spawn Semgrep with empty path. Fixed with input validation.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-23",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**LOW (unfixed) — `computeSummary()` can produce negative `functionsWithLogs`:** No clamping when `totalFunctions < functionsWithoutLogs`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-24",
-      "story": "1-2-analyzer-module-interface",
-      "description": "**LOW (unfixed) — `levelDistribution` field name misleading:** Tracks gap severity, not log levels.",
       "source": "retro",
       "resolved": false
     }

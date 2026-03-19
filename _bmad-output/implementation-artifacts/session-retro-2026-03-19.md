@@ -2360,3 +2360,153 @@ If these 2 ACs are manually verified or accepted, the sprint reaches 100%. No fu
 ---
 
 *Generated: 2026-03-19T09:35Z — consolidated retrospective for sessions 2-6 of the Architecture Overhaul Sprint final day.*
+
+---
+
+# Session 8 Retrospective — 2026-03-19T07:23Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** 07:23Z – 07:43Z (~20 minutes)
+**Stories attempted:** 1
+**Stories completed:** 1
+
+## Summary
+
+| Story | Start Status | End Status | Notes |
+|-------|-------------|------------|-------|
+| 1-1-semgrep-rules-for-observability | verifying | done | Infrastructure fixes dominated — detectProjectType, Dockerfile, Docker cache, npm link. All 5 ACs passed once infra was fixed. |
+
+## Issues Encountered
+
+1. **detectProjectType returned 'plugin' instead of 'nodejs'** — Dual-channel project (plugin + npm) detected as plugin, bypassing npm install. Fixed by checking stack detection before plugin detection.
+2. **Semgrep missing from Docker image** — Python tool not in Dockerfile.verify. Added Python + pipx + semgrep. Image: 164MB → 332MB.
+3. **Docker layer cache invalidation gap** — dist/ hash doesn't include Dockerfile content. Required manual `docker rmi` to force rebuild.
+4. **Global vs local CLI mismatch** — Globally installed codeharness v0.20.0 used instead of local build. Required `npm link`.
+5. **AGENTS.md stale for 4 modules** — patches/observability/, src/commands, src/lib, src/types all needed updates.
+6. **Test cascade from mock contamination** — 9 test failures: 4 direct from behavior change, 5 from leaked mocks in prior failing tests.
+
+## What Went Well
+
+- Black-box verification passed cleanly once infra was fixed
+- Infrastructure fixes are durable — won't recur for future stories
+- All 2408 unit tests pass, 96.35% coverage
+
+## What Went Wrong
+
+- Infrastructure debugging: ~12 of ~20 minutes
+- Only 1 story completed
+
+## Action Items
+
+- **Soon:** Add Dockerfile hash to verify-env cache key
+- **Soon:** Integration test for verify-env build → docker run
+- **Backlog:** Per-story Docker dependencies, mock isolation improvement
+
+*Generated: 2026-03-19T07:43Z — Session 8, Operational Excellence Sprint*
+
+---
+
+# Session Retrospective — 2026-03-19 (Session 9)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~11:23Z – ongoing (2026-03-19), 2 iterations completed
+**Stories attempted:** 2
+**Stories completed:** 1 (1-1-semgrep-rules-for-observability)
+**Stories in-progress:** 1 (1-2-analyzer-module-interface, returned for AC5 fix)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Time | Notes |
+|-------|-------------|------------|-----------------|------|-------|
+| 1-1-semgrep-rules-for-observability | verifying | done | verification (Docker black-box) | ~17 min | Passed all ACs. Required infra fixes from prior session (Semgrep in Docker, detectProjectType). |
+| 1-2-analyzer-module-interface | backlog | in-progress | create-story, dev, code-review, verify | ~13+ min | 4/5 ACs passed. AC5 failed due to two bugs: rule ID mismatch and totalFunctions derivation. Returned to in-progress. |
+
+**Net progress:** 1 story completed (1-1 done). 1 story moved from backlog to in-progress. Epic 1 is 2/3 done with 1-2 needing AC5 fix.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+1. **HIGH — `runSemgrep` no JSON validation (1-2):** `JSON.parse` output blindly cast to `SemgrepRawOutput` without checking `results` array exists. Malformed Semgrep output would cause runtime TypeError. **Fixed in code review.**
+2. **HIGH — `parseSemgrepOutput` crash on missing results (1-2):** TypeError if `results` is missing or not an array. **Fixed with defensive guard.**
+3. **Bug — AC5 rule ID mismatch (1-2, verify):** `computeSummary()` compared `g.type === "function-no-debug-log"` but Semgrep produces path-prefixed IDs like `"tmp.test-ac5c.patches.observability.function-no-debug-log"`. Needs `endsWith()` or `includes()`. **Not yet fixed — story returned to in-progress.**
+4. **Bug — AC5 totalFunctions derivation broken (1-2, verify):** Defaults to `functionsWithoutLogs` count, which was 0 due to the rule ID bug above. Even with the ID bug fixed, the derivation logic is flawed — totalFunctions isn't directly available from Semgrep output. **Not yet fixed.**
+
+### Workarounds / Tech Debt Introduced
+
+1. **`computeSummary` signature deviates from spec:** Changed from `computeSummary(gaps, raw)` to `computeSummary(gaps, opts?)` because raw Semgrep output doesn't contain the stats needed. The original `_raw` parameter would have been dead code. Pragmatic but diverges from architecture doc.
+2. **Optional `totalFunctions` parameter:** Added to `computeSummary()` so callers can provide function count from external source. Without it, defaults to match count (pessimistic estimate). This is a design gap — no clean way to get total function count from Semgrep alone.
+3. **Coverage computation workaround (AC5):** Epic spec says "20 functions and 15 with log statements" but Semgrep reports functions WITHOUT logs, not total count. Workaround: derive `totalFunctions = functionsWithLogs + matchCount`. Fragile.
+
+### Code Quality Concerns
+
+1. **MEDIUM — `index.ts` barrel had 0% coverage:** No test imported from barrel. **Fixed** by adding barrel import test.
+2. **MEDIUM — No tests for malformed Semgrep JSON:** **Fixed** — 5 new edge-case test cases added.
+3. **LOW (unfixed) — `normalizeSeverity`:** Silently maps unrecognized severity strings to `info`. No logging or warning emitted.
+4. **LOW (unfixed) — `computeSummary` rounding:** Uses `Math.round(x * 100) / 100` for coverage percentage. Precision behavior undocumented.
+
+### Verification Gaps
+
+1. **AC5 failed verification.** Rule ID comparison uses strict equality instead of suffix matching. This is a real bug that would affect any Semgrep run where rules are loaded from a file path (which prefixes the rule ID).
+2. **totalFunctions derivation is architecturally unsound.** The spec assumes data Semgrep doesn't provide. This needs a design decision before it can be reliably fixed.
+
+### Tooling / Infrastructure
+
+1. **Tree-shaking removed analyzer module from dist/.** tsup only had `src/index.ts` as entry point. The analyzer module isn't referenced from the CLI entry point, so the bundler eliminated it. **Fixed** by adding `src/modules/observability/index.ts` as a separate tsup entry point.
+2. **Types location ambiguity:** `AnalyzerResult`/`ObservabilityGap` types should live in `src/modules/observability/types.ts` per module boundary convention, not in shared `src/types/`. Noted but not yet moved.
+
+---
+
+## 3. What Went Well
+
+- **1-1 verification passed cleanly.** Docker black-box verification worked on first attempt, benefiting from the infra fixes made in the prior session (Semgrep in Docker, detectProjectType fix).
+- **Code review caught 2 HIGH bugs.** Both `runSemgrep` and `parseSemgrepOutput` had crash-on-malformed-input bugs that were found and fixed before verification.
+- **Session issues log is working well.** Every subagent phase (create, dev, review, verify) contributed observations. The log provided clear raw material for this retrospective.
+- **Fast iteration cycle.** Story 1-1 verified in ~17 min. Story 1-2 went through 4 phases in ~13 min before hitting the AC5 wall.
+
+---
+
+## 4. What Went Wrong
+
+- **AC5 has a design-level problem, not just a code bug.** The rule ID mismatch is fixable, but the underlying issue — Semgrep doesn't report total function count — is a spec gap. The story spec assumed data availability that doesn't exist. This should have been caught in create-story or architecture review.
+- **Semgrep JSON output format not version-pinned.** The module assumes a specific output structure but has no version constraint on Semgrep. Format changes in future Semgrep versions could break parsing silently.
+- **Story 1-2 will need a third iteration.** Two bugs in AC5 mean the story returns to dev for fixes, then re-verification. This is wasted work that a better spec would have prevented.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+- Running code review before verification catches real bugs. Both HIGH issues would have failed verification anyway.
+- Infrastructure fixes from prior sessions pay forward. 1-1 verified cleanly because of prior work.
+- Session issues log provides excellent traceability across phases.
+
+### Patterns to Avoid
+- **Assuming external tool output format without validation.** The Semgrep JSON structure should be validated with a schema, not blindly cast.
+- **Writing specs that assume data availability without verifying.** AC5's coverage computation assumed Semgrep provides total function count — it doesn't.
+- **Strict string equality for IDs that may be path-prefixed.** Use `endsWith()` or regex matching for rule IDs.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next session)
+- [ ] **Fix AC5 rule ID mismatch:** Change `g.type === "function-no-debug-log"` to use `endsWith("function-no-debug-log")` or similar suffix match in `computeSummary()`.
+- [ ] **Fix AC5 totalFunctions derivation:** Decide on approach — either (a) add a separate Semgrep rule that matches ALL functions (not just those without logs) to get total count, or (b) accept that totalFunctions must be provided by the caller and document this contract.
+
+### Fix Soon (next sprint)
+- [ ] **Add Semgrep JSON output validation:** Use a runtime schema validator (zod or similar) instead of blind type cast for `SemgrepRawOutput`.
+- [ ] **Pin Semgrep version:** Add minimum version constraint in docs and verify Docker image uses a known-good version.
+- [ ] **Move types to module boundary:** Relocate `AnalyzerResult`/`ObservabilityGap` from shared `src/types/` to `src/modules/observability/types.ts`.
+- [ ] **Add logging to `normalizeSeverity`:** Emit a warning when an unrecognized severity string is mapped to `info`.
+
+### Backlog
+- [ ] Document `computeSummary` rounding behavior and precision guarantees.
+- [ ] Consider adding a Semgrep output format version check (compare `version` field in JSON output).
+- [ ] Evaluate whether coverage percentage should be computed in the analyzer module or delegated to the caller.
+
+*Generated: 2026-03-19T11:55Z — Session 9, Operational Excellence Sprint*

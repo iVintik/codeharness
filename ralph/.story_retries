@@ -1,5 +1,6 @@
 story-a 3
-malformed-no-count
-
+malformed-no-count 
+ 
 story-b notanumber
 story-c 5
+1-2-analyzer-module-interface 1

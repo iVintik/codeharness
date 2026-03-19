@@ -14,6 +14,10 @@ and Docker environment management for isolated verification.
 | env.ts | Docker image lifecycle + clean workspace + stale container cleanup | `buildVerifyImage`, `prepareVerifyWorkspace`, `checkVerifyEnv`, `cleanupVerifyEnv`, `cleanupStaleContainers`, `isValidStoryKey`, `computeDistHash` |
 | browser.ts | Agent-browser integration for UI testing in Docker | `BrowserVerifier` class with `navigate`, `screenshot`, `click`, `type`, `evaluate`, `isAvailable`, `diffScreenshots` |
 | types.ts | All verify domain types | `VerifyResult`, `ProofQuality`, `ParsedAC`, `BuildOptions`, `BuildResult`, `CheckResult`, `BrowserActionResult`, `DiffResult`, etc. |
+| validation-acs.ts | Validation AC registry barrel — combines all 79 ACs | `VALIDATION_ACS`, `getACsByCategory`, `getCliVerifiableACs`, `getIntegrationRequiredACs`, `getACById` |
+| validation-ac-types.ts | Types for validation AC entries | `ValidationAC`, `VerificationMethod`, `AcCategory` |
+| validation-ac-fr.ts | FR validation AC data (ACs 1-40) | `FR_ACS` |
+| validation-ac-data.ts | NFR/UX/Regression/ActionItem AC data (ACs 41-79) | `NFR_ACS`, `UX_ACS`, `REGRESSION_ACS`, `ACTION_ITEM_ACS` |
 
 ## Module Boundary
 
@@ -31,6 +35,7 @@ Only `index.ts` should be imported from outside this module. Internal files (`or
 | verify-parser.test.ts | Story AC parsing, classification | `./parser.ts` |
 | verifier-session.test.ts | Verifier session management | `src/lib/verifier-session.ts` |
 | browser.test.ts | BrowserVerifier unit tests (mocked docker exec) | `./browser.ts` |
+| validation-acs.test.ts | Validation AC registry: count, structure, distribution, helpers | `./validation-acs.ts` |
 
 ## Architecture Notes
 

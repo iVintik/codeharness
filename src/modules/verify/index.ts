@@ -66,6 +66,21 @@ export {
   checkBlackBoxEnforcement,
 } from './proof.js';
 
+// Re-export validation AC registry
+export {
+  VALIDATION_ACS,
+  FR_ACS,
+  NFR_ACS,
+  UX_ACS,
+  REGRESSION_ACS,
+  ACTION_ITEM_ACS,
+  getACsByCategory,
+  getCliVerifiableACs,
+  getIntegrationRequiredACs,
+  getACById,
+} from './validation-acs.js';
+export type { ValidationAC, VerificationMethod, AcCategory } from './validation-acs.js';
+
 // Re-export env functions
 export {
   buildVerifyImage,

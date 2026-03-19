@@ -8,6 +8,7 @@ import type { InitOptions, InitResult, StackStatus, CleanupResult } from './type
 import { initProject as initProjectImpl } from './init-project.js';
 import { ensureStack as ensureStackImpl, detectRunningStack, detectPortConflicts } from './stack-management.js';
 import { cleanupContainers as cleanupContainersImpl } from './container-cleanup.js';
+import { createObservabilityBackend } from './observability.js';
 
 export type { InitOptions, InitResult, StackStatus };
 export type { InitDockerResult, InitBmadResult, InitBeadsResult, InitDocumentationResult } from './types.js';
@@ -35,6 +36,10 @@ export function cleanupContainers(): Result<CleanupResult> {
 
 export { detectRunningStack, detectPortConflicts };
 
-export function getObservabilityBackend(): ObservabilityBackend {
-  throw new Error('not implemented');
+export function getObservabilityBackend(config?: {
+  opensearchUrl?: string;
+  opensearch?: { logsIndex?: string; metricsIndex?: string; tracesIndex?: string };
+  victoria?: { logsUrl?: string; metricsUrl?: string; tracesUrl?: string };
+}): ObservabilityBackend {
+  return createObservabilityBackend(config);
 }

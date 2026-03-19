@@ -1,3 +1,12 @@
+## WHY
+
+Review agents approved stories without verifying proof documents existed or
+checking that evidence was black-box (not source-grep). Stories passed review
+with fabricated output and missing coverage data. This patch enforces proof
+existence, black-box evidence quality, and coverage delta reporting as hard
+gates before a story can leave review.
+(FR33, FR34, NFR20)
+
 ## Codeharness Review Gates
 
 ### Verification Proof

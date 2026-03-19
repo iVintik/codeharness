@@ -110,6 +110,20 @@ export interface CheckResult {
   readonly otelReachable: boolean;
 }
 
+// ─── Browser Verifier Types ──────────────────────────────────────────────────
+
+export interface BrowserActionResult {
+  readonly output: string;
+  readonly screenshotPath?: string;
+  readonly exitCode: number;
+}
+
+export interface DiffResult {
+  readonly hasDifferences: boolean;
+  readonly beforePath: string;
+  readonly afterPath: string;
+}
+
 // ─── Black-Box Enforcement Result ────────────────────────────────────────────
 
 export interface BlackBoxEnforcementResult {

@@ -15,6 +15,7 @@ export interface InitOptions {
   readonly api: boolean;
   readonly observability: boolean;
   readonly otelEndpoint?: string;
+  readonly opensearchUrl?: string;
   readonly logsUrl?: string;
   readonly metricsUrl?: string;
   readonly tracesUrl?: string;

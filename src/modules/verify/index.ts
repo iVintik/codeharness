@@ -29,10 +29,15 @@ export type {
   ClassifiedCommand,
   EvidenceCommandType,
   BlackBoxEnforcementResult,
+  BrowserActionResult,
+  DiffResult,
   BuildOptions,
   BuildResult,
   CheckResult,
 } from './types.js';
+
+// Re-export browser verifier
+export { BrowserVerifier } from './browser.js';
 
 // Re-export orchestrator functions
 export {

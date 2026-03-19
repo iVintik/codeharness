@@ -104,7 +104,21 @@ describe('infra module — index exports', () => {
     expect(result.success).toBeDefined();
   });
 
-  it('getObservabilityBackend throws "not implemented"', () => {
-    expect(() => getObservabilityBackend()).toThrow('not implemented');
+  it('getObservabilityBackend returns a VictoriaBackend (AC#8)', () => {
+    const backend = getObservabilityBackend();
+    expect(backend.type).toBe('victoria');
+  });
+
+  it('getObservabilityBackend returns OpenSearchBackend when opensearchUrl provided (AC#7)', () => {
+    const backend = getObservabilityBackend({ opensearchUrl: 'http://os:9200' });
+    expect(backend.type).toBe('opensearch');
+  });
+
+  it('getObservabilityBackend passes opensearch index config through', () => {
+    const backend = getObservabilityBackend({
+      opensearchUrl: 'http://os:9200',
+      opensearch: { logsIndex: 'custom-logs' },
+    });
+    expect(backend.type).toBe('opensearch');
   });
 });

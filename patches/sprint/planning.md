@@ -1,3 +1,12 @@
+## WHY
+
+Sprint planning repeatedly started new work while retrospective action items
+were unresolved, leading to compounding tech debt. Stories entered sprints
+with untestable ACs or missing backlog sources, causing mid-sprint scope
+discovery. This patch enforces pre-planning retro review, multi-source backlog
+import, and story readiness checks.
+(FR33, FR34, NFR20)
+
 ## Codeharness Sprint Planning Integration
 
 ### Pre-Planning Checks

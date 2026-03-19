@@ -1,12 +1,15 @@
 /**
  * BMAD workflow patch templates.
- * Reads patch content from `patches/*.md` files at runtime.
+ * Reads patch content from `patches/{role}/{name}.md` files at runtime.
  * Falls back to inline defaults if files are not found (e.g., in npm package).
  *
  * Architecture Decision 6: Templates as files, not hardcoded strings.
  * This allows patches to be updated without rebuilding — learnings from
  * verification failures, agent misbehavior, and architectural changes
  * are captured in the patch files and applied on next init.
+ *
+ * Directory layout (FR35):
+ *   patches/{dev,review,verify,sprint,retro}/*.md
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -16,21 +19,27 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * Reads a patch file from the patches/ directory.
- * Searches: project root patches/, then package patches/ relative to this file.
+ * Reads a patch file from the patches/{role}/ directory.
+ * Resolves relative to package root (works for both dev and npm install).
+ *
+ * @param role - The role subdirectory (dev, review, verify, sprint, retro)
+ * @param name - The patch file name (without .md extension)
  */
-function readPatchFile(name: string): string | null {
-  // Resolve patches/ relative to package root (works for both dev and npm install)
-  const patchPath = join(__dirname, '..', '..', 'patches', `${name}.md`);
-  if (existsSync(patchPath)) {
-    return readFileSync(patchPath, 'utf-8').trim();
+function readPatchFile(role: string, name: string): string | null {
+  const patchPath = join(__dirname, '..', '..', 'patches', role, `${name}.md`);
+  try {
+    if (existsSync(patchPath)) {
+      return readFileSync(patchPath, 'utf-8').trim();
+    }
+  } catch {
+    // File disappeared or became unreadable between check and read — fall through to null
   }
 
   return null;
 }
 
 export function storyVerificationPatch(): string {
-  return readPatchFile('story-verification') ?? `## Verification Requirements
+  return readPatchFile('verify', 'story-verification') ?? `## Verification Requirements
 
 - [ ] Showboat proof document created (verification/<story-key>-proof.md)
 - [ ] All acceptance criteria verified with real-world evidence via docker exec
@@ -48,7 +57,7 @@ export function storyVerificationPatch(): string {
 }
 
 export function devEnforcementPatch(): string {
-  return readPatchFile('dev-enforcement') ?? `## Codeharness Enforcement
+  return readPatchFile('dev', 'enforcement') ?? `## Codeharness Enforcement
 
 ### Observability Check
 - [ ] Query VictoriaLogs after test runs to verify telemetry flows
@@ -62,7 +71,7 @@ export function devEnforcementPatch(): string {
 }
 
 export function reviewEnforcementPatch(): string {
-  return readPatchFile('review-enforcement') ?? `## Codeharness Review Gates
+  return readPatchFile('review', 'enforcement') ?? `## Codeharness Review Gates
 
 ### Verification
 - [ ] Proof document exists and passes codeharness verify
@@ -73,7 +82,7 @@ export function reviewEnforcementPatch(): string {
 }
 
 export function retroEnforcementPatch(): string {
-  return readPatchFile('retro-enforcement') ?? `## Codeharness Quality Metrics
+  return readPatchFile('retro', 'enforcement') ?? `## Codeharness Quality Metrics
 
 ### Verification Effectiveness
 - [ ] How many ACs were caught by verification vs manual review?
@@ -84,7 +93,7 @@ export function retroEnforcementPatch(): string {
 }
 
 export function sprintBeadsPatch(): string {
-  return readPatchFile('sprint-planning') ?? `## Codeharness Sprint Planning
+  return readPatchFile('sprint', 'planning') ?? `## Codeharness Sprint Planning
 
 - [ ] Review unresolved retrospective action items
 - [ ] Import from all backlog sources before triage

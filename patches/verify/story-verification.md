@@ -1,3 +1,12 @@
+## WHY
+
+Stories were marked "done" with no proof artifact, or with proofs that only
+grepped source code instead of exercising the feature from the user's
+perspective. This patch mandates black-box proof documents, docker exec evidence,
+verification tags per AC, and test coverage targets — preventing regressions
+from being hidden behind source-level assertions.
+(FR33, FR36, NFR20)
+
 ## Verification Requirements
 
 Every story must produce a **black-box proof** — evidence that the feature works from the user's perspective, NOT from reading source code.

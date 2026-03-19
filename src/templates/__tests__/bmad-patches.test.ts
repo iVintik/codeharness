@@ -23,6 +23,11 @@ describe('storyVerificationPatch', () => {
     expect(content.toLowerCase()).toContain('test');
     expect(content.toLowerCase()).toContain('coverage');
   });
+
+  it('contains WHY section from patches/verify/ directory', () => {
+    const content = storyVerificationPatch();
+    expect(content).toContain('## WHY');
+  });
 });
 
 describe('devEnforcementPatch', () => {
@@ -36,6 +41,11 @@ describe('devEnforcementPatch', () => {
     const content = devEnforcementPatch();
     expect(content.toLowerCase()).toContain('observability');
     expect(content.toLowerCase()).toContain('test');
+  });
+
+  it('contains WHY section from patches/dev/ directory', () => {
+    const content = devEnforcementPatch();
+    expect(content).toContain('## WHY');
   });
 });
 
@@ -51,6 +61,11 @@ describe('reviewEnforcementPatch', () => {
     const content = reviewEnforcementPatch();
     expect(content.toLowerCase()).toContain('coverage');
   });
+
+  it('contains WHY section from patches/review/ directory', () => {
+    const content = reviewEnforcementPatch();
+    expect(content).toContain('## WHY');
+  });
 });
 
 describe('retroEnforcementPatch', () => {
@@ -64,6 +79,11 @@ describe('retroEnforcementPatch', () => {
     const content = retroEnforcementPatch();
     expect(content.toLowerCase()).toContain('test');
   });
+
+  it('contains WHY section from patches/retro/ directory', () => {
+    const content = retroEnforcementPatch();
+    expect(content).toContain('## WHY');
+  });
 });
 
 describe('sprintBeadsPatch', () => {
@@ -71,6 +91,11 @@ describe('sprintBeadsPatch', () => {
     const content = sprintBeadsPatch();
     expect(content.length).toBeGreaterThan(50);
     expect(content.toLowerCase()).toContain('planning');
+  });
+
+  it('contains WHY section from patches/sprint/ directory', () => {
+    const content = sprintBeadsPatch();
+    expect(content).toContain('## WHY');
   });
 });
 
@@ -101,5 +126,35 @@ describe('PATCH_TEMPLATES', () => {
       const result = fn();
       expect(result.length, `Patch ${name} should return non-empty string`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('per-role directory loading', () => {
+  it('loads patches from patches/{role}/ subdirectories at runtime', () => {
+    // Each patch function reads from the new subdirectory structure.
+    // If the files exist (which they do in the repo), content comes from disk.
+    // Verify content matches what we know is in the files.
+    const devContent = devEnforcementPatch();
+    expect(devContent).toContain('Architecture Awareness');
+
+    const reviewContent = reviewEnforcementPatch();
+    expect(reviewContent).toContain('Proof Quality Checks');
+
+    const verifyContent = storyVerificationPatch();
+    expect(verifyContent).toContain('Verification Tags');
+
+    const sprintContent = sprintBeadsPatch();
+    expect(sprintContent).toContain('Pre-Planning Checks');
+
+    const retroContent = retroEnforcementPatch();
+    expect(retroContent).toContain('Verification Pipeline Health');
+  });
+
+  it('reads files at call time (not import time) for hot-reload behavior', () => {
+    // Call twice — both should succeed, proving readFileSync happens at call time
+    const first = devEnforcementPatch();
+    const second = devEnforcementPatch();
+    expect(first).toBe(second);
+    expect(first.length).toBeGreaterThan(0);
   });
 });

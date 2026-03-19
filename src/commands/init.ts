@@ -18,6 +18,7 @@ interface CommandInitOptions {
   api: boolean;
   observability: boolean;
   otelEndpoint?: string;
+  opensearchUrl?: string;
   logsUrl?: string;
   metricsUrl?: string;
   tracesUrl?: string;
@@ -32,6 +33,7 @@ export function registerInitCommand(program: Command): void {
     .option('--no-api', 'Disable API enforcement')
     .option('--no-observability', 'Skip OTLP package installation')
     .option('--otel-endpoint <url>', 'Remote OTLP endpoint (skips local Docker stack)')
+    .option('--opensearch-url <url>', 'Remote OpenSearch URL (skips local Docker stack)')
     .option('--logs-url <url>', 'Remote VictoriaLogs URL')
     .option('--metrics-url <url>', 'Remote VictoriaMetrics URL')
     .option('--traces-url <url>', 'Remote Jaeger/VictoriaTraces URL')
@@ -46,6 +48,7 @@ export function registerInitCommand(program: Command): void {
         api: options.api,
         observability: options.observability,
         otelEndpoint: options.otelEndpoint,
+        opensearchUrl: options.opensearchUrl,
         logsUrl: options.logsUrl,
         metricsUrl: options.metricsUrl,
         tracesUrl: options.tracesUrl,

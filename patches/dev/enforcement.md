@@ -1,3 +1,12 @@
+## WHY
+
+Dev agents repeatedly shipped code without reading module conventions (AGENTS.md),
+skipped observability checks, and produced features that could not be verified
+from outside the source tree. This patch enforces architecture awareness,
+observability validation, documentation hygiene, test coverage gates, and
+black-box thinking — all operational failures observed in prior sprints.
+(FR33, FR34, NFR20)
+
 ## Codeharness Development Enforcement
 
 ### Architecture Awareness

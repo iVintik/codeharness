@@ -1,4 +1,4 @@
-3-1-error-capture-on-timeout=0 
-3-1-error-capture-on-timeout 1
-3-4-eight-hour-stability-test 7
-6-3-non-interactive-bmad-install=2 
+3-4-eight-hour-stability-test=10
+4-3-verifier-session-reliability=3
+8-1-agent-browser-integration=1
+9-1-per-module-patches-directory=1

@@ -21,10 +21,16 @@ export interface AcceptanceCriterion {
   evidence: EvidenceItem[];
 }
 
+export interface ScreenshotEntry {
+  label: string;
+  path: string;
+}
+
 export interface ShowboatProofConfig {
   storyId: string;
   storyTitle: string;
   acceptanceCriteria: AcceptanceCriterion[];
+  screenshots?: ScreenshotEntry[];
 }
 
 // ─── Template Functions ─────────────────────────────────────────────────────
@@ -99,6 +105,16 @@ export function showboatProofTemplate(config: ShowboatProofConfig): string {
     sections.push(`> ${ac.description}`);
     sections.push('');
     sections.push(renderEvidence(ac.evidence));
+    sections.push('');
+  }
+
+  // Screenshots section (only if screenshots provided)
+  if (config.screenshots && config.screenshots.length > 0) {
+    sections.push('## Screenshots');
+    sections.push('');
+    for (const entry of config.screenshots) {
+      sections.push(`- **${entry.label}**: ${entry.path}`);
+    }
     sections.push('');
   }
 

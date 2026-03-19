@@ -451,3 +451,680 @@ Two consecutive verification timeouts with the same root cause confirm this is n
 - All previous backlog items remain valid
 - [ ] Add verification timeout/budget configuration for network-dependent stories
 - [ ] Consider `unit-testable` tag for stories where Docker verification adds no value over unit tests
+
+---
+
+## Addendum — 2026-03-19T02:15Z (6-3 verification success + full session closeout)
+
+_Timestamp: 2026-03-19, appended by retrospective agent._
+
+### 6-3-non-interactive-bmad-install: Verification Succeeded on Third Attempt (~02:10Z)
+
+After two consecutive timeouts (01:17Z, 01:39Z), the third verification attempt succeeded. Result: **9 PASS, 0 FAIL, 3 ESCALATE**. Story moved to `done`.
+
+**Bug found and fixed during verification:**
+- **AC 7 FAIL:** `applyAllPatches()` in `src/lib/bmad.ts` called `warn()` directly for missing patch targets. In `--json` mode, `[WARN] Patch target not found` messages leaked to stdout alongside JSON output, corrupting the JSON stream. Fix: added `{ silent?: boolean }` option to `applyAllPatches()`, callers in `bmad-setup.ts` pass `{ silent: true }` when `isJson` is true. Unit test added to prevent regression.
+
+**Proof format lesson:**
+- `codeharness verify` parser requires strict `bash`+`output` code block pairs (adjacent, no text between them). ACs 6 and 9 initially failed validation because of missing/separated code blocks. Fixed in proof before final submission.
+
+**Infrastructure issues (same as all session):**
+- Container still missing codeharness CLI — manual `docker cp` + `npm install` + symlink workaround applied for the third time this session.
+
+### Final Sprint State
+
+| Story | Status | Escalated ACs |
+|-------|--------|---------------|
+| 3-1-error-capture-on-timeout | done | -- |
+| 5-1-review-module-extraction | verifying | Not yet verified |
+| 6-1-infra-module-init-extraction | verifying | AC 9 (integration-required) |
+| 6-2-shared-stack-management | verifying | AC 9 (integration-required) |
+| 6-3-non-interactive-bmad-install | done | 3 escalated (AC 4, 5 internal signatures; AC 12 no-network) |
+| 3-4-eight-hour-stability-test | verifying | Needs dedicated long-running test |
+| 4-3-verifier-session-reliability | verifying | Needs Docker kill scenario testing |
+
+**Sprint totals:** 13 done, 5 verifying (all blocked), 7 backlog.
+
+### Complete Session Metrics (Final)
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 5 |
+| Stories completed (done) | 2 (3-1, 6-3) |
+| Stories moved to verifying | 3 (5-1, 6-1, 6-2) |
+| Stories at verifying (total) | 5 (including 3-4, 4-3 carried over) |
+| HIGH bugs found by code review | 6 |
+| MEDIUM bugs found by code review | 3 |
+| Bugs found by verification | 1 (6-3 AC7 — warn leaking to JSON stdout) |
+| Test regressions found by code review | 51 (all in 6-1) |
+| Overall test coverage | 96.58% statements, 97.11% lines |
+| Unit tests passing | 2123 |
+| Ralph loop iterations (total) | 9 |
+| Estimated session API cost | ~$24 USD |
+| Session duration | ~8 hours (2026-03-18 19:08Z to 2026-03-19 ~02:15Z) |
+
+### Session-Level Analysis
+
+**Throughput:** 2 stories to done, 3 to verifying in 8 hours across 9 ralph loops. Average cost per story: ~$4.80. The session spent 3 loops (33%) on 6-3 verification alone — two of those were wasted timeouts.
+
+**Verification bottleneck confirmed:** 5 stories are now stuck at `verifying` with escalated ACs. The pipeline cannot progress further without either: (a) building integration test infrastructure, (b) accepting manual sign-off for escalated ACs, or (c) creating backlog stories so ralph has new work. Ralph is at NO_WORK state.
+
+**Bug found by verification vs review:** Code review found 6 HIGH + 3 MEDIUM bugs across 5 stories. Verification found 1 additional bug (warn leaking to stdout in JSON mode). Review remains the highest-value gate, but verification still catches issues that unit tests miss — the JSON stdout corruption was a runtime behavior that no unit test exercised.
+
+**The verify-env build problem:** 4th consecutive session with this issue. Every verification pass required manual container setup. The 6-3 story specifically exposed a compounding problem: even after installing the CLI, `npx bmad-method install` downloads packages at runtime, causing timeouts. Two out of three 6-3 verification attempts were wasted entirely on this.
+
+### Consolidated Action Items (Supersedes All Previous)
+
+**Fix Now (before next session):**
+- [ ] Fix `verify-env build` to pre-install codeharness CLI from built `dist/` — P0 blocker, caused failures in every verification this sprint
+- [ ] Run verification for 5-1-review-module-extraction — only story at verifying with no verification attempt
+- [ ] Decide escalation policy for blocked ACs: accept manual sign-off for 6-1 AC9, 6-2 AC9, 6-3 AC12, 3-4, 4-3? Or build integration infra?
+
+**Fix Soon (next sprint):**
+- [ ] Pre-cache `bmad-method` package in verification containers
+- [ ] Create remaining 7 backlog stories (epics 7-10) — ralph is at NO_WORK
+- [ ] Extract shared orchestrator utilities (dev/review ~60% code duplication)
+- [ ] Split `status.ts` (722 lines) — flagged in 4 consecutive retros now
+- [ ] Replace `parseReviewOutput` heuristics with structured output
+- [ ] Fix `getObservabilityBackend()` to return `Result<T>` — aligns with never-throw contract
+- [ ] Remove 4 type escape hatches (`as unknown as Record<string, unknown>`) in `init-project.ts`
+- [ ] Document vitest mock reset convention (`vi.clearAllMocks()` for `vi.mock()` factories)
+
+**Backlog:**
+- [ ] Consolidate `process.exitCode` setting — move from infra module to command layer
+- [ ] Add integration tests for review rejection loop (5-1 AC3)
+- [ ] Split `src/lib/bmad.ts` (521 lines) — NFR18 violation
+- [ ] Investigate `isTimeoutError` SIGTERM misclassification risk
+- [ ] Add JSON sidecar for timeout reports (replace regex markdown parsing)
+- [ ] Add verification timeout/budget configuration for network-dependent stories
+- [ ] Consider `unit-testable` tag for stories where Docker verification adds no value
+- [ ] Unified container cleanup — consolidate `verify/env.ts` and infra module cleanup functions
+- [ ] Port conflict detection cross-platform support (currently macOS/Linux only via `lsof`)
+- [ ] Systematic dev agent learning — inject prior review findings into dev context
+
+---
+
+## Session 2 — 2026-03-19T22:24Z–22:55Z (evening session)
+
+_Timestamp: 2026-03-19, appended by retrospective agent._
+
+### 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Bugs Found (Review) | Verification Result |
+|-------|-------------|------------|-----------------|---------------------|---------------------|
+| 7-1-observability-backend-interface-victoria-implementation | backlog | verifying | create-story, dev, code-review, verification | 1 HIGH, 2 MEDIUM, 1 LOW | 7 PASS, 0 FAIL, 5 ESCALATE |
+
+**Net progress:** 1 story moved from backlog to verifying. Sprint totals: 13 done, 6 verifying (all blocked on escalated ACs), 6 backlog.
+
+**Session duration:** ~30 minutes (22:24Z–22:55Z). Short, focused session — single story through full pipeline.
+
+### 2. Issues Analysis
+
+#### Bugs Discovered During Implementation or Review
+
+1. **HIGH — No fetch timeout on HTTP calls (7-1):** All `fetch()` calls in VictoriaBackend had no timeout, meaning a hung Victoria/Jaeger service would block indefinitely. Fixed with `AbortSignal.timeout(30s)` for query methods and `AbortSignal.timeout(5s)` for health checks.
+2. **MEDIUM — `extractLabels` dropped non-string label values (7-1):** Label values that were numbers or booleans were silently dropped. Fixed with `String()` coercion.
+3. **MEDIUM — AGENTS.md stale (7-1):** Module documentation not updated to reflect new files (`victoria-backend.ts`, `observability.ts`). Updated.
+4. **LOW — Test count discrepancy in story doc (7-1):** Story document claimed 49 tests, actual count was 48, now 52 after review additions. Cosmetic but indicates dev agent didn't verify its own claims.
+
+#### Workarounds Applied (Tech Debt Introduced)
+
+1. **Victoria Logs NDJSON assumption (7-1):** `queryLogs()` assumes Victoria Logs returns NDJSON format. If the actual response format differs (e.g., JSON array), this will silently produce wrong results. No integration test to validate.
+2. **`getObservabilityBackend()` takes no arguments (7-1):** Always creates default VictoriaBackend with localhost URLs. Custom URL support deferred — anyone using non-default ports or remote backends will need to modify the code.
+
+#### Code Quality Concerns
+
+1. **Branch coverage initially 77% (7-1):** Due to nullish coalescing (`??`) fallback branches. Required additional edge-case tests to reach 100%. This is a recurring pattern — `??` and `||` operators create branches that are easy to miss.
+2. **No integration tests possible (7-1):** ACs 2-5 need running Victoria/Jaeger stack. Unit tests mock `fetch` only. The implementation is validated against assumed API formats, not real service responses.
+
+#### Verification Gaps
+
+1. **5 ACs escalated (7-1):** ACs 1, 7, 8 (class instantiation, factory routing, delegation) cannot be exercised via CLI because `VictoriaBackend` is tree-shaken from the CLI bundle — no CLI command imports `getObservabilityBackend()`. AC 9 (file line count) not determinable from compiled JS. AC 10 (100% coverage) requires test runner not available in verification container.
+2. **Structural mismatch between AC tags and verifiability:** 5 ACs tagged `cli-verifiable` are NOT actually CLI-verifiable when tree-shaking removes internal classes. These test module internals, not user-facing behavior. Should be tagged `unit-testable` or the story should use `<!-- verification-tier: unit-testable -->`.
+3. **4 integration ACs all PASS (7-1):** ACs 2-5 (actual Victoria/Jaeger endpoint queries) passed verification. The black-box model works well for integration-level ACs.
+
+#### Tooling/Infrastructure Problems
+
+1. **`verify-env build` still does not pre-install codeharness CLI (7-1):** Manual `docker cp` + `npm install` workaround applied yet again. This is the 5th session in a row with this problem.
+
+### 3. What Went Well
+
+- **Full pipeline in 30 minutes.** Story 7-1 went from backlog through create-story, dev, code-review, and verification in a single short session. The pipeline is getting faster.
+- **Code review caught a real runtime bug.** The missing fetch timeout (HIGH) would have caused indefinite hangs in production when services are unresponsive. No unit test would have caught this — it was a design omission.
+- **Zero bugs sent back for re-dev.** All 4 review findings were fixed in-place during the code-review phase. No rework cycle.
+- **Dev agent quality continues to improve.** Only 1 HIGH bug (compared to 3 HIGH per story in the earlier session). The "never throw" and `Result<T>` patterns are now consistently applied.
+- **Verification correctly identified the tree-shaking problem.** The verifier's root cause analysis (internal classes not reachable via CLI) is accurate and actionable.
+
+### 4. What Went Wrong
+
+- **5 out of 12 ACs escalated in verification.** Nearly half the ACs are unverifiable with the current black-box approach. These ACs test internal architecture (class types, factory routing, delegation patterns, line counts, coverage) — none of which are observable through the CLI.
+- **AC tagging is inaccurate.** ACs tagged `cli-verifiable` that are actually `unit-testable` waste verification time and produce misleading escalations. This is a systemic story authoring problem, not a one-off.
+- **Victoria Logs response format is assumed, not validated.** The NDJSON parsing in `queryLogs()` may be wrong. Without integration tests against a real Victoria Logs instance, this is a latent bug waiting to happen.
+- **Coverage summary file is stale/broken.** The `coverage-summary.json` shows 3.82% total coverage — clearly a partial or failed coverage run. This means coverage metrics reported in sprint status may be unreliable.
+
+### 5. Lessons Learned
+
+**Repeat:**
+- Short, focused sessions with a single story through the full pipeline. 30 minutes for end-to-end is efficient.
+- In-place review fixes (no re-dev cycle) when issues are straightforward.
+- Verifier root cause analysis — the tree-shaking observation is exactly the kind of structural insight the verification phase should produce.
+
+**Avoid:**
+- Tagging ACs as `cli-verifiable` when they test internal module structure. Use `unit-testable` for class hierarchy, factory patterns, line counts, and coverage ACs.
+- Shipping HTTP clients without timeouts. This should be a standard review checklist item.
+- Trusting dev agent test count claims without verification. The 49-vs-48-vs-52 discrepancy is minor but indicates sloppy self-reporting.
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+
+- [ ] **Fix stale coverage summary** — `coverage-summary.json` shows 3.82% total, clearly wrong. Re-run `npm test -- --coverage` and verify the summary is accurate.
+- [ ] **Decide escalation policy for 7-1's 5 escalated ACs** — accept unit test coverage as sufficient (all pass at unit level), or expose `getObservabilityBackend()` type in CLI output (e.g., `codeharness status --json`) so AC 1 becomes CLI-verifiable.
+
+#### Fix Soon (Next Sprint)
+
+- [ ] **Add fetch timeout to review checklist** — any new `fetch()` call must include `AbortSignal.timeout()`. This is the second time missing timeouts were caught in review.
+- [ ] **Fix AC tagging in story templates** — add guidance that internal architecture ACs (class types, factory patterns, delegation, line counts, coverage) should be tagged `unit-testable`, not `cli-verifiable`.
+- [ ] **Validate Victoria Logs response format** — run `queryLogs()` against a real Victoria Logs instance and confirm NDJSON parsing is correct. Fix if needed.
+- [ ] **Add custom URL support to `getObservabilityBackend()`** — currently hardcoded to localhost. Needed for remote backends and non-default ports.
+- All items from Session 1 "Fix Soon" that remain open (verify-env build, shared orchestrator utils, status.ts split, etc.)
+
+#### Backlog
+
+- [ ] **Expose backend type in `codeharness status --json`** — would make AC 1 CLI-verifiable and reduce escalations for similar stories
+- [ ] **Consider `unit-testable` verification tier** — stories where all ACs are internal architecture concerns should skip Docker verification entirely
+- All items from Session 1 backlog that remain open
+
+### Sprint-Level Summary (End of Day)
+
+| Metric | Session 1 (overnight) | Session 2 (evening) | Day Total |
+|--------|----------------------|--------------------:|----------:|
+| Stories attempted | 5 | 1 | 6 |
+| Stories completed (done) | 2 (3-1, 6-3) | 0 | 2 |
+| Stories moved to verifying | 3 (5-1, 6-1, 6-2) | 1 (7-1) | 4 |
+| HIGH bugs found (review) | 6 | 1 | 7 |
+| MEDIUM bugs found (review) | 3 | 2 | 5 |
+| Bugs found (verification) | 1 (6-3 AC7) | 0 | 1 |
+| Escalated ACs | 8 (across 5 stories) | 5 (7-1) | 13 |
+| Verification timeouts | 2 (6-3) | 0 | 2 |
+| Ralph loop iterations | 9 | 2 | 11 |
+| Estimated API cost | ~$24 | ~$5.11 | ~$29 |
+| Session duration | ~8 hours | ~30 min | ~8.5 hours |
+
+**Sprint position:** 13 done, 6 verifying (all blocked), 6 backlog. The verifying backlog is growing — 6 stories stuck with escalated ACs that cannot be resolved by the current automated pipeline. The next session must address the escalation policy or these stories will remain stuck indefinitely.
+
+---
+
+## Session 3 — 2026-03-19T23:08Z–23:25Z (late evening session)
+
+_Timestamp: 2026-03-19, appended by retrospective agent._
+
+### 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Bugs Found (Review) | Verification Result |
+|-------|-------------|------------|-----------------|---------------------|---------------------|
+| 6-2-shared-stack-management | verifying | done | verification validation | -- | 8 PASS, 1 ESCALATE |
+| 7-1-observability-backend-interface-victoria-implementation | verifying | done | verification validation | -- | 7 PASS, 5 ESCALATE |
+| 7-2-opensearch-implementation | backlog | verifying | create-story, dev, code-review | 1 HIGH, 2 MEDIUM, 2 LOW | Not yet verified |
+
+**Net progress:** 2 stories moved to done (6-2, 7-1). 1 story moved from backlog to verifying (7-2). Sprint totals: **15 done, 5 verifying, 5 backlog.**
+
+**Session duration:** ~17 minutes (23:08Z–23:25Z). Extremely focused — two verification validations plus a full story pipeline.
+
+### 2. Issues Analysis
+
+#### Bugs Discovered During Implementation or Review
+
+1. **HIGH — Public API `getObservabilityBackend` untested with `opensearchUrl` (7-2):** Factory function not exercised with OpenSearch config path. Missing index config passthrough from factory to constructor. Fixed in-place during code review.
+2. **MEDIUM — AGENTS.md stale (7-2):** Still referenced OpenSearch as a stub rather than documenting the new `opensearch-backend.ts` file. Updated.
+3. **MEDIUM — Branch coverage gap at ~94% in trace parsing (7-2):** Edge cases in span parsing not covered. Additional tests added, coverage improved.
+4. **LOW — No URL format validation in OpenSearchBackend constructor (7-2):** Mitigated by upstream validation, not fixed. Accepted risk.
+5. **LOW — ~5% uncovered branches are defensive null-coalescing (7-2):** Impractical to trigger in tests. Accepted.
+
+#### Workarounds Applied (Tech Debt Introduced)
+
+1. **`HarnessState` type not updated for OpenSearch (7-2):** `opensearch?: { url: string }` field missing from the TypeScript interface. Runtime works because YAML is untyped, but this is not type-safe. A latent type error waiting for someone to trust the type.
+2. **`handleOpenSearch` sets `mode: 'remote-direct'` instead of introducing a new mode (7-2):** Reuses an existing mode that implies OTEL endpoint. Inspecting state without `otelEndpoint` will be confusing.
+3. **Metric query returns single series only (7-2):** Real multi-metric queries may need composite/terms sub-aggregations. Current implementation is a simplification.
+4. **All OpenSearch HTTP calls mocked (7-2):** 6 ACs tagged integration-required. No validation against real OpenSearch responses.
+
+#### Verification Gaps
+
+1. **6-2 — 1 ESCALATE:** AC 9 (data volume persistence across `docker compose down`/`up` cycles) requires integration testing with real Docker volumes.
+2. **7-1 — 5 ESCALATE:** ACs 1, 7, 8, 9, 10 (class type, factory routing, delegation, line count, 100% coverage) are internal architecture concerns not observable via CLI due to tree-shaking. Same structural problem flagged in Session 2.
+3. **7-2 — 6 ACs integration-required:** All OpenSearch query ACs (logs, traces, metrics, health) need a running OpenSearch cluster to verify.
+
+#### Tooling/Infrastructure Problems
+
+1. **`verify-env build` still does not pre-install codeharness CLI:** 6th consecutive session. Manual workaround applied for 6-2 and 7-1 verification validation.
+2. **`coverage-summary.json` is broken:** Shows 1.27% statement coverage overall. Nearly all files show 0% coverage except `opensearch-backend.ts` (100%) and `result.ts` (50%). This is clearly a partial/corrupt coverage run — likely only the last test file's coverage was recorded. Real coverage is ~96.59% per code review reports. This file cannot be trusted for sprint metrics.
+
+### 3. What Went Well
+
+- **Two stories validated and moved to done in minutes.** The `codeharness verify` command validated existing proofs for 6-2 and 7-1, confirming pass thresholds were met. No new verification sessions needed.
+- **Story 7-2 went through full pipeline quickly.** Create-story, dev, and code-review completed in ~17 minutes total. The OpenSearch implementation built cleanly on the Victoria backend interface from 7-1.
+- **Code review found and fixed a real API gap.** The `getObservabilityBackend` factory was untested with the new OpenSearch path — a public API surface that would have been broken if anyone called it with `opensearchUrl`.
+- **Coverage remains high.** 96.59% overall, 2221 tests passing, all 88 files above 80% floor. Despite the broken coverage-summary.json, the actual test suite is healthy.
+- **Dev agent quality holding steady.** Only 1 HIGH bug in 7-2 (the factory gap), continuing the improvement trend from Session 2.
+
+### 4. What Went Wrong
+
+- **`coverage-summary.json` is garbage.** 1.27% total coverage is obviously wrong. This file was likely produced by a partial `vitest run --coverage` that only instrumented one test file. Any automation reading this file (sprint status, CI checks) will get wildly incorrect data. This has been flagged since Session 2 and still not fixed.
+- **`HarnessState` type not updated.** The dev agent added runtime YAML behavior without updating the TypeScript interface. This is a contract violation — the type system exists to prevent exactly this kind of drift.
+- **Mode reuse (`remote-direct`) instead of proper mode introduction.** `handleOpenSearch` piggybacks on an existing mode rather than defining `opensearch-direct` or similar. This is confusing and will cause bugs when mode-specific logic checks for `remote-direct` and finds no OTEL endpoint.
+- **Escalated ACs continue to pile up.** Session 3 added 6 more escalated ACs (1 from 6-2, 5 from 7-1 validation), bringing the sprint total to 19 escalated ACs across 7 stories. No escalation policy has been decided.
+
+### 5. Lessons Learned
+
+**Repeat:**
+- Validation of existing proofs as a fast-path to `done`. Two stories moved to done with zero new verification effort.
+- Building on prior story interfaces (7-2 on 7-1's `ObservabilityBackend` interface). Clean extension point made implementation fast.
+
+**Avoid:**
+- Shipping runtime behavior without updating TypeScript types. The `HarnessState` omission is a guaranteed future bug.
+- Reusing modes with different semantics. `remote-direct` now means two different things depending on whether `opensearchUrl` is set.
+- Ignoring broken coverage-summary.json. It has been wrong for two sessions and nobody has fixed it.
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+
+- [ ] **Fix `coverage-summary.json`** — Re-run `npx vitest run --coverage` and verify the summary reports accurate totals (~96%+ statements). The current 1.27% is corrupt data.
+- [ ] **Update `HarnessState` type** — Add `opensearch?: { url: string }` field to the TypeScript interface. Runtime works but type safety is broken.
+- [ ] **Decide escalation policy** — 19 escalated ACs across 7 stories. Options: (a) accept unit test coverage as sufficient for internal architecture ACs, (b) build integration test infrastructure, (c) manual sign-off. This is blocking sprint progress.
+
+#### Fix Soon (Next Sprint)
+
+- [ ] **Introduce proper `opensearch-direct` mode** — Replace the `remote-direct` reuse in `handleOpenSearch`. Mode should be unambiguous.
+- [ ] **Validate OpenSearch response format** — Run queries against a real OpenSearch cluster. NDJSON and aggregation response parsing is assumed, not tested.
+- [ ] **Fix `verify-env build` to pre-install CLI** — 6th session flagging this. P0 blocker.
+- [ ] **Add `unit-testable` verification tier** — Stop tagging internal architecture ACs as `cli-verifiable`. This wastes verification time and inflates escalation counts.
+- [ ] All items from Sessions 1-2 "Fix Soon" that remain open
+
+#### Backlog
+
+- [ ] **Multi-series metric support in OpenSearch backend** — Current implementation returns single series only
+- [ ] **URL format validation in OpenSearchBackend constructor**
+- [ ] All items from Sessions 1-2 backlog that remain open
+
+### Sprint-Level Summary (End of Day — Final)
+
+| Metric | Session 1 (overnight) | Session 2 (evening) | Session 3 (late evening) | Day Total |
+|--------|----------------------|--------------------:|-------------------------:|----------:|
+| Stories attempted | 5 | 1 | 3 | 9 |
+| Stories completed (done) | 2 (3-1, 6-3) | 0 | 2 (6-2, 7-1) | 4 |
+| Stories moved to verifying | 3 (5-1, 6-1, 6-2) | 1 (7-1) | 1 (7-2) | 5 |
+| HIGH bugs found (review) | 6 | 1 | 1 | 8 |
+| MEDIUM bugs found (review) | 3 | 2 | 2 | 7 |
+| Bugs found (verification) | 1 (6-3 AC7) | 0 | 0 | 1 |
+| Escalated ACs (new) | 8 | 5 | 6 (1 from 6-2, 5 from 7-1) | 19 |
+| Verification timeouts | 2 (6-3) | 0 | 0 | 2 |
+| Ralph loop iterations | 9 | 2 | ~2 | ~13 |
+| Estimated API cost | ~$24 | ~$5 | ~$4 | ~$33 |
+| Session duration | ~8 hours | ~30 min | ~17 min | ~9 hours |
+| Unit tests passing | 2123 | 2157 | 2221 | -- |
+| Overall coverage (actual) | 96.58% | 96.58% | 96.59% | -- |
+
+**Sprint position (final):** 15 done, 5 verifying, 5 backlog.
+
+**Verifying backlog:** 3-4 (stability test), 4-3 (verifier reliability), 5-1 (review module), 6-1 (infra init), 7-2 (opensearch). All blocked on escalated ACs or pending verification.
+
+**Critical unresolved issue:** The `coverage-summary.json` file shows 1.27% coverage — obviously wrong. This is a corrupt artifact. If any automation reads this file, it will report false failures. Must be regenerated before the next session.
+
+**Escalation crisis:** 19 escalated ACs across 7 stories with no resolution policy. The pipeline is producing stories faster than escalations can be resolved. Without a decision on how to handle internal-architecture ACs (unit-testable vs CLI-verifiable), the verifying backlog will keep growing.
+
+---
+
+## Session 4 — 2026-03-19T23:35Z–03:28Z+1 (late-night session, full day retrospective)
+
+_Timestamp: 2026-03-19, appended by retrospective agent._
+
+### 1. Session Summary
+
+This section covers all activity from Session 4 (7-2 verification, 8-1 pipeline, iteration 13 timeout) and provides a full-day consolidated retrospective.
+
+| Story | Start Status | End Status | Phases Completed | Bugs Found (Review) | Verification Result |
+|-------|-------------|------------|-----------------|---------------------|---------------------|
+| 7-2-opensearch-implementation | verifying | verifying | verification | -- | 2 PASS, 1 PARTIAL, 10 ESCALATE |
+| 8-1-agent-browser-integration | backlog | review | create-story, dev, code-review | See session log | Not yet verified |
+| (iteration 13 — unknown) | -- | -- | timed out | -- | Empty output, 0 bytes |
+
+**Session 4 details:**
+- **7-2 verification** ran in iteration 11 (~23:35Z). First attempt used the npm-installed `codeharness@0.19.3` which has no OpenSearch code — all 13 ACs failed. After manual CLI installation (5th time this sprint), second run yielded 2 PASS (ACs 1, 9), 1 PARTIAL PASS (AC 7), 10 ESCALATE. The partial pass on AC 7 reveals a real wiring gap: `codeharness query logs` routes to Victoria even when OpenSearch is configured, because the query CLI doesn't use `getObservabilityBackend()` for routing.
+- **8-1-agent-browser-integration** went through create-story, dev, and code-review across iterations 12-13. Dev noted branch coverage at 86.48% (statement/line/function at 100%), naive byte-level screenshot diffing, potential `libasound2` vs `libasound2t64` Docker issue on newer Debian. ~50+ pre-existing tsc type errors in other files noted but not caused by this story.
+- **Iteration 13** produced empty output (0 bytes). Ralph was killed or the session timed out before completing.
+
+**Net progress (Session 4):** 0 stories to done. 8-1 advanced to review. 7-2 remains stuck at verifying.
+
+---
+
+### 2. Issues Analysis (Full Day — All 4 Sessions)
+
+#### Bugs Discovered During Implementation or Review
+
+| # | Severity | Story | Description |
+|---|----------|-------|-------------|
+| 1 | HIGH | 5-1 | Dead code in review orchestrator — `captureFilesChanged()` and `execSync` copied but never wired |
+| 2 | HIGH | 5-1 | Boolean logic bug in `parseReviewOutput` — tautological expression |
+| 3 | HIGH | 5-1 | No top-level error boundary in `initProject` — violates "never throws" contract |
+| 4 | HIGH | 6-1 | Sub-modules re-threw non-domain errors — contract violation |
+| 5 | HIGH | 6-1 | 51 test regressions from mock state corruption |
+| 6 | HIGH | 6-1 | Missing error boundary in `initProject` |
+| 7 | HIGH | 7-1 | No fetch timeout on HTTP calls — indefinite hang risk |
+| 8 | HIGH | 7-2 | `getObservabilityBackend` untested with `opensearchUrl`, missing index config passthrough |
+| 9 | MEDIUM | 3-1 | Missing test coverage for timeout summary in status command |
+| 10 | MEDIUM | 3-1 | AGENTS.md stale — undocumented exports |
+| 11 | MEDIUM | 7-1 | `extractLabels` dropped non-string label values |
+| 12 | MEDIUM | 7-1 | AGENTS.md stale |
+| 13 | MEDIUM | 7-2 | AGENTS.md stale — referenced OpenSearch as stub |
+| 14 | MEDIUM | 7-2 | Branch coverage gap at ~94% in trace parsing |
+| 15 | MEDIUM | 6-3 | `warn()` leak to stdout in JSON mode (found by verification) |
+
+**Totals:** 8 HIGH, 7 MEDIUM across 7 stories. Code review caught 14 of 15 bugs. Verification caught 1 (the warn leak in 6-3 AC7).
+
+#### Workarounds Applied (Tech Debt Introduced This Day)
+
+1. **Heuristic-based review output parsing (5-1)** — keyword matching for approval/rejection. Fragile.
+2. **Code duplication between dev and review orchestrators (5-1)** — ~60% identical code.
+3. **Markdown regex parsing for timeout reports (3-1)** — should be JSON sidecar.
+4. **Type escape hatches in init-project.ts (6-1)** — 4x `as unknown as Record<string, unknown>`.
+5. **`process.exitCode = 1` in infra module (6-1)** — should be in command layer.
+6. **Victoria Logs NDJSON assumption (7-1)** — unvalidated format assumption.
+7. **`getObservabilityBackend()` hardcoded to localhost (7-1)** — no custom URL support.
+8. **`HarnessState` type not updated for OpenSearch (7-2)** — runtime works, types lie.
+9. **`handleOpenSearch` reuses `remote-direct` mode (7-2)** — ambiguous semantics.
+10. **Metric query single-series only (7-2)** — real queries may need composite aggregations.
+11. **`diffScreenshots` uses byte-level comparison (8-1)** — not pixel-level.
+12. **`type()` method discards `selector` parameter (8-1)** — agent-browser CLI limitation.
+
+#### Verification Gaps
+
+- **19 escalated ACs** across 7 stories (3-4, 4-3, 5-1, 6-1, 6-2, 7-1, 7-2). No escalation policy decided.
+- **7-2 AC 7 partial pass:** Query CLI doesn't route through `getObservabilityBackend()`. OpenSearch config is stored but not used for log queries.
+- **8-1 not yet verified.** Currently at `review` status.
+- **5 stories permanently stuck at verifying** with only escalated ACs remaining. Pipeline cannot resolve them.
+
+#### Tooling/Infrastructure Problems
+
+1. **`verify-env build` does not install codeharness CLI** — manual workaround applied in every single verification pass across all 4 sessions (6+ times). This is the single biggest time sink. Every session reports it, nobody has fixed it.
+2. **`coverage-summary.json` is corrupt** — shows 1.27-3.82% coverage (actual is ~96.59%). Any automation reading this file gets wrong data. Flagged in Sessions 2 and 3, still broken.
+3. **Iteration 13 produced empty output** — ralph session died without producing results. No error captured.
+4. **Pre-existing ~50+ tsc type errors** — `tsc --noEmit` fails on existing test files, unrelated to current work. Indicates accumulated type debt.
+5. **`libasound2` may not exist on newer Debian** — potential Docker build failure for 8-1 agent-browser integration.
+
+---
+
+### 3. What Went Well
+
+- **4 stories moved to done across the day** (3-1, 6-2, 6-3, 7-1). Sprint went from 13 done to 15 done.
+- **5 stories progressed** (5-1, 6-1, 7-2 to verifying; 8-1 to review; 7-1 from verifying to done).
+- **Code review remains the highest-value gate.** 14 of 15 bugs caught by review, including 8 HIGH severity. Zero HIGH bugs escaped to verification.
+- **Dev agent quality improved measurably over the day.** Session 1 stories had 3 HIGH bugs each; Session 3-4 stories had 0-1 HIGH bugs.
+- **Session issues log discipline held across all 4 sessions.** Every subagent logged problems with structured categories. 18 entries total, making this retrospective data-driven.
+- **Verification found a real runtime bug** (6-3 AC7 warn leak to JSON stdout) that no unit test caught. Demonstrates verification still adds value beyond unit tests.
+- **Short focused sessions worked.** Sessions 2 and 3 completed full story pipelines in 17-30 minutes. Not every session needs to be 8 hours.
+- **Coverage stayed healthy all day:** 96.58-96.59% statements, 2123-2221 tests, all files above 80% floor.
+- **6-3 verification succeeded on third attempt** after two timeouts. Persistence paid off, and the bug found during verification was real.
+
+---
+
+### 4. What Went Wrong
+
+- **`verify-env build` CLI installation problem: day-long blocker.** Reported 6+ times across 4 sessions. Every verification required manual `docker cp` + `npm install` + symlink. Two 6-3 verification attempts wasted entirely on this. Estimated time lost: 45+ minutes across the day.
+- **Escalated ACs backlog is growing with no resolution.** 19 escalated ACs, no policy decision. Stories pile up at verifying and ralph hits NO_WORK. The pipeline produces done stories faster than escalations can be resolved.
+- **Two verification timeouts on 6-3.** $10+ spent on two sessions that produced nothing. Root cause: `npx bmad-method install` downloads packages at runtime inside containers without cache.
+- **coverage-summary.json broken for two sessions.** Flagged in Session 2, still broken at end of day. Any CI or automation reading this file gets ~1% instead of ~96%.
+- **Iteration 13 died silently.** Empty output, no error log, no timeout report. Whatever happened to 8-1's remaining work is lost.
+- **AC tagging is systematically wrong.** Internal architecture ACs (class types, factory patterns, delegation, line counts, coverage %) are tagged `cli-verifiable` when they are actually `unit-testable`. This wastes verification time and inflates escalation counts. Affects 7-1 (5 ACs) and 7-2 (10 ACs).
+- **7-2 query routing gap.** The OpenSearch backend is implemented and the factory routes correctly, but the `codeharness query logs` CLI command bypasses the factory entirely. This is a real integration gap, not just a verification gap.
+- **51 test regressions in 6-1** reached code review because the dev agent didn't run the full test suite. Review was the last line of defense. Skipping review (attempted initially under time pressure) would have shipped broken code.
+- **HarnessState type drift in 7-2.** Runtime YAML behavior diverged from TypeScript interface. The type system exists to prevent this.
+
+---
+
+### 5. Lessons Learned
+
+**Repeat:**
+- Mandatory code review gate — caught 8 HIGH bugs this day. The ROI is overwhelming.
+- Session issues log by every subagent. 18 structured entries made this retrospective possible.
+- Short focused sessions (17-30 min) for single-story pipelines. More efficient than long sessions.
+- Verification catching runtime bugs that unit tests miss (6-3 AC7 warn leak).
+- Building on prior story interfaces (7-2 extending 7-1's `ObservabilityBackend`).
+- Persisting through verification failures (6-3 succeeded on third attempt).
+
+**Avoid:**
+- Skipping code review under time pressure. 6-1 proves this always costs more.
+- Retrying verification with known-broken infrastructure. Two 6-3 timeouts wasted $10+ before the infra problem was addressed.
+- Copy-pasting orchestrator logic between modules. Creates maintenance burden.
+- Tagging internal architecture ACs as `cli-verifiable`. Use `unit-testable`.
+- Trusting dev agent "done" without reviewing test suite results.
+- Leaving broken artifacts (`coverage-summary.json`) unfixed across sessions.
+- Adding runtime behavior without updating TypeScript types.
+
+---
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+
+- [ ] **Fix `verify-env build` to pre-install codeharness CLI from built `dist/`** — P0 blocker. 6+ occurrences across 4 sessions. Every future verification will fail without this.
+- [ ] **Fix `coverage-summary.json`** — Re-run `npx vitest run --coverage` and verify accurate totals (~96%+). Current 1.27% is corrupt.
+- [ ] **Decide escalation policy for 19 escalated ACs** — (a) accept unit tests as sufficient for internal architecture ACs, (b) manual sign-off, or (c) build integration infra. Without a decision, 5 stories stay stuck forever.
+- [ ] **Update `HarnessState` type** — Add `opensearch?: { url: string }` field. Runtime behavior has diverged from the type.
+- [ ] **Investigate iteration 13 empty output** — Why did the ralph session die silently? Check if 8-1 work was lost.
+
+#### Fix Soon (Next Sprint)
+
+- [ ] **Fix AC tagging in story templates** — Internal architecture ACs (class types, factory patterns, delegation, line counts, coverage) must be tagged `unit-testable`, not `cli-verifiable`. Add guidance to story template.
+- [ ] **Wire `codeharness query logs` through `getObservabilityBackend()`** — 7-2 AC 7 partial pass reveals real routing gap.
+- [ ] **Pre-cache `bmad-method` package in verification containers** — 6-3 verification timeouts caused by runtime npm downloads.
+- [ ] **Extract shared orchestrator utilities** — `truncateOutput`, `isTimeoutError`, git diff helpers to shared module. ~60% duplication between dev and review.
+- [ ] **Split `status.ts` (722 lines)** — NFR18 violation flagged in 4+ consecutive retros.
+- [ ] **Introduce proper `opensearch-direct` mode** — Replace ambiguous `remote-direct` reuse in `handleOpenSearch`.
+- [ ] **Add fetch timeout to review checklist** — Second time missing timeouts caught by review.
+- [ ] **Remove 4 type escape hatches in `init-project.ts`** — `as unknown as Record<string, unknown>` casts.
+- [ ] **Document vitest mock reset convention** — `vi.clearAllMocks()` for `vi.mock()` factories.
+- [ ] **Replace `parseReviewOutput` heuristics** — Consider structured output or explicit approval markers.
+- [ ] **Fix `getObservabilityBackend()` to return `Result<T>`** — Align with never-throw contract.
+- [ ] **Create remaining backlog stories** — 5 stories still at backlog, ralph hits NO_WORK without them.
+- [ ] **Validate Victoria Logs and OpenSearch response formats** — NDJSON parsing and aggregation formats are assumed, not tested against real services.
+
+#### Backlog
+
+- [ ] Consolidate `process.exitCode` setting — move from infra module to command layer
+- [ ] Add integration tests for review rejection loop (5-1 AC3)
+- [ ] Split `src/lib/bmad.ts` (521 lines) — NFR18 violation
+- [ ] Investigate `isTimeoutError` SIGTERM misclassification risk
+- [ ] Add JSON sidecar for timeout reports (replace regex markdown parsing)
+- [ ] Add verification timeout/budget configuration for network-dependent stories
+- [ ] Consider `unit-testable` verification tier — skip Docker verification for internal-only stories
+- [ ] Unified container cleanup — consolidate `verify/env.ts` and infra module cleanup functions
+- [ ] Port conflict detection cross-platform support (macOS/Linux only via `lsof`)
+- [ ] Systematic dev agent learning — inject prior review findings into dev context
+- [ ] Multi-series metric support in OpenSearch backend
+- [ ] URL format validation in OpenSearchBackend constructor
+- [ ] Expose backend type in `codeharness status --json` for CLI verifiability
+- [ ] Fix `libasound2` vs `libasound2t64` for newer Debian in agent-browser Docker images
+- [ ] Investigate and fix ~50+ pre-existing tsc `--noEmit` type errors
+
+---
+
+### Full-Day Consolidated Metrics
+
+| Metric | Session 1 (overnight) | Session 2 (evening) | Session 3 (late evening) | Session 4 (late night) | Day Total |
+|--------|----------------------|--------------------:|-------------------------:|----------------------:|----------:|
+| Stories attempted | 5 | 1 | 3 | 2 | 9 (unique) |
+| Stories completed (done) | 2 (3-1, 6-3) | 0 | 2 (6-2, 7-1) | 0 | 4 |
+| HIGH bugs found (review) | 6 | 1 | 1 | 0 | 8 |
+| MEDIUM bugs found (review) | 3 | 2 | 2 | 0 | 7 |
+| Bugs found (verification) | 1 (6-3 AC7) | 0 | 0 | 0 | 1 |
+| New escalated ACs | 8 | 5 | 6 | 10 | 29 (some resolved) |
+| Verification timeouts | 2 | 0 | 0 | 0 | 2 |
+| Ralph loop iterations | 9 | 2 | 2 | 2+ | ~15 |
+| Estimated API cost | ~$24 | ~$5 | ~$4 | ~$8 | ~$41 |
+| Session duration | ~8 hrs | ~30 min | ~17 min | ~4 hrs | ~13 hrs |
+
+**Sprint position (end of day):** 15 done, 5 verifying (all blocked), 5 backlog. 8-1 at review (not in verifying count).
+
+**Unit tests:** 2221 passing. **Coverage:** 96.59% statements. **Files:** 88, all above 80%.
+
+### Sprint Velocity Trend
+
+| Date | Stories Done (cumulative) | Stories Done (day) | Verifying Backlog |
+|------|--------------------------|-------------------:|------------------:|
+| 2026-03-17 (sprint start) | 9 | -- | 2 |
+| 2026-03-18 | 11 | 2 | 4 |
+| 2026-03-19 | 15 | 4 | 5 |
+
+Velocity is increasing (2 -> 4 stories/day) but the verifying backlog is also growing (2 -> 4 -> 5). The pipeline is producing stories faster than the escalation bottleneck can clear them. Without an escalation policy, the verifying backlog will cap sprint throughput.
+
+### Top 3 Risks for Next Session
+
+1. **Escalation paralysis.** 19+ escalated ACs with no resolution path. Ralph will hit NO_WORK on every loop until either backlog stories get created or escalations get resolved.
+2. **`verify-env build` still broken.** Every verification will require manual intervention. If the next session is fully autonomous (no human), verifications will fail.
+3. **Corrupt coverage-summary.json.** Any CI check or automation reading this file will see ~1% coverage and fail. Must be regenerated.
+
+---
+
+## Session 5 — 2026-03-19T00:05Z–00:15Z+ (overnight continuation)
+
+_Timestamp: 2026-03-19, appended by retrospective agent._
+
+### 1. Session Summary
+
+This session continued from Session 4, completing the 8-1-agent-browser-integration pipeline and starting 9-1-per-module-patches-directory.
+
+| Story | Start Status | End Status | Phases Completed | Bugs Found (Review) | Verification Result |
+|-------|-------------|------------|-----------------|---------------------|---------------------|
+| 8-1-agent-browser-integration | review | verifying | code-review, verification | 2 HIGH, 3 MEDIUM, 2 LOW | 1 PASS, 11 ESCALATE |
+| 9-1-per-module-patches-directory | backlog | ready-for-dev | create-story | -- | -- |
+
+**Net progress:** 8-1 advanced from review to verifying (blocked). 9-1 story created, ready for dev. Sprint totals: **15 done, 6 verifying (all blocked), 4 backlog, 1 ready-for-dev.**
+
+**Ralph status at session end:** Loop 14, status `running`, 15/25 stories completed. Two iterations produced empty output (0 bytes) — sessions died silently.
+
+### 2. Issues Analysis
+
+#### Bugs Discovered During Implementation or Review
+
+1. **HIGH — `type()` silently ignored selector parameter (8-1):** Functional bug. The `BrowserVerifier.type()` method accepted a `selector` parameter but discarded it because the `agent-browser` CLI doesn't accept selector for type command. Fix: click-then-type workaround applied — click the selector first, then type.
+2. **HIGH — `screenshot()` label had no sanitization (8-1):** Path traversal possible inside container. An attacker-controlled label like `../../etc/passwd` could write screenshots outside the intended directory. Sanitization added.
+3. **MEDIUM — No container name validation in constructor (8-1):** Could accept empty or malicious strings. Validation added.
+4. **MEDIUM — No empty-input validation on navigate, click, evaluate (8-1):** Empty strings passed through to CLI without checks. Guards added.
+5. **MEDIUM — Dead code in `isAvailable()` (8-1):** `exitCode ?? undefined` in an always-undefined branch. Removed.
+6. **LOW (not fixed) — `type()` impedance mismatch (8-1):** agent-browser CLI fundamentally doesn't support selector for type. The click-then-type workaround is functional but not atomic.
+7. **LOW (not fixed) — `diffScreenshots` JSDoc says "pixel-level" but implementation is byte-level (8-1):** Misleading documentation. Byte comparison is adequate but the comment lies.
+
+#### Verification Gaps
+
+1. **8-1 — 11 ESCALATE out of 12 ACs:** Only AC 7 (screenshot section in proof template) was verifiable from compiled JS. The remaining 11 ACs test internal module behavior: class exports, method signatures, return types, coverage, line counts. All tree-shaken from the CLI bundle. ACs 5-6 additionally require `@anthropic-ai/agent-browser` which does not exist as an npm package.
+2. **`@anthropic-ai/agent-browser` package does not exist on npm.** The entire 8-1 story was built against an assumed API for a package that isn't published. Dockerfiles had to be fixed to remove references to it. This is a fundamental risk — the BrowserVerifier class may need significant rework when/if the real package ships with a different API.
+
+#### Tooling/Infrastructure Problems
+
+1. **`verify-env build` does not install codeharness CLI — 6th consecutive session.** First verification attempt used npm-installed `codeharness@0.19.3` (which has no browser code). Manual workaround applied again.
+2. **Tree-shaking removes internal classes** not imported by any CLI command. Same pattern as stories 7-1, 7-2. Three stories in a row now affected.
+3. **Two ralph iterations produced empty output (0 bytes).** `claude_output_2026-03-19_02-20-55.log` and `claude_output_2026-03-19_03-54-30.log` are both 0 bytes. Sessions died without producing results or error logs. Root cause unknown — possibly budget exhaustion, timeout, or crash.
+
+#### 9-1 Story Creation Notes
+
+- No problems during create-story.
+- Risk identified: AC5 (init regression) is integration-required — needs running `codeharness init` against a real project.
+- Risk identified: `package.json` `files` array needs `patches/**` glob for subdirectories to ship in npm package.
+- Observation: existing patch system has inline fallback — a botched migration won't break production.
+
+### 3. What Went Well
+
+- **Code review caught 2 HIGH security/functional bugs in 8-1.** The path traversal in `screenshot()` and the silently dropped selector in `type()` were real bugs that would have caused problems. Review continues to be the highest-value gate.
+- **All review findings fixed in-place.** No re-dev cycle needed. The reviewer applied fixes directly, which is the most efficient pattern for straightforward issues.
+- **9-1 story created cleanly.** Risks identified upfront (integration AC, npm files array). Good story preparation.
+- **Coverage held steady.** 96.55% overall, 2259 tests passing, all 89 files above 80% floor.
+
+### 4. What Went Wrong
+
+- **8-1 is built against a non-existent npm package.** `@anthropic-ai/agent-browser` does not exist on npm. The entire BrowserVerifier class is speculative code built against an assumed API. If/when the real package ships, it may have a completely different interface, requiring a full rewrite.
+- **11 out of 12 ACs escalated on 8-1.** The worst escalation ratio of any story this sprint. Only 1 AC was verifiable in black-box mode. This is the third consecutive story (7-1, 7-2, 8-1) where internal architecture ACs dominate and cannot be verified via CLI.
+- **Two silent ralph deaths.** Iterations produced 0-byte output files with no error logs. Whatever work was in progress was lost. No diagnostic information available.
+- **Escalated ACs now total ~30 across 8 stories.** The verifying backlog is completely frozen. No story can progress without policy intervention.
+
+### 5. Lessons Learned
+
+**Repeat:**
+- In-place review fixes for straightforward bugs. Eliminates re-dev cycle overhead.
+- Upfront risk identification during story creation (9-1 flagged integration AC and npm files array).
+- Security-focused review (path traversal catch in 8-1).
+
+**Avoid:**
+- Building against non-existent packages without verifying they exist first. `@anthropic-ai/agent-browser` should have been checked on npm before story creation.
+- Tagging internal-only ACs as `cli-verifiable`. Three stories in a row (7-1, 7-2, 8-1) escalated the majority of their ACs for this reason.
+- Running verification for stories where no CLI command imports the new code. Tree-shaking makes this futile.
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+
+- [ ] **Decide escalation policy** — ~30 escalated ACs across 8 stories. The verifying backlog is completely frozen. Accept unit tests as sufficient for internal architecture ACs, or build integration infra, or manual sign-off. This is now the single biggest sprint blocker.
+- [ ] **Fix `verify-env build` to pre-install codeharness CLI** — 6th session. P0 blocker.
+- [ ] **Investigate 0-byte ralph outputs** — Two sessions died silently. Need to understand if this is budget exhaustion, timeout, or a ralph bug.
+- [ ] **Verify `@anthropic-ai/agent-browser` status** — Does this package exist on npm? If not, should 8-1 be deprioritized until it ships?
+
+#### Fix Soon (Next Sprint)
+
+- [ ] **Add AC tagging guidance to story template** — Internal architecture ACs (class types, factory patterns, delegation, line counts, coverage) must use `unit-testable` tag, not `cli-verifiable`.
+- [ ] **Add `unit-testable` verification tier** — Stories where all ACs test internal module structure should skip Docker verification.
+- [ ] **Wire query CLI through `getObservabilityBackend()`** — 7-2 partial pass on AC 7.
+- [ ] **Pre-cache `bmad-method` in verification containers.**
+- [ ] **Extract shared orchestrator utilities** — dev/review ~60% code duplication.
+- [ ] **Split `status.ts` (722 lines)** — NFR18, flagged 4+ retros.
+- [ ] All remaining items from Sessions 1-4 "Fix Soon."
+
+#### Backlog
+
+- [ ] Fix `diffScreenshots` JSDoc — says "pixel-level", implementation is byte-level.
+- [ ] Resolve `type()` impedance mismatch with agent-browser CLI.
+- [ ] Add `libasound2t64` fallback for newer Debian Docker images.
+- [ ] Investigate ~50+ pre-existing `tsc --noEmit` type errors.
+- [ ] All remaining items from Sessions 1-4 backlog.
+
+---
+
+### Full-Day Consolidated Metrics (Final — All 5 Sessions)
+
+| Metric | Session 1 | Session 2 | Session 3 | Session 4 | Session 5 | Day Total |
+|--------|-----------|-----------|-----------|-----------|-----------|----------:|
+| Stories attempted | 5 | 1 | 3 | 2 | 2 | 10 (unique) |
+| Stories completed (done) | 2 | 0 | 2 | 0 | 0 | 4 |
+| HIGH bugs found (review) | 6 | 1 | 1 | 0 | 2 | 10 |
+| MEDIUM bugs found (review) | 3 | 2 | 2 | 0 | 3 | 10 |
+| Bugs found (verification) | 1 | 0 | 0 | 0 | 0 | 1 |
+| Escalated ACs (new) | 8 | 5 | 6 | 10 | 11 | ~30 (cumulative) |
+| Verification timeouts | 2 | 0 | 0 | 0 | 0 | 2 |
+| Silent ralph deaths | 0 | 0 | 0 | 1 | 2 | 3 |
+| Ralph loop iterations | 9 | 2 | 2 | 2+ | 2+ | ~15 |
+| Estimated API cost | ~$24 | ~$5 | ~$4 | ~$8 | ~$7 | ~$48 |
+| Session duration | ~8 hrs | ~30 min | ~17 min | ~4 hrs | ~2 hrs | ~15 hrs |
+| Unit tests passing | 2123 | 2157 | 2221 | 2245 | 2259 | -- |
+| Overall coverage (actual) | 96.58% | 96.58% | 96.59% | 96.55% | 96.55% | -- |
+| Files tracked | 85 | 85 | 88 | 89 | 89 | -- |
+
+### Sprint Position (End of Day — Final)
+
+**15 done, 6 verifying (all blocked), 1 ready-for-dev, 3 backlog.**
+
+Stories at verifying: 3-4 (stability test), 4-3 (verifier reliability), 5-1 (review module), 6-1 (infra init), 7-2 (opensearch), 8-1 (browser). All blocked on escalated ACs.
+
+### Sprint Velocity Trend (Updated)
+
+| Date | Stories Done (cumulative) | Stories Done (day) | Verifying Backlog | Escalated ACs |
+|------|--------------------------|-------------------:|------------------:|--------------:|
+| 2026-03-17 (sprint start) | 9 | -- | 2 | ~4 |
+| 2026-03-18 | 11 | 2 | 4 | ~12 |
+| 2026-03-19 | 15 | 4 | 6 | ~30 |
+
+The escalated ACs are growing faster than stories are completing. The ratio of escalated ACs to verifying stories is ~5:1. The pipeline is structurally blocked until an escalation policy is decided.
+
+### Top 3 Risks for Next Session
+
+1. **Escalation paralysis (critical).** ~30 escalated ACs across 8 stories with no resolution policy. Ralph will hit NO_WORK on every loop. The sprint cannot progress without a decision: accept unit tests, manual sign-off, or build integration infra.
+2. **`verify-env build` still broken (7th session incoming).** Every verification requires manual intervention. Autonomous sessions will fail.
+3. **Non-existent dependency in 8-1.** `@anthropic-ai/agent-browser` is not on npm. The BrowserVerifier class may need a full rewrite when the real package ships. This story may be premature.

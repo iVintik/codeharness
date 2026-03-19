@@ -1,3 +1,12 @@
+## WHY
+
+Retrospectives produced vague observations without actionable items, and
+verification pipeline issues (hangs, false positives, verify-dev loops) were
+not systematically tracked. This patch structures retro analysis around
+verification effectiveness, pipeline health, documentation accuracy, test
+quality trends, and mandatory concrete action items with owners.
+(FR33, FR36, NFR20)
+
 ## Codeharness Retrospective Quality Metrics
 
 ### Verification Effectiveness

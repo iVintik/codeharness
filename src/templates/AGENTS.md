@@ -8,19 +8,27 @@ ES modules by commands and libraries. They generate configuration
 files, prompt text, proof documents, and BMAD workflow patches at
 runtime.
 
-Architecture Decision 6 mandates that all templates live as TypeScript
-string literals (no external template files loaded at runtime).
+Architecture Decision 6 mandates templates as files, not hardcoded strings.
+Patch templates are read from `patches/{role}/*.md` at runtime via
+`readFileSync` — they do NOT require a TypeScript rebuild to update.
 
 ## Files
 
 ### bmad-patches.ts
 
-BMAD workflow patch content. Each function returns a markdown snippet
-injected into BMAD workflow files by the patch engine
-(`src/lib/patch-engine.ts`). Six patches covering story, dev-story,
-code-review, retrospective, and sprint-planning (beads + retro action
-items) workflows. Exports `PATCH_TEMPLATES` map (6 entries) consumed
-by `src/lib/bmad.ts`.
+BMAD workflow patch content. Each function reads from
+`patches/{role}/{name}.md` at runtime via `readPatchFile(role, name)`,
+falling back to inline defaults if files are missing (e.g., npm package
+without patches dir). Six patches covering story, dev-story,
+code-review, retrospective, and sprint-planning workflows.
+Exports `PATCH_TEMPLATES` map (6 entries) consumed by `src/lib/bmad.ts`.
+
+Patch file layout (FR35):
+- `patches/dev/enforcement.md` — dev agent guardrails
+- `patches/review/enforcement.md` — review gates
+- `patches/verify/story-verification.md` — verification requirements
+- `patches/sprint/planning.md` — sprint planning integration
+- `patches/retro/enforcement.md` — retrospective quality metrics
 
 Patch functions:
 - `storyVerificationPatch()` — verification/docs/testing requirements for story template

@@ -74,7 +74,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   }
 
   // --- Docker check ---
-  const dockerCheck = checkDocker({ observability: opts.observability, otelEndpoint: opts.otelEndpoint, logsUrl: opts.logsUrl, isJson });
+  const dockerCheck = checkDocker({ observability: opts.observability, otelEndpoint: opts.otelEndpoint, logsUrl: opts.logsUrl, opensearchUrl: opts.opensearchUrl, isJson });
   if (!isOk(dockerCheck)) return fail(dockerCheck.error);
   const { available: dockerAvailable, criticalFailure, dockerResult: criticalDockerResult } = dockerCheck.data;
   if (criticalFailure) {
@@ -133,6 +133,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   // --- Docker stack setup ---
   const dockerSetup = setupDocker({
     observability: opts.observability, otelEndpoint: opts.otelEndpoint,
+    opensearchUrl: opts.opensearchUrl,
     logsUrl: opts.logsUrl, metricsUrl: opts.metricsUrl, tracesUrl: opts.tracesUrl,
     isJson, dockerAvailable, appType, state, projectDir,
   });
@@ -180,7 +181,7 @@ function handleRerun(opts: InitOptions, result: InitResult): Result<InitResult> 
 
 /** Returns error message string if validation fails, null if OK */
 function validateRemoteUrls(opts: InitOptions): string | null {
-  const remoteUrls = [opts.otelEndpoint, opts.logsUrl, opts.metricsUrl, opts.tracesUrl].filter(Boolean) as string[];
+  const remoteUrls = [opts.otelEndpoint, opts.opensearchUrl, opts.logsUrl, opts.metricsUrl, opts.tracesUrl].filter(Boolean) as string[];
   for (const url of remoteUrls) {
     if (!/^https?:\/\//i.test(url)) return `Invalid URL: '${url}' \u2014 must start with http:// or https://`;
   }

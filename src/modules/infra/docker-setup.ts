@@ -21,6 +21,7 @@ import { DEFAULT_PORTS } from './types.js';
 interface DockerCheckOptions {
   readonly observability: boolean;
   readonly otelEndpoint?: string;
+  readonly opensearchUrl?: string;
   readonly logsUrl?: string;
   readonly isJson: boolean;
 }
@@ -37,8 +38,8 @@ export interface DockerCheckResult {
  * is on and Docker is needed but missing.
  */
 export function checkDocker(opts: DockerCheckOptions): Result<DockerCheckResult> {
-  // Skip Docker check for remote-direct mode
-  if (opts.otelEndpoint || opts.logsUrl) {
+  // Skip Docker check for remote-direct mode or OpenSearch
+  if (opts.otelEndpoint || opts.logsUrl || opts.opensearchUrl) {
     return ok({ available: true, criticalFailure: false });
   }
 
@@ -66,6 +67,7 @@ export function checkDocker(opts: DockerCheckOptions): Result<DockerCheckResult>
 interface DockerSetupOptions {
   readonly observability: boolean;
   readonly otelEndpoint?: string;
+  readonly opensearchUrl?: string;
   readonly logsUrl?: string;
   readonly metricsUrl?: string;
   readonly tracesUrl?: string;
@@ -101,6 +103,10 @@ export function setupDocker(opts: DockerSetupOptions): Result<DockerSetupResult>
       return ok({ docker: null, state });
     }
 
+    if (opts.opensearchUrl) {
+      return handleOpenSearch(opts, state);
+    }
+
     if (opts.otelEndpoint) {
       return handleRemoteDirect(opts, state);
     }
@@ -129,6 +135,27 @@ export function setupDocker(opts: DockerSetupOptions): Result<DockerSetupResult>
     const message = err instanceof Error ? err.message : String(err);
     return fail(`Docker setup failed: ${message}`);
   }
+}
+
+function handleOpenSearch(
+  opts: DockerSetupOptions,
+  state: HarnessState,
+): Result<DockerSetupResult> {
+  state = {
+    ...state,
+    otlp: {
+      ...state.otlp!,
+      mode: 'remote-direct' as const,
+    },
+    opensearch: {
+      url: opts.opensearchUrl!,
+    },
+  };
+  writeState(state, opts.projectDir);
+  if (!opts.isJson) {
+    okOutput(`Observability: OpenSearch backend at ${opts.opensearchUrl!}`);
+  }
+  return ok({ docker: null, state });
 }
 
 function handleRemoteDirect(

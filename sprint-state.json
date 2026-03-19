@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "sprint": {
+    "total": 20,
+    "done": 3,
+    "failed": 0,
+    "blocked": 2,
+    "inProgress": null
+  },
+  "stories": {
+    "0-1-sprint-state-live-updates": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-2-ralph-progress-display": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-3-run-command-dashboard": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-1-semgrep-rules-for-observability": {
+      "status": "verifying",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-2-analyzer-module-interface": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-3-observability-coverage-state-tracking": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-1-verification-observability-check": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-2-observability-hook-enforcement": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-3-standalone-runtime-check-audit-mode": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-1-audit-coordinator-dimensions": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-2-audit-fix-story-generation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-3-onboard-alias": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-1-dockerfile-rules-validation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-2-dockerfile-template-dev-integration": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "5-1-code-review-observability-check": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "5-2-verification-runtime-integration": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-a": {
+      "status": "backlog",
+      "attempts": 3,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-c": {
+      "status": "backlog",
+      "attempts": 5,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-x": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-y": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    }
+  },
+  "run": {
+    "active": true,
+    "startedAt": null,
+    "iteration": 1,
+    "cost": 0,
+    "completed": [],
+    "failed": [],
+    "acProgress": "5/5"
+  },
+  "actionItems": [
+    {
+      "id": "migrated-1",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**Ambiguity: CLI command vs inline writes.** harness-run.md is a prompt, not compiled code. Dev agent must decide: CLI subcommand, node -e inline, or direct JSON write.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-2",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**AC #4 already satisfied** by existing atomic write pattern in state.ts.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-3",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**Backward compatibility risk:** New fields in SprintState.run need graceful defaults for old state files.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**Pre-existing test isolation issue**: Sprint module tests fail when run together due to shared process.cwd() and sprint-state.json file. Pass individually.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**No backward compatibility merge in getSprintState**: Old state files missing new fields will have undefined, not null. updateRunProgress and clearRunProgress handle this correctly.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**No validation on --phase CLI input**: Accepts any string, not validated against union type at runtime.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**sprint-status.yaml overwritten with test data**: Dev agent tests wrote to real state file. Manually restored.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**session-issues.md overwritten with test data**: Same issue. Manually restored.",
+      "source": "retro",
+      "resolved": false
+    }
+  ]
+}

@@ -86,10 +86,16 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | retry-state.ts | Persistent story retry counters and flagged-story tracking in `ralph/.story_retries` and `ralph/.flagged_stories` | `readRetries`, `writeRetries`, `getRetryCount`, `setRetryCount`, `resetRetry`, `readFlaggedStories`, `writeFlaggedStories`, `removeFlaggedStory` |
 
+## Dashboard Formatting
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| dashboard-formatter.ts | Parses ralph's structured output lines and reformats them as a clean dashboard with icons and progress tracking | `DashboardFormatter`, `formatDashboardLine` |
+
 ## Dependency Management
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, beads) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-**Total: 25 library files across 11 categories.**
+**Total: 26 library files across 12 categories.**

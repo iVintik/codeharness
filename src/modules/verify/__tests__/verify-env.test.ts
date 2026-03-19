@@ -648,7 +648,8 @@ describe('cleanupStaleContainers', () => {
 // ─── detectProjectType ──────────────────────────────────────────────────────
 
 describe('detectProjectType', () => {
-  it('returns plugin when .claude-plugin/plugin.json exists', () => {
+  it('returns plugin when .claude-plugin/plugin.json exists and stack is unknown', () => {
+    mockDetectStack.mockReturnValue(null);
     mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
     writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
     expect(detectProjectType(testDir)).toBe('plugin');
@@ -674,18 +675,19 @@ describe('detectProjectType', () => {
     expect(detectProjectType(testDir)).toBe('generic');
   });
 
-  it('prioritizes plugin over nodejs when both exist', () => {
+  it('prioritizes nodejs over plugin when both exist', () => {
     mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
     writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
     mockDetectStack.mockReturnValue('nodejs');
-    expect(detectProjectType(testDir)).toBe('plugin');
+    expect(detectProjectType(testDir)).toBe('nodejs');
   });
 });
 
 // ─── buildVerifyImage — plugin and generic paths ────────────────────────────
 
 describe('buildVerifyImage — plugin project (AC #2)', () => {
-  it('builds plugin image when .claude-plugin/plugin.json exists', () => {
+  it('builds plugin image when .claude-plugin/plugin.json exists and stack is unknown', () => {
+    mockDetectStack.mockReturnValue(null);
     mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
     writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{"name":"test"}');
     mkdirSync(join(testDir, 'commands'), { recursive: true });
@@ -706,6 +708,7 @@ describe('buildVerifyImage — plugin project (AC #2)', () => {
   });
 
   it('does not throw for plugin projects without dist/', () => {
+    mockDetectStack.mockReturnValue(null);
     mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
     writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
 

@@ -28,7 +28,12 @@ Semgrep YAML rules for static analysis of observability gaps. Each `.yaml` file 
 - `function-no-debug-log.yaml` — Detects functions without debug/info logging (INFO)
 - `error-path-no-log.yaml` — Detects error paths (throw/return err) without preceding log (WARNING)
 
-**Testing:** `semgrep --test patches/observability/` runs annotated test fixtures (`.ts` files alongside rules).
+**Test fixtures** (`.ts` files alongside rules, annotated with `// ruleid:` / `// ok:` comments):
+- `catch-without-logging.ts` — Test cases for catch-without-logging rule
+- `function-no-debug-log.ts` — Test cases for function-no-debug-log rule
+- `error-path-no-log.ts` — Test cases for error-path-no-log rule
+
+**Testing:** `semgrep --test patches/observability/` runs annotated test fixtures.
 
 **Customization:** Edit YAML rules to add custom logger patterns (e.g., `logger.error(...)` for winston). Rules use `pattern-not` / `pattern-not-inside` to detect absence of logging.
 

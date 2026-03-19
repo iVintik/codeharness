@@ -5,11 +5,18 @@ FROM node:20-slim
 
 ARG TARBALL=package.tgz
 
-# System utilities
+# System utilities + Python for Semgrep
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     jq \
+    python3 \
+    python3-pip \
+    pipx \
   && rm -rf /var/lib/apt/lists/*
+
+# Semgrep for static analysis verification
+RUN pipx install semgrep && pipx ensurepath
+ENV PATH="/root/.local/bin:${PATH}"
 
 # Verification tools + Claude Code CLI
 RUN npm install -g showboat @anthropic-ai/claude-code

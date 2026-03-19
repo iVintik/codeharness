@@ -67,10 +67,13 @@ function storeDistHash(projectDir: string, hash: string): void {
 
 /** Detects the project type for verification strategy selection. */
 export function detectProjectType(projectDir: string): ProjectType {
-  if (existsSync(join(projectDir, '.claude-plugin', 'plugin.json'))) return 'plugin';
   const stack = detectStack(projectDir);
+  // Prefer nodejs/python when the project has a buildable package — the npm tarball
+  // or Python wheel includes all distributable files. Plugin-only detection is the
+  // fallback for projects that are purely Claude Code plugins with no build artifact.
   if (stack === 'nodejs') return 'nodejs';
   if (stack === 'python') return 'python';
+  if (existsSync(join(projectDir, '.claude-plugin', 'plugin.json'))) return 'plugin';
   return 'generic';
 }
 

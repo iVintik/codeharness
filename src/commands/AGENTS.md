@@ -101,6 +101,11 @@ Queries observability data (logs, metrics, traces) scoped to the current project
 - **Key deps:** `lib/state` (service name, endpoint resolution)
 - **Subcommands:** `logs <filter>`, `metrics <promql>`, `traces`
 
+### progress.ts
+Updates live run progress in sprint-state.json. Used by harness-run to show real-time story/phase progress during autonomous execution.
+- **Key deps:** `modules/sprint` (updateRunProgress, clearRunProgress), `lib/output`
+- **Subcommands:** none; supports `--story <key>`, `--phase <phase>`, `--action <text>`, `--ac-progress <text>`, `--clear`, `--json`
+
 ### verify-env.ts
 Manages the verification environment for black-box story verification. Builds a Docker image from project artifacts (no source code), prepares clean temp workspaces with only story docs, validates the environment, and cleans up.
 - **Key deps:** `modules/verify` (buildVerifyImage, prepareVerifyWorkspace, checkVerifyEnv, cleanupVerifyEnv), `lib/output`

@@ -40,7 +40,7 @@ export function getValidationProgress(): Result<ValidationProgress> {
     let failed = 0;
     let blocked = 0;
     let remaining = 0;
-    const perAC: Array<{ acId: number; status: StoryState['status']; attempts: number }> = [];
+    const perAC: Array<{ acId: number; status: StoryState['status']; attempts: number; lastError: string | null }> = [];
 
     for (const ac of VALIDATION_ACS) {
       const key = `${VAL_KEY_PREFIX}${ac.id}`;
@@ -71,7 +71,7 @@ export function getValidationProgress(): Result<ValidationProgress> {
         acId: ac.id,
         status: story.status,
         attempts: story.attempts,
-        lastError: story.lastError,
+        lastError: story.lastError ?? null,
       });
     }
 

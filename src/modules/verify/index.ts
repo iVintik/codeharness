@@ -81,6 +81,25 @@ export {
 } from './validation-acs.js';
 export type { ValidationAC, VerificationMethod, AcCategory } from './validation-acs.js';
 
+// Re-export validation runner functions and types
+export {
+  createValidationSprint,
+  executeValidationAC,
+  createFixStory,
+  processValidationResult,
+} from './validation-runner.js';
+export {
+  getValidationProgress,
+  runValidationCycle,
+} from './validation-orchestrator.js';
+export type {
+  ValidationACResult,
+  ValidationSprintResult,
+  ValidationCycleResult,
+  ValidationProgress,
+  ValidationVerdict,
+} from './validation-runner-types.js';
+
 // Re-export env functions
 export {
   buildVerifyImage,

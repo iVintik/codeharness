@@ -4,7 +4,7 @@ Unified sprint state management. Replaces scattered state files with a single `s
 
 ## Files
 
-- `index.ts` — Public API: `getSprintState`, `updateStoryStatus`, `getNextStory` (delegates to selector, marks retry-exhausted as blocked), `generateReport` (delegates to reporter), `getStoryDrillDown` (reads state, looks up latest timeout report via `findLatestTimeoutReport`, passes `timeoutSummary` to drill-down), `processVerifyResult` (delegates to feedback), `captureTimeoutReport` (delegates to timeout)
+- `index.ts` — Public API: `getSprintState`, `updateStoryStatus`, `getNextStory` (delegates to selector, marks retry-exhausted as blocked), `generateReport` (delegates to reporter), `getStoryDrillDown` (reads state, looks up latest timeout report via `findLatestTimeoutReport`, passes `timeoutSummary` to drill-down), `processVerifyResult` (delegates to feedback), `captureTimeoutReport` (delegates to timeout), `writeStateAtomic` (delegates to state), `computeSprintCounts` (delegates to state)
 - `reporter.ts` — Report generation: `generateReport(state)` — computes sprint progress, epic counts, run summary, failed story details, labeled action items. Re-exports `getStoryDrillDown` from `drill-down.ts`. Pure function over SprintState, returns `Result<StatusReport>`.
 - `drill-down.ts` — Story drill-down: `getStoryDrillDown(state, key, opts?)` — builds detailed view of a single story including AC verdicts, attempt history, proof summary, and optional timeout summary. Pure function (timeout data injected via opts), returns `Result<StoryDrillDown>`.
 - `state.ts` — Core state read/write: `getSprintState()`, `updateStoryStatus()`, `writeStateAtomic()`, `defaultState()`, `computeSprintCounts()`. All return `Result<T>`.

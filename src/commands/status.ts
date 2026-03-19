@@ -6,6 +6,7 @@ import { listIssues, isBeadsInitialized } from '../lib/beads.js';
 import { getOnboardingProgress } from '../lib/onboard-checks.js';
 import { getStackDir, getComposeFilePath } from '../lib/stack-path.js';
 import { generateReport, getStoryDrillDown } from '../modules/sprint/index.js';
+import { getValidationProgress } from '../modules/verify/index.js';
 import type { HarnessState } from '../lib/state.js';
 import type { DockerHealthResult } from '../lib/docker.js';
 import type { StatusReport, StoryDrillDown } from '../modules/sprint/index.js';
@@ -101,6 +102,9 @@ function handleFullStatus(isJson: boolean): void {
 
   // Sprint state sections (Project State, Run, Action Items)
   printSprintState();
+
+  // Validation progress (if validation stories exist)
+  printValidationProgress();
 
   // Version & Stack
   console.log(`Harness: codeharness v${state.harness_version}`);
@@ -275,11 +279,17 @@ function handleFullStatusJson(state: HarnessState): void {
   // Sprint state
   const sprint = getSprintReportData();
 
+  // Validation progress
+  const validationResult = getValidationProgress();
+  const validation = validationResult.success && validationResult.data.total > 0
+    ? validationResult.data : undefined;
+
   jsonOutput({
     version: state.harness_version,
     stack: state.stack,
     ...(state.app_type ? { app_type: state.app_type } : {}),
     ...(sprint ? { sprint } : {}),
+    ...(validation ? { validation } : {}),
     enforcement: state.enforcement,
     docker,
     endpoints,
@@ -638,6 +648,14 @@ function printSprintState(): void {
   }
 
   console.log('');
+}
+
+function printValidationProgress(): void {
+  const result = getValidationProgress();
+  if (!result.success) return;
+  const p = result.data;
+  if (p.total === 0) return;
+  console.log(`Validation: ${p.passed}/${p.total} passed, ${p.failed} failed, ${p.blocked} blocked, ${p.remaining} remaining`);
 }
 
 function getSprintReportData(): StatusReport | null {

@@ -18,6 +18,9 @@ and Docker environment management for isolated verification.
 | validation-ac-types.ts | Types for validation AC entries | `ValidationAC`, `VerificationMethod`, `AcCategory` |
 | validation-ac-fr.ts | FR validation AC data (ACs 1-40) | `FR_ACS` |
 | validation-ac-data.ts | NFR/UX/Regression/ActionItem AC data (ACs 41-79) | `NFR_ACS`, `UX_ACS`, `REGRESSION_ACS`, `ACTION_ITEM_ACS` |
+| validation-runner.ts | Validation infrastructure: sprint init, AC execution, fix story gen, result processing | `createValidationSprint`, `executeValidationAC`, `createFixStory`, `processValidationResult` |
+| validation-orchestrator.ts | Validation orchestration: cycle execution, progress tracking | `runValidationCycle`, `getValidationProgress` |
+| validation-runner-types.ts | Types for validation runner | `ValidationACResult`, `ValidationSprintResult`, `ValidationCycleResult`, `ValidationProgress`, `ValidationVerdict` |
 
 ## Module Boundary
 
@@ -36,9 +39,11 @@ Only `index.ts` should be imported from outside this module. Internal files (`or
 | verifier-session.test.ts | Verifier session management | `src/lib/verifier-session.ts` |
 | browser.test.ts | BrowserVerifier unit tests (mocked docker exec) | `./browser.ts` |
 | validation-acs.test.ts | Validation AC registry: count, structure, distribution, helpers | `./validation-acs.ts` |
+| validation-runner.test.ts | Validation runner: sprint init, AC execution, fix stories, result processing, orchestration | `./validation-runner.ts`, `./validation-orchestrator.ts` |
 
 ## Architecture Notes
 
 - All public functions return `Result<T>` (via `verifyStory`, `parseProof`) or throw (legacy direct exports).
 - Old `src/lib/verify.ts`, `src/lib/verify-parser.ts`, `src/lib/verify-env.ts` have been deleted.
-- Commands (`src/commands/verify.ts`, `src/commands/verify-env.ts`) import only from `./index.ts`.
+- Commands (`src/commands/verify.ts`, `src/commands/verify-env.ts`, `src/commands/validate.ts`) import only from `./index.ts`.
+- The `codeharness status` command imports `getValidationProgress` from `./index.ts` for real-time validation display.

@@ -58,5 +58,5 @@ development_status:
   # Epic 10: Self-Validation & Adaptation
   epic-10: backlog
   10-1-validation-ac-suite: done
-  10-2-validation-infrastructure: backlog
-  10-3-self-validation-run: backlog
+  10-2-validation-infrastructure: verifying
+  10-3-self-validation-run: verifying

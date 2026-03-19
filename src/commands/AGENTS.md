@@ -81,6 +81,11 @@ Manages retry state for stories. Shows retry counts and flagged-story status, re
 - **Key deps:** `lib/retry-state` (readRetries, readFlaggedStories, resetRetry), `lib/output`
 - **Subcommands:** none; supports `--reset`, `--story <key>`, `--status`, `--json`
 
+### validate.ts
+Runs the self-validation cycle and produces a release gate report. Initializes a validation sprint, loops through `runValidationCycle()` until no actionable ACs remain, then outputs a summary with total/passed/failed/blocked counts and adaptation cycles. Outputs "RELEASE GATE: PASS -- v1.0 ready" when all non-blocked ACs pass.
+- **Key deps:** `modules/verify` (createValidationSprint, runValidationCycle, getValidationProgress, getACById), `lib/output`
+- **Subcommands:** none; supports `--ci` (exit code mode), `--json`
+
 ### validate-state.ts
 Validates sprint-state.json consistency against sprint-status.yaml. Thin CLI wrapper that delegates to the sprint module's `validateStateConsistency`.
 - **Key deps:** `modules/sprint` (validateStateConsistency), `lib/output`

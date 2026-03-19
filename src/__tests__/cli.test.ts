@@ -19,14 +19,14 @@ describe('CLI entry point', () => {
     expect(jsonOpt).toBeDefined();
   });
 
-  it('registers all 19 commands', () => {
+  it('registers all 20 commands', () => {
     const program = createProgram();
     const commands = program.commands.filter(
       (c) => c.name() !== 'help'
     );
     const names = commands.map(c => c.name()).sort();
     expect(names).toEqual([
-      'bridge', 'coverage', 'doc-health', 'github-import', 'init', 'onboard', 'query', 'retro-import', 'retry', 'run', 'stack', 'state', 'status', 'sync', 'teardown', 'timeout-report', 'validate-state', 'verify', 'verify-env',
+      'bridge', 'coverage', 'doc-health', 'github-import', 'init', 'onboard', 'query', 'retro-import', 'retry', 'run', 'stack', 'state', 'status', 'sync', 'teardown', 'timeout-report', 'validate', 'validate-state', 'verify', 'verify-env',
     ]);
   });
 

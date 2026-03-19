@@ -24,6 +24,8 @@ import type {
 import {
   getSprintState as getSprintStateImpl,
   updateStoryStatus as updateStoryStatusImpl,
+  writeStateAtomic as writeStateAtomicImpl,
+  computeSprintCounts as computeSprintCountsImpl,
 } from './state.js';
 import { selectNextStory } from './selector.js';
 import { generateReport as generateReportImpl, getStoryDrillDown as getStoryDrillDownImpl } from './reporter.js';
@@ -130,4 +132,14 @@ export function validateStateConsistency(
   sprintStatusPath: string,
 ): Result<ValidationReport> {
   return validateStateConsistencyImpl(statePath, sprintStatusPath);
+}
+
+export function writeStateAtomic(state: SprintState): Result<void> {
+  return writeStateAtomicImpl(state);
+}
+
+export function computeSprintCounts(
+  stories: Record<string, import('../../types/state.js').StoryState>,
+): SprintState['sprint'] {
+  return computeSprintCountsImpl(stories);
 }

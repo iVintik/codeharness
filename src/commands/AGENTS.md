@@ -111,6 +111,11 @@ Checks observability coverage against targets for commit gating. Reads cached st
 - **Key deps:** `modules/observability` (checkObservabilityCoverageGate), `lib/output`
 - **Subcommands:** none; supports `--json`, `--min-static <percent>`, `--min-runtime <percent>`
 
+### audit.ts
+Runs a full compliance audit across all project dimensions (observability, testing, documentation, verification, infrastructure). Checks each dimension for status (pass/fail/warn) and metric, aggregates results, and reports gaps with suggested fixes. Exits with failure message if harness not initialized.
+- **Key deps:** `modules/audit` (runAudit), `modules/audit/report` (formatAuditHuman, formatAuditJson), `lib/onboard-checks` (runPreconditions), `lib/output`
+- **Subcommands:** none; supports `--json`
+
 ### verify-env.ts
 Manages the verification environment for black-box story verification. Builds a Docker image from project artifacts (no source code), prepares clean temp workspaces with only story docs, validates the environment, and cleans up.
 - **Key deps:** `modules/verify` (buildVerifyImage, prepareVerifyWorkspace, checkVerifyEnv, cleanupVerifyEnv), `lib/output`

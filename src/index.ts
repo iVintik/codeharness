@@ -21,6 +21,7 @@ import { registerValidateStateCommand } from './commands/validate-state.js';
 import { registerValidateCommand } from './commands/validate.js';
 import { registerProgressCommand } from './commands/progress.js';
 import { registerObservabilityGateCommand } from './commands/observability-gate.js';
+import { registerAuditCommand } from './commands/audit.js';
 
 declare const __PKG_VERSION__: string;
 const VERSION = typeof __PKG_VERSION__ !== 'undefined' ? __PKG_VERSION__ : '0.0.0-dev';
@@ -56,6 +57,7 @@ export function createProgram(): Command {
   registerValidateCommand(program);
   registerProgressCommand(program);
   registerObservabilityGateCommand(program);
+  registerAuditCommand(program);
 
   return program;
 }

@@ -1019,3 +1019,374 @@ Three sessions, three occurrences. This is now a systemic process failure. Code 
 4. **Schedule a dedicated tech-debt story** for silent error handling (5+ locations), deferred LOWs (15+), and pre-existing BATS failures. Seven sessions of incremental deferral confirms these will not be fixed opportunistically.
 5. **Target 80% of line limits, not 100%.** `run.ts` at exactly 300 lines has zero headroom. Future extraction targets should be ~240 lines.
 6. **Code review remains non-negotiable.** 13 HIGH + 7 MEDIUM bugs caught across 7 sessions. Every single session's review found real issues. The cost is 3-5 minutes per review; the value is preventing production bugs, security vulnerabilities, and data loss.
+
+---
+
+# Session 8 Retrospective — 2026-03-20T12:30Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~08:25Z – ~08:45Z (2026-03-20), approx 20 minutes (verification)
+**Stories attempted:** 1
+**Stories completed:** 1 (0-5-4-run-command-integration -> done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Notes |
+|-------|-------------|------------|-----------------|-------|
+| 0-5-4-run-command-integration | verifying | done | verify | Verification completed. Dev and code-review ran in Session 7. Code review had found 1 HIGH (AGENTS.md missing), 3 MEDIUM (duplicate tests, untested polling, misleading test name), 1 LOW (branch coverage). All fixed before verification. run.ts reduced from 358 to exactly 300 lines via extraction to run-helpers.ts. 2728 tests pass, 96.65% coverage. Committed as `3255f6f`. Epic 0.5 marked complete in `146c660`. |
+
+**Net progress:** Story 0-5-4 completed. Epic 0.5 is now fully done (4/4 stories: 0-5-1, 0-5-2, 0-5-3, 0-5-4). The stream-json live activity display pipeline is complete end-to-end. Sprint now has 2 epics completed today (Epic 2, Epic 0.5) plus Epics 0 and 1 from prior sessions.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+No new bugs in Session 8. All bugs were found and fixed in Session 7 (dev + code-review):
+
+1. **HIGH -- AGENTS.md missing for run-helpers.ts (Session 7, fixed):** Third consecutive session with this gap. Structural fix still needed.
+2. **MEDIUM -- Misleading test name (Session 7, fixed):** `defaults to 3` but asserted `10`. Test name stale from a prior default change.
+3. **MEDIUM -- Duplicate test code (Session 7, fixed):** Identical tests in both run.test.ts and run-helpers.test.ts after extraction.
+4. **MEDIUM -- Polling interval untested (Session 7, fixed):** `setInterval` callback at lines 207-228 had zero coverage. Fixed with `vi.useFakeTimers()`.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **run.ts at exactly 300 lines (LOW, carried from Session 7):** Zero headroom. Any addition to run.ts will immediately violate NFR9. The file needs further extraction to create a buffer.
+2. **Pre-existing TS errors in test files (LOW, carried):** Loosely-typed `vi.fn()` mocks don't match strict type signatures. Systemic across many test files.
+3. **run-helpers.test.ts at 303 lines (LOW, carried):** Slightly over 300-line NFR9. Test files typically exempt.
+4. **run.ts branch coverage at 70.23% (LOW):** Uncovered branches are error-handling catch blocks. Statement/function/line coverage at 95-100%.
+5. **No integration test for full stream-json to Ink pipeline (LOW):** All tests mock the renderer. The end-to-end NDJSON-to-Ink data flow is validated only by composition of independently-tested components.
+
+### Code Quality Concerns
+
+1. **coverage-summary.json confusion (pre-existing):** File contains Jest-format results, not istanbul coverage data. Noted in session issues but not a new concern.
+
+### Verification Gaps
+
+None significant. Story 0-5-4 was verified successfully with all ACs passing.
+
+### Tooling/Infrastructure Problems
+
+None new this session.
+
+---
+
+## 3. What Went Well
+
+- **Epic 0.5 completed.** All four stories in the Stream-JSON Live Activity Display epic are verified and committed. The pipeline from Claude subprocess NDJSON output through stream parsing to Ink terminal rendering is fully integrated into `codeharness run`.
+- **Two epics completed in one day.** Epic 2 (Sessions 1-5) and Epic 0.5 (Sessions 6-8) both reached done status on 2026-03-20. Combined, that is 7 stories completed across 8 sessions.
+- **NFR9 compliance achieved through extraction.** run.ts went from 358 lines (19% over limit) to exactly 300. The `run-helpers.ts` module provides a clean boundary for helper functions (formatElapsed, mapSprintStatus, parseRalphMessage, countStories, buildSpawnArgs).
+- **Session 7+8 split worked.** Session 7 ran dev + code-review. Session 8 ran verification. The pipeline handoff was clean -- no context was lost between sessions, and verification succeeded on first attempt.
+- **Test suite grew substantially.** From 2510 tests (start of day) to 2728 tests (end of day). 218 new tests across 8 sessions. Coverage held steady at 96.65% with all 111 files above the 80% floor.
+
+---
+
+## 4. What Went Wrong
+
+- **run.ts headroom problem persists.** Exactly 300 lines is a fragile equilibrium. The Session 7 retrospective already flagged this. No further extraction was done in Session 8. The next person to touch run.ts will break NFR9.
+- **AGENTS.md process fix still not implemented.** Session 6 created the action item. Session 7 failed to follow it. Session 8 (verify only) did not have occasion to test it. Three sessions of forgetting, zero structural fixes applied. The action item exists only in retrospectives, not in any template or prompt that dev agents actually read.
+- **No full pipeline integration test.** Story 0-5-4 is the integration story that wires stream-json parsing to Ink rendering inside `codeharness run`. Yet all tests mock the renderer. The integration was verified manually during the Docker verification pass, but there is no automated test that exercises the real pipeline.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Splitting dev/review and verification across sessions works when the story is well-characterized.** Session 7 completed dev + review. Session 8 picked up verification cleanly. The session issues log from Session 7 provided full context for Session 8's verification. This is a viable pattern for stories that take longer than a single session.
+- **Helper extraction during implementation produces better boundaries.** Extracting run-helpers.ts while adding new code to run.ts (Session 7) was more effective than pre-emptive extraction would have been. The developer could see which functions were cohesive enough to extract together.
+
+### Patterns to Avoid
+
+- **Action items that require process changes dying in retrospectives.** The AGENTS.md fix has been an action item for three sessions. Retrospective action items that require template/prompt changes need to be executed immediately in the same session they are identified, not deferred.
+- **Targeting exactly the line limit.** Repeated from Session 7. Target 80% of limits to leave headroom.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+Nothing blocking. Epic 0.5 is complete. All stories verified and committed.
+
+### Fix Soon (Next Sprint)
+
+1. **Embed "update AGENTS.md" in dev agent prompt or story template** -- Three sessions of forgetting. Must be structural, not aspirational. This is the highest-priority process fix.
+2. **Extract more from run.ts** -- Currently at exactly 300 lines. Target ~240. Move `readResultFromStatusFile()` or polling setup into run-helpers.ts.
+3. **Add stream-json to Ink integration test** -- One test that sends real NDJSON through `parseStreamLine()` and verifies Ink component output. Currently all tests mock.
+4. **Fix pre-existing TS type errors in test files** -- Loosely-typed `vi.fn()` mocks across multiple files. Growing tech debt.
+5. **Fix Docker container cleanup** -- Carried from Session 5. Two manual cleanups today.
+6. **Add query format assertions to HTTP-mocked tests** -- Carried from Session 5.
+7. **Fix substring module matching** -- Carried from Session 4.
+8. **Add diagnostics for dropped NDJSON lines** -- Carried from Session 4.
+9. **Extend `saveRuntimeCoverage` to persist module details** -- Carried from Session 4.
+10. **Deduplicate default target constants** -- Carried from Session 3.
+11. **Add end-to-end gap flow integration test** -- Carried from Session 3.
+12. **Fix pre-existing BATS failures** -- Carried from Session 2. Tests 28-31 still failing on master.
+
+### Backlog (Track but Not Urgent)
+
+1. **Remove unreachable `rerender()` guard** -- Carried from Session 6.
+2. **Centralize gap parsing** -- Carried from Session 1.
+3. **Fix binary `logEventCount`** -- Carried from Session 1.
+4. **Silent catch blocks** -- Carried from Session 1. Now five+ locations.
+5. **Test against real telemetry** -- Carried from Session 1.
+6. **Agent workflow compliance** -- Carried from Session 2.
+7. **Type escape hatches (`as unknown as Record`)** -- Carried from Session 1.
+8. **Replace grep-based JSON parsing in pre-commit-gate.sh** -- Carried from Session 2.
+9. **Config path mismatch** -- Carried from Session 4.
+10. **Epic numbering collision** -- Carried from Session 1.
+11. **Address 16+ deferred LOW findings** -- Accumulated across all 8 sessions.
+
+---
+
+## Cross-Session Pattern Analysis (Final — 8 Sessions, 2026-03-20)
+
+Eight sessions on 2026-03-20. Final patterns and totals.
+
+### Pattern 1: Producer-Consumer Disconnects
+
+| Session | Bug | Pattern |
+|---------|-----|---------|
+| 1 | `saveRuntimeCoverage` never called | Function implemented, tested, exported, never wired into caller |
+| 2 | `gapSummary` always empty | Formatting code exists, no data source connected |
+| 3 | `StaticCoverageState` missing gaps field | Data written to file, never read back into type |
+| 4 | `saveRuntimeCoverage` doesn't persist modules | Function returns per-module data, persistence layer discards it |
+| 5 | LogsQL query syntax invalid | Query string authored without validation against real API |
+| 6 | (None) | Self-contained component story |
+| 7 | (None) | Integration of existing, tested components |
+| 8 | (None) | Verification only, no new code |
+
+The pattern stopped appearing once the sprint shifted from creating new data flows (Sessions 1-5) to integrating existing components (Sessions 6-8). Stories that compose pre-tested modules are inherently safer than stories that create new cross-module pipelines from scratch.
+
+### Pattern 2: Silent Error Handling
+
+No new instances in Sessions 6-8. Five+ locations remain unfixed across eight sessions. This is fully accepted technical debt at this point.
+
+### Pattern 3: AGENTS.md / Documentation Lag
+
+| Session | Instance |
+|---------|----------|
+| 2 | AGENTS.md not updated (code-review caught) |
+| 6 | AGENTS.md not updated for 3 files (verification caught) |
+| 7 | AGENTS.md not updated for run-helpers.ts (code-review caught) |
+
+Three occurrences, zero structural fixes. Code review catches it reliably, but prevention is cheaper than detection.
+
+### Final Day Totals (2026-03-20 — All 8 Sessions)
+
+- **Stories completed:** 5 (2-1, 2-2, 2-3, 0-5-3, 0-5-4)
+- **Epics completed:** 2 (Epic 2: Runtime Observability & Coverage Metrics, Epic 0.5: Stream-JSON Live Activity Display)
+- **HIGH bugs found by code review:** 13 across 8 sessions
+- **MEDIUM bugs found by code review:** 7 across 8 sessions
+- **LOW findings deferred:** 16+ across all sessions
+- **Security vulnerabilities caught:** 1 (command injection, Session 4)
+- **Production bugs caught by live verification:** 1 (LogsQL syntax, Session 5)
+- **Verification failures requiring re-work:** 2 (proof parser in Session 1, AC3 in Session 2)
+- **Stories passing verification on first attempt:** 3 (0-5-3, 2-3, 0-5-4)
+- **Phases executed:** ~24 (Sessions 1-7: ~22, Session 8: verify + epic-complete = ~2)
+- **Total session time:** ~5 hours across 8 sessions
+- **Average story throughput:** ~60 minutes per completed story (5 stories in ~5 hours)
+- **Test count:** 2728 passing (up from 2510 at start of day), 96.65% overall coverage
+- **AGENTS.md misses:** 3 (Sessions 2, 6, 7)
+- **Docker cleanup issues:** 2 (Sessions 3 and 5)
+
+### Final Recommendations
+
+1. **Embed "update AGENTS.md" in dev agent prompt.** Three sessions of forgetting. No more retrospective notes -- change the prompt.
+2. **Add "verify data flow end-to-end" as mandatory dev task** for stories creating new cross-module data pipelines. Not needed for integration or self-contained stories.
+3. **Schedule a dedicated tech-debt story** covering: silent error handling (5+ locations), deferred LOWs (16+), pre-existing BATS failures, grep-based JSON parsing. Eight sessions of deferral proves these will not be fixed opportunistically.
+4. **Target 80% of line limits.** run.ts at exactly 300 lines is a ticking bomb. Extract to ~240.
+5. **Code review remains non-negotiable.** 13 HIGH + 7 MEDIUM bugs caught. Every session's review found real issues. The ~5% time overhead prevented data loss, security vulnerabilities, and production failures.
+6. **The sprint pipeline works.** Five stories completed in 8 sessions across ~5 hours. The create-story -> dev -> code-review -> verify pipeline is validated. Key success factors: session issues log for traceability, code review for quality, Docker verification for catching mock-hidden bugs.
+
+---
+
+# Session 9 Retrospective — 2026-03-20T12:40Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~08:39Z – ~09:00Z (2026-03-20), approx 20 minutes (create-story + dev + code-review)
+**Stories attempted:** 1
+**Stories completed:** 0 (3-1-audit-coordinator-dimensions at `verifying`, not yet done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Notes |
+|-------|-------------|------------|-----------------|-------|
+| 3-1-audit-coordinator-dimensions | backlog | verifying | create-story, dev-story, code-review | First story of Epic 3 (Audit Command). Implements the `codeharness audit` CLI command with a coordinator that runs multiple audit dimensions (code quality, testing, observability, verification, infrastructure). Dev initially exceeded NFR9 (428 lines in dimensions.ts), compacted to 197. Code review found 1 HIGH and 5 MEDIUM branch coverage gaps — all fixed. 2779 tests pass, 96.71% coverage. Verification not yet completed. |
+
+**Net progress:** Story 3-1 advanced through 3 phases (create-story, dev, code-review). Epic 3 is now in-progress with 1/3 stories underway. Sprint-status.yaml shows 3-1 as `verifying`.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+1. **HIGH -- audit.ts had zero test coverage for runAudit failure path (code-review):** Both the JSON and human-readable output branches for audit failures had no tests. If `runAudit` threw or returned an error, the CLI behavior was completely unvalidated. Fixed by adding 2 dedicated test cases.
+2. **MEDIUM -- 5 uncovered branches in dimensions.ts and coordinator (code-review):** Multiple conditional branches in the dimension check functions and the coordinator had no test coverage. All 5 gaps fixed with targeted tests during code review.
+3. **MEDIUM -- formatAuditJson did pointless property copy (code-review):** The JSON formatter was copying properties individually from the result object to a new object, when it could just return the result directly. Simplified to a direct return.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **dimensions.ts compacted for NFR9 compliance (LOW):** The file was initially 428 lines — 43% over the 300-line limit. Compaction to 197 lines sacrificed readability (denser code, fewer comments, shorter variable names). The dimension functions are correct but harder to maintain than they need to be.
+2. **report.ts dead-code fallback `?? '[WARN]'` (LOW, not fixed):** With typed `DimensionStatus`, the nullish coalescing to `'[WARN]'` can never execute. Dead defensive code.
+3. **readdirSafe uses `as string[]` cast (LOW, not fixed):** Type assertion on `readdirSync` return value is fragile if someone adds `withFileTypes: true` option in the future.
+4. **checkVerification hardcodes sprint-status.yaml path (architecture):** The verification dimension reads `sprint-status.yaml` from a hardcoded relative path. Should accept a configurable path, but not blocking for the current story.
+
+### Design Decisions and Risks
+
+1. **Infrastructure dimension underspecified (create-story):** Story 4.1 defines the full Dockerfile validation system. This story's infrastructure dimension is scoped to "check Dockerfile existence + basic structural checks" as a placeholder. Will need to be extended or replaced when 4.1 is implemented.
+2. **No UX spec for `codeharness audit` (create-story):** The CLI output format (prefixed with `[OK]`/`[FAIL]`/`[WARN]`) was derived from existing UX patterns, not a dedicated UX spec. Consistent with the rest of the CLI but undocumented.
+3. **All 7 ACs are CLI-verifiable (create-story):** No integration-required ACs. The runtime observability dimension tests graceful degradation (no backend available), not live telemetry. This simplifies verification.
+
+### Code Quality Concerns
+
+1. **96.71% overall coverage, all 116 files above 80% floor.** Strong metrics. The 2779 test count is up from 2728 at end of Session 8 — 51 new tests this session.
+2. **Task 7.5 not verified via actual CLI invocation (dev):** Tests cover the `codeharness audit` path through Commander, but no test actually invokes the compiled CLI binary. The test uses `exitOverride()` to prevent `process.exit()`, which is a standard pattern but means the full binary path is untested.
+
+### Verification Gaps
+
+1. **Verification not yet completed.** Story is at `verifying` but no proof has been validated. Same pattern as Sessions 4 and 7 — session ended before verification could run.
+2. **Coverage not measured per-file (dev):** Tests cover all branches structurally but no per-file coverage report was generated for the new audit files specifically. The 96.71% is the aggregate number.
+
+### Tooling/Infrastructure Problems
+
+1. **Transient test flake (dev):** 2 failing test files (5 tests) passed on immediate re-run during development. Not related to this story's code. Flaky tests are a test infrastructure concern — they waste dev time investigating false failures.
+2. **CLI command test needed exitOverride() pattern (dev):** Commander throws `process.exit` on unknown commands and errors. Tests must use `exitOverride()` to prevent the test process from exiting. This is a known Commander pattern but adds complexity to CLI testing.
+3. **sprint-status.yaml not updated by agent (create-story):** Recurring issue — agents do not update sprint-status.yaml. Harness-run coordinator handled it manually. This is the fourth time this issue has been logged (Sessions 1, 2, 4, 9).
+
+---
+
+## 3. What Went Well
+
+- **First Epic 3 story underway.** The audit command is a user-facing feature that ties together the observability, testing, and verification work from Epics 1 and 2. Moving into Epic 3 means the sprint is progressing from infrastructure to user-facing functionality.
+- **Code review continued earning its keep.** Found the zero-coverage failure path in audit.ts and 5 uncovered branches. The HIGH bug (untested failure path) would have meant the CLI crashes or misbehaves silently when an audit dimension throws an error — exactly the kind of bug users hit in production.
+- **NFR9 compliance achieved despite initial violation.** dimensions.ts went from 428 lines to 197. The developer recognized the violation and compacted proactively rather than leaving it for review to catch.
+- **51 new tests, 2779 total.** Test suite continues to grow. Coverage held at 96.71% despite adding substantial new code (coordinator, 5 dimension functions, CLI command, report formatter).
+- **Clean dimension architecture.** Each audit dimension (code quality, testing, observability, verification, infrastructure) is a separate function returning a standard `DimensionResult`. The coordinator runs them all and aggregates. This is extensible — adding new dimensions is straightforward.
+
+---
+
+## 4. What Went Wrong
+
+- **Verification not completed in session.** Third time this pattern has occurred (Sessions 4, 7, 9). Stories that go through create-story + dev + code-review in one session consistently run out of time before verification. The pipeline takes ~20 minutes for three phases, leaving no room for the fourth.
+- **Readability sacrificed for line count compliance.** Compacting dimensions.ts from 428 to 197 lines achieved NFR9 compliance, but at the cost of readability. Dense code with minimal comments is harder to maintain and review. The NFR9 limit is supposed to encourage modular extraction, not code golf.
+- **Infrastructure dimension is a stub.** The placeholder "check Dockerfile existence" is a hollow check that will be replaced by Story 4.1. It exists only to make the dimension array complete. Users running `codeharness audit` will get a misleading infrastructure score that does not reflect actual infrastructure quality.
+- **Transient test flakes waste time.** 5 tests failed spuriously during dev, requiring investigation and re-run. Flaky tests erode confidence in the suite and slow development. No action was taken to identify or fix the flaky tests.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Dimension-based architecture for audit systems.** Each dimension as an independent function with a standard return type makes the system easy to extend, test, and reason about. Future audits (security, performance, accessibility) can be added as new dimensions without modifying the coordinator.
+- **exitOverride() for Commander CLI testing.** The pattern works and prevents test process exits. Should be standardized across all CLI command tests.
+
+### Patterns to Avoid
+
+- **Compacting code to meet line limits instead of extracting modules.** The 428-to-197 compaction should have been 428-to-two-files (e.g., `dimensions.ts` + `dimension-checks.ts`). Compaction makes code harder to maintain; extraction makes it easier.
+- **Starting stories that cannot complete in the remaining session time.** If create-story + dev + code-review takes ~20 minutes, and the session window is ~20 minutes, verification will not fit. Either allocate longer sessions or accept that some stories will span two sessions.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Complete verification of 3-1-audit-coordinator-dimensions.** The story is at `verifying`. This is the only blocker to marking it done and progressing Epic 3.
+
+### Fix Soon (Next Sprint)
+
+1. **Investigate and fix transient test flakes.** 5 tests failed spuriously. Identify the flaky tests and stabilize them.
+2. **Refactor dimensions.ts for readability.** Extract into two files if needed. The 197-line compacted version works but is unnecessarily dense.
+3. **Embed "update AGENTS.md" in dev agent prompt** -- Carried from Session 6. Still not implemented after 4 sessions.
+4. **Extract more from run.ts** -- Carried from Session 7. Still at exactly 300 lines.
+5. **Fix Docker container cleanup** -- Carried from Session 5.
+6. **Fix substring module matching** -- Carried from Session 4.
+7. **Add diagnostics for dropped NDJSON lines** -- Carried from Session 4.
+8. **Extend `saveRuntimeCoverage` to persist module details** -- Carried from Session 4.
+9. **Deduplicate default target constants** -- Carried from Session 3.
+10. **Fix pre-existing BATS failures** -- Carried from Session 2.
+
+### Backlog (Track but Not Urgent)
+
+1. **Remove dead-code `?? '[WARN]'` fallback in report.ts** -- New from Session 9.
+2. **Replace `as string[]` cast in readdirSafe** -- New from Session 9.
+3. **Make checkVerification path configurable** -- New from Session 9.
+4. **Remove unreachable `rerender()` guard** -- Carried from Session 6.
+5. **Centralize gap parsing** -- Carried from Session 1.
+6. **Fix binary `logEventCount`** -- Carried from Session 1.
+7. **Silent catch blocks** -- Carried from Session 1. Now five+ locations.
+8. **Test against real telemetry** -- Carried from Session 1.
+9. **Agent workflow compliance (sprint-status.yaml updates)** -- Carried from Session 2. Fourth occurrence in Session 9.
+10. **Type escape hatches (`as unknown as Record`)** -- Carried from Session 1.
+11. **Replace grep-based JSON parsing in pre-commit-gate.sh** -- Carried from Session 2.
+12. **Config path mismatch** -- Carried from Session 4.
+13. **Epic numbering collision** -- Carried from Session 1.
+14. **Address 18+ deferred LOW findings** -- Accumulated across all 9 sessions.
+
+---
+
+## Cross-Session Pattern Analysis (Updated — 9 Sessions, 2026-03-20)
+
+Nine sessions on 2026-03-20.
+
+### Pattern 1: Producer-Consumer Disconnects
+
+No new instance in Session 9. The audit command dimensions are self-contained functions that return results to the coordinator in the same module. No cross-module data pipeline was created — the pattern does not apply.
+
+### Pattern 2: Silent Error Handling
+
+No new instances. Five+ locations remain unfixed. Nine sessions of deferral.
+
+### Pattern 3: AGENTS.md / Documentation Lag
+
+No new instance in Session 9 (no new files created that would require AGENTS.md updates — the audit files were added to existing module documentation during dev). The structural fix from Session 6's action item is still not implemented.
+
+### Pattern 4: Session Time Exhaustion (New — formalized)
+
+| Session | Story left at `verifying` |
+|---------|--------------------------|
+| 4 | 2-3-standalone-runtime-check-audit-mode |
+| 7 | 0-5-4-run-command-integration |
+| 9 | 3-1-audit-coordinator-dimensions |
+
+Three of nine sessions ended with a story at `verifying` because create-story + dev + code-review consumed the full session window. Each required a follow-up session to complete verification. This is not a bug — it is a pipeline throughput constraint. Sessions running three phases average ~20 minutes; verification adds ~10 more. If sessions are capped at ~20 minutes, stories that start from backlog will consistently not complete in one session.
+
+### Cumulative Day Totals (2026-03-20 — All 9 Sessions)
+
+- **Stories completed:** 5 (2-1, 2-2, 2-3, 0-5-3, 0-5-4)
+- **Stories in progress:** 1 (3-1 at verifying)
+- **Epics completed:** 2 (Epic 2, Epic 0.5)
+- **Epics in progress:** 1 (Epic 3, 1/3 stories underway)
+- **HIGH bugs found by code review:** 14 (Sessions 1-8: 13, Session 9: 1)
+- **MEDIUM bugs found by code review:** 12 (Sessions 1-8: 7, Session 9: 5)
+- **LOW findings deferred:** 18+ across all sessions
+- **Security vulnerabilities caught:** 1 (command injection, Session 4)
+- **Production bugs caught by live verification:** 1 (LogsQL syntax, Session 5)
+- **Verification failures requiring re-work:** 2 (proof parser in Session 1, AC3 in Session 2)
+- **Stories passing verification on first attempt:** 3 (0-5-3, 2-3, 0-5-4)
+- **Phases executed:** ~27 (Sessions 1-8: ~24, Session 9: create-story + dev + code-review = 3)
+- **Total session time:** ~5.5 hours across 9 sessions
+- **Average story throughput:** ~60 minutes per completed story
+- **Test count:** 2779 passing (up from 2510 at start of day), 96.71% overall coverage
+- **AGENTS.md misses:** 3 (Sessions 2, 6, 7)
+- **Docker cleanup issues:** 2 (Sessions 3 and 5)
+- **Sessions ending at `verifying`:** 3 (Sessions 4, 7, 9)
+
+### Recommendations for Next Sprint (Final Update)
+
+1. **Embed "update AGENTS.md" in dev agent prompt.** Four sessions since this was first recommended. Still not done.
+2. **Add "verify data flow end-to-end" as mandatory dev task** for cross-module data pipeline stories.
+3. **Complete 3-1 verification to progress Epic 3.** Only one in-progress story.
+4. **Schedule a dedicated tech-debt story** covering: silent error handling (5+ locations), deferred LOWs (18+), pre-existing BATS failures, grep-based JSON parsing, test flakes. Nine sessions of incremental deferral confirms these will never be fixed otherwise.
+5. **Accept the two-session pattern for new stories.** Three of nine sessions ended at `verifying`. Rather than fighting this, plan for it: allocate two sessions per story (phases 1-3 in session N, verification in session N+1).
+6. **Prefer extraction over compaction for NFR9 compliance.** dimensions.ts compaction traded readability for line count. Extraction into multiple files preserves both.
+7. **Code review remains non-negotiable.** 14 HIGH + 12 MEDIUM bugs caught across 9 sessions. The ROI is clear and consistent.

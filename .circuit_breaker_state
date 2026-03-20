@@ -1,11 +1,11 @@
 {
   "state": "CLOSED",
-  "last_change": "2026-03-20T08:24:46+00:00",
+  "last_change": "2026-03-20T09:02:26+00:00",
   "consecutive_no_progress": 0,
-  "consecutive_same_error": 1,
+  "consecutive_same_error": 3,
   "consecutive_permission_denials": 0,
-  "last_progress_loop": 1,
+  "last_progress_loop": 3,
   "total_opens": 0,
   "reason": "",
-  "current_loop": 1
+  "current_loop": 3
 }

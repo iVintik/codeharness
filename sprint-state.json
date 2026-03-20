@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 24,
-    "done": 12,
+    "done": 13,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -57,7 +57,7 @@
       "acResults": null
     },
     "0-5-4-run-command-integration": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -113,8 +113,8 @@
       "acResults": null
     },
     "3-1-audit-coordinator-dimensions": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "verifying",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -204,7 +204,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 2,
+    "iteration": 4,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -216,64 +216,113 @@
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "0-5-4-run-command-integration",
-      "description": "**run.ts at exactly 300 lines**: Was 358 originally, NFR9 requires ≤300. Extracting `countStories` and `buildSpawnArgs` to run-helpers.ts got it to exactly 300. Any future changes need more extraction.",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**No integration-required ACs:** All 7 ACs are cli-verifiable. Runtime observability dimension internally depends on backend, but AC tests graceful degradation path.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "0-5-4-run-command-integration",
-      "description": "**Pre-existing TS errors in test files**: Loosely-typed `vi.fn()` mocks don't match strict type signatures. Exists across many test files — not introduced by this story.",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**sprint-status.yaml not updated by agent** — updated manually in harness-run.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "0-5-4-run-command-integration",
-      "description": "**Coverage gap in polling interval**: The 5-second `setInterval` callback in run.ts (lines 207-228) is not directly tested. Helper functions it calls are tested independently with 100% coverage.",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**Risk: Infrastructure dimension underspecified.** Story 4.1 defines full Dockerfile validation, but this story needs a placeholder for infra dimension. Scoped to \"check Dockerfile existence + basic structural checks.\"",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "0-5-4-run-command-integration",
-      "description": "**run-helpers.test.ts at 303 lines**: Slightly over 300-line NFR9 limit. Test files typically exempt.",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**No UX spec for `codeharness audit` specifically.** Derived output format from existing UX prefix patterns (`[OK]`/`[FAIL]`/`[WARN]`).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "0-5-4-run-command-integration",
-      "description": "**MEDIUM: Misleading test name** (`defaults to 3` but asserts `10`) — fixed.",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**dimensions.ts exceeded NFR9 (300-line limit)** at 428 lines initially. Compacted to 197 lines — less readable but within constraint.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "0-5-4-run-command-integration",
-      "description": "**LOW (not fixed): run.ts branch coverage 70.23%** — uncovered branches are error-handling catch blocks (prompt write failure, JSON parse failure). Reasonable to leave untested.",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**CLI command test needed exitOverride() pattern** — Commander throws process.exit on unknown commands.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "0-5-4-run-command-integration",
-      "description": "**LOW (not fixed): coverage-summary.json confusion** — file contains Jest-format results, not istanbul coverage data. Pre-existing.",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**Transient test flake** — 2 failing test files (5 tests) passed on immediate re-run. Not related to this story.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "0-5-4-run-command-integration",
-      "description": "**No integration test for full stream-json → Ink pipeline** — all tests mock the renderer.",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**Task 7.5 not verified via actual CLI invocation** — tests cover the path but no real `codeharness audit` run against initialized project.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
-      "story": "0-5-4-run-command-integration",
-      "description": "**Coverage: 96.65% overall, all 111 files above 80% floor. 2722 tests pass.**",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**Coverage not measured per-file** — tests cover all branches structurally but no coverage report generated for new files specifically.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**HIGH: audit.ts had zero test coverage for runAudit failure path** (both JSON and human output branches) — FIXED, added 2 tests",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**MEDIUM: 5 uncovered branches** in dimensions.ts and coordinator — all fixed with new tests",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**MEDIUM: formatAuditJson did pointless property copy** — simplified to direct return",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**LOW (not fixed): report.ts dead-code fallback `?? '[WARN]'`** — impossible to reach with typed DimensionStatus",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**LOW (not fixed): readdirSafe uses `as string[]` cast** — fragile if someone adds withFileTypes option",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**Architecture: checkVerification hardcodes sprint-status.yaml path** — should be configurable but not blocking",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**Coverage: 96.71% overall, all 116 files above 80% floor, 2779 tests pass**",
       "source": "retro",
       "resolved": false
     }

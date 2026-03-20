@@ -208,10 +208,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "3-2-audit-fix-story-generation",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification",
-    "acProgress": "8/10"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": [
     {

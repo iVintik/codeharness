@@ -113,8 +113,8 @@
       "acResults": null
     },
     "3-1-audit-coordinator-dimensions": {
-      "status": "review",
-      "attempts": 1,
+      "status": "verifying",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -204,7 +204,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 3,
+    "iteration": 4,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -274,6 +274,55 @@
       "id": "migrated-9",
       "story": "3-1-audit-coordinator-dimensions",
       "description": "**Coverage not measured per-file** — tests cover all branches structurally but no coverage report generated for new files specifically.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**HIGH: audit.ts had zero test coverage for runAudit failure path** (both JSON and human output branches) — FIXED, added 2 tests",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**MEDIUM: 5 uncovered branches** in dimensions.ts and coordinator — all fixed with new tests",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**MEDIUM: formatAuditJson did pointless property copy** — simplified to direct return",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**LOW (not fixed): report.ts dead-code fallback `?? '[WARN]'`** — impossible to reach with typed DimensionStatus",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**LOW (not fixed): readdirSafe uses `as string[]` cast** — fragile if someone adds withFileTypes option",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**Architecture: checkVerification hardcodes sprint-status.yaml path** — should be configurable but not blocking",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "3-1-audit-coordinator-dimensions",
+      "description": "**Coverage: 96.71% overall, all 116 files above 80% floor, 2779 tests pass**",
       "source": "retro",
       "resolved": false
     }

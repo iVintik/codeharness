@@ -1452,3 +1452,196 @@ Three of nine sessions ended with a story at `verifying` because create-story + 
 - **Stories completed today:** 7 (0-5-1, 0-5-2, 0-5-3, 0-5-4, 2-3, plus earlier) + 3-1 = 8
 - **Epics completed:** 4 (Epic 0, 0.5, 1, 2)
 - **Current position:** Epic 3 in-progress (1/3 done), next: 3-2-audit-fix-story-generation
+
+---
+
+# Session 11 Retrospective — 2026-03-20T13:10Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~09:10Z – ~09:30Z (2026-03-20), approx 20 minutes (create-story + dev-story + code-review)
+**Stories attempted:** 1
+**Stories completed:** 1 (3-2-audit-fix-story-generation -> done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Notes |
+|-------|-------------|------------|-----------------|-------|
+| 3-2-audit-fix-story-generation | backlog | done | create-story, dev-story, code-review | Second story of Epic 3. Implements `codeharness audit --fix` which generates fix stories from audit gaps. Create-story expanded from 3 sparse ACs to 10, covering edge cases, JSON output, idempotency, atomic writes, and precondition checks. Dev completed with no NFR9 violations. Code review found 1 HIGH (untested error path in fix-generator.ts catch block) and 2 MEDIUM (JSON output swallowing errors, ugly type annotation). All fixed. Stale AGENTS.md caught and fixed during review. 2812 tests pass, 96.72% coverage. Committed as `98b06cc`. |
+
+**Net progress:** Story 3-2 completed. Epic 3 now has 2/3 stories done (3-1, 3-2). Only 3-3-onboard-alias remains in backlog. Sprint-status.yaml shows 3-2 as done.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+1. **HIGH -- Error path in fix-generator.ts catch block untested (lines 117-120) (code-review):** The `generateFixStories()` function had a catch block that returned an error result, but no test exercised it. If file I/O failed during story generation, the behavior was unvalidated. Fixed with 2 new tests covering the error path.
+2. **MEDIUM -- JSON output silently swallowed errors from generateFixStories() and addFixStoriesToState() (code-review):** In `--fix --json` mode, errors from both functions were not surfaced in the JSON output. Users running `codeharness audit --fix --json` would get a success-looking JSON response even when fix generation or state persistence failed. Fixed by adding `fixError` and `fixStateError` fields to the JSON output.
+3. **MEDIUM -- Complex type annotation in audit.ts using ReturnType inference (code-review):** The `ReturnType<typeof generateFixStories>` pattern was used to avoid importing the internal `Result` type. Replaced with clean `Result<FixGenerationResult>` import.
+4. **HIGH -- AGENTS.md stale, missing fix-types.ts and fix-generator.ts entries (code-review):** Fifth session where AGENTS.md was not updated during dev. This is now a fully systemic process failure. Fixed during code review.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **Story key positional dependency (architecture, not fixed):** The `audit-fix-{dimension}-{index}` key scheme uses a sequential index. If audit gaps change between runs (e.g., a gap is fixed), the same index could map to a different gap. A content-based hash would be more robust, but was deemed acceptable for current scope.
+2. **sprint-state.json vs sprint-status.yaml divergence risk (architecture, not fixed):** Generated fix stories go to sprint-state.json, but sprint planning also uses sprint-status.yaml. Fix stories will not appear in sprint-status.yaml unless manually synced. This is a known divergence between the two state files.
+3. **fix-types.ts shows 0% coverage (LOW, not fixed):** Types-only file with no executable code. Cosmetic artifact in coverage reports.
+4. **Double-cast in audit.ts line 92 (LOW, not fixed):** `formatAuditJson` return type needs better upstream definition. The double-cast works but is fragile.
+
+### Design Decisions and Risks
+
+1. **AC expansion from 3 to 10 (create-story):** The original epic definition had only 3 sparse ACs. The create-story agent expanded to 10 to cover edge cases, JSON output, idempotency, atomic writes, and precondition checks. This was the right call — the original 3 ACs were underspecified and would have left gaps.
+2. **Story key collision risk (create-story):** Flagged during creation. The sequential index scheme is fragile. Accepted for now because audit gaps are expected to be relatively stable between runs, and the fix stories are regenerated each time.
+
+### Verification Gaps
+
+1. **No end-to-end verification (dev):** Task 7.5 requires `codeharness audit --fix` against a real initialized project. Only unit tests cover the paths. The story was committed without a Docker-based verification pass. This breaks the pattern established in Sessions 5 and 10 where live verification caught real bugs (LogsQL syntax, port conflicts).
+
+### Tooling/Infrastructure Problems
+
+1. **sprint-status.yaml not updated by agent (create-story, dev-story):** Fifth time this has been logged. Agents consistently do not update sprint-status.yaml. The harness-run coordinator handles it manually every time.
+2. **Test file exceeds NFR9 (dev):** `fix-generator.test.ts` is 426 lines. Test files are typically exempt, but this is the second test file over 300 lines (after `run-helpers.test.ts` at 303 from Session 7). Test file sizes are growing unchecked.
+
+---
+
+## 3. What Went Well
+
+- **Story completed in a single session.** Unlike Sessions 4, 7, and 9, where stories were left at `verifying`, story 3-2 went through all three phases (create-story, dev, code-review) and was committed as done. The two-session pattern was not needed here.
+- **Create-story agent improved weak ACs.** The original 3 ACs from the epic were insufficient. Expanding to 10 ACs covered edge cases that dev would otherwise have had to guess at. This is the first time the create-story phase materially improved the story definition rather than just formatting it.
+- **Code review caught silent error swallowing in JSON output.** The `--fix --json` mode silently discarding errors would have been a debugging nightmare for users piping audit output to other tools. The `fixError`/`fixStateError` fields provide visibility.
+- **Coverage steady at 96.72%.** 2812 tests, all 118 files above 80% floor. 33 new tests from 2779 (Session 9/10).
+- **Clean module structure.** `fix-types.ts`, `fix-generator.ts`, and the `--fix` integration into `audit.ts` follow the dimension architecture from 3-1. The fix generation is cleanly separated from audit execution.
+
+---
+
+## 4. What Went Wrong
+
+- **AGENTS.md missed for the fifth time.** Sessions 2, 6, 7, 10, and now 11. The action item to embed this in the dev agent prompt was first raised in Session 6. Five sessions later, it is still not implemented. Code review catches it every time, but this is pure waste — the review finding, the fix, and the retro note all take time that would be saved by prevention.
+- **No live verification pass.** Story 3-2 was committed without running `codeharness audit --fix` against a real project in a Docker environment. Sessions 5 and 10 demonstrated that live verification catches bugs that unit tests miss (LogsQL syntax, port conflicts). Skipping verification for this story is a calculated risk.
+- **Sprint-status.yaml agent compliance still broken.** Five occurrences. The agents never update sprint-status.yaml. This is not going to self-correct — it needs either a structural fix (post-phase hook) or formal acceptance as a manual step.
+- **Story key scheme is fragile.** The sequential index approach was flagged during create-story but accepted. If audit results change between runs, previously generated fix stories will have keys that no longer correspond to their original gaps. This will cause confusion when story 3-3 or later stories reference fix story keys.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Expanding underspecified ACs during create-story.** Going from 3 to 10 ACs produced a much stronger story definition. Create-story should actively challenge sparse AC lists and add coverage for error paths, edge cases, and output formats.
+- **Surfacing errors in JSON output.** The `fixError`/`fixStateError` fields are a good pattern. Any CLI command with `--json` mode should include error fields, not just success data. Users of JSON output are typically automation tools that need explicit error signals.
+
+### Patterns to Avoid
+
+- **Skipping live verification for stories with CLI surface area.** Story 3-2 adds `--fix` to a user-facing CLI command. The unit tests validate the code paths, but they don't validate that the actual CLI binary produces correct output with real file system state. This should have had a verification pass.
+- **Accepting sequential index keys for generated entities.** Content-based hashes or stable identifiers are more robust. Sequential indices create implicit ordering dependencies that break when the source data changes.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Run `codeharness audit --fix` against an initialized project.** Verify that the CLI produces correct output and generates valid fix stories. This is the verification that was skipped during this session.
+
+### Fix Soon (Next Sprint)
+
+1. **Embed "update AGENTS.md" in dev agent prompt or add post-dev hook.** Five sessions, five misses. This is the most overdue action item in the sprint.
+2. **Switch to content-based hash for fix story keys.** Replace `audit-fix-{dimension}-{index}` with a hash of the gap content. Prevents key collision when gaps change.
+3. **Add post-phase hook for sprint-status.yaml updates.** Five occurrences of agents not updating it. Accept it as a system responsibility, not an agent responsibility.
+4. **Investigate and fix transient test flakes.** Carried from Session 9. Still unaddressed.
+5. **Extract more from run.ts** -- Carried from Session 7. Still at exactly 300 lines.
+6. **Fix Docker container cleanup** -- Carried from Session 5.
+7. **Fix substring module matching** -- Carried from Session 4.
+8. **Add diagnostics for dropped NDJSON lines** -- Carried from Session 4.
+9. **Deduplicate default target constants** -- Carried from Session 3.
+10. **Fix pre-existing BATS failures** -- Carried from Session 2.
+
+### Backlog (Track but Not Urgent)
+
+1. **Replace sequential index story keys with content-based hashes** -- If not done in "Fix Soon", track here.
+2. **Reconcile sprint-state.json and sprint-status.yaml** -- Two sources of truth for sprint state. Needs architectural decision.
+3. **Remove dead-code `?? '[WARN]'` fallback in report.ts** -- Carried from Session 9.
+4. **Replace `as string[]` cast in readdirSafe** -- Carried from Session 9.
+5. **Make checkVerification path configurable** -- Carried from Session 9.
+6. **Remove unreachable `rerender()` guard** -- Carried from Session 6.
+7. **Centralize gap parsing** -- Carried from Session 1.
+8. **Fix binary `logEventCount`** -- Carried from Session 1.
+9. **Silent catch blocks** -- Carried from Session 1. Now five+ locations.
+10. **Test against real telemetry** -- Carried from Session 1.
+11. **Agent workflow compliance** -- Carried from Session 2. Now five occurrences.
+12. **Type escape hatches** -- Carried from Session 1.
+13. **Replace grep-based JSON parsing in pre-commit-gate.sh** -- Carried from Session 2.
+14. **Config path mismatch** -- Carried from Session 4.
+15. **Address 20+ deferred LOW findings** -- Accumulated across all 11 sessions.
+16. **Test file size growth** -- Two test files over 300 lines (run-helpers.test.ts at 303, fix-generator.test.ts at 426). Monitor.
+
+---
+
+## Cross-Session Pattern Analysis (Updated -- 11 Sessions, 2026-03-20)
+
+### Pattern 1: Producer-Consumer Disconnects
+
+No new instance in Session 11. The fix-generator produces stories and the state manager persists them, but both are tested together via the audit command integration. The pattern did not manifest because the data flow was simple (generate -> write) with no intermediate transformation layer.
+
+### Pattern 2: Silent Error Handling
+
+One new variant: JSON output silently swallowing errors from `generateFixStories()` and `addFixStoriesToState()`. This was caught and fixed during code review, but it is the same pattern -- error information produced but not surfaced to the consumer (the JSON output). Five+ unfixed locations remain from prior sessions.
+
+### Pattern 3: AGENTS.md / Documentation Lag
+
+| Session | Instance |
+|---------|----------|
+| 2 | AGENTS.md not updated (code-review caught) |
+| 6 | AGENTS.md not updated for 3 files (verification caught) |
+| 7 | AGENTS.md not updated for run-helpers.ts (code-review caught) |
+| 10 | AGENTS.md not updated for audit.ts (verification caught) |
+| 11 | AGENTS.md not updated for fix-types.ts and fix-generator.ts (code-review caught) |
+
+Five sessions, five occurrences, zero structural fixes. The action item to embed this in the dev prompt has been carried for five sessions without implementation. This is the most persistent unfixed process gap in the sprint.
+
+### Pattern 4: Session Time Exhaustion
+
+Not triggered in Session 11. Story 3-2 completed all three phases within the session window. However, it skipped live verification, which may explain the time savings. Sessions that include verification (Sessions 5, 8, 10) take longer but catch real bugs.
+
+### Pattern 5: Agent Sprint-Status Non-Compliance (New -- formalized)
+
+| Session | Instance |
+|---------|----------|
+| 1 | sprint-status.yaml not updated by agent |
+| 2 | sprint-status.yaml not updated by agent |
+| 4 | sprint-status.yaml not updated by agent |
+| 9 | sprint-status.yaml not updated by agent |
+| 11 | sprint-status.yaml not updated by agent (twice: create-story + dev-story) |
+
+Five sessions, six occurrences. Agents never update sprint-status.yaml. The harness-run coordinator handles it manually every time. This should be formalized as a system responsibility with a post-phase hook.
+
+### Cumulative Day Totals (2026-03-20 -- All 11 Sessions)
+
+- **Stories completed:** 7 (2-1, 2-2, 2-3, 0-5-3, 0-5-4, 3-1, 3-2)
+- **Stories in progress:** 0
+- **Stories remaining in Epic 3:** 1 (3-3-onboard-alias, backlog)
+- **Epics completed:** 4 (Epic 0, 0.5, 1, 2)
+- **Epics in progress:** 1 (Epic 3, 2/3 stories done)
+- **HIGH bugs found by code review:** 16 (Sessions 1-10: 14, Session 11: 2)
+- **MEDIUM bugs found by code review:** 14 (Sessions 1-10: 12, Session 11: 2)
+- **LOW findings deferred:** 20+ across all sessions
+- **Security vulnerabilities caught:** 1 (command injection, Session 4)
+- **Production bugs caught by live verification:** 1 (LogsQL syntax, Session 5)
+- **Phases executed:** ~30 (Sessions 1-10: ~27, Session 11: create-story + dev + code-review = 3)
+- **Total session time:** ~6 hours across 11 sessions
+- **Average story throughput:** ~50 minutes per completed story (7 stories in ~6 hours)
+- **Test count:** 2812 passing (up from 2510 at start of day), 96.72% overall coverage
+- **AGENTS.md misses:** 5 (Sessions 2, 6, 7, 10, 11)
+- **Sprint-status.yaml agent misses:** 6 (Sessions 1, 2, 4, 9, 11x2)
+- **Docker cleanup issues:** 2 (Sessions 3 and 5)
+
+### Final Recommendations (Updated)
+
+1. **Embed "update AGENTS.md" in dev agent prompt.** Five sessions, five misses. This is no longer a recommendation -- it is overdue technical debt. Execute immediately.
+2. **Add post-phase hook for sprint-status.yaml.** Six agent misses. Accept it as a system concern and automate it.
+3. **Always run live verification for stories with CLI surface area.** Sessions 5 and 10 proved live verification catches real bugs. Session 11 skipped it. The risk is unvalidated CLI behavior in production.
+4. **Schedule dedicated tech-debt story.** 20+ deferred LOWs, 5+ silent error handling locations, pre-existing BATS failures. Eleven sessions of deferral. This will never be fixed incrementally.
+5. **Use content-based hashes for generated entity keys.** Sequential indices are fragile. Any system that generates identifiers from variable-length lists should use content-based keys.
+6. **Code review remains non-negotiable.** 16 HIGH + 14 MEDIUM bugs caught across 11 sessions. Every single session's review found real issues.

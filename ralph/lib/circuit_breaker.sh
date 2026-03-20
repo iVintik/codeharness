@@ -27,7 +27,7 @@ NC='\033[0m'
 
 init_circuit_breaker() {
     if [[ -f "$CB_STATE_FILE" ]]; then
-        if ! jq '.' "$CB_STATE_FILE" > /dev/null 2>&1; then
+        if ! jq -e type "$CB_STATE_FILE" > /dev/null 2>&1; then
             rm -f "$CB_STATE_FILE"
         fi
     fi

@@ -99,9 +99,9 @@ fi
 
 # ─── Sprint Status Parsing ────────────────────────────────────────────────
 
-# Parse sprint status YAML into an associative array
+# Parse sprint status YAML into a newline-delimited key=value store
 # Maps story slug (e.g., "1-1-login-page") to status
-declare -A SPRINT_STATUSES
+SPRINT_STATUSES=""
 
 parse_sprint_status() {
     local file="$1"
@@ -133,7 +133,8 @@ parse_sprint_status() {
                 # Extract story number from slug: "1-1-login-page" -> "1.1"
                 if [[ "$key" =~ ^([0-9]+)-([0-9]+) ]]; then
                     local story_id="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}"
-                    SPRINT_STATUSES["$story_id"]="$value"
+                    SPRINT_STATUSES="${SPRINT_STATUSES}${story_id}=${value}
+"
                 fi
             fi
         fi
@@ -181,8 +182,10 @@ parse_epics() {
 
         # Determine status from sprint status or default to pending
         local status="pending"
-        if [[ -n "${SPRINT_STATUSES[$current_story_id]:-}" ]]; then
-            status=$(map_status "${SPRINT_STATUSES[$current_story_id]}")
+        local _sprint_val
+        _sprint_val=$(echo "$SPRINT_STATUSES" | grep "^${current_story_id}=" | head -1 | cut -d= -f2-)
+        if [[ -n "$_sprint_val" ]]; then
+            status=$(map_status "$_sprint_val")
         fi
 
         # Clean up description

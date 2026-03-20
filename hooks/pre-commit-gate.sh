@@ -86,5 +86,26 @@ if [ -x "$HARNESS_CLI" ]; then
   fi
 fi
 
+# Check observability coverage gate (uses cached state — no Semgrep re-run)
+if [ -x "$HARNESS_CLI" ]; then
+  OBS_RESULT=$("$HARNESS_CLI" observability-gate --json 2>/dev/null || true)
+  if [ -n "$OBS_RESULT" ]; then
+    OBS_PASSED=$(echo "$OBS_RESULT" | grep -o '"passed"[[:space:]]*:[[:space:]]*[a-z]*' | grep -o '[a-z]*$' || echo "true")
+    if [ "$OBS_PASSED" = "false" ]; then
+      OBS_STATIC_CURRENT=$(echo "$OBS_RESULT" | grep -o '"current"[[:space:]]*:[[:space:]]*[0-9.]*' | head -1 | grep -o '[0-9.]*$' || echo "?")
+      OBS_STATIC_TARGET=$(echo "$OBS_RESULT" | grep -o '"target"[[:space:]]*:[[:space:]]*[0-9.]*' | head -1 | grep -o '[0-9.]*$' || echo "?")
+      # Extract gap details (top 5)
+      OBS_GAPS=""
+      GAP_COUNT=$(echo "$OBS_RESULT" | grep -o '"file"' | wc -l | tr -d ' ' || echo "0")
+      if [ "$GAP_COUNT" -gt 0 ]; then
+        OBS_GAPS="\\n\\nGaps found (${GAP_COUNT} total) — run: codeharness observability-gate"
+      fi
+      echo "{\"decision\": \"block\", \"reason\": \"Observability coverage below target: ${OBS_STATIC_CURRENT}% / ${OBS_STATIC_TARGET}% required.${OBS_GAPS}\\n\\n-> Add logging to flagged functions.\\n-> See: patches/observability/ for rule definitions.\"}"
+      exit 2
+    fi
+  fi
+  # If OBS_RESULT is empty or command failed, fail open (allow commit)
+fi
+
 echo '{"decision": "allow"}'
 exit 0

@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 24,
-    "done": 10,
+    "done": 11,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -89,7 +89,7 @@
       "acResults": null
     },
     "2-1-verification-observability-check": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -97,8 +97,8 @@
       "acResults": null
     },
     "2-2-observability-hook-enforcement": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "verifying",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -204,121 +204,307 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 6,
+    "iteration": 3,
     "cost": 0,
     "completed": [],
-    "failed": []
+    "failed": [],
+    "currentStory": "2-2-observability-hook-enforcement",
+    "currentPhase": "verify",
+    "lastAction": "Starting black-box verification",
+    "acProgress": "3/3"
   },
   "actionItems": [
     {
       "id": "migrated-1",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**`coverage-gate.ts` reads sprint-state.json twice:** Once via `readCoverageState()` for coverage numbers and once via `readCachedGaps()` for gap data. `ObservabilityCoverageState` type doesn't include gaps field — adding it would cascade. Acceptable for now.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-2",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**No `codeharness analyze` command exists:** Changed all references to point to `codeharness observability-gate` or `patches/observability/` instead.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-3",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**Gaps only populate after `saveCoverageResult` is called:** If sprint-state.json was written by older version without gaps field, gate returns empty gaps. Graceful degradation but means AC 3 only fully works after at least one analyzer run.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**AC 3 FAIL: `gapSummary` hardcoded as empty array** — `checkObservabilityCoverageGate()` never reads gap data from sprint-state.json or calls analyzer. The formatting code exists but has no data to display.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**No `codeharness analyze` CLI command** — block message references it but command doesn't exist.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**AC 1 and AC 2 PASS** — basic gate behavior works correctly.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**VictoriaLogs returned no events** — CLI doesn't emit OTEL data (expected for a tool that instruments other projects).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "Returning to dev for AC 3 fix.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**HIGH: `saveCoverageResult` dropped `runtime` field** — every `codeharness analyze` run wiped runtime coverage data from sprint-state.json. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**HIGH: No NaN validation on `--min-static`/`--min-runtime`** — `parseInt` with non-numeric input silently set NaN target, gate always failed with no error. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**HIGH: `timeout` command not on stock macOS** — observability gate check silently never ran on Mac. Fixed by removing `timeout`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**MEDIUM: AGENTS.md files not updated** — coverage-gate.ts and observability-gate.ts missing from module docs. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**LOW (not fixed): Grep-based JSON parsing in pre-commit-gate.sh** — fragile, pre-existing pattern.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**LOW (not fixed): Unreachable DEFAULT_STATIC_TARGET fallback** — dead defensive code.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**Pre-existing BATS failures:** 4 tests in `tests/integration/hooks.bats` (tests 28-31) fail on master — `hooks.json` format mismatch. Not caused by this story.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**`extractCoverageState` was incomplete:** Existing function didn't parse `runtime` section or `runtimeTarget` from sprint-state.json, even though Story 2.1 writes runtime data. Extended it — technically a bug fix for Story 2.1.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**Gap details limited in hook:** Hook directs users to run `codeharness analyze` instead of showing file/line details (Semgrep too slow for hook context).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**sprint-status.yaml not updated by agent** — updated manually by harness-run.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**Ambiguity in AC 3:** Epic says block message should include specific files/functions missing logging. Getting specific gaps requires running Semgrep (~10s), violating 500ms hook NFR. Story resolves by using cached coverage and directing user to `codeharness analyze`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**Risk: `coverage.ts` line limit.** Existing file is 269 lines; adding gate function (~40 lines) may exceed 300-line NFR9 limit.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**No `codeharness analyze` CLI command exists yet.** Story references it in error messages but no such subcommand exists. Dev needs to create it or adjust messaging.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "2-2-observability-hook-enforcement",
+      "description": "**sprint-status.yaml not updated by agent** — updated manually by harness-run.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
       "story": "2-1-verification-observability-check",
       "description": "**Epic 0.5 appeared:** The create-story agent added a new Epic 0.5 (Stream-JSON Live Activity Display) to sprint-status.yaml despite being told not to modify it. This is a workflow compliance issue.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-2",
+      "id": "migrated-24",
       "story": "2-1-verification-observability-check",
       "description": "**AC #1 integration risk:** Verifying that the verifier queries observability after docker exec requires a live verification session — hard to test in isolation.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-3",
+      "id": "migrated-25",
       "story": "2-1-verification-observability-check",
       "description": "**Tag coupling risk:** `[OBSERVABILITY GAP]` tag format is a convention between prompt template and parser regex. If verifier (Claude) doesn't emit exact format, parser won't detect it.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-4",
+      "id": "migrated-26",
       "story": "2-1-verification-observability-check",
       "description": "**Naming confusion:** Epic 2 retrospective file references a different Epic 2 from a previous sprint.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-5",
+      "id": "migrated-27",
       "story": "2-1-verification-observability-check",
       "description": "**Import boundary violation (fixed):** `runtime-coverage.ts` initially imported from `../verify/types.js` directly. Fixed to use barrel import.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-6",
+      "id": "migrated-28",
       "story": "2-1-verification-observability-check",
       "description": "**logEventCount is binary:** Set to 0 or 1 based on gap presence, not actual log event count. Parser only detects `[OBSERVABILITY GAP]` tag presence.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-7",
+      "id": "migrated-29",
       "story": "2-1-verification-observability-check",
       "description": "**VerifyResult field additions are breaking:** All existing `VerifyResult` constructions needed updating (5 files). Optional fields with defaults would reduce churn.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-8",
+      "id": "migrated-30",
       "story": "2-1-verification-observability-check",
       "description": "**Task 2.4 no-op:** No new config fields needed — existing `observabilityEndpoints.victoriaLogs` already sufficient.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-9",
+      "id": "migrated-31",
       "story": "2-1-verification-observability-check",
       "description": "**HIGH: saveRuntimeCoverage was dead code** — never called from production, only tested. Runtime coverage would never persist to sprint-state.json. Fixed.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-10",
+      "id": "migrated-32",
       "story": "2-1-verification-observability-check",
       "description": "**MEDIUM: verify.ts hardcoded 0 gaps** — command always reported 0 observability gaps regardless of proof content. Fixed.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-11",
+      "id": "migrated-33",
       "story": "2-1-verification-observability-check",
       "description": "**MEDIUM: verifier-session.ts hardcoded 0 gaps** — same pattern as verify.ts. Fixed.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-12",
+      "id": "migrated-34",
       "story": "2-1-verification-observability-check",
       "description": "**LOW (not fixed): Binary logEventCount** — always 0 or 1, not actual log counts. Tech debt.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-13",
+      "id": "migrated-35",
       "story": "2-1-verification-observability-check",
       "description": "**LOW (not fixed): Duplicated coverage math** — verify/index.ts duplicates computeRuntimeCoverage logic.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-14",
+      "id": "migrated-36",
       "story": "2-1-verification-observability-check",
       "description": "**LOW (not fixed): Silent catch blocks** — gap parsing errors silently swallowed in 3 locations.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-15",
+      "id": "migrated-37",
       "story": "2-1-verification-observability-check",
       "description": "**Architecture: Hardcoded CWD** — verifyStory() calls saveRuntimeCoverage with '.' as projectDir, assumes CWD is project root.",
       "source": "retro",
       "resolved": false
     },
     {
-      "id": "migrated-16",
+      "id": "migrated-38",
       "story": "2-1-verification-observability-check",
       "description": "**Architecture: Triple gap parsing** — 3 separate locations independently parse gaps. Should be centralized.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-39",
+      "story": "2-1-verification-observability-check",
+      "description": "**Proof markdown parsing bug:** Verifier embedded a heredoc containing nested code fences (````bash`/````output`) inside a bash code block. The closing backticks broke out of the outer fence, causing `## AC N: PASS` headings from the test proof to appear as real AC sections. The proof parser counted 8 ACs instead of 4. Fixed by summarizing the heredoc content.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-40",
+      "story": "2-1-verification-observability-check",
+      "description": "**Evidence adjacency requirement:** The proof parser requires `bash` and `output` code blocks to be adjacent (no text between them). AC3 had explanatory text between the blocks, causing it to be counted as pending. Fixed by removing the intervening text.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-41",
+      "story": "2-1-verification-observability-check",
+      "description": "**VictoriaLogs zero events:** The codeharness CLI does not emit OpenTelemetry data in the Docker container, so all observability gap checks return empty. This is expected for a tool that instruments other projects, not itself.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-42",
+      "story": "2-1-verification-observability-check",
+      "description": "**AC1 template verification limitation:** The verify-prompt.ts template compiles into the Claude Code plugin (skills/), not the npm CLI binary. Cannot directly inspect the template from Docker. Verified via the template-to-parser contract (OBSERVABILITY_GAP_TAG constant, parseObservabilityGaps function, verify --json output fields).",
       "source": "retro",
       "resolved": false
     }

@@ -1,9 +1,4 @@
-/**
- * Coverage state persistence — tracks observability coverage in sprint-state.json.
- *
- * Implements Story 1.3: read/write/trend/target comparison for static analysis coverage.
- * Only the `static` section is managed here; `runtime` is deferred to Epic 2.
- */
+/** Coverage state persistence — tracks observability coverage in sprint-state.json. */
 
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -14,6 +9,9 @@ import type {
   ObservabilityCoverageState,
   CoverageTrend,
   CoverageTargetResult,
+  RuntimeCoverageState,
+  ObservabilityGap,
+  GapSeverity,
 } from './types.js';
 
 const STATE_FILE = 'sprint-state.json';
@@ -21,9 +19,7 @@ const TMP_FILE = '.sprint-state.json.tmp';
 const DEFAULT_STATIC_TARGET = 80;
 const MAX_HISTORY_ENTRIES = 100;
 
-/**
- * Default observability coverage state when none exists.
- */
+/** Default observability coverage state when none exists. */
 function defaultCoverageState(): ObservabilityCoverageState {
   return {
     static: {
@@ -37,9 +33,7 @@ function defaultCoverageState(): ObservabilityCoverageState {
   };
 }
 
-/**
- * Read the full sprint-state.json as a generic record.
- */
+/** Read the full sprint-state.json as a generic record. */
 function readStateFile(projectDir: string): Result<Record<string, unknown>> {
   const fp = join(projectDir, STATE_FILE);
   if (!existsSync(fp)) {
@@ -55,9 +49,7 @@ function readStateFile(projectDir: string): Result<Record<string, unknown>> {
   }
 }
 
-/**
- * Write sprint-state.json atomically (write to temp, then rename).
- */
+/** Write sprint-state.json atomically (write to temp, then rename). */
 function writeStateAtomic(
   projectDir: string,
   state: Record<string, unknown>,
@@ -75,12 +67,7 @@ function writeStateAtomic(
   }
 }
 
-/**
- * Save coverage result from an analysis run into sprint-state.json.
- *
- * Updates `observability.static.coveragePercent`, `observability.static.lastScanTimestamp`,
- * and appends to `observability.static.history`. Preserves all other state fields.
- */
+/** Save coverage result from an analysis run into sprint-state.json. */
 export function saveCoverageResult(
   projectDir: string,
   result: AnalyzerResult,
@@ -112,11 +99,14 @@ export function saveCoverageResult(
     coveragePercent: result.summary.coveragePercent,
     lastScanTimestamp: timestamp,
     history: trimmedHistory,
+    gaps: result.gaps.map(({ file, line, type, description, severity }) =>
+      ({ file, line, type, description, severity })),
   };
 
   const updatedObservability: ObservabilityCoverageState = {
     static: updatedStatic,
     targets: existing.targets,
+    ...(existing.runtime ? { runtime: existing.runtime } : {}),
   };
 
   const updatedState = {
@@ -127,12 +117,7 @@ export function saveCoverageResult(
   return writeStateAtomic(projectDir, updatedState);
 }
 
-/**
- * Read the observability coverage state from sprint-state.json.
- *
- * Returns the typed `ObservabilityCoverageState` from the `observability` key.
- * If no observability section exists, returns default state.
- */
+/** Read the observability coverage state from sprint-state.json. */
 export function readCoverageState(
   projectDir: string,
 ): Result<ObservabilityCoverageState> {
@@ -148,9 +133,7 @@ export function readCoverageState(
   return ok(extractCoverageState(stateResult.data));
 }
 
-/**
- * Get coverage trend by comparing latest vs previous history entries.
- */
+/** Get coverage trend by comparing latest vs previous history entries. */
 export function getCoverageTrend(projectDir: string): Result<CoverageTrend> {
   if (!projectDir || typeof projectDir !== 'string') {
     return fail('projectDir is required and must be a non-empty string');
@@ -195,13 +178,7 @@ export function getCoverageTrend(projectDir: string): Result<CoverageTrend> {
   });
 }
 
-/**
- * Check current coverage against a target threshold.
- *
- * @param projectDir - Project root directory
- * @param target - Target percentage (default 80%)
- * @returns Structured result indicating whether coverage meets the target
- */
+/** Check current coverage against a target threshold. */
 export function checkCoverageTarget(
   projectDir: string,
   target?: number,
@@ -223,10 +200,7 @@ export function checkCoverageTarget(
   return ok({ met, current, target: effectiveTarget, gap });
 }
 
-/**
- * Extract typed ObservabilityCoverageState from raw sprint-state.json data.
- * Returns defaults when the observability section doesn't exist.
- */
+/** Extract typed ObservabilityCoverageState from raw sprint-state.json data. */
 function extractCoverageState(
   state: Record<string, unknown>,
 ): ObservabilityCoverageState {
@@ -237,8 +211,31 @@ function extractCoverageState(
 
   const staticSection = obs.static as Record<string, unknown> | undefined;
   const targets = obs.targets as Record<string, unknown> | undefined;
+  const runtimeSection = obs.runtime as Record<string, unknown> | undefined;
 
-  return {
+  const runtime: RuntimeCoverageState | undefined =
+    runtimeSection && typeof runtimeSection.coveragePercent === 'number'
+      ? {
+          coveragePercent: runtimeSection.coveragePercent,
+          lastValidationTimestamp:
+            typeof runtimeSection.lastValidationTimestamp === 'string'
+              ? runtimeSection.lastValidationTimestamp : '',
+          modulesWithTelemetry:
+            typeof runtimeSection.modulesWithTelemetry === 'number'
+              ? runtimeSection.modulesWithTelemetry : 0,
+          totalModules:
+            typeof runtimeSection.totalModules === 'number'
+              ? runtimeSection.totalModules : 0,
+          telemetryDetected:
+            typeof runtimeSection.telemetryDetected === 'boolean'
+              ? runtimeSection.telemetryDetected : false,
+        }
+      : undefined;
+
+  // Parse cached gaps from static section
+  const parsedGaps = parseGapArray(staticSection?.gaps);
+
+  const result: ObservabilityCoverageState = {
     static: {
       coveragePercent:
         typeof staticSection?.coveragePercent === 'number'
@@ -258,12 +255,36 @@ function extractCoverageState(
               typeof (entry as Record<string, unknown>).timestamp === 'string',
           )
         : [],
+      ...(parsedGaps.length > 0 ? { gaps: parsedGaps } : {}),
     },
     targets: {
       staticTarget:
         typeof targets?.staticTarget === 'number'
           ? targets.staticTarget
           : DEFAULT_STATIC_TARGET,
+      ...(typeof targets?.runtimeTarget === 'number'
+        ? { runtimeTarget: targets.runtimeTarget }
+        : {}),
     },
+    ...(runtime ? { runtime } : {}),
   };
+
+  return result;
+}
+
+/** Parse and validate an array of gap objects from raw JSON. */
+function parseGapArray(raw: unknown): ObservabilityGap[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((g): g is Record<string, unknown> => {
+      if (typeof g !== 'object' || g === null) return false;
+      const r = g as Record<string, unknown>;
+      return typeof r.file === 'string' && typeof r.line === 'number'
+        && typeof r.type === 'string' && typeof r.description === 'string';
+    })
+    .map(g => ({
+      file: g.file as string, line: g.line as number,
+      type: g.type as string, description: g.description as string,
+      severity: (g.severity === 'error' || g.severity === 'warning' ? g.severity : 'info') as GapSeverity,
+    }));
 }

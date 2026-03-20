@@ -692,3 +692,62 @@ describe('atomic write safety', () => {
     expect(writeCall[0]).toContain('.sprint-state.json.tmp');
   });
 });
+
+// ============================================================
+// saveCoverageResult preserves runtime data
+// ============================================================
+
+describe('saveCoverageResult — runtime preservation', () => {
+  it('preserves existing runtime coverage when saving static results', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        version: 1,
+        sprint: {},
+        observability: {
+          static: { coveragePercent: 70, lastScanTimestamp: '2026-03-19T10:00:00.000Z', history: [] },
+          targets: { staticTarget: 80, runtimeTarget: 60 },
+          runtime: {
+            coveragePercent: 65,
+            lastValidationTimestamp: '2026-03-19T12:00:00.000Z',
+            modulesWithTelemetry: 3,
+            totalModules: 5,
+            telemetryDetected: true,
+          },
+        },
+      }),
+    );
+
+    const result = saveCoverageResult('/project', makeAnalyzerResult(85));
+    expect(result.success).toBe(true);
+
+    // Verify the written state includes runtime
+    const writeCall = mockWriteFileSync.mock.calls[0];
+    const written = JSON.parse(writeCall[1] as string);
+    expect(written.observability.runtime).toBeDefined();
+    expect(written.observability.runtime.coveragePercent).toBe(65);
+    expect(written.observability.runtime.lastValidationTimestamp).toBe('2026-03-19T12:00:00.000Z');
+    expect(written.observability.runtime.modulesWithTelemetry).toBe(3);
+  });
+
+  it('does not add runtime field when no runtime data exists', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify({
+        version: 1,
+        sprint: {},
+        observability: {
+          static: { coveragePercent: 70, lastScanTimestamp: '2026-03-19T10:00:00.000Z', history: [] },
+          targets: { staticTarget: 80 },
+        },
+      }),
+    );
+
+    const result = saveCoverageResult('/project', makeAnalyzerResult(85));
+    expect(result.success).toBe(true);
+
+    const writeCall = mockWriteFileSync.mock.calls[0];
+    const written = JSON.parse(writeCall[1] as string);
+    expect(written.observability.runtime).toBeUndefined();
+  });
+});

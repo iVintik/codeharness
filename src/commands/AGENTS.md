@@ -106,6 +106,11 @@ Updates live run progress in sprint-state.json. Used by harness-run to show real
 - **Key deps:** `modules/sprint` (updateRunProgress, clearRunProgress), `lib/output`
 - **Subcommands:** none; supports `--story <key>`, `--phase <phase>`, `--action <text>`, `--ac-progress <text>`, `--clear`, `--json`
 
+### observability-gate.ts
+Checks observability coverage against targets for commit gating. Reads cached static and runtime coverage from sprint-state.json, compares against configurable targets (default: 80% static, 60% runtime). Used by the pre-commit hook to block commits below target.
+- **Key deps:** `modules/observability` (checkObservabilityCoverageGate), `lib/output`
+- **Subcommands:** none; supports `--json`, `--min-static <percent>`, `--min-runtime <percent>`
+
 ### verify-env.ts
 Manages the verification environment for black-box story verification. Builds a Docker image from project artifacts (no source code), prepares clean temp workspaces with only story docs, validates the environment, and cleans up.
 - **Key deps:** `modules/verify` (buildVerifyImage, prepareVerifyWorkspace, checkVerifyEnv, cleanupVerifyEnv), `lib/output`

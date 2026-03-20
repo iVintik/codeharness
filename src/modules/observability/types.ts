@@ -116,6 +116,8 @@ export interface StaticCoverageState {
   readonly lastScanTimestamp: string;
   /** Historical coverage entries */
   readonly history: readonly CoverageHistoryEntry[];
+  /** Cached observability gaps from last analysis run (persisted by saveCoverageResult) */
+  readonly gaps?: readonly ObservabilityGap[];
 }
 
 /** Coverage targets configuration */
@@ -181,6 +183,22 @@ export interface RuntimeCoverageState {
   readonly totalModules: number;
   /** Whether telemetry was detected at all */
   readonly telemetryDetected: boolean;
+}
+
+// ============================================================
+// Coverage gate types (Story 2.2)
+// ============================================================
+
+/** Result of the observability coverage gate check */
+export interface ObservabilityCoverageGateResult {
+  /** Whether the gate passed (all required checks met their targets) */
+  readonly passed: boolean;
+  /** Static coverage check result */
+  readonly staticResult: CoverageTargetResult;
+  /** Runtime coverage check result, or null if no runtime data exists */
+  readonly runtimeResult: CoverageTargetResult | null;
+  /** List of observability gaps for actionable feedback */
+  readonly gapSummary: ObservabilityGap[];
 }
 
 /** Trend comparison between latest and previous coverage entries */

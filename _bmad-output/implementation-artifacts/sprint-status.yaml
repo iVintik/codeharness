@@ -28,7 +28,7 @@ development_status:
   # Epic 2: Runtime Observability & Coverage Metrics
   epic-2: backlog
   2-1-verification-observability-check: done
-  2-2-observability-hook-enforcement: backlog
+  2-2-observability-hook-enforcement: done
   2-3-standalone-runtime-check-audit-mode: backlog
 
   # Epic 3: Audit Command

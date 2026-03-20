@@ -17,6 +17,7 @@ export type {
   CoverageTargets,
   CoverageTrend,
   CoverageTargetResult,
+  ObservabilityCoverageGateResult,
   RuntimeCoverageEntry,
   RuntimeCoverageResult,
   RuntimeCoverageState,
@@ -35,3 +36,5 @@ export {
   computeRuntimeCoverage,
   saveRuntimeCoverage,
 } from './runtime-coverage.js';
+
+export { checkObservabilityCoverageGate } from './coverage-gate.js';

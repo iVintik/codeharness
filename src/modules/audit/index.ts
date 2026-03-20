@@ -33,6 +33,10 @@ export {
 // Re-export formatters
 export { formatAuditHuman, formatAuditJson } from './report.js';
 
+// Re-export fix story generator
+export { generateFixStories, addFixStoriesToState } from './fix-generator.js';
+export type { FixStoryResult, FixGenerationResult } from './fix-types.js';
+
 /**
  * Run full audit across all 5 dimensions.
  * Returns Result<AuditResult> — never throws.

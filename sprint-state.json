@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 24,
-    "done": 13,
+    "done": 14,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -113,7 +113,7 @@
       "acResults": null
     },
     "3-1-audit-coordinator-dimensions": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
@@ -121,8 +121,8 @@
       "acResults": null
     },
     "3-2-audit-fix-story-generation": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -204,14 +204,14 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 4,
+    "iteration": 5,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "currentStory": "3-2-audit-fix-story-generation",
+    "currentPhase": "verify",
+    "lastAction": "Starting verification",
+    "acProgress": "8/10"
   },
   "actionItems": [
     {
@@ -323,6 +323,62 @@
       "id": "migrated-16",
       "story": "3-1-audit-coordinator-dimensions",
       "description": "**Coverage: 96.71% overall, all 116 files above 80% floor, 2779 tests pass**",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "3-2-audit-fix-story-generation",
+      "description": "**sprint-status.yaml not updated by agent** — updated manually in harness-run.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "3-2-audit-fix-story-generation",
+      "description": "**Expanded ACs from 3 to 10:** Original epic definition had only 3 sparse ACs. Agent expanded to cover edge cases, JSON output, idempotency, atomic writes, and precondition checks.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "3-2-audit-fix-story-generation",
+      "description": "**Risk: Story key collision.** The `audit-fix-{dimension}-{index}` key scheme uses sequential index. If gaps change between runs, same index could map to different gaps. Content-based hash would be more robust.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "3-2-audit-fix-story-generation",
+      "description": "**Risk: sprint-state.json vs sprint-status.yaml divergence.** Epic says stories go to sprint-state.json, but sprint planning also uses sprint-status.yaml. Generated stories won't appear in sprint-status.yaml unless manually synced.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "3-2-audit-fix-story-generation",
+      "description": "**Test file exceeds NFR9:** `fix-generator.test.ts` is 426 lines (estimated 200-250). Thorough AC coverage with mocking requires more code. Test files generally exempt from NFR9.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "3-2-audit-fix-story-generation",
+      "description": "**Type gymnastics in audit.ts:** Uses `ReturnType<typeof generateFixStories>` pattern to avoid importing internal Result type. Works but not cleanest.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "3-2-audit-fix-story-generation",
+      "description": "**No end-to-end verification:** Task 7.5 requires `codeharness audit --fix` against a real initialized project — only unit tests cover the paths. E2E test deferred to review.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "3-2-audit-fix-story-generation",
+      "description": "**sprint-status.yaml not updated by agent** — updated manually in harness-run.",
       "source": "retro",
       "resolved": false
     }

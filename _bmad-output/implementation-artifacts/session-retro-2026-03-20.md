@@ -646,3 +646,376 @@ Five sessions, zero fixes to silent error handling. This is accepted technical d
 3. **Fix Docker container cleanup before starting the next sprint.** Two manual cleanups in one day is a workflow tax.
 4. **Tackle silent error handling as a dedicated tech-debt story.** Five sessions of deferral means it won't get fixed incrementally. Schedule it explicitly.
 5. **Code review remains non-negotiable.** 10 HIGH bugs caught across 5 sessions. The 3-5 minutes per review paid for themselves many times over.
+
+---
+
+# Session 6 Retrospective — 2026-03-20T11:30Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~07:15Z – ~07:35Z (2026-03-20), approx 20 minutes
+**Stories attempted:** 2 (0-5-3 verification + 0-5-4 story creation)
+**Stories completed:** 1 (0-5-3-ink-terminal-renderer -> done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Notes |
+|-------|-------------|------------|-----------------|-------|
+| 0-5-3-ink-terminal-renderer | verifying | done | code-review (prior), verify | All 9 ACs passed black-box verification. Code review in prior phase found 2 HIGH issues (unused constant, untested post-cleanup guards) and 1 MEDIUM (array reference mutation). All fixed before verification. Committed as `888c714`. |
+| 0-5-4-run-command-integration | backlog | ready-for-dev | create-story | Story spec created with 9 ACs. Flagged 3 risks during creation: AC 8 ambiguity (stderr vs NDJSON), run.ts already at 358 lines (exceeds 300-line NFR9), and dependency on 0-5-3 (now resolved). |
+
+**Net progress:** Story 0-5-3 completed — Epic 0.5 now has 3/4 stories done (0-5-1, 0-5-2, 0-5-3). Story 0-5-4 is the final story needed to complete Epic 0.5. Sprint-status.yaml shows 0-5-4 as `ready-for-dev`.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+1. **HIGH -- `STATUS_SYMBOLS` constant defined but unused (code-review):** Symbols were hardcoded inline in `StoryBreakdown` component instead of using the defined constant. This created a divergence risk -- if the constant were updated, the component would still use old inline values. Fixed by refactoring to use the constant via a `fmt()` helper.
+2. **HIGH -- `updateStories()` and `addMessage()` post-cleanup guard untested (code-review):** The `if (cleaned) return` early-exit paths in both functions had zero test coverage. These guards prevent state updates after Ink cleanup, but without tests, a future refactor could remove them and cause use-after-cleanup bugs. Fixed by adding dedicated test cases.
+3. **MEDIUM -- `updateStories()` took caller's array reference without defensive copy (code-review):** The function stored the caller's array directly. If the caller mutated the array after passing it, renderer state would silently corrupt. Fixed with `[...stories]` spread to create a defensive copy.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **`truncateToWidth()` private function has no independent edge-case tests (LOW, not fixed):** Covered only through component tests. Edge cases (empty string, string exactly at width, multi-byte characters) are not explicitly tested. Identified in code review but deferred.
+2. **Unreachable `rerender()` guard causes < 100% branch coverage (LOW, not fixed):** The `if (!cleaned)` false branch at line 89 of `ink-renderer.tsx` is dead code — `rerender` is only called when Ink is active. Causes 96.77% branch coverage instead of 100%. Cosmetic issue only.
+
+### Code Quality Concerns
+
+1. **Coverage: 96.53% overall, all 110 files above 80% floor.** Ink-renderer.tsx at 96.77% branches is the only file below 100% branch coverage, and only due to the unreachable guard. No quality concern.
+2. **run.ts at 358 lines:** The file that story 0-5-4 will modify already exceeds the 300-line NFR9 limit by 58 lines. The create-story phase recommends extracting helpers before or during 0-5-4 implementation. If deferred, 0-5-4 will push it further past the limit.
+
+### Verification Gaps
+
+1. **AGENTS.md precondition failure (verify):** `codeharness verify` initially failed because `stream-parser.ts`, `ink-components.tsx`, and `ink-renderer.tsx` were missing from `src/lib/AGENTS.md`. Fixed by adding a "Stream Parsing & Ink Rendering" section. This is a process gap: new files added during dev should have AGENTS.md updated in the same phase. Code review didn't catch the missing entries.
+2. **No exec-plan found (verify, warning only):** Story 0-5-3 does not have a separate execution plan document. Warning logged but not blocking — the story spec itself contains sufficient implementation detail.
+3. **Showboat not installed (verify, warning only):** Re-verification step skipped because `showboat` CLI is not installed in the verification environment. Non-blocking.
+
+### Tooling/Infrastructure Problems
+
+None new this session. Docker cleanup was not an issue (no stale containers reported).
+
+### Design Decisions and Risks (0-5-4 Create-Story)
+
+1. **AC 8 ambiguity:** Epic says "ralph reads Claude stdout (NDJSON)" for piping, but story completion messages come from ralph's stderr, not the NDJSON stream. The story spec clarifies this in dev notes, but implementation will need to handle both stdout (NDJSON events) and stderr (ralph messages) as separate streams.
+2. **NFR9 line limit risk:** run.ts is already 58 lines over the 300-line limit. Story 0-5-4 adds stream piping, Ink renderer integration, polling, and cleanup — easily another 80-100 lines. Story recommends extracting helpers into a separate module before or during implementation.
+3. **0-5-3 dependency resolved:** Story 0-5-4 depends on 0-5-3 (Ink renderer). 0-5-3 was completing verification at the time 0-5-4 was created. Now done — no blocker.
+
+---
+
+## 3. What Went Well
+
+- **Story 0-5-3 completed cleanly.** All 9 ACs passed verification on the first attempt. No re-work needed. This is the first story today that passed verification without requiring a fix cycle.
+- **Code review improved component quality.** The unused `STATUS_SYMBOLS` constant and the missing defensive copy were subtle bugs that would have caused maintenance headaches later. The untested cleanup guards were a real coverage gap. All three issues fixed before verification.
+- **Story 0-5-4 created with clear risk identification.** The create-story phase flagged the stderr/stdout ambiguity, the NFR9 line limit violation, and the 0-5-3 dependency. All three are actionable by the dev phase.
+- **Epic 0.5 nearing completion.** Three of four stories done. One story (0-5-4) remains as the integration story that wires everything together.
+- **Test coverage remains strong.** 96.53% overall, 110 files above 80% floor, 2510+ tests passing. The ink renderer alone added comprehensive component tests for all rendering paths.
+
+---
+
+## 4. What Went Wrong
+
+- **AGENTS.md not updated during dev phase.** Three new files were added to `src/lib/` during 0-5-3 dev but AGENTS.md was not updated until verification caught the precondition failure. This is a recurring process gap: the dev phase creates files but does not update module documentation. Code review also missed it.
+- **run.ts already over the line limit before 0-5-4 starts.** At 358 lines, the file is 19% over the 300-line NFR9 limit. This was not addressed in any prior story. Story 0-5-4 will add significant logic to this file. If extraction is not done first, the file will grow to 450+ lines, making it increasingly difficult to maintain.
+- **Two LOW code review findings deferred.** The `truncateToWidth()` edge-case testing gap and the unreachable `rerender()` guard are minor, but they add to the growing list of deferred LOWs. Across all 6 sessions today, 14+ LOW findings have been deferred.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Comprehensive component testing pays off at verification.** Story 0-5-3 passed all 9 ACs on the first attempt — the only story today to do so. The dev phase invested in thorough component tests (each rendering path, each status symbol, each message type), and the result was zero verification rework.
+- **Defensive copies for shared state.** The `[...stories]` spread fix is a small change with large impact. Any function that stores caller-provided data should copy it. This should be a standard pattern in future stories.
+
+### Patterns to Avoid
+
+- **Creating files without updating AGENTS.md.** Three new files, zero AGENTS.md updates, caught only at verification. The dev task list should include "update AGENTS.md for all new/modified files" as a mandatory final task.
+- **Letting file sizes exceed limits across stories.** run.ts exceeded 300 lines before this sprint's stories even started. No story took ownership of the extraction. By the time 0-5-4 needs to modify it, the tech debt is compounding. File size limits should be enforced as pre-conditions, not aspirations.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Extract helpers from run.ts before starting 0-5-4 dev.** The file is at 358 lines. Story 0-5-4 will add 80-100 more lines. Extract polling, status formatting, or error handling into a separate module to get run.ts under 300 lines before implementation begins.
+
+### Fix Soon (Next Sprint)
+
+1. **Add "update AGENTS.md" as mandatory dev task** -- Every story that creates or modifies files in a module should include a task to update the corresponding AGENTS.md. Code review should check for this.
+2. **Add independent `truncateToWidth()` edge-case tests** -- Deferred from code review. Should cover empty string, exact-width string, multi-byte/emoji characters, and zero-width inputs.
+3. **Fix Docker container cleanup** -- Carried from Session 5.
+4. **Add query format assertions to HTTP-mocked tests** -- Carried from Session 5.
+5. **Fix substring module matching** -- Carried from Session 4.
+6. **Add diagnostics for dropped NDJSON lines** -- Carried from Session 4.
+7. **Extend `saveRuntimeCoverage` to persist module details** -- Carried from Session 4.
+8. **Deduplicate default target constants** -- Carried from Session 3.
+9. **Add end-to-end gap flow integration test** -- Carried from Session 3.
+10. **Fix pre-existing BATS failures** -- Carried from Session 2. Tests 28-31 still failing on master.
+
+### Backlog (Track but Not Urgent)
+
+1. **Remove unreachable `rerender()` guard** -- Dead code causing 96.77% branch coverage instead of 100%. Cosmetic.
+2. **Centralize gap parsing** -- Carried from Session 1.
+3. **Fix binary `logEventCount`** -- Carried from Session 1.
+4. **Silent catch blocks** -- Carried from Session 1. Now five+ locations.
+5. **Test against real telemetry** -- Carried from Session 1.
+6. **Agent workflow compliance** -- Carried from Session 2.
+7. **Type escape hatches (`as unknown as Record`)** -- Carried from Session 1.
+8. **Replace grep-based JSON parsing in pre-commit-gate.sh** -- Carried from Session 2.
+9. **Config path mismatch** -- Carried from Session 4.
+10. **Epic numbering collision** -- Carried from Session 1.
+11. **Address 14+ deferred LOW findings** -- Accumulated across all 6 sessions. Consider a dedicated tech-debt story.
+
+---
+
+## Cross-Session Pattern Analysis (Final Update — 6 Sessions, 2026-03-20)
+
+Six sessions on 2026-03-20. Updated totals and patterns.
+
+### Pattern 1: Producer-Consumer Disconnects
+
+| Session | Bug | Pattern |
+|---------|-----|---------|
+| 1 | `saveRuntimeCoverage` never called | Function implemented, tested, exported, never wired into caller |
+| 2 | `gapSummary` always empty | Formatting code exists, no data source connected |
+| 3 | `StaticCoverageState` missing gaps field | Data written to file, never read back into type |
+| 4 | `saveRuntimeCoverage` doesn't persist modules | Function returns per-module data, persistence layer discards it |
+| 5 | LogsQL query syntax invalid | Query string authored without validation against real API |
+| 6 | (None new) | First session without this pattern -- component tests covered all rendering paths |
+
+Session 6 broke the pattern. The difference: the Ink renderer story had self-contained components where producer and consumer were in the same file, tested together. Stories with cross-module data flow remain vulnerable.
+
+### Pattern 2: Silent Error Handling
+
+| Session | Instance |
+|---------|----------|
+| 1 | 3 silent catch blocks in gap parsing |
+| 2 | No NaN validation on CLI args |
+| 3 | (None new) |
+| 4 | `parseLogEvents` silently drops malformed JSON |
+| 5 | (None new) |
+| 6 | (None new) |
+
+No new instances, but zero prior instances fixed. Six sessions of deferral.
+
+### Pattern 3: AGENTS.md / Documentation Lag (New)
+
+| Session | Instance |
+|---------|----------|
+| 2 | AGENTS.md files not updated for new modules (code-review caught) |
+| 6 | AGENTS.md not updated for 3 new files (verification caught) |
+
+Documentation updates are consistently forgotten during dev and inconsistently caught during review.
+
+### Final Day Totals (2026-03-20 — All 6 Sessions)
+
+- **Stories completed:** 4 (2-1, 2-2, 2-3, 0-5-3)
+- **Stories created:** 1 (0-5-4, ready-for-dev)
+- **Epics completed:** 1 (Epic 2: Runtime Observability & Coverage Metrics)
+- **HIGH bugs found by code review:** 12 (Sessions 1-5: 10, Session 6: 2)
+- **MEDIUM bugs found by code review:** 4 (Sessions 1-5: 3, Session 6: 1)
+- **Security vulnerabilities caught:** 1 (command injection, Session 4)
+- **Production bugs caught by live verification:** 1 (LogsQL syntax, Session 5)
+- **Verification failures requiring re-work:** 2 (proof parser in Session 1, AC3 in Session 2)
+- **Stories passing verification on first attempt:** 2 (0-5-3 in Session 6, 2-3 in Session 5)
+- **Phases executed:** ~19 (Sessions 1-5: ~16, Session 6: code-review + verify + create-story = 3)
+- **Total session time:** ~4 hours across 6 sessions
+- **Average story throughput:** ~60 minutes per story (4 stories in ~4 hours, including all rework)
+- **Docker cleanup issues:** 2 (Sessions 3 and 5)
+- **Deferred LOW findings:** 14+ across all sessions
+- **Test count:** 2510+ passing, 96.53% overall coverage
+
+### Recommendations for Next Sprint (Updated)
+
+1. **Add "verify data flow end-to-end" as a mandatory dev task** for any story that adds a cross-module data pipeline. Session 6 showed this is not needed for self-contained component stories.
+2. **Add "update AGENTS.md" as a mandatory dev task** for any story that creates or modifies files. Two sessions had documentation lag issues.
+3. **Extract run.ts before 0-5-4 dev.** The file is at 358 lines and 0-5-4 will add substantially more. Do the extraction as a preparatory task.
+4. **Add query/request format assertions to mocked HTTP tests.** Carried from Session 5.
+5. **Fix Docker container cleanup.** Carried from Session 5.
+6. **Schedule a dedicated tech-debt story** to address silent error handling (5+ locations) and the 14+ deferred LOWs. Incremental deferral is not working.
+7. **Code review remains non-negotiable.** 12 HIGH + 4 MEDIUM bugs caught across 6 sessions. Every session's review found real issues.
+
+---
+
+# Session 7 Retrospective — 2026-03-20T12:00Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~08:10Z – ~08:25Z (2026-03-20), approx 15 minutes (dev + code-review)
+**Stories attempted:** 1
+**Stories completed:** 0 (0-5-4-run-command-integration at `verifying`, not yet done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Notes |
+|-------|-------------|------------|-----------------|-------|
+| 0-5-4-run-command-integration | ready-for-dev | verifying | dev-story, code-review | Story integrates stream-json piping, Ink renderer, elapsed time, per-story statuses, and ralph message parsing into `codeharness run`. Dev extracted helpers to `run-helpers.ts` to bring `run.ts` from 358 to exactly 300 lines (NFR9 compliance). Code review found 1 HIGH, 3 MEDIUM, 1 LOW — all fixed except the missing proof document (deferred to verify phase). 2728 tests pass. 86 new/updated tests. Verification not yet completed. |
+
+**Net progress:** Story 0-5-4 advanced through dev and code-review. Epic 0.5 remains at 3/4 stories done (0-5-1, 0-5-2, 0-5-3). Completing 0-5-4 will finish Epic 0.5.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+1. **HIGH -- AGENTS.md missing for new module (code-review):** `run-helpers.ts` was a brand-new file in `src/lib/` and was not documented in `src/lib/AGENTS.md`. This is the third session (Sessions 2, 6, and now 7) where AGENTS.md was not updated during dev. Fixed during code review.
+2. **MEDIUM -- Duplicate test code (code-review):** `countStories` and `buildSpawnArgs` had identical tests in both `run-helpers.test.ts` and `run.test.ts`. After extraction to `run-helpers.ts`, the original `run.test.ts` tests were copied rather than replaced with re-export verification. Fixed by replacing duplicates with minimal re-export tests.
+3. **MEDIUM -- Polling interval code untested (code-review):** The `setInterval` callback in `run.ts` (lines 207-228) was never exercised by any test. AC #6 (elapsed time) and AC #7 (per-story statuses) were only tested for the initial call, not the polling refresh path. Fixed by adding `vi.useFakeTimers()` test.
+4. **MEDIUM -- Misleading test name (code-review):** Test `--max-story-retries defaults to 3` actually asserted default is `'10'`. Name was wrong since an earlier change updated the default but not the test name. Fixed.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **run.ts at exactly 300 lines (LOW):** Was 358 originally. Extracting `countStories` and `buildSpawnArgs` plus new helpers to `run-helpers.ts` brought it to exactly 300. Zero headroom -- any future changes to `run.ts` will require further extraction. The file is at the absolute boundary of NFR9.
+2. **Pre-existing TS errors in test files (LOW, not fixed):** Loosely-typed `vi.fn()` mocks don't match strict type signatures. This exists across many test files and was not introduced by this story. Not addressed.
+3. **run-helpers.test.ts at 303 lines (LOW, not fixed):** Slightly over the 300-line NFR9 limit. Test files are typically exempt from this limit.
+
+### Code Quality Concerns
+
+1. **Branch coverage at 70.23% for run.ts:** Uncovered branches are error-handling catch blocks (prompt write failure, JSON parse failure). These are difficult to trigger in unit tests. Statement coverage at 95.52% and function coverage at 100% are strong.
+2. **No integration test for full stream-json to Ink pipeline:** All tests mock the renderer. No test verifies that actual NDJSON events flow through `parseStreamLine()` and produce visible Ink output. Unit tests verify each piece independently.
+3. **coverage-summary.json confusion (pre-existing):** The file contains Jest-format results, not istanbul coverage data. Pre-existing issue, not introduced by this story.
+
+### Verification Gaps
+
+1. **Verification not yet completed:** Story is at `verifying` but no proof document has been validated. Session ended before verification could run.
+
+### Tooling/Infrastructure Problems
+
+None new this session.
+
+---
+
+## 3. What Went Well
+
+- **NFR9 compliance achieved.** `run.ts` went from 358 lines (19% over limit) to exactly 300 lines through disciplined extraction. The Session 6 "Fix Now" action item (extract helpers before 0-5-4 dev) was executed as part of the dev phase rather than as a separate step, achieving the same outcome.
+- **Code review caught the AGENTS.md gap again.** Third session in a row where dev forgot to update AGENTS.md for new files. Code review is the reliable backstop, but this process gap needs a structural fix.
+- **Polling interval now tested.** The `setInterval` callback was a known coverage gap (flagged in session issues). Code review pushed for the fix, and the `vi.useFakeTimers()` approach works cleanly.
+- **86 new/updated tests, 2728 total passing.** Test count grew by 218 from Session 6's 2510. Coverage remains at 96.65% overall with all 111 files above the 80% floor.
+- **Clean extraction pattern.** Helper functions (`formatElapsed`, `mapSprintStatus`, `mapSprintStatuses`, `parseRalphMessage`) were extracted with clear interfaces. `run.ts` re-exports `countStories` and `buildSpawnArgs` for backward compatibility, avoiding breaking changes.
+
+---
+
+## 4. What Went Wrong
+
+- **AGENTS.md forgotten for the third time.** Sessions 2, 6, and 7 all had AGENTS.md update failures. The Session 6 action item said "Add 'update AGENTS.md' as mandatory dev task." This session's dev phase still did not do it. The action item is not being enforced -- it needs to be embedded in the story template or dev agent prompt, not just listed in retrospectives.
+- **Zero headroom on run.ts line count.** Exactly 300 lines means the next person to touch `run.ts` will immediately violate NFR9. This is a fragile equilibrium. More extraction should have been done to create a buffer (e.g., target 250 lines, not 300).
+- **Verification not completed in session.** Same issue as Session 4 -- story reached `verifying` but session ended before verification ran. The story has consumed dev and review effort but produced no validated output yet.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Extract helpers proactively during dev, not as a separate preparatory step.** Session 6 recommended extracting run.ts before 0-5-4 dev. Dev did it inline during implementation, which worked well -- the extraction was informed by the actual code being added, producing better boundaries than a pre-emptive extraction would have.
+- **Test polling intervals with fake timers.** The `vi.useFakeTimers()` pattern for testing `setInterval` callbacks was effective. Apply this to any future polling-based code.
+
+### Patterns to Avoid
+
+- **Targeting exactly the limit.** Hitting 300 lines exactly means zero margin. Extraction should target 80% of the limit (~240 lines) to leave room for future changes.
+- **Listing action items in retrospectives without enforcing them.** "Add 'update AGENTS.md' as mandatory dev task" was an action item from Session 6. It was not acted on. Action items that require process changes (template edits, prompt modifications) need to be executed immediately, not deferred to "next sprint."
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Complete verification of 0-5-4-run-command-integration.** The story is at `verifying` and needs verification to complete Epic 0.5. This is the only blocker.
+2. **Add "update AGENTS.md for all new/modified files" to the dev agent prompt or story template.** Three sessions of forgetting is enough. This needs a structural fix, not another retrospective note.
+
+### Fix Soon (Next Sprint)
+
+1. **Extract more from run.ts to create headroom.** Currently at 300 lines. Target 240-250 lines. Move the `readResultFromStatusFile()` or the `sprintState` polling setup into helpers.
+2. **Add full pipeline integration test for stream-json to Ink.** Currently all tests mock the renderer. One test should verify real NDJSON → `parseStreamLine()` → Ink component rendering.
+3. **Fix pre-existing TS type errors in test files.** Loosely-typed `vi.fn()` mocks across multiple test files. This is growing tech debt that makes type checking less reliable.
+4. **Fix Docker container cleanup** -- Carried from Session 5.
+5. **Add query format assertions to HTTP-mocked tests** -- Carried from Session 5.
+6. **Fix substring module matching** -- Carried from Session 4.
+7. **Add diagnostics for dropped NDJSON lines** -- Carried from Session 4.
+8. **Extend `saveRuntimeCoverage` to persist module details** -- Carried from Session 4.
+9. **Deduplicate default target constants** -- Carried from Session 3.
+10. **Add end-to-end gap flow integration test** -- Carried from Session 3.
+11. **Fix pre-existing BATS failures** -- Carried from Session 2. Tests 28-31 still failing on master.
+
+### Backlog (Track but Not Urgent)
+
+1. **Remove unreachable `rerender()` guard** -- Carried from Session 6.
+2. **Centralize gap parsing** -- Carried from Session 1.
+3. **Fix binary `logEventCount`** -- Carried from Session 1.
+4. **Silent catch blocks** -- Carried from Session 1. Now five+ locations.
+5. **Test against real telemetry** -- Carried from Session 1.
+6. **Agent workflow compliance** -- Carried from Session 2.
+7. **Type escape hatches (`as unknown as Record`)** -- Carried from Session 1.
+8. **Replace grep-based JSON parsing in pre-commit-gate.sh** -- Carried from Session 2.
+9. **Config path mismatch** -- Carried from Session 4.
+10. **Epic numbering collision** -- Carried from Session 1.
+11. **Address 15+ deferred LOW findings** -- Accumulated across all 7 sessions.
+
+---
+
+## Cross-Session Pattern Analysis (Updated — 7 Sessions, 2026-03-20)
+
+Seven sessions on 2026-03-20. Updated patterns.
+
+### Pattern 1: Producer-Consumer Disconnects
+
+| Session | Bug | Pattern |
+|---------|-----|---------|
+| 1 | `saveRuntimeCoverage` never called | Function implemented, tested, exported, never wired into caller |
+| 2 | `gapSummary` always empty | Formatting code exists, no data source connected |
+| 3 | `StaticCoverageState` missing gaps field | Data written to file, never read back into type |
+| 4 | `saveRuntimeCoverage` doesn't persist modules | Function returns per-module data, persistence layer discards it |
+| 5 | LogsQL query syntax invalid | Query string authored without validation against real API |
+| 6 | (None new) | Self-contained component story, no cross-module data flow |
+| 7 | (None new) | Integration story, but pipeline was already ~80% wired from prior stories |
+
+Sessions 6 and 7 both avoided the pattern. Session 6 was self-contained. Session 7 was integration of existing, tested components -- the producer-consumer connections were already validated by prior stories. The pattern appears primarily in stories that create new cross-module data flows from scratch.
+
+### Pattern 2: Silent Error Handling
+
+No new instances in Session 7. Five+ locations remain unfixed across seven sessions.
+
+### Pattern 3: AGENTS.md / Documentation Lag
+
+| Session | Instance |
+|---------|----------|
+| 2 | AGENTS.md files not updated for new modules (code-review caught) |
+| 6 | AGENTS.md not updated for 3 new files (verification caught) |
+| 7 | AGENTS.md not updated for `run-helpers.ts` (code-review caught) |
+
+Three sessions, three occurrences. This is now a systemic process failure. Code review catches it every time, but the fix should be prevention (dev task), not detection (review finding).
+
+### Cumulative Day Totals (2026-03-20 — All 7 Sessions)
+
+- **Stories completed:** 4 (2-1, 2-2, 2-3, 0-5-3)
+- **Stories in progress:** 1 (0-5-4 at verifying)
+- **Stories created:** 1 (0-5-4)
+- **Epics completed:** 1 (Epic 2: Runtime Observability & Coverage Metrics)
+- **HIGH bugs found by code review:** 13 (Sessions 1-6: 12, Session 7: 1)
+- **MEDIUM bugs found by code review:** 7 (Sessions 1-6: 4, Session 7: 3)
+- **LOW findings deferred:** 15+ across all sessions
+- **Security vulnerabilities caught:** 1 (command injection, Session 4)
+- **Production bugs caught by live verification:** 1 (LogsQL syntax, Session 5)
+- **Verification failures requiring re-work:** 2 (proof parser in Session 1, AC3 in Session 2)
+- **Stories passing verification on first attempt:** 2 (0-5-3, 2-3)
+- **Phases executed:** ~22 (Sessions 1-6: ~19, Session 7: dev + code-review + session-issues = ~3)
+- **Total session time:** ~4.5 hours across 7 sessions
+- **Average story throughput:** ~60 minutes per completed story (4 stories in ~4 hours)
+- **Test count:** 2728 passing, 96.65% overall coverage
+- **AGENTS.md misses:** 3 (Sessions 2, 6, 7)
+
+### Recommendations for Next Sprint (Final Update)
+
+1. **Embed "update AGENTS.md" in the dev agent prompt or story template.** Three sessions of forgetting proves retrospective action items are not enough. Make it structural.
+2. **Add "verify data flow end-to-end" as a mandatory dev task** for stories with cross-module data pipelines. Sessions 6-7 show it's not needed for self-contained or integration-of-existing-components stories.
+3. **Complete 0-5-4 verification to close Epic 0.5.** This is the only in-progress work remaining.
+4. **Schedule a dedicated tech-debt story** for silent error handling (5+ locations), deferred LOWs (15+), and pre-existing BATS failures. Seven sessions of incremental deferral confirms these will not be fixed opportunistically.
+5. **Target 80% of line limits, not 100%.** `run.ts` at exactly 300 lines has zero headroom. Future extraction targets should be ~240 lines.
+6. **Code review remains non-negotiable.** 13 HIGH + 7 MEDIUM bugs caught across 7 sessions. Every single session's review found real issues. The cost is 3-5 minutes per review; the value is preventing production bugs, security vulnerabilities, and data loss.

@@ -8,104 +8,30 @@ import { fail, info, jsonOutput } from '../lib/output.js';
 import { readSprintStatus } from '../lib/beads-sync.js';
 import { generateRalphPrompt } from '../templates/ralph-prompt.js';
 import { parseStreamLine } from '../lib/stream-parser.js';
-import { startRenderer } from '../lib/ink-renderer.js';
-import type { SprintInfo } from '../lib/ink-renderer.js';
+import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
 import { getSprintState } from '../modules/sprint/index.js';
+import { formatElapsed, mapSprintStatuses, parseRalphMessage, countStories, buildSpawnArgs } from '../lib/run-helpers.js';
 
 const SPRINT_STATUS_REL = '_bmad-output/implementation-artifacts/sprint-status.yaml';
-const STORY_KEY_PATTERN = /^\d+-\d+-/;
 
-/**
- * Resolves the path to ralph/ralph.sh relative to the package root.
- * In the built CLI, __dirname is dist/, so we go up one level.
- */
+/** Resolves the path to ralph/ralph.sh relative to the package root. */
 export function resolveRalphPath(): string {
-  // Use import.meta.url to find the package root
   const currentFile = fileURLToPath(import.meta.url);
   const currentDir = dirname(currentFile);
-  // From dist/ or src/commands/, go up to package root
-  // In built mode: dist/index.js -> dist/ -> package root
-  // In dev mode: src/commands/run.ts -> src/commands/ -> src/ -> package root
-  let root = dirname(currentDir); // up from commands/ or dist/
+  let root = dirname(currentDir);
   if (root.endsWith('/src') || root.endsWith('\\src')) {
-    root = dirname(root); // up from src/ to package root
+    root = dirname(root);
   }
   return join(root, 'ralph', 'ralph.sh');
 }
 
-/**
- * Resolves the plugin directory path.
- * The plugin is scaffolded to .claude/ during init.
- */
+/** Resolves the plugin directory path (.claude/ in project root). */
 export function resolvePluginDir(): string {
   return join(process.cwd(), '.claude');
 }
 
-/**
- * Counts stories by status from sprint-status.yaml.
- */
-export function countStories(statuses: Record<string, string>): {
-  total: number;
-  ready: number;
-  done: number;
-  inProgress: number;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  verified: number;
-} {
-  let total = 0;
-  let ready = 0;
-  let done = 0;
-  let inProgress = 0;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  let verified = 0;
-
-  for (const [key, status] of Object.entries(statuses)) {
-    if (!STORY_KEY_PATTERN.test(key)) continue;
-    total++;
-    if (status === 'backlog' || status === 'ready-for-dev') ready++;
-    else if (status === 'done') done++;
-    else if (status === 'in-progress' || status === 'review') inProgress++;
-    else if (status === 'verifying') verified++;
-  }
-
-  return { total, ready, done, inProgress, verified };
-}
-
-/**
- * Builds the argument array for spawning Ralph.
- */
-export function buildSpawnArgs(opts: {
-  ralphPath: string;
-  pluginDir: string;
-  promptFile: string;
-  maxIterations: number;
-  timeout: number;
-  iterationTimeout: number;
-  calls: number;
-  quiet: boolean;
-  maxStoryRetries?: number;
-  reset?: boolean;
-}): string[] {
-  const args = [
-    opts.ralphPath,
-    '--plugin-dir', opts.pluginDir,
-    '--max-iterations', String(opts.maxIterations),
-    '--timeout', String(opts.timeout),
-    '--iteration-timeout', String(opts.iterationTimeout),
-    '--calls', String(opts.calls),
-    '--prompt', opts.promptFile,
-  ];
-
-  if (opts.maxStoryRetries !== undefined) {
-    args.push('--max-story-retries', String(opts.maxStoryRetries));
-  }
-
-  if (opts.reset) {
-    args.push('--reset');
-  }
-
-  return args;
-}
+// Re-export helpers that tests import from run.ts
+export { countStories, buildSpawnArgs } from '../lib/run-helpers.js';
 
 export function registerRunCommand(program: Command): void {
   program
@@ -168,12 +94,8 @@ export function registerRunCommand(program: Command): void {
 
       // 5. Generate prompt file (with flagged stories context if available)
       const promptFile = join(projectDir, 'ralph', '.harness-prompt.md');
-
-      // Read flagged stories file if it exists (retry counts are managed by ralph.sh)
       const flaggedFilePath = join(projectDir, 'ralph', '.flagged_stories');
-
       let flaggedStories: string[] | undefined;
-
       if (existsSync(flaggedFilePath)) {
         try {
           const flaggedContent = readFileSync(flaggedFilePath, 'utf-8');
@@ -182,7 +104,6 @@ export function registerRunCommand(program: Command): void {
           // Ignore read errors
         }
       }
-
       const promptContent = generateRalphPrompt({
         projectDir,
         sprintStatusPath,
@@ -223,6 +144,7 @@ export function registerRunCommand(program: Command): void {
       const quiet = options.quiet;
       const rendererHandle = startRenderer({ quiet });
       let sprintStateInterval: ReturnType<typeof setInterval> | null = null;
+      const sessionStartTime = Date.now();
 
       try {
         // Read initial sprint state for the renderer header
@@ -234,8 +156,16 @@ export function registerRunCommand(program: Command): void {
             phase: s.run.currentPhase ?? '',
             done: s.sprint.done,
             total: s.sprint.total,
+            elapsed: formatElapsed(Date.now() - sessionStartTime),
           };
           rendererHandle.updateSprintState(sprintInfo);
+        }
+
+        // Feed initial per-story statuses to the renderer
+        const initialStatuses = readSprintStatus(projectDir);
+        const initialStories = mapSprintStatuses(initialStatuses);
+        if (initialStories.length > 0) {
+          rendererHandle.updateStories(initialStories);
         }
 
         const child = spawn('bash', args, {
@@ -247,7 +177,7 @@ export function registerRunCommand(program: Command): void {
         if (!quiet && child.stdout && child.stderr) {
           // Buffer partial lines and feed through stream parser → Ink renderer.
           // StringDecoder handles multi-byte UTF-8 chars split across Buffer boundaries.
-          const makeLineHandler = (): ((data: Buffer) => void) => {
+          const makeLineHandler = (opts?: { parseRalph?: boolean }): ((data: Buffer) => void) => {
             let partial = '';
             const decoder = new StringDecoder('utf8');
             return (data: Buffer): void => {
@@ -260,11 +190,18 @@ export function registerRunCommand(program: Command): void {
                 if (event) {
                   rendererHandle.update(event);
                 }
+                // Parse ralph structured output for story messages (AC #8)
+                if (opts?.parseRalph) {
+                  const msg = parseRalphMessage(line);
+                  if (msg) {
+                    rendererHandle.addMessage(msg);
+                  }
+                }
               }
             };
           };
           child.stdout.on('data', makeLineHandler());
-          child.stderr.on('data', makeLineHandler());
+          child.stderr.on('data', makeLineHandler({ parseRalph: true }));
 
           // Periodically refresh sprint state for the header display
           sprintStateInterval = setInterval(() => {
@@ -277,9 +214,14 @@ export function registerRunCommand(program: Command): void {
                   phase: s.run.currentPhase ?? '',
                   done: s.sprint.done,
                   total: s.sprint.total,
+                  elapsed: formatElapsed(Date.now() - sessionStartTime),
                 };
                 rendererHandle.updateSprintState(sprintInfo);
               }
+              // Refresh per-story statuses (AC #7)
+              const currentStatuses = readSprintStatus(projectDir);
+              const storyEntries = mapSprintStatuses(currentStatuses);
+              rendererHandle.updateStories(storyEntries);
             } catch {
               // Ignore read errors during polling
             }

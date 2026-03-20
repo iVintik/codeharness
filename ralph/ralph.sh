@@ -782,7 +782,12 @@ execute_iteration() {
         fi
 
         local has_errors="false"
-        if grep -v '"[^"]*error[^"]*":' "$output_file" 2>/dev/null | \
+        # Only check non-JSON lines for errors. Stream-json output is NDJSON
+        # (one JSON object per line), so any line starting with '{' is Claude
+        # content — which naturally contains words like "error" and "Exception"
+        # in code reviews, test output, and discussion. Grepping those produces
+        # false positives that trip the circuit breaker.
+        if grep -v '^[[:space:]]*{' "$output_file" 2>/dev/null | \
            grep -qE '(^Error:|^ERROR:|^error:|\]: error|Error occurred|failed with error|[Ee]xception|Fatal|FATAL)'; then
             has_errors="true"
             log_status "WARN" "Errors detected in output"

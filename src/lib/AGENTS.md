@@ -94,6 +94,12 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | ink-components.tsx | Ink/React terminal UI components — Header, ActiveTool, CompletedTool, LastThought, RetryNotice, StoryBreakdown, StoryMessages, App | `Header`, `App`, `SprintInfo`, `StoryStatusEntry`, `StoryStatusValue`, `StoryMessage` |
 | ink-renderer.tsx | Ink renderer controller — creates/manages Ink instance, exposes RendererHandle for state updates, signal cleanup | `startRenderer`, `RendererHandle`, `RendererState`, `noopHandle` |
 
+## Run Command Helpers
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| run-helpers.ts | Extracted helpers for `run.ts` (NFR9 compliance) — elapsed time formatting, sprint status mapping, ralph output parsing, story counting, spawn args builder | `formatElapsed`, `mapSprintStatus`, `mapSprintStatuses`, `parseRalphMessage`, `countStories`, `buildSpawnArgs` |
+
 ## Dashboard Formatting
 
 | File | Purpose | Key Exports |
@@ -106,4 +112,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, beads) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-**Total: 29 library files across 13 categories.**
+**Total: 30 library files across 14 categories.**

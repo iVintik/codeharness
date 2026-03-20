@@ -17,7 +17,7 @@ development_status:
   0-5-1-stream-json-claude-driver: done
   0-5-2-stream-event-parser: done
   0-5-3-ink-terminal-renderer: done
-  0-5-4-run-command-integration: backlog
+  0-5-4-run-command-integration: done
 
   # Epic 1: Observability Static Analysis (DONE)
   epic-1: done

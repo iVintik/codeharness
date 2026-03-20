@@ -13,6 +13,7 @@ const {
   spawnMock, getChildOnHandlers, existsSyncMock, readSprintStatusMock,
   realExistsSync, getStdoutEmitter, getStderrEmitter,
   startRendererMock, rendererUpdateMock, rendererUpdateSprintStateMock, rendererCleanupMock,
+  rendererUpdateStoriesMock, rendererAddMessageMock,
   parseStreamLineMock, getSprintStateMock,
 } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -26,6 +27,8 @@ const {
   const rendererUpdateMock = vi.fn();
   const rendererUpdateSprintStateMock = vi.fn();
   const rendererCleanupMock = vi.fn();
+  const rendererUpdateStoriesMock = vi.fn();
+  const rendererAddMessageMock = vi.fn();
 
   return {
     spawnMock: vi.fn(() => {
@@ -50,11 +53,15 @@ const {
     startRendererMock: vi.fn(() => ({
       update: rendererUpdateMock,
       updateSprintState: rendererUpdateSprintStateMock,
+      updateStories: rendererUpdateStoriesMock,
+      addMessage: rendererAddMessageMock,
       cleanup: rendererCleanupMock,
     })),
     rendererUpdateMock,
     rendererUpdateSprintStateMock,
     rendererCleanupMock,
+    rendererUpdateStoriesMock,
+    rendererAddMessageMock,
     parseStreamLineMock: vi.fn(() => null),
     getSprintStateMock: vi.fn(() => ({ success: false, error: 'no state' })),
   };
@@ -101,6 +108,8 @@ describe('run command', () => {
     rendererUpdateMock.mockClear();
     rendererUpdateSprintStateMock.mockClear();
     rendererCleanupMock.mockClear();
+    rendererUpdateStoriesMock.mockClear();
+    rendererAddMessageMock.mockClear();
     parseStreamLineMock.mockClear();
     parseStreamLineMock.mockReturnValue(null);
     getSprintStateMock.mockClear();
@@ -151,78 +160,29 @@ describe('run command', () => {
     });
   });
 
-  describe('countStories', () => {
-    it('counts stories by status correctly', () => {
-      const counts = countStories({
-        'epic-5': 'in-progress',
-        '5-1-ralph-loop': 'ready-for-dev',
-        '5-2-verification': 'backlog',
-        '5-3-tracking': 'done',
-        '5-4-another': 'in-progress',
-        'epic-5-retrospective': 'optional',
-      });
-      expect(counts).toEqual({ total: 4, ready: 2, done: 1, inProgress: 1, verified: 0 });
-    });
-
-    it('ignores epic keys and retrospective keys', () => {
-      const counts = countStories({
-        'epic-1': 'done', 'epic-1-retrospective': 'done',
-        '1-1-story-one': 'done', '1-2-story-two': 'done',
-      });
+  describe('countStories (re-export)', () => {
+    it('re-exports countStories from run-helpers.ts', () => {
+      // Full unit tests are in run-helpers.test.ts — this verifies the re-export works
+      const counts = countStories({ '1-1-story': 'done', '1-2-story': 'backlog' });
       expect(counts.total).toBe(2);
-      expect(counts.done).toBe(2);
-    });
-
-    it('returns zeros for empty statuses', () => {
-      expect(countStories({})).toEqual({ total: 0, ready: 0, done: 0, inProgress: 0, verified: 0 });
-    });
-
-    it('counts review status as inProgress', () => {
-      expect(countStories({ '1-1-story': 'review' }).inProgress).toBe(1);
-    });
-
-    it('counts verifying status separately', () => {
-      const counts = countStories({
-        '1-1-story': 'verifying',
-        '1-2-story': 'verifying',
-        '1-3-story': 'done',
-      });
-      expect(counts).toEqual({ total: 3, ready: 0, done: 1, inProgress: 0, verified: 2 });
+      expect(counts.done).toBe(1);
     });
   });
 
-  describe('buildSpawnArgs', () => {
-    const baseOpts = {
-      ralphPath: '/path/to/ralph.sh',
-      pluginDir: '/path/to/.claude',
-      promptFile: '/path/to/prompt.md',
-      maxIterations: 50,
-      timeout: 14400,
-      iterationTimeout: 15,
-      calls: 100,
-      quiet: false,
-    };
-
-    it('builds basic argument array', () => {
-      const args = buildSpawnArgs(baseOpts);
+  describe('buildSpawnArgs (re-export)', () => {
+    it('re-exports buildSpawnArgs from run-helpers.ts', () => {
+      // Full unit tests are in run-helpers.test.ts — this verifies the re-export works
+      const args = buildSpawnArgs({
+        ralphPath: '/path/to/ralph.sh',
+        pluginDir: '/path/to/.claude',
+        promptFile: '/path/to/prompt.md',
+        maxIterations: 50,
+        timeout: 14400,
+        iterationTimeout: 15,
+        calls: 100,
+        quiet: false,
+      });
       expect(args).toContain('/path/to/ralph.sh');
-      expect(args).toContain('--plugin-dir');
-      expect(args).toContain('50');
-    });
-
-    it('never includes --live flag (removed)', () => {
-      expect(buildSpawnArgs(baseOpts)).not.toContain('--live');
-      expect(buildSpawnArgs({ ...baseOpts, quiet: true })).not.toContain('--live');
-    });
-
-    it('includes --max-story-retries when provided', () => {
-      const args = buildSpawnArgs({ ...baseOpts, maxStoryRetries: 5 });
-      expect(args).toContain('--max-story-retries');
-      expect(args).toContain('5');
-    });
-
-    it('does not include --max-story-retries when undefined', () => {
-      expect(buildSpawnArgs(baseOpts)).not.toContain('--max-story-retries');
     });
   });
 
@@ -469,7 +429,7 @@ describe('run command', () => {
       expect(optionNames).toContain('--max-story-retries');
     });
 
-    it('--max-story-retries defaults to 3', async () => {
+    it('--max-story-retries defaults to 10', async () => {
       const { registerRunCommand } = await import('../run.js');
       const program = new Command();
       program.option('--json', 'JSON output');
@@ -616,12 +576,187 @@ describe('run command', () => {
       getChildOnHandlers()['close'](0);
       await p;
 
-      expect(rendererUpdateSprintStateMock).toHaveBeenCalledWith({
+      expect(rendererUpdateSprintStateMock).toHaveBeenCalledWith(expect.objectContaining({
         storyKey: '1-1-story',
         phase: 'dev',
         done: 3,
         total: 10,
+        elapsed: expect.stringMatching(/^\d+m$|^\d+h\d+m$/),
+      }));
+    });
+  });
+
+  describe('elapsed time tracking (AC #6)', () => {
+    it('passes elapsed field in sprint info on startup', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      getSprintStateMock.mockReturnValue({
+        success: true,
+        data: {
+          sprint: { total: 5, done: 1, failed: 0, blocked: 0, inProgress: '1-1-story' },
+          run: { currentStory: '1-1-story', currentPhase: 'dev', active: true },
+          stories: {},
+          actionItems: [],
+        },
       });
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      // elapsed should be present and formatted (likely "0m" since it just started)
+      const call = rendererUpdateSprintStateMock.mock.calls[0][0];
+      expect(call).toHaveProperty('elapsed');
+      expect(typeof call.elapsed).toBe('string');
+      expect(call.elapsed).toMatch(/^\d+m$|^\d+h\d+m$/);
+    });
+  });
+
+  describe('per-story status feeding (AC #7)', () => {
+    it('feeds initial story statuses to renderer.updateStories', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({
+        'epic-1': 'done',
+        '1-1-story-a': 'done',
+        '1-2-story-b': 'in-progress',
+        '1-3-story-c': 'backlog',
+      });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      expect(rendererUpdateStoriesMock).toHaveBeenCalledWith([
+        { key: '1-1-story-a', status: 'done' },
+        { key: '1-2-story-b', status: 'in-progress' },
+        { key: '1-3-story-c', status: 'pending' },
+      ]);
+    });
+  });
+
+  describe('polling interval refreshes sprint state and stories (AC #6, #7)', () => {
+    it('updates sprint state and stories on polling interval tick', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      getSprintStateMock.mockReturnValue({
+        success: true,
+        data: {
+          sprint: { total: 5, done: 2, failed: 0, blocked: 0, inProgress: '1-1-story' },
+          run: { currentStory: '1-1-story', currentPhase: 'dev', active: true },
+          stories: {},
+          actionItems: [],
+        },
+      });
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+
+      // Clear initial call counts so we can isolate the polling interval calls
+      rendererUpdateSprintStateMock.mockClear();
+      rendererUpdateStoriesMock.mockClear();
+
+      // Advance time to trigger the 5-second polling interval
+      vi.advanceTimersByTime(5_000);
+
+      // The interval should have fired once, calling updateSprintState and updateStories
+      expect(rendererUpdateSprintStateMock).toHaveBeenCalledTimes(1);
+      expect(rendererUpdateSprintStateMock).toHaveBeenCalledWith(expect.objectContaining({
+        elapsed: expect.stringMatching(/^\d+m$|^\d+h\d+m$/),
+      }));
+      expect(rendererUpdateStoriesMock).toHaveBeenCalledTimes(1);
+
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      vi.useRealTimers();
+    });
+  });
+
+  describe('story messages from ralph stderr (AC #8)', () => {
+    it('parses [SUCCESS] Story lines from stderr and calls addMessage', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+
+      const stderr = getStderrEmitter();
+      stderr!.emit('data', Buffer.from('[SUCCESS] Story 1-1-foo: DONE — verified\n'));
+
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      expect(rendererAddMessageMock).toHaveBeenCalledWith({
+        type: 'ok',
+        key: '1-1-foo',
+        message: 'DONE — verified',
+      });
+    });
+
+    it('parses [WARN] retry exceeded from stderr and calls addMessage', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+
+      const stderr = getStderrEmitter();
+      stderr!.emit('data', Buffer.from('[WARN] Story 2-1-bar exceeded retry limit\n'));
+
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      expect(rendererAddMessageMock).toHaveBeenCalledWith({
+        type: 'fail',
+        key: '2-1-bar',
+        message: 'exceeded retry limit',
+      });
+    });
+
+    it('does not call addMessage for stdout (only stderr has ralph messages)', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ 'ralph.sh': true, '.claude': true, '.flagged_stories': false });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+
+      const stdout = getStdoutEmitter();
+      stdout!.emit('data', Buffer.from('[SUCCESS] Story 1-1-foo: DONE\n'));
+
+      getChildOnHandlers()['close'](0);
+      await p;
+
+      // stdout handler does NOT have parseRalph enabled
+      expect(rendererAddMessageMock).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('DashboardFormatter not used (AC #2)', () => {
+    it('run.ts does not import DashboardFormatter', async () => {
+      // Read the actual source file to verify no DashboardFormatter import
+      const runSource = origReadFileSync(
+        join(process.cwd(), 'src', 'commands', 'run.ts'),
+        'utf-8',
+      );
+      expect(runSource).not.toContain('DashboardFormatter');
+      expect(runSource).not.toContain('dashboard-formatter');
     });
   });
 

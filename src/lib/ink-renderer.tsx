@@ -17,6 +17,8 @@ import {
   type CompletedToolEntry,
   type RetryInfo,
   type RendererState,
+  type StoryStatusEntry,
+  type StoryMessage,
 } from './ink-components.js';
 
 // --- Public Types ---
@@ -31,6 +33,8 @@ export interface RendererOptions {
 export interface RendererHandle {
   update(event: StreamEvent): void;
   updateSprintState(state: SprintInfo | undefined): void;
+  updateStories(stories: StoryStatusEntry[]): void;
+  addMessage(msg: StoryMessage): void;
   cleanup(): void;
 }
 
@@ -39,6 +43,8 @@ export interface RendererHandle {
 const noopHandle: RendererHandle = {
   update() {},
   updateSprintState() {},
+  updateStories() {},
+  addMessage() {},
   cleanup() {},
 };
 
@@ -62,6 +68,8 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   // Mutable state that drives re-renders
   let state: RendererState = {
     sprintInfo: options?.sprintState ?? null,
+    stories: [],
+    messages: [],
     completedTools: [],
     activeTool: null,
     activeToolArgs: '',
@@ -175,8 +183,20 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     rerender();
   }
 
-  return { update, updateSprintState, cleanup };
+  function updateStories(stories: StoryStatusEntry[]): void {
+    if (cleaned) return;
+    state.stories = [...stories];
+    rerender();
+  }
+
+  function addMessage(msg: StoryMessage): void {
+    if (cleaned) return;
+    state.messages = [...state.messages, msg];
+    rerender();
+  }
+
+  return { update, updateSprintState, updateStories, addMessage, cleanup };
 }
 
 // Re-export types that consumers may need
-export type { SprintInfo, CompletedToolEntry, RetryInfo, RendererState } from './ink-components.js';
+export type { SprintInfo, CompletedToolEntry, RetryInfo, RendererState, StoryStatusEntry, StoryStatusValue, StoryMessage } from './ink-components.js';

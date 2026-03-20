@@ -21,6 +21,10 @@ export type {
   RuntimeCoverageEntry,
   RuntimeCoverageResult,
   RuntimeCoverageState,
+  RuntimeValidationConfig,
+  ModuleTelemetryEntry,
+  RuntimeValidationResult,
+  TelemetryEvent,
 } from './types.js';
 
 export { analyze } from './analyzer.js';
@@ -38,3 +42,10 @@ export {
 } from './runtime-coverage.js';
 
 export { checkObservabilityCoverageGate } from './coverage-gate.js';
+
+export {
+  validateRuntime,
+  checkBackendHealth,
+  queryTelemetryEvents,
+  mapEventsToModules,
+} from './runtime-validator.js';

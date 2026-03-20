@@ -1,186 +1,166 @@
 # Story 0.5.3: Ink Terminal Renderer
 
-Status: review
+Status: verifying
 
 ## Story
 
 As an operator,
-I want a terminal UI built with Ink that shows live Claude activity,
-so that I see tool calls, text thoughts, and progress like Claude Code's subagent display.
+I want a rich terminal UI built with Ink that shows live Claude activity, per-story progress, session timing, and story completion messages,
+so that I can see at a glance what Claude is doing, how the sprint is progressing, and what happened to each story.
 
 ## Acceptance Criteria
 
-1. **Given** a tool-start event, **When** rendered, **Then** the display shows `⚡ [ToolName]` with a spinner on the current line. <!-- verification: cli-verifiable -->
-2. **Given** a tool-complete event, **When** rendered, **Then** the completed tool shows `✓ [ToolName] args...` as a permanent line, and the spinner moves to the next activity. <!-- verification: cli-verifiable -->
-3. **Given** text delta events, **When** rendered, **Then** the display shows `💭 {last thought text}` on an updating line — not every chunk, just the latest thought truncated to terminal width. <!-- verification: cli-verifiable -->
-4. **Given** sprint state from `sprint-state.json`, **When** rendered, **Then** a header shows `◆ {story_key} — {phase} | Sprint: {done}/{total}`. <!-- verification: cli-verifiable -->
-5. **Given** `--quiet` flag, **When** set, **Then** the renderer is not started — no terminal output. <!-- verification: cli-verifiable -->
-6. **Given** process exit (SIGINT, SIGTERM, or natural end), **When** Ink cleans up, **Then** no orphaned terminal state. <!-- verification: cli-verifiable -->
+1. **Given** Claude is executing tools during a run, **When** the operator watches the terminal, **Then** they see the active tool with a spinner (`⚡ [ToolName]`) and each completed tool as a permanent line (`✓ [ToolName] args...`). <!-- verification: cli-verifiable -->
+
+2. **Given** Claude is producing text output, **When** the operator watches the terminal, **Then** they see the latest thought on an updating line (`💭 {text}`), truncated to terminal width. <!-- verification: cli-verifiable -->
+
+3. **Given** a running session, **When** the Ink header renders, **Then** it shows the current story key, phase, elapsed time, and sprint progress — matching the UX spec format: `◆ {story_key} — {phase} | {elapsed} | Sprint: {done}/{total}`. <!-- verification: cli-verifiable -->
+
+4. **Given** sprint state data with per-story statuses, **When** the renderer displays the story breakdown section, **Then** it shows stories grouped by status using the UX spec symbols: `✓` done, `◆` in-progress, `○` pending, `✗` failed, `✕` blocked/exhausted — e.g. `Done: 3-1 ✓  4-1 ✓  4-2 ✓ | This: 3-2 ◆ | Next: 3-3 ○`. <!-- verification: cli-verifiable -->
+
+5. **Given** a story completes verification successfully, **When** the renderer receives a story-complete event, **Then** it displays `[OK] Story {key}: DONE — {AC count} ACs verified` with duration and cost on a subsequent line. <!-- verification: cli-verifiable -->
+
+6. **Given** a story fails verification, **When** the renderer receives a story-failed event, **Then** it displays `[WARN] Story {key}: verification found {N} failing ACs → returning to dev` with the failing AC details and attempt count. <!-- verification: cli-verifiable -->
+
+7. **Given** an API retry event, **When** rendered, **Then** it shows `⏳ API retry {attempt} (waiting {delay}ms)`. <!-- verification: cli-verifiable -->
+
+8. **Given** the `--quiet` flag is set, **When** the renderer is started, **Then** no terminal output is produced — a no-op handle is returned. <!-- verification: cli-verifiable -->
+
+9. **Given** process exit (SIGINT, SIGTERM, or natural end), **When** Ink cleans up, **Then** no orphaned terminal state (cursor, alternate screen buffer) remains. <!-- verification: cli-verifiable -->
 
 ## Tasks / Subtasks
 
-- [x] Task 0: Project setup for TSX/Ink (prerequisite for all)
-  - [x] Install dependencies: `ink`, `react`, `@inkjs/ui`, `@types/react` (ink/react as dependencies, types as devDependency)
-  - [x] Update `tsconfig.json`: add `"jsx": "react-jsx"` to compilerOptions
-  - [x] Update `tsup.config.ts`: add a build entry for the renderer or ensure `.tsx` files are handled (tsup supports TSX out of the box)
-  - [x] Verify `tsup` builds a `.tsx` file without errors
-- [x] Task 1: Create Ink renderer component tree (AC: #1, #2, #3, #4)
-  - [x] Create `src/lib/ink-renderer.tsx` with the main `ActivityDisplay` React component
-  - [x] Implement `Header` component: reads sprint state and renders `◆ {story_key} — {phase} | Sprint: {done}/{total}` (AC: #4)
-  - [x] Implement `CompletedTools` component: renders permanent lines `✓ [ToolName] args...` for each completed tool (AC: #2)
-  - [x] Implement `ActiveTool` component: renders `⚡ [ToolName]` with Ink `<Spinner />` on current line (AC: #1)
-  - [x] Implement `LastThought` component: renders `💭 {text}` truncated to `process.stdout.columns` on an updating line (AC: #3)
-  - [x] Implement `RetryIndicator` component: renders `⏳ API retry {attempt}/{max} (waiting {delay}ms)` when retry event is active
-- [x] Task 2: Create renderer controller / API (AC: #1, #2, #3, #5, #6)
-  - [x] Export `startRenderer(options: RendererOptions): RendererHandle` function
-  - [x] `RendererOptions`: `{ quiet?: boolean; sprintState?: { storyKey: string; phase: string; done: number; total: number } }`
-  - [x] `RendererHandle`: `{ update(event: StreamEvent): void; updateSprintState(state): void; cleanup(): void }`
-  - [x] If `quiet === true`, return a no-op handle — no Ink instance created (AC: #5)
-  - [x] Use `render()` from Ink to mount the component tree
-  - [x] `cleanup()` calls `inkInstance.unmount()` and `inkInstance.cleanup()` (AC: #6)
-- [x] Task 3: Wire stream events to component state (AC: #1, #2, #3)
-  - [x] Maintain state: `completedTools: Array<{ name: string; args: string }>`, `activeTool: { name: string } | null`, `lastThought: string | null`, `retryInfo: { attempt: number; delay: number } | null`
-  - [x] On `tool-start`: set `activeTool = { name }`, clear `lastThought`
-  - [x] On `tool-input`: accumulate partial input into active tool's args buffer
-  - [x] On `tool-complete`: move `activeTool` to `completedTools` with accumulated args, clear `activeTool`
-  - [x] On `text`: update `lastThought` with latest text (overwrite, not append — show last chunk only)
-  - [x] On `retry`: set `retryInfo`; clear on next `tool-start` or `text`
-  - [x] On `result`: no rendering change (handled by caller)
-  - [x] Handle `content_block_stop` after text blocks (not tool blocks): the parser emits `tool-complete` for ALL `content_block_stop` events. The renderer must track whether the active block was a tool or text and ignore `tool-complete` when no `activeTool` is set.
-- [x] Task 4: Signal handling and cleanup (AC: #6)
-  - [x] Register `SIGINT` and `SIGTERM` handlers that call `cleanup()`
-  - [x] Ensure Ink's `exitOnCtrlC` option is set appropriately
-  - [x] On natural process exit, call `cleanup()` to restore terminal state
-  - [x] Verify no orphaned cursor-hide or alternate-screen-buffer state after cleanup
-- [x] Task 5: Write unit tests (AC: #1-#6)
-  - [x] Create `src/lib/__tests__/ink-renderer.test.tsx` (uses ink-testing-library for component rendering tests + API tests)
-  - [x] Test `startRenderer({ quiet: true })` returns no-op handle (AC: #5)
-  - [x] Test `update()` with tool-start event sets active tool state
-  - [x] Test `update()` with tool-complete moves tool to completed list
-  - [x] Test `update()` with text event updates last thought
-  - [x] Test `update()` with retry event sets retry info
-  - [x] Test `cleanup()` can be called multiple times without error
-  - [x] Test tool-complete after text block (no activeTool) is handled gracefully
-  - [x] For Ink component rendering tests, use `ink-testing-library` if needed (devDependency)
+- [x] Task 1: Expand SprintInfo type and Header component (AC: #3)
+  - [x] Add `elapsed?: string` to SprintInfo
+  - [x] Update Header to render elapsed time: `◆ {storyKey} — {phase} | {elapsed} | Sprint: {done}/{total}`
+  - [x] Update tests for new header format
+
+- [x] Task 2: Add per-story status breakdown component (AC: #4)
+  - [x] Define `StoryStatusEntry` type: `{ key: string; status: StoryStatusValue }`
+  - [x] Add `stories: StoryStatusEntry[]` to RendererState
+  - [x] Create `StoryBreakdown` component that groups stories by status and renders with correct symbols (✓/◆/○/✗/✕)
+  - [x] Add `updateStories(stories: StoryStatusEntry[])` to RendererHandle
+  - [x] Compact single-line format: `Done: 3-1 ✓  4-1 ✓ | This: 3-2 ◆ | Next: 3-3 ○`
+  - [x] Update tests
+
+- [x] Task 3: Add story completion/failure message components (AC: #5, #6)
+  - [x] Define `StoryMessage` type: `{ type: 'ok' | 'warn' | 'fail'; key: string; message: string; details?: string[] }`
+  - [x] Add `messages: StoryMessage[]` to RendererState
+  - [x] Create `StoryMessages` component rendering `[OK]`/`[WARN]`/`[FAIL]` lines per UX spec format
+  - [x] Add `addMessage(msg: StoryMessage)` to RendererHandle
+  - [x] Messages are permanent (append-only, not overwritten)
+  - [x] Update tests
+
+- [x] Task 4: Wire new components into App and renderer controller (AC: #1-#9)
+  - [x] Add StoryBreakdown and StoryMessages to App component tree
+  - [x] Expose new methods on RendererHandle: `updateStories()`, `addMessage()`
+  - [x] Ensure no-op handle includes new methods
+  - [x] Verify signal handling still works with expanded state
+
+- [x] Task 5: Update tests for all new/changed behavior (AC: #1-#9)
+  - [x] Test Header renders elapsed time
+  - [x] Test StoryBreakdown renders correct symbols per status
+  - [x] Test StoryMessages renders [OK], [WARN], [FAIL] formats
+  - [x] Test updateStories() and addMessage() on RendererHandle
+  - [x] Test no-op handle includes new methods
+  - [x] All 29 existing tests still pass (47 total now)
 
 ## Dev Notes
 
-### Current State — What Exists
+### What Exists (Enhance, Don't Rewrite)
 
-**Story 0.5.1 (done)** switched ralph's Claude driver to `--output-format stream-json`. Claude now emits NDJSON during execution.
+The Ink renderer already works for tool activity display. This story ENHANCES it with:
+1. Richer header (add elapsed time)
+2. Per-story status section (new component)
+3. Story completion messages (new component)
 
-**Story 0.5.2 (done)** created `src/lib/stream-parser.ts` with `parseStreamLine()` that returns a `StreamEvent` discriminated union:
-- `ToolStartEvent` — `{ type: 'tool-start', name: string, id: string }`
-- `ToolInputEvent` — `{ type: 'tool-input', partial: string }`
-- `ToolCompleteEvent` — `{ type: 'tool-complete' }`
-- `TextEvent` — `{ type: 'text', text: string }`
-- `RetryEvent` — `{ type: 'retry', attempt: number, delay: number }`
-- `ResultEvent` — `{ type: 'result', cost: number, sessionId: string }`
+**Do NOT rewrite ink-components.tsx or ink-renderer.tsx from scratch.** Add new components and expand existing types. The existing tool activity display (⚡ spinner, ✓ completed, 💭 thought, ⏳ retry) is correct and should not change.
 
-**Story 0.3 (done)** created `src/lib/dashboard-formatter.ts` — the existing non-Ink dashboard used by `src/commands/run.ts`. This will be replaced by the Ink renderer in Story 0.5.4.
+### Key Files to Modify
 
-**Sprint state** is in `sprint-state.json` (read via `src/modules/sprint/state.ts`). The `SprintState` interface has:
-- `sprint.done`, `sprint.total` — progress counts
-- `run.currentStory`, `run.currentPhase` — active work
+- `src/lib/ink-components.tsx` — Add StoryBreakdown, StoryMessages components; expand SprintInfo type; update Header; update App
+- `src/lib/ink-renderer.tsx` — Expand RendererState; add updateStories(), addMessage() to handle; update no-op handle
+- `src/lib/__tests__/ink-renderer.test.tsx` — Add tests for new components and API
 
-### Key Files to Read (do NOT modify)
+### Key Files to Read (Do NOT Modify)
 
-- `src/lib/stream-parser.ts` — the `StreamEvent` types this renderer consumes
-- `src/lib/dashboard-formatter.ts` — existing formatter (reference for display patterns, will be replaced in 0.5.4)
-- `src/modules/sprint/state.ts` — `readState()`, `SprintState` interface
-- `src/types/state.ts` — `SprintState`, `StoryState` type definitions
-- `src/commands/run.ts` — where the renderer will be integrated (in 0.5.4, not this story)
+- `src/lib/stream-parser.ts` — StreamEvent types consumed by the renderer
+- `src/commands/run.ts` — Where the renderer is integrated (modified in 0.5.4, not this story)
 
-### Key Files to Create
+### Architecture Constraints
 
-- `src/lib/ink-renderer.tsx` — main renderer component and API
-- `src/lib/__tests__/ink-renderer.test.ts` — unit tests
+- **NFR9: No file > 300 lines.** If ink-components.tsx exceeds 300 lines after adding new components, split into `ink-components.tsx` (existing) and `ink-status-components.tsx` (new story/status components).
+- **Vitest** for unit tests, **100% coverage target**
+- **ink-testing-library** for component rendering tests (already a devDependency)
+- **TSX** with `"jsx": "react-jsx"` in tsconfig (already configured)
 
-### Critical Design Decisions
+### UX Spec Reference — Expected Visual Output
 
-1. **TSX is new to this project.** `tsconfig.json` needs `"jsx": "react-jsx"`. `tsup` handles `.tsx` files natively — no extra config beyond ensuring the entry/include covers `.tsx`.
-
-2. **Ink is React for terminals.** Use `ink` (v5+) and `react` (v18+). Use `<Spinner />` from `@inkjs/ui` for the active tool indicator.
-
-3. **The renderer is a library, not a command.** It exports a `startRenderer()` function that returns a handle. The `run` command (Story 0.5.4) will call this. This story does NOT modify `run.ts`.
-
-4. **Stateless parser, stateful renderer.** The parser (`parseStreamLine`) is stateless per-line. The renderer accumulates state: it tracks which tool is active, what args have been collected, completed tools list, last thought text.
-
-5. **`content_block_stop` ambiguity.** The parser emits `tool-complete` for ALL `content_block_stop` events (both tool and text blocks) because the parser is stateless. The renderer MUST check whether `activeTool` is set before promoting to completed. If `activeTool` is null when `tool-complete` arrives, ignore it — it was a text block stop.
-
-6. **Text truncation.** Truncate `lastThought` to `process.stdout.columns - 4` (room for `💭 ` prefix and padding). Use `slice()`, not word wrap.
-
-7. **Args truncation for completed tools.** When a tool completes, show `✓ [ToolName] {first ~60 chars of accumulated input}...` as the permanent line. The full args are not needed — just enough to identify the call.
-
-8. **No file >300 lines (NFR9).** If the component tree exceeds this, split into `src/lib/ink-renderer.tsx` (main export + controller) and `src/lib/ink-components.tsx` (individual React components).
-
-### Dependencies to Install
+The live mode display should look like this (from UX spec):
 
 ```
-npm install ink react @inkjs/ui
-npm install -D @types/react ink-testing-library
+◆ 3-2-bmad-installation-workflow-patching — verify | 47m | Sprint: 18/65
+Done: 3-1 ✓  4-1 ✓  4-2 ✓
+This: 3-2 ◆ verifying
+Next: 3-3 ○
+
+✓ [Bash] npm run test:unit 2>&1 | tail -20
+✓ [Read] src/modules/sprint/state.ts
+⚡ [Bash] docker exec codeharness-verify ...
+💭 Running the verification container to check AC 8...
 ```
 
-Ink v5 requires React 18. Both `ink` and `react` must be production dependencies since the renderer runs at runtime.
-
-### tsconfig.json Change
-
-Add to `compilerOptions`:
-```json
-"jsx": "react-jsx"
+Story completion messages (displayed between stories):
+```
+[OK] Story 3-2: DONE — 12/12 ACs verified (18m, $4.20)
+[WARN] Story 3-3: verification found 2 failing ACs → returning to dev (attempt 2/10)
 ```
 
-This enables JSX transform without needing `import React from 'react'` in every file.
+### Previous Story Intelligence (0.5.2)
 
-### Renderer API Contract
+- Parser is stateless per-line; renderer is stateful
+- `content_block_stop` after text block (no activeTool) must be ignored in tool-complete handler — this is already correctly handled
+- Codepoint-aware truncation for emoji/CJK already implemented in `truncateToWidth()`
 
-```typescript
-interface RendererOptions {
-  quiet?: boolean;
-  sprintState?: {
-    storyKey: string;
-    phase: string;
-    done: number;
-    total: number;
-  };
-}
+### Display Layout Order (top to bottom)
 
-interface RendererHandle {
-  update(event: StreamEvent): void;
-  updateSprintState(state: RendererOptions['sprintState']): void;
-  cleanup(): void;
-}
-
-function startRenderer(options?: RendererOptions): RendererHandle;
-```
+1. **Header** — story key, phase, elapsed, sprint progress
+2. **Story Breakdown** — per-story status with symbols (compact single line)
+3. **Story Messages** — [OK]/[WARN]/[FAIL] messages (permanent, append-only)
+4. **Completed Tools** — ✓ lines (scrolling, max 50)
+5. **Active Tool** — ⚡ with spinner
+6. **Last Thought** — 💭 text
+7. **Retry Notice** — ⏳ (when active)
 
 ### What This Story Does NOT Include
 
-- No integration with `run.ts` or ralph — that's Story 0.5.4
-- No modification of existing commands or modules
-- No changes to `stream-parser.ts` (consumed as-is)
-- No changes to `dashboard-formatter.ts` (replaced in 0.5.4, not this story)
+- No integration with `run.ts` — that's Story 0.5.4
+- No data sourcing (reading sprint-status.yaml, computing elapsed time) — that's 0.5.4
+- No changes to stream-parser.ts
+- No changes to ralph or bash scripts
+- This story builds the components that CAN render the data; 0.5.4 feeds data in
 
 ### Anti-Patterns to Avoid
 
-- Do NOT use `console.log` for terminal output — Ink manages the terminal
-- Do NOT use ANSI escape codes directly — use Ink's `<Text>` and `<Box>` components
-- Do NOT accumulate ALL text deltas — only keep the LAST thought text for display
-- Do NOT create a separate process or thread for rendering — Ink runs in the same Node.js process
-- Do NOT import from `@inkjs/ui` things that don't exist — verify the package exports `Spinner` (it does as of v2+)
+- Do NOT use `console.log` — Ink manages the terminal
+- Do NOT use ANSI escape codes — use Ink's `<Text>` and `<Box>` components
+- Do NOT accumulate ALL text deltas — only keep the LAST thought
+- Do NOT hardcode story data — components receive data via props/state
+- Do NOT break existing tool activity display — enhance, don't replace
 
 ### References
 
-- [Source: _bmad-output/planning-artifacts/epics-operational-excellence.md#Story 0.5.3] — acceptance criteria
-- [Source: src/lib/stream-parser.ts] — StreamEvent types consumed by the renderer
-- [Source: src/lib/dashboard-formatter.ts] — existing display patterns
-- [Source: src/modules/sprint/state.ts] — sprint state reading
-- [Source: src/types/state.ts] — SprintState type definition
+- [Source: _bmad-output/planning-artifacts/epics-operational-excellence.md#Story 0.5.3] — original epic ACs
+- [Source: _bmad-output/planning-artifacts/ux-design-specification.md#Lines 199-252] — live mode display format, story completion messages, status symbols
+- [Source: _bmad-output/planning-artifacts/prd-overhaul.md#Lines 163-197] — journey 1 evening/morning display
+- [Source: src/lib/ink-components.tsx] — existing components to enhance
+- [Source: src/lib/ink-renderer.tsx] — existing controller to enhance
+- [Source: src/lib/stream-parser.ts] — StreamEvent types
 
 <!-- CODEHARNESS-PATCH-START:story-verification -->
 ## Verification Requirements
 
-- [ ] Showboat proof document created (`docs/exec-plans/active/0-5-3-ink-terminal-renderer.proof.md`)
+- [ ] Showboat proof document created (`verification/0-5-3-ink-terminal-renderer.proof.md`)
 - [ ] All acceptance criteria verified with real-world evidence
 - [ ] Test coverage meets target (100%)
 
@@ -206,21 +186,18 @@ Claude Opus 4.6 (1M context)
 
 ### Completion Notes List
 
-- Installed ink, react, @inkjs/ui as production deps; @types/react and ink-testing-library as dev deps
-- Added "jsx": "react-jsx" to tsconfig.json compilerOptions
-- Split components into ink-components.tsx (107 lines) and controller into ink-renderer.tsx (97 lines) per NFR9 (<300 lines each)
-- Components render correctly with ink-testing-library: Header, CompletedTool, ActiveTool, LastThought, RetryNotice, App
-- Controller handles all StreamEvent types; tool-complete after text block (no activeTool) is safely ignored
-- Signal handlers (SIGINT/SIGTERM) call cleanup(); exitOnCtrlC set to false so we control cleanup ourselves
-- 29 tests pass, full suite (2579 tests) unaffected
-- tsup JS build succeeds; pre-existing DTS build error is unrelated to this story
-- vitest.config.ts updated to include .tsx in coverage
+- Enhanced existing Ink renderer with 3 new capabilities: elapsed time in header, per-story status breakdown, story completion messages
+- Added `StoryStatusEntry`, `StoryStatusValue`, `StoryMessage` types to ink-components.tsx
+- Added `StoryBreakdown` component — groups stories by status, renders with UX spec symbols (✓/◆/○/✗/✕)
+- Added `StoryMessages` component — renders [OK]/[WARN]/[FAIL] lines with optional detail lines (└ prefix)
+- Expanded `SprintInfo` with optional `elapsed` field, Header renders it when present
+- Expanded `RendererState` with `stories` and `messages` arrays
+- Added `updateStories()` and `addMessage()` to RendererHandle (including no-op handle)
+- 47 vitest tests pass (18 new + 29 existing), 2676 total vitest tests pass, 316 BATS tests pass
+- Both files remain under 300 lines (NFR9): ink-components.tsx=228, ink-renderer.tsx=202
 
 ### File List
 
-- src/lib/ink-components.tsx (new) — React components: Header, CompletedTool, ActiveTool, LastThought, RetryNotice, App
-- src/lib/ink-renderer.tsx (new) — Controller API: startRenderer(), RendererHandle, event-to-state wiring
-- src/lib/__tests__/ink-renderer.test.tsx (new) — 29 tests covering all ACs
-- tsconfig.json (modified) — added "jsx": "react-jsx"
-- vitest.config.ts (modified) — added .tsx to coverage include/exclude
-- package.json (modified) — new dependencies: ink, react, @inkjs/ui, @types/react, ink-testing-library
+- src/lib/ink-components.tsx (modified) — added StoryStatusEntry, StoryMessage types; StoryBreakdown, StoryMessages components; expanded SprintInfo and Header; updated App layout
+- src/lib/ink-renderer.tsx (modified) — expanded RendererState; added updateStories(), addMessage() to handle and no-op; re-exported new types
+- src/lib/__tests__/ink-renderer.test.tsx (modified) — 18 new tests for header elapsed, StoryBreakdown, StoryMessages, controller methods

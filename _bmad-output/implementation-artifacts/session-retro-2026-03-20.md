@@ -222,3 +222,427 @@
 4. **Silent catch blocks** — Carried over from Session 1. Three locations still swallow errors silently.
 5. **Test against real telemetry** — Carried over from Session 1. No project with actual OTEL data has been used for end-to-end testing.
 6. **Agent workflow compliance** — Agents consistently fail to update sprint-status.yaml. Either enforce it in the agent prompt or accept that harness-run handles it and remove the expectation.
+
+---
+
+# Session 3 Retrospective — 2026-03-20T10:30Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~06:18Z – ~06:30Z (2026-03-20), approx 15 minutes (AC3 fix + code review)
+**Stories attempted:** 1
+**Stories completed:** 1 (2-2-observability-hook-enforcement -> done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Notes |
+|-------|-------------|------------|-----------------|-------|
+| 2-2-observability-hook-enforcement | review (AC3 failing) | done | dev-story (AC3 fix), code-review (AC3 cycle), verify | AC3 gap data pipeline was wired. Code review found the double-read bug in coverage-gate.ts and missing gaps field in StaticCoverageState. All 3 ACs passed verification. Committed as `2bd7760`. |
+
+**Net progress:** Story 2-2 completed. Epic 2 now has 2/3 stories done (2-1 and 2-2). Story 2-3 (standalone runtime check/audit mode) remains in backlog.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+1. **HIGH -- Double file read in coverage-gate.ts (code-review):** `checkObservabilityCoverageGate()` read sprint-state.json twice independently -- once via `readCoverageState()` for coverage numbers and once via `readCachedGaps()` for gap data. Two separate file reads, two separate JSON parses, two separate error paths. Fixed by adding gaps to `StaticCoverageState` and parsing everything in `extractCoverageState()`.
+2. **HIGH -- Gaps never parsed back through readCoverageState (code-review):** `StaticCoverageState` type lacked a gaps field. Even though `saveCoverageResult()` writes gaps to sprint-state.json, `extractCoverageState()` never read them back. AC3 always showed empty gaps because the data was in the file but never loaded into memory. Root cause of the AC3 verification failure in Session 2.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **Duplicated default target constants (LOW, not fixed):** `DEFAULT_STATIC_TARGET` and `DEFAULT_RUNTIME_TARGET` are defined in both `coverage.ts` and `coverage-gate.ts`. Should be a single shared constant. Identified in code review but deferred.
+2. **No integration test for full gap flow (LOW, not fixed):** There is no test that writes state with gaps, runs the gate, and verifies gaps appear in output. Unit tests exist for each piece individually but the end-to-end data flow is untested in automated tests.
+
+### Workarounds Carried Forward
+
+1. **`codeharness analyze` command still does not exist:** Session 2 identified this. Dev changed references to point to `codeharness observability-gate` or `patches/observability/` instead. The original block message referenced a non-existent command; now it references an existing one. Resolved by changing the reference rather than building the command.
+2. **Gaps only populate after at least one analyzer run:** If sprint-state.json was written by an older version without the gaps field, the gate returns empty gaps. Graceful degradation, but first-run experience shows no gap details even when coverage is below target.
+
+### Code Quality Concerns
+
+1. **Duplicated constants across modules** -- same default target values defined in two files. Minor but will cause bugs if one is changed without the other.
+
+### Verification Gaps
+
+None new. All 3 ACs passed verification with concrete evidence (JSON output, exit codes, gap details in output).
+
+### Tooling/Infrastructure Problems
+
+None new this session.
+
+---
+
+## 3. What Went Well
+
+- **Story 2-2 completed after one fix iteration.** Session 2 identified the exact failure (AC3 empty gaps). Session 3 fixed the root cause and passed verification on the first attempt. The fix cycle was fast (~15 minutes).
+- **Code review found the root cause that dev missed.** Dev fixed the symptom (added `readCachedGaps()` to read gaps separately). Code review identified that the real fix was adding gaps to the existing type and parsing path, eliminating the double-read.
+- **Non-existent command reference resolved.** The `codeharness analyze` reference from Session 2 was changed to point to actual commands. Users hitting the gate will now see actionable guidance.
+- **Both Epic 2 implementation stories done.** Stories 2-1 and 2-2 are both verified and committed. The observability pipeline now has static analysis, runtime verification, and hook enforcement.
+
+---
+
+## 4. What Went Wrong
+
+- **Same class of bug for the third session in a row.** Session 1: `saveRuntimeCoverage` was dead code (implemented but never called). Session 2: `gapSummary` was always empty (formatting code exists, no data source). Session 3: `StaticCoverageState` lacked gaps field (data in file, never loaded). All three are the same pattern: data pipeline breaks because producer and consumer are built independently without verifying the connection.
+- **AC3 required three sessions to complete.** Created in Session 2, failed verification in Session 2, fixed in Session 3. A story with 3 ACs should not span multiple sessions, especially when the create-story phase identified the exact risk ("No codeharness analyze CLI command exists yet") that caused the failure.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Targeted fix sessions work.** When the failure is well-characterized (Session 2 identified exactly what was wrong with AC3), a focused fix cycle is fast and effective. The session issues log from Session 2 gave Session 3 a clear target.
+- **Code review improving fix quality.** Dev's initial fix (add a second file read) would have worked but introduced a new problem (double I/O). Code review upgraded it to the correct fix (extend the existing type). Review is not just catching bugs -- it is improving fix architecture.
+
+### Patterns to Avoid
+
+- **Building data producers and consumers in isolation.** Three sessions, three instances of the same bug class. The dev task list needs an explicit step: "Verify data flows end-to-end: write test data -> call producer -> call consumer -> assert output contains expected data." This should be a mandatory task in every story that adds data flow.
+- **Deferring known risks from create-story.** The create-story phase identified "No codeharness analyze CLI command" as a risk. Dev proceeded without resolving it, causing AC3 failure. Risks identified during story creation should either be mitigated in the tasks or the AC should be rewritten to avoid the risk.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+Nothing blocking. Story 2-2 is done. All Session 2 "Fix Now" items are resolved.
+
+### Fix Soon (Next Sprint)
+
+1. **Deduplicate default target constants** -- `DEFAULT_STATIC_TARGET` and `DEFAULT_RUNTIME_TARGET` exist in both `coverage.ts` and `coverage-gate.ts`. Extract to a shared constants file or the types module.
+2. **Add end-to-end gap flow integration test** -- Write a test that creates sprint-state.json with gap data, runs `checkObservabilityCoverageGate()`, and asserts gaps appear in the result. Currently untested.
+3. **Fix pre-existing BATS failures** -- Carried from Session 2. Tests 28-31 still failing on master.
+4. **Add mandatory "verify data flow" task to story template** -- Every story that adds a data pipeline should include a task: "Write integration test verifying data flows from producer to consumer."
+
+### Backlog (Track but Not Urgent)
+
+1. **Centralize gap parsing** -- Carried from Session 1. Three independent parsing locations remain.
+2. **Fix binary `logEventCount`** -- Carried from Session 1.
+3. **Silent catch blocks** -- Carried from Session 1.
+4. **Test against real telemetry** -- Carried from Session 1.
+5. **Agent workflow compliance** -- Carried from Session 2.
+6. **Type escape hatches (`as unknown as Record`)** -- Carried from Session 1.
+7. **Replace grep-based JSON parsing in pre-commit-gate.sh** -- Carried from Session 2.
+
+---
+
+## Cross-Session Pattern Analysis
+
+Three sessions on 2026-03-20. One persistent bug class appeared in every session:
+
+| Session | Bug | Pattern |
+|---------|-----|---------|
+| 1 | `saveRuntimeCoverage` never called | Function implemented, tested, exported, but never wired into caller |
+| 2 | `gapSummary` always empty | Formatting code exists, no data source connected |
+| 3 | `StaticCoverageState` missing gaps field | Data written to file, never read back into type |
+
+All three are **producer-consumer disconnects**. The fix is process-level: every story that adds data flow must include an explicit task verifying the full pipeline (write -> read -> display). Without this, the pattern will continue in future stories.
+
+**Session totals for 2026-03-20:**
+- Stories completed: 2 (2-1-verification-observability-check, 2-2-observability-hook-enforcement)
+- Stories attempted: 2
+- HIGH bugs found by code review: 6 (3 in Session 1, 3 in Session 2, 2 in Session 3 -- 8 total, but Session 1 was for story 2-1)
+- Verification failures requiring re-work: 2 (proof parser in Session 1, AC3 in Session 2)
+- Phases executed: ~12 (create-story x2, dev x3, code-review x3, verify x3, plus Session 3 fix cycle)
+
+---
+
+# Session 4 Retrospective — 2026-03-20T10:35Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~06:32Z – ~06:55Z (2026-03-20), approx 25 minutes
+**Stories attempted:** 1
+**Stories completed:** 0 (2-3-standalone-runtime-check-audit-mode at `verifying`, not yet done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Notes |
+|-------|-------------|------------|-----------------|-------|
+| 2-3-standalone-runtime-check-audit-mode | backlog | verifying | create-story, dev-story, code-review | Full pipeline through code review. Story implements `validateRuntime()` — a standalone function that queries VictoriaLogs for runtime telemetry and computes module-level coverage. Code review found 3 issues (2 HIGH, 1 MEDIUM), all fixed. File grew to 212 lines (above 200-line target, justified by security hardening). Verification not yet completed — session ended or is still in progress. |
+
+**Net progress:** Story 2-3 advanced through 3 phases (create-story, dev, code-review) but has not reached done. Epic 2 remains at 2/3 stories done (2-1, 2-2). Sprint-status.yaml still shows 2-3 as `verifying`.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+1. **HIGH -- Command injection in `execSync(cfg.testCommand)` (code-review):** The runtime validator executed unsanitized user-provided test commands via `execSync`. An attacker could inject shell metacharacters. Fixed with metacharacter rejection — the function now refuses commands containing `;`, `|`, `&`, `` ` ``, `$()`, `>`, `<`.
+2. **HIGH -- Query timeout too short (code-review):** The health-check timeout of 3 seconds was reused for VictoriaLogs queries. Queries against real telemetry data take longer. Fixed with a dedicated 30-second query-specific timeout.
+3. **MEDIUM -- Malformed URL crash (code-review):** `new URL()` in `queryTelemetryEvents` could throw on malformed endpoint URLs, crashing the process. Fixed with try/catch.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **File exceeded 200-line target (LOW, not fixed):** `runtime-validator.ts` grew to 212 lines, above the story's 200-line cap. Justified by security hardening added during code review. Future additions will need extraction or a new module.
+2. **`parseLogEvents` silently drops malformed JSON (LOW, not fixed):** NDJSON lines that fail `JSON.parse` are silently dropped with no counter, warning, or diagnostic. Same silent-error pattern flagged in Sessions 1-3.
+3. **Substring module matching (LOW, not fixed):** `event.source.includes(mod)` can false-positive on short module names (e.g., module `"io"` matches `"stdio"`, `"radio"`, etc.). No exact-match or boundary-aware matching.
+4. **`saveRuntimeCoverage` doesn't persist module details (architecture):** `validateRuntime()` returns a `RuntimeValidationResult` with a `modules` array, but `saveRuntimeCoverage()` only persists aggregate stats (percentage, total, covered). Story 3.1 (audit coordinator) must extend persistence to include per-module data.
+
+### Design Decisions and Risks
+
+1. **No CLI surface yet:** This story implements only the module function (`validateRuntime()`), not a `codeharness audit` CLI command. The CLI surface is deferred to Epic 3 / Story 3.1. Same pattern as Session 2 where `codeharness analyze` was referenced but didn't exist.
+2. **AC 1 integration risk (create-story):** Verifying runtime validation requires running VictoriaLogs with actual OTLP-instrumented test execution producing telemetry. Tagged as `integration-required` during story creation.
+3. **Module detection heuristic undefined (create-story):** The architecture says "module-level matching" but doesn't specify how to discover modules or map telemetry events to them. Dev resolved this by using config-provided module names matched via string inclusion — fragile but functional.
+4. **Config path mismatch (create-story):** Story creation expected config at `_bmad/bmm/config.yaml` but actual path is `_bmad/config.yaml`. Workaround applied, but this indicates stale path references in templates or documentation.
+5. **Epic-2 status anomaly (create-story):** Sprint-status.yaml shows `epic-2: backlog` despite stories 2-1 and 2-2 being `done`. Left as-is per instructions, but the epic status is inaccurate.
+
+### Code Quality Concerns
+
+1. **Branch coverage at 76% (dev):** Statement, function, and line coverage are at 100%, but defensive fallbacks in NDJSON parsing leave branches uncovered. These are error-path branches that are hard to trigger in unit tests without mocking internal parse failures.
+
+### Verification Gaps
+
+1. **Verification not yet completed:** Story is at `verifying` but no proof document has been validated. The session appears to have ended before verification could run or complete.
+2. **VictoriaLogs zero events (expected):** Same as all previous sessions — codeharness does not emit its own telemetry, so runtime validation queries return empty. The feature is tested against mocked data but not against a live instrumented project.
+
+### Tooling/Infrastructure Problems
+
+None new this session.
+
+---
+
+## 3. What Went Well
+
+- **Code review caught a security vulnerability.** Command injection via `execSync` is a serious bug that would have shipped without review. The metacharacter rejection fix is a meaningful security improvement.
+- **Three phases completed in ~25 minutes.** Create-story, dev, and code-review all completed quickly. The pipeline throughput continues to be efficient.
+- **Story creation identified key risks early.** The create-story phase flagged AC 1 integration difficulty, the missing CLI surface, and the module detection ambiguity. All three were real issues that dev had to navigate.
+- **Dev achieved 100% statement/function/line coverage.** Despite implementing a function that talks to external services (VictoriaLogs, test command execution), the test suite mocks all I/O and covers the happy path and error paths comprehensively.
+
+---
+
+## 4. What Went Wrong
+
+- **Story did not reach done.** Session ended with the story at `verifying`, meaning no verification ran. This is the first session today that ended mid-pipeline without completing its story.
+- **Silent error handling pattern continues.** Session 4 adds another instance: `parseLogEvents` silently drops malformed JSON. This is the fourth session in a row where silent error swallowing was flagged but not fixed. The pattern is now systemic.
+- **Substring matching is a latent bug.** Using `event.source.includes(mod)` for module detection will produce false positives in any project with short module names. This was flagged but not fixed, and it will be the source of incorrect coverage numbers in production.
+- **Persistence gap between `validateRuntime()` and `saveRuntimeCoverage()`.** This is the same producer-consumer disconnect pattern from Sessions 1-3, now in a new form: the function produces per-module data but the persistence layer only saves aggregates. The module details are computed and then discarded.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Security review in code review phase.** The command injection bug was a real vulnerability, not a theoretical concern. Code review catching `execSync` with unsanitized input justifies the review overhead.
+- **Tagging ACs with verification difficulty during create-story.** The `<!-- verification: integration-required -->` tag on AC 1 sets correct expectations for the verify phase. Better than discovering the difficulty during verification.
+
+### Patterns to Avoid
+
+- **Reusing timeouts across different operations.** A 3-second health-check timeout is wrong for a 30-second data query. Timeouts should be calibrated per operation, not shared as a single constant.
+- **String inclusion for matching without boundary checks.** `includes()` is not a matching strategy — it is a substring search. Module matching needs at least word-boundary awareness or exact matching.
+- **Ending sessions before verification.** A story at `verifying` without a proof is in limbo — it consumed create/dev/review effort but produced no validated output. Sessions should either complete through verification or not start the story.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Complete verification of 2-3-standalone-runtime-check-audit-mode.** The story is at `verifying` and needs a full Docker verification pass. This is the only blocker to completing Epic 2.
+
+### Fix Soon (Next Sprint)
+
+1. **Fix substring module matching** -- Replace `event.source.includes(mod)` with boundary-aware or exact matching. Short module names will cause false positives in production.
+2. **Add diagnostics for dropped NDJSON lines** -- `parseLogEvents` should count and warn about malformed lines, not silently discard them.
+3. **Extend `saveRuntimeCoverage` to persist module details** -- Story 3.1 needs per-module data. The persistence layer currently discards it.
+4. **Fix epic-2 status in sprint-status.yaml** -- Epic status says `backlog` but 2 of 3 stories are `done`. Should be `in-progress` at minimum.
+5. **Deduplicate default target constants** -- Carried from Session 3.
+6. **Add end-to-end gap flow integration test** -- Carried from Session 3.
+7. **Fix pre-existing BATS failures** -- Carried from Session 2. Tests 28-31 still failing on master.
+
+### Backlog (Track but Not Urgent)
+
+1. **Centralize gap parsing** -- Carried from Session 1. Three independent parsing locations remain.
+2. **Fix binary `logEventCount`** -- Carried from Session 1.
+3. **Silent catch blocks** -- Carried from Session 1. Now four+ locations.
+4. **Test against real telemetry** -- Carried from Session 1.
+5. **Agent workflow compliance** -- Carried from Session 2.
+6. **Type escape hatches (`as unknown as Record`)** -- Carried from Session 1.
+7. **Replace grep-based JSON parsing in pre-commit-gate.sh** -- Carried from Session 2.
+8. **Config path mismatch** -- `_bmad/bmm/config.yaml` vs `_bmad/config.yaml`. Templates reference the wrong path.
+
+---
+
+## Cross-Session Pattern Analysis (Updated)
+
+Four sessions on 2026-03-20. The producer-consumer disconnect pattern persists:
+
+| Session | Bug | Pattern |
+|---------|-----|---------|
+| 1 | `saveRuntimeCoverage` never called | Function implemented, tested, exported, but never wired into caller |
+| 2 | `gapSummary` always empty | Formatting code exists, no data source connected |
+| 3 | `StaticCoverageState` missing gaps field | Data written to file, never read back into type |
+| 4 | `saveRuntimeCoverage` doesn't persist modules | Function returns per-module data, persistence layer discards it |
+
+A second pattern emerged this session: **silent error handling**. Four sessions, four instances of silent error swallowing (catch blocks with no logging, parse failures with no counters, malformed data silently dropped). This is now as persistent as the producer-consumer disconnect.
+
+**Cumulative session totals for 2026-03-20:**
+- Stories completed: 2 (2-1, 2-2)
+- Stories in progress: 1 (2-3 at verifying)
+- HIGH bugs found by code review: 8 (Sessions 1-3) + 2 (Session 4) = 10 total
+- Security vulnerabilities caught: 1 (command injection in Session 4)
+- Verification failures requiring re-work: 2 (proof parser in Session 1, AC3 in Session 2)
+- Phases executed: ~15 (Sessions 1-3: ~12, Session 4: create-story + dev + code-review = 3)
+
+---
+
+# Session 5 Retrospective — 2026-03-20T11:00Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~06:55Z – ~07:03Z (2026-03-20), approx 10 minutes
+**Stories attempted:** 1
+**Stories completed:** 1 (2-3-standalone-runtime-check-audit-mode -> done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Completed | Notes |
+|-------|-------------|------------|-----------------|-------|
+| 2-3-standalone-runtime-check-audit-mode | verifying | done | verify | Verification completed all 3 ACs. One bug found and fixed during verify (invalid LogsQL query syntax). Stale Docker container required manual cleanup. Committed as `899b622`. Epic 2 marked complete in follow-up commit `a531a96`. |
+
+**Net progress:** Story 2-3 completed. Epic 2 is now fully done (3/3 stories: 2-1, 2-2, 2-3). Sprint-status.yaml updated to `epic-2: done`. Ralph session stopped by user after Epic 2 completion (5 loops, 4 calls, ~95 minutes elapsed).
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Verification
+
+1. **BUG -- Invalid LogsQL query syntax (verify):** `queryTelemetryEvents` used `_stream_id:*` which is not valid VictoriaLogs LogsQL syntax. The query returned HTTP 400. Fixed by changing to `*` (wildcard matching all entries). This bug would have caused every real VictoriaLogs query to fail in production. It was not caught during dev or code review because unit tests mock the HTTP layer.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+None new this session. All unfixed LOWs from Session 4 remain:
+1. File exceeded 200-line target (212 lines).
+2. `parseLogEvents` silently drops malformed JSON.
+3. Substring module matching (`includes()` false positives).
+4. `saveRuntimeCoverage` doesn't persist module details.
+
+### Verification Gaps
+
+1. **`echo ok` test command produces no telemetry (verify):** The synthetic test command used during verification does not emit OTLP telemetry, so VictoriaLogs shows zero events. This is expected for the test setup, but it means AC 1 (query telemetry and compute coverage) was verified against a zero-event dataset. The code paths for non-zero event processing were validated by unit tests only.
+
+### Tooling/Infrastructure Problems
+
+1. **Stale Docker container from prior session (verify):** Had to `docker rm -f` before starting the verification environment. The `verify-env` cleanup that runs between sessions did not remove the container. This is the second time this issue appeared today (also in Session 3). The cleanup script is unreliable.
+
+---
+
+## 3. What Went Well
+
+- **Epic 2 completed.** All three stories (2-1, 2-2, 2-3) are verified and committed. The runtime observability pipeline now has verification checks, hook enforcement, and standalone runtime validation.
+- **Verification caught a real production bug.** The LogsQL syntax error (`_stream_id:*` vs `*`) would have caused all VictoriaLogs queries to fail with HTTP 400. Unit tests didn't catch it because they mock HTTP. The live Docker verification environment exposed the real behavior.
+- **Fast verification session.** Single story, single phase (verify), completed in ~10 minutes. No re-work needed beyond the LogsQL fix.
+- **Session issues log provided complete traceability.** Session 5 logged the LogsQL bug, the Docker container issue, and the observability gap. All issues in this retrospective trace directly to log entries.
+
+---
+
+## 4. What Went Wrong
+
+- **LogsQL syntax was never validated against a real backend.** The query string was authored during dev, survived code review, and was only caught when verification actually hit the VictoriaLogs API. This is a test coverage gap: unit tests mock the HTTP layer so any query string would "work." Integration-level testing (even with a fixture or recorded response) would have caught this.
+- **Docker container cleanup is unreliable.** Two sessions today required manual `docker rm -f` before starting. The `verify-env` cleanup runs between sessions but fails to remove containers. This wastes time and adds friction to every verification pass.
+- **Zero-event verification is structurally weak.** AC 1 specifies "query VictoriaLogs for runtime telemetry and compute module-level coverage." Verification ran the query, got zero events, and computed 62.5% coverage (from module config). The actual event-to-module mapping logic was tested only via unit tests with mock data, not against a real backend with real events.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Live backend verification catches what mocks miss.** The LogsQL syntax bug was invisible to unit tests. Docker-based verification against real VictoriaLogs exposed it immediately. Every story that integrates with external services should include a live verification step.
+- **Complete the pipeline in a single focused session.** Session 5 picked up exactly where Session 4 left off (story at `verifying`), ran the verify phase, and finished. No wasted effort.
+
+### Patterns to Avoid
+
+- **Mocking HTTP without validating query/request format.** Unit tests that mock `fetch` or `http` accept any URL and query string. At minimum, tests should assert that the query string matches expected syntax patterns, even if the response is mocked.
+- **Leaving stories at `verifying` across sessions.** Session 4 ended with 2-3 unverified. Session 5 had to context-switch back to it. If a story reaches code review, push through to verification in the same session whenever possible.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+Nothing blocking. Epic 2 is complete. All stories verified and committed.
+
+### Fix Soon (Next Sprint)
+
+1. **Fix Docker container cleanup** -- The `verify-env` cleanup script does not reliably remove containers between sessions. Two manual `docker rm -f` operations today. Investigate why the cleanup fails and fix it.
+2. **Add query format assertions to HTTP-mocked tests** -- Unit tests for `queryTelemetryEvents` should assert the query string matches valid LogsQL syntax, even when the HTTP response is mocked.
+3. **Fix substring module matching** -- Carried from Session 4. `event.source.includes(mod)` false-positives on short names.
+4. **Add diagnostics for dropped NDJSON lines** -- Carried from Session 4.
+5. **Extend `saveRuntimeCoverage` to persist module details** -- Carried from Session 4. Required by Story 3.1.
+6. **Deduplicate default target constants** -- Carried from Session 3.
+7. **Add end-to-end gap flow integration test** -- Carried from Session 3.
+8. **Fix pre-existing BATS failures** -- Carried from Session 2. Tests 28-31 still failing on master.
+
+### Backlog (Track but Not Urgent)
+
+1. **Centralize gap parsing** -- Carried from Session 1.
+2. **Fix binary `logEventCount`** -- Carried from Session 1.
+3. **Silent catch blocks** -- Carried from Session 1. Now five+ locations.
+4. **Test against real telemetry** -- Carried from Session 1.
+5. **Agent workflow compliance** -- Carried from Session 2.
+6. **Type escape hatches (`as unknown as Record`)** -- Carried from Session 1.
+7. **Replace grep-based JSON parsing in pre-commit-gate.sh** -- Carried from Session 2.
+8. **Config path mismatch** -- Carried from Session 4.
+9. **Epic numbering collision** -- Carried from Session 1.
+
+---
+
+## Cross-Session Pattern Analysis (Final — 2026-03-20)
+
+Five sessions on 2026-03-20. Two persistent bug patterns across all sessions:
+
+### Pattern 1: Producer-Consumer Disconnects
+
+| Session | Bug | Pattern |
+|---------|-----|---------|
+| 1 | `saveRuntimeCoverage` never called | Function implemented, tested, exported, never wired into caller |
+| 2 | `gapSummary` always empty | Formatting code exists, no data source connected |
+| 3 | `StaticCoverageState` missing gaps field | Data written to file, never read back into type |
+| 4 | `saveRuntimeCoverage` doesn't persist modules | Function returns per-module data, persistence layer discards it |
+| 5 | LogsQL query syntax invalid | Query string authored without validation against real API |
+
+Session 5's bug is a variant: the "producer" (query construction) is disconnected from the "consumer" (VictoriaLogs API) by a mock boundary. Same root cause -- components built in isolation without verifying the connection.
+
+### Pattern 2: Silent Error Handling
+
+| Session | Instance |
+|---------|----------|
+| 1 | 3 silent catch blocks in gap parsing |
+| 2 | No NaN validation on CLI args |
+| 3 | (None new) |
+| 4 | `parseLogEvents` silently drops malformed JSON |
+| 5 | (None new, but prior instances remain unfixed) |
+
+Five sessions, zero fixes to silent error handling. This is accepted technical debt that will cause debugging difficulty in production.
+
+### Final Day Totals (2026-03-20)
+
+- **Stories completed:** 3 (2-1, 2-2, 2-3)
+- **Epics completed:** 1 (Epic 2: Runtime Observability & Coverage Metrics)
+- **HIGH bugs found by code review:** 10 across 5 sessions
+- **Security vulnerabilities caught:** 1 (command injection)
+- **Production bugs caught by live verification:** 1 (LogsQL syntax)
+- **Verification failures requiring re-work:** 2 (proof parser in Session 1, AC3 in Session 2)
+- **Phases executed:** ~16 (create-story x3, dev x4, code-review x4, verify x4, plus fix cycles)
+- **Total session time:** ~3.5 hours across 5 sessions
+- **Average story throughput:** ~70 minutes per story (including all rework)
+- **Docker cleanup issues:** 2 (Sessions 3 and 5)
+
+### Recommendations for Next Sprint
+
+1. **Add "verify data flow end-to-end" as a mandatory dev task** for any story that adds a data pipeline. This addresses the producer-consumer disconnect pattern that appeared in every session.
+2. **Add query/request format assertions to mocked HTTP tests.** The LogsQL bug would have been caught if the unit test asserted the query string format.
+3. **Fix Docker container cleanup before starting the next sprint.** Two manual cleanups in one day is a workflow tax.
+4. **Tackle silent error handling as a dedicated tech-debt story.** Five sessions of deferral means it won't get fixed incrementally. Schedule it explicitly.
+5. **Code review remains non-negotiable.** 10 HIGH bugs caught across 5 sessions. The 3-5 minutes per review paid for themselves many times over.

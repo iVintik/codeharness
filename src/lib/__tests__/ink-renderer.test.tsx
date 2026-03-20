@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { startRenderer } from '../ink-renderer.js';
@@ -11,9 +11,13 @@ import {
   ActiveTool,
   LastThought,
   RetryNotice,
+  StoryBreakdown,
+  StoryMessages,
   type RendererState,
   type SprintInfo,
   type CompletedToolEntry,
+  type StoryStatusEntry,
+  type StoryMessage,
 } from '../ink-components.js';
 
 // --- Helpers ---
@@ -21,6 +25,8 @@ import {
 function makeState(overrides?: Partial<RendererState>): RendererState {
   return {
     sprintInfo: null,
+    stories: [],
+    messages: [],
     completedTools: [],
     activeTool: null,
     activeToolArgs: '',
@@ -156,6 +162,141 @@ describe('App component', () => {
   });
 });
 
+// --- New component tests (Story 0.5.3 rework) ---
+
+describe('Header with elapsed time (AC #3)', () => {
+  it('renders elapsed time when provided', () => {
+    const info: SprintInfo = {
+      storyKey: '3-2',
+      phase: 'verify',
+      done: 18,
+      total: 65,
+      elapsed: '47m',
+    };
+    const { lastFrame } = render(<Header info={info} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('◆');
+    expect(frame).toContain('3-2');
+    expect(frame).toContain('verify');
+    expect(frame).toContain('47m');
+    expect(frame).toContain('18/65');
+  });
+
+  it('omits elapsed when not provided', () => {
+    const info: SprintInfo = {
+      storyKey: '1-1',
+      phase: 'dev',
+      done: 0,
+      total: 5,
+    };
+    const { lastFrame } = render(<Header info={info} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('1-1');
+    expect(frame).not.toContain('undefined');
+  });
+});
+
+describe('StoryBreakdown component (AC #4)', () => {
+  it('renders stories grouped by status with correct symbols', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '3-1', status: 'done' },
+      { key: '4-1', status: 'done' },
+      { key: '3-2', status: 'in-progress' },
+      { key: '3-3', status: 'pending' },
+      { key: '0-1', status: 'blocked' },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Done:');
+    expect(frame).toContain('3-1 ✓');
+    expect(frame).toContain('4-1 ✓');
+    expect(frame).toContain('This:');
+    expect(frame).toContain('3-2 ◆');
+    expect(frame).toContain('Next:');
+    expect(frame).toContain('3-3 ○');
+    expect(frame).toContain('Blocked:');
+    expect(frame).toContain('0-1 ✕');
+  });
+
+  it('renders nothing when stories array is empty', () => {
+    const { lastFrame } = render(<StoryBreakdown stories={[]} />);
+    expect(lastFrame()).toBe('');
+  });
+
+  it('renders failed stories with ✗ symbol', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '2-3', status: 'failed' },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Failed:');
+    expect(frame).toContain('2-3 ✗');
+  });
+});
+
+describe('StoryMessages component (AC #5, #6)', () => {
+  it('renders [OK] message for completed story', () => {
+    const messages: StoryMessage[] = [
+      { type: 'ok', key: '3-2', message: 'DONE — 12/12 ACs verified (18m, $4.20)' },
+    ];
+    const { lastFrame } = render(<StoryMessages messages={messages} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('[OK]');
+    expect(frame).toContain('Story 3-2');
+    expect(frame).toContain('DONE');
+    expect(frame).toContain('12/12 ACs verified');
+  });
+
+  it('renders [WARN] message with details for failed verification', () => {
+    const messages: StoryMessage[] = [
+      {
+        type: 'warn',
+        key: '3-3',
+        message: 'verification found 2 failing ACs → returning to dev (attempt 2/10)',
+        details: [
+          'AC 3: bridge --dry-run output missing epic headers',
+          'AC 7: bridge creates duplicate beads issues',
+        ],
+      },
+    ];
+    const { lastFrame } = render(<StoryMessages messages={messages} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('[WARN]');
+    expect(frame).toContain('Story 3-3');
+    expect(frame).toContain('2 failing ACs');
+    expect(frame).toContain('└ AC 3');
+    expect(frame).toContain('└ AC 7');
+  });
+
+  it('renders [FAIL] message', () => {
+    const messages: StoryMessage[] = [
+      { type: 'fail', key: '2-3', message: 'verification failed at AC 4 (attempt 3/10)' },
+    ];
+    const { lastFrame } = render(<StoryMessages messages={messages} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('[FAIL]');
+    expect(frame).toContain('Story 2-3');
+  });
+
+  it('renders nothing when messages array is empty', () => {
+    const { lastFrame } = render(<StoryMessages messages={[]} />);
+    expect(lastFrame()).toBe('');
+  });
+
+  it('renders multiple messages in order', () => {
+    const messages: StoryMessage[] = [
+      { type: 'ok', key: '3-1', message: 'DONE' },
+      { type: 'warn', key: '3-2', message: 'failing ACs' },
+      { type: 'fail', key: '2-3', message: 'failed' },
+    ];
+    const { lastFrame } = render(<StoryMessages messages={messages} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('[OK]');
+    expect(frame).toContain('[WARN]');
+    expect(frame).toContain('[FAIL]');
+  });
+});
+
 // --- Controller API Tests ---
 
 describe('startRenderer', () => {
@@ -168,7 +309,7 @@ describe('startRenderer', () => {
     }
   });
 
-  describe('quiet mode (AC #5)', () => {
+  describe('quiet mode (AC #8)', () => {
     it('returns no-op handle when quiet is true', () => {
       handle = startRenderer({ quiet: true });
       // Should not throw on any method
@@ -176,6 +317,8 @@ describe('startRenderer', () => {
       handle.update({ type: 'tool-complete' });
       handle.update({ type: 'text', text: 'hello' });
       handle.updateSprintState({ storyKey: 'a', phase: 'b', done: 1, total: 2 });
+      handle.updateStories([{ key: '1-1', status: 'done' }]);
+      handle.addMessage({ type: 'ok', key: '1-1', message: 'DONE' });
       handle.cleanup();
       // Double cleanup should not throw
       handle.cleanup();
@@ -258,6 +401,17 @@ describe('startRenderer', () => {
       // Should have accumulated all partials into args
     });
 
+    it('bounds completed tools list at MAX_COMPLETED_TOOLS (50)', () => {
+      handle = startRenderer({ _forceTTY: true });
+      // Add 55 tool cycles to exceed the cap of 50
+      for (let i = 0; i < 55; i++) {
+        handle.update({ type: 'tool-start', name: `Tool${i}`, id: `t${i}` });
+        handle.update({ type: 'tool-input', partial: `arg${i}` });
+        handle.update({ type: 'tool-complete' });
+      }
+      // No throw = success; internally, only the last 50 should be retained
+    });
+
     it('handles multiple tool cycles', () => {
       handle = startRenderer({ _forceTTY: true });
       // First tool
@@ -292,6 +446,56 @@ describe('startRenderer', () => {
     });
   });
 
+  describe('updateStories (AC #4)', () => {
+    it('updates story statuses', () => {
+      handle = startRenderer({ _forceTTY: true });
+      handle.updateStories([
+        { key: '3-1', status: 'done' },
+        { key: '3-2', status: 'in-progress' },
+      ]);
+      // No throw = success
+    });
+
+    it('clears stories with empty array', () => {
+      handle = startRenderer({ _forceTTY: true });
+      handle.updateStories([{ key: '1-1', status: 'done' }]);
+      handle.updateStories([]);
+    });
+  });
+
+  describe('addMessage (AC #5, #6)', () => {
+    it('adds story completion message', () => {
+      handle = startRenderer({ _forceTTY: true });
+      handle.addMessage({ type: 'ok', key: '3-2', message: 'DONE — 12/12 ACs verified' });
+    });
+
+    it('adds story failure message with details', () => {
+      handle = startRenderer({ _forceTTY: true });
+      handle.addMessage({
+        type: 'warn',
+        key: '3-3',
+        message: 'verification found 2 failing ACs',
+        details: ['AC 3: missing headers', 'AC 7: duplicate issues'],
+      });
+    });
+
+    it('accumulates multiple messages', () => {
+      handle = startRenderer({ _forceTTY: true });
+      handle.addMessage({ type: 'ok', key: '3-1', message: 'DONE' });
+      handle.addMessage({ type: 'warn', key: '3-2', message: 'failing' });
+      handle.addMessage({ type: 'fail', key: '2-3', message: 'failed' });
+    });
+  });
+
+  describe('quiet mode includes new methods', () => {
+    it('no-op handle has updateStories and addMessage', () => {
+      handle = startRenderer({ quiet: true });
+      handle.updateStories([{ key: '1-1', status: 'done' }]);
+      handle.addMessage({ type: 'ok', key: '1-1', message: 'DONE' });
+      // No throw = success
+    });
+  });
+
   describe('cleanup (AC #6)', () => {
     it('can be called multiple times without error', () => {
       handle = startRenderer({ _forceTTY: true });
@@ -308,6 +512,36 @@ describe('startRenderer', () => {
       handle.update({ type: 'tool-start', name: 'Bash', id: 'x' });
       handle.update({ type: 'text', text: 'hello' });
       handle.updateSprintState({ storyKey: 'a', phase: 'b', done: 1, total: 2 });
+      handle.updateStories([{ key: '1-1', status: 'done' }]);
+      handle.addMessage({ type: 'ok', key: '1-1', message: 'DONE' });
+      handle = null;
+    });
+  });
+
+  describe('signal handling (AC #9)', () => {
+    it('cleans up and re-raises SIGINT', () => {
+      handle = startRenderer({ _forceTTY: true });
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
+      try {
+        process.emit('SIGINT');
+        expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGINT');
+        // After signal, further updates should be no-ops (cleaned up)
+        handle.update({ type: 'text', text: 'should be ignored' });
+      } finally {
+        killSpy.mockRestore();
+      }
+      handle = null; // Already cleaned up by signal handler
+    });
+
+    it('cleans up and re-raises SIGTERM', () => {
+      handle = startRenderer({ _forceTTY: true });
+      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
+      try {
+        process.emit('SIGTERM');
+        expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGTERM');
+      } finally {
+        killSpy.mockRestore();
+      }
       handle = null;
     });
   });

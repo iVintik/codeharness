@@ -227,6 +227,58 @@ export interface CoverageTargetResult {
   readonly gap: number;
 }
 
+// ============================================================
+// Runtime validation types (Story 2.3)
+// ============================================================
+
+/** Configuration for standalone runtime validation (audit mode) */
+export interface RuntimeValidationConfig {
+  /** Test command to run (default: 'npm test') */
+  readonly testCommand: string;
+  /** OTLP endpoint for telemetry export */
+  readonly otlpEndpoint: string;
+  /** Query endpoint for the observability backend (VictoriaLogs) */
+  readonly queryEndpoint: string;
+  /** Timeout for the entire validation process in milliseconds (default: 120000) */
+  readonly timeoutMs: number;
+}
+
+/** A single module's telemetry status from runtime validation */
+export interface ModuleTelemetryEntry {
+  /** Module name (derived from source directory) */
+  readonly moduleName: string;
+  /** Whether telemetry was detected for this module */
+  readonly telemetryDetected: boolean;
+  /** Number of telemetry events emitted by this module */
+  readonly eventCount: number;
+}
+
+/** Result of a standalone runtime validation run */
+export interface RuntimeValidationResult {
+  /** Per-module telemetry entries */
+  readonly entries: readonly ModuleTelemetryEntry[];
+  /** Total number of modules in the project */
+  readonly totalModules: number;
+  /** Number of modules that emitted telemetry */
+  readonly modulesWithTelemetry: number;
+  /** Runtime coverage percentage: modulesWithTelemetry / totalModules * 100 */
+  readonly coveragePercent: number;
+  /** Whether validation was skipped (e.g., backend unreachable) */
+  readonly skipped: boolean;
+  /** Reason validation was skipped, if applicable */
+  readonly skipReason?: string;
+}
+
+/** A telemetry event returned from the observability backend query */
+export interface TelemetryEvent {
+  /** ISO 8601 timestamp of the event */
+  readonly timestamp: string;
+  /** Log message or event description */
+  readonly message: string;
+  /** Source file or service attribute */
+  readonly source: string;
+}
+
 /** A single result entry from Semgrep JSON output */
 export interface SemgrepResult {
   readonly check_id: string;

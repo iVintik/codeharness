@@ -1,0 +1,326 @@
+{
+  "version": 1,
+  "sprint": {
+    "total": 24,
+    "done": 10,
+    "failed": 0,
+    "blocked": 2,
+    "inProgress": null
+  },
+  "stories": {
+    "0-1-sprint-state-live-updates": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-2-ralph-progress-display": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-3-run-command-dashboard": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-5-1-stream-json-claude-driver": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-5-2-stream-event-parser": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-5-3-ink-terminal-renderer": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-5-4-run-command-integration": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-1-semgrep-rules-for-observability": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-2-analyzer-module-interface": {
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-3-observability-coverage-state-tracking": {
+      "status": "done",
+      "attempts": 2,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-1-verification-observability-check": {
+      "status": "verifying",
+      "attempts": 1,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-2-observability-hook-enforcement": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-3-standalone-runtime-check-audit-mode": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-1-audit-coordinator-dimensions": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-2-audit-fix-story-generation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-3-onboard-alias": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-1-dockerfile-rules-validation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-2-dockerfile-template-dev-integration": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "5-1-code-review-observability-check": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "5-2-verification-runtime-integration": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-a": {
+      "status": "backlog",
+      "attempts": 3,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-c": {
+      "status": "backlog",
+      "attempts": 5,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-x": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-y": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    }
+  },
+  "run": {
+    "active": true,
+    "startedAt": null,
+    "iteration": 6,
+    "cost": 0,
+    "completed": [],
+    "failed": []
+  },
+  "actionItems": [
+    {
+      "id": "migrated-1",
+      "story": "2-1-verification-observability-check",
+      "description": "**Epic 0.5 appeared:** The create-story agent added a new Epic 0.5 (Stream-JSON Live Activity Display) to sprint-status.yaml despite being told not to modify it. This is a workflow compliance issue.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-2",
+      "story": "2-1-verification-observability-check",
+      "description": "**AC #1 integration risk:** Verifying that the verifier queries observability after docker exec requires a live verification session — hard to test in isolation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-3",
+      "story": "2-1-verification-observability-check",
+      "description": "**Tag coupling risk:** `[OBSERVABILITY GAP]` tag format is a convention between prompt template and parser regex. If verifier (Claude) doesn't emit exact format, parser won't detect it.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "2-1-verification-observability-check",
+      "description": "**Naming confusion:** Epic 2 retrospective file references a different Epic 2 from a previous sprint.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "2-1-verification-observability-check",
+      "description": "**Import boundary violation (fixed):** `runtime-coverage.ts` initially imported from `../verify/types.js` directly. Fixed to use barrel import.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "2-1-verification-observability-check",
+      "description": "**logEventCount is binary:** Set to 0 or 1 based on gap presence, not actual log event count. Parser only detects `[OBSERVABILITY GAP]` tag presence.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "2-1-verification-observability-check",
+      "description": "**VerifyResult field additions are breaking:** All existing `VerifyResult` constructions needed updating (5 files). Optional fields with defaults would reduce churn.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "2-1-verification-observability-check",
+      "description": "**Task 2.4 no-op:** No new config fields needed — existing `observabilityEndpoints.victoriaLogs` already sufficient.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "2-1-verification-observability-check",
+      "description": "**HIGH: saveRuntimeCoverage was dead code** — never called from production, only tested. Runtime coverage would never persist to sprint-state.json. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "2-1-verification-observability-check",
+      "description": "**MEDIUM: verify.ts hardcoded 0 gaps** — command always reported 0 observability gaps regardless of proof content. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "2-1-verification-observability-check",
+      "description": "**MEDIUM: verifier-session.ts hardcoded 0 gaps** — same pattern as verify.ts. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "2-1-verification-observability-check",
+      "description": "**LOW (not fixed): Binary logEventCount** — always 0 or 1, not actual log counts. Tech debt.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "2-1-verification-observability-check",
+      "description": "**LOW (not fixed): Duplicated coverage math** — verify/index.ts duplicates computeRuntimeCoverage logic.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "2-1-verification-observability-check",
+      "description": "**LOW (not fixed): Silent catch blocks** — gap parsing errors silently swallowed in 3 locations.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "2-1-verification-observability-check",
+      "description": "**Architecture: Hardcoded CWD** — verifyStory() calls saveRuntimeCoverage with '.' as projectDir, assumes CWD is project root.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "2-1-verification-observability-check",
+      "description": "**Architecture: Triple gap parsing** — 3 separate locations independently parse gaps. Should be centralized.",
+      "source": "retro",
+      "resolved": false
+    }
+  ]
+}

@@ -13,11 +13,11 @@ development_status:
   0-3-run-command-dashboard: done
 
   # Epic 0.5: Stream-JSON Live Activity Display (TOP PRIORITY)
-  epic-0-5: done
+  epic-0-5: in-progress
   0-5-1-stream-json-claude-driver: done
   0-5-2-stream-event-parser: done
-  0-5-3-ink-terminal-renderer: done
-  0-5-4-run-command-integration: done
+  0-5-3-ink-terminal-renderer: ready-for-dev
+  0-5-4-run-command-integration: backlog
 
   # Epic 1: Observability Static Analysis (DONE)
   epic-1: done
@@ -29,7 +29,7 @@ development_status:
   epic-2: backlog
   2-1-verification-observability-check: done
   2-2-observability-hook-enforcement: done
-  2-3-standalone-runtime-check-audit-mode: backlog
+  2-3-standalone-runtime-check-audit-mode: done
 
   # Epic 3: Audit Command
   epic-3: backlog

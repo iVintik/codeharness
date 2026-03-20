@@ -166,6 +166,12 @@ You will systematically re-do the entire story creation process, but with a crit
 - **Scope creep:** Missing boundaries that could cause unnecessary work
 - **Quality failures:** Missing quality requirements that could deliver broken features
 
+#### **3.6 Spec Coverage DISASTERS**
+
+- **Dropped requirements:** UX spec or PRD describes behavior within this story's scope that no AC covers. Cross-reference every behavioral requirement from {ux_content} and {prd_content} against the story's ACs. If a spec requirement has no matching AC, it WILL be silently skipped during implementation.
+- **Implementation-only ACs:** ACs that describe code artifacts ("function exists", "module exports X") instead of observable behavior ("user sees X", "terminal displays Y"). These pass verification without proving the feature works.
+- **Narrow ACs that miss the spec's intent:** An AC like "header shows story key" technically passes even if the spec says "header shows story key, phase, elapsed time, and progress counts." ACs must cover the FULL expected behavior described in the spec, not just one element of it.
+
 ### **Step 4: LLM-Dev-Agent Optimization Analysis**
 
 **CRITICAL STEP: Optimize story context for LLM developer agent consumption**

@@ -190,7 +190,22 @@
     original documents <!-- Extract specific story requirements -->
     <action>Extract our story ({{epic_num}}-{{story_num}}) details:</action> **STORY FOUNDATION:** - User story statement
     (As a, I want, so that) - Detailed acceptance criteria (already BDD formatted) - Technical requirements specific to this story -
-    Business context and value - Success criteria <!-- Previous story analysis for context continuity -->
+    Business context and value - Success criteria
+
+    <!-- SPEC COVERAGE PASS: ACs from epics are a starting point, not the final set -->
+    <critical>🎯 SPEC COVERAGE — ACs must cover UX/PRD behavioral requirements, not just epic bullet points!</critical>
+    <action>Cross-reference epic ACs against {ux_content} and {prd_content} for this story's scope:
+      - For each UX/PRD behavioral requirement within this story's scope, check if an existing AC covers it
+      - If a requirement has no matching AC, draft a new AC that describes the observable user-facing behavior
+      - ACs must describe WHAT THE USER SEES OR EXPERIENCES, not implementation artifacts
+        BAD:  "Given startRenderer() is called, Then it returns a RendererHandle with update() method"
+        GOOD: "Given Claude is executing tools, When the operator watches the terminal, Then they see each active tool with a spinner and completed tools as permanent lines"
+      - Each AC should be verifiable by observing the running system, not just by reading code
+      - Balance: cover all spec requirements but don't over-specify implementation details
+    </action>
+    <action>Store the merged AC list (epic ACs + spec-derived ACs) as the final acceptance criteria for the story</action>
+
+    <!-- Previous story analysis for context continuity -->
     <check if="story_num > 1">
       <action>Find {{previous_story_num}}: scan {implementation_artifacts} for the story file in epic {{epic_num}} with the highest story number less than {{story_num}}</action>
       <action>Load previous story file: {implementation_artifacts}/{{epic_num}}-{{previous_story_num}}-*.md</action> **PREVIOUS STORY INTELLIGENCE:** -
@@ -267,6 +282,20 @@
     <!-- Story foundation from epics analysis -->
     <template-output
       file="{default_output_file}">story_requirements</template-output>
+
+    <!-- FINAL AC QUALITY CHECK before writing the rest of the story -->
+    <critical>🔍 AC QUALITY GATE — Review ACs before finalizing the story file</critical>
+    <action>Before proceeding, review every AC in the story file:
+      1. Does each AC describe observable user-facing behavior (not just code artifacts)?
+         - REJECT: "function X exists", "module exports Y", "returns RendererHandle"
+         - ACCEPT: "operator sees X in the terminal", "command outputs Y", "dashboard displays Z"
+      2. Is every behavioral requirement from the UX spec and PRD (within this story's scope) covered by at least one AC?
+         - If not, add the missing AC now
+      3. Are ACs balanced — specific enough to verify but not so narrow they miss the spirit of the requirement?
+         - A single AC like "header shows story key" is too narrow if the spec says "header shows story key, phase, elapsed time, and progress"
+         - Combine related display elements into one AC that covers the full expected output
+      4. Can each AC be verified by running the system and observing output (not just reading source code)?
+    </action>
 
     <!-- Developer context section - MOST IMPORTANT PART -->
     <template-output file="{default_output_file}">

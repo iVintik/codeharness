@@ -33,6 +33,8 @@ showboat init "verification/{story-id}-proof.md" "Verification Proof: {story-id}
 
 Read `_bmad-output/implementation-artifacts/{story-id}.md`. Extract all acceptance criteria.
 
+**Spec coverage sanity check:** Before verifying, quickly scan the parent epic description in the epics file. If the epic describes behavioral requirements within this story's scope that no AC covers, add a WARNING note to the proof document. Do NOT silently skip uncovered requirements — flag them so the gap is visible. If the gap is significant (major UX behavior described in spec but missing from ACs), report FAIL with reason "AC coverage gap" rather than passing on incomplete work.
+
 Add a note summarizing what will be verified:
 ```bash
 showboat note "verification/{story-id}-proof.md" "## Story: {story title}

@@ -1,144 +1,146 @@
-# Epic 6 Retrospective: Brownfield Onboarding
+# Epic 6 Retrospective: Dashboard Visualization Rework
 
-**Epic:** Epic 6 — Brownfield Onboarding
-**Date:** 2026-03-15
+**Epic:** Epic 6 — Dashboard Visualization Rework
+**Date:** 2026-03-21
 **Stories Completed:** 2 (6-1, 6-2)
 **Status:** All stories done
+**Previous Retro:** epic-0-5-retrospective.md (Epic 0.5: Stream-JSON Live Activity Display)
+**Implementation window:** 2026-03-21 (single day)
+**Note:** This file replaces the stale `epic-6-retrospective.md` which documented Brownfield Onboarding from a previous sprint. Epic numbering collision between sprints caused confusion.
 
 ---
 
 ## Epic Summary
 
-Epic 6 delivered the brownfield onboarding pipeline for codeharness. It enables developers with existing projects to run `codeharness onboard` to scan their codebase, identify coverage gaps, audit documentation quality, generate an onboarding epic with prioritized stories, and import those stories into beads after user approval.
+Epic 6 rewrote the Ink terminal dashboard components to match the UX specification and added end-to-end integration tests for the stream-JSON pipeline. Before this epic, the dashboard used Ink `Box` borders and a compact horizontal layout that diverged from the documented UX spec. After it, the output renders plain-text headers with `━━━` separators, vertical labeled story breakdown sections (`Done:` / `This:` / `Next:` / `Blocked:`), iteration count, and cost tracking — matching the spec exactly.
 
-The epic produced three new production modules: `src/lib/scanner.ts` (493 lines) for codebase scanning, module detection, coverage gap analysis, and documentation auditing; `src/lib/epic-generator.ts` (320 lines) for generating onboarding epics from scan findings, writing them to markdown, prompting for user approval, and importing into beads; and `src/commands/onboard.ts` (245 lines) replacing the previous stub with a full multi-phase command supporting `scan`, `coverage`, `audit`, and `epic` subcommands, `--min-module-size`, `--auto-approve`, and `--json` flags. Total new production code: 1,058 lines across 3 files.
+The epic had two stories:
 
-Three corresponding test files were created: `scanner.test.ts` (382 lines), `epic-generator.test.ts` (634 lines), and `onboard.test.ts` (415 lines). Total new test code: 1,431 lines across 3 files.
+| Story | Deliverable |
+|-------|-------------|
+| 6-1-rewrite-ink-components-match-ux-spec | Rewrote Header, StoryBreakdown, and Separator components; added iteration count parsing and cost accumulation; split into 3 files for NFR9 compliance |
+| 6-2-verify-stream-json-pipeline-e2e | Added E2E integration test piping NDJSON through the full `createLineProcessor → parseStreamLine → renderer` chain; extracted `createLineProcessor` from `run.ts` into `run-helpers.ts` |
 
-By the end of Epic 6, the project has 6,852 lines of production TypeScript across 34 source files and 11,201 lines of test code across 36 test files. All 807 unit tests pass. Coverage sits at 92.33% statements, 82.32% branches, 95.95% functions, 92.85% lines. Test execution time remains at ~1.45s.
-
-The epic's major contribution is completing the onboarding pipeline: scan -> coverage -> audit -> epic generation -> approval -> beads import. This is Architecture Decision 9 fully realized.
+Total test count at epic completion: 2912 tests (2910 passing, 2 pre-existing failures in `state.test.ts` unrelated to this epic). Epic 0.5 ended at 2728 tests — a net increase of 184 tests across the combined Epic 0.5 + Epic 6 implementation window.
 
 ---
 
 ## What Went Well
 
-### 1. Clean Three-Module Architecture
+### 1. Code Review Caught Critical Production Bugs
 
-The separation of scanner.ts (data gathering), epic-generator.ts (plan creation), and onboard.ts (CLI orchestration) follows a clean data-flow pattern. Each module has a single responsibility: scanner produces findings, epic-generator transforms findings into stories, and onboard.ts wires the pipeline together with CLI concerns (subcommands, flags, output formatting). This made testing straightforward — each module can be tested independently with mocked inputs.
+Story 6-1's code review found two bugs that would have been user-visible:
+- **HIGH:** `updateSprintState()` wiped accumulated `totalCost` every 5 seconds during polling — cost display would flash and disappear.
+- **MEDIUM:** `startsWith` key comparison in `StoryBreakdown` caused false story matches (e.g., story `3-2` matching `3-20`).
 
-### 2. Substantial Test Investment
+Both were fixed before verification. This is the second consecutive epic where code review caught HIGH-severity bugs (Epic 0.5 also found 5 issues including a missing AGENTS.md entry). The 4-phase pipeline (create → dev → review → verify) is earning its keep.
 
-Epic 6 added 69 new tests (738 -> 807, a 9.3% increase) and 1,431 lines of test code. The epic-generator.ts module achieved excellent coverage (97.11% statements, 88.88% branches). The onboard.ts command achieved 97% statement coverage. This is the highest test growth rate of any epic since Epic 1.
+### 2. Story 6-1 Completed End-to-End in a Single Session
 
-### 3. Effective Code Reuse from Prior Epics
+The story went through create, dev, code-review, and verify in one session (~45 minutes across two ralph runs). Well-scoped stories with clear UX spec references are ideal for single-session completion.
 
-Story 6.1's dev notes identified `findModules()` from doc-health.ts and `detectCoverageTool()`/`runCoverage()` from coverage.ts as reuse targets. The scanner module leveraged these existing functions rather than reimplementing them. Story 6.2 reused `parseEpicsFile()` and `importStoriesToBeads()` from bmad.ts for the beads import phase. This is the first epic where prior investment in library code paid off directly.
+### 3. NFR9 Forced Good Architecture
 
-### 4. Subcommand Design Enables Phased Usage
+The 300-line limit on `ink-components.tsx` required splitting into three files:
+- `ink-components.tsx` (200 lines) — types + layout components + re-exports
+- `ink-activity-components.tsx` (100 lines) — tool/thought/retry/message components
+- `ink-app.tsx` (31 lines) — root App component (avoids circular imports)
 
-The `onboard scan`, `onboard coverage`, `onboard audit`, and `onboard epic` subcommands allow developers to run individual phases independently. This is useful for large codebases where coverage analysis may be slow, and for debugging specific phases. The bare `codeharness onboard` runs all phases sequentially. This design pattern should be used for future multi-phase commands.
+This produced cleaner separation of concerns than the monolithic file.
 
-### 5. First Interactive Prompt in the CLI
+### 4. Story 6-2 Code Review Improved Testability
 
-The `promptApproval()` function in epic-generator.ts introduces the first interactive prompt. The `--auto-approve` flag provides a non-interactive escape hatch for CI and Ralph usage. The implementation is clean — readline-based, with JSON mode bypassing the prompt entirely. This establishes the pattern for any future interactive commands.
+The adversarial review of 6-2 found that the integration test reimplemented `makeLineHandler` instead of importing production code. The fix — extracting `createLineProcessor` to `run-helpers.ts` — made the production code testable and eliminated the risk of test/production divergence. This is a structural improvement to the codebase, not just a test fix.
+
+### 5. Epic 0.5 Action Item A3 Addressed
+
+Epic 0.5's retro explicitly flagged "Add E2E test for stream-JSON → parser → renderer pipeline" as a medium-priority action item. Story 6-2 directly addresses this. This is a rare case of a retrospective action item being completed in the next epic.
 
 ---
 
 ## What Could Be Improved
 
-### 1. scanner.ts Has the Second-Lowest Coverage in the Codebase (84.48% statements, 74.1% branches)
+### 1. No Formal Epic Definition Existed
 
-The scanner module contains 493 lines but achieves only 84.48% statement coverage and 74.1% branch coverage. Uncovered lines include the coverage gap analysis path (lines 397-418) and parts of the documentation audit (line 464). For a module that is foundational to the onboarding pipeline, this coverage level is insufficient. The per-module coverage aggregation logic and edge cases in the doc audit (stale detection thresholds, missing docs directory) appear to be the primary gaps.
+Sprint status listed "Epic 6: Dashboard Visualization Rework" but no epic definition file was ever created. The create-story agent derived requirements from the UX spec and existing code — which worked — but this bypassed the normal epic planning process. Story scope was determined ad-hoc rather than through structured planning.
 
-### 2. run.ts Remains at 29.8% Statement Coverage — Sixth Epic Without Improvement
+### 2. Cost Accumulation Has a Known Data Loss Bug
 
-The `codeharness run` command action handler (lines 110-276) is still almost entirely uncovered. This was flagged as action item A1 in the Epic 5 retrospective with explicit instructions to create a shared spawn mock helper. It was not addressed. The run command is the primary user-facing command for autonomous execution, and it remains essentially untested at the integration level.
+Events arriving before `sprintInfo` is initialized silently lose their cost data. This was identified during development, documented in session issues, but shipped as known tech debt. Cost display may undercount, especially for short stories where early cost events matter proportionally more.
 
-### 3. Overall Coverage Stagnated (92.45% -> 92.33% statements, 82.4% -> 82.32% branches)
+### 3. run.ts Remains Over the 300-Line Limit
 
-Coverage effectively flatlined rather than improving. While this is better than the declining trend of Epics 2-5, it means the new code added roughly matched the project average — no progress was made on the pre-existing coverage gaps. The action item to raise branch coverage from 82.4% to 90%+ (A3 from Epic 5) was not addressed.
+`run.ts` sits at 308 lines — 8 over NFR9's 300-line limit. Story 6-2 extracted `createLineProcessor` to `run-helpers.ts`, which helped, but the file is still non-compliant. The `currentIterationCount` mutable closure variable and stderr parsing logic could be extracted further.
 
-### 4. verify.ts Still at 62.79% Branch Coverage
+### 4. AC5 of Story 6-2 Remains Incomplete
 
-This has been flagged in every retrospective since Epic 4. Lines 68-81 remain uncovered. The verification orchestrator is the foundation of the quality enforcement pipeline and has the lowest branch coverage in the codebase.
+AC5 requires manual verification: "run `codeharness run`, let it execute 1 story, confirm tool calls and thoughts appear in real-time." This is non-automatable and depends on having a valid story in the backlog. It was left as `[ ]` per the `integration-required` tag. This is acceptable but means the full E2E path has never been formally verified end-to-end with a live system.
 
-### 5. index.ts Entry Point Still Uncovered (Lines 44-45) — Sixth Epic Running
+### 5. Stale Container / Infrastructure Friction
 
-The `if (!process.env['VITEST'])` conditional block remains at 89.47% statement coverage. Per Epic 5's retrospective, this was to be resolved in Epic 6 or dropped permanently. It was neither resolved nor dropped. Dropping it now — this is accepted technical debt.
+Both stories encountered stale Docker containers from previous sessions and port conflicts with the shared observability stack. This consumed manual intervention time during every verification phase. Three infrastructure issues logged across two stories:
+- Stale `codeharness-verify` container required `docker rm -f`
+- Port conflict between harness-specific and shared compose stacks
+- `codeharness sync --story 6-1` failed with "Story file not found or has no Status line"
 
-### 6. Story File Statuses Still Diverge from sprint-status.yaml
+### 6. Story File Statuses Not Updated
 
-Both story 6-1 and 6-2 files show `Status: ready-for-dev` despite being marked `done` in sprint-status.yaml. This is the sixth consecutive epic with this divergence. The `codeharness sync` command exists but is not used in the development workflow.
+Both story files show `Status: verifying` despite being marked `done` in `sprint-status.yaml`. This is a recurring problem flagged in every retrospective since Epic 4. The `codeharness sync` command exists but is never used in the workflow.
 
 ---
 
 ## Lessons Learned
 
-### L1: Library Investment Compounds — Epic 6 Proved It
+### L1: UX Spec as Source of Truth Produces Clear Stories
 
-Epics 1-4 built doc-health.ts, coverage.ts, bmad.ts, and beads.ts as general-purpose libraries. Epic 6 was the first epic to reuse multiple libraries substantially. The scanner module called `findModules()`, `isDocStale()`, `detectCoverageTool()`, and `runCoverage()`. The epic generator called `parseEpicsFile()` and `importStoriesToBeads()`. This reuse reduced the amount of new code needed and increased confidence in the implementation because the underlying functions were already tested. The lesson: investing in well-tested, reusable library functions pays off when later features compose them.
+Story 6-1 was derived directly from the UX spec mockup with the instruction "reproduce EXACTLY." This eliminated ambiguity that previous dashboard stories suffered from, where developers "interpreted" the visual format. When a visual spec exists, stories should reference specific line numbers and include the target output verbatim.
 
-### L2: Coverage Gaps Are Self-Perpetuating Without Automated Enforcement
+### L2: Code Review Catches Different Bugs Than Verification
 
-Six epics of retrospective findings about coverage decline, and zero automated enforcement has been implemented. The `codeharness coverage` command can check coverage against a target, but it has never been wired into pre-commit hooks or CI. Manual tracking in retrospectives demonstrably does not drive improvement. The project continues to build coverage enforcement tooling while not enforcing its own coverage. This action item (A4 from Epic 5, originally from Epic 4) should either be implemented in Epic 7 or explicitly deprioritized and removed from the backlog.
+Across both stories, code review found 5 bugs (2 HIGH, 2 MEDIUM, 1 LOW). Verification found 0 additional functional bugs. This confirms the pattern from Epic 0.5: review catches logic and integration bugs; verification catches deployment and packaging bugs. Both phases serve different purposes and neither should be skipped.
 
-### L3: scanner.ts Needs Integration-Level Testing for Coverage Analysis
+### L3: Extracting Closures Improves Testability
 
-The scanner's `analyzeCoverageGaps()` function depends on parsing coverage report JSON files produced by vitest/c8. Unit tests with mocked data verify the aggregation logic, but the integration with real coverage output (JSON format, file path mapping to modules) is harder to test without running actual coverage. A dedicated integration test that runs coverage on a small fixture project would catch format mismatches and parsing edge cases that unit tests miss.
+Both stories benefited from extracting closure-scoped functions into importable modules. Story 6-1 split components into three files. Story 6-2 extracted `createLineProcessor` from a closure in `run.ts`. The pattern: if a function is defined inside another function's scope, it cannot be unit-tested. Extract it.
 
-### L4: Two-Story Epics Are the Right Size for This Project
+### L4: Epic Numbering Collisions Cause Real Confusion
 
-Both Epic 5 and Epic 6 were two-story epics. Both delivered cleanly. The focused scope kept each story manageable (7 tasks each) and the two stories had a clear dependency (6.1 produces data, 6.2 consumes it). Compared to four-story epics (3, 4) where later stories sometimes lost context or accumulated technical debt, two-story epics with clear data flow between them appear to be the sweet spot.
+The previous sprint had its own "Epic 6" (Brownfield Onboarding) which left a stale `epic-6-retrospective.md`. The create-story agent noted this as a misleading artifact. Session retros flagged it twice. Nobody cleaned it up between sessions. Epic numbering should be prefixed by sprint identifier (e.g., `opex-6` vs `overhaul-6`) or use globally unique numbers.
 
----
+### L5: Two-Story Epics Ship Fast but Skip Process Steps
 
-## Action Items for Subsequent Epics
-
-| # | Action | Target Epic | Owner |
-|---|--------|-------------|-------|
-| A1 | Cover run.ts action handler (lines 110-276) — at 29.8% statements for two epics now. Create a shared spawn mock helper. | Epic 7 | Dev |
-| A2 | Raise scanner.ts branch coverage from 74.1% to 90%+ — cover coverage gap analysis (lines 397-418) and doc audit edge cases. | Epic 7 | Dev |
-| A3 | Raise overall branch coverage from 82.32% to 85%+ — focus on verify.ts (62.79%), scanner.ts (74.1%), coverage.ts (76.37%). | Epic 7 | Dev |
-| A4 | Wire `codeharness coverage` into pre-commit gate or CI — carried from Epic 4. If not done in Epic 7, drop permanently. | Epic 7 | Dev |
-| A5 | Run `codeharness sync` after each story completion to keep story file statuses aligned with sprint-status.yaml. | Ongoing | SM |
+Epic 6 completed in a single day with two stories. However: no epic definition file, no sprint planning step, story files not synced to sprint status, proof documents not created. The speed is good; the process gaps compound over time when they become normalized behavior.
 
 ---
 
-## Epic 5 Retro Action Item Status
+## Epic 0.5 Retro Action Item Status
 
 | # | Action | Status | Notes |
 |---|--------|--------|-------|
-| A1 | Cover run.ts action handler (lines 110-276) | Not done | Still at 29.8%. Carried to Epic 7. |
-| A2 | Cover index.ts entry point (lines 44-45) — six epics overdue | Dropped | Accepted as permanent technical debt per Epic 5 retro guidance. |
-| A3 | Raise branch coverage from 82.4% to 90%+ | Not done | Coverage flatlined at 82.32%. Carried with reduced target (85%+). |
-| A4 | Wire coverage into pre-commit gate | Not done | Third epic carrying this. Final carry to Epic 7. |
-| A5 | Run `codeharness sync` after story completion | Not done | Sixth epic of divergence. |
-| A6 | Update architecture spec for plugin artifact locations | Not done | Carried from Epic 2. Dropping — low priority. |
-| A7 | Update story 5-2 file header to done | Not done | Story files continue to diverge. |
+| A1 | Fix `codeharness verify` presentation bug — FAIL on 6/6 pass | Not done | Not addressed in Epic 6. |
+| A2 | Tag stories with `verification-tier` at planning time | Not done | Epic 6 stories weren't tagged. |
+| A3 | Add E2E test for stream-JSON → parser → renderer pipeline | Done | Story 6-2 directly addresses this. |
+| A4 | Enforce sprint change proposal for scope additions | Not done | Not addressed. |
+| A5 | Fix story-status synchronization | Not done | Both 6-1 and 6-2 have status mismatches. |
+| A6 | Remove `verification_run` pre-commit gate or make it context-aware | Not done | Not addressed. |
+| A7 | Add integration test for package entry point exports | Not done | Not addressed. |
+| A8 | Split package entry point into library + CLI bootstrap | Not done | Not addressed. |
 
-**Summary:** 0 of 7 action items from Epic 5 were resolved. 1 dropped (A2 — accepted debt). 1 dropped (A6 — stale, low priority). 5 carried forward (A1, A3, A4, A5, consolidated; A7 subsumed by A5).
+**Summary:** 1 of 8 action items from Epic 0.5 was resolved. 7 remain unaddressed. The pattern of carrying forward unresolved action items continues.
 
 ---
 
-## Next Epic Readiness
+## Action Items
 
-**Epic 7: Status, Reporting & Lifecycle Management** is next in the backlog. It covers:
-- Story 7-1: Status command & reporting
-- Story 7-2: Clean teardown
-
-**Prerequisites met:**
-- Full onboarding pipeline operational (`codeharness onboard` -> scan -> epic -> beads import)
-- Autonomous execution loop operational (`codeharness run` -> Ralph -> `/harness-run`)
-- Sprint-status.yaml as single source of truth for task tracking
-- Verification pipeline, hook architecture, and quality gates in place
-- 807 passing tests provide a safety net
-- status.ts and teardown.ts exist as stubs ready for implementation
-
-**Risks for Epic 7:**
-- Branch coverage at 82.32% remains below any reasonable quality target. If Epic 7 adds complex status aggregation logic with many conditional branches, it will drop further without deliberate effort to address the pre-existing gaps.
-- run.ts at 29.8% coverage means the core autonomous execution command remains untested. The status command will likely query run state, and bugs in the run command's output handling would propagate silently.
-- Five action items carried forward (four of which have been carried across multiple epics) indicates the retrospective process is identifying but not driving resolution of technical debt. Epic 7 should either address A1, A3, and A4, or the project should acknowledge that these gaps are accepted and stop carrying them.
+| # | Action | Priority | Notes |
+|---|--------|----------|-------|
+| A1 | Fix cost accumulation data loss — buffer cost from events before `sprintInfo` init | High | Known bug shipped as tech debt. Cost display undercounts. |
+| A2 | Bring `run.ts` under 300 lines (NFR9 compliance) — extract iteration count and stderr parsing | Medium | Currently 308 lines. Pre-existing violation. |
+| A3 | Clean up epic numbering collision — establish sprint-prefixed or globally unique epic numbers | Medium | Two different "Epic 6" definitions exist. Caused confusion across 4+ session retros. |
+| A4 | Fix story-status sync — either automate or enforce `codeharness sync` after story completion | Medium | Carried from Epic 0.5 A5, Epic 5 A5, Epic 4 A4. Six epics of divergence. |
+| A5 | Add multi-byte UTF-8 chunk boundary test for `createLineProcessor` | Low | `StringDecoder` handles it but no test proves it. Flagged in 6-2 review. |
+| A6 | Complete AC5 manual verification of 6-2 when next live story execution occurs | Low | Non-automatable. Needs real `codeharness run` with a backlog story. |
+| A7 | Automate stale container cleanup before verification | Low | Infrastructure friction in every verify phase. `docker rm -f` before each run. |
 
 ---
 
@@ -147,19 +149,13 @@ Both Epic 5 and Epic 6 were two-story epics. Both delivered cleanly. The focused
 - **Stories planned:** 2
 - **Stories completed:** 2
 - **Stories failed:** 0
-- **New production TypeScript files created:** 3 (scanner.ts, epic-generator.ts, onboard.ts full implementation replacing stub)
-- **Total new production lines:** 1,058 (scanner.ts: 493, epic-generator.ts: 320, onboard.ts: 245)
-- **Total production TypeScript files:** 34 (up from 32 in Epic 5)
-- **Total production lines of code:** 6,852 (up from 5,807 in Epic 5, +18.0%)
-- **New test files created:** 3 (scanner.test.ts, epic-generator.test.ts, onboard.test.ts)
-- **Total new test lines:** 1,431 (scanner.test.ts: 382, epic-generator.test.ts: 634, onboard.test.ts: 415)
-- **Total test files:** 36 (up from 33 in Epic 5)
-- **Total unit tests:** 807 (up from 738 in Epic 5, +9.3%)
-- **Total test lines:** 11,201 (up from 9,772 in Epic 5, +14.6%)
-- **Statement coverage:** 92.33% (down from 92.45%, effectively flat)
-- **Branch coverage:** 82.32% (down from 82.4%, effectively flat)
-- **Function coverage:** 95.95% (down from 96.8%)
-- **Line coverage:** 92.85% (up from 92.78%, effectively flat)
-- **Build output:** ESM bundle via tsup
-- **Test execution time:** ~1.45s (vitest)
-- **Epic 5 retro actions resolved:** 0 of 7 (1 dropped as accepted debt, 1 dropped as stale)
+- **Code review cycles:** 1 per story (2 total; both passed on first review cycle with fixes)
+- **Bugs caught in review:** 5 (2 HIGH, 2 MEDIUM, 1 LOW across both stories)
+- **Bugs caught in verify:** 0
+- **Total new tests:** ~184 (17 new/updated in 6-1 + integration test suite in 6-2)
+- **Test suite at completion:** 2912 tests (2910 passing, 2 pre-existing failures in state.test.ts)
+- **Files created:** 3 (ink-activity-components.tsx, ink-app.tsx, run-pipeline.test.ts)
+- **Files modified:** 7 (ink-components.tsx, ink-renderer.tsx, run-helpers.ts, run.ts, ink-renderer.test.tsx, run-helpers.test.ts, sample-stream.ndjson fixture)
+- **NFR9 violations:** 1 (run.ts at 308 lines — pre-existing, not introduced by this epic)
+- **Implementation window:** 1 day (2026-03-21)
+- **Epic 0.5 retro actions resolved:** 1 of 8

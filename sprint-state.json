@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 25,
-    "done": 21,
+    "done": 22,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -177,7 +177,7 @@
       "acResults": null
     },
     "6-2-verify-stream-json-pipeline-e2e": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -215,11 +215,7 @@
     "iteration": 4,
     "cost": 0,
     "completed": [],
-    "failed": [],
-    "currentStory": "6-2-verify-stream-json-pipeline-e2e",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification workflow",
-    "acProgress": "4/5"
+    "failed": []
   },
   "actionItems": [
     {
@@ -485,6 +481,83 @@
       "id": "migrated-38",
       "story": "6-2-verify-stream-json-pipeline-e2e",
       "description": "**AC5 not completable autonomously**: Requires manual `codeharness run` and screenshot capture.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-39",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**HIGH fixed:** Test reimplemented production `makeLineHandler` instead of importing it — changes wouldn't be caught. Fixed by extracting `createLineProcessor` to `run-helpers.ts`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-40",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**HIGH fixed:** Story File List wrong path. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-41",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**MEDIUM fixed:** `makeLineHandler` not exportable (closure in run.ts). Extracted to run-helpers.ts.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-42",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**MEDIUM fixed:** Unused `vi` import.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-43",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**LOW unfixed:** No test for multi-byte UTF-8 split across chunk boundaries.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-44",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**LOW unfixed:** Renderer state accumulation test uses manual switch, not real Ink renderer.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-45",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**Coverage gap:** AC5 manual verification still incomplete.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-46",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**Stale container from previous session:** Had to `docker rm -f codeharness-verify` before starting.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-47",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**Port conflict with shared stack:** `docker-compose.harness.yml` tried to bind already-used ports. Used shared stack directly.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-48",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**AC5 genuinely escalated:** Requires human visual judgment of real-time Ink rendering — correctly tagged `integration-required` in story.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-49",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**All 4 automatable ACs passed** with 48 total assertions.",
       "source": "retro",
       "resolved": false
     }

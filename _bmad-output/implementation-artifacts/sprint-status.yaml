@@ -50,8 +50,8 @@ development_status:
   5-2-verification-runtime-integration: done
 
   # Epic 6: Dashboard Visualization Rework
-  epic-6: backlog
-  epic-6-retrospective: optional
+  epic-6: done
+  epic-6-retrospective: done
   6-1-rewrite-ink-components-match-ux-spec: done
   6-2-verify-stream-json-pipeline-e2e: done
 

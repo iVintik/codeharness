@@ -167,6 +167,9 @@ const WARN_STORY_RETRY = /\[WARN\]\s+Story\s+([\w-]+)\s+exceeded retry limit/;
 /** Matches: [WARN] Story {key} ... retry N/M */
 const WARN_STORY_RETRYING = /\[WARN\]\s+Story\s+([\w-]+)\s+.*retry\s+(\d+)\/(\d+)/;
 
+/** Matches: [LOOP] iteration N */
+const LOOP_ITERATION = /\[LOOP\]\s+iteration\s+(\d+)/;
+
 /** Matches: [ERROR] ... */
 const ERROR_LINE = /\[ERROR\]\s+(.+)/;
 
@@ -227,5 +230,19 @@ export function parseRalphMessage(rawLine: string): StoryMessage | null {
     return null;
   }
 
+  return null;
+}
+
+/**
+ * Parse a ralph stderr line for [LOOP] iteration messages.
+ * Returns the iteration number if found, or null otherwise.
+ */
+export function parseIterationMessage(rawLine: string): number | null {
+  const clean = rawLine.replace(ANSI_ESCAPE, '').replace(TIMESTAMP_PREFIX, '').trim();
+  if (clean.length === 0) return null;
+  const match = LOOP_ITERATION.exec(clean);
+  if (match) {
+    return parseInt(match[1], 10);
+  }
   return null;
 }

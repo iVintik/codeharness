@@ -10,7 +10,7 @@ import { generateRalphPrompt } from '../templates/ralph-prompt.js';
 import { parseStreamLine } from '../lib/stream-parser.js';
 import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
 import { getSprintState } from '../modules/sprint/index.js';
-import { formatElapsed, mapSprintStatuses, parseRalphMessage, countStories, buildSpawnArgs } from '../lib/run-helpers.js';
+import { formatElapsed, mapSprintStatuses, parseRalphMessage, parseIterationMessage, countStories, buildSpawnArgs } from '../lib/run-helpers.js';
 
 const SPRINT_STATUS_REL = '_bmad-output/implementation-artifacts/sprint-status.yaml';
 
@@ -145,6 +145,7 @@ export function registerRunCommand(program: Command): void {
       const rendererHandle = startRenderer({ quiet });
       let sprintStateInterval: ReturnType<typeof setInterval> | null = null;
       const sessionStartTime = Date.now();
+      let currentIterationCount = 0;
 
       try {
         // Read initial sprint state for the renderer header
@@ -157,6 +158,7 @@ export function registerRunCommand(program: Command): void {
             done: s.sprint.done,
             total: s.sprint.total,
             elapsed: formatElapsed(Date.now() - sessionStartTime),
+            iterationCount: currentIterationCount,
           };
           rendererHandle.updateSprintState(sprintInfo);
         }
@@ -196,6 +198,11 @@ export function registerRunCommand(program: Command): void {
                   if (msg) {
                     rendererHandle.addMessage(msg);
                   }
+                  // Parse iteration count from [LOOP] messages (AC #8)
+                  const iteration = parseIterationMessage(line);
+                  if (iteration !== null) {
+                    currentIterationCount = iteration;
+                  }
                 }
               }
             };
@@ -215,6 +222,7 @@ export function registerRunCommand(program: Command): void {
                   done: s.sprint.done,
                   total: s.sprint.total,
                   elapsed: formatElapsed(Date.now() - sessionStartTime),
+                  iterationCount: currentIterationCount,
                 };
                 rendererHandle.updateSprintState(sprintInfo);
               }

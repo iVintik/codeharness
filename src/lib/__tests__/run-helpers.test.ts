@@ -4,6 +4,7 @@ import {
   mapSprintStatus,
   mapSprintStatuses,
   parseRalphMessage,
+  parseIterationMessage,
   countStories,
   buildSpawnArgs,
 } from '../run-helpers.js';
@@ -302,5 +303,34 @@ describe('buildSpawnArgs', () => {
 
   it('does not include --reset when false', () => {
     expect(buildSpawnArgs({ ...baseOpts, reset: false })).not.toContain('--reset');
+  });
+});
+
+describe('parseIterationMessage', () => {
+  it('parses [LOOP] iteration N', () => {
+    expect(parseIterationMessage('[LOOP] iteration 3')).toBe(3);
+  });
+
+  it('parses [LOOP] iteration 1', () => {
+    expect(parseIterationMessage('[LOOP] iteration 1')).toBe(1);
+  });
+
+  it('parses with timestamp prefix', () => {
+    expect(parseIterationMessage('[2025-01-15 10:30:45] [LOOP] iteration 5')).toBe(5);
+  });
+
+  it('strips ANSI color codes', () => {
+    expect(parseIterationMessage('\x1b[33m[LOOP] iteration 7\x1b[0m')).toBe(7);
+  });
+
+  it('returns null for non-LOOP lines', () => {
+    expect(parseIterationMessage('[SUCCESS] Story 1-1-foo: DONE')).toBeNull();
+    expect(parseIterationMessage('[INFO] Starting loop')).toBeNull();
+    expect(parseIterationMessage('')).toBeNull();
+    expect(parseIterationMessage('   ')).toBeNull();
+  });
+
+  it('returns null for LOOP without iteration number', () => {
+    expect(parseIterationMessage('[LOOP] starting')).toBeNull();
   });
 });

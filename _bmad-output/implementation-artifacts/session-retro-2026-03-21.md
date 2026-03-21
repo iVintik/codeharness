@@ -1114,3 +1114,439 @@ The sprint is at 95% completion. Story 5-2 has passed code review and needs only
 
 ### Backlog
 - Standardize "verified" status → either `verifying` or `done`
+
+---
+
+# Session Retrospective — 2026-03-21 (Session 3: Full-day summary)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~05:20Z – ~10:38Z (approx 5 hours across multiple ralph runs)
+**Sprint progress:** 19/25 stories done (76%), 6 remaining in backlog (Epics 6 & 7)
+
+---
+
+## 1. Session Summary
+
+Today saw three distinct work phases, covering verification of previously-implemented stories and completing two full epics.
+
+| Story | Epic | Outcome | Notes |
+|-------|------|---------|-------|
+| 4-1-dockerfile-rules-validation | Epic 4: Infrastructure | done | Verified ~09:39Z |
+| 4-2-dockerfile-template-dev-integration | Epic 4: Infrastructure | done | Verified ~10:01Z |
+| 5-1-code-review-observability-check | Epic 5: Workflow Integration | done | Verified ~10:24Z |
+| 5-2-verification-runtime-integration | Epic 5: Workflow Integration | done | Verified ~11:00Z |
+| 0-1-sprint-state-live-updates | Epic 0: Live Progress Dashboard | done | Bug found and fixed in migration.ts |
+| 0-2-ralph-progress-display | Epic 0: Live Progress Dashboard | done | Proof format issue resolved during verify |
+| 0-3-run-command-dashboard | Epic 0: Live Progress Dashboard | done | Minor format deviations accepted |
+| 0-5-1-stream-json-claude-driver | Epic 0.5: Stream-JSON | done | Clean verification, no issues |
+| 0-5-2-stream-event-parser | Epic 0.5: Stream-JSON | done | Required export fix and rebuild |
+| 0-5-3-ink-terminal-renderer | Epic 0.5: Stream-JSON | done | Completed in final ralph run |
+| 0-5-4-run-command-integration | Epic 0.5: Stream-JSON | done | Completed in final ralph run |
+
+**Result:** 11 stories verified and marked done. Epics 0, 0.5, 4, and 5 all completed. Sprint is now at 19/25 (76%) with remaining 6 stories in backlog epics (6 & 7).
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation
+
+- **Missing fields in `parseRalphStatus()`** (HIGH) — `migration.ts` did not include `currentStory`, `currentPhase`, `lastAction`, `acProgress` fields added by story 0-1. Returned undefined for these fields. Fixed by adding null defaults to the return object.
+- **Missing export in `src/index.ts`** (HIGH) — `parseStreamLine` was not re-exported from the package entry point, making it inaccessible when imported from the built dist bundle. Fixed by adding the re-export and rebuilding.
+
+### Workarounds Applied (Tech Debt)
+
+- **`VITEST=1` env var hack** (MEDIUM) — Container verification of `parseStreamLine` requires setting `VITEST=1` to suppress CLI auto-parse on ESM module import. This is a side effect of the CLI entry point being coupled to module loading.
+- **`node --input-type=module` for ESM** (LOW) — Container uses this flag to run ESM imports inline. Not a real workaround, but documents a friction point for black-box testing of ESM packages.
+
+### Verification Gaps
+
+- **VictoriaLogs returned zero events for all CLI invocations** — Affects stories 0-1 (progress command) and 0-5-2 (parseStreamLine). These are pure functions / commands with no structured logging. The observability coverage gap is real.
+- **No BATS tests available in container** — `ralph/tests/` not included in npm package. Verification of ralph-related stories relied on direct function invocation with mock data instead of the standard BATS test suite.
+- **Format deviations accepted for 0-3** — Story spec said checkmark/cross prefixes; implementation uses `[OK]`/`[FAIL]` tags. Functionally equivalent but spec-implementation mismatch was waved through.
+- **Architecture deviation accepted for 0-3** — Story specified `DashboardFormatter` class; implementation uses Ink React components. Same functionality, different design approach. Accepted.
+
+### Tooling/Infrastructure Problems
+
+- **Non-standard `verified` status in sprint-status.yaml** — Previous session left story 0-5-2 with status `verified` (not a valid state). Had to normalize to `verifying` before proceeding.
+
+---
+
+## 3. What Went Well
+
+- **High throughput:** 11 stories verified and closed in a single day across three ralph sessions. This is the highest single-day throughput in the sprint.
+- **Two full epics completed:** Epic 0 (Live Progress Dashboard) and Epic 0.5 (Stream-JSON Live Activity Display) both went from in-progress to done.
+- **Two more epics completed:** Epic 4 (Infrastructure Guidelines) and Epic 5 (Workflow Integration) also closed out today.
+- **Clean verification on 0-5-1:** Stream-JSON Claude driver passed all 4 ACs with zero issues — demonstrates the implementation quality when specs are precise.
+- **Bugs found and fixed inline:** Both the migration.ts missing fields and the index.ts missing export were caught during verification and fixed immediately, without needing a separate bug story.
+- **Session issues log working well:** Every subagent reported issues consistently, providing raw material for this retrospective.
+
+---
+
+## 4. What Went Wrong
+
+- **Observability gaps are systemic:** Two stories (0-1, 0-5-2) had zero VictoriaLogs events because the underlying functions have no telemetry. This is a known gap but it was verified without observability evidence — the AC was effectively waived.
+- **Spec-implementation mismatches on 0-3:** The story spec described checkmark/cross prefixes and a `DashboardFormatter` class, but the implementation uses `[OK]`/`[FAIL]` tags and Ink components. This was accepted but indicates stories were written before the implementation approach was finalized.
+- **Export omission on 0-5-2:** A function was implemented but not exported from the package entry point. This would have been caught by an integration test but was only found during black-box container verification. Suggests the build/export checklist is incomplete.
+- **Sprint status had invalid state:** The `verified` status on 0-5-2 from a previous session is not a recognized state in the workflow. This created confusion about whether to re-verify or just mark done.
+
+---
+
+## 5. Lessons Learned
+
+- **Export checklist needed:** Every new public function must be verified as exported from `src/index.ts`. This should be part of the dev-story or code-review phase, not discovered in verification.
+- **Specs should be updated when architecture changes:** Story 0-3 specified a class-based design but got Ink components. The story should have been updated to reflect the actual approach before verification.
+- **Pure functions need observability stubs:** Functions like `parseStreamLine` should at minimum emit a debug-level log or metric, even if they're pure. Otherwise the observability dimension of verification is meaningless.
+- **Session issues log is high-value:** Having every subagent write to `.session-issues.md` made this retrospective fast and accurate. Keep this pattern.
+
+---
+
+## 6. Action Items
+
+### Fix now
+- (none — all blocking issues were resolved during session)
+
+### Fix soon
+- Add `parseStreamLine` and `codeharness progress` to structured logging so VictoriaLogs verification is meaningful
+- Add an export verification step to the dev-story workflow — every new public function must appear in `src/index.ts`
+- Standardize sprint-status.yaml states: only allow `backlog`, `in-progress`, `verifying`, `done`, `blocked`, `flagged`
+- Include `ralph/tests/` in the npm package or provide an alternative path for BATS test verification in containers
+
+### Backlog
+- Decouple CLI auto-parse from ESM module loading so `VITEST=1` hack is not needed for container testing
+- Update story 0-3 spec to reflect Ink component architecture (retroactive doc fix)
+- Add structured telemetry to all pure utility functions (at minimum debug-level trace)
+
+---
+
+# Session Retrospective — 2026-03-21 (Session 8: Sprint Closeout Review)
+
+**Timestamp:** ~14:30Z (review-only session, no implementation)
+**Sprint:** Operational Excellence Sprint
+**Sprint result:** 19/25 stories done (76%). Epics 0, 0.5, 1, 2, 3, 4, 5 complete. Epics 6 & 7 in backlog (5 stories).
+**Active automation:** ralph idle (last ran at ~10:29Z, loop_count: 1)
+
+---
+
+## 1. Session Summary
+
+This is a review-only retrospective consolidating the full day's work across 8 session windows. No new implementation was done in this window. The purpose is to assess the final state of the sprint and reconcile findings across all prior retros.
+
+**Stories completed today (by session):**
+
+| Story | Epic | Verified At | Key Issue |
+|-------|------|------------|-----------|
+| 3-3-onboard-alias | 3: Audit Command | ~05:10Z | Unsafe type assertion (fixed) |
+| 4-1-dockerfile-rules-validation | 4: Infra Guidelines | ~09:39Z | AC10 warning propagation bug (fixed) |
+| 4-2-dockerfile-template-dev-integration | 4: Infra Guidelines | ~10:01Z | writeFileSync exception (fixed) |
+| 5-1-code-review-observability-check | 5: Workflow Integration | ~10:24Z | verify-env patches not copied (workaround) |
+| 5-2-verification-runtime-integration | 5: Workflow Integration | ~11:00Z | Tree-shaking eliminated export (workaround) |
+| 0-1-sprint-state-live-updates | 0: Live Progress Dashboard | ~07:55Z | migration.ts missing fields (fixed) |
+| 0-2-ralph-progress-display | 0: Ralph Progress | ~08:00Z | Proof format issue (fixed) |
+| 0-3-run-command-dashboard | 0: Dashboard | ~08:04Z | Format/architecture deviations accepted |
+| 0-5-1-stream-json-claude-driver | 0.5: Stream-JSON | ~08:09Z | Clean pass |
+| 0-5-2-stream-event-parser | 0.5: Stream-JSON | ~10:35Z | Missing export in index.ts (fixed) |
+| 0-5-3-ink-terminal-renderer | 0.5: Stream-JSON | ~10:38Z | No issues logged |
+| 0-5-4-run-command-integration | 0.5: Stream-JSON | ~10:38Z | No issues logged |
+
+**Total stories completed today:** 12 (from 15/25 to 19/25 done in sprint-status.yaml; 6 remaining in backlog)
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification (Cumulative)
+
+**17 bugs found and fixed across 8 stories. 1 pre-existing bug identified but not fixed.**
+
+| Severity | Count | Discovery Phase |
+|----------|-------|----------------|
+| HIGH | 4 | 3 in code review, 1 in verify |
+| MEDIUM | 13 | 9 in code review, 2 in verify, 2 in dev |
+
+Code review caught **~75% of all bugs** — consistently the highest-value quality gate across the entire day.
+
+### Workarounds Applied / Tech Debt Introduced (Cumulative: 12 items, 0 resolved)
+
+1. `console.log` in `audit-action.ts` — needs `raw()` output utility
+2. `formatAuditJson()` is a pass-through no-op
+3. `checkVerificationTools` loose matching (`content.includes(tool)`)
+4. `checkBinaryOnPath` has no line numbers
+5. Skipped BATS onboard tests (commit b5f062c) — **flagged "Fix Now" in 5+ retros, never addressed**
+6. Single-line apt-get coupling between validator and template generator
+7. `docker cp` workaround for patches in verification container — **systemic, hit twice**
+8. `tsx` workaround for tree-shaken exports
+9. Patch content verification as proxy for live agent integration
+10. Coverage percentage computation duplicated in test
+11. Fragile `ROOT` path resolution (`__dirname` + four `..` segments)
+12. Em dash vs double dash inconsistency
+
+### Verification Gaps
+
+- **VictoriaLogs returned zero events** for `codeharness progress` and `parseStreamLine` — pure functions with no telemetry
+- **No BATS tests available in Docker container** — `ralph/tests/` not in npm package
+- **Spec-implementation mismatches accepted** for story 0-3 (format tags and architecture pattern)
+- **No live Claude agent integration test** for review observability patches (5-1 ACs #2-#4)
+- **init-project.test.ts doesn't assert `dockerfile` field** (tests predate story 4-2)
+
+### Tooling/Infrastructure Problems
+
+- **verify-env does not copy `patches/` into Docker container** — broke stories 5-1 and 5-2. Root cause: container uses globally installed npm package, not local source. **This is the most critical systemic issue.**
+- **sprint-state.json and sprint-status.yaml persistently out of sync** — flagged in 3+ retros, no sync mechanism exists. sprint-status.yaml is authoritative.
+- **Pre-existing `run-helpers.test.ts` `--live` flag test was broken** — had to be fixed before 3-3 verification
+- **Non-standard `verified` status** in sprint-status.yaml from previous session caused confusion
+
+---
+
+## 3. What Went Well
+
+- **Sprint went from 75% to 76% done (19/25) with all committed scope completed.** Epics 0 through 5 are fully closed. The remaining 6 stories (Epics 6 & 7) are backlog/stretch goals, not committed scope.
+- **12 stories verified in a single day** across 8 session windows. Highest single-day throughput in the sprint.
+- **4 epics closed today:** Epic 0 (Live Progress Dashboard), Epic 0.5 (Stream-JSON), Epic 4 (Infrastructure Guidelines), Epic 5 (Workflow Integration). Epic 3 was closed and released (v0.23.1).
+- **2 releases shipped:** v0.23.0 (dashboard) and v0.23.1 (audit command). Both via the CI/CD pipeline without manual npm publish.
+- **Code review is proven effective.** 17 bugs caught, 75% by code review. The 4-phase pipeline (create, dev, review, verify) justified its cost at every stage.
+- **Ralph automation handled full pipelines without manual intervention** for stories 4-2, 5-1, 5-2. Lightweight stories with clear ACs are ideal automation candidates.
+- **Session issues log discipline held all day.** Every subagent phase logged findings consistently. This log was the single source of truth for all 8 retrospective entries.
+- **Test suite grew from ~2783 to 2872 (+89 tests)** while maintaining 96.98% coverage. No flaky tests introduced. All files above 80% floor.
+
+---
+
+## 4. What Went Wrong
+
+- **Zero tech debt resolved all day.** 12 items accumulated, 0 closed. The skipped BATS tests (commit b5f062c) have been flagged "Fix Now" in every single retro since ~05:40Z — at least 5 consecutive times. The label "Fix Now" is meaningless at this point.
+- **verify-env patches issue hit twice and never fixed.** Stories 5-1 and 5-2 both required the same manual `docker cp` workaround. The fix would have taken less time than applying the workaround twice.
+- **Sprint-state.json drift persists.** Three retros flagged the sync issue. No resolution, no mechanism added. The file shows stale statuses for multiple stories.
+- **Story 0-3 spec-implementation mismatch accepted without updating the spec.** The story specified `DashboardFormatter` class and checkmark/cross prefixes; the implementation uses Ink React components and `[OK]`/`[FAIL]` tags. The deviation was accepted during verification but the story spec was never updated to match reality.
+- **Validator single-line coupling is a design limitation.** `validateDockerfile()` checks lines independently, so templates must use single-line `apt-get install`. This will produce false negatives for real-world Dockerfiles with multi-line RUN instructions.
+- **Eight retrospective entries for one day is excessive.** Each session window triggered a retro, leading to substantial repetition and carryover of identical action items. A daily cadence with mid-day checkpoint would be sufficient.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+1. **4-phase pipeline (create, dev, review, verify) works.** 17 bugs caught across the day, with verify catching integration seam issues that review missed (AC10 warning propagation). Both phases earn their cost.
+2. **Session issues log as single source of truth.** Having every subagent write to `.session-issues.md` made 8 retrospectives fast and accurate. This pattern is non-negotiable.
+3. **AC expansion at story creation.** Going from epic-level ACs (3-4 per story) to story-level ACs (6-10 per story) gave granular verification targets and caught integration gaps earlier.
+4. **Lightweight stories complete in single automation runs.** Stories 5-1 and 5-2 ran through ralph's full pipeline in ~17-20 minutes each. Well-scoped stories with clear ACs are ideal automation candidates.
+5. **Rebuild Docker image before re-verification.** The 4-1 AC10 "PARTIAL PASS" was caused by a stale Docker image. Always rebuild when re-verifying after code changes.
+
+### Patterns to Avoid
+
+1. **Flagging items "Fix Now" without fixing them.** Five consecutive retros flagged the same BATS tests. Either fix them or reclassify them honestly. Urgent labels that get ignored erode trust in the entire retro process.
+2. **Applying the same workaround twice instead of fixing root cause.** The docker cp workaround for patches cost more time across two stories than a permanent fix would have.
+3. **One retro per session window.** Eight retros in a day created repetition and carryover bloat. Switch to: one mid-day checkpoint retro + one end-of-day consolidation.
+4. **Dual state files without sync.** sprint-status.yaml and sprint-state.json serving overlapping purposes without automatic sync creates confusion. Pick one as authoritative and deprecate the other, or add sync.
+5. **Writing ACs that require LLM behavior verification.** For stories that configure agent behavior (patches, prompts), ACs should focus on mechanically verifiable criteria. "Agent follows instructions" is not testable.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Fix verify-env to copy current `patches/` into Docker container.** This is a systemic blocker for any story that modifies patches. Two stories hit this; future stories will too.
+2. **Fix `readPatchFile()` path resolution bug.** Currently resolves outside package directory from `dist/`. Fallback templates always used instead of real patches.
+3. **Fix tree-shaking of `verifyPromptTemplate()`.** Either add it to CLI exports or create a separate entry point for skill-consumed functions.
+4. **Reclassify skipped BATS onboard tests** (commit b5f062c). These have been "Fix Now" for 5+ retros without action. Either fix them in the next session or move to "Fix Soon" with an honest note that they were deprioritized.
+
+### Fix Soon (Next Sprint)
+
+5. Add `raw()` output utility to `src/lib/output.ts` — resolves `console.log` tech debt in audit-action.ts
+6. Make `validateDockerfile()` handle multi-line RUN instructions (backslash continuations)
+7. Add init-project.test.ts assertions for `dockerfile` field in InitResult
+8. Stabilize `ROOT` path resolution — replace `__dirname` + four `..` segments with a root-finding utility
+9. Add integration test for `checkInfrastructure()` -> `validateDockerfile()` warning propagation seam
+10. Reconcile or deprecate sprint-state.json vs sprint-status.yaml
+
+### Backlog (Track but Not Urgent)
+
+11. Remove `formatAuditJson()` no-op or give it real formatting logic
+12. Add line numbers to `checkBinaryOnPath` for consistency
+13. Add test for `parseObservabilityGaps` with multiple gaps in one AC section
+14. Resolve em dash vs double dash inconsistency between patch and analyzer.ts
+15. Add structured log events for audit/onboard CLI interactions
+16. Add structured telemetry to pure utility functions (at minimum debug-level trace)
+17. Include `ralph/tests/` in npm package or Docker image for ralph story verification
+18. Install showboat in verification Docker container for full-coverage verification
+19. Write AC guidelines for LLM-behavior-dependent stories
+20. Replace test LOC estimates with test case count estimates in story templates
+21. Update story 0-3 spec to reflect Ink component architecture (retroactive doc fix)
+22. Consider data-driven Dockerfile rules (parsed from markdown) instead of hardcoded
+23. Add deprecation warnings for dropped onboard subcommands (`coverage`, `audit`, `epic`)
+
+---
+
+## Final Sprint Metrics (2026-03-21, All Sessions)
+
+| Metric | Start of Day | End of Day | Delta |
+|--------|-------------|------------|-------|
+| Stories done | 15/25 | 19/25 | +4 (committed) |
+| Stories verified today | 0 | 12 | +12 |
+| Sprint completion | 60% | 76% | +16% |
+| Epics closed | 3 (1, 2, 3) | 7 (0, 0.5, 1, 2, 3, 4, 5) | +4 |
+| Tests passing | ~2783 | 2872 | +89 |
+| Coverage-tracked files | 119 | 121 | +2 |
+| Overall coverage | 96.97% | 96.98% | steady |
+| Releases shipped | 0 | 2 (v0.23.0, v0.23.1) | +2 |
+| Bugs found & fixed | 0 | 17 | +17 |
+| Tech debt items opened | 0 | 12 | +12 |
+| Tech debt items resolved | 0 | 0 | 0 |
+| Retro entries this day | 0 | 8 | (too many) |
+
+---
+
+## Sprint Health Assessment
+
+The Operational Excellence Sprint is effectively complete. All committed scope (Epics 1-5) is done. Epics 0 and 0.5 (stretch/bonus epics added mid-sprint) are also done. The remaining 6 stories in Epics 6 and 7 are backlog items — they were planned as onboarding compliance gaps and are not blocking any release or user-facing feature.
+
+**The sprint's biggest success:** The 4-phase pipeline and session issues log proved their value. 17 bugs found and fixed, 75% caught by code review, with verify catching the integration seam bugs that review missed.
+
+**The sprint's biggest failure:** Tech debt resolution rate is 0%. Twelve items accumulated, none resolved. The retro process identified the right issues but the execution loop never dedicated time to fix them. The skipped BATS tests are the poster child: flagged as urgent in every retro, ignored in every session.
+
+**Recommendation for next sprint:**
+1. Dedicate the first session to tech debt: fix verify-env patches, readPatchFile path resolution, tree-shaking issue, and BATS tests. These 4 items are genuine blockers or quality gaps.
+2. Reduce retro frequency to 2 per day max (mid-day checkpoint + end-of-day consolidation). Eight retros created more overhead than value.
+3. Before starting Epic 6 or 7, ensure the verification infrastructure actually works for patch-modifying and export-dependent stories. Otherwise those stories will hit the same blockers.
+
+---
+
+# Session Retrospective — 2026-03-21 (Session 3, Late Day)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~07:55Z – ~11:01Z (approx 3 hours)
+**Sprint progress:** 20/25 stories done (80%), Epics 0-5 complete, Epic 6 in progress
+**Generated:** 2026-03-21T14:45Z
+
+---
+
+## 1. Session Summary
+
+| Story | Phase | Outcome | Notes |
+|-------|-------|---------|-------|
+| 0-1-sprint-state-live-updates | verify | done | Bug found & fixed in migration.ts |
+| 0-2-ralph-progress-display | verify | done | Proof format issue fixed mid-verify |
+| 0-3-run-command-dashboard | verify | done | Minor format deviations accepted |
+| 0-5-1-stream-json-claude-driver | verify | done | Clean pass, no issues |
+| 0-5-2-stream-event-parser | verify | done | Export fix required, then 6/6 ACs passed |
+| 6-1-rewrite-ink-components-match-ux-spec | create-story | done | Story created from UX spec |
+| 6-1-rewrite-ink-components-match-ux-spec | dev-story | done | 3-file split, Ink components rewritten |
+| 6-1-rewrite-ink-components-match-ux-spec | code-review | done | 2 HIGH bugs, 1 MEDIUM bug found & fixed |
+| 6-1-rewrite-ink-components-match-ux-spec | verify | in progress | Currently verifying |
+
+This session verified 5 stories that were pending from earlier sessions and pushed story 6-1 through create, dev, and code review. High throughput session.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Bug | Severity | Story | Status |
+|-----|----------|-------|--------|
+| `parseRalphStatus()` missing new fields from story 0-1 | MEDIUM | 0-1 | Fixed |
+| `updateSprintState()` wiped accumulated `totalCost` every 5s polling | HIGH | 6-1 | Fixed in review |
+| `startsWith` key comparison caused false story matches (e.g., `3-2` matching `3-20`) | MEDIUM | 6-1 | Fixed in review |
+| `parseStreamLine` not exported from `src/index.ts` | MEDIUM | 0-5-2 | Fixed |
+
+### Workarounds Applied (Tech Debt Introduced)
+
+| Workaround | Story | Risk |
+|------------|-------|------|
+| Container requires `VITEST=1` env var to suppress CLI auto-parse on module import | 0-5-2 | LOW — fragile, couples test env to implementation detail |
+| NFR9 300-line limit forced 3-file split with indirection (`ink-app.tsx` / `ink-components.tsx` / `ink-activity-components.tsx`) | 6-1 | LOW — adds navigation complexity but avoids circular deps |
+| Cost from early events before `sprintInfo` init is silently lost | 6-1 | MEDIUM — cost display may undercount |
+| `run.ts` at 308 lines (8 over 300-line NFR9 limit) | 6-1 | LOW — pre-existing, not addressed |
+
+### Verification Gaps
+
+| Gap | Story | Impact |
+|-----|-------|--------|
+| VictoriaLogs returned zero events for `codeharness progress` — no structured logging | 0-1 | Observability blind spot for progress command |
+| VictoriaLogs returned zero events for `parseStreamLine` — pure function, no telemetry | 0-5-2 | Expected for pure functions, but means no runtime observability |
+| No BATS tests in container (`ralph/tests/` not in npm package) | 0-2 | Verification relies on mock invocation, not integration tests |
+| No integration test for full run-to-renderer-to-component pipeline with cost accumulation across polling cycles | 6-1 | Cost accumulation bugs could regress |
+
+### Code Quality Concerns
+
+- Renderer accumulates cost internally with no external read path. `updateSprintState` has implicit merge behavior — makes testing and debugging harder.
+- `currentIterationCount` in `run.ts` is a mutable closure variable updated from stderr parsing — updates delayed until next 5-second polling interval.
+- Old `epic-6-retrospective.md` documents Brownfield Onboarding epic, not Dashboard Visualization Rework — stale/misleading artifact.
+
+### Tooling/Infrastructure Problems
+
+- Sprint status had invalid `verified` status value (not in the valid enum). Required manual normalization to `verifying`.
+- VictoriaLogs `_stream_id:*` pattern invalid — needed `*` wildcard syntax instead.
+
+---
+
+## 3. What Went Well
+
+- **High throughput:** 5 stories verified + 1 story through create/dev/review in a single session.
+- **Code review caught critical bugs:** The `totalCost` wipe bug and `startsWith` false-match bug were both caught before verify — code review proving its value.
+- **Clean verifications:** Story 0-5-1 passed with zero issues. Stories 0-1, 0-2, 0-3 required only minor fixes.
+- **Epic completion:** Epics 0 and 0.5 are now fully done, clearing the path for Epic 6 dashboard rework.
+- **Session issues log working as intended:** Every subagent reported its findings, making this retro possible without guesswork.
+
+---
+
+## 4. What Went Wrong
+
+- **Export omission (0-5-2):** `parseStreamLine` was implemented but never exported from `src/index.ts`. This is a recurring pattern — new functions get created but not wired into the public API. Dev phase should include an export check.
+- **Proof format issues (0-2):** Verification initially failed because proof document reused evidence blocks instead of having distinct ones per AC. This is a process friction that wastes verify iterations.
+- **Cost accumulation gap (6-1):** Events arriving before `sprintInfo` is set silently lose their cost data. This was identified but not fixed — it shipped as known tech debt.
+- **Stale artifacts:** The `epic-6-retrospective.md` file contains content from a different epic, which caused confusion during story creation.
+- **No BATS test coverage in container:** This has been flagged in multiple retros and remains unfixed. Ralph tests are excluded from the npm package, so container-based verification cannot run them.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+- **Code review before verify** caught 2 HIGH-severity bugs that would have cost multiple verify iterations to diagnose. The 4-phase pipeline is working.
+- **Session issues log** as structured input to retrospectives eliminates guesswork and ensures nothing is forgotten.
+- **Story creation from UX spec** (6-1) produced well-scoped ACs that the dev phase could implement without ambiguity.
+
+### Patterns to Avoid
+- **Skipping export wiring** — new public functions must be added to `src/index.ts` as part of the dev phase, not discovered during verify.
+- **Implicit state accumulation** — the cost accumulator pattern (internal state, no read path, implicit merge) is hard to test and debug. Prefer explicit state objects.
+- **Reusing proof evidence across ACs** — each AC needs its own distinct evidence block. Template the proof doc with placeholders per AC.
+- **Leaving stale artifacts** — misleading files (like the wrong epic-6-retrospective.md) waste time and cause confusion.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+1. **Clean up stale `epic-6-retrospective.md`** — either delete or rename to reflect its actual content (Brownfield Onboarding).
+2. **Complete 6-1 verification** — story is in `verifying` state, needs to finish.
+
+### Fix Soon (Next Sprint)
+3. **Add export-check to dev phase** — any new public function must appear in `src/index.ts` exports. Add this as a checklist item in the dev workflow.
+4. **Fix cost accumulation gap in 6-1** — events before `sprintInfo` init should buffer cost, not discard it.
+5. **Add integration test for cost accumulation across polling cycles** — the cost wipe bug was caught by review, but there is no regression test.
+6. **Refactor `run.ts`** — at 308 lines it exceeds the 300-line NFR9 limit. Extract the iteration counting and stderr parsing.
+
+### Backlog (Track but Not Urgent)
+7. **Include `ralph/tests/` in npm package** — enables BATS test execution in container verification.
+8. **Add structured logging to `codeharness progress` command** — currently zero observability.
+9. **Add telemetry hooks to pure parser functions** — or accept that pure functions have no runtime observability and document this as policy.
+10. **Remove `VITEST=1` env var workaround** — fix the CLI auto-parse on module import properly.
+11. **Normalize sprint status enum** — add validation that rejects invalid status values like `verified`.
+
+---
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories verified | 5 |
+| Stories created | 1 |
+| Stories dev-completed | 1 |
+| Stories code-reviewed | 1 |
+| Bugs found & fixed | 4 |
+| Tech debt items opened | 4 |
+| Tech debt items resolved | 0 |
+| Verification gaps identified | 4 |
+| Session duration | ~3 hours |

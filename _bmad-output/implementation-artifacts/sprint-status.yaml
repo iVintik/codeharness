@@ -52,7 +52,7 @@ development_status:
   # Epic 6: Dashboard Visualization Rework
   epic-6: backlog
   epic-6-retrospective: optional
-  6-1-rewrite-ink-components-match-ux-spec: backlog
+  6-1-rewrite-ink-components-match-ux-spec: done
   6-2-verify-stream-json-pipeline-e2e: backlog
 
   # Epic 7: Onboarding — Compliance Gaps

@@ -175,7 +175,13 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
         break;
 
       case 'result':
-        // No rendering change — handled by caller
+        // Accumulate cost from result events (AC #7)
+        if (event.cost > 0 && state.sprintInfo) {
+          state.sprintInfo = {
+            ...state.sprintInfo,
+            totalCost: (state.sprintInfo.totalCost ?? 0) + event.cost,
+          };
+        }
         break;
     }
 
@@ -184,7 +190,18 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
   function updateSprintState(sprintState: SprintInfo | undefined): void {
     if (cleaned) return;
-    state.sprintInfo = sprintState ?? null;
+    if (sprintState && state.sprintInfo) {
+      // Preserve accumulated fields (totalCost, acProgress, currentCommand)
+      // that are set by event handlers but not by the polling caller.
+      state.sprintInfo = {
+        ...sprintState,
+        totalCost: sprintState.totalCost ?? state.sprintInfo.totalCost,
+        acProgress: sprintState.acProgress ?? state.sprintInfo.acProgress,
+        currentCommand: sprintState.currentCommand ?? state.sprintInfo.currentCommand,
+      };
+    } else {
+      state.sprintInfo = sprintState ?? null;
+    }
     rerender();
   }
 

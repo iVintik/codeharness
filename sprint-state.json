@@ -169,8 +169,8 @@
       "acResults": null
     },
     "6-1-rewrite-ink-components-match-ux-spec": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "verifying",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -212,14 +212,14 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 1,
+    "iteration": 3,
     "cost": 0,
     "completed": [],
     "failed": [],
     "currentStory": null,
     "currentPhase": null,
     "lastAction": null,
-    "acProgress": null
+    "acProgress": "10/10"
   },
   "actionItems": [
     {
@@ -310,6 +310,97 @@
       "id": "migrated-13",
       "story": "0-5-2-stream-event-parser",
       "description": "All 6 ACs passed black-box verification after infrastructure fix.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Ambiguity: No formal epic definition file for Epic 6.** Derived intent from story name, UX spec, and existing code.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Workaround: Cost field source unclear.** Story assumes `result` events contain cost data — needs verification during implementation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Risk: AC10 snapshot test fragility.** Softened to \"matches spec format structure\" rather than literal character comparison.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Observation:** Old `epic-6-retrospective.md` documents Brownfield Onboarding epic, not Dashboard Visualization Rework — stale/misleading.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Workaround: file split to avoid circular imports** — NFR9 300-line limit forced a 3-file split. `ink-app.tsx` composes `ink-components.tsx` and `ink-activity-components.tsx` to avoid circular deps. Adds indirection.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Cost accumulation edge case** — `result` event cost only accumulates when `state.sprintInfo` is non-null. Cost from early events before sprint state init is lost.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Iteration count delay** — `currentIterationCount` in run.ts is a mutable closure variable, updated from stderr parsing. Iteration count updates are delayed until next 5-second polling interval.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Missing artifacts** — AGENTS.md, exec-plan, and proof document not created (not in story tasks).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**HIGH bug fixed:** `updateSprintState()` wiped accumulated `totalCost` every 5s during polling — cost display would flash and disappear. Fixed with field preservation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**MEDIUM bug fixed:** `startsWith` key comparison in `StoryBreakdown` caused false matches (e.g., story `3-2` matching `3-20`). Fixed to exact comparison.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**LOW unfixed:** `run.ts` is 308 lines (8 over NFR9 300-line limit). Pre-existing.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-25",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Coverage gap:** No integration test for full run→renderer→component pipeline with cost accumulation across polling cycles.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-26",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Architecture concern:** Renderer accumulates cost internally with no external read path. `updateSprintState` has implicit merge behavior.",
       "source": "retro",
       "resolved": false
     }

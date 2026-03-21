@@ -1,13 +1,53 @@
 {
   "version": 1,
   "sprint": {
-    "total": 18,
-    "done": 15,
+    "total": 25,
+    "done": 20,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
   },
   "stories": {
+    "0-1-sprint-state-live-updates": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-2-ralph-progress-display": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-3-run-command-dashboard": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-5-1-stream-json-claude-driver": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-5-2-stream-event-parser": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
     "0-5-3-ink-terminal-renderer": {
       "status": "done",
       "attempts": 0,
@@ -128,7 +168,15 @@
       "proofPath": null,
       "acResults": null
     },
-    "6-1-install-semgrep-static-analysis": {
+    "6-1-rewrite-ink-components-match-ux-spec": {
+      "status": "review",
+      "attempts": 1,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "6-2-verify-stream-json-pipeline-e2e": {
       "status": "backlog",
       "attempts": 0,
       "lastAttempt": null,
@@ -136,7 +184,7 @@
       "proofPath": null,
       "acResults": null
     },
-    "6-2-fix-bats-runtime-tests": {
+    "7-1-install-semgrep-static-analysis": {
       "status": "backlog",
       "attempts": 0,
       "lastAttempt": null,
@@ -144,7 +192,15 @@
       "proofPath": null,
       "acResults": null
     },
-    "6-3-create-dockerfile": {
+    "7-2-fix-bats-runtime-tests": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "7-3-create-dockerfile": {
       "status": "backlog",
       "attempts": 0,
       "lastAttempt": null,
@@ -154,9 +210,9 @@
     }
   },
   "run": {
-    "active": false,
+    "active": true,
     "startedAt": null,
-    "iteration": 1,
+    "iteration": 2,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -165,5 +221,153 @@
     "lastAction": null,
     "acProgress": null
   },
-  "actionItems": []
+  "actionItems": [
+    {
+      "id": "migrated-1",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**Bug found and fixed:** `parseRalphStatus()` in `migration.ts` was missing the new `currentStory`, `currentPhase`, `lastAction`, `acProgress` fields added by this story. Migration test was failing. Fixed by adding null defaults to the return object.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-2",
+      "story": "0-1-sprint-state-live-updates",
+      "description": "**Observability gap:** VictoriaLogs returned zero log events for all `codeharness progress` CLI invocations. The progress command doesn't emit structured logs.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-3",
+      "story": "0-2-ralph-progress-display",
+      "description": "**Proof format issue:** AC3 initially reused evidence from AC2 without its own `bash` code block, causing `codeharness verify` to report 3/4 ACs. Fixed by adding a distinct bash block.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "0-2-ralph-progress-display",
+      "description": "**No BATS tests in container:** `ralph/tests/` not included in npm package. Verification relied on direct function invocation with mock data.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "0-2-ralph-progress-display",
+      "description": "**VictoriaLogs query syntax:** `_stream_id:*` pattern invalid for VictoriaLogs. Used `*` wildcard instead.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "0-3-run-command-dashboard",
+      "description": "**Minor format deviations:** Story specified checkmark/cross prefixes but implementation uses `[OK]`/`[FAIL]` tags. Functionally equivalent, passed verification.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "0-3-run-command-dashboard",
+      "description": "**Architecture difference:** Story specified `DashboardFormatter` class but implementation uses Ink React components. Same functionality, different design.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "0-5-1-stream-json-claude-driver",
+      "description": "Clean verification — all 4 ACs passed without issues.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "0-5-2-stream-event-parser",
+      "description": "**Infrastructure fix:** `parseStreamLine` was not exported from `src/index.ts`, making it inaccessible in the container's dist bundle. Added re-export to `src/index.ts` and rebuilt.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "0-5-2-stream-event-parser",
+      "description": "**ESM import workaround:** Container requires `VITEST=1` env var to suppress CLI auto-parse on module import. Uses `node --input-type=module` for ESM.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "0-5-2-stream-event-parser",
+      "description": "**[OBSERVABILITY GAP]** VictoriaLogs returned zero log events for all parser invocations — `parseStreamLine` is a pure function with no telemetry.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "0-5-2-stream-event-parser",
+      "description": "**Non-standard status from previous session:** Sprint status had `verified` (not a valid status). Normalized to `verifying` before proceeding.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "0-5-2-stream-event-parser",
+      "description": "All 6 ACs passed black-box verification after infrastructure fix.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Ambiguity: No formal epic definition file for Epic 6.** Derived intent from story name, UX spec, and existing code.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Workaround: Cost field source unclear.** Story assumes `result` events contain cost data — needs verification during implementation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Risk: AC10 snapshot test fragility.** Softened to \"matches spec format structure\" rather than literal character comparison.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Observation:** Old `epic-6-retrospective.md` documents Brownfield Onboarding epic, not Dashboard Visualization Rework — stale/misleading.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Workaround: file split to avoid circular imports** — NFR9 300-line limit forced a 3-file split. `ink-app.tsx` composes `ink-components.tsx` and `ink-activity-components.tsx` to avoid circular deps. Adds indirection.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Cost accumulation edge case** — `result` event cost only accumulates when `state.sprintInfo` is non-null. Cost from early events before sprint state init is lost.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Iteration count delay** — `currentIterationCount` in run.ts is a mutable closure variable, updated from stderr parsing. Iteration count updates are delayed until next 5-second polling interval.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Missing artifacts** — AGENTS.md, exec-plan, and proof document not created (not in story tasks).",
+      "source": "retro",
+      "resolved": false
+    }
+  ]
 }

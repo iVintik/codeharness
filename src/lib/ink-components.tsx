@@ -1,13 +1,14 @@
 /**
- * Ink UI components for the terminal activity dashboard.
+ * Ink UI components — types and layout components (Header, Separator, StoryBreakdown).
  *
- * Uses Ink's Box/flexbox layout with borders for a panel-based dashboard.
- * Static component is used for permanent messages (story completions).
+ * Renders a UX-spec-compliant live display with plain text header,
+ * ━━━ separators, and labeled story breakdown sections.
+ * Activity components (tools, thoughts, retry) are in ink-activity-components.tsx.
+ * The App root component is in ink-app.tsx to avoid circular imports.
  */
 
 import React from 'react';
-import { Text, Box, Static } from 'ink';
-import { Spinner } from '@inkjs/ui';
+import { Text, Box } from 'ink';
 
 // --- Types ---
 
@@ -17,6 +18,10 @@ export interface SprintInfo {
   done: number;
   total: number;
   elapsed?: string;
+  iterationCount?: number;
+  totalCost?: number;
+  acProgress?: string;
+  currentCommand?: string;
 }
 
 export interface CompletedToolEntry {
@@ -29,6 +34,8 @@ export type StoryStatusValue = 'done' | 'in-progress' | 'pending' | 'failed' | '
 export interface StoryStatusEntry {
   key: string;
   status: StoryStatusValue;
+  retryCount?: number;
+  maxRetries?: number;
 }
 
 export interface RetryInfo {
@@ -54,198 +61,140 @@ export interface RendererState {
   retryInfo: RetryInfo | null;
 }
 
-// --- Components ---
+// --- Layout Components ---
 
-export function Header({ info }: { info: SprintInfo | null }) {
-  if (!info) return null;
-  const pct = info.total > 0 ? Math.round((info.done / info.total) * 100) : 0;
-  return (
-    <Box borderStyle="round" borderColor="cyan" paddingX={1}>
-      <Text bold color="cyan">{'◆ '}</Text>
-      <Text bold>{info.storyKey || '(waiting)'}</Text>
-      <Text dimColor>{' — '}</Text>
-      <Text color="yellow">{info.phase || '...'}</Text>
-      {info.elapsed && <Text dimColor>{` │ ${info.elapsed}`}</Text>}
-      <Text dimColor>{' │ Sprint: '}</Text>
-      <Text bold color="green">{info.done}</Text>
-      <Text dimColor>{'/'}</Text>
-      <Text>{String(info.total)}</Text>
-      <Text dimColor>{` (${pct}%)`}</Text>
-    </Box>
-  );
+/** Full-width separator using ━ characters. */
+export function Separator() {
+  const width = process.stdout.columns || 60;
+  return <Text>{'━'.repeat(width)}</Text>;
 }
-
-const STATUS_SYMBOLS: Record<StoryStatusValue, string> = {
-  'done': '✓',
-  'in-progress': '◆',
-  'pending': '○',
-  'failed': '✗',
-  'blocked': '✕',
-};
-
-const STATUS_COLORS: Record<StoryStatusValue, string> = {
-  'done': 'green',
-  'in-progress': 'cyan',
-  'pending': 'gray',
-  'failed': 'red',
-  'blocked': 'yellow',
-};
 
 function shortKey(key: string): string {
   const m = key.match(/^(\d+-\d+)/);
   return m ? m[1] : key;
 }
 
-export function StoryBreakdown({ stories }: { stories: StoryStatusEntry[] }) {
-  if (stories.length === 0) return null;
+function formatCost(cost: number): string {
+  return `$${cost.toFixed(2)}`;
+}
 
-  const groups: Partial<Record<StoryStatusValue, string[]>> = {};
-  for (const s of stories) {
-    if (!groups[s.status]) groups[s.status] = [];
-    groups[s.status]!.push(s.key);
+export function Header({ info }: { info: SprintInfo | null }) {
+  if (!info) return null;
+
+  const parts: string[] = ['codeharness run'];
+  if (info.iterationCount != null) {
+    parts.push(`iteration ${info.iterationCount}`);
+  }
+  if (info.elapsed) {
+    parts.push(`${info.elapsed} elapsed`);
+  }
+  if (info.totalCost != null) {
+    parts.push(`${formatCost(info.totalCost)} spent`);
+  }
+  const headerLine = parts.join(' | ');
+
+  let phaseLine = '';
+  if (info.phase) {
+    phaseLine = `Phase: ${info.phase}`;
+    if (info.acProgress) {
+      phaseLine += ` → AC ${info.acProgress}`;
+    }
+    if (info.currentCommand) {
+      phaseLine += ` (${info.currentCommand})`;
+    }
   }
 
   return (
-    <Box paddingX={1} gap={2}>
-      {groups['done']?.length && (
-        <Text>
-          <Text color="green">{groups['done'].length} ✓</Text>
-          <Text dimColor> done</Text>
-        </Text>
-      )}
-      {groups['in-progress']?.map(k => (
-        <Text key={k}>
-          <Text color="cyan">◆ </Text>
-          <Text bold>{k}</Text>
-        </Text>
-      ))}
-      {groups['pending']?.length && (
-        <Text>
-          <Text dimColor>next: </Text>
-          <Text>{groups['pending'].slice(0, 3).map(k => shortKey(k)).join(' ')}</Text>
-          {groups['pending'].length > 3 && <Text dimColor>{` +${groups['pending'].length - 3}`}</Text>}
-        </Text>
-      )}
-      {groups['failed']?.map(k => (
-        <Text key={k}><Text color="red">✗ {shortKey(k)}</Text></Text>
-      ))}
-      {groups['blocked']?.map(k => (
-        <Text key={k}><Text color="yellow">✕ {shortKey(k)}</Text></Text>
-      ))}
+    <Box flexDirection="column">
+      <Text>{headerLine}</Text>
+      <Separator />
+      <Text>{`Story: ${info.storyKey || '(waiting)'}`}</Text>
+      {phaseLine && <Text>{phaseLine}</Text>}
     </Box>
   );
 }
 
-const MESSAGE_STYLE: Record<StoryMessage['type'], { prefix: string; color: string }> = {
-  ok: { prefix: '[OK]', color: 'green' },
-  warn: { prefix: '[WARN]', color: 'yellow' },
-  fail: { prefix: '[FAIL]', color: 'red' },
-};
+export function StoryBreakdown({ stories, sprintInfo }: { stories: StoryStatusEntry[]; sprintInfo?: SprintInfo | null }) {
+  if (stories.length === 0) return null;
 
-export function StoryMessageLine({ msg }: { msg: StoryMessage }) {
-  const style = MESSAGE_STYLE[msg.type];
-  return (
-    <Box flexDirection="column">
-      <Text>
-        <Text color={style.color} bold>{style.prefix}</Text>
-        <Text>{` Story ${msg.key}: ${msg.message}`}</Text>
+  const done: StoryStatusEntry[] = [];
+  const inProgress: StoryStatusEntry[] = [];
+  const pending: StoryStatusEntry[] = [];
+  const failed: StoryStatusEntry[] = [];
+  const blocked: StoryStatusEntry[] = [];
+
+  for (const s of stories) {
+    switch (s.status) {
+      case 'done': done.push(s); break;
+      case 'in-progress': inProgress.push(s); break;
+      case 'pending': pending.push(s); break;
+      case 'failed': failed.push(s); break;
+      case 'blocked': blocked.push(s); break;
+    }
+  }
+
+  const lines: React.ReactNode[] = [];
+
+  if (done.length > 0) {
+    const doneItems = done.map(s => `${shortKey(s.key)} ✓`).join('  ');
+    lines.push(
+      <Text key="done"><Text color="green">{'Done: '}</Text><Text color="green">{doneItems}</Text></Text>
+    );
+  }
+
+  if (inProgress.length > 0) {
+    for (const s of inProgress) {
+      let thisText = `${shortKey(s.key)} ◆`;
+      if (sprintInfo && sprintInfo.storyKey && shortKey(s.key) === shortKey(sprintInfo.storyKey)) {
+        if (sprintInfo.phase) thisText += ` ${sprintInfo.phase}`;
+        if (sprintInfo.acProgress) thisText += ` (${sprintInfo.acProgress} ACs)`;
+      }
+      lines.push(
+        <Text key={`this-${s.key}`}><Text color="cyan">{'This: '}</Text><Text color="cyan">{thisText}</Text></Text>
+      );
+    }
+  }
+
+  if (pending.length > 0) {
+    lines.push(
+      <Text key="next">
+        <Text>{'Next: '}</Text><Text>{shortKey(pending[0].key)}</Text>
+        {pending.length > 1 && <Text dimColor>{` (+${pending.length - 1} more)`}</Text>}
       </Text>
-      {msg.details?.map((d, j) => (
-        <Text key={j} dimColor>{`  └ ${d}`}</Text>
-      ))}
-    </Box>
-  );
-}
+    );
+  }
 
-export function CompletedTool({ entry }: { entry: CompletedToolEntry }) {
-  const argsSummary = entry.args.length > 60
-    ? entry.args.slice(0, 60) + '…'
-    : entry.args;
-  return (
-    <Text wrap="truncate-end">
-      <Text color="green">{'✓ '}</Text>
-      <Text dimColor>{'['}</Text>
-      <Text>{entry.name}</Text>
-      <Text dimColor>{'] '}</Text>
-      <Text dimColor>{argsSummary}</Text>
-    </Text>
-  );
-}
+  if (blocked.length > 0) {
+    const blockedItems = blocked.map(s => {
+      let item = `${shortKey(s.key)} ✕`;
+      if (s.retryCount != null && s.maxRetries != null) item += ` (${s.retryCount}/${s.maxRetries})`;
+      return item;
+    }).join('  ');
+    lines.push(
+      <Text key="blocked"><Text color="yellow">{'Blocked: '}</Text><Text color="yellow">{blockedItems}</Text></Text>
+    );
+  }
 
-/** Show only the last N completed tools to keep output compact. */
-const VISIBLE_COMPLETED_TOOLS = 5;
+  if (failed.length > 0) {
+    const failedItems = failed.map(s => {
+      let item = `${shortKey(s.key)} ✗`;
+      if (s.retryCount != null && s.maxRetries != null) item += ` (${s.retryCount}/${s.maxRetries})`;
+      return item;
+    }).join('  ');
+    lines.push(
+      <Text key="failed"><Text color="red">{'Failed: '}</Text><Text color="red">{failedItems}</Text></Text>
+    );
+  }
 
-export function CompletedTools({ tools }: { tools: CompletedToolEntry[] }) {
-  const visible = tools.slice(-VISIBLE_COMPLETED_TOOLS);
-  const hidden = tools.length - visible.length;
   return (
     <Box flexDirection="column">
-      {hidden > 0 && <Text dimColor>{`  … ${hidden} earlier tools`}</Text>}
-      {visible.map((entry, i) => (
-        <CompletedTool key={i} entry={entry} />
-      ))}
+      {lines}
     </Box>
   );
 }
 
-export function ActiveTool({ name }: { name: string }) {
-  return (
-    <Box>
-      <Text color="yellow">{'⚡ '}</Text>
-      <Text dimColor>{'['}</Text>
-      <Text bold>{name}</Text>
-      <Text dimColor>{'] '}</Text>
-      <Spinner label="" />
-    </Box>
-  );
-}
+// Re-export activity components so existing consumers don't break
+export { CompletedTool, CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine } from './ink-activity-components.js';
 
-export function LastThought({ text }: { text: string }) {
-  return (
-    <Text wrap="truncate-end">
-      <Text>{'💭 '}</Text>
-      <Text dimColor>{text}</Text>
-    </Text>
-  );
-}
-
-export function RetryNotice({ info }: { info: RetryInfo }) {
-  return (
-    <Text color="yellow">
-      {'⏳ API retry '}
-      {info.attempt}
-      {' (waiting '}
-      {info.delay}
-      {'ms)'}
-    </Text>
-  );
-}
-
-// --- Root App ---
-
-export function App({
-  state,
-}: {
-  state: RendererState;
-}) {
-  return (
-    <Box flexDirection="column">
-      {/* Permanent messages — rendered once via Static, scroll up */}
-      <Static items={state.messages}>
-        {(msg, i) => (
-          <StoryMessageLine key={i} msg={msg} />
-        )}
-      </Static>
-
-      {/* Dynamic section — re-renders on every state change */}
-      <Header info={state.sprintInfo} />
-      <StoryBreakdown stories={state.stories} />
-      <Box flexDirection="column" paddingLeft={1}>
-        <CompletedTools tools={state.completedTools} />
-        {state.activeTool && <ActiveTool name={state.activeTool.name} />}
-        {state.lastThought && <LastThought text={state.lastThought} />}
-        {state.retryInfo && <RetryNotice info={state.retryInfo} />}
-      </Box>
-    </Box>
-  );
-}
+// Re-export App from ink-app
+export { App } from './ink-app.js';

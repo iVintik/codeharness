@@ -58,6 +58,6 @@ development_status:
   # Epic 7: Onboarding — Compliance Gaps
   epic-7: backlog
   epic-7-retrospective: optional
-  7-1-install-semgrep-static-analysis: backlog
+  7-1-install-semgrep-static-analysis: done
   7-2-fix-bats-runtime-tests: backlog
   7-3-create-dockerfile: backlog

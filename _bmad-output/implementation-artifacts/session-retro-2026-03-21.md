@@ -1681,3 +1681,155 @@ One story attempted, one story completed through all phases. Story 6-1 rewrote I
 | Infrastructure issues hit | 4 |
 | Verification gaps identified | 3 |
 | Session duration | ~45 minutes (across 2 ralph sessions) |
+
+---
+
+# Session Retrospective — 2026-03-21 (Session 3, ~15:15Z)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~07:55Z – ~11:40Z (approx 3h 45m across 4 ralph sessions)
+**Sprint progress at end:** 22/25 stories done (88%), Epics 0-6 complete, Epic 7 in backlog
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Phases Run | Attempts |
+|-------|------|---------|------------|----------|
+| 0-1-sprint-state-live-updates | Epic 0 | Done (verified) | verify | 0 |
+| 0-2-ralph-progress-display | Epic 0 | Done (verified) | verify | 0 |
+| 0-3-run-command-dashboard | Epic 0 | Done (verified) | verify | 0 |
+| 0-5-1-stream-json-claude-driver | Epic 0.5 | Done (verified) | verify | 0 |
+| 0-5-2-stream-event-parser | Epic 0.5 | Done (verified) | verify | 0 |
+| 6-1-rewrite-ink-components-match-ux-spec | Epic 6 | Done (verified) | create-story, dev-story, code-review, verify | 2 |
+| 6-2-verify-stream-json-pipeline-e2e | Epic 6 | Done (verified) | create-story, dev-story, code-review, verify | 1 |
+
+Seven stories were touched this session. Five were carry-overs from previous sessions needing only verification. Two (6-1, 6-2) went through the full lifecycle: story creation, implementation, code review, and verification.
+
+Epic 6 (Dashboard Visualization Rework) was completed and closed this session, including an epic retrospective. All remaining work is in Epic 7 (Onboarding — Compliance Gaps), which is in backlog.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Severity | Story | Bug | Resolution |
+|----------|-------|-----|------------|
+| HIGH | 6-1 | `updateSprintState()` wiped accumulated `totalCost` every 5s during polling — cost display would flash and disappear | Fixed with field preservation |
+| HIGH | 6-2 | Test reimplemented production `makeLineHandler` instead of importing — changes to production code wouldn't be caught by tests | Fixed by extracting `createLineProcessor` to `run-helpers.ts` |
+| HIGH | 6-2 | Story File List had wrong path | Fixed |
+| MEDIUM | 6-1 | `startsWith` key comparison in `StoryBreakdown` caused false matches (e.g., story `3-2` matching `3-20`) | Fixed to exact comparison |
+| MEDIUM | 6-2 | `makeLineHandler` was untestable closure in `run.ts` | Extracted to `run-helpers.ts` |
+| MEDIUM | 6-2 | Unused `vi` import | Removed |
+| LOW | 6-1 | `run.ts` is 308 lines (8 over NFR9 300-line limit) | Unfixed — pre-existing |
+| LOW | 6-2 | No test for multi-byte UTF-8 split across chunk boundaries | Unfixed |
+| LOW | 6-2 | Renderer state accumulation test uses manual switch, not real Ink renderer | Unfixed |
+
+**Pattern:** 3 HIGH bugs caught in code review, all fixed before verification. Code review is catching real issues.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **3-file split for NFR9 compliance (6-1):** `ink-app.tsx`, `ink-components.tsx`, `ink-activity-components.tsx` split to stay under 300-line limit. Adds indirection but avoids circular imports.
+2. **Cost accumulation data loss (6-1):** `result` event cost only accumulates when `state.sprintInfo` is non-null. Cost from early events before sprint state init is silently lost.
+3. **Iteration count polling delay (6-1):** `currentIterationCount` is a mutable closure variable updated from stderr. Updates delayed until next 5-second polling interval.
+4. **Synthetic NDJSON fixtures (6-2):** No real recorded NDJSON logs available. Test fixtures constructed synthetically — may not match real-world stream-json output.
+5. **`VITEST=1` env var hack (0-5-2):** Container requires this to suppress CLI auto-parse on module import.
+
+### Verification Gaps
+
+1. **AC5 of story 6-2 escalated to human:** Requires manual `codeharness run` and screenshot capture of real-time Ink rendering. Correctly tagged `integration-required`. Cannot be automated.
+2. **Static analysis vs runtime (6-1):** Verifier used static analysis of dist bundle rather than runtime rendering. Passes but doesn't test actual render behavior.
+3. **Observability gaps in pure functions:** `parseStreamLine` (0-5-2) and `codeharness progress` (0-1) have no telemetry. VictoriaLogs returns zero events for all invocations.
+4. **No integration test for full run->renderer->component pipeline** with cost accumulation across polling cycles (6-1).
+
+### Tooling/Infrastructure Problems
+
+1. **Stale containers:** Previous sessions left `codeharness-verify` running. Required `docker rm -f` before starting new verification. Hit in sessions 3 and 4.
+2. **Port conflicts with shared observability stack:** `docker-compose.harness.yml` tries to bind ports already used by shared stack. Workaround: use shared stack directly.
+3. **`codeharness status --check-docker` false negative:** Reports shared stack as down even when running.
+4. **Beads sync failure (6-1):** `codeharness sync --story 6-1 --direction files-to-beads` failed with "Story file not found or has no Status line".
+5. **Non-standard sprint status value:** Previous session left `verified` (invalid) in sprint status. Had to normalize to `verifying`.
+
+---
+
+## 3. What Went Well
+
+- **7 stories completed and verified** — strong throughput for a single day session.
+- **Epic 6 fully delivered** — from story creation through verification and epic retrospective, all within one extended session.
+- **Code review caught 3 HIGH-severity bugs** before verification — the `totalCost` wipe bug would have been user-visible; the `startsWith` false match would have caused wrong story data to display; the test duplication would have left a silent coverage gap.
+- **Clean verification on 0-5-1** — all 4 ACs passed without any issues, proving the verification pipeline works well when the code is solid.
+- **Production refactor improved testability** — extracting `createLineProcessor` to `run-helpers.ts` (story 6-2) made a previously-untestable closure importable and testable.
+- **Sprint at 88% completion** — only Epic 7 (3 backlog stories) remains.
+
+---
+
+## 4. What Went Wrong
+
+- **Infrastructure friction on every verification run:** Stale containers and port conflicts hit in 3 of 4 sessions. Each time required manual cleanup before verification could proceed. This is pure waste.
+- **Epic 6 numbering collision:** Two different sprints reused "Epic 6" for different epics. The stale `epic-6-retrospective.md` from the old Brownfield Onboarding epic persisted and was misleading.
+- **NFR9 300-line limit caused unplanned refactoring:** Story 6-1 required a 3-file split not anticipated during story creation. This added complexity without adding value.
+- **No formal epic definition for Epic 6:** Had to derive intent from story names, UX spec, and existing code. Creates ambiguity during story creation.
+- **Action item carry-forward rate ~100%:** Retro action items are generated but never executed. The epic-6 retrospective noted this explicitly.
+- **Proof format brittleness (0-2):** AC3 verification initially failed because evidence reused a bash block from AC2. The verifier is sensitive to proof formatting rather than proof substance.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Code review before verification catches real bugs.** The 3 HIGH-severity bugs caught in code review for stories 6-1 and 6-2 would have wasted verification cycles if missed.
+2. **Extracting closures to helper modules** when testability is needed. The `run-helpers.ts` pattern from 6-2 is a clean solution.
+3. **Escalating genuinely non-automatable ACs** rather than faking evidence. AC5 of 6-2 was correctly tagged `integration-required`.
+
+### Patterns to Avoid
+
+1. **Leaving containers running between sessions.** The verification container should be cleaned up as part of session teardown.
+2. **Reusing epic numbers across sprints.** Creates stale artifact confusion.
+3. **Assuming NFRs won't affect story scope.** The 300-line limit NFR should be factored into story sizing during creation, not discovered during implementation.
+4. **Writing retro action items without an execution mechanism.** If nobody acts on them, they're documentation theater.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+- [ ] **Clean up stale Docker containers** — `docker rm -f codeharness-verify` and any other orphaned containers from this session.
+- [ ] **Delete stale `epic-6-retrospective.md`** from previous sprint's Brownfield Onboarding epic (now overwritten by this session's retro, but verify).
+
+### Fix Soon (Next Sprint)
+
+- [ ] **Auto-cleanup verification containers** — Add container teardown to the verification pipeline's exit path (both success and failure). This hit 3 of 4 sessions today.
+- [ ] **Fix `codeharness status --check-docker`** — Should detect shared observability stack, not just harness-specific compose.
+- [ ] **Fix beads sync for stories without standard Status line** — `codeharness sync --story X --direction files-to-beads` should not hard-fail.
+- [ ] **Add telemetry to `codeharness progress` command** — Currently emits zero structured logs, making observability verification impossible.
+- [ ] **Fix cost accumulation data loss** — Buffer cost from `result` events received before `sprintInfo` init, apply when `sprintInfo` becomes available.
+- [ ] **Extract remaining logic from `run.ts`** — Currently 308 lines (over 300-line NFR). The `createLineProcessor` extraction was a start; finish the job.
+
+### Backlog (Track But Not Urgent)
+
+- [ ] **Add multi-byte UTF-8 chunk boundary test** for stream parser (6-2 LOW unfixed).
+- [ ] **Add integration test for full render pipeline** with cost accumulation across polling cycles (6-1 coverage gap).
+- [ ] **Create formal epic definition files** before starting stories — prevents ambiguity during story creation.
+- [ ] **Establish action item execution process** — Retro action items need an owner and a check-in mechanism, or they will continue to be ignored.
+- [ ] **Iteration count polling delay** — Investigate whether `currentIterationCount` can be pushed to the renderer immediately rather than waiting for next poll interval.
+
+---
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories verified (carry-over) | 5 |
+| Stories completed (full lifecycle) | 2 |
+| HIGH bugs found in code review | 3 (all fixed) |
+| MEDIUM bugs found in code review | 3 (all fixed) |
+| LOW bugs unfixed | 3 |
+| Tech debt items introduced | 5 |
+| Infrastructure issues hit | 5 |
+| Verification gaps identified | 4 |
+| ACs escalated to human | 1 (6-2 AC5) |
+| Sprint completion | 22/25 (88%) |
+| Session duration | ~3h 45m across 4 ralph sessions |

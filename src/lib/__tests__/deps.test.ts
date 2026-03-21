@@ -160,6 +160,64 @@ describe('installDependency', () => {
     const result = installDependency(nonCriticalSpec);
     expect(result.status).toBe('failed');
   });
+
+  describe('semgrep entry', () => {
+    // Use actual registry entry to catch regressions if the registry changes
+    const semgrepSpec = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep')!;
+
+    it('returns already-installed when semgrep is present', () => {
+      mockExecFileSync.mockReturnValue(Buffer.from('1.56.0'));
+      const result = installDependency(semgrepSpec);
+      expect(result.status).toBe('already-installed');
+      expect(result.version).toBe('1.56.0');
+    });
+
+    it('installs semgrep via pipx (primary) and returns installed', () => {
+      let checkCount = 0;
+      mockExecFileSync.mockImplementation((cmd) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+        if (cmdStr === 'semgrep') {
+          checkCount++;
+          if (checkCount === 1) throw new Error('not found');
+          return Buffer.from('1.56.0');
+        }
+        return Buffer.from('');
+      });
+
+      const result = installDependency(semgrepSpec);
+      expect(result.status).toBe('installed');
+      expect(result.version).toBe('1.56.0');
+    });
+
+    it('falls back to pip when pipx fails', () => {
+      let checkCount = 0;
+      mockExecFileSync.mockImplementation((cmd) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+        if (cmdStr === 'semgrep') {
+          checkCount++;
+          if (checkCount === 1) throw new Error('not found');
+          return Buffer.from('1.56.0');
+        }
+        if (cmdStr === 'pipx') throw new Error('pipx not found');
+        return Buffer.from('');
+      });
+
+      const result = installDependency(semgrepSpec);
+      expect(result.status).toBe('installed');
+      expect(result.version).toBe('1.56.0');
+    });
+
+    it('returns failed when both pipx and pip fail', () => {
+      mockExecFileSync.mockImplementation(() => {
+        throw new Error('command failed');
+      });
+
+      const result = installDependency(semgrepSpec);
+      expect(result.status).toBe('failed');
+      expect(result.error).toContain('pipx install semgrep');
+      expect(result.error).toContain('pip install semgrep');
+    });
+  });
 });
 
 describe('installAllDependencies', () => {
@@ -181,6 +239,26 @@ describe('installAllDependencies', () => {
     expect(results.every(r => r.status === 'failed')).toBe(true);
   });
 
+  it('throws CriticalDependencyError when a critical dep fails to install', () => {
+    // Temporarily mutate the first registry entry to be critical
+    const registry = DEPENDENCY_REGISTRY as unknown as Array<{ critical: boolean }>;
+    const originalCritical = registry[0].critical;
+    registry[0].critical = true;
+
+    try {
+      // All commands fail — first dep (showboat) is now critical
+      mockExecFileSync.mockImplementation(() => {
+        throw new Error('command failed');
+      });
+
+      expect(() => installAllDependencies({})).toThrow(CriticalDependencyError);
+      expect(() => installAllDependencies({})).toThrow(/Showboat/);
+    } finally {
+      // Restore original value
+      registry[0].critical = originalCritical;
+    }
+  });
+
   it('continues when non-critical dep fails', () => {
     mockExecFileSync.mockImplementation((cmd, args) => {
       const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
@@ -191,8 +269,10 @@ describe('installAllDependencies', () => {
       // agent-browser check and install both fail
       if (cmdStr === 'agent-browser') throw new Error('not found');
       if (cmdStr === 'npm') throw new Error('not found');
-      // pip/pipx for showboat fail, for beads we don't reach (already installed)
-      if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('showboat'))) {
+      // semgrep check and install both fail
+      if (cmdStr === 'semgrep') throw new Error('not found');
+      // pip/pipx for showboat/semgrep fail, for beads we don't reach (already installed)
+      if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('showboat') || a.includes('semgrep'))) {
         throw new Error('not found');
       }
       // beads check succeeds
@@ -202,7 +282,7 @@ describe('installAllDependencies', () => {
       throw new Error('unexpected');
     });
 
-    // Should not throw because showboat and agent-browser are non-critical,
+    // Should not throw because showboat, agent-browser, and semgrep are non-critical,
     // and beads is already installed
     const results = installAllDependencies({});
     const failed = results.filter(r => r.status === 'failed');
@@ -246,6 +326,44 @@ describe('installAllDependencies', () => {
     expect(calls.some(c => c.includes('Showboat: installed (v0.6.1)'))).toBe(true);
   });
 
+  it('prints OK without version when version is null (already-installed)', () => {
+    const logSpy = vi.spyOn(console, 'log');
+    // Return output that has no parseable version
+    mockExecFileSync.mockReturnValue(Buffer.from('some output without version'));
+
+    installAllDependencies({ json: false });
+
+    const calls = logSpy.mock.calls.map(c => String(c[0]));
+    // Should print "already installed" without "(vX.Y.Z)" suffix
+    expect(calls.some(c => c.includes('already installed') && !c.includes('(v'))).toBe(true);
+  });
+
+  it('prints OK without version when version is null (freshly installed)', () => {
+    const logSpy = vi.spyOn(console, 'log');
+    let showboatCheckCount = 0;
+    mockExecFileSync.mockImplementation((cmd) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+      // showboat: first check fails, install succeeds, post-check returns no-version output
+      if (cmdStr === 'showboat') {
+        showboatCheckCount++;
+        if (showboatCheckCount === 1) throw new Error('not found');
+        return Buffer.from('ready');
+      }
+      if (cmdStr === 'pip') return Buffer.from('');
+      // Everything else: already installed with version
+      return Buffer.from('tool 1.0.0');
+    });
+
+    const results = installAllDependencies({ json: false });
+    const showboat = results.find(r => r.name === 'showboat');
+    expect(showboat?.status).toBe('installed');
+    expect(showboat?.version).toBeNull();
+
+    const calls = logSpy.mock.calls.map(c => String(c[0]));
+    // Should have "Showboat: installed" without "(vX.Y.Z)"
+    expect(calls.some(c => c.includes('Showboat: installed') && !c.includes('(v'))).toBe(true);
+  });
+
   it('does not print messages in json mode', () => {
     const logSpy = vi.spyOn(console, 'log');
     mockExecFileSync.mockReturnValue(Buffer.from('tool 1.0.0'));
@@ -267,6 +385,9 @@ describe('installAllDependencies', () => {
       if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('showboat'))) throw new Error('not found');
       // agent-browser fails
       if (cmdStr === 'agent-browser' || cmdStr === 'npm') throw new Error('not found');
+      // semgrep fails
+      if (cmdStr === 'semgrep') throw new Error('not found');
+      if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('semgrep'))) throw new Error('not found');
       // beads succeeds
       if (cmdStr === 'bd') return Buffer.from('bd 1.0.0');
       throw new Error('unexpected');
@@ -281,11 +402,16 @@ describe('installAllDependencies', () => {
 });
 
 describe('DEPENDENCY_REGISTRY', () => {
-  it('contains showboat, agent-browser, and beads', () => {
+  it('contains showboat, agent-browser, beads, and semgrep', () => {
     const names = DEPENDENCY_REGISTRY.map(d => d.name);
     expect(names).toContain('showboat');
     expect(names).toContain('agent-browser');
     expect(names).toContain('beads');
+    expect(names).toContain('semgrep');
+  });
+
+  it('has exactly 4 entries', () => {
+    expect(DEPENDENCY_REGISTRY).toHaveLength(4);
   });
 
   it('beads is not critical', () => {
@@ -318,6 +444,24 @@ describe('DEPENDENCY_REGISTRY', () => {
     expect(beads?.installCommands).toHaveLength(2);
     expect(beads?.installCommands[0].cmd).toBe('pip');
     expect(beads?.installCommands[1].cmd).toBe('pipx');
+  });
+
+  it('semgrep is not critical', () => {
+    const semgrep = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep');
+    expect(semgrep?.critical).toBe(false);
+  });
+
+  it('semgrep has pipx as primary and pip as fallback', () => {
+    const semgrep = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep');
+    expect(semgrep?.installCommands).toHaveLength(2);
+    expect(semgrep?.installCommands[0].cmd).toBe('pipx');
+    expect(semgrep?.installCommands[1].cmd).toBe('pip');
+  });
+
+  it('semgrep checks version via semgrep --version', () => {
+    const semgrep = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep');
+    expect(semgrep?.checkCommand.cmd).toBe('semgrep');
+    expect(semgrep?.checkCommand.args).toEqual(['--version']);
   });
 });
 

@@ -52,6 +52,16 @@ export const DEPENDENCY_REGISTRY: readonly DependencySpec[] = [
     checkCommand: { cmd: 'bd', args: ['--version'] },
     critical: false,
   },
+  {
+    name: 'semgrep',
+    displayName: 'Semgrep',
+    installCommands: [
+      { cmd: 'pipx', args: ['install', 'semgrep'] },
+      { cmd: 'pip', args: ['install', 'semgrep'] },
+    ],
+    checkCommand: { cmd: 'semgrep', args: ['--version'] },
+    critical: false,
+  },
 ];
 
 export function checkInstalled(spec: DependencySpec): { installed: boolean; version: string | null } {

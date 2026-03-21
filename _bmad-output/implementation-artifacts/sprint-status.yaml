@@ -7,11 +7,11 @@
 development_status:
 
   # Epic 0: Live Progress Dashboard
-  epic-0: in-progress
-  epic-0-retrospective: optional
+  epic-0: done
+  epic-0-retrospective: done
   0-1-sprint-state-live-updates: done
   0-2-ralph-progress-display: done
-  0-3-run-command-dashboard: verified
+  0-3-run-command-dashboard: done
 
   # Epic 0.5: Stream-JSON Live Activity Display
   epic-0-5: in-progress

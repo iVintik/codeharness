@@ -9,7 +9,7 @@ enforcement:
 coverage:
   target: 90
   baseline: 0
-  current: 96.97
+  current: 96.96
 session_flags:
   logs_queried: false
   tests_passed: true
@@ -96,11 +96,20 @@ verification_log:
   - "0-5-3-ink-terminal-renderer: pass at 2026-03-20T07:22:11.723Z"
   - "0-5-4-run-command-integration: pass at 2026-03-20T08:32:25.567Z"
   - "3-1-audit-coordinator-dimensions: pass at 2026-03-20T09:08:59.155Z"
-verify_env_dist_hash: 8bd9739ecd0c66291984f721b559bcee625b48476884deeb1ec8ee3f9315470c
+  - "3-3-onboard-alias: pass at 2026-03-21T05:13:05.915Z"
+verify_env_dist_hash: c1bed4ee6a6428e383725994bc4a479fb89a2693ade5b72ee01ea9c1b32b61ff
 tests_passed: true
 coverage_met: true
 verification_run: true
 ---
+
+
+
+
+
+
+
+
 
 
 

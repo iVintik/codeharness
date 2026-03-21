@@ -65,6 +65,9 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     return noopHandle;
   }
 
+  // Clear screen so dashboard renders from top
+  process.stdout.write('\x1b[2J\x1b[H');
+
   // Mutable state that drives re-renders
   let state: RendererState = {
     sprintInfo: options?.sprintState ?? null,

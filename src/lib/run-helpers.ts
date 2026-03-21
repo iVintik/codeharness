@@ -70,6 +70,12 @@ export function buildSpawnArgs(opts: {
     '--prompt', opts.promptFile,
   ];
 
+  // When not quiet, pass --live so ralph tees Claude's stream-json to stdout.
+  // The Ink renderer reads stdout to show live tool calls and thoughts.
+  if (!opts.quiet) {
+    args.push('--live');
+  }
+
   if (opts.maxStoryRetries !== undefined) {
     args.push('--max-story-retries', String(opts.maxStoryRetries));
   }

@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 20,
-    "done": 15,
+    "done": 16,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -129,7 +129,7 @@
       "acResults": null
     },
     "3-3-onboard-alias": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -170,7 +170,7 @@
     }
   },
   "run": {
-    "active": false,
+    "active": true,
     "startedAt": null,
     "iteration": 1,
     "cost": 0,

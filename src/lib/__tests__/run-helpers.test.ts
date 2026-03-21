@@ -277,8 +277,11 @@ describe('buildSpawnArgs', () => {
     expect(args).toContain('50');
   });
 
-  it('does not include --live flag', () => {
-    expect(buildSpawnArgs(baseOpts)).not.toContain('--live');
+  it('includes --live flag when not quiet', () => {
+    expect(buildSpawnArgs(baseOpts)).toContain('--live');
+  });
+
+  it('does not include --live flag when quiet', () => {
     expect(buildSpawnArgs({ ...baseOpts, quiet: true })).not.toContain('--live');
   });
 

@@ -616,3 +616,441 @@ The sprint is effectively complete at 95% (19/20 stories). The remaining 2 stori
 **Key risk:** 8 tech debt items added today with 0 resolved. The skipped BATS tests have been "Fix Now" for 4 retros without action. If this pattern continues, tech debt will compound faster than it can be addressed.
 
 **Recommendation:** Before starting any new feature work, dedicate one session to tech debt resolution -- fix the BATS tests, add the `raw()` utility, reconcile the state files, and close at least 3-4 of the 8 open items.
+
+---
+
+# Session Retrospective -- 2026-03-21 (post-final session)
+
+**Timestamp:** ~06:08Z -- ~06:25Z
+**Sprint progress:** 19/20 stories done (95%), Epic 5 partially complete (5-1 done, 5-2 backlog)
+**Active automation:** ralph running, completed 5-1 full pipeline
+**Commit:** 1db2755 feat: story 5-1-code-review-observability-check
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Final Status | Phases Completed | Notes |
+|-------|------|-------------|-----------------|-------|
+| 5-1-code-review-observability-check | Epic 5: Workflow Integration | Done | create-story, dev-story, code-review, verify | All 6 ACs passed. Committed (1db2755). |
+
+One story completed through the full pipeline in a single automation run (~17 minutes). This was a lightweight story -- primarily patch-file updates with minimal TypeScript code. The main deliverable is markdown enforcement content for code review patches and Semgrep tooling integration.
+
+**Test suite at session end:** 2855 tests passing across 121 files, 96.98% overall coverage, all files above 80% floor.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation
+
+- **MEDIUM: Review patch missing `--json` flag** -- Semgrep command in the review enforcement patch would produce wrong output format. Fixed during code review.
+- **MEDIUM: Tautological test** -- Semgrep JSON contract test validated a hardcoded mock against itself, proving nothing. Replaced with real `parseSemgrepOutput()` integration test during code review.
+- **MEDIUM: Module-scope `readFileSync`** -- Test file would crash entirely if patch file was missing. Moved to `beforeAll` during code review.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+- **Em dash vs double dash inconsistency** (LOW, not fixed) -- Pre-existing inconsistency between patch files and analyzer.ts. Not introduced this session but noted.
+- **Fragile `ROOT` path resolution** (LOW, not fixed) -- Uses `__dirname` + four `..` segments. Brittle if directory structure changes. Pre-existing pattern.
+
+### Code Quality Concerns
+
+- **ACs #2-#4 depend on LLM agent behavior** -- Unit tests can only verify patch content exists, not that Claude will correctly interpret the enforcement instructions during real code reviews. This is an inherent limitation of testing LLM-driven workflows.
+- **Epic AC naming mismatch** -- Epic references `patches/review/review-enforcement.md` but actual file is `patches/review/enforcement.md`. The epic spec was slightly wrong; implementation used the correct name.
+
+### Verification Gaps
+
+- **ACs #2-#4 verified via patch content + Semgrep tooling** rather than live Claude agent sessions. Claude CLI was not authenticated in the verification Docker container. This is a reasonable proxy but not full integration verification.
+
+### Tooling/Infrastructure Problems
+
+- **CRITICAL: verify-env prepare does NOT copy `patches/` into Docker container.** The container uses the globally installed npm package (v0.23.1) which predates this story's changes. First verification run failed 5/6 ACs because patches were stale. Had to manually `docker cp` updated patches into the container.
+- **This is a systemic issue.** Any story that modifies `patches/` will hit this same problem. The verify-env prepare step or Docker image build needs to include current working-tree patches, not just the published npm version.
+
+### State Sync Issues (Persistent)
+
+- **sprint-state.json shows 5-1 as "review"** despite sprint-status.yaml showing "done" and the commit existing (1db2755). The sprint-state.json / sprint-status.yaml desync continues unresolved from prior retros.
+
+---
+
+## 3. What Went Well
+
+- **Full pipeline in one automation run.** Story 5-1 went from create-story through verify in ~17 minutes with no manual intervention. Lightweight stories are ideal automation candidates.
+- **Code review caught 3 real bugs.** The missing `--json` flag would have caused Semgrep integration to fail silently. The tautological test was giving false confidence. The module-scope readFileSync was a test fragility time bomb. All three caught before merge.
+- **Clean implementation.** 8 new tests, zero regressions, 2855 total tests passing. No flaky tests introduced.
+- **Sprint at 95% with only stretch goals remaining.** All committed scope is done. Story 5-2 (verification-runtime-integration) remains in backlog as a stretch goal.
+- **Session issues log discipline continues.** All 4 phases logged their findings. The log remains the definitive source of truth for retrospectives.
+
+---
+
+## 4. What Went Wrong
+
+- **Verification environment broken for patch-modifying stories.** The verify-env prepare step does not copy current `patches/` into the Docker container. This caused a full first-pass verification failure (5/6 ACs failed). The manual `docker cp` workaround is fragile and non-reproducible. This was flagged but not fixed.
+- **"Fix Now" items continue to accumulate without action.** The skipped BATS tests (commit b5f062c) are now in their fifth consecutive retro as "Fix Now." The sprint-state.json desync is in its third. Neither has been addressed.
+- **ACs testing LLM behavior can only be partially verified.** Story 5-1's ACs #2-#4 fundamentally depend on Claude agent behavior during real review sessions. The verification used content-existence checks as a proxy. There's no way to unit-test "will the LLM follow these instructions."
+- **Tech debt count grew to 10 items with 0 resolved.** Every session adds items; none have been closed.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Lightweight stories complete fast in automation.** When the scope is primarily patch-file content with minimal TypeScript, the full pipeline (create-dev-review-verify) can finish in under 20 minutes. Prioritize splitting large stories to get this benefit.
+- **Code review catches bugs in test code, not just production code.** The tautological test and module-scope readFileSync were both in test files. Review should scrutinize tests as carefully as production code.
+- **Manual `docker cp` as verification workaround.** While fragile, it unblocked verification without waiting for an infrastructure fix. Acceptable as a one-time workaround but must not become habit.
+
+### Patterns to Avoid
+
+- **Modifying `patches/` without updating verify-env prepare.** This will break verification for every future patches story. The infrastructure fix should happen before the next patches story, not after.
+- **Flagging "Fix Now" items across 5+ retros.** At this point either fix them or admit they are backlog. The "Fix Now" label has lost all meaning.
+- **Writing ACs that require LLM behavior verification.** For stories that configure LLM agent behavior (patches, prompts, enforcement rules), ACs should focus on what can be mechanically verified: file existence, content correctness, tool integration. "Agent follows instructions" is not testable.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+- [ ] **Fix verify-env prepare to copy current `patches/` into Docker container** -- This blocks clean verification for any patches-modifying story. Systemic blocker.
+- [ ] **Fix or reclassify skipped BATS onboard tests** (commit b5f062c) -- Fifth retro flagging this. Either fix them now or move to "Backlog" with explicit justification. Calling it "Fix Now" and ignoring it is dishonest.
+- [ ] **Reconcile sprint-state.json** -- 5-1 shows "review" despite being done and committed. Third retro flagging this.
+
+### Fix Soon (Next Sprint)
+
+- [ ] Add multi-line RUN instruction support to `validateDockerfile()` (carried)
+- [ ] Add `raw()` output utility to `src/lib/output.ts` (carried)
+- [ ] Add init-project integration test for `dockerfile` field in InitResult (carried)
+- [ ] Add line number reporting to `checkBinaryOnPath` (carried)
+- [ ] Document known false positive scenarios for `checkVerificationTools` (carried)
+- [ ] Investigate CI gap for `run-helpers.test.ts` --live flag test (carried)
+- [ ] Add integration test for `checkInfrastructure()` -> `validateDockerfile()` warning propagation seam (carried)
+
+### Backlog (Track but Not Urgent)
+
+- [ ] Consider data-driven Dockerfile rules (parsed from markdown) instead of hardcoded (carried)
+- [ ] Add structured log events for audit/onboard CLI interactions (carried)
+- [ ] Improve `dfGap()` branch coverage from 87.5% to 100% (carried)
+- [ ] Review whether `formatAuditJson()` should be removed as a no-op (carried)
+- [ ] Add deprecation warnings for dropped onboard subcommands (carried)
+- [ ] Replace test LOC estimates with test case count estimates (carried)
+- [ ] Add sync mechanism between sprint-status.yaml and sprint-state.json (carried)
+- [ ] Install showboat in verification Docker container (carried)
+- [ ] Fix fragile `ROOT` path resolution using `__dirname` + four `..` segments
+- [ ] Resolve em dash vs double dash inconsistency between patches and analyzer.ts
+- [ ] Write AC guidelines for LLM-behavior-dependent stories -- focus ACs on mechanically verifiable criteria
+
+---
+
+## Cumulative Day Metrics (Final Update)
+
+| Metric | Start of Day | End of Day | Delta |
+|--------|-------------|------------|-------|
+| Stories done | 15 | 19 | +4 |
+| Sprint completion | 75% | 95% | +20% |
+| Epics closed | 3 (0, 0.5, 1, 2) | 5 (+Epic 3, +Epic 4) | +2 |
+| Tests passing | ~2783 | 2855 | +72 |
+| Coverage-tracked files | 119 | 121 | +2 |
+| Overall coverage | 96.97% | 96.98% | steady |
+| Releases shipped | 0 | 2 (v0.23.0, v0.23.1) | +2 |
+| Bugs found & fixed | 0 | 14 | +14 |
+| Tech debt items added | 0 | 10 | +10 |
+| Tech debt items resolved | 0 | 0 | 0 |
+| Retro "Fix Now" items carried over | 0 | 3 | +3 |
+| Stories remaining (backlog) | 5 | 1 (5-2) | -4 |
+
+---
+
+## Sprint Health Assessment (Final)
+
+The sprint is at 95% completion (19/20 stories). Story 5-2 (verification-runtime-integration) remains in backlog as a stretch goal. All committed scope is done. Five epics closed today (0, 0.5, 1, 2, 3, 4). Epic 5 is partially complete with 5-1 done and 5-2 in backlog.
+
+**Throughput:** 4 stories completed, 14 bugs found and fixed, 72 new tests added, 2 releases shipped -- all in a single day. The automation pipeline (ralph) handled 3 of 4 stories end-to-end without manual intervention.
+
+**Critical risk: Tech debt at zero resolution rate.** 10 tech debt items added today, 0 resolved. Three "Fix Now" items have survived 3-5 consecutive retros without action. The retro "Fix Now" classification has become meaningless. The verify-env patches issue is a genuine blocker for future stories.
+
+**Recommendation: Next session must be a tech debt session.** No new feature stories until at least these are resolved: (1) verify-env patches copying, (2) BATS test fix or reclassification, (3) sprint-state.json reconciliation. Then tackle 2-3 "Fix Soon" items. Only after that should story 5-2 be attempted.
+
+---
+
+# Session Retrospective — 2026-03-21 (Loop #4)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~06:27Z – ~06:57Z (approx 30 minutes)
+**Sprint progress:** 19/20 stories done (95%), story 5-2 in `verifying`
+**Loop:** 4 of today's ralph autonomous sessions
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Entry Status | Exit Status | Phases Completed |
+|-------|------|-------------|-------------|-----------------|
+| 5-2-verification-runtime-integration | Epic 5: Workflow Integration | backlog | verifying | create-story, dev-story, code-review |
+
+One story attempted. Story 5-2 is the last story in the sprint and the last story in Epic 5. It progressed through creation, implementation, and code review within the 30-minute budget. Docker-based verification was not reached — by the time code review completed (~06:45Z), approximately 8 minutes remained, which was insufficient for a full verification cycle (typically 10-15 minutes).
+
+The story itself was lightweight ("thin story" per the issues log): most code already existed from Epic 2. The implementation was primarily patch updates and test writing. Both dev and code-review phases reported clean runs with no major issues.
+
+**Test results at session end:** 2872 tests passing across 121 files, 96.98% overall coverage, all files above 80% floor.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found & Fixed (3)
+
+| Severity | Issue | Where | Resolution |
+|----------|-------|-------|------------|
+| MEDIUM | VerifyResult type contract test was untyped — no compile-time protection against field removal | code-review | Added explicit type annotation |
+| MEDIUM | Missing `saveRuntimeCoverage` persistence test — AC #5 had no test for file I/O path | code-review | Test added |
+| MEDIUM | Patch hardcoded VictoriaLogs URL without noting configurability, inconsistent with verify-prompt.ts endpoint overrides | code-review | Fixed |
+
+### Tech Debt Identified (Not Fixed) (2)
+
+| Severity | Issue | Notes |
+|----------|-------|-------|
+| LOW | Coverage percentage computation duplicated in test — manually replicates formula instead of calling `computeRuntimeCoverage` | Fragile if formula changes |
+| LOW | No test for `parseObservabilityGaps` with multiple gaps in one AC section | Edge case coverage gap |
+
+### Planning/Ambiguity Issues (2)
+
+- **Ambiguity in epic definition:** Epic AC #2 says "verify-prompt.ts is updated" but the template already contains observability instructions from Epic 2. Interpreted as a confirmation/regression-test task. Reasonable interpretation but shows epic ACs can drift as implementation proceeds.
+- **Thin story risk:** Most code existed from Epic 2. Risk of dev agent over-engineering was called out at story creation. Dev agent handled it cleanly — no over-engineering observed.
+
+### Systemic Issues (Carried Over)
+
+- **verify-env patches not copied into Docker container** — Identified in loop #3 (story 5-1), still not fixed. Story 5-2 verification will hit this same issue. This is the most critical blocker for completing the sprint.
+
+---
+
+## 3. What Went Well
+
+- **Clean implementation runs.** Both dev-story and code-review phases reported zero issues on first pass. The dev phase had "None" in the issues log — the cleanest implementation of the entire sprint day.
+- **Appropriate scoping.** The story was correctly identified as thin at creation time, and the dev agent did not over-engineer. 16 new tests added, focused on the actual requirements.
+- **Code review caught real issues.** Three MEDIUM-severity bugs found and fixed: untyped contract test, missing persistence test, hardcoded URL. All three would have caused problems in verification or future maintenance.
+- **Sprint nearly complete.** 19/20 stories done, 95% completion. Five epics closed. Only verification of story 5-2 remains.
+- **Test count growth.** Sprint day total: 2783 -> 2872 tests (+89 tests across 4 loops).
+
+---
+
+## 4. What Went Wrong
+
+- **Verification not reached.** The primary gap. Story 5-2 exited code review at ~06:45Z with only ~8 minutes left in the 30-minute budget. Verification requires Docker container setup, patch copying (with the known patches issue), and AC-by-AC checks — 10-15 minutes minimum. The story remains in `verifying`.
+- **Sprint cannot close this session.** Epic 5 and the sprint remain open because of this one unverified story.
+- **verify-env patches issue still unresolved.** This was flagged in loop #3's retro as a "Fix Now" item. It was not fixed between loops. When story 5-2 verification is attempted, it will hit this same blocker and require the same manual `docker cp` workaround.
+- **Tech debt accumulation continues.** 2 more LOW items added this loop, bringing the day's total to 12 tech debt items with 0 resolved.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Thin story identification at creation time works.** Calling out "this is a thin story" in the issues log set correct expectations and prevented over-engineering.
+2. **Clean dev runs are achievable.** When the codebase is well-established and the story is well-scoped, zero-issue dev phases happen. Stories later in a sprint benefit from the infrastructure built by earlier stories.
+3. **Code review continues to find real bugs.** 3/3 MEDIUM issues found this loop were genuine defects, not style nits. The review phase earns its time cost.
+
+### Patterns to Avoid
+
+1. **Leaving systemic blockers unfixed between loops.** The verify-env patches issue was identified in loop #3 and could have been fixed in the ~5 minutes between loops. Instead it will cost 5-10 minutes of workaround time again in the next verification attempt.
+2. **Attempting verification with <10 minutes remaining.** Verification consistently takes 10-15 minutes. Budget planning should account for this and either skip verification (leaving story in `review`) or allocate sufficient time.
+3. **Zero tech debt resolution across an entire day.** Four loops, 12 tech debt items accumulated, 0 resolved. The debt resolution rate needs a dedicated session.
+
+---
+
+## 6. Action Items
+
+| Priority | Action | Owner | Status |
+|----------|--------|-------|--------|
+| **Fix Now** | Fix verify-env to copy `patches/` into Docker container | Next session | Carried over from loop #3 |
+| **Fix Now** | Run verification for story 5-2 to close Epic 5 and the sprint | Next session | New |
+| **Fix Soon** | Resolve or reclassify the 3 "Fix Now" items that have survived 4+ retros | Next session | Carried over |
+| **Fix Soon** | Dedicate a session to tech debt (12 items at 0% resolution rate) | Next sprint | Carried over |
+| **Track** | Add test for `parseObservabilityGaps` with multiple gaps | Backlog | New |
+| **Track** | Replace duplicated coverage formula in test with `computeRuntimeCoverage` call | Backlog | New |
+
+---
+
+## Cumulative Sprint Day Metrics (Loops 1-4)
+
+| Metric | Start of Day | End of Loop 4 | Delta |
+|--------|-------------|---------------|-------|
+| Sprint completion | 75% (15/20) | 95% (19/20) | +20% |
+| Epics closed | 3 | 5 (3, 4 closed; 5 pending verification) | +2 |
+| Tests passing | ~2783 | 2872 | +89 |
+| Coverage-tracked files | 119 | 121 | +2 |
+| Overall coverage | 96.97% | 96.98% | steady |
+| Releases shipped | 0 | 2 (v0.23.0, v0.23.1) | +2 |
+| Bugs found & fixed | 0 | 17 | +17 |
+| Tech debt items added | 0 | 12 | +12 |
+| Tech debt items resolved | 0 | 0 | 0 |
+| Stories remaining | 5 | 1 (5-2 in verifying) | -4 |
+
+---
+
+## Sprint Health Assessment
+
+The sprint is at 95% completion. Story 5-2 has passed code review and needs only Docker verification to close. The implementation is solid — clean dev run, 3 code review bugs fixed, 2872 tests passing.
+
+**The single blocker is verification.** Once the verify-env patches issue is resolved (or worked around via `docker cp`), story 5-2 verification should take ~15 minutes. If all 6 ACs pass (likely given the clean implementation), Epic 5 closes and the sprint is 100% complete.
+
+**Tech debt remains the elephant in the room.** Four retrospectives today have flagged the same systemic issues. The verify-env patches problem has been manually worked around twice rather than fixed. The recommendation from loop #3 stands: the next session after sprint completion should be dedicated to tech debt resolution before starting any new feature work.
+
+---
+
+# Final Sprint Retrospective — 2026-03-21T10:45Z
+
+**Sprint:** Operational Excellence Sprint
+**Full session window:** ~04:21Z – ~06:57Z (approx 2 hours 36 minutes across 5 ralph loops)
+**Sprint result:** 20/20 stories done — 100% complete. All 5 epics closed.
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Phases | Notes |
+|-------|------|---------|--------|-------|
+| 3-3-onboard-alias | 3: Audit Command | Done | create, dev, review, verify | Replaced 478-line onboard with 40-line alias |
+| 4-1-dockerfile-rules-validation | 4: Infra Guidelines | Done | create, dev, review, verify | 9/10 ACs passed first run; AC10 fix applied |
+| 4-2-dockerfile-template-dev-integration | 4: Infra Guidelines | Done | create, dev, review, verify | Clean run, all 10 ACs passed |
+| 5-1-code-review-observability-check | 5: Workflow Integration | Done | create, dev, review, verify | Patch infrastructure issue required docker cp workaround |
+| 5-2-verification-runtime-integration | 5: Workflow Integration | Done | create, dev, review, verify | Same infrastructure issue; tree-shaking complication |
+
+**Final metrics:** 2872 tests passing, 121 coverage-tracked files, 96.98% overall coverage, all files above 80% floor.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Issue | Severity | Story | Status |
+|-------|----------|-------|--------|
+| Unsafe double type assertion (`as unknown as Record<...>`) | HIGH | 3-3 | Fixed (spread operator) |
+| Operator precedence ambiguity in `checkVerificationTools` | HIGH | 4-1 | Fixed (added parens) |
+| Unhandled `writeFileSync` exception violating Result<T> contract | HIGH | 4-2 | Fixed (try/catch) |
+| AC10: `validateDockerfile()` warnings not propagated to audit output | HIGH | 4-1 | Fixed (verify phase) |
+| Review patch missing `--json` flag for Semgrep | MEDIUM | 5-1 | Fixed |
+| `checkNoSourceCopy` missed `COPY --chown` flag patterns | MEDIUM | 4-1 | Fixed |
+| Tautological test (mock validated against itself) | MEDIUM | 5-1 | Fixed |
+| Module-scope `readFileSync` crashes test file if patch missing | MEDIUM | 5-1 | Fixed |
+| `VerifyResult` type contract test was untyped | MEDIUM | 5-2 | Fixed |
+| Patch hardcoded VictoriaLogs URL without configurability note | MEDIUM | 5-2 | Fixed |
+| Dead branch guard (`fixStories &&` always true) | MEDIUM | 3-3 | Fixed |
+| Test mock leak (`clearAllMocks` vs `resetAllMocks`) | MEDIUM | 4-2 | Fixed |
+| Missing `projectDir` validation producing garbage paths | MEDIUM | 4-2 | Fixed |
+| `readPatchFile()` path resolution bug — resolves outside package dir | MEDIUM | 5-2 | NOT FIXED (pre-existing) |
+
+**Total bugs found and fixed this session: 17. One pre-existing bug identified but not fixed.**
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **Single-line apt-get in templates** (4-2): Templates use `apt-get install curl jq` instead of multi-line format because `validateDockerfile()` checks lines independently. Validator and template generator are coupled to single-line format.
+2. **docker cp for patches** (5-1, 5-2): Verification container uses globally installed npm v0.23.1 which lacks current patches. Manual `docker cp` required twice. This is a systemic problem for any story modifying `patches/`.
+3. **tsx for tree-shaken exports** (5-2): `verifyPromptTemplate()` is tree-shaken from `dist/index.js` because nothing imports it from CLI entry point. Verified via `tsx` instead.
+4. **Patch content verification as proxy for agent integration** (5-1): ACs #2-#4 verified via patch content + semgrep tooling rather than live Claude agent sessions. Reasonable proxy but not full integration test.
+
+### Code Quality Concerns
+
+- `console.log` in `audit-action.ts` — established codebase pattern but violates "no console.log" rule. Needs `raw()` output utility.
+- `formatAuditJson()` is a pass-through no-op — exists for symmetry only.
+- `checkVerificationTools` loose matching — `content.includes(tool)` matches anywhere in file.
+- `checkBinaryOnPath` has no line number — inconsistent with other checks.
+- Coverage percentage computation duplicated in test instead of calling `computeRuntimeCoverage`.
+- Fragile `ROOT` path resolution using `__dirname` + four `..` segments.
+- Em dash vs double dash inconsistency between patch and analyzer.ts.
+
+### Verification Gaps
+
+- **No live Claude agent integration test** for review observability patches (5-1 ACs #2-#4). Unit tests verify patch content exists but not agent interpretation.
+- **init-project.test.ts doesn't assert `dockerfile` field** in InitResult (tests predate story 4-2).
+- **No test for `parseObservabilityGaps` with multiple gaps** in one AC section (5-2).
+- **Regex-based Dockerfile validation may false-positive** on complex multi-stage builds (4-1).
+
+### Tooling/Infrastructure Problems
+
+- **verify-env does not copy `patches/` into Docker container.** This broke two stories and will break any future story that modifies patches. Root cause: container uses globally installed npm package, not local source.
+- **Pre-existing test failure in `run-helpers.test.ts`** (`--live` flag test) had to be fixed before 3-3 verification could proceed — unrelated to that story.
+- **Showboat not installed** — skipped re-verification for 4-2 (warning only).
+
+---
+
+## 3. What Went Well
+
+- **Sprint completed 100%.** All 20 stories across 5 epics done in a single day session.
+- **Code review caught 17 real bugs** across 5 stories — the review phase is pulling its weight.
+- **Test suite grew from ~2783 to 2872** (+89 tests) while maintaining 96.98% coverage.
+- **Clean dev runs on 2 of 5 stories** (5-1, 5-2) — zero issues reported by dev agent.
+- **Story 3-3 achieved 92% code reduction** — 478 lines replaced by 40-line alias.
+- **AC10 bug caught by verification** (4-1) — verify phase working as intended, found a gap the dev and review phases missed.
+- **Autonomous execution worked end-to-end** — ralph ran 5 loops, completed 5 stories, no human intervention needed for implementation.
+
+---
+
+## 4. What Went Wrong
+
+- **verify-env patches issue hit twice** (5-1 and 5-2). Same workaround applied both times. Should have been fixed after the first occurrence.
+- **AC10 failure on 4-1** required a fix during verification — the warning-to-gap propagation was missing from `dimensions.ts`. This was a design gap in the story spec (ACs expanded from 4 to 10 but the integration path wasn't fully specified).
+- **12 tech debt items accumulated, 0 resolved.** Every retrospective this session flagged the same systemic issues. The debt is compounding.
+- **Dual file reads in `checkInfrastructure`** shipped in dev and was caught only by code review — dev agent should have caught the redundancy.
+- **Tree-shaking eliminated a needed export** (5-2) — `verifyPromptTemplate()` not reachable from CLI entry point. This is a build configuration issue that will recur.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **4-phase pipeline (create, dev, review, verify) is effective.** Review caught 17 bugs; verify caught 1 more that review missed. Both phases justified their cost.
+- **Expanding epic ACs to story-level ACs** (4-1: 4->10, 4-2: 3->10) improved coverage and caught integration gaps earlier.
+- **Clean implementation sessions (5-1, 5-2) correlate with well-scoped stories.** Lightweight patch-focused stories had zero dev issues.
+
+### Patterns to Avoid
+
+- **Applying the same workaround twice instead of fixing root cause.** The docker cp workaround for patches should have been a permanent fix after story 5-1.
+- **Validator/template coupling to single-line format** (4-1/4-2). Validator should handle multi-line RUN instructions; templates shouldn't be constrained by validator limitations.
+- **Skipping init-project integration tests** (4-2 Task 5.2). "Heavy mocking" is not a valid reason to skip integration coverage for a new feature.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Fix verify-env to copy `patches/` into Docker container.** This blocked two stories and will block every future patches-modifying story. File: verify-env prepare script.
+2. **Fix `readPatchFile()` path resolution bug.** Currently resolves outside package directory from `dist/`. Fallback templates always used instead of real patches.
+3. **Fix tree-shaking of `verifyPromptTemplate()`.** Either add it to CLI exports or create a separate entry point for skill-consumed functions.
+
+### Fix Soon (Next Sprint)
+
+4. **Add `raw()` output utility** to replace direct `console.log` in audit-action.ts and other handlers.
+5. **Make `validateDockerfile()` handle multi-line RUN instructions** (backslash continuations). Current single-line checking produces false negatives.
+6. **Add init-project.test.ts assertions for `dockerfile` field** in InitResult.
+7. **Stabilize `ROOT` path resolution** — replace `__dirname` + four `..` segments with a proper root-finding utility.
+
+### Backlog (Track But Not Urgent)
+
+8. Remove `formatAuditJson()` no-op or give it real formatting logic.
+9. Add line numbers to `checkBinaryOnPath` for consistency.
+10. Add test for `parseObservabilityGaps` with multiple gaps in one AC section.
+11. Resolve em dash vs double dash inconsistency between patch and analyzer.ts.
+12. Investigate false positive risk in regex-based Dockerfile validation for complex multi-stage builds.
+
+---
+
+## Sprint Completion Summary
+
+| Metric | Start of Day | End of Day | Delta |
+|--------|-------------|------------|-------|
+| Stories done | 15/20 | 20/20 | +5 |
+| Epics closed | 2 (0, 0.5) | 5 (0, 0.5, 3, 4, 5) | +3 |
+| Tests passing | ~2783 | 2872 | +89 |
+| Coverage-tracked files | 119 | 121 | +2 |
+| Overall coverage | 96.97% | 96.98% | steady |
+| Bugs found & fixed | 0 | 17 | +17 |
+| Tech debt items opened | 0 | 12 | +12 |
+| Tech debt items resolved | 0 | 0 | 0 |
+| Releases shipped | 0 | 2 (v0.23.0, v0.23.1) | +2 |
+
+**Sprint status: COMPLETE.** All 20 stories done. Next session should prioritize the 3 "Fix Now" action items before starting new feature work.

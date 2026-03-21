@@ -108,6 +108,7 @@ function parseRalphStatus(content: string): SprintState['run'] | null {
     return {
       active: data.status === 'running', startedAt: null,
       iteration: data.loop_count ?? 0, cost: 0, completed: [], failed: [],
+      currentStory: null, currentPhase: null, lastAction: null, acProgress: null,
     };
   } catch { return null; }
 }

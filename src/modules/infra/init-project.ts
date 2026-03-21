@@ -18,6 +18,7 @@ import { installDeps, verifyDeps } from './deps-install.js';
 import { setupBmad, verifyBmadOnRerun } from './bmad-setup.js';
 import { initializeBeads } from './beads-init.js';
 import { scaffoldDocs, getCoverageTool, getStackLabel } from './docs-scaffold.js';
+import { generateDockerfileTemplate } from './dockerfile-template.js';
 
 declare const __PKG_VERSION__: string;
 const HARNESS_VERSION = typeof __PKG_VERSION__ !== 'undefined' ? __PKG_VERSION__ : '0.0.0-dev';
@@ -71,6 +72,15 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   if (!isJson) {
     if (stack) info(`Stack detected: ${getStackLabel(stack)}`);
     info(`App type: ${appType}`);
+  }
+
+  // --- Dockerfile template generation ---
+  const dfResult = generateDockerfileTemplate(projectDir, stack);
+  if (isOk(dfResult)) {
+    result.dockerfile = { generated: true, stack: dfResult.data.stack };
+    if (!isJson) info(`Generated Dockerfile for ${dfResult.data.stack} project.`);
+  } else {
+    if (!isJson) info('Dockerfile already exists -- skipping template generation.');
   }
 
   // --- Docker check ---

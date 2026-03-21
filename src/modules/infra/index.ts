@@ -40,6 +40,10 @@ export { detectRunningStack, detectPortConflicts };
 export { validateDockerfile, loadRules } from './dockerfile-validator.js';
 export type { DockerfileValidationResult, DockerfileGap } from './dockerfile-validator.js';
 
+// Dockerfile template generation (Story 4.2)
+export { generateDockerfileTemplate } from './dockerfile-template.js';
+export type { DockerfileTemplateResult } from './dockerfile-template.js';
+
 export function getObservabilityBackend(config?: {
   opensearchUrl?: string;
   opensearch?: { logsIndex?: string; metricsIndex?: string; tracesIndex?: string };

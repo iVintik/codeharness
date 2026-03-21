@@ -41,3 +41,11 @@ Write code that can be verified from the outside. Ask yourself:
 - Would a verifier with NO source access be able to tell if this works?
 
 If the answer is "no", the feature has a testability gap — fix the CLI/docs, not the verification process.
+
+### Dockerfile Maintenance
+
+If this story adds a new runtime dependency, check whether the Dockerfile needs updating:
+- New system package required at runtime (e.g., `libssl`, `ffmpeg`) — add to `apt-get install` line
+- New binary expected on PATH — add install step to Dockerfile
+- New Python package needed — add to `pip install` or `requirements.txt` COPY
+- Verify the updated Dockerfile still passes `validateDockerfile()` with zero gaps

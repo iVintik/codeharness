@@ -160,6 +160,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
+    "currentStory": "0-2-ralph-progress-display",
+    "currentPhase": "verify",
+    "lastAction": "Starting verification",
     "acProgress": "4/4"
   },
   "actionItems": []

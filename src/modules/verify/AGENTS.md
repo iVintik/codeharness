@@ -40,6 +40,7 @@ Only `index.ts` should be imported from outside this module. Internal files (`or
 | browser.test.ts | BrowserVerifier unit tests (mocked docker exec) | `./browser.ts` |
 | validation-acs.test.ts | Validation AC registry: count, structure, distribution, helpers | `./validation-acs.ts` |
 | validation-runner.test.ts | Validation runner: sprint init, AC execution, fix stories, result processing, orchestration | `./validation-runner.ts`, `./validation-orchestrator.ts` |
+| verification-observability-patch.test.ts | Patch content validation + observability integration regression tests | `patches/verify/story-verification.md`, `src/templates/verify-prompt.ts`, `./parser.ts` |
 
 ## Architecture Notes
 

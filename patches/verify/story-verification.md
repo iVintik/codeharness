@@ -27,6 +27,29 @@ For each AC, append a tag indicating verification approach:
 
 **Do not over-tag.** Workflows, sprint planning, user sessions, slash commands, and agent behavior are all verifiable via `docker exec ... claude --print`. Only tag `integration-required` when there is genuinely no automated path.
 
+### Observability Evidence
+
+After each `docker exec` command, query the observability backend for log events from the last 30 seconds.
+Use the configured VictoriaLogs endpoint (default: `http://localhost:9428`):
+
+```bash
+curl 'http://localhost:9428/select/logsql/query?query=_stream_id:*&start=-30s&limit=100'
+```
+
+- If log entries are returned, note the count in the AC section as runtime observability evidence.
+- If **zero events** are returned, include `[OBSERVABILITY GAP]` in the AC section:
+  `[OBSERVABILITY GAP] No log events detected for this user interaction`
+- Every AC should produce at least one log entry when exercised. Gaps indicate silent code paths.
+- If the observability backend is **not reachable** (connection refused, timeout), report
+  "observability check skipped — backend not reachable" as a warning and do NOT fail the verification.
+  The functional verification result stands on its own.
+
+This ensures proof documents include both functional evidence (`docker exec` output) and
+observability evidence (log query results or `[OBSERVABILITY GAP]` tags) for each AC.
+
+The VictoriaLogs query pattern matches `verify-prompt.ts` Step 3.5 — see that template for
+the full observability check instructions used by the automated verifier agent.
+
 ### Testing Requirements
 
 - Unit tests for all new/changed code

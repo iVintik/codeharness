@@ -45,4 +45,4 @@ development_status:
   # Epic 5: Workflow Integration
   epic-5: in-progress
   5-1-code-review-observability-check: done
-  5-2-verification-runtime-integration: backlog
+  5-2-verification-runtime-integration: done

@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 20,
-    "done": 18,
+    "done": 19,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -153,7 +153,7 @@
       "acResults": null
     },
     "5-1-code-review-observability-check": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -161,8 +161,8 @@
       "acResults": null
     },
     "5-2-verification-runtime-integration": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "verifying",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -172,14 +172,14 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 3,
+    "iteration": 5,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "5-1-code-review-observability-check",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification",
-    "acProgress": "6/6"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": "7/7"
   },
   "actionItems": [
     {
@@ -550,6 +550,146 @@
       "id": "migrated-53",
       "story": "5-1-code-review-observability-check",
       "description": "**Observation:** Epic ACs reference `patches/review/review-enforcement.md` but actual file is `patches/review/enforcement.md`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-54",
+      "story": "5-1-code-review-observability-check",
+      "description": "**MEDIUM (fixed): Review patch missing `--json` flag** in Semgrep command — would produce wrong output format.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-55",
+      "story": "5-1-code-review-observability-check",
+      "description": "**MEDIUM (fixed): Tautological test** — Semgrep JSON contract test validated hardcoded mock against itself. Replaced with real `parseSemgrepOutput()` integration.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-56",
+      "story": "5-1-code-review-observability-check",
+      "description": "**MEDIUM (fixed): Module-scope `readFileSync`** — test file crashes entirely if patch file missing. Moved to `beforeAll`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-57",
+      "story": "5-1-code-review-observability-check",
+      "description": "**LOW (not fixed): Em dash vs double dash inconsistency** between patch and analyzer.ts — pre-existing tech debt.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-58",
+      "story": "5-1-code-review-observability-check",
+      "description": "**LOW (not fixed): Fragile `ROOT` path resolution** using `__dirname` + four `..` segments.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-59",
+      "story": "5-1-code-review-observability-check",
+      "description": "**Coverage: 96.98% overall, 2855 tests, all 121 files above 80% floor**",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-60",
+      "story": "5-1-code-review-observability-check",
+      "description": "**Infrastructure issue (fixed):** verify-env prepare does NOT copy patches/ into the Docker container. Container uses globally installed npm package (v0.23.1) which predates this story's changes. First verification run failed 5/6 ACs because patches were stale.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-61",
+      "story": "5-1-code-review-observability-check",
+      "description": "**Fix applied:** Manually copied updated patches into container via `docker cp`. Re-verification passed 6/6.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-62",
+      "story": "5-1-code-review-observability-check",
+      "description": "**Systemic concern:** Any story that modifies `patches/` will hit this same issue. The verify-env prepare or Docker image needs to include current patches, not just the published npm version.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-63",
+      "story": "5-1-code-review-observability-check",
+      "description": "**ACs #2-#4 verified via patch content + semgrep tooling** rather than live Claude agent sessions (Claude CLI wasn't authenticated in container). This is a reasonable proxy but not a full integration test.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-64",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**Ambiguity in epic definition:** Epic AC #2 says \"verify-prompt.ts is updated\" but the template already contains observability instructions from Epic 2. Interpreted as confirmation/regression-test task.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-65",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**Workaround:** Sprint-status.yaml not modified by subagent (per instructions) — updated by harness-run after.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-66",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**Risk — thin story:** Most code already exists from Epic 2. Story is largely patch update + test writing. Risk of dev agent over-engineering.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-67",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**Observation:** Last story in Epic 5 and last story in the sprint. No downstream dependencies.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-68",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**MEDIUM (fixed): VerifyResult type contract test was untyped** — no compile-time protection against field removal. Fixed with explicit type annotation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-69",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**MEDIUM (fixed): Missing `saveRuntimeCoverage` persistence test** — AC #5 had no test for actual file I/O persistence path. Added.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-70",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**MEDIUM (fixed): Patch hardcoded VictoriaLogs URL** without noting configurability, inconsistent with verify-prompt.ts endpoint overrides. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-71",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**LOW (not fixed): Coverage percentage computation duplicated in test** — manually replicates formula instead of calling computeRuntimeCoverage.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-72",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**LOW (not fixed): No test for parseObservabilityGaps with multiple gaps in one AC section.**",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-73",
+      "story": "5-2-verification-runtime-integration",
+      "description": "**Coverage: 96.98% overall, 2872 tests, all 121 files above 80% floor**",
       "source": "retro",
       "resolved": false
     }

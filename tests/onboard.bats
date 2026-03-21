@@ -54,65 +54,43 @@ teardown() {
     [[ $status -eq 0 ]]
 }
 
-# ─── Story 9.1-9.6: Onboard subcommands ──────────────────────────────────
-# TODO: These tests are broken after story 3-3 refactored onboard.sh to
-# delegate to the TypeScript CLI. The CLI requires full harness init which
-# the BATS fixture doesn't provide. Fix in a dedicated story.
+# ─── Story 9.1-9.6: Onboard CLI delegation tests ─────────────────────────
+# These tests validate onboard.sh argument parsing and error handling.
+# Full subcommand behavior (scan, audit, coverage, epic) is tested
+# via TypeScript unit tests in the CLI, not via BATS.
+# (Replaced 14 broken skip tests in story 7-2.)
 
-@test "scan detects project structure" {
-    skip "broken: onboard.sh scan delegates to TS CLI which requires full init"
+@test "onboard.sh requires --project-dir" {
+    run bash "$ONBOARD_SH" scan
+    [[ $status -ne 0 ]]
+    [[ "$output" == *"--project-dir is required"* ]]
 }
 
-@test "scan counts source files per module" {
-    skip "broken: depends on scan fix"
+@test "onboard.sh rejects unknown options" {
+    run bash "$ONBOARD_SH" scan --bogus-flag
+    [[ $status -ne 0 ]]
+    [[ "$output" == *"Unknown option"* ]]
 }
 
-@test "scan shows test file counts per module" {
-    skip "broken: depends on scan fix"
+@test "onboard.sh requires a subcommand" {
+    run bash "$ONBOARD_SH" --project-dir "$TEST_DIR"
+    [[ $status -ne 0 ]]
+    [[ "$output" == *"specify command"* ]]
 }
 
-@test "audit detects README" {
-    skip "broken: onboard.sh audit delegates to TS CLI which requires full init"
+@test "onboard.sh rejects unknown subcommand" {
+    run bash "$ONBOARD_SH" boguscmd --project-dir "$TEST_DIR"
+    [[ $status -ne 0 ]]
+    [[ "$output" == *"Unknown command"* ]]
 }
 
-@test "audit detects missing ARCHITECTURE.md" {
-    skip "broken: depends on audit fix"
-}
-
-@test "coverage subcommand reports coverage status" {
-    skip "broken: onboard.sh coverage delegates to TS CLI which requires full init"
-}
-
-@test "coverage lists modules needing tests" {
-    skip "broken: depends on coverage fix"
-}
-
-@test "audit checks for missing AGENTS.md" {
-    skip "broken: depends on audit fix"
-}
-
-@test "audit reports doc freshness" {
-    skip "broken: depends on audit fix"
-}
-
-@test "epic generates onboarding stories" {
-    skip "broken: --auto-approve flag does not exist"
-}
-
-@test "epic contains stories with Given/When/Then AC" {
-    skip "broken: depends on epic fix"
-}
-
-@test "epic includes coverage stories per module" {
-    skip "broken: depends on epic fix"
-}
-
-@test "epic includes AGENTS.md stories" {
-    skip "broken: depends on epic fix"
-}
-
-@test "scan --json produces valid JSON" {
-    skip "broken: depends on scan fix"
+@test "onboard.sh --help mentions scan, coverage, audit, epic" {
+    run bash "$ONBOARD_SH" --help
+    [[ $status -eq 0 ]]
+    [[ "$output" == *"scan"* ]]
+    [[ "$output" == *"coverage"* ]]
+    [[ "$output" == *"audit"* ]]
+    [[ "$output" == *"epic"* ]]
 }
 
 # ─── Command & Agent ──────────────────────────────────────────────────────

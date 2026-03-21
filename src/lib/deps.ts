@@ -62,6 +62,16 @@ export const DEPENDENCY_REGISTRY: readonly DependencySpec[] = [
     checkCommand: { cmd: 'semgrep', args: ['--version'] },
     critical: false,
   },
+  {
+    name: 'bats',
+    displayName: 'BATS',
+    installCommands: [
+      { cmd: 'brew', args: ['install', 'bats-core'] },
+      { cmd: 'npm', args: ['install', '-g', 'bats'] },
+    ],
+    checkCommand: { cmd: 'bats', args: ['--version'] },
+    critical: false,
+  },
 ];
 
 export function checkInstalled(spec: DependencySpec): { installed: boolean; version: string | null } {

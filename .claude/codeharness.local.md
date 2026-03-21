@@ -111,11 +111,20 @@ verification_log:
   - "6-1-rewrite-ink-components-match-ux-spec: pass at 2026-03-21T11:11:13.749Z"
   - "6-2-verify-stream-json-pipeline-e2e: pass at 2026-03-21T11:34:58.026Z"
   - "7-1-install-semgrep-static-analysis: pass at 2026-03-21T12:01:13.569Z"
-verify_env_dist_hash: a32af958e5568d28581ca42144c78802b60ab1e5d696ce2c789423210f32a572
+  - "7-2-fix-bats-runtime-tests: pass at 2026-03-21T12:21:20.577Z"
+verify_env_dist_hash: 23f0b879002e10920f5c39d9fc11128290b9f594cb4f8efbf31dd86300ef1c93
 tests_passed: true
 coverage_met: true
 verification_run: true
 ---
+
+
+
+
+
+
+
+
 
 
 

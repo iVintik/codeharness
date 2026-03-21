@@ -218,6 +218,63 @@ describe('installDependency', () => {
       expect(result.error).toContain('pip install semgrep');
     });
   });
+
+  describe('bats entry', () => {
+    const batsSpec = DEPENDENCY_REGISTRY.find(d => d.name === 'bats')!;
+
+    it('returns already-installed when bats is present', () => {
+      mockExecFileSync.mockReturnValue(Buffer.from('Bats 1.11.0'));
+      const result = installDependency(batsSpec);
+      expect(result.status).toBe('already-installed');
+      expect(result.version).toBe('1.11.0');
+    });
+
+    it('installs bats via brew (primary) and returns installed', () => {
+      let checkCount = 0;
+      mockExecFileSync.mockImplementation((cmd) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+        if (cmdStr === 'bats') {
+          checkCount++;
+          if (checkCount === 1) throw new Error('not found');
+          return Buffer.from('Bats 1.11.0');
+        }
+        return Buffer.from('');
+      });
+
+      const result = installDependency(batsSpec);
+      expect(result.status).toBe('installed');
+      expect(result.version).toBe('1.11.0');
+    });
+
+    it('falls back to npm when brew fails', () => {
+      let checkCount = 0;
+      mockExecFileSync.mockImplementation((cmd) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+        if (cmdStr === 'bats') {
+          checkCount++;
+          if (checkCount === 1) throw new Error('not found');
+          return Buffer.from('Bats 1.11.0');
+        }
+        if (cmdStr === 'brew') throw new Error('brew not found');
+        return Buffer.from('');
+      });
+
+      const result = installDependency(batsSpec);
+      expect(result.status).toBe('installed');
+      expect(result.version).toBe('1.11.0');
+    });
+
+    it('returns failed when both brew and npm fail', () => {
+      mockExecFileSync.mockImplementation(() => {
+        throw new Error('command failed');
+      });
+
+      const result = installDependency(batsSpec);
+      expect(result.status).toBe('failed');
+      expect(result.error).toContain('brew install bats-core');
+      expect(result.error).toContain('npm install -g bats');
+    });
+  });
 });
 
 describe('installAllDependencies', () => {
@@ -268,9 +325,13 @@ describe('installAllDependencies', () => {
       if (cmdStr === 'showboat') throw new Error('not found');
       // agent-browser check and install both fail
       if (cmdStr === 'agent-browser') throw new Error('not found');
+      // npm install commands fail (for agent-browser and bats)
       if (cmdStr === 'npm') throw new Error('not found');
       // semgrep check and install both fail
       if (cmdStr === 'semgrep') throw new Error('not found');
+      // bats check fails, brew fails (npm already covered above)
+      if (cmdStr === 'bats') throw new Error('not found');
+      if (cmdStr === 'brew') throw new Error('not found');
       // pip/pipx for showboat/semgrep fail, for beads we don't reach (already installed)
       if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('showboat') || a.includes('semgrep'))) {
         throw new Error('not found');
@@ -282,7 +343,7 @@ describe('installAllDependencies', () => {
       throw new Error('unexpected');
     });
 
-    // Should not throw because showboat, agent-browser, and semgrep are non-critical,
+    // Should not throw because showboat, agent-browser, semgrep, and bats are non-critical,
     // and beads is already installed
     const results = installAllDependencies({});
     const failed = results.filter(r => r.status === 'failed');
@@ -388,6 +449,9 @@ describe('installAllDependencies', () => {
       // semgrep fails
       if (cmdStr === 'semgrep') throw new Error('not found');
       if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('semgrep'))) throw new Error('not found');
+      // bats fails
+      if (cmdStr === 'bats') throw new Error('not found');
+      if (cmdStr === 'brew') throw new Error('not found');
       // beads succeeds
       if (cmdStr === 'bd') return Buffer.from('bd 1.0.0');
       throw new Error('unexpected');
@@ -402,16 +466,17 @@ describe('installAllDependencies', () => {
 });
 
 describe('DEPENDENCY_REGISTRY', () => {
-  it('contains showboat, agent-browser, beads, and semgrep', () => {
+  it('contains showboat, agent-browser, beads, semgrep, and bats', () => {
     const names = DEPENDENCY_REGISTRY.map(d => d.name);
     expect(names).toContain('showboat');
     expect(names).toContain('agent-browser');
     expect(names).toContain('beads');
     expect(names).toContain('semgrep');
+    expect(names).toContain('bats');
   });
 
-  it('has exactly 4 entries', () => {
-    expect(DEPENDENCY_REGISTRY).toHaveLength(4);
+  it('has exactly 5 entries', () => {
+    expect(DEPENDENCY_REGISTRY).toHaveLength(5);
   });
 
   it('beads is not critical', () => {
@@ -462,6 +527,26 @@ describe('DEPENDENCY_REGISTRY', () => {
     const semgrep = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep');
     expect(semgrep?.checkCommand.cmd).toBe('semgrep');
     expect(semgrep?.checkCommand.args).toEqual(['--version']);
+  });
+
+  it('bats is not critical', () => {
+    const bats = DEPENDENCY_REGISTRY.find(d => d.name === 'bats');
+    expect(bats?.critical).toBe(false);
+  });
+
+  it('bats has brew as primary and npm as fallback', () => {
+    const bats = DEPENDENCY_REGISTRY.find(d => d.name === 'bats');
+    expect(bats?.installCommands).toHaveLength(2);
+    expect(bats?.installCommands[0].cmd).toBe('brew');
+    expect(bats?.installCommands[0].args).toEqual(['install', 'bats-core']);
+    expect(bats?.installCommands[1].cmd).toBe('npm');
+    expect(bats?.installCommands[1].args).toEqual(['install', '-g', 'bats']);
+  });
+
+  it('bats checks version via bats --version', () => {
+    const bats = DEPENDENCY_REGISTRY.find(d => d.name === 'bats');
+    expect(bats?.checkCommand.cmd).toBe('bats');
+    expect(bats?.checkCommand.args).toEqual(['--version']);
   });
 });
 

@@ -185,8 +185,8 @@
       "acResults": null
     },
     "7-1-install-semgrep-static-analysis": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -212,7 +212,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 4,
+    "iteration": 5,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -562,6 +562,76 @@
       "id": "migrated-49",
       "story": "6-2-verify-stream-json-pipeline-e2e",
       "description": "**All 4 automatable ACs passed** with 48 total assertions.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-50",
+      "story": "epic-6",
+      "description": "**Epic numbering collision:** Two sprints reused \"Epic 6\" for different epics. Stale retro file persisted across 4+ session retros before being overwritten.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-51",
+      "story": "epic-6",
+      "description": "**Action item carry-forward rate ~100%:** Retro action items are generated but never executed. Process failure, not documentation gap.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-52",
+      "story": "epic-6",
+      "description": "**Story 6-1 harder than expected:** NFR9 300-line limit forced 3-file split not anticipated during story creation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-53",
+      "story": "epic-6",
+      "description": "**Story 6-2 harder than expected:** `makeLineHandler` was untestable closure — required production refactor to extract `createLineProcessor`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-54",
+      "story": "epic-6",
+      "description": "**Known tech debt:** Cost accumulation data loss for events before `sprintInfo` init.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-55",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Ambiguity: No formal Epic 7 definition exists.** Epic 7 only defined by story keys in sprint-status.yaml. No epic-level requirements in any planning artifact.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-56",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Workaround: Existing story file overwritten.** The `audit --fix` command had previously generated a skeletal story. Replaced with proper story.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-57",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Workaround: Sprint-status.yaml not updated by agent.** Harness-run process handled it.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-58",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Risk: AC2 (fresh environment install) tagged integration-required** because verification container already has Semgrep pre-installed via Dockerfile.verify.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-59",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Observation: Very small story.** ~10 lines in deps.ts plus test updates.",
       "source": "retro",
       "resolved": false
     }

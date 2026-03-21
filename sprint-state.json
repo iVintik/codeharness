@@ -216,10 +216,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "7-3-create-dockerfile",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification",
-    "acProgress": "4/6"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": [
     {

@@ -56,8 +56,8 @@ development_status:
   6-2-verify-stream-json-pipeline-e2e: done
 
   # Epic 7: Onboarding — Compliance Gaps
-  epic-7: backlog
-  epic-7-retrospective: optional
+  epic-7: done
+  epic-7-retrospective: done
   7-1-install-semgrep-static-analysis: done
   7-2-fix-bats-runtime-tests: done
   7-3-create-dockerfile: done

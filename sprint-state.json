@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 25,
-    "done": 20,
+    "done": 21,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -169,7 +169,7 @@
       "acResults": null
     },
     "6-1-rewrite-ink-components-match-ux-spec": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
@@ -177,8 +177,8 @@
       "acResults": null
     },
     "6-2-verify-stream-json-pipeline-e2e": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -212,14 +212,14 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 3,
+    "iteration": 4,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": "10/10"
+    "currentStory": "6-2-verify-stream-json-pipeline-e2e",
+    "currentPhase": "verify",
+    "lastAction": "Starting verification workflow",
+    "acProgress": "4/5"
   },
   "actionItems": [
     {
@@ -401,6 +401,90 @@
       "id": "migrated-26",
       "story": "6-1-rewrite-ink-components-match-ux-spec",
       "description": "**Architecture concern:** Renderer accumulates cost internally with no external read path. `updateSprintState` has implicit merge behavior.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-27",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Infrastructure:** Shared observability stack was already running but `codeharness status --check-docker` reported it as down. Port conflict when harness-specific compose tried to start — shared stack already bound ports. Resolved by using shared stack directly.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-28",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Stale container:** Previous session left `codeharness-verify` container running. Had to `docker rm -f` before starting a new one.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-29",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Beads sync failure:** `codeharness sync --story 6-1 --direction files-to-beads` failed with \"Story file not found or has no Status line\".",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-30",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Observation:** Verifier used static analysis of the dist bundle rather than runtime rendering. Valid black-box approach but doesn't test runtime behavior.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-31",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**No epic-6 definition file exists.** Story file already existed with sufficient detail.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-32",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**Risk: AC5 requires manual verification** with screenshot proof — non-automatable, depends on having a valid story in backlog.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-33",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**Risk: AC1 references `ralph/logs/` for recorded NDJSON** — ephemeral/gitignored. Fixture needs hand-curation from real log.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-34",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**Observation:** Last story in Epic 6. Completing it closes the epic.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-35",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**Test file location diverges from story spec**: Story specified `tests/run-pipeline.test.ts` but vitest root is `src/`. Placed at `src/__tests__/run-pipeline.test.ts`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-36",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**No real recorded NDJSON logs available**: Fixture constructed synthetically — `ralph/logs/` only has single-line result events, not full stream-json output.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-37",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**makeLineHandler duplication**: Test reconstructs the handler because it's a closure in `run.ts`, not exported. Could diverge if `run.ts` changes.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-38",
+      "story": "6-2-verify-stream-json-pipeline-e2e",
+      "description": "**AC5 not completable autonomously**: Requires manual `codeharness run` and screenshot capture.",
       "source": "retro",
       "resolved": false
     }

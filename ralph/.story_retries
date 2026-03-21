@@ -3,3 +3,4 @@
 5-1-code-review-observability-check 1
 5-2-verification-runtime-integration 2
 6-1-rewrite-ink-components-match-ux-spec 2
+6-2-verify-stream-json-pipeline-e2e 1

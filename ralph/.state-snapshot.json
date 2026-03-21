@@ -169,8 +169,8 @@
       "acResults": null
     },
     "6-1-rewrite-ink-components-match-ux-spec": {
-      "status": "review",
-      "attempts": 1,
+      "status": "verifying",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -212,7 +212,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 2,
+    "iteration": 3,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -366,6 +366,41 @@
       "id": "migrated-21",
       "story": "6-1-rewrite-ink-components-match-ux-spec",
       "description": "**Missing artifacts** — AGENTS.md, exec-plan, and proof document not created (not in story tasks).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**HIGH bug fixed:** `updateSprintState()` wiped accumulated `totalCost` every 5s during polling — cost display would flash and disappear. Fixed with field preservation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**MEDIUM bug fixed:** `startsWith` key comparison in `StoryBreakdown` caused false matches (e.g., story `3-2` matching `3-20`). Fixed to exact comparison.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**LOW unfixed:** `run.ts` is 308 lines (8 over NFR9 300-line limit). Pre-existing.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-25",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Coverage gap:** No integration test for full run→renderer→component pipeline with cost accumulation across polling cycles.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-26",
+      "story": "6-1-rewrite-ink-components-match-ux-spec",
+      "description": "**Architecture concern:** Renderer accumulates cost internally with no external read path. `updateSprintState` has implicit merge behavior.",
       "source": "retro",
       "resolved": false
     }

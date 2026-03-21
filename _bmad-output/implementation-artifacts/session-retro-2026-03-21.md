@@ -1550,3 +1550,134 @@ This session verified 5 stories that were pending from earlier sessions and push
 | Tech debt items resolved | 0 |
 | Verification gaps identified | 4 |
 | Session duration | ~3 hours |
+
+---
+
+# Session Retrospective — 2026-03-21 (Sessions 2-3, continued)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~10:44Z – ~11:30Z (approx 45 minutes, two ralph sessions)
+**Sprint progress:** 21/25 stories done at session start -> 22/25 done at session end (story 6-1 completed)
+**Timestamp:** 2026-03-21T15:10Z
+
+---
+
+## 1. Session Summary
+
+| Story | Phase | Outcome | Notes |
+|-------|-------|---------|-------|
+| 6-1-rewrite-ink-components-match-ux-spec | create-story | Done | Derived from UX spec; no formal epic-6 definition file existed |
+| 6-1-rewrite-ink-components-match-ux-spec | dev-story | Done | 3-file split to meet NFR9 300-line limit |
+| 6-1-rewrite-ink-components-match-ux-spec | code-review | Done | 2 HIGH/MEDIUM bugs found and fixed |
+| 6-1-rewrite-ink-components-match-ux-spec | verify | Done | Static analysis verification in container |
+
+One story attempted, one story completed through all phases. Story 6-1 rewrote Ink dashboard components to match the UX spec, splitting the renderer into `ink-components.tsx`, `ink-activity-components.tsx`, and `ink-app.tsx`.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+| ID | Severity | Description | Resolution |
+|----|----------|-------------|------------|
+| B1 | HIGH | `updateSprintState()` wiped accumulated `totalCost` every 5s during polling — cost display would flash and disappear | Fixed: field preservation in updateSprintState |
+| B2 | MEDIUM | `startsWith` key comparison in `StoryBreakdown` caused false matches (story `3-2` matching `3-20`) | Fixed: exact key comparison |
+| B3 | LOW | Cost from early events before `sprintInfo` init is silently lost | Unfixed — edge case, low impact |
+
+### Workarounds / Tech Debt Introduced
+
+| ID | Description | Impact |
+|----|-------------|--------|
+| W1 | 3-file split (`ink-app.tsx`, `ink-components.tsx`, `ink-activity-components.tsx`) to avoid circular imports and meet 300-line NFR | Adds indirection; acceptable but increases cognitive load |
+| W2 | `run.ts` at 308 lines — 8 over NFR9 300-line limit | Pre-existing tech debt, not introduced this session |
+| W3 | `currentIterationCount` is a mutable closure variable updated from stderr parsing; updates delayed until next 5s polling interval | Inherent to polling architecture; would need event-driven refactor to fix |
+| W4 | No formal epic-6 definition file — story was derived from UX spec and story name | Should create epic definition if more stories are added |
+
+### Verification Gaps
+
+| ID | Description | Severity |
+|----|-------------|----------|
+| V1 | Verifier used static analysis of dist bundle rather than runtime rendering | Low — valid black-box approach but misses runtime behavior |
+| V2 | No integration test for full run->renderer->component pipeline with cost accumulation across polling cycles | Medium — code review flagged this |
+| V3 | Renderer accumulates cost internally with no external read path | Low — architecture concern, not a bug |
+
+### Tooling / Infrastructure Problems
+
+| ID | Description | Resolution |
+|----|-------------|------------|
+| I1 | Shared observability stack port conflict — harness-specific compose tried to start when shared stack already had ports bound | Used shared stack directly |
+| I2 | Stale `codeharness-verify` container from previous session still running | `docker rm -f` before new verification |
+| I3 | `codeharness sync --story 6-1 --direction files-to-beads` failed — "Story file not found or has no Status line" | Skipped sync; did not block verification |
+| I4 | Stale `epic-6-retrospective.md` references Brownfield Onboarding epic, not Dashboard Visualization Rework | Not fixed — misleading artifact |
+
+---
+
+## 3. What Went Well
+
+- **Story 6-1 completed end-to-end in a single session** — create, dev, code-review, verify all passed.
+- **Code review caught two real bugs (B1, B2)** before verification. The cost-wipe bug (B1) would have been user-visible in production.
+- **File splitting strategy worked** — the 3-file approach satisfied NFR9 and avoided circular imports cleanly.
+- **Story creation handled missing epic definition gracefully** — derived requirements from UX spec and existing code without blocking.
+
+---
+
+## 4. What Went Wrong
+
+- **Infrastructure friction consumed time** — port conflicts, stale containers, and sync failures required manual intervention (I1, I2, I3).
+- **No runtime verification** — static analysis of the dist bundle is valid but weaker than actually rendering components. Runtime rendering tests would catch issues that static analysis misses (V1).
+- **Missing artifacts** — AGENTS.md, exec-plan, and proof document were not created during dev-story phase. These are expected by the process but were skipped.
+- **Stale epic-6-retrospective.md is misleading** — references wrong epic content. Anyone reading it will be confused about Epic 6's purpose.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Code review before verify catches real bugs.** The cost-wipe bug (B1) and the startsWith false-match (B2) were both caught by review, not testing. Keep code review as a mandatory phase.
+- **Deriving story requirements from UX spec when epic definition is missing** — pragmatic approach that worked well.
+- **File splitting early** to meet line-count NFRs avoids painful refactoring later.
+
+### Patterns to Avoid
+
+- **Leaving containers running between sessions** — causes stale state and port conflicts. Add cleanup to session teardown.
+- **Relying on static-only verification for UI components** — should include at least one runtime render test.
+- **Skipping artifact creation during dev-story** — creates process gaps even if not strictly blocking.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next session)
+
+- [ ] Clean up stale `codeharness-verify` containers (`docker rm -f`)
+- [ ] Delete or update stale `epic-6-retrospective.md` to reflect actual Epic 6 content
+
+### Fix Soon (next sprint)
+
+- [ ] Add integration test for run->renderer->component pipeline with cost accumulation across polling cycles (V2)
+- [ ] Fix early-event cost loss when `sprintInfo` is null (B3)
+- [ ] Refactor `run.ts` to get under 300-line limit (W2)
+- [ ] Create formal epic-6 definition file if more stories are planned (W4)
+
+### Backlog (track but not urgent)
+
+- [ ] Add runtime rendering tests for Ink components in verification container
+- [ ] Investigate event-driven approach for iteration count updates to eliminate polling delay (W3)
+- [ ] Add session teardown hook to clean up Docker containers automatically
+- [ ] Add cost read path from renderer for external consumers (V3)
+
+---
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories completed (all phases) | 1 |
+| Bugs found in code review | 2 (both fixed) |
+| Bugs found in implementation | 1 (unfixed, low severity) |
+| Tech debt items introduced | 3 |
+| Infrastructure issues hit | 4 |
+| Verification gaps identified | 3 |
+| Session duration | ~45 minutes (across 2 ralph sessions) |

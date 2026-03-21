@@ -6,6 +6,9 @@
  * and ralph stderr → story message parsing.
  */
 
+import { StringDecoder } from 'node:string_decoder';
+import { parseStreamLine } from './stream-parser.js';
+import type { StreamEvent } from './stream-parser.js';
 import type { StoryStatusEntry, StoryStatusValue, StoryMessage } from './ink-components.js';
 
 // --- Story Counting ---
@@ -245,4 +248,50 @@ export function parseIterationMessage(rawLine: string): number | null {
     return parseInt(match[1], 10);
   }
   return null;
+}
+
+// --- Line Processor (extracted from run.ts for testability) ---
+
+export interface LineProcessorCallbacks {
+  onEvent: (event: StreamEvent) => void;
+  onMessage?: (msg: StoryMessage) => void;
+  onIteration?: (iteration: number) => void;
+}
+
+/**
+ * Creates a Buffer-to-lines processor that splits on newlines, handles
+ * partial-line buffering across chunk boundaries, and feeds complete
+ * lines through the stream parser and optional ralph message parser.
+ *
+ * This is the exact logic used in run.ts's makeLineHandler, extracted
+ * so integration tests can exercise the real production code path.
+ */
+export function createLineProcessor(
+  callbacks: LineProcessorCallbacks,
+  opts?: { parseRalph?: boolean },
+): (data: Buffer) => void {
+  let partial = '';
+  const decoder = new StringDecoder('utf8');
+  return (data: Buffer): void => {
+    const text = partial + decoder.write(data);
+    const parts = text.split('\n');
+    partial = parts.pop() ?? '';
+    for (const line of parts) {
+      if (line.trim().length === 0) continue;
+      const event = parseStreamLine(line);
+      if (event) {
+        callbacks.onEvent(event);
+      }
+      if (opts?.parseRalph) {
+        const msg = parseRalphMessage(line);
+        if (msg && callbacks.onMessage) {
+          callbacks.onMessage(msg);
+        }
+        const iteration = parseIterationMessage(line);
+        if (iteration !== null && callbacks.onIteration) {
+          callbacks.onIteration(iteration);
+        }
+      }
+    }
+  };
 }

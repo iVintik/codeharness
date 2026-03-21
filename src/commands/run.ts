@@ -2,15 +2,13 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { StringDecoder } from 'node:string_decoder';
 import { Command } from 'commander';
 import { fail, info, jsonOutput } from '../lib/output.js';
 import { readSprintStatus } from '../lib/beads-sync.js';
 import { generateRalphPrompt } from '../templates/ralph-prompt.js';
-import { parseStreamLine } from '../lib/stream-parser.js';
 import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
 import { getSprintState } from '../modules/sprint/index.js';
-import { formatElapsed, mapSprintStatuses, parseRalphMessage, parseIterationMessage, countStories, buildSpawnArgs } from '../lib/run-helpers.js';
+import { formatElapsed, mapSprintStatuses, countStories, buildSpawnArgs, createLineProcessor } from '../lib/run-helpers.js';
 
 const SPRINT_STATUS_REL = '_bmad-output/implementation-artifacts/sprint-status.yaml';
 
@@ -177,38 +175,17 @@ export function registerRunCommand(program: Command): void {
         });
 
         if (!quiet && child.stdout && child.stderr) {
-          // Buffer partial lines and feed through stream parser → Ink renderer.
-          // StringDecoder handles multi-byte UTF-8 chars split across Buffer boundaries.
-          const makeLineHandler = (opts?: { parseRalph?: boolean }): ((data: Buffer) => void) => {
-            let partial = '';
-            const decoder = new StringDecoder('utf8');
-            return (data: Buffer): void => {
-              const text = partial + decoder.write(data);
-              const parts = text.split('\n');
-              partial = parts.pop() ?? '';
-              for (const line of parts) {
-                if (line.trim().length === 0) continue;
-                const event = parseStreamLine(line);
-                if (event) {
-                  rendererHandle.update(event);
-                }
-                // Parse ralph structured output for story messages (AC #8)
-                if (opts?.parseRalph) {
-                  const msg = parseRalphMessage(line);
-                  if (msg) {
-                    rendererHandle.addMessage(msg);
-                  }
-                  // Parse iteration count from [LOOP] messages (AC #8)
-                  const iteration = parseIterationMessage(line);
-                  if (iteration !== null) {
-                    currentIterationCount = iteration;
-                  }
-                }
-              }
-            };
-          };
-          child.stdout.on('data', makeLineHandler());
-          child.stderr.on('data', makeLineHandler({ parseRalph: true }));
+          // Wire up stream parser → Ink renderer via extracted createLineProcessor.
+          const stdoutHandler = createLineProcessor({
+            onEvent: (event) => rendererHandle.update(event),
+          });
+          const stderrHandler = createLineProcessor({
+            onEvent: (event) => rendererHandle.update(event),
+            onMessage: (msg) => rendererHandle.addMessage(msg),
+            onIteration: (iteration) => { currentIterationCount = iteration; },
+          }, { parseRalph: true });
+          child.stdout.on('data', stdoutHandler);
+          child.stderr.on('data', stderrHandler);
 
           // Periodically refresh sprint state for the header display
           sprintStateInterval = setInterval(() => {

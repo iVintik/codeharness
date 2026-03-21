@@ -53,7 +53,7 @@ development_status:
   epic-6: backlog
   epic-6-retrospective: optional
   6-1-rewrite-ink-components-match-ux-spec: done
-  6-2-verify-stream-json-pipeline-e2e: backlog
+  6-2-verify-stream-json-pipeline-e2e: done
 
   # Epic 7: Onboarding — Compliance Gaps
   epic-7: backlog

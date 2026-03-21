@@ -6,6 +6,7 @@
 **Status:** All stories done
 **Previous Retro:** epic-0-retrospective.md (Epic 0: Live Progress Dashboard)
 **Implementation window:** 2026-03-19 through 2026-03-21
+**Retrospective reviewed:** 2026-03-21 (post-verification of all 4 stories)
 
 ---
 
@@ -54,6 +55,10 @@ All but one were fixed before verification. The polling interval gap was a real 
 
 Story 0-5-3 added three new capabilities (elapsed time in header, story breakdown section, story completion messages) without modifying any existing component behavior. All 29 pre-existing tests continued to pass. Both files stayed under 300 lines (ink-components.tsx: 228, ink-renderer.tsx: 202).
 
+### 6. Story 0-5-1 Verified Cleanly — First Try
+
+The driver change was the highest-risk story (modifying ralph's core output format). Session issues log: "Clean verification — all 4 ACs passed without issues." The detailed error detection analysis in the story's dev notes (proving that NDJSON wouldn't cause false positives in ralph's grep-based error detection) was accurate and saved debugging time.
+
 ---
 
 ## What Could Be Improved
@@ -63,9 +68,13 @@ Story 0-5-3 added three new capabilities (elapsed time in header, story breakdow
 The stream event parser had the most verification friction of any story in the epic:
 
 - **Non-standard status:** Sprint status showed `verified` (not a valid lifecycle status); the story file said `in-progress`. The verifier had to guess the actual state.
+- **Export gap:** `parseStreamLine` was not exported from `src/index.ts`, making it inaccessible in the container's dist bundle. Required adding re-export and rebuild before container verification could proceed.
+- **ESM import workaround:** Container verification required `VITEST=1` env var to suppress CLI auto-parse on module import, plus `node --input-type=module` for ESM. This is a recurring friction point.
+- **VictoriaLogs blind spot:** Zero log events returned for parser invocations — `parseStreamLine` is a pure function with no telemetry.
 - **Not CLI-accessible:** `parseStreamLine()` is tree-shaken out of the main package bundle. Black-box Docker verification was impossible. Had to fall back to `unit-testable` verification tier — which the story didn't originally tag.
 - **Verify command bug:** `codeharness verify` returned `[FAIL] Proof quality check failed: 6/6 ACs verified` — reporting FAIL when all ACs passed. This is a presentation bug in the verify tool itself.
 - **Pre-commit gate:** `verification_run: false` in session_flags blocked the commit. Required manual sed override of `.claude/codeharness.local.md`.
+- **Duplicate verification commit:** Two commits exist for 0-5-2 (d856e6f and ebe5375), suggesting the first verification attempt failed or was incomplete.
 
 A pure-function library with zero side effects should not require this much ceremony to verify.
 
@@ -133,3 +142,5 @@ Story 0-5-3 explicitly instructed "enhance, don't rewrite" for the Ink component
 | A4 | Enforce sprint change proposal for scope additions | Medium | Epic 0.5 was injected by a subagent without authorization. Process guard needed. |
 | A5 | Fix story-status synchronization between sprint-status.yaml and story files | Medium | Multiple stories had mismatched statuses. Either automate sync or pick one source of truth. |
 | A6 | Remove `verification_run` pre-commit gate or make it context-aware | Low | Gate blocked a legitimate commit in 0-5-2. Manual sed override is not a process. |
+| A7 | Add integration test for package entry point exports | High | `parseStreamLine` was missing from `src/index.ts`. A test importing from `dist/` and asserting all public API functions exist would catch this. |
+| A8 | Split package entry point into library + CLI bootstrap | Medium | Eliminates the `VITEST=1` container workaround. Benefits all future container verification and programmatic use. |

@@ -12,7 +12,7 @@ import {
   LastThought,
   RetryNotice,
   StoryBreakdown,
-  StoryMessages,
+  StoryMessageLine,
   type RendererState,
   type SprintInfo,
   type CompletedToolEntry,
@@ -75,7 +75,7 @@ describe('CompletedTool component', () => {
     const entry: CompletedToolEntry = { name: 'Write', args: longArgs };
     const { lastFrame } = render(<CompletedTool entry={entry} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('a'.repeat(60) + '...');
+    expect(frame).toContain('a'.repeat(60) + '…');
     expect(frame).not.toContain('a'.repeat(61));
   });
 });
@@ -197,7 +197,7 @@ describe('Header with elapsed time (AC #3)', () => {
 });
 
 describe('StoryBreakdown component (AC #4)', () => {
-  it('renders done as count, others with symbols', () => {
+  it('renders done count and active stories', () => {
     const stories: StoryStatusEntry[] = [
       { key: '3-1-some-story', status: 'done' },
       { key: '4-1-another', status: 'done' },
@@ -207,18 +207,19 @@ describe('StoryBreakdown component (AC #4)', () => {
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
-    // Done shows count, not individual keys
-    expect(frame).toContain('Done: 2 ✓');
+    // Done shows count
+    expect(frame).toContain('2 ✓');
+    expect(frame).toContain('done');
     expect(frame).not.toContain('3-1-some-story');
     // In-progress shows full key
-    expect(frame).toContain('This:');
-    expect(frame).toContain('3-2-current ◆');
+    expect(frame).toContain('3-2-current');
+    expect(frame).toContain('◆');
     // Pending shows short keys
-    expect(frame).toContain('Next:');
-    expect(frame).toContain('3-3 ○');
-    // Blocked shows short keys
-    expect(frame).toContain('Blocked:');
-    expect(frame).toContain('0-1 ✕');
+    expect(frame).toContain('next:');
+    expect(frame).toContain('3-3');
+    // Blocked
+    expect(frame).toContain('✕');
+    expect(frame).toContain('0-1');
   });
 
   it('renders nothing when stories array is empty', () => {
@@ -226,14 +227,14 @@ describe('StoryBreakdown component (AC #4)', () => {
     expect(lastFrame()).toBe('');
   });
 
-  it('renders failed stories with ✗ symbol', () => {
+  it('renders failed stories', () => {
     const stories: StoryStatusEntry[] = [
       { key: '2-3-broken', status: 'failed' },
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('Failed:');
-    expect(frame).toContain('2-3 ✗');
+    expect(frame).toContain('✗');
+    expect(frame).toContain('2-3');
   });
 
   it('truncates pending list to 3 with +N indicator', () => {
@@ -246,19 +247,17 @@ describe('StoryBreakdown component (AC #4)', () => {
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('1-1 ○');
-    expect(frame).toContain('3-1 ○');
+    expect(frame).toContain('1-1');
+    expect(frame).toContain('3-1');
     expect(frame).toContain('+2');
     expect(frame).not.toContain('4-1');
   });
 });
 
-describe('StoryMessages component (AC #5, #6)', () => {
+describe('StoryMessageLine component (AC #5, #6)', () => {
   it('renders [OK] message for completed story', () => {
-    const messages: StoryMessage[] = [
-      { type: 'ok', key: '3-2', message: 'DONE — 12/12 ACs verified (18m, $4.20)' },
-    ];
-    const { lastFrame } = render(<StoryMessages messages={messages} />);
+    const msg: StoryMessage = { type: 'ok', key: '3-2', message: 'DONE — 12/12 ACs verified (18m, $4.20)' };
+    const { lastFrame } = render(<StoryMessageLine msg={msg} />);
     const frame = lastFrame()!;
     expect(frame).toContain('[OK]');
     expect(frame).toContain('Story 3-2');
@@ -266,19 +265,17 @@ describe('StoryMessages component (AC #5, #6)', () => {
     expect(frame).toContain('12/12 ACs verified');
   });
 
-  it('renders [WARN] message with details for failed verification', () => {
-    const messages: StoryMessage[] = [
-      {
-        type: 'warn',
-        key: '3-3',
-        message: 'verification found 2 failing ACs → returning to dev (attempt 2/10)',
-        details: [
-          'AC 3: bridge --dry-run output missing epic headers',
-          'AC 7: bridge creates duplicate beads issues',
-        ],
-      },
-    ];
-    const { lastFrame } = render(<StoryMessages messages={messages} />);
+  it('renders [WARN] message with details', () => {
+    const msg: StoryMessage = {
+      type: 'warn',
+      key: '3-3',
+      message: 'verification found 2 failing ACs → returning to dev (attempt 2/10)',
+      details: [
+        'AC 3: bridge --dry-run output missing epic headers',
+        'AC 7: bridge creates duplicate beads issues',
+      ],
+    };
+    const { lastFrame } = render(<StoryMessageLine msg={msg} />);
     const frame = lastFrame()!;
     expect(frame).toContain('[WARN]');
     expect(frame).toContain('Story 3-3');
@@ -288,31 +285,11 @@ describe('StoryMessages component (AC #5, #6)', () => {
   });
 
   it('renders [FAIL] message', () => {
-    const messages: StoryMessage[] = [
-      { type: 'fail', key: '2-3', message: 'verification failed at AC 4 (attempt 3/10)' },
-    ];
-    const { lastFrame } = render(<StoryMessages messages={messages} />);
+    const msg: StoryMessage = { type: 'fail', key: '2-3', message: 'verification failed at AC 4 (attempt 3/10)' };
+    const { lastFrame } = render(<StoryMessageLine msg={msg} />);
     const frame = lastFrame()!;
     expect(frame).toContain('[FAIL]');
     expect(frame).toContain('Story 2-3');
-  });
-
-  it('renders nothing when messages array is empty', () => {
-    const { lastFrame } = render(<StoryMessages messages={[]} />);
-    expect(lastFrame()).toBe('');
-  });
-
-  it('renders multiple messages in order', () => {
-    const messages: StoryMessage[] = [
-      { type: 'ok', key: '3-1', message: 'DONE' },
-      { type: 'warn', key: '3-2', message: 'failing ACs' },
-      { type: 'fail', key: '2-3', message: 'failed' },
-    ];
-    const { lastFrame } = render(<StoryMessages messages={messages} />);
-    const frame = lastFrame()!;
-    expect(frame).toContain('[OK]');
-    expect(frame).toContain('[WARN]');
-    expect(frame).toContain('[FAIL]');
   });
 });
 

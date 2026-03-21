@@ -79,10 +79,12 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
   let cleaned = false;
 
-  // Mount Ink
+  // Mount Ink with performance optimizations
   const inkInstance = inkRender(<App state={state} />, {
     exitOnCtrlC: false,
     patchConsole: false,
+    incrementalRendering: true,  // Only redraw changed lines (v6.5+)
+    maxFps: 15,                  // Dashboard doesn't need 30fps
   });
 
   function rerender() {

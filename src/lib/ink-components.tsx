@@ -1,12 +1,12 @@
 /**
- * Ink UI components for the terminal activity display.
+ * Ink UI components for the terminal activity dashboard.
  *
- * Each component renders one visual element of the Claude activity dashboard.
- * These are consumed by the root <App> component in ink-renderer.tsx.
+ * Uses Ink's Box/flexbox layout with borders for a panel-based dashboard.
+ * Static component is used for permanent messages (story completions).
  */
 
 import React from 'react';
-import { Text, Box } from 'ink';
+import { Text, Box, Static } from 'ink';
 import { Spinner } from '@inkjs/ui';
 
 // --- Types ---
@@ -16,7 +16,7 @@ export interface SprintInfo {
   phase: string;
   done: number;
   total: number;
-  elapsed?: string; // formatted elapsed time, e.g. "47m" or "2h14m"
+  elapsed?: string;
 }
 
 export interface CompletedToolEntry {
@@ -58,84 +58,21 @@ export interface RendererState {
 
 export function Header({ info }: { info: SprintInfo | null }) {
   if (!info) return null;
+  const pct = info.total > 0 ? Math.round((info.done / info.total) * 100) : 0;
   return (
-    <Text>
-      {'◆ '}
-      {info.storyKey}
-      {' — '}
-      {info.phase}
-      {info.elapsed ? ` | ${info.elapsed}` : ''}
-      {' | Sprint: '}
-      {info.done}
-      {'/'}
-      {info.total}
-    </Text>
-  );
-}
-
-export function CompletedTool({ entry }: { entry: CompletedToolEntry }) {
-  const argsSummary = entry.args.length > 60
-    ? entry.args.slice(0, 60) + '...'
-    : entry.args;
-  return (
-    <Text>
-      {'✓ ['}
-      {entry.name}
-      {'] '}
-      {argsSummary}
-    </Text>
-  );
-}
-
-export function CompletedTools({ tools }: { tools: CompletedToolEntry[] }) {
-  return (
-    <Box flexDirection="column">
-      {tools.map((entry, i) => (
-        <CompletedTool key={i} entry={entry} />
-      ))}
+    <Box borderStyle="round" borderColor="cyan" paddingX={1}>
+      <Text bold color="cyan">{'◆ '}</Text>
+      <Text bold>{info.storyKey || '(waiting)'}</Text>
+      <Text dimColor>{' — '}</Text>
+      <Text color="yellow">{info.phase || '...'}</Text>
+      {info.elapsed && <Text dimColor>{` │ ${info.elapsed}`}</Text>}
+      <Text dimColor>{' │ Sprint: '}</Text>
+      <Text bold color="green">{info.done}</Text>
+      <Text dimColor>{'/'}</Text>
+      <Text>{String(info.total)}</Text>
+      <Text dimColor>{` (${pct}%)`}</Text>
     </Box>
   );
-}
-
-export function ActiveTool({ name }: { name: string }) {
-  return (
-    <Box>
-      <Text>{'⚡ ['}{name}{'] '}</Text>
-      <Spinner label="" />
-    </Box>
-  );
-}
-
-export function LastThought({ text }: { text: string }) {
-  const maxWidth = (process.stdout.columns || 80) - 4;
-  const truncated = truncateToWidth(text, maxWidth);
-  return (
-    <Text>
-      {'💭 '}
-      {truncated}
-    </Text>
-  );
-}
-
-/**
- * Truncate a string to fit within a given terminal column width.
- * Iterates by codepoint (not UTF-16 index) to avoid splitting surrogate pairs.
- * Treats characters outside the Basic Latin range as 2 columns wide (CJK, emoji).
- */
-function truncateToWidth(text: string, maxWidth: number): string {
-  let width = 0;
-  let result = '';
-  for (const char of text) {
-    const cp = char.codePointAt(0)!;
-    // Rough heuristic: ASCII printable = 1 col, everything else = 2 cols
-    const charWidth = cp <= 0x7e ? 1 : 2;
-    if (width + charWidth > maxWidth) {
-      return result;
-    }
-    width += charWidth;
-    result += char;
-  }
-  return result;
 }
 
 const STATUS_SYMBOLS: Record<StoryStatusValue, string> = {
@@ -146,6 +83,19 @@ const STATUS_SYMBOLS: Record<StoryStatusValue, string> = {
   'blocked': '✕',
 };
 
+const STATUS_COLORS: Record<StoryStatusValue, string> = {
+  'done': 'green',
+  'in-progress': 'cyan',
+  'pending': 'gray',
+  'failed': 'red',
+  'blocked': 'yellow',
+};
+
+function shortKey(key: string): string {
+  const m = key.match(/^(\d+-\d+)/);
+  return m ? m[1] : key;
+}
+
 export function StoryBreakdown({ stories }: { stories: StoryStatusEntry[] }) {
   if (stories.length === 0) return null;
 
@@ -155,69 +105,113 @@ export function StoryBreakdown({ stories }: { stories: StoryStatusEntry[] }) {
     groups[s.status]!.push(s.key);
   }
 
-  const fmt = (keys: string[], status: StoryStatusValue) =>
-    keys.map(k => `${k} ${STATUS_SYMBOLS[status]}`).join('  ');
-
-  // Short key: strip the slug, keep just the number prefix (e.g. "3-1" from "3-1-audit-coordinator")
-  const shortKey = (key: string) => {
-    const m = key.match(/^(\d+-\d+)/);
-    return m ? m[1] : key;
-  };
-  const fmtShort = (keys: string[], status: StoryStatusValue) =>
-    keys.map(k => `${shortKey(k)} ${STATUS_SYMBOLS[status]}`).join('  ');
-
-  const parts: string[] = [];
-  // Done: just show count — listing all done stories is noise
-  if (groups['done']?.length) {
-    parts.push(`Done: ${groups['done'].length} ✓`);
-  }
-  // In-progress: show full keys (there's usually 0-1)
-  if (groups['in-progress']?.length) {
-    parts.push(`This: ${fmt(groups['in-progress'], 'in-progress')}`);
-  }
-  // Pending: show short keys (next stories to pick up)
-  if (groups['pending']?.length) {
-    const shown = groups['pending'].slice(0, 3);
-    const rest = groups['pending'].length - shown.length;
-    let s = `Next: ${fmtShort(shown, 'pending')}`;
-    if (rest > 0) s += ` +${rest}`;
-    parts.push(s);
-  }
-  if (groups['failed']?.length) {
-    parts.push(`Failed: ${fmtShort(groups['failed'], 'failed')}`);
-  }
-  if (groups['blocked']?.length) {
-    parts.push(`Blocked: ${fmtShort(groups['blocked'], 'blocked')}`);
-  }
-
-  return <Text>{parts.join(' | ')}</Text>;
-}
-
-const MESSAGE_PREFIX: Record<StoryMessage['type'], string> = {
-  ok: '[OK]',
-  warn: '[WARN]',
-  fail: '[FAIL]',
-};
-
-export function StoryMessages({ messages }: { messages: StoryMessage[] }) {
-  if (messages.length === 0) return null;
   return (
-    <Box flexDirection="column">
-      {messages.map((msg, i) => (
-        <Box key={i} flexDirection="column">
-          <Text>{`${MESSAGE_PREFIX[msg.type]} Story ${msg.key}: ${msg.message}`}</Text>
-          {msg.details?.map((d, j) => (
-            <Text key={j}>{`  └ ${d}`}</Text>
-          ))}
-        </Box>
+    <Box paddingX={1} gap={2}>
+      {groups['done']?.length && (
+        <Text>
+          <Text color="green">{groups['done'].length} ✓</Text>
+          <Text dimColor> done</Text>
+        </Text>
+      )}
+      {groups['in-progress']?.map(k => (
+        <Text key={k}>
+          <Text color="cyan">◆ </Text>
+          <Text bold>{k}</Text>
+        </Text>
+      ))}
+      {groups['pending']?.length && (
+        <Text>
+          <Text dimColor>next: </Text>
+          <Text>{groups['pending'].slice(0, 3).map(k => shortKey(k)).join(' ')}</Text>
+          {groups['pending'].length > 3 && <Text dimColor>{` +${groups['pending'].length - 3}`}</Text>}
+        </Text>
+      )}
+      {groups['failed']?.map(k => (
+        <Text key={k}><Text color="red">✗ {shortKey(k)}</Text></Text>
+      ))}
+      {groups['blocked']?.map(k => (
+        <Text key={k}><Text color="yellow">✕ {shortKey(k)}</Text></Text>
       ))}
     </Box>
   );
 }
 
+const MESSAGE_STYLE: Record<StoryMessage['type'], { prefix: string; color: string }> = {
+  ok: { prefix: '[OK]', color: 'green' },
+  warn: { prefix: '[WARN]', color: 'yellow' },
+  fail: { prefix: '[FAIL]', color: 'red' },
+};
+
+export function StoryMessageLine({ msg }: { msg: StoryMessage }) {
+  const style = MESSAGE_STYLE[msg.type];
+  return (
+    <Box flexDirection="column">
+      <Text>
+        <Text color={style.color} bold>{style.prefix}</Text>
+        <Text>{` Story ${msg.key}: ${msg.message}`}</Text>
+      </Text>
+      {msg.details?.map((d, j) => (
+        <Text key={j} dimColor>{`  └ ${d}`}</Text>
+      ))}
+    </Box>
+  );
+}
+
+export function CompletedTool({ entry }: { entry: CompletedToolEntry }) {
+  const argsSummary = entry.args.length > 60
+    ? entry.args.slice(0, 60) + '…'
+    : entry.args;
+  return (
+    <Text wrap="truncate-end">
+      <Text color="green">{'✓ '}</Text>
+      <Text dimColor>{'['}</Text>
+      <Text>{entry.name}</Text>
+      <Text dimColor>{'] '}</Text>
+      <Text dimColor>{argsSummary}</Text>
+    </Text>
+  );
+}
+
+/** Show only the last N completed tools to keep output compact. */
+const VISIBLE_COMPLETED_TOOLS = 5;
+
+export function CompletedTools({ tools }: { tools: CompletedToolEntry[] }) {
+  const visible = tools.slice(-VISIBLE_COMPLETED_TOOLS);
+  const hidden = tools.length - visible.length;
+  return (
+    <Box flexDirection="column">
+      {hidden > 0 && <Text dimColor>{`  … ${hidden} earlier tools`}</Text>}
+      {visible.map((entry, i) => (
+        <CompletedTool key={i} entry={entry} />
+      ))}
+    </Box>
+  );
+}
+
+export function ActiveTool({ name }: { name: string }) {
+  return (
+    <Box>
+      <Text color="yellow">{'⚡ '}</Text>
+      <Text dimColor>{'['}</Text>
+      <Text bold>{name}</Text>
+      <Text dimColor>{'] '}</Text>
+      <Spinner label="" />
+    </Box>
+  );
+}
+
+export function LastThought({ text }: { text: string }) {
+  return (
+    <Text wrap="truncate-end">
+      <Text>{'💭 '}</Text>
+      <Text dimColor>{text}</Text>
+    </Text>
+  );
+}
+
 export function RetryNotice({ info }: { info: RetryInfo }) {
   return (
-    <Text>
+    <Text color="yellow">
       {'⏳ API retry '}
       {info.attempt}
       {' (waiting '}
@@ -227,6 +221,8 @@ export function RetryNotice({ info }: { info: RetryInfo }) {
   );
 }
 
+// --- Root App ---
+
 export function App({
   state,
 }: {
@@ -234,13 +230,22 @@ export function App({
 }) {
   return (
     <Box flexDirection="column">
+      {/* Permanent messages — rendered once via Static, scroll up */}
+      <Static items={state.messages}>
+        {(msg, i) => (
+          <StoryMessageLine key={i} msg={msg} />
+        )}
+      </Static>
+
+      {/* Dynamic section — re-renders on every state change */}
       <Header info={state.sprintInfo} />
       <StoryBreakdown stories={state.stories} />
-      <StoryMessages messages={state.messages} />
-      <CompletedTools tools={state.completedTools} />
-      {state.activeTool && <ActiveTool name={state.activeTool.name} />}
-      {state.lastThought && <LastThought text={state.lastThought} />}
-      {state.retryInfo && <RetryNotice info={state.retryInfo} />}
+      <Box flexDirection="column" paddingLeft={1}>
+        <CompletedTools tools={state.completedTools} />
+        {state.activeTool && <ActiveTool name={state.activeTool.name} />}
+        {state.lastThought && <LastThought text={state.lastThought} />}
+        {state.retryInfo && <RetryNotice info={state.retryInfo} />}
+      </Box>
     </Box>
   );
 }

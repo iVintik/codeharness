@@ -28,11 +28,12 @@ vi.mock('../../infra/index.js', () => ({
   validateDockerfile: vi.fn(),
 }));
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { analyze, validateRuntime } from '../../observability/index.js';
 import { checkOnlyCoverage } from '../../../lib/coverage.js';
 import { scanDocHealth } from '../../../lib/doc-health.js';
 import { parseProof } from '../../verify/index.js';
+import { validateDockerfile } from '../../infra/index.js';
 import {
   checkObservability,
   checkTesting,
@@ -42,13 +43,13 @@ import {
 } from '../dimensions.js';
 
 const mockExistsSync = vi.mocked(existsSync);
-const mockReadFileSync = vi.mocked(readFileSync);
 const mockReaddirSync = vi.mocked(readdirSync);
 const mockAnalyze = vi.mocked(analyze);
 const mockValidateRuntime = vi.mocked(validateRuntime);
 const mockCheckOnlyCoverage = vi.mocked(checkOnlyCoverage);
 const mockScanDocHealth = vi.mocked(scanDocHealth);
 const mockParseProof = vi.mocked(parseProof);
+const mockValidateDockerfile = vi.mocked(validateDockerfile);
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -554,7 +555,10 @@ describe('checkVerification', () => {
 
 describe('checkInfrastructure', () => {
   it('returns fail when no Dockerfile', () => {
-    mockExistsSync.mockReturnValue(false);
+    mockValidateDockerfile.mockReturnValue({
+      success: false,
+      error: 'No Dockerfile found',
+    });
 
     const result = checkInfrastructure('/project');
     expect(result.success).toBe(true);
@@ -565,9 +569,11 @@ describe('checkInfrastructure', () => {
     }
   });
 
-  it('returns pass with properly pinned Dockerfile', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('FROM node:22-slim\nRUN npm install\n');
+  it('returns pass when validateDockerfile reports no gaps', () => {
+    mockValidateDockerfile.mockReturnValue({
+      success: true,
+      data: { passed: true, gaps: [], warnings: [] },
+    });
 
     const result = checkInfrastructure('/project');
     expect(result.success).toBe(true);
@@ -578,33 +584,54 @@ describe('checkInfrastructure', () => {
     }
   });
 
-  it('returns warn for unpinned base image (:latest)', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('FROM node:latest\nRUN npm install\n');
+  it('propagates warnings from validateDockerfile as gaps', () => {
+    mockValidateDockerfile.mockReturnValue({
+      success: true,
+      data: { passed: true, gaps: [], warnings: ['dockerfile-rules.md not found -- using defaults.'] },
+    });
 
     const result = checkInfrastructure('/project');
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.status).toBe('warn');
-      expect(result.data.gaps.some(g => g.description.includes('Unpinned base image'))).toBe(true);
+      expect(result.data.gaps).toHaveLength(1);
+      expect(result.data.gaps[0].description).toBe('dockerfile-rules.md not found -- using defaults.');
     }
   });
 
-  it('returns warn for base image with no tag', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('FROM node\nRUN npm install\n');
+  it('returns warn when validateDockerfile reports gaps from all 6 categories', () => {
+    mockValidateDockerfile.mockReturnValue({
+      success: true,
+      data: {
+        passed: false,
+        gaps: [
+          { rule: 'pinned-from', description: 'unpinned base image -- use specific version.', suggestedFix: 'Pin node:latest' },
+          { rule: 'binary-on-path', description: 'project binary not installed.', suggestedFix: 'Add npm install -g' },
+          { rule: 'verification-tools', description: 'verification tool missing: curl', suggestedFix: 'Install curl' },
+          { rule: 'verification-tools', description: 'verification tool missing: jq', suggestedFix: 'Install jq' },
+          { rule: 'no-source-copy', description: 'source code copied into container -- use build artifact instead.', suggestedFix: 'Use COPY dist/' },
+          { rule: 'non-root-user', description: 'no non-root USER instruction found.', suggestedFix: 'Add USER node' },
+          { rule: 'cache-cleanup', description: 'no cache cleanup detected.', suggestedFix: 'Add rm -rf /var/lib/apt/lists/*' },
+        ],
+        warnings: [],
+      },
+    });
 
     const result = checkInfrastructure('/project');
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.status).toBe('warn');
-      expect(result.data.gaps.some(g => g.description.includes('no tag'))).toBe(true);
+      expect(result.data.gaps).toHaveLength(7);
+      // All gaps should have dimension 'infrastructure'
+      expect(result.data.gaps.every(g => g.dimension === 'infrastructure')).toBe(true);
     }
   });
 
   it('returns fail when Dockerfile has no FROM', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('RUN npm install\n');
+    mockValidateDockerfile.mockReturnValue({
+      success: false,
+      error: 'Dockerfile has no FROM instruction',
+    });
 
     const result = checkInfrastructure('/project');
     expect(result.success).toBe(true);
@@ -615,9 +642,9 @@ describe('checkInfrastructure', () => {
   });
 
   it('returns warn when Dockerfile is unreadable', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockImplementation(() => {
-      throw new Error('Permission denied');
+    mockValidateDockerfile.mockReturnValue({
+      success: false,
+      error: 'Dockerfile exists but could not be read',
     });
 
     const result = checkInfrastructure('/project');
@@ -630,12 +657,8 @@ describe('checkInfrastructure', () => {
   });
 
   it('returns warn when checkInfrastructure outer catch fires', () => {
-    // Force the outer catch by making existsSync throw on first call
-    let callCount = 0;
-    mockExistsSync.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) throw new Error('Disk error');
-      return false;
+    mockValidateDockerfile.mockImplementation(() => {
+      throw new Error('Disk error');
     });
 
     const result = checkInfrastructure('/project');
@@ -646,14 +669,44 @@ describe('checkInfrastructure', () => {
     }
   });
 
-  it('returns pass with digest-pinned image', () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue('FROM node@sha256:abc123\nRUN npm install\n');
+  it('returns pass with digest-pinned image and no gaps', () => {
+    mockValidateDockerfile.mockReturnValue({
+      success: true,
+      data: { passed: true, gaps: [], warnings: [] },
+    });
 
     const result = checkInfrastructure('/project');
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.status).toBe('pass');
+    }
+  });
+
+  it('returns fail when validateDockerfile returns failure Result', () => {
+    mockValidateDockerfile.mockReturnValue({
+      success: false,
+      error: 'Dockerfile validation error',
+    });
+
+    const result = checkInfrastructure('/project');
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe('fail');
+      expect(result.data.metric).toBe('validation failed');
+    }
+  });
+
+  it('backward compatibility: no Dockerfile still returns fail', () => {
+    mockValidateDockerfile.mockReturnValue({
+      success: false,
+      error: 'No Dockerfile found',
+    });
+
+    const result = checkInfrastructure('/project');
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe('fail');
+      expect(result.data.gaps[0].description).toBe('No Dockerfile found');
     }
   });
 });

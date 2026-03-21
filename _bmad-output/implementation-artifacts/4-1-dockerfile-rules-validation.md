@@ -1,6 +1,6 @@
 # Story 4.1: Dockerfile Rules & Validation
 
-Status: ready-for-dev
+Status: verifying
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,32 +25,32 @@ so that "container missing binary" never happens.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create `patches/infra/dockerfile-rules.md` (AC: #1)
-  - [ ] 1.1: Define 6 required-element categories with human-readable descriptions: pinned FROM, project binary on PATH, verification tools (curl, jq), no source code COPY, non-root USER, cache cleanup
-  - [ ] 1.2: Add project-type-specific sections (Node.js, Python, Plugin) per Architecture Decision 5
+- [x] Task 1: Create `patches/infra/dockerfile-rules.md` (AC: #1)
+  - [x]1.1: Define 6 required-element categories with human-readable descriptions: pinned FROM, project binary on PATH, verification tools (curl, jq), no source code COPY, non-root USER, cache cleanup
+  - [x]1.2: Add project-type-specific sections (Node.js, Python, Plugin) per Architecture Decision 5
 
-- [ ] Task 2: Create `src/modules/infra/dockerfile-validator.ts` (AC: #2, #3, #5, #6, #7, #8, #10)
-  - [ ] 2.1: Define `DockerfileValidationResult` interface: `{ passed: boolean; gaps: DockerfileGap[]; warnings: string[] }` where `DockerfileGap` has `{ rule: string; description: string; suggestedFix: string; line?: number }`
-  - [ ] 2.2: `validateDockerfile(projectDir: string): Result<DockerfileValidationResult>` -- reads Dockerfile, loads rules, checks each rule category
-  - [ ] 2.3: `loadRules(projectDir: string): DockerfileRules` -- reads `patches/infra/dockerfile-rules.md` or falls back to hardcoded defaults with a warning (AC #10)
-  - [ ] 2.4: Rule check: pinned FROM -- reject `:latest` or missing tag/digest (AC #3)
-  - [ ] 2.5: Rule check: project binary on PATH -- look for `npm install -g`, `pip install`, or `COPY --from` patterns that install a binary (AC #2)
-  - [ ] 2.6: Rule check: verification tools -- scan for `apt-get install` / `apk add` containing `curl`, `jq` or equivalent (AC #5)
-  - [ ] 2.7: Rule check: no source code COPY -- flag `COPY src/`, `COPY lib/`, `COPY test/` patterns (AC #6)
-  - [ ] 2.8: Rule check: non-root USER -- require at least one `USER` instruction that is not `root` (AC #7)
-  - [ ] 2.9: Rule check: cache cleanup -- look for `rm -rf /var/lib/apt/lists/*`, `npm cache clean`, or `pip cache purge` (AC #8)
+- [x] Task 2: Create `src/modules/infra/dockerfile-validator.ts` (AC: #2, #3, #5, #6, #7, #8, #10)
+  - [x]2.1: Define `DockerfileValidationResult` interface: `{ passed: boolean; gaps: DockerfileGap[]; warnings: string[] }` where `DockerfileGap` has `{ rule: string; description: string; suggestedFix: string; line?: number }`
+  - [x]2.2: `validateDockerfile(projectDir: string): Result<DockerfileValidationResult>` -- reads Dockerfile, loads rules, checks each rule category
+  - [x]2.3: `loadRules(projectDir: string): DockerfileRules` -- reads `patches/infra/dockerfile-rules.md` or falls back to hardcoded defaults with a warning (AC #10)
+  - [x]2.4: Rule check: pinned FROM -- reject `:latest` or missing tag/digest (AC #3)
+  - [x]2.5: Rule check: project binary on PATH -- look for `npm install -g`, `pip install`, or `COPY --from` patterns that install a binary (AC #2)
+  - [x]2.6: Rule check: verification tools -- scan for `apt-get install` / `apk add` containing `curl`, `jq` or equivalent (AC #5)
+  - [x]2.7: Rule check: no source code COPY -- flag `COPY src/`, `COPY lib/`, `COPY test/` patterns (AC #6)
+  - [x]2.8: Rule check: non-root USER -- require at least one `USER` instruction that is not `root` (AC #7)
+  - [x]2.9: Rule check: cache cleanup -- look for `rm -rf /var/lib/apt/lists/*`, `npm cache clean`, or `pip cache purge` (AC #8)
 
-- [ ] Task 3: Integrate `validateDockerfile()` into audit `checkInfrastructure()` (AC: #4, #9)
-  - [ ] 3.1: Replace the current inline pinned-FROM check in `src/modules/audit/dimensions.ts` `checkInfrastructure()` with a call to `validateDockerfile()` from `src/modules/infra/dockerfile-validator.ts`
-  - [ ] 3.2: Map `DockerfileGap` results to `AuditGap` format for the infrastructure dimension
-  - [ ] 3.3: Preserve existing behavior: no Dockerfile = fail, unreadable = warn, no FROM = fail
+- [x] Task 3: Integrate `validateDockerfile()` into audit `checkInfrastructure()` (AC: #4, #9)
+  - [x]3.1: Replace the current inline pinned-FROM check in `src/modules/audit/dimensions.ts` `checkInfrastructure()` with a call to `validateDockerfile()` from `src/modules/infra/dockerfile-validator.ts`
+  - [x]3.2: Map `DockerfileGap` results to `AuditGap` format for the infrastructure dimension
+  - [x]3.3: Preserve existing behavior: no Dockerfile = fail, unreadable = warn, no FROM = fail
 
-- [ ] Task 4: Export from barrel `src/modules/infra/index.ts` (AC: all)
-  - [ ] 4.1: Export `validateDockerfile` function from barrel
-  - [ ] 4.2: Export `DockerfileValidationResult`, `DockerfileGap` types from barrel
+- [x] Task 4: Export from barrel `src/modules/infra/index.ts` (AC: all)
+  - [x]4.1: Export `validateDockerfile` function from barrel
+  - [x]4.2: Export `DockerfileValidationResult`, `DockerfileGap` types from barrel
 
-- [ ] Task 5: Write unit tests (AC: all)
-  - [ ] 5.1: Create `src/modules/infra/__tests__/dockerfile-validator.test.ts`:
+- [x] Task 5: Write unit tests (AC: all)
+  - [x]5.1: Create `src/modules/infra/__tests__/dockerfile-validator.test.ts`:
     - Test pinned FROM passes for `node:22-slim`, fails for `node:latest` and `node` (AC #3)
     - Test project binary detection for npm install -g and pip install patterns (AC #2)
     - Test verification tools detection for curl and jq (AC #5)
@@ -60,18 +60,18 @@ so that "container missing binary" never happens.
     - Test all-passing Dockerfile returns `passed: true` (AC #4)
     - Test missing rules file uses defaults with warning (AC #10)
     - Test missing Dockerfile returns fail result
-  - [ ] 5.2: Update `src/modules/audit/__tests__/dimensions.test.ts`:
+  - [x]5.2: Update `src/modules/audit/__tests__/dimensions.test.ts`:
     - Test `checkInfrastructure()` now reports all 6 rule categories
     - Test backward compatibility: no Dockerfile still returns fail
-  - [ ] 5.3: Mock all I/O: filesystem (readFileSync, existsSync)
-  - [ ] 5.4: Target 100% coverage on new files
+  - [x]5.3: Mock all I/O: filesystem (readFileSync, existsSync)
+  - [x]5.4: Target 100% coverage on new files
 
-- [ ] Task 6: Integration verification (AC: all)
-  - [ ] 6.1: `npm run build` -- verify tsup compiles new files
-  - [ ] 6.2: `npm run test:unit` -- all tests pass, no regressions
-  - [ ] 6.3: Verify module boundaries: only barrel `index.ts` exports public API
-  - [ ] 6.4: Verify no file exceeds 300 lines (NFR9)
-  - [ ] 6.5: Verify `codeharness audit` runs end-to-end and infrastructure dimension reports all 6 rule categories
+- [x] Task 6: Integration verification (AC: all)
+  - [x]6.1: `npm run build` -- verify tsup compiles new files
+  - [x]6.2: `npm run test:unit` -- all tests pass, no regressions
+  - [x]6.3: Verify module boundaries: only barrel `index.ts` exports public API
+  - [x]6.4: Verify no file exceeds 300 lines (NFR9)
+  - [x]6.5: Verify `codeharness audit` runs end-to-end and infrastructure dimension reports all 6 rule categories
 
 ## Dev Notes
 
@@ -159,6 +159,27 @@ Recent commits show epics 0-3 completed. The project uses:
 - New files: `patches/infra/dockerfile-rules.md`, `src/modules/infra/dockerfile-validator.ts`, `src/modules/infra/__tests__/dockerfile-validator.test.ts`
 - Modified files: `src/modules/audit/dimensions.ts` (replace inline check with validateDockerfile call), `src/modules/infra/index.ts` (add barrel export)
 - Module follows existing conventions: barrel exports, Result<T> returns, <300 line files
+
+## Verification Findings
+
+_Last updated: 2026-03-21T05:38Z_
+
+The following ACs failed black-box verification:
+
+### AC 10: Missing dockerfile-rules.md uses defaults with warning
+**Verdict:** FAIL
+**Error output:**
+```
+When patches/infra/dockerfile-rules.md is removed, validateDockerfile() correctly falls back to
+hardcoded defaults (all 6 rule categories still checked). However, the required warning message
+"dockerfile-rules.md not found -- using defaults." is NOT surfaced in the audit CLI output
+(neither JSON nor text mode). The warning is stored in DockerfileValidationResult.warnings[]
+but checkInfrastructure() in dimensions.ts does not propagate these warnings to the audit output.
+
+Fix: In checkInfrastructure() (dimensions.ts), after calling validateDockerfile(), iterate over
+result.warnings[] and emit them as audit warnings (e.g., using the warn() output helper or
+adding them to the dimension result).
+```
 
 <!-- CODEHARNESS-PATCH-START:story-verification -->
 ## Verification Requirements

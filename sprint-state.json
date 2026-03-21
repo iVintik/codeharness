@@ -5,7 +5,7 @@
     "done": 16,
     "failed": 0,
     "blocked": 0,
-    "inProgress": null
+    "inProgress": "4-1-dockerfile-rules-validation"
   },
   "stories": {
     "0-1-sprint-state-live-updates": {
@@ -137,7 +137,7 @@
       "acResults": null
     },
     "4-1-dockerfile-rules-validation": {
-      "status": "backlog",
+      "status": "in-progress",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -176,10 +176,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "4-1-dockerfile-rules-validation",
-    "currentPhase": "dev",
-    "lastAction": "Starting dev-story implementation",
-    "acProgress": null
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": "10/10"
   },
   "actionItems": [
     {
@@ -277,6 +277,125 @@
       "id": "migrated-14",
       "story": "3-3-onboard-alias",
       "description": "**Coverage: 96.97% overall, all 119 files above 80% floor, 2783 tests pass**",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "3-3-onboard-alias",
+      "description": "All 8 ACs passed black-box Docker verification",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "3-3-onboard-alias",
+      "description": "Observability gaps: no structured log events emitted for any audit/onboard CLI interaction",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "3-3-onboard-alias",
+      "description": "Pre-existing test failure in run-helpers.test.ts (--live flag test) had to be fixed before verification could proceed — not related to this story",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "Ambiguity: rules markdown as code vs documentation — chose hardcoded rules with markdown as reference docs",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "Expanded ACs from 4 (epic) to 10 to cover each rule category individually",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "Risk: regex-based validation may produce false positives for complex Dockerfiles",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "`patches/infra/` directory doesn't exist yet — first file created there",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**Branch coverage at 87.5%** — The `line !== undefined` conditional in `dfGap()` helper has one branch not fully covered. Cosmetic; both paths exercised indirectly.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**Verification tools check has potential false positives** — Regex checks for tool names anywhere in apt-get/apk lines. Matches story's stated approach: \"False positives are acceptable.\"",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**Dual file reads in checkInfrastructure** — Dockerfile read once for precondition checks, then again by `validateDockerfile()`. Intentional for backward-compatible error messages but redundant.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-25",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**HIGH: Operator precedence ambiguity** in `checkVerificationTools` — parentheses missing around `&&`/`||` chains. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-26",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**MEDIUM: Redundant double-read** of Dockerfile in `checkInfrastructure` — removed, delegated to `validateDockerfile`. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-27",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**MEDIUM: `checkNoSourceCopy` missed `COPY --chown` flag patterns** — regex updated. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-28",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**MEDIUM: No test for `COPY --from=` binary install pattern** — test added. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-29",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**LOW (not fixed): `checkVerificationTools` loose matching** — `content.includes(tool)` matches anywhere in file. Acceptable per story design.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-30",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**LOW (not fixed): `checkBinaryOnPath` has no line number** — inconsistent with other checks but not a bug.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-31",
+      "story": "4-1-dockerfile-rules-validation",
+      "description": "**Coverage: 96.99% overall, 2817 tests, all 120 files above 80% floor**",
       "source": "retro",
       "resolved": false
     }

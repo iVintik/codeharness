@@ -57,6 +57,20 @@ describe('pinned FROM', () => {
     }
   });
 
+  it('passes for digest-pinned image', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(
+      goodDockerfile().replace('FROM node:22-slim', 'FROM node@sha256:abc123def456'),
+    );
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const fromGaps = r.data.gaps.filter(g => g.rule === 'pinned-from');
+      expect(fromGaps).toHaveLength(0);
+    }
+  });
+
   it('fails for node (no tag)', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(
@@ -91,6 +105,19 @@ describe('project binary on PATH', () => {
   it('passes with pip install', () => {
     mockExistsSync.mockReturnValue(true);
     const df = goodDockerfile().replace('RUN npm install -g codeharness', 'RUN pip install myapp');
+    mockReadFileSync.mockReturnValue(df);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const binGaps = r.data.gaps.filter(g => g.rule === 'binary-on-path');
+      expect(binGaps).toHaveLength(0);
+    }
+  });
+
+  it('passes with COPY --from (multi-stage)', () => {
+    mockExistsSync.mockReturnValue(true);
+    const df = goodDockerfile().replace('RUN npm install -g codeharness', 'COPY --from=builder /app/dist/bin /usr/local/bin/myapp');
     mockReadFileSync.mockReturnValue(df);
 
     const r = validateDockerfile('/project');
@@ -156,6 +183,64 @@ describe('verification tools', () => {
       expect(toolGaps.some(g => g.description.includes('jq'))).toBe(true);
     }
   });
+
+  it('passes when tools installed via apk add', () => {
+    mockExistsSync.mockReturnValue(true);
+    const df = [
+      'FROM node:22-alpine',
+      'RUN apk add --no-cache curl jq && rm -rf /var/cache/apk/*',
+      'RUN npm install -g codeharness',
+      'COPY dist/ /app/dist/',
+      'USER node',
+      'CMD ["codeharness"]',
+    ].join('\n');
+    mockReadFileSync.mockReturnValue(df);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const toolGaps = r.data.gaps.filter(g => g.rule === 'verification-tools');
+      expect(toolGaps).toHaveLength(0);
+    }
+  });
+
+  it('does not false-positive on tool substring in non-install line', () => {
+    mockExistsSync.mockReturnValue(true);
+    const df = [
+      'FROM node:22-slim',
+      'RUN apt-get update && apt-get install -y vim && rm -rf /var/lib/apt/lists/*',
+      'RUN echo curl is great',
+      'RUN npm install -g codeharness',
+      'USER node',
+    ].join('\n');
+    mockReadFileSync.mockReturnValue(df);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const toolGaps = r.data.gaps.filter(g => g.rule === 'verification-tools');
+      expect(toolGaps.some(g => g.description.includes('curl'))).toBe(true);
+      expect(toolGaps.some(g => g.description.includes('jq'))).toBe(true);
+    }
+  });
+
+  it('does not false-positive on partial word match like curlpp', () => {
+    mockExistsSync.mockReturnValue(true);
+    const df = [
+      'FROM node:22-slim',
+      'RUN apt-get update && apt-get install -y curlpp && rm -rf /var/lib/apt/lists/*',
+      'RUN npm install -g codeharness',
+      'USER node',
+    ].join('\n');
+    mockReadFileSync.mockReturnValue(df);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const toolGaps = r.data.gaps.filter(g => g.rule === 'verification-tools');
+      expect(toolGaps.some(g => g.description.includes('curl'))).toBe(true);
+    }
+  });
 });
 
 // ─── No source code COPY ────────────────────────────────────────────────────
@@ -190,6 +275,33 @@ describe('no source code COPY', () => {
   it('fails for COPY lib/', () => {
     mockExistsSync.mockReturnValue(true);
     const df = goodDockerfile() + '\nCOPY lib/ /app/lib/';
+    mockReadFileSync.mockReturnValue(df);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const copyGaps = r.data.gaps.filter(g => g.rule === 'no-source-copy');
+      expect(copyGaps.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('fails for COPY with --chown flag and src/', () => {
+    mockExistsSync.mockReturnValue(true);
+    const df = goodDockerfile() + '\nCOPY --chown=node:node src/ /app/src/';
+    mockReadFileSync.mockReturnValue(df);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const copyGaps = r.data.gaps.filter(g => g.rule === 'no-source-copy');
+      expect(copyGaps.length).toBeGreaterThan(0);
+      expect(copyGaps[0].description).toContain('source code copied into container');
+    }
+  });
+
+  it('fails for COPY test/', () => {
+    mockExistsSync.mockReturnValue(true);
+    const df = goodDockerfile() + '\nCOPY test/ /app/test/';
     mockReadFileSync.mockReturnValue(df);
 
     const r = validateDockerfile('/project');
@@ -275,6 +387,19 @@ describe('cache cleanup', () => {
   it('passes with pip cache purge', () => {
     mockExistsSync.mockReturnValue(true);
     const df = goodDockerfile().replace('rm -rf /var/lib/apt/lists/*', 'pip cache purge');
+    mockReadFileSync.mockReturnValue(df);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      const cacheGaps = r.data.gaps.filter(g => g.rule === 'cache-cleanup');
+      expect(cacheGaps).toHaveLength(0);
+    }
+  });
+
+  it('passes with apk cache cleanup', () => {
+    mockExistsSync.mockReturnValue(true);
+    const df = goodDockerfile().replace('rm -rf /var/lib/apt/lists/*', 'rm -rf /var/cache/apk/*');
     mockReadFileSync.mockReturnValue(df);
 
     const r = validateDockerfile('/project');

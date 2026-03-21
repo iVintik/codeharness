@@ -4,7 +4,7 @@
  * and never throws (AC #6).
  */
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ok, isOk } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
@@ -166,20 +166,17 @@ export function checkVerification(projectDir: string): Result<DimensionResult> {
 
 export function checkInfrastructure(projectDir: string): Result<DimensionResult> {
   try {
-    const dfPath = join(projectDir, 'Dockerfile');
-    if (!existsSync(dfPath)) return dimOk('infrastructure', 'fail', 'no Dockerfile', [gap('infrastructure', 'No Dockerfile found', 'Create a Dockerfile for containerized deployment')]);
-
-    let content: string;
-    try { content = readFileSync(dfPath, 'utf-8'); }
-    catch { return dimOk('infrastructure', 'warn', 'Dockerfile unreadable', [gap('infrastructure', 'Dockerfile exists but could not be read', 'Check Dockerfile permissions')]); }
-
-    const fromLines = content.split('\n').filter(l => /^\s*FROM\s+/i.test(l));
-    if (fromLines.length === 0) return dimOk('infrastructure', 'fail', 'invalid Dockerfile', [gap('infrastructure', 'Dockerfile has no FROM instruction', 'Add a FROM instruction with a pinned base image')]);
-
     const result = validateDockerfile(projectDir);
-    if (!result.success) return dimOk('infrastructure', 'fail', 'validation failed', [gap('infrastructure', result.error, 'Fix Dockerfile validation errors')]);
+    if (!result.success) {
+      const err = result.error;
+      if (err.includes('No Dockerfile')) return dimOk('infrastructure', 'fail', 'no Dockerfile', [gap('infrastructure', 'No Dockerfile found', 'Create a Dockerfile for containerized deployment')]);
+      if (err.includes('could not be read')) return dimOk('infrastructure', 'warn', 'Dockerfile unreadable', [gap('infrastructure', 'Dockerfile exists but could not be read', 'Check Dockerfile permissions')]);
+      if (err.includes('no FROM')) return dimOk('infrastructure', 'fail', 'invalid Dockerfile', [gap('infrastructure', 'Dockerfile has no FROM instruction', 'Add a FROM instruction with a pinned base image')]);
+      return dimOk('infrastructure', 'fail', 'validation failed', [gap('infrastructure', err, 'Fix Dockerfile validation errors')]);
+    }
 
     const gaps: AuditGap[] = result.data.gaps.map(g => gap('infrastructure', g.description, g.suggestedFix));
+    for (const w of result.data.warnings) { gaps.push(gap('infrastructure', w, 'Provide the missing configuration file')); }
     const issueCount = gaps.length;
     const status: Status = issueCount > 0 ? 'warn' : 'pass';
     const metric = issueCount > 0 ? `Dockerfile exists (${issueCount} issue${issueCount !== 1 ? 's' : ''})` : 'Dockerfile valid';

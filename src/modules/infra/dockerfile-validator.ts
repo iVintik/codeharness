@@ -95,13 +95,18 @@ function checkBinaryOnPath(lines: string[]): DockerfileGap[] {
 }
 
 function checkVerificationTools(lines: string[], tools: string[]): DockerfileGap[] {
-  const content = lines.join('\n').toLowerCase();
   const gaps: DockerfileGap[] = [];
   for (const tool of tools) {
-    const installed =
-      content.includes(`apt-get install`) && content.includes(tool) ||
-      content.includes(`apk add`) && content.includes(tool);
-    if (!installed) {
+    let found = false;
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      const isInstallLine = lower.includes('apt-get install') || lower.includes('apk add');
+      if (isInstallLine && new RegExp(`\\b${tool.toLowerCase()}\\b`).test(lower)) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) {
       gaps.push(dfGap('verification-tools', `verification tool missing: ${tool}`, `Install ${tool} via apt-get install or apk add`));
     }
   }
@@ -110,7 +115,7 @@ function checkVerificationTools(lines: string[], tools: string[]): DockerfileGap
 
 function checkNoSourceCopy(lines: string[]): DockerfileGap[] {
   const gaps: DockerfileGap[] = [];
-  const sourcePatterns = [/COPY\s+src\//i, /COPY\s+lib\//i, /COPY\s+test\//i];
+  const sourcePatterns = [/COPY\s+(?:--\S+\s+)*src\//i, /COPY\s+(?:--\S+\s+)*lib\//i, /COPY\s+(?:--\S+\s+)*test\//i];
   for (let i = 0; i < lines.length; i++) {
     for (const pattern of sourcePatterns) {
       if (pattern.test(lines[i])) {
@@ -140,6 +145,7 @@ function checkCacheCleanup(lines: string[]): DockerfileGap[] {
   const content = lines.join('\n');
   const hasCleanup =
     /rm\s+-rf\s+\/var\/lib\/apt\/lists/i.test(content) ||
+    /rm\s+-rf\s+\/var\/cache\/apk/i.test(content) ||
     /npm\s+cache\s+clean/i.test(content) ||
     /pip\s+cache\s+purge/i.test(content);
   if (!hasCleanup) {

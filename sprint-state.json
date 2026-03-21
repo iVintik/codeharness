@@ -175,7 +175,11 @@
     "iteration": 1,
     "cost": 0,
     "completed": [],
-    "failed": []
+    "failed": [],
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": [
     {

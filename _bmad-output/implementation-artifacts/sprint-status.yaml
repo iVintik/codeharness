@@ -32,7 +32,7 @@ development_status:
   2-3-standalone-runtime-check-audit-mode: done
 
   # Epic 3: Audit Command
-  epic-3: in-progress
+  epic-3: done
   3-1-audit-coordinator-dimensions: done
   3-2-audit-fix-story-generation: done
   3-3-onboard-alias: done

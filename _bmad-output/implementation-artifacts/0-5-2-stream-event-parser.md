@@ -97,6 +97,7 @@ Events we skip (return null): `message_start`, `message_stop`, `message_delta`, 
 - [Source: _bmad-output/planning-artifacts/research/technical-stream-json-terminal-rendering-research-2026-03-19.md] -- stream-json format, event types
 - [Source: _bmad-output/implementation-artifacts/0-5-1-stream-json-claude-driver.md] -- predecessor story
 
+<!-- verification-tier: unit-testable -->
 <!-- CODEHARNESS-PATCH-START:story-verification -->
 ## Verification Requirements
 

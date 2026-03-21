@@ -23,6 +23,10 @@ import { registerProgressCommand } from './commands/progress.js';
 import { registerObservabilityGateCommand } from './commands/observability-gate.js';
 import { registerAuditCommand } from './commands/audit.js';
 
+// Library exports — available to consumers via `import { parseStreamLine } from 'codeharness'`
+export { parseStreamLine } from './lib/stream-parser.js';
+export type { StreamEvent, ToolStartEvent, ToolInputEvent, ToolCompleteEvent, TextEvent, RetryEvent, ResultEvent } from './lib/stream-parser.js';
+
 declare const __PKG_VERSION__: string;
 const VERSION = typeof __PKG_VERSION__ !== 'undefined' ? __PKG_VERSION__ : '0.0.0-dev';
 

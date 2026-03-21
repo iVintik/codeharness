@@ -17,7 +17,7 @@ development_status:
   epic-0-5: in-progress
   epic-0-5-retrospective: optional
   0-5-1-stream-json-claude-driver: done
-  0-5-2-stream-event-parser: verified
+  0-5-2-stream-event-parser: done
   0-5-3-ink-terminal-renderer: done
   0-5-4-run-command-integration: done
 
@@ -49,9 +49,15 @@ development_status:
   5-1-code-review-observability-check: done
   5-2-verification-runtime-integration: done
 
-  # Epic 6: Onboarding — Compliance Gaps
+  # Epic 6: Dashboard Visualization Rework
   epic-6: backlog
   epic-6-retrospective: optional
-  6-1-install-semgrep-static-analysis: backlog
-  6-2-fix-bats-runtime-tests: backlog
-  6-3-create-dockerfile: backlog
+  6-1-rewrite-ink-components-match-ux-spec: backlog
+  6-2-verify-stream-json-pipeline-e2e: backlog
+
+  # Epic 7: Onboarding — Compliance Gaps
+  epic-7: backlog
+  epic-7-retrospective: optional
+  7-1-install-semgrep-static-analysis: backlog
+  7-2-fix-bats-runtime-tests: backlog
+  7-3-create-dockerfile: backlog

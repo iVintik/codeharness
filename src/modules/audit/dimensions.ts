@@ -14,6 +14,7 @@ import type { AnalyzerResult, RuntimeValidationResult } from '../observability/i
 import { checkOnlyCoverage } from '../../lib/coverage.js';
 import { scanDocHealth } from '../../lib/doc-health.js';
 import { parseProof } from '../verify/index.js';
+import { validateDockerfile } from '../infra/index.js';
 
 type Status = 'pass' | 'fail' | 'warn';
 
@@ -175,16 +176,13 @@ export function checkInfrastructure(projectDir: string): Result<DimensionResult>
     const fromLines = content.split('\n').filter(l => /^\s*FROM\s+/i.test(l));
     if (fromLines.length === 0) return dimOk('infrastructure', 'fail', 'invalid Dockerfile', [gap('infrastructure', 'Dockerfile has no FROM instruction', 'Add a FROM instruction with a pinned base image')]);
 
-    const gaps: AuditGap[] = [];
-    let hasUnpinned = false;
-    for (const line of fromLines) {
-      const ref = line.replace(/^\s*FROM\s+/i, '').split(/\s+/)[0];
-      if (ref.endsWith(':latest')) { hasUnpinned = true; gaps.push(gap('infrastructure', `Unpinned base image: ${ref}`, `Pin ${ref} to a specific version tag`)); }
-      else if (!ref.includes(':') && !ref.includes('@')) { hasUnpinned = true; gaps.push(gap('infrastructure', `Unpinned base image (no tag): ${ref}`, `Pin ${ref} to a specific version tag (e.g., ${ref}:22-slim)`)); }
-    }
+    const result = validateDockerfile(projectDir);
+    if (!result.success) return dimOk('infrastructure', 'fail', 'validation failed', [gap('infrastructure', result.error, 'Fix Dockerfile validation errors')]);
 
-    const status: Status = hasUnpinned ? 'warn' : 'pass';
-    const metric = hasUnpinned ? `Dockerfile exists (${gaps.length} issue${gaps.length !== 1 ? 's' : ''})` : 'Dockerfile valid';
+    const gaps: AuditGap[] = result.data.gaps.map(g => gap('infrastructure', g.description, g.suggestedFix));
+    const issueCount = gaps.length;
+    const status: Status = issueCount > 0 ? 'warn' : 'pass';
+    const metric = issueCount > 0 ? `Dockerfile exists (${issueCount} issue${issueCount !== 1 ? 's' : ''})` : 'Dockerfile valid';
     return dimOk('infrastructure', status, metric, gaps);
   } catch (err: unknown) { return dimCatch('infrastructure', err); }
 }

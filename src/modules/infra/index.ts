@@ -36,6 +36,10 @@ export function cleanupContainers(): Result<CleanupResult> {
 
 export { detectRunningStack, detectPortConflicts };
 
+// Dockerfile validation (Story 4.1)
+export { validateDockerfile, loadRules } from './dockerfile-validator.js';
+export type { DockerfileValidationResult, DockerfileGap } from './dockerfile-validator.js';
+
 export function getObservabilityBackend(config?: {
   opensearchUrl?: string;
   opensearch?: { logsIndex?: string; metricsIndex?: string; tracesIndex?: string };

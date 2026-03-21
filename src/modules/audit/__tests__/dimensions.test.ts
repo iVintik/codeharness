@@ -24,6 +24,10 @@ vi.mock('../../verify/index.js', () => ({
   parseProof: vi.fn(),
 }));
 
+vi.mock('../../infra/index.js', () => ({
+  validateDockerfile: vi.fn(),
+}));
+
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { analyze, validateRuntime } from '../../observability/index.js';
 import { checkOnlyCoverage } from '../../../lib/coverage.js';

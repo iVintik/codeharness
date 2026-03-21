@@ -197,23 +197,26 @@ describe('Header with elapsed time (AC #3)', () => {
 });
 
 describe('StoryBreakdown component (AC #4)', () => {
-  it('renders stories grouped by status with correct symbols', () => {
+  it('renders done as count, others with symbols', () => {
     const stories: StoryStatusEntry[] = [
-      { key: '3-1', status: 'done' },
-      { key: '4-1', status: 'done' },
-      { key: '3-2', status: 'in-progress' },
-      { key: '3-3', status: 'pending' },
-      { key: '0-1', status: 'blocked' },
+      { key: '3-1-some-story', status: 'done' },
+      { key: '4-1-another', status: 'done' },
+      { key: '3-2-current', status: 'in-progress' },
+      { key: '3-3-next-one', status: 'pending' },
+      { key: '0-1-stuck', status: 'blocked' },
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('Done:');
-    expect(frame).toContain('3-1 ✓');
-    expect(frame).toContain('4-1 ✓');
+    // Done shows count, not individual keys
+    expect(frame).toContain('Done: 2 ✓');
+    expect(frame).not.toContain('3-1-some-story');
+    // In-progress shows full key
     expect(frame).toContain('This:');
-    expect(frame).toContain('3-2 ◆');
+    expect(frame).toContain('3-2-current ◆');
+    // Pending shows short keys
     expect(frame).toContain('Next:');
     expect(frame).toContain('3-3 ○');
+    // Blocked shows short keys
     expect(frame).toContain('Blocked:');
     expect(frame).toContain('0-1 ✕');
   });
@@ -225,12 +228,28 @@ describe('StoryBreakdown component (AC #4)', () => {
 
   it('renders failed stories with ✗ symbol', () => {
     const stories: StoryStatusEntry[] = [
-      { key: '2-3', status: 'failed' },
+      { key: '2-3-broken', status: 'failed' },
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
     expect(frame).toContain('Failed:');
     expect(frame).toContain('2-3 ✗');
+  });
+
+  it('truncates pending list to 3 with +N indicator', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '1-1-a', status: 'pending' },
+      { key: '2-1-b', status: 'pending' },
+      { key: '3-1-c', status: 'pending' },
+      { key: '4-1-d', status: 'pending' },
+      { key: '5-1-e', status: 'pending' },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('1-1 ○');
+    expect(frame).toContain('3-1 ○');
+    expect(frame).toContain('+2');
+    expect(frame).not.toContain('4-1');
   });
 });
 

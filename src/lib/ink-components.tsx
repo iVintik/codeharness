@@ -158,21 +158,36 @@ export function StoryBreakdown({ stories }: { stories: StoryStatusEntry[] }) {
   const fmt = (keys: string[], status: StoryStatusValue) =>
     keys.map(k => `${k} ${STATUS_SYMBOLS[status]}`).join('  ');
 
+  // Short key: strip the slug, keep just the number prefix (e.g. "3-1" from "3-1-audit-coordinator")
+  const shortKey = (key: string) => {
+    const m = key.match(/^(\d+-\d+)/);
+    return m ? m[1] : key;
+  };
+  const fmtShort = (keys: string[], status: StoryStatusValue) =>
+    keys.map(k => `${shortKey(k)} ${STATUS_SYMBOLS[status]}`).join('  ');
+
   const parts: string[] = [];
+  // Done: just show count — listing all done stories is noise
   if (groups['done']?.length) {
-    parts.push(`Done: ${fmt(groups['done'], 'done')}`);
+    parts.push(`Done: ${groups['done'].length} ✓`);
   }
+  // In-progress: show full keys (there's usually 0-1)
   if (groups['in-progress']?.length) {
     parts.push(`This: ${fmt(groups['in-progress'], 'in-progress')}`);
   }
+  // Pending: show short keys (next stories to pick up)
   if (groups['pending']?.length) {
-    parts.push(`Next: ${fmt(groups['pending'], 'pending')}`);
+    const shown = groups['pending'].slice(0, 3);
+    const rest = groups['pending'].length - shown.length;
+    let s = `Next: ${fmtShort(shown, 'pending')}`;
+    if (rest > 0) s += ` +${rest}`;
+    parts.push(s);
   }
   if (groups['failed']?.length) {
-    parts.push(`Failed: ${fmt(groups['failed'], 'failed')}`);
+    parts.push(`Failed: ${fmtShort(groups['failed'], 'failed')}`);
   }
   if (groups['blocked']?.length) {
-    parts.push(`Blocked: ${fmt(groups['blocked'], 'blocked')}`);
+    parts.push(`Blocked: ${fmtShort(groups['blocked'], 'blocked')}`);
   }
 
   return <Text>{parts.join(' | ')}</Text>;

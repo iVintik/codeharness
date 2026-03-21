@@ -25,6 +25,15 @@ The proof must pass black-box enforcement:
 - `[FAIL]` verdicts outside code blocks cause the proof to fail
 - `[ESCALATE]` is acceptable only when all automated approaches are exhausted
 
+### Observability
+
+Run `semgrep scan --config patches/observability/ --json` against changed files and report gaps.
+
+- For each gap found, list it as a review issue: file path, line number, and description (e.g., "src/lib/docker.ts:42 — catch block without logging")
+- Semgrep JSON output fields to extract: `check_id`, `path`, `start.line`, `extra.message`
+- If zero observability gaps are found, this check passes silently — do not emit warnings
+- If Semgrep is not installed, report "static analysis skipped — install semgrep" as a warning and do NOT fail the review
+
 ### Code Quality
 
 - Coverage delta reported (before vs after)

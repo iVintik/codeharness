@@ -7,6 +7,7 @@ Code review execution. Invokes BMAD code-review workflow via child_process and r
 - `index.ts` — Public API: `reviewStory(key, opts?)` — delegates to orchestrator, re-exports `ReviewResult` type. Only public interface for the module.
 - `orchestrator.ts` — Workflow invocation: `invokeBmadCodeReview(key, opts?)` — spawns `claude --print` with BMAD code-review prompt, parses review output for approval/rejection signals, extracts comment lines. Handles timeout (killed/SIGTERM) and non-zero exit errors. Internal to module.
 - `types.ts` — Module-specific types: `ReviewResult` (key, approved, comments, duration, output — all readonly)
+- `__tests__/observability-patch.test.ts` — Validates that `patches/review/enforcement.md` and `patches/dev/enforcement.md` contain required observability sections and Semgrep instructions. Also validates Semgrep JSON output format contract.
 
 ## Patterns
 

@@ -349,3 +349,270 @@ Two stories progressed this window. Story 3-3 completed its verification pass �
 | Bugs found & fixed | — | 8 | — |
 | Tech debt items added | — | 6 | — |
 | Stories still verifying | — | 1 (4-1) | — |
+
+---
+
+# Session Retrospective — 2026-03-21 (late session)
+
+**Timestamp:** ~09:30Z
+**Sprint progress:** 17/20 stories done (85%), 4-1 marked done in sprint-status.yaml, 4-2 create-story in progress
+**Active automation:** ralph is running, currently starting story 4-2-dockerfile-template-dev-integration
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Final Status | Activity This Window | Notes |
+|-------|------|-------------|---------------------|-------|
+| 4-1-dockerfile-rules-validation | Epic 4: Infrastructure | Done (per sprint-status.yaml) | Marked complete | AC10 fix was committed (4f0a376). Re-verification either passed or was accepted. |
+| 4-2-dockerfile-template-dev-integration | Epic 4: Infrastructure | In Progress | create-story phase starting | Ralph automation initiated story creation. No issues logged yet. |
+
+No new entries were added to `.session-issues.md` since the last retro at ~09:20Z. Ralph is actively running (loop_count: 2, status: running) and has moved to 4-2's create-story phase.
+
+**Test suite:** 2820 tests passing across 120 files, ~97% overall coverage (unchanged from last window).
+
+---
+
+## 2. Issues Analysis
+
+### New Issues Since Last Retro
+
+None. The session issues log has not been updated since the 4-1 verify entry at 05:35Z. All issues from today were already analyzed in the end-of-day consolidation retro.
+
+### State Inconsistency Noted
+
+- `sprint-status.yaml` shows `4-1-dockerfile-rules-validation: done`
+- `sprint-state.json` shows `4-1-dockerfile-rules-validation: in-progress`
+- These are out of sync. The yaml is authoritative per project convention. The sprint-state.json may not have been updated after 4-1 was finalized.
+
+### Outstanding Items From Prior Retros (Still Open)
+
+1. **BATS onboard tests still skipped** (commit b5f062c) -- marked "Fix Now" in prior retro, not yet addressed
+2. **4-1 re-verification status unclear** -- sprint-status.yaml says done, but no verification entry in session issues log confirms AC10 re-pass
+3. **6 tech debt items from today** -- none resolved yet (raw() utility, formatAuditJson no-op, loose tool matching, missing line numbers, skipped BATS tests, console.log usage)
+
+---
+
+## 3. What Went Well
+
+- **Story 4-1 completed.** Despite the AC10 failure during first verification, the bug was found, fixed, test added, and the story reached done status. The full pipeline worked as intended -- verification caught an integration seam bug that unit tests missed.
+- **Sprint at 85% completion.** 17 of 20 stories done. Epic 0, 0.5, 1, 2, and 3 all fully closed. Only Epics 4 and 5 remain.
+- **Continuous automation.** Ralph seamlessly transitioned from 4-1 completion to 4-2 story creation without manual intervention.
+- **Session issues log discipline held.** Every subagent phase logged its findings consistently across the entire day.
+
+---
+
+## 4. What Went Wrong
+
+- **"Fix Now" items from prior retros remain unfixed.** The skipped BATS tests (b5f062c) were flagged as "Fix Now" in the ~05:40Z retro and again in the ~09:20Z consolidation. They are still skipped. This pattern of flagging items as urgent and not acting on them erodes the retro process.
+- **State sync gap.** sprint-state.json and sprint-status.yaml disagree on 4-1 status. This makes it unclear whether 4-1 actually passed re-verification or was just marked done.
+- **No new session issues logged for 4+ hours.** Either nothing happened between ~05:40Z and now (possible if ralph was idle), or subagents stopped logging issues. The gap makes it hard to reconstruct what happened.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **End-of-day consolidation retros.** The ~09:20Z retro synthesized three session windows into a single coherent analysis with cumulative metrics. This format is the most useful for tracking progress across a full day.
+- **Bug discovery rate tracking.** Tracking "8 bugs across 2 stories, code review caught 75%" gives a quantitative handle on quality gate effectiveness.
+
+### Patterns to Avoid
+
+- **Marking items "Fix Now" without actually fixing them.** If an item has been "Fix Now" across two retros and is still unfixed, it should either be escalated or reclassified. Calling something urgent and ignoring it is worse than calling it backlog.
+- **Dual state files without sync mechanism.** sprint-status.yaml and sprint-state.json serving overlapping purposes without a sync step creates confusion.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+- [ ] **Reconcile sprint-state.json with sprint-status.yaml** -- 4-1 status disagrees between the two files
+- [ ] **Fix or rewrite skipped BATS onboard tests** (commit b5f062c) -- third consecutive retro flagging this as urgent
+
+### Fix Soon (Next Sprint)
+
+- [ ] Add `raw()` output utility to `src/lib/output.ts`
+- [ ] Add line number reporting to `checkBinaryOnPath`
+- [ ] Document known false positive scenarios for `checkVerificationTools`
+- [ ] Investigate CI gap that let `run-helpers.test.ts` --live flag test stay broken
+- [ ] Add integration test for `checkInfrastructure()` -> `validateDockerfile()` warning propagation seam
+
+### Backlog (Track but Not Urgent)
+
+- [ ] Consider data-driven Dockerfile rules (parsed from markdown)
+- [ ] Add structured log events for audit/onboard CLI interactions
+- [ ] Improve `dfGap()` branch coverage from 87.5% to 100%
+- [ ] Review whether `formatAuditJson()` should be removed as a no-op
+- [ ] Add deprecation warnings for dropped onboard subcommands
+- [ ] Replace test LOC estimates with test case count estimates
+- [ ] Add sync mechanism between sprint-status.yaml and sprint-state.json
+
+---
+
+## Cumulative Day Metrics (Updated)
+
+| Metric | Start of Day | Current | Delta |
+|--------|-------------|---------|-------|
+| Stories done | 15 | 17 | +2 |
+| Sprint completion | 75% | 85% | +10% |
+| Epics closed | 3 | 4 (+Epic 3) | +1 |
+| Tests passing | ~2783 | 2820 | +37 |
+| Coverage-tracked files | 119 | 120 | +1 |
+| Overall coverage | 96.97% | ~97% | steady |
+| Releases shipped | 0 | 2 (v0.23.0, v0.23.1) | +2 |
+| Bugs found & fixed | 0 | 8 | +8 |
+| Tech debt items added | 0 | 6 | +6 |
+| Tech debt items resolved | 0 | 0 | 0 |
+| Retro "Fix Now" items carried over | 0 | 2 | +2 |
+| Stories in progress | 0 | 1 (4-2) | +1 |
+
+---
+
+# Session Retrospective — 2026-03-21 (final session)
+
+**Timestamp:** ~10:00Z
+**Sprint progress:** 19/20 stories done (95%), Epics 0-4 complete, Epic 5 (2 stories) in backlog
+**Active automation:** ralph completed -- stories 4-1 and 4-2 fully verified, Epic 4 closed
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Final Status | Activity Since Last Retro | Notes |
+|-------|------|-------------|--------------------------|-------|
+| 4-1-dockerfile-rules-validation | Epic 4: Infrastructure | Done | Re-verification completed | AC10 re-verified after bug fix. 10/10 ACs passed. Committed (4f0a376). |
+| 4-2-dockerfile-template-dev-integration | Epic 4: Infrastructure | Done | Full pipeline: create-story, dev-story, code-review, verify | All 10 ACs passed black-box Docker verification. Committed (84bf111). |
+| Epic 4 closure | — | Done | Epic marked complete | Committed (81025b2). |
+
+Both remaining Epic 4 stories reached done status. Epic 4 is fully closed. The sprint now stands at 19/20 stories done with only Epic 5 (2 stories: 5-1, 5-2) remaining in backlog.
+
+**Test suite at session end:** 2845 tests passing across 121 files, 96.98% overall coverage, all files above 80% floor.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation
+
+- **HIGH: Unhandled writeFileSync exception** in 4-2 dockerfile-template.ts -- violated Result<T> "never throws" contract. Fixed with try/catch during code review.
+- **MEDIUM: Missing projectDir validation** in 4-2 -- falsy values produced garbage paths. Fixed with guard clause.
+- **MEDIUM: Test mock leak** in 4-2 -- `vi.clearAllMocks()` doesn't reset implementations, causing inter-test pollution. Fixed by switching to `vi.resetAllMocks()`.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+- **Single-line apt-get format coupling** (4-2) -- Templates use `apt-get install curl jq` on one line because `validateDockerfile()` checks lines independently. Multi-line `\` continuations cause false negatives. The validator and template generator are now coupled to single-line format. This is a design constraint, not a simple workaround.
+- **Task 5.2 skipped** (4-2) -- No init-project integration tests added. Template function tested via its own 22-test file instead. init-project.test.ts does not assert on the `dockerfile` field in InitResult.
+
+### Code Quality Concerns
+
+- **Coverage gap in init-project.test.ts** -- Tests predate story 4-2 and don't cover the new `dockerfile` field in InitResult. Functional coverage exists in the dedicated template test file, but integration coverage is missing.
+- **Redundant `resolvedStack` variable** (LOW, not fixed) -- Accepted as-is during code review; clarity over brevity.
+
+### Verification Gaps
+
+- **4-1 AC10 re-verification passed cleanly.** The warning-to-gap propagation fix in dimensions.ts (from prior session) was confirmed working with a rebuilt Docker image. The previous PARTIAL PASS was due to a stale Docker image.
+- **Story files still say "verifying"** -- Both 4-1 and 4-2 story markdown files have `Status: verifying` but sprint-status.yaml says `done`. The story file status was not updated after verification passed.
+
+### Tooling/Infrastructure Problems
+
+- **Showboat not installed in verification container** -- 4-2 verification noted "Showboat not installed -- skipping re-verification." Warning only, not blocking, but means showboat-dependent features are not verified in the container.
+- **sprint-state.json shows 4-2 as "ready" with 1 attempt** -- Despite 4-2 being done per sprint-status.yaml and committed. The sprint-state.json sync issue (flagged in prior retro) persists.
+
+---
+
+## 3. What Went Well
+
+- **Epic 4 fully completed.** Both stories (4-1, 4-2) passed all 20 ACs combined (10 each) through black-box Docker verification. Zero escalations on 4-2.
+- **Sprint at 95% completion.** 19 of 20 stories done. 5 epics closed (0, 0.5, 1, 2, 3, 4). Only Epic 5 (workflow integration, 2 stories in backlog) remains.
+- **4-1 AC10 bug fix confirmed.** The integration seam bug (warnings not propagated from validator to audit output) was properly fixed and re-verified. The full find-fix-verify cycle worked.
+- **Code review caught 3 bugs in 4-2.** Continues the pattern -- code review is the highest-value quality gate (11 bugs caught across all stories today, ~80% found during review).
+- **4-2 completed in a single automation run.** Create-story through verify with no manual intervention needed. Ralph automation handled the full pipeline.
+- **Test suite growth continues.** 2820 to 2845 tests (+25), one new coverage-tracked file (120 to 121). Coverage held steady at ~97%.
+
+---
+
+## 4. What Went Wrong
+
+- **"Fix Now" items from prior retros still unfixed.** The skipped BATS onboard tests (commit b5f062c) have been flagged as "Fix Now" in three consecutive retros. They remain skipped. This item should be reclassified or actually fixed.
+- **Sprint-state.json / sprint-status.yaml sync still broken.** Flagged in the ~09:30Z retro, still unresolved. sprint-state.json shows 4-2 as "ready" despite being done and committed. No sync mechanism exists.
+- **Story file statuses not updated after verification.** Both 4-1 and 4-2 story files still say `Status: verifying` despite passing all ACs. This is cosmetic but creates confusion when reading story files directly.
+- **Validator single-line coupling.** The decision to make templates use single-line `apt-get install` because the validator can't handle multi-line RUN instructions is a design limitation that will bite when users write real-world Dockerfiles with multi-line commands.
+- **No init-project integration test coverage for Dockerfile template.** The template function is tested, but the integration point (init-project calling the template function and including results in InitResult) is untested.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Rebuild Docker image before re-verification.** The 4-1 AC10 "PARTIAL PASS" was caused by a stale Docker image. Rebuilding before re-verification gave a clean 10/10 PASS. Always rebuild when re-verifying after code changes.
+- **Dedicated test files for new modules.** 4-2's `dockerfile-template.ts` got its own 22-test file rather than being shoehorned into init-project tests. This kept tests focused and avoided heavy mocking dependencies.
+- **Full automation for non-blocking stories.** 4-2 ran through ralph's full pipeline (create-dev-review-verify) without manual intervention. Stories with clear ACs and no external dependencies are ideal automation candidates.
+
+### Patterns to Avoid
+
+- **Ignoring "Fix Now" across multiple retros.** If an item survives 3+ retros as "Fix Now" without action, it should either be done immediately, reclassified to "Fix Soon" with a reason, or removed. Keeping it as "Fix Now" while ignoring it degrades trust in the retro process.
+- **Coupling validators and generators to implementation details.** The single-line format coupling between `validateDockerfile()` and `generateDockerfileTemplate()` means a bug fix in the validator (adding multi-line support) would break templates, and vice versa. These should be independent.
+- **Dual state files without a sync mechanism.** sprint-state.json and sprint-status.yaml continue to diverge. Pick one as authoritative and deprecate the other, or add automatic sync.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+- [ ] **Fix or rewrite skipped BATS onboard tests** (commit b5f062c) -- fourth consecutive retro flagging this. If not fixable now, reclassify to "Fix Soon" with documented reason.
+- [ ] **Reconcile sprint-state.json with sprint-status.yaml** -- 4-2 shows "ready" in sprint-state.json despite being done
+- [ ] **Update story file statuses** -- 4-1 and 4-2 story files still say `Status: verifying`; should say `Status: done`
+
+### Fix Soon (Next Sprint)
+
+- [ ] Add multi-line RUN instruction support to `validateDockerfile()` -- decouples validator from single-line format assumption
+- [ ] Add `raw()` output utility to `src/lib/output.ts` (carried from prior retro)
+- [ ] Add init-project integration test asserting `dockerfile` field in InitResult
+- [ ] Add line number reporting to `checkBinaryOnPath` (carried from prior retro)
+- [ ] Document known false positive scenarios for `checkVerificationTools` (carried from prior retro)
+- [ ] Investigate CI gap that let `run-helpers.test.ts` --live flag test stay broken (carried from prior retro)
+- [ ] Add integration test for `checkInfrastructure()` -> `validateDockerfile()` warning propagation seam (carried from prior retro)
+
+### Backlog (Track but Not Urgent)
+
+- [ ] Consider data-driven Dockerfile rules (parsed from markdown) instead of hardcoded
+- [ ] Add structured log events for audit/onboard CLI interactions
+- [ ] Improve `dfGap()` branch coverage from 87.5% to 100%
+- [ ] Review whether `formatAuditJson()` should be removed as a no-op
+- [ ] Add deprecation warnings for dropped onboard subcommands (`coverage`, `audit`, `epic`)
+- [ ] Replace test LOC estimates with test case count estimates
+- [ ] Add sync mechanism between sprint-status.yaml and sprint-state.json (or deprecate one)
+- [ ] Install showboat in verification Docker container for full-coverage verification
+
+---
+
+## Final Day Metrics (2026-03-21)
+
+| Metric | Start of Day | End of Day | Delta |
+|--------|-------------|------------|-------|
+| Stories done | 15 | 19 | +4 |
+| Sprint completion | 75% | 95% | +20% |
+| Epics closed | 3 (0, 0.5, 1, 2) | 5 (+Epic 3, +Epic 4) | +2 |
+| Tests passing | ~2783 | 2845 | +62 |
+| Coverage-tracked files | 119 | 121 | +2 |
+| Overall coverage | 96.97% | 96.98% | steady |
+| Releases shipped | 0 | 2 (v0.23.0, v0.23.1) | +2 |
+| Bugs found & fixed | 0 | 11 | +11 |
+| Tech debt items added | 0 | 8 | +8 |
+| Tech debt items resolved | 0 | 0 | 0 |
+| Retro "Fix Now" items carried over | 0 | 3 | +3 |
+| Stories remaining (backlog) | 5 | 1 (Epic 5: 2 stories) | -3 |
+
+---
+
+## Sprint Health Assessment
+
+The sprint is effectively complete at 95% (19/20 stories). The remaining 2 stories (5-1, 5-2) are in Epic 5 (Workflow Integration) and marked as backlog -- they were stretch goals, not committed scope. All committed scope is done.
+
+**Key risk:** 8 tech debt items added today with 0 resolved. The skipped BATS tests have been "Fix Now" for 4 retros without action. If this pattern continues, tech debt will compound faster than it can be addressed.
+
+**Recommendation:** Before starting any new feature work, dedicate one session to tech debt resolution -- fix the BATS tests, add the `raw()` utility, reconcile the state files, and close at least 3-4 of the 8 open items.

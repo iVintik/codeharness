@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 20,
-    "done": 17,
+    "done": 18,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -145,7 +145,7 @@
       "acResults": null
     },
     "4-2-dockerfile-template-dev-integration": {
-      "status": "ready",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -153,8 +153,8 @@
       "acResults": null
     },
     "5-1-code-review-observability-check": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -172,14 +172,14 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 2,
+    "iteration": 3,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "4-2-dockerfile-template-dev-integration",
+    "currentStory": "5-1-code-review-observability-check",
     "currentPhase": "verify",
     "lastAction": "Starting verification",
-    "acProgress": "10/10"
+    "acProgress": "6/6"
   },
   "actionItems": [
     {
@@ -459,6 +459,97 @@
       "id": "migrated-40",
       "story": "4-2-dockerfile-template-dev-integration",
       "description": "**Code quality concern:** `checkVerificationTools()` in dockerfile-validator.ts only checks single lines, not multi-line RUN instructions. Validator and template generator coupled to single-line format.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-41",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "**HIGH: Unhandled writeFileSync exception** — violates Result<T> \"never throws\" contract. Fixed with try/catch.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-42",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "**MEDIUM: Missing projectDir validation** — falsy values produce garbage paths. Fixed with guard clause.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-43",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "**MEDIUM: Test mock leak** — `vi.clearAllMocks()` doesn't reset implementations, causing pollution. Fixed with `vi.resetAllMocks()`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-44",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "**LOW (not fixed): Redundant `resolvedStack` variable** — clear enough, no change needed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-45",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "**Coverage gap:** init-project.test.ts does not assert on `dockerfile` field in InitResult (tests predate story 4.2).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-46",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "**Coverage: 96.98% overall, 2845 tests, all 121 files above 80% floor**",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-47",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "All 10 ACs passed black-box Docker verification",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-48",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "No escalations, no failures",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-49",
+      "story": "4-2-dockerfile-template-dev-integration",
+      "description": "Showboat not installed — skipping re-verification (warning only, not blocking)",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-50",
+      "story": "5-1-code-review-observability-check",
+      "description": "**Workaround:** Sprint-status.yaml not updated by agent (per instructions) — manually reconciled after.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-51",
+      "story": "5-1-code-review-observability-check",
+      "description": "**Lightweight story:** Primarily patch-file updates with minimal TypeScript code. Main work is markdown content in enforcement patches.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-52",
+      "story": "5-1-code-review-observability-check",
+      "description": "**Risk:** AC #2 and #3 depend on LLM agent behavior during real review sessions — unit tests can only verify patch content exists, not agent interpretation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-53",
+      "story": "5-1-code-review-observability-check",
+      "description": "**Observation:** Epic ACs reference `patches/review/review-enforcement.md` but actual file is `patches/review/enforcement.md`.",
       "source": "retro",
       "resolved": false
     }

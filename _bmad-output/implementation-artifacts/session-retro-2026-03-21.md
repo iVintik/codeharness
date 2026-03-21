@@ -1054,3 +1054,63 @@ The sprint is at 95% completion. Story 5-2 has passed code review and needs only
 | Releases shipped | 0 | 2 (v0.23.0, v0.23.1) | +2 |
 
 **Sprint status: COMPLETE.** All 20 stories done. Next session should prioritize the 3 "Fix Now" action items before starting new feature work.
+
+---
+
+# Session Retrospective — 2026-03-21 (Session 07:51Z–08:12Z)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** 07:51Z – 08:12Z (~21 minutes)
+**Sprint progress:** 22/26 stories done (85%), Epic 0 completed, Epic 0.5 at 3/4
+
+## 1. Session Summary
+
+| Story | Action | Outcome |
+|-------|--------|---------|
+| 0-1-sprint-state-live-updates | Docker verification | PASS (4/4 ACs) — fixed migration.ts bug |
+| 0-2-ralph-progress-display | Docker verification | PASS (4/4 ACs) — fixed proof format |
+| 0-3-run-command-dashboard | Docker verification | PASS (5/5 ACs) |
+| 0-5-1-stream-json-claude-driver | Docker verification | PASS (4/4 ACs) |
+
+**Epic 0 completed** — all 3 stories verified and marked done.
+
+## 2. Issues Analysis
+
+### Bugs discovered
+- **migration.ts missing fields:** `parseRalphStatus()` didn't include new `currentStory`/`currentPhase`/`lastAction`/`acProgress` fields, causing migration test failure. Root cause: Story 0.1 extended the SprintState type but migration wasn't updated to match.
+
+### Verification tooling issues
+- **Proof format sensitivity:** `codeharness verify` requires each AC to have its own `bash` code block — sharing evidence from another AC isn't counted. Verifiers need to know this.
+- **BATS tests not in container:** `ralph/tests/` directory isn't included in the npm package, so Docker verification can't run BATS tests. This affects all ralph-related stories.
+- **VictoriaLogs query syntax:** The `_stream_id:*` pattern in the verify prompt template is invalid. Should use `*` wildcard.
+
+### Observability gaps
+- `codeharness progress` CLI emits no structured logs to the observability stack.
+
+## 3. What Went Well
+
+- **Efficient verification:** 4 stories verified in ~19 minutes. Docker black-box verification is working smoothly for these stories.
+- **Bug caught:** The migration.ts bug was a real issue that would have caused runtime failures for users upgrading — verification caught it.
+- **Clean passes:** 3 of 4 stories passed on first verification attempt.
+
+## 4. What Went Wrong
+
+- Nothing major. The proof format issue for AC3 in story 0-2 was a minor formatting issue, not a real code problem.
+
+## 5. Lessons Learned
+
+- "verified" status in sprint-status.yaml is non-standard — should be `verifying` or `done`. Created ambiguity about what workflow to run.
+- Verifier subagents need explicit guidance that each AC must have its own `bash` evidence block.
+
+## 6. Action Items
+
+### Fix now
+- (none — all issues resolved during session)
+
+### Fix soon
+- Fix VictoriaLogs query syntax in verify-prompt.ts template (`_stream_id:*` → `*`)
+- Include `ralph/tests/` in npm package or Docker image for ralph story verification
+- Add structured logging to `codeharness progress` command
+
+### Backlog
+- Standardize "verified" status → either `verifying` or `done`

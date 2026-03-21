@@ -1,120 +1,147 @@
-# Verification Proof: 0-5-2-stream-event-parser
+# Verification Proof: 0-5-2 Stream Event Parser
 
-**Story:** Stream Event Parser
-**Verification tier:** unit-testable
 **Date:** 2026-03-21
-**Method:** Unit tests + coverage analysis (pure function library, zero external effects)
+**Verifier:** Claude (black-box)
+**Container:** codeharness-verify
+**Result:** ALL 6 ACs PASS
 
-## AC 1: content_block_start with tool_use → tool-start
+---
+
+## AC 1: content_block_start with tool_use emits tool-start
 
 ```bash
-npx vitest run src/lib/__tests__/stream-parser.test.ts -t "AC #1"
+docker exec codeharness-verify sh -c 'VITEST=1 node --input-type=module -e "
+import { parseStreamLine } from \"/usr/local/lib/node_modules/codeharness/dist/index.js\";
+const input = JSON.stringify({\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_start\",\"content_block\":{\"type\":\"tool_use\",\"name\":\"Bash\",\"id\":\"toolu_xxx\"}}});
+const result = parseStreamLine(input);
+console.log(JSON.stringify(result));
+"'
 ```
 
 ```output
-✓ parses content_block_start with tool_use
-✓ handles different tool names
-✓ returns null for content_block_start with text type
-✓ returns null when content_block is missing
-✓ returns null when tool_use name is missing
-✓ returns null when tool_use id is missing
+{"type":"tool-start","name":"Bash","id":"toolu_xxx"}
 ```
 
-**Verdict:** PASS — `parseStreamLine()` correctly extracts `{ type: 'tool-start', name: 'Bash', id: 'toolu_abc123' }` from `content_block_start` with `tool_use` content block. Handles edge cases (missing name, missing id, text type).
+**PASS** -- Output matches expected `{ type: 'tool-start', name: 'Bash', id: 'toolu_xxx' }`.
 
-## AC 2: content_block_delta with input_json_delta → tool-input
+[OBSERVABILITY GAP] No log events detected for this user interaction.
+
+---
+
+## AC 2: content_block_delta with input_json_delta emits tool-input
 
 ```bash
-npx vitest run src/lib/__tests__/stream-parser.test.ts -t "AC #2"
+docker exec codeharness-verify sh -c 'VITEST=1 node --input-type=module -e "
+import { parseStreamLine } from \"/usr/local/lib/node_modules/codeharness/dist/index.js\";
+const input = JSON.stringify({\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"hello\"}}});
+const result = parseStreamLine(input);
+console.log(JSON.stringify(result));
+"'
 ```
 
 ```output
-✓ parses input_json_delta
-✓ handles empty partial_json
-✓ returns null when partial_json is not a string
-✓ returns null when delta is missing
+{"type":"tool-input","partial":"hello"}
 ```
 
-**Verdict:** PASS — `parseStreamLine()` correctly extracts `{ type: 'tool-input', partial: '...' }` from `content_block_delta` with `input_json_delta` delta type.
+**PASS** -- Output matches expected `{ type: 'tool-input', partial: 'hello' }`.
 
-## AC 3: content_block_stop → tool-complete
+[OBSERVABILITY GAP] No log events detected for this user interaction.
+
+---
+
+## AC 3: content_block_stop emits tool-complete
 
 ```bash
-npx vitest run src/lib/__tests__/stream-parser.test.ts -t "AC #3"
+docker exec codeharness-verify sh -c 'VITEST=1 node --input-type=module -e "
+import { parseStreamLine } from \"/usr/local/lib/node_modules/codeharness/dist/index.js\";
+const input = JSON.stringify({\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_stop\"}});
+const result = parseStreamLine(input);
+console.log(JSON.stringify(result));
+"'
 ```
 
 ```output
-✓ parses content_block_stop
-✓ ignores extra fields on content_block_stop
+{"type":"tool-complete"}
 ```
 
-**Verdict:** PASS — `parseStreamLine()` correctly emits `{ type: 'tool-complete' }` for `content_block_stop` events.
+**PASS** -- Output matches expected `{ type: 'tool-complete' }`.
 
-## AC 4: content_block_delta with text_delta → text
+[OBSERVABILITY GAP] No log events detected for this user interaction.
+
+---
+
+## AC 4: content_block_delta with text_delta emits text
 
 ```bash
-npx vitest run src/lib/__tests__/stream-parser.test.ts -t "AC #4"
+docker exec codeharness-verify sh -c 'VITEST=1 node --input-type=module -e "
+import { parseStreamLine } from \"/usr/local/lib/node_modules/codeharness/dist/index.js\";
+const input = JSON.stringify({\"type\":\"stream_event\",\"event\":{\"type\":\"content_block_delta\",\"delta\":{\"type\":\"text_delta\",\"text\":\"Hello world\"}}});
+const result = parseStreamLine(input);
+console.log(JSON.stringify(result));
+"'
 ```
 
 ```output
-✓ parses text_delta
-✓ handles empty text
-✓ returns null when text is not a string
+{"type":"text","text":"Hello world"}
 ```
 
-**Verdict:** PASS — `parseStreamLine()` correctly extracts `{ type: 'text', text: '...' }` from `content_block_delta` with `text_delta` delta type.
+**PASS** -- Output matches expected `{ type: 'text', text: 'Hello world' }`.
 
-## AC 5: system/api_retry → retry
+[OBSERVABILITY GAP] No log events detected for this user interaction.
+
+---
+
+## AC 5: system/api_retry emits retry
 
 ```bash
-npx vitest run src/lib/__tests__/stream-parser.test.ts -t "AC #5"
+docker exec codeharness-verify sh -c 'VITEST=1 node --input-type=module -e "
+import { parseStreamLine } from \"/usr/local/lib/node_modules/codeharness/dist/index.js\";
+const input = JSON.stringify({\"type\":\"system\",\"subtype\":\"api_retry\",\"attempt\":2,\"retry_delay_ms\":5000});
+const result = parseStreamLine(input);
+console.log(JSON.stringify(result));
+"'
 ```
 
 ```output
-✓ parses api_retry event
-✓ returns null for system events without api_retry subtype
-✓ returns null when attempt is missing
-✓ returns null when retry_delay_ms is missing
+{"type":"retry","attempt":2,"delay":5000}
 ```
 
-**Verdict:** PASS — `parseStreamLine()` correctly extracts `{ type: 'retry', attempt: N, delay: ms }` from `system` events with `api_retry` subtype.
+**PASS** -- Output matches expected `{ type: 'retry', attempt: 2, delay: 5000 }`.
 
-## AC 6: result → result
+[OBSERVABILITY GAP] No log events detected for this user interaction.
+
+---
+
+## AC 6: result event emits result
 
 ```bash
-npx vitest run src/lib/__tests__/stream-parser.test.ts -t "AC #6"
+docker exec codeharness-verify sh -c 'VITEST=1 node --input-type=module -e "
+import { parseStreamLine } from \"/usr/local/lib/node_modules/codeharness/dist/index.js\";
+const input = JSON.stringify({\"type\":\"result\",\"cost_usd\":0.05,\"session_id\":\"sess_123\"});
+const result = parseStreamLine(input);
+console.log(JSON.stringify(result));
+"'
 ```
 
 ```output
-✓ parses result event
-✓ handles zero cost
-✓ returns null when cost_usd is missing
-✓ returns null when session_id is missing
+{"type":"result","cost":0.05,"sessionId":"sess_123"}
 ```
 
-**Verdict:** PASS — `parseStreamLine()` correctly extracts `{ type: 'result', cost: N, sessionId: '...' }` from `result` events.
+**PASS** -- Output matches expected `{ type: 'result', cost: 0.05, sessionId: 'sess_123' }`.
 
-## Coverage
+[OBSERVABILITY GAP] No log events detected for this user interaction.
 
-```bash
-npx vitest run --coverage src/lib/__tests__/stream-parser.test.ts
-```
-
-```output
-stream-parser.ts | 100 | 100 | 100 | 100 |
-```
-
-**All 40 tests pass. 100% line, branch, function, and statement coverage on stream-parser.ts.**
+---
 
 ## Summary
 
-| AC | Verdict |
-|----|---------|
-| 1 | PASS |
-| 2 | PASS |
-| 3 | PASS |
-| 4 | PASS |
-| 5 | PASS |
-| 6 | PASS |
+| AC | Description | Result |
+|----|-------------|--------|
+| 1 | tool_use -> tool-start | PASS |
+| 2 | input_json_delta -> tool-input | PASS |
+| 3 | content_block_stop -> tool-complete | PASS |
+| 4 | text_delta -> text | PASS |
+| 5 | api_retry -> retry | PASS |
+| 6 | result -> result | PASS |
 
-**Overall: PASS** — All 6 ACs verified. 40 unit tests, 100% coverage, zero pending items.
+**Overall: PASS (6/6)**

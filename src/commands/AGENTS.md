@@ -31,10 +31,15 @@ Displays current harness status and health. Shows version, stack, enforcement se
 - **Subcommands:** none; supports `--check-docker`, `--check`
 
 ### onboard.ts
-Onboards an existing codebase into the harness. Scans modules, analyzes coverage/observability gaps, audits documentation, generates an onboarding epic, and imports approved stories into Beads and sprint-status.yaml. Tracks shared state across phases.
-- **Key deps:** `lib/scanner`, `lib/epic-generator`, `lib/beads`, `lib/onboard-checks`, `lib/scan-cache`, `lib/beads-sync`, `lib/output`
-- **Exports:** `getLastScanResult()`, `getLastCoverageResult()`, `getLastAuditResult()`, `registerOnboardCommand(program)`
-- **Subcommands:** `scan`, `coverage`, `audit`, `epic` (runs all when invoked without subcommand)
+Alias for `audit` (FR16). Delegates all behavior to the shared `audit-action.ts` handler, ensuring identical output. Provides a deprecated `scan` subcommand that prints a warning before running audit.
+- **Key deps:** `audit-action` (executeAudit), `lib/output` (warn)
+- **Exports:** `registerOnboardCommand(program)`
+- **Subcommands:** `scan` (deprecated, prints warning then runs audit)
+
+### audit-action.ts
+Shared audit action handler used by both `audit.ts` and `onboard.ts`. Contains the full audit execution logic: precondition checks, `runAudit()`, `--fix` handling (generateFixStories, addFixStoriesToState), and output formatting (human and JSON).
+- **Key deps:** `modules/audit` (runAudit, generateFixStories, addFixStoriesToState), `modules/audit/report` (formatAuditHuman, formatAuditJson), `lib/onboard-checks` (runPreconditions), `lib/output`
+- **Exports:** `executeAudit(opts: { isJson: boolean; isFix: boolean })`
 
 ### teardown.ts
 Removes the harness from a project. Stops Docker containers (mode-aware), removes BMAD patches, cleans OTLP instrumented scripts from package.json, deletes state file and .harness/ cache. Preserves .beads/, _bmad/, and docs/ by default.
@@ -112,9 +117,9 @@ Checks observability coverage against targets for commit gating. Reads cached st
 - **Subcommands:** none; supports `--json`, `--min-static <percent>`, `--min-runtime <percent>`
 
 ### audit.ts
-Runs a full compliance audit across all project dimensions (observability, testing, documentation, verification, infrastructure). Checks each dimension for status (pass/fail/warn) and metric, aggregates results, and reports gaps with suggested fixes. Exits with failure message if harness not initialized.
-- **Key deps:** `modules/audit` (runAudit), `modules/audit/report` (formatAuditHuman, formatAuditJson), `lib/onboard-checks` (runPreconditions), `lib/output`
-- **Subcommands:** none; supports `--json`
+Thin CLI wrapper that registers the `audit` command and delegates to the shared `audit-action.ts` handler. Supports `--json` and `--fix` flags.
+- **Key deps:** `audit-action` (executeAudit)
+- **Subcommands:** none; supports `--json`, `--fix`
 
 ### verify-env.ts
 Manages the verification environment for black-box story verification. Builds a Docker image from project artifacts (no source code), prepares clean temp workspaces with only story docs, validates the environment, and cleans up.

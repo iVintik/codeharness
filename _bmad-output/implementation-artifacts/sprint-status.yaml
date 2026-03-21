@@ -35,7 +35,7 @@ development_status:
   epic-3: in-progress
   3-1-audit-coordinator-dimensions: done
   3-2-audit-fix-story-generation: done
-  3-3-onboard-alias: backlog
+  3-3-onboard-alias: verifying
 
   # Epic 4: Infrastructure Guidelines & Validation
   epic-4: backlog

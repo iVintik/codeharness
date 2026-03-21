@@ -6,3 +6,4 @@
 6-2-verify-stream-json-pipeline-e2e 1
 7-1-install-semgrep-static-analysis 1
 7-2-fix-bats-runtime-tests 1
+7-3-create-dockerfile 1

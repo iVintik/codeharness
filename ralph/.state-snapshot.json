@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 25,
-    "done": 22,
+    "done": 23,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -185,7 +185,7 @@
       "acResults": null
     },
     "7-1-install-semgrep-static-analysis": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -193,8 +193,8 @@
       "acResults": null
     },
     "7-2-fix-bats-runtime-tests": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -212,7 +212,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 5,
+    "iteration": 6,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -632,6 +632,146 @@
       "id": "migrated-59",
       "story": "7-1-install-semgrep-static-analysis",
       "description": "**Observation: Very small story.** ~10 lines in deps.ts plus test updates.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-60",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**HIGH fixed:** Missing test for CriticalDependencyError throw path. Added.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-61",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**MEDIUM fixed:** Semgrep test spec was duplicated instead of referencing registry. Fixed to use DEPENDENCY_REGISTRY.find().",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-62",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**MEDIUM fixed:** AGENTS.md deps description omitted agent-browser.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-63",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**MEDIUM fixed:** Missing null-version branch coverage. Added two tests.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-64",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**LOW unfixed:** `skipped` status in DependencyResult is dead code. Pre-existing.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-65",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**LOW unfixed:** Semgrep fallback tests don't assert primary command attempted before fallback.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-66",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**LOW unfixed:** Unreachable nullish-coalescing branches (defensive code) preventing 100% branch coverage.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-67",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Proof quality issue:** AC5 (unit tests) and AC6 (AGENTS.md) initially failed proof validation — attestation-only evidence without bash code blocks. Fixed by adding indirect CLI evidence.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-68",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Stale container:** Previous session left `codeharness-verify` container running. Had to `docker rm -f` before starting.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-69",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Shared stack detection:** `codeharness status --check-docker` reported stack as down but shared stack was running on correct ports.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-70",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Minor bug observed:** Audit gap descriptions show `undefined` instead of Semgrep rule message text. `parseSemgrepOutput` may not map `extra.message` correctly.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-71",
+      "story": "7-1-install-semgrep-static-analysis",
+      "description": "**Observability gap:** No log events from VictoriaLogs for any CLI interactions during verification.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-72",
+      "story": "7-2-fix-bats-runtime-tests",
+      "description": "**Existing story file had wrong title** (\"Story 6-2\") and was extremely thin. Overwrote entirely.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-73",
+      "story": "7-2-fix-bats-runtime-tests",
+      "description": "**Epic numbering collision:** Epic 7 in epics-overhaul.md is \"OpenSearch Backend\" but sprint-status.yaml's Epic 7 is \"Onboarding — Compliance Gaps\". Different epics, same number from different planning cycles.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-74",
+      "story": "7-2-fix-bats-runtime-tests",
+      "description": "**Risk: AC4 (fixing 14 skipped onboard.bats tests)** is the largest task with design ambiguity — tests broken because onboard.sh delegates to TS CLI.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-75",
+      "story": "7-2-fix-bats-runtime-tests",
+      "description": "**Risk: AC1 uses `brew install bats-core`** — macOS only. npm fallback (`bats` package) may not be 100% compatible with `bats-core`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-76",
+      "story": "7-2-fix-bats-runtime-tests",
+      "description": "**Risk: AC7 (CI impact)** tagged integration-required — cannot verify locally.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-77",
+      "story": "7-2-fix-bats-runtime-tests",
+      "description": "**BATS not installed locally** — had to `brew install bats-core` during implementation. This is the exact gap the story addresses.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-78",
+      "story": "7-2-fix-bats-runtime-tests",
+      "description": "**No formal coverage report run** — all code paths exercised by tests but no formal coverage measurement.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-79",
+      "story": "7-2-fix-bats-runtime-tests",
+      "description": "**CI workflows unchanged** — kept manual BATS install in CI (intentional belt-and-suspenders with registry).",
       "source": "retro",
       "resolved": false
     }

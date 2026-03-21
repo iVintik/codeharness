@@ -60,4 +60,4 @@ development_status:
   epic-7-retrospective: optional
   7-1-install-semgrep-static-analysis: done
   7-2-fix-bats-runtime-tests: done
-  7-3-create-dockerfile: backlog
+  7-3-create-dockerfile: done

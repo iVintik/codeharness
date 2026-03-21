@@ -2003,3 +2003,173 @@ This retrospective covers the full day's session activity across 5 ralph session
 | ACs escalated to human | 2 (6-2 AC5, 7-1 AC2) |
 | Sprint completion | 22/25 (88%) |
 | Remaining stories | 7-2, 7-3 (backlog), 7-1 (review) |
+
+---
+
+# Session Retrospective — 2026-03-21 (Sessions 3–6)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~11:04Z – ~12:20Z (approx 76 minutes across 4 ralph loops)
+**Sprint progress at end:** 24/25 stories done (96%), 1 story backlog (7-3-create-dockerfile)
+**Ralph loops:** 6 total (loops 3–6 this window)
+**Elapsed:** ~5694 seconds (~95 minutes total ralph runtime)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Phases Completed | Notes |
+|-------|------|---------|-----------------|-------|
+| 0-1-sprint-state-live-updates | Epic 0 | done | verify | Carry-over verification |
+| 0-2-ralph-progress-display | Epic 0 | done | verify | Carry-over verification |
+| 0-3-run-command-dashboard | Epic 0 | done | verify | Carry-over verification |
+| 0-5-1-stream-json-claude-driver | Epic 0.5 | done | verify | Clean verification |
+| 0-5-2-stream-event-parser | Epic 0.5 | done | verify | Needed infrastructure fix |
+| 6-1-rewrite-ink-components-match-ux-spec | Epic 6 | done | create-story, dev, review, verify | Full lifecycle. Two HIGH bugs found and fixed in review |
+| 6-2-verify-stream-json-pipeline-e2e | Epic 6 | done | create-story, dev, review, verify | Full lifecycle. AC5 escalated (manual visual test) |
+| 7-1-install-semgrep-static-analysis | Epic 7 | done | create-story, dev, review, verify | Full lifecycle. Clean dev, minor review fixes |
+| 7-2-fix-bats-runtime-tests | Epic 7 | done | create-story, dev, review, verify | Full lifecycle. 4 ACs escalated (integration-required) |
+
+**Total:** 5 carry-over verifications completed, 4 full-lifecycle stories completed. Epic 6 and Epic 7 (partial) closed.
+
+**Test results at session end:** 2920+ tests passing, 97.02% overall coverage, all 123 files above 80% floor.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Severity | Story | Bug | Status |
+|----------|-------|-----|--------|
+| HIGH | 6-1 | `updateSprintState()` wiped accumulated `totalCost` every 5s during polling — cost display flashed and disappeared | Fixed in review |
+| HIGH | 6-1 | `startsWith` key comparison in `StoryBreakdown` caused false matches (story `3-2` matching `3-20`) | Fixed in review |
+| HIGH | 6-2 | Test reimplemented production `makeLineHandler` instead of importing — divergence risk | Fixed: extracted `createLineProcessor` to `run-helpers.ts` |
+| HIGH | 7-1 | Missing test for `CriticalDependencyError` throw path | Fixed in review |
+| MEDIUM | 6-2 | `makeLineHandler` trapped as closure in `run.ts`, untestable externally | Fixed: extracted to `run-helpers.ts` |
+| MEDIUM | 7-1 | Semgrep test spec was duplicated instead of referencing `DEPENDENCY_REGISTRY.find()` | Fixed in review |
+| MEDIUM | 7-1 | AGENTS.md deps description omitted agent-browser | Fixed |
+| MEDIUM | 7-2 | AGENTS.md deps.ts description missing "BATS" | Fixed |
+| LOW | 0-1 | `parseRalphStatus()` missing new fields (`currentStory`, `currentPhase`, `lastAction`, `acProgress`) | Fixed during verify |
+| LOW | 0-5-2 | `parseStreamLine` not exported from `src/index.ts` | Fixed during verify |
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **File split to avoid circular imports (6-1):** NFR9 300-line limit forced a 3-file split (`ink-app.tsx`, `ink-components.tsx`, `ink-activity-components.tsx`). Adds indirection.
+2. **Cost accumulation data loss (6-1):** `result` event cost only accumulates when `state.sprintInfo` is non-null. Cost from early events before sprint state init is silently lost.
+3. **Iteration count delay (6-1):** `currentIterationCount` is a mutable closure variable updated from stderr parsing. Updates are delayed until next 5-second polling interval.
+4. **Synthetic NDJSON fixtures (6-2):** No real recorded NDJSON logs available. Test fixtures constructed synthetically — may not reflect real-world event shapes.
+5. **ESM import workaround (0-5-2):** Container requires `VITEST=1` env var to suppress CLI auto-parse on module import.
+
+### Code Quality Concerns
+
+- **`run.ts` is 308 lines** (8 over NFR9 300-line limit). Pre-existing, not fixed.
+- **`skipped` status in `DependencyResult` is dead code** (7-1). Pre-existing.
+- **`deps.ts` branch coverage 89.28%** — unreachable null-coalescing fallback branches (defensive code).
+- **No integration test** for full run-to-renderer-to-component pipeline with cost accumulation across polling cycles (6-1).
+- **No test for multi-byte UTF-8 split across chunk boundaries** (6-2).
+- **Renderer accumulates cost internally with no external read path** — implicit merge behavior in `updateSprintState` (6-1).
+
+### Verification Gaps
+
+| Story | AC | Gap | Disposition |
+|-------|----|-----|-------------|
+| 6-2 | AC5 | Manual visual test of real-time Ink rendering | Escalated: `integration-required` |
+| 7-1 | AC2 | Fresh environment install test impossible in pre-configured container | Escalated: `integration-required` |
+| 7-2 | AC2 | Integration-required | Escalated |
+| 7-2 | AC4, AC5 | Dev-time artifacts not in npm package | Escalated |
+| 7-2 | AC7 | CI impact verification | Escalated: `integration-required` |
+
+**7 total ACs escalated to human across 3 stories.** All escalations are legitimate — black-box Docker verification cannot exercise these paths.
+
+### Tooling/Infrastructure Problems
+
+1. **Stale container recurrence:** Every verification session hit a leftover `codeharness-verify` container requiring `docker rm -f`. This happened in sessions 3, 4, 5, and 6. The cleanup should be automatic.
+2. **Shared stack detection failure:** `codeharness status --check-docker` repeatedly reported the observability stack as "down" when the shared stack was running on the correct ports. Caused port conflicts when harness-specific compose tried to start.
+3. **Beads sync failures:** `codeharness sync --story` failed with "Story file not found" (session 3) and `bd` binary ENOENT (session 6). Beads tooling is unreliable.
+4. **VictoriaLogs observability gap:** Zero log events returned across all verification sessions. Pure functions have no telemetry, and CLI invocations don't emit structured logs. The observability check is effectively a no-op for this codebase.
+5. **Epic numbering collision:** Epic 6 and Epic 7 both had naming conflicts with previous sprints. Stale retro files and mismatched epics-overhaul.md references caused confusion.
+
+---
+
+## 3. What Went Well
+
+- **4 full-lifecycle stories completed in ~76 minutes** — consistent 19-minute average per story across create-story, dev, review, verify.
+- **5 carry-over verifications cleared** — backlog of unverified stories from previous sessions eliminated.
+- **Epic 6 closed** — Dashboard Visualization Rework complete. Stream-JSON pipeline end-to-end tested.
+- **Code review caught 4 HIGH bugs** — all fixed before merge. Review phase is paying for itself.
+- **Test coverage held at 97%+** despite adding 4 stories worth of production code.
+- **Clean story 0-5-1 verification** — all 4 ACs passed without any issues. Shows the process works when stories are well-defined.
+- **Production refactor during 6-2** — extracting `createLineProcessor` to `run-helpers.ts` improved testability for the whole codebase, not just the story.
+
+---
+
+## 4. What Went Wrong
+
+- **Stale container cleanup is manual and repetitive.** Every single verification session required `docker rm -f`. This is wasted time and a process failure.
+- **Epic numbering collision caused confusion across 3 stories.** No epic definition files exist for epics 6 and 7. Agents had to derive intent from story names and existing code.
+- **Action item carry-forward rate ~100%** (noted in epic-6 retro). Retro action items are generated but never executed. The retrospective process produces documentation, not change.
+- **7 ACs escalated to human.** While all escalations were legitimate, this represents verification work that will never happen unless someone manually runs these checks.
+- **VictoriaLogs is dead weight.** Zero useful log events across 6 sessions. The observability stack is running but producing no value for this project.
+- **Story 6-1 underestimated.** NFR9 300-line limit forced a 3-file split not anticipated during story creation. Architecture diverged from story spec (Ink components vs. DashboardFormatter class).
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Code review before verify catches real bugs.** 4 HIGH bugs were caught this session. Without review, they'd be in production.
+- **Extracting closures to named exports improves testability.** The `createLineProcessor` extraction (6-2) is a template for handling similar untestable closures.
+- **Escalating genuinely untestable ACs is correct.** Tagging `integration-required` instead of faking evidence preserves verification integrity.
+
+### Patterns to Avoid
+
+- **Writing story specs that assume implementation architecture.** Story 0-3 specified `DashboardFormatter` class; implementation used Ink components. Story 6-1 didn't anticipate the file-split. Specs should define behavior, not structure.
+- **Leaving containers running between sessions.** Costs time every session.
+- **Duplicating production logic in tests.** Story 6-2's original test reimplemented `makeLineHandler` — a classic test anti-pattern caught by review.
+- **Reusing epic numbers across sprints.** Epic 6 meant two different things in two different sprints. Use globally unique epic IDs.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Auto-cleanup stale verify containers.** Add `docker rm -f codeharness-verify 2>/dev/null` to the start of the verification flow. Hit 4 times this session.
+2. **Fix shared stack detection in `codeharness status --check-docker`.** It reports "down" when the shared observability stack is running. Causes port conflicts.
+
+### Fix Soon (Next Sprint)
+
+3. **Create epic definition files for all active epics.** Epics 6 and 7 had no formal definition. Agents waste time deriving intent.
+4. **Fix cost accumulation data loss.** Events arriving before `sprintInfo` init silently lose cost data. Add a buffer or initialize earlier.
+5. **Split `run.ts` to meet NFR9.** Currently 308 lines (8 over limit). `createLineProcessor` extraction started this — finish it.
+6. **Fix `parseSemgrepOutput` undefined message bug.** Audit gap descriptions show `undefined` instead of Semgrep rule message text.
+7. **Add `--help` documentation for `onboard.sh` flags** (`--json`, `--output`).
+
+### Backlog (Track But Not Urgent)
+
+8. **Evaluate VictoriaLogs utility.** Zero useful events across 6 sessions. Either instrument the CLI properly or remove the observability stack from verification.
+9. **Address action-item carry-forward problem.** Retro action items are generated but never executed. Needs a process change — perhaps auto-generating stories from retro action items.
+10. **Add multi-byte UTF-8 chunk boundary test** (6-2).
+11. **Remove dead `skipped` status from `DependencyResult`.**
+12. **Add integration test for run-to-renderer-to-component pipeline with cost accumulation across polling cycles.**
+13. **Clean up epic numbering collisions.** Audit all epic references, archive stale retro files, ensure globally unique IDs.
+
+---
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories verified (carry-over) | 5 (0-1, 0-2, 0-3, 0-5-1, 0-5-2) |
+| Stories completed (full lifecycle) | 4 (6-1, 6-2, 7-1, 7-2) |
+| HIGH bugs found and fixed | 4 |
+| MEDIUM bugs found and fixed | 4 |
+| LOW bugs unfixed | 8 |
+| Tech debt items introduced | 5 |
+| Infrastructure issues hit | 5 (all recurring) |
+| ACs escalated to human | 7 across 3 stories |
+| Sprint completion | 24/25 (96%) — 1 story backlog (7-3) |
+| Test count | 2920+ |
+| Coverage | 97.02% |

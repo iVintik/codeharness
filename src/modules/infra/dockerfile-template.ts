@@ -56,6 +56,34 @@ WORKDIR /workspace
 `;
 }
 
+function rustTemplate(): string {
+  return `# === Builder stage ===
+FROM rust:1.82-slim AS builder
+
+WORKDIR /build
+
+# Copy project files
+COPY . .
+
+# Build release binary
+RUN cargo build --release
+
+# === Runtime stage ===
+FROM debian:bookworm-slim
+
+# System utilities for verification
+RUN apt-get update && apt-get install -y --no-install-recommends curl jq && rm -rf /var/lib/apt/lists/*
+
+# Install compiled binary from builder (update 'myapp' to your binary name)
+COPY --from=builder /build/target/release/myapp /usr/local/bin/myapp
+
+# Run as non-root user
+USER nobody
+
+WORKDIR /workspace
+`;
+}
+
 function genericTemplate(): string {
   return `# Base image — pinned version for reproducibility
 FROM node:22-slim
@@ -102,6 +130,9 @@ export function generateDockerfileTemplate(
   } else if (stack === 'python') {
     content = pythonTemplate();
     resolvedStack = 'python';
+  } else if (stack === 'rust') {
+    content = rustTemplate();
+    resolvedStack = 'rust';
   } else {
     content = genericTemplate();
     resolvedStack = 'generic';

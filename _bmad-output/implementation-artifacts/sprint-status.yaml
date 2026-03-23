@@ -75,7 +75,7 @@ development_status:
   8-4-register-cargo-tarpaulin-dep-registry: done
 
   # Epic 8.3: Rust Infrastructure
-  8-5-rust-dockerfile-template: backlog
+  8-5-rust-dockerfile-template: done
   8-6-rust-verification-dockerfile: backlog
 
   # Epic 8.4: Rust Observability & Docs

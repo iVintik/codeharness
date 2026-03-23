@@ -164,7 +164,7 @@ describe('generateDockerfileTemplate — generic/null', () => {
   it('generates generic Dockerfile when stack is unknown', () => {
     mockExistsSync.mockReturnValue(false);
 
-    const r = generateDockerfileTemplate('/project', 'rust');
+    const r = generateDockerfileTemplate('/project', 'java');
     expect(r.success).toBe(true);
     if (r.success) {
       expect(r.data.stack).toBe('generic');
@@ -178,6 +178,82 @@ describe('generateDockerfileTemplate — generic/null', () => {
     const written = mockWriteFileSync.mock.calls[0][1] as string;
     expect(written).toContain('curl');
     expect(written).toContain('jq');
+  });
+});
+
+// ─── Rust template ──────────────────────────────────────────────────────────
+
+describe('generateDockerfileTemplate — rust', () => {
+  it('returns stack: rust and correct path', () => {
+    mockExistsSync.mockReturnValue(false);
+
+    const r = generateDockerfileTemplate('/project', 'rust');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.path).toBe(join('/project', 'Dockerfile'));
+      expect(r.data.stack).toBe('rust');
+    }
+  });
+
+  it('contains FROM rust:1.82-slim AS builder and FROM debian:bookworm-slim', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('FROM rust:1.82-slim AS builder');
+    expect(written).toContain('FROM debian:bookworm-slim');
+  });
+
+  it('includes cargo build --release in builder stage', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('cargo build --release');
+  });
+
+  it('includes COPY --from=builder to copy compiled binary', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('COPY --from=builder');
+  });
+
+  it('includes curl and jq verification tools', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('curl');
+    expect(written).toContain('jq');
+  });
+
+  it('includes USER nobody for non-root execution', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('USER nobody');
+  });
+
+  it('includes apt cache cleanup', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('rm -rf /var/lib/apt/lists/*');
+  });
+
+  it('includes inline section comments', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('# Build');
+    expect(written).toContain('# System utilities');
+    expect(written).toContain('# Install');
+    expect(written).toContain('# Run as non-root');
   });
 });
 
@@ -294,6 +370,26 @@ describe('generated Dockerfiles pass validateDockerfile()', () => {
   it('python template passes all 6 rule categories', () => {
     mockExistsSync.mockReturnValue(false);
     generateDockerfileTemplate('/project', 'python');
+    const content = mockWriteFileSync.mock.calls[0][1] as string;
+
+    mockExistsSync.mockImplementation((p: unknown) => {
+      const path = String(p);
+      if (path.endsWith('Dockerfile')) return true;
+      return false;
+    });
+    vi.mocked(readFileSync).mockReturnValue(content);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.passed).toBe(true);
+      expect(r.data.gaps).toHaveLength(0);
+    }
+  });
+
+  it('rust template passes all 6 rule categories', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
     const content = mockWriteFileSync.mock.calls[0][1] as string;
 
     mockExistsSync.mockImplementation((p: unknown) => {

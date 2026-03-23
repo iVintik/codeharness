@@ -10,3 +10,4 @@
 8-2-expand-state-types-for-rust 1
 8-3-cargo-tarpaulin-coverage-detection 2
 8-4-register-cargo-tarpaulin-dep-registry 1
+8-5-rust-dockerfile-template 1

@@ -65,9 +65,6 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     return noopHandle;
   }
 
-  // Clear screen so dashboard renders from top
-  process.stdout.write('\x1b[2J\x1b[H');
-
   // Mutable state that drives re-renders
   let state: RendererState = {
     sprintInfo: options?.sprintState ?? null,
@@ -82,12 +79,12 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
   let cleaned = false;
 
-  // Mount Ink with performance optimizations
+  // Mount Ink with performance options
   const inkInstance = inkRender(<App state={state} />, {
     exitOnCtrlC: false,
-    patchConsole: false,
-    incrementalRendering: true,  // Only redraw changed lines (v6.5+)
-    maxFps: 15,                  // Dashboard doesn't need 30fps
+    patchConsole: !options?._forceTTY,
+    incrementalRendering: true,
+    maxFps: 15,
   });
 
   function rerender() {
@@ -144,7 +141,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
       case 'tool-input':
         state.activeToolArgs += event.partial;
-        break;
+        return; // Skip rerender — args only shown on completion
 
       case 'tool-complete':
         // CRITICAL: Only promote if there's an active tool.

@@ -1,49 +1,40 @@
 # Verification Proof: Story 8-2 — Expand State Types for Rust
 
 **Date:** 2026-03-23
-**Verifier:** Black-box CLI verification
-**CLI Version:** codeharness 0.23.1
+**CLI Version:** 0.23.1
 **Container:** codeharness-verify
 
 ---
 
-## AC1: coverage.tool accepts 'cargo-tarpaulin' without type errors
+## AC1: Given a Rust project is initialized, when state is written, then coverage.tool accepts cargo-tarpaulin without type errors
 
 **Verdict: PASS**
 
-### Method
-
-Created a Rust project with `Cargo.toml`, initialized with `codeharness init --no-observability --json`, then inspected the generated state file.
-
-### Evidence — Init JSON output (excerpt)
+Created a minimal Rust project (Cargo.toml + src/main.rs) and ran `codeharness init`. The state file `.claude/codeharness.local.md` contains `coverage.tool: cargo-tarpaulin`.
 
 ```bash
-$ docker exec codeharness-verify bash -c '
-cd /tmp && rm -rf rust-verify2 && mkdir rust-verify2 && cd rust-verify2 &&
-cat > Cargo.toml << "TOML"
+docker exec codeharness-verify sh -c 'mkdir -p /tmp/rust-test && cd /tmp/rust-test && cat > Cargo.toml << "EOF"
 [package]
-name = "verify-rust"
+name = "test-project"
 version = "0.1.0"
 edition = "2021"
-TOML
-mkdir -p src && echo "fn main() {}" > src/main.rs &&
-git init && git add -A && git commit -m "init" &&
-codeharness init --no-observability --json'
+EOF
+mkdir -p src && echo "fn main() {}" > src/main.rs'
 ```
-
-```json
-{"status":"ok","stack":"rust",...}
-```
-
-Exit code: 0 (no type errors).
-
-### Evidence — State file (.claude/codeharness.local.md)
 
 ```bash
-$ docker exec codeharness-verify cat /tmp/rust-verify2/.claude/codeharness.local.md
+docker exec codeharness-verify sh -c 'cd /tmp/rust-test && codeharness init --no-observability --json'
 ```
 
-```yaml
+```output
+{"status":"ok","stack":"rust","enforcement":{"frontend":true,"database":true,"api":true},"documentation":{"agents_md":"created","docs_scaffold":"created","readme":"created"},"app_type":"generic","dockerfile":{"generated":true,"stack":"generic"},"dependencies":[{"name":"showboat","displayName":"Showboat","status":"already-installed","version":"0.4.0"},{"name":"agent-browser","displayName":"agent-browser","status":"failed","version":null,"error":"Install failed. Try: npm install -g @anthropic/agent-browser"},{"name":"beads","displayName":"beads","status":"failed","version":null,"error":"Install failed. Try: pip install beads or pipx install beads"},{"name":"semgrep","displayName":"Semgrep","status":"already-installed","version":"1.156.0"},{"name":"bats","displayName":"BATS","status":"installed","version":"1.13.0"}],"beads":{"status":"failed","hooks_detected":false,"error":"Beads failed: spawnSync bd ENOENT. Command: bd init"},"bmad":{"status":"failed","version":null,"patches_applied":[],"bmalph_detected":false,"error":"BMAD failed: _bmad/ directory was not created after successful npx bmad-method install. Command: npx bmad-method install --yes --tools claude-code"},"otlp":{"status":"skipped","packages_installed":false,"start_script_patched":false,"env_vars_configured":false},"docker":null}
+```
+
+```bash
+docker exec codeharness-verify sh -c 'cd /tmp/rust-test && cat .claude/codeharness.local.md'
+```
+
+```output
 ---
 harness_version: 0.23.1
 initialized: true
@@ -67,82 +58,85 @@ app_type: generic
 otlp:
   enabled: true
   endpoint: http://localhost:4318
-  service_name: rust-verify2
+  service_name: rust-test
   mode: local-shared
 ---
+
+# Codeharness State
+
+This file is managed by the codeharness CLI. Do not edit manually.
 ```
 
-### Evidence — Status JSON confirms coverage tool
+**Evidence:** `coverage.tool: cargo-tarpaulin` is present in the YAML frontmatter of the state file. The CLI accepted this value without type errors (exit code 0, status "ok").
 
-```bash
-$ docker exec codeharness-verify bash -c 'cd /tmp/rust-verify2 && codeharness status --json'
-```
-
-```json
-{...,"coverage":{"target":90,"baseline":null,"current":null,"tool":"cargo-tarpaulin"},...}
-```
-
-**`coverage.tool` is `cargo-tarpaulin`** — written and read back without errors.
+[OBSERVABILITY GAP] No log events detected for this user interaction
 
 ---
 
-## AC2: otlp.rust_env_hint field present with value 'OTEL_EXPORTER_OTLP_ENDPOINT'
+## AC2: Given a Rust project has OTLP configured, when state is written, then otlp.rust_env_hint field is present with value OTEL_EXPORTER_OTLP_ENDPOINT
 
-**Verdict: FAIL**
+**Verdict: PASS**
 
-### Method
-
-Created a Rust project and initialized with multiple OTLP configurations:
-1. `codeharness init --no-observability` — OTLP section present but no `rust_env_hint`
-2. `codeharness init --otel-endpoint http://localhost:4318` — OTLP section present but no `rust_env_hint`
-
-### Evidence — State file with --otel-endpoint
+Re-initialized the Rust project with an explicit OTLP endpoint to trigger OTLP configuration. The state file contains `otlp.rust_env_hint: OTEL_EXPORTER_OTLP_ENDPOINT`.
 
 ```bash
-$ docker exec codeharness-verify bash -c '
-cd /tmp && rm -rf rust-verify3 && mkdir rust-verify3 && cd rust-verify3 &&
-cat > Cargo.toml << "TOML"
-[package]
-name = "verify-rust"
-version = "0.1.0"
-edition = "2021"
-TOML
-mkdir -p src && echo "fn main() {}" > src/main.rs &&
-git init && git add -A && git commit -m "init" &&
-codeharness init --otel-endpoint http://localhost:4318 --json'
+docker exec codeharness-verify sh -c 'cd /tmp/rust-test && rm -rf .claude Dockerfile docs README.md && codeharness init --otel-endpoint http://localhost:4318 --json'
 ```
 
-```json
-{...,"otlp":{"status":"skipped","packages_installed":false,"start_script_patched":false,"env_vars_configured":false,"error":"Unsupported stack for OTLP instrumentation"},...}
+```output
+{"status":"ok","stack":"rust","enforcement":{"frontend":true,"database":true,"api":true},"documentation":{"agents_md":"exists","docs_scaffold":"created","readme":"created"},"app_type":"generic","dockerfile":{"generated":true,"stack":"generic"},"dependencies":[{"name":"showboat","displayName":"Showboat","status":"already-installed","version":"0.4.0"},{"name":"agent-browser","displayName":"agent-browser","status":"failed","version":null,"error":"Install failed. Try: npm install -g @anthropic/agent-browser"},{"name":"beads","displayName":"beads","status":"failed","version":null,"error":"Install failed. Try: pip install beads or pipx install beads"},{"name":"semgrep","displayName":"Semgrep","status":"already-installed","version":"1.156.0"},{"name":"bats","displayName":"BATS","status":"already-installed","version":"1.13.0"}],"beads":{"status":"failed","hooks_detected":false,"error":"Beads failed: spawnSync bd ENOENT. Command: bd init"},"bmad":{"status":"failed","version":null,"patches_applied":[],"bmalph_detected":false,"error":"BMAD failed: _bmad/ directory was not created after successful npx bmad-method install. Command: npx bmad-method install --yes --tools claude-code"},"otlp":{"status":"configured","packages_installed":false,"start_script_patched":false,"env_vars_configured":true},"docker":null}
 ```
-
-### Evidence — State file contents
 
 ```bash
-$ docker exec codeharness-verify cat /tmp/rust-verify3/.claude/codeharness.local.md
+docker exec codeharness-verify sh -c 'cd /tmp/rust-test && cat .claude/codeharness.local.md'
 ```
 
-```yaml
+```output
+---
+harness_version: 0.23.1
+initialized: true
+stack: rust
+enforcement:
+  frontend: true
+  database: true
+  api: true
+coverage:
+  target: 90
+  baseline: null
+  current: null
+  tool: cargo-tarpaulin
+session_flags:
+  logs_queried: false
+  tests_passed: false
+  coverage_met: false
+  verification_run: false
+verification_log: []
+app_type: generic
 otlp:
   enabled: true
   endpoint: http://localhost:4318
-  service_name: rust-verify3
+  service_name: rust-test
   mode: remote-direct
+  rust_env_hint: OTEL_EXPORTER_OTLP_ENDPOINT
+  resource_attributes: service.instance.id=$(hostname)-$$
+---
+
+# Codeharness State
+
+This file is managed by the codeharness CLI. Do not edit manually.
 ```
 
-**`rust_env_hint` field is absent.** The OTLP instrumentation reports "Unsupported stack for OTLP instrumentation" for Rust projects. The type was added to the TypeScript interface (per story tasks), but the runtime code path that writes state never populates `rust_env_hint` for Rust projects.
+**Evidence:** `rust_env_hint: OTEL_EXPORTER_OTLP_ENDPOINT` is present under the `otlp` section in the YAML frontmatter. The field appears only when OTLP is configured (via `--otel-endpoint`), confirming the Rust-specific OTLP hint is correctly stored.
 
-### Root Cause
-
-The OTLP instrumentation code does not have a Rust branch — it skips instrumentation entirely for Rust projects with the message "Unsupported stack for OTLP instrumentation". The `rust_env_hint` field exists in the type definition but is never written to the state file at runtime.
+[OBSERVABILITY GAP] No log events detected for this user interaction
 
 ---
 
 ## Summary
 
-| AC  | Description | Verdict |
-|-----|-------------|---------|
-| AC1 | coverage.tool accepts 'cargo-tarpaulin' | **PASS** |
-| AC2 | otlp.rust_env_hint present with OTEL_EXPORTER_OTLP_ENDPOINT | **FAIL** |
+| AC | Verdict |
+|----|---------|
+| AC1: coverage.tool accepts cargo-tarpaulin | **PASS** |
+| AC2: otlp.rust_env_hint = OTEL_EXPORTER_OTLP_ENDPOINT | **PASS** |
 
-**Overall: FAIL** — AC2 is not satisfied. The `rust_env_hint` field is never written to the state file because the OTLP instrumentation code does not support Rust projects at runtime.
+Both acceptance criteria pass. The CLI correctly detects a Rust project (via Cargo.toml), sets `coverage.tool` to `cargo-tarpaulin`, and populates `otlp.rust_env_hint` with `OTEL_EXPORTER_OTLP_ENDPOINT` when OTLP is configured.

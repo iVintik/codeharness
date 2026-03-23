@@ -33,11 +33,12 @@ vi.mock('../../../lib/state.js', () => ({
 // Mock stack-detect module
 vi.mock('../../../lib/stack-detect.js', () => ({
   detectStack: vi.fn(() => 'nodejs'),
+  detectStacks: vi.fn(() => [{ stack: 'nodejs', dir: '.' }]),
 }));
 
 import { execFileSync } from 'node:child_process';
 import { isDockerAvailable } from '../../../lib/docker.js';
-import { detectStack } from '../../../lib/stack-detect.js';
+import { detectStack, detectStacks } from '../../../lib/stack-detect.js';
 import { readStateWithBody, writeState } from '../../../lib/state.js';
 import {
   isValidStoryKey,
@@ -53,6 +54,7 @@ import {
 const mockExecFileSync = vi.mocked(execFileSync);
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);
 const mockDetectStack = vi.mocked(detectStack);
+const mockDetectStacks = vi.mocked(detectStacks);
 const mockReadStateWithBody = vi.mocked(readStateWithBody);
 const mockWriteState = vi.mocked(writeState);
 
@@ -68,6 +70,7 @@ beforeEach(() => {
   // Reset default mock behaviors after clearAllMocks
   mockIsDockerAvailable.mockReturnValue(true);
   mockDetectStack.mockReturnValue('nodejs');
+  mockDetectStacks.mockReturnValue([{ stack: 'nodejs', dir: '.' }]);
 });
 
 afterEach(() => {
@@ -175,6 +178,7 @@ describe('buildVerifyImage', () => {
 
   it('builds generic image when stack is not detected (AC #4, #8)', () => {
     mockDetectStack.mockReturnValue(null);
+    mockDetectStacks.mockReturnValue([]);
 
     mockExecFileSync
       .mockReturnValueOnce(Buffer.from('')) // docker build
@@ -268,6 +272,7 @@ describe('buildVerifyImage', () => {
     writeFileSync(join(distDir, 'mypackage-0.1.0.tar.gz'), 'fake-tarball');
 
     mockDetectStack.mockReturnValue('python');
+    mockDetectStacks.mockReturnValue([{ stack: 'python', dir: '.' }]);
     mockReadStateWithBody.mockReturnValue({
       state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
       body: '',
@@ -296,6 +301,7 @@ describe('buildVerifyImage', () => {
     writeFileSync(join(distDir, 'README.md'), 'not a distribution file');
 
     mockDetectStack.mockReturnValue('python');
+    mockDetectStacks.mockReturnValue([{ stack: 'python', dir: '.' }]);
     mockReadStateWithBody.mockReturnValue({
       state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
       body: '',
@@ -649,36 +655,44 @@ describe('cleanupStaleContainers', () => {
 
 describe('detectProjectType', () => {
   it('returns plugin when .claude-plugin/plugin.json exists and stack is unknown', () => {
-    mockDetectStack.mockReturnValue(null);
+    mockDetectStacks.mockReturnValue([]);
     mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
     writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
     expect(detectProjectType(testDir)).toBe('plugin');
   });
 
-  it('returns nodejs when detectStack returns nodejs', () => {
-    mockDetectStack.mockReturnValue('nodejs');
+  it('returns nodejs when detectStacks returns nodejs at root', () => {
+    mockDetectStacks.mockReturnValue([{ stack: 'nodejs', dir: '.' }]);
     expect(detectProjectType(testDir)).toBe('nodejs');
   });
 
-  it('returns python when detectStack returns python', () => {
-    mockDetectStack.mockReturnValue('python');
+  it('returns python when detectStacks returns python at root', () => {
+    mockDetectStacks.mockReturnValue([{ stack: 'python', dir: '.' }]);
     expect(detectProjectType(testDir)).toBe('python');
   });
 
-  it('returns generic when detectStack returns null', () => {
-    mockDetectStack.mockReturnValue(null);
+  it('returns generic when detectStacks returns empty', () => {
+    mockDetectStacks.mockReturnValue([]);
     expect(detectProjectType(testDir)).toBe('generic');
   });
 
-  it('returns rust when detectStack returns rust', () => {
-    mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
+  it('returns rust when detectStacks returns rust at root', () => {
+    mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: '.' }]);
     expect(detectProjectType(testDir)).toBe('rust');
   });
 
   it('prioritizes nodejs over plugin when both exist', () => {
     mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
     writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
-    mockDetectStack.mockReturnValue('nodejs');
+    mockDetectStacks.mockReturnValue([{ stack: 'nodejs', dir: '.' }]);
+    expect(detectProjectType(testDir)).toBe('nodejs');
+  });
+
+  it('returns primary root stack type from multi-stack project', () => {
+    mockDetectStacks.mockReturnValue([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: 'backend' },
+    ]);
     expect(detectProjectType(testDir)).toBe('nodejs');
   });
 });
@@ -688,6 +702,7 @@ describe('detectProjectType', () => {
 describe('buildVerifyImage — plugin project (AC #2)', () => {
   it('builds plugin image when .claude-plugin/plugin.json exists and stack is unknown', () => {
     mockDetectStack.mockReturnValue(null);
+    mockDetectStacks.mockReturnValue([]);
     mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
     writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{"name":"test"}');
     mkdirSync(join(testDir, 'commands'), { recursive: true });
@@ -709,6 +724,7 @@ describe('buildVerifyImage — plugin project (AC #2)', () => {
 
   it('does not throw for plugin projects without dist/', () => {
     mockDetectStack.mockReturnValue(null);
+    mockDetectStacks.mockReturnValue([]);
     mkdirSync(join(testDir, '.claude-plugin'), { recursive: true });
     writeFileSync(join(testDir, '.claude-plugin', 'plugin.json'), '{}');
 
@@ -725,6 +741,7 @@ describe('buildVerifyImage — plugin project (AC #2)', () => {
 describe('buildVerifyImage — Rust project', () => {
   it('builds Rust image when detectStack returns rust (AC #4)', () => {
     mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
+    mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: '.' }]);
     writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
 
     mockExecFileSync
@@ -745,6 +762,7 @@ describe('buildVerifyImage — Rust project', () => {
 
   it('does not throw for Rust projects without dist/ (AC #4)', () => {
     mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
+    mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: '.' }]);
     writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
 
     mockExecFileSync
@@ -757,6 +775,7 @@ describe('buildVerifyImage — Rust project', () => {
   it('resolves Dockerfile.verify.rust template for rust variant (AC #5)', () => {
     writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
     mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
+    mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: '.' }]);
 
     mockExecFileSync
       .mockReturnValueOnce(Buffer.from('')) // docker build
@@ -890,6 +909,7 @@ describe('buildVerifyImage — size formatting', () => {
 describe('buildVerifyImage — template resolution', () => {
   it('throws when neither local nor pkg Dockerfile template exists', () => {
     mockDetectStack.mockReturnValue(null);
+    mockDetectStacks.mockReturnValue([]);
     // Remove templates from testDir
     rmSync(join(testDir, 'templates'), { recursive: true, force: true });
 
@@ -905,6 +925,7 @@ describe('buildVerifyImage — template resolution', () => {
 describe('buildVerifyImage — generic project (AC #4, #8)', () => {
   it('does not throw for unknown stack without dist/', () => {
     mockDetectStack.mockReturnValue(null);
+    mockDetectStacks.mockReturnValue([]);
 
     mockExecFileSync
       .mockReturnValueOnce(Buffer.from('')) // docker build
@@ -915,6 +936,7 @@ describe('buildVerifyImage — generic project (AC #4, #8)', () => {
 
   it('returns success result for generic project', () => {
     mockDetectStack.mockReturnValue(null);
+    mockDetectStacks.mockReturnValue([]);
 
     mockExecFileSync
       .mockReturnValueOnce(Buffer.from('')) // docker build
@@ -928,6 +950,7 @@ describe('buildVerifyImage — generic project (AC #4, #8)', () => {
 
   it('uses generic Dockerfile template for fallback', () => {
     mockDetectStack.mockReturnValue(null);
+    mockDetectStacks.mockReturnValue([]);
 
     mockExecFileSync
       .mockReturnValueOnce(Buffer.from('')) // docker build

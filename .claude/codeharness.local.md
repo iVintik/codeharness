@@ -127,13 +127,53 @@ verification_log:
   - "9-2-state-schema-migration-multi-stack: pass at 2026-03-23T14:47:09.553Z"
   - "9-3-init-orchestrator-per-stack-iteration: pass at 2026-03-23T15:08:35.539Z"
   - "9-4-multi-stage-dockerfile-generation: pass at 2026-03-23T15:36:30.333Z"
-verify_env_dist_hash: 3b1a289b70090b73a8bae0a688c1666fc684fba05c93492a4e87c40465073b1a
+  - "9-5-multi-stack-docs-remaining-consumers: pass at 2026-03-23T16:16:32.385Z"
+verify_env_dist_hash: 903f1c537bf105c882bb19e04428cfaf362d837fb003c550a7b2ac84f311d430
 tests_passed: true
 coverage_met: true
 verification_run: true
 stacks:
   - nodejs
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

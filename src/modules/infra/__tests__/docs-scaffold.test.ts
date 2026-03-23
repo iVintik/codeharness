@@ -192,6 +192,74 @@ describe('generateAgentsMdContent', () => {
   });
 });
 
+describe('generateAgentsMdContent — multi-stack', () => {
+  it('generates per-stack sections with directory-relative commands', () => {
+    const content = generateAgentsMdContent(testDir, [
+      { stack: 'nodejs', dir: 'frontend' },
+      { stack: 'rust', dir: 'backend' },
+    ]);
+    expect(content).toContain('### Node.js (frontend/)');
+    expect(content).toContain('### Rust (backend/)');
+    expect(content).toContain('cd frontend && npm install');
+    expect(content).toContain('cd backend && cargo build');
+    expect(content).toContain('cd frontend && npm test');
+    expect(content).toContain('cd backend && cargo test');
+  });
+
+  it('omits cd prefix for root stack (dir === ".")', () => {
+    const content = generateAgentsMdContent(testDir, [
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: 'backend' },
+    ]);
+    // Root stack should have bare commands
+    expect(content).toContain('npm install');
+    expect(content).not.toContain('cd . &&');
+    // Subdir stack should have cd prefix
+    expect(content).toContain('cd backend && cargo build');
+    // Root heading should not have directory suffix
+    expect(content).toContain('### Node.js');
+    expect(content).not.toContain('### Node.js (./)');
+  });
+
+  it('lists combined stack label in header', () => {
+    const content = generateAgentsMdContent(testDir, [
+      { stack: 'nodejs', dir: 'frontend' },
+      { stack: 'rust', dir: 'backend' },
+    ]);
+    expect(content).toContain('Node.js + Rust');
+  });
+
+  it('single-stack string argument still produces existing output (backward compat)', () => {
+    const content = generateAgentsMdContent(testDir, 'nodejs');
+    expect(content).toContain('npm install');
+    expect(content).toContain('npm test');
+    expect(content).not.toContain('###');
+  });
+
+  it('includes python commands in multi-stack with cd prefix', () => {
+    const content = generateAgentsMdContent(testDir, [
+      { stack: 'python', dir: 'ml' },
+      { stack: 'nodejs', dir: '.' },
+    ]);
+    expect(content).toContain('cd ml && pip install');
+    expect(content).toContain('cd ml && python -m pytest');
+    expect(content).toContain('### Python (ml/)');
+  });
+
+  it('unwraps single-element StackDetection[] to single-stack output (no subsections)', () => {
+    const content = generateAgentsMdContent(testDir, [{ stack: 'nodejs', dir: '.' }]);
+    expect(content).toContain('npm install');
+    expect(content).toContain('npm test');
+    // Should produce flat single-stack output, not multi-stack subsections
+    expect(content).not.toContain('###');
+  });
+
+  it('treats empty StackDetection[] as null (unknown stack)', () => {
+    const content = generateAgentsMdContent(testDir, []);
+    expect(content).toContain('No recognized stack');
+  });
+});
+
 describe('generateDocsIndexContent', () => {
   it('includes documentation sections', () => {
     const content = generateDocsIndexContent();
@@ -251,5 +319,32 @@ describe('scaffoldDocs', () => {
     const calls = spy.mock.calls.map(c => c[0] as string);
     const outputCalls = calls.filter(c => c && (c.startsWith('[OK]') || c.startsWith('[INFO]')));
     expect(outputCalls).toHaveLength(0);
+  });
+
+  it('passes multi-stack stacks to AGENTS.md generation (AC5)', async () => {
+    const stacks = [
+      { stack: 'nodejs' as const, dir: 'frontend' },
+      { stack: 'rust' as const, dir: 'backend' },
+    ];
+    const result = await scaffoldDocs({ projectDir: testDir, stack: 'nodejs', stacks, isJson: false });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.agents_md).toBe('created');
+    }
+    // Verify AGENTS.md was created with multi-stack content
+    const { readFileSync } = require('node:fs');
+    const content = readFileSync(join(testDir, 'AGENTS.md'), 'utf-8');
+    expect(content).toContain('### Node.js (frontend/)');
+    expect(content).toContain('### Rust (backend/)');
+  });
+
+  it('uses single-stack path when stacks has only one entry', async () => {
+    const stacks = [{ stack: 'nodejs' as const, dir: '.' }];
+    const result = await scaffoldDocs({ projectDir: testDir, stack: 'nodejs', stacks, isJson: false });
+    expect(result.success).toBe(true);
+    // Single-element stacks should fall back to single-stack (opts.stack) path
+    const { readFileSync } = require('node:fs');
+    const content = readFileSync(join(testDir, 'AGENTS.md'), 'utf-8');
+    expect(content).not.toContain('###');
   });
 });

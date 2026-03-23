@@ -140,7 +140,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   if (!isJson) okOutput('State file: .claude/codeharness.local.md created');
 
   // --- Documentation scaffold ---
-  const docsResult = await scaffoldDocs({ projectDir, stack, isJson });
+  const docsResult = await scaffoldDocs({ projectDir, stack, stacks: allStacks, isJson });
   if (isOk(docsResult)) result.documentation = docsResult.data;
 
   // --- OTLP instrumentation ---

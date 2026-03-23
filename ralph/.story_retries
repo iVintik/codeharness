@@ -5,3 +5,4 @@ only-story 2
 9-2-state-schema-migration-multi-stack 1
 9-3-init-orchestrator-per-stack-iteration 1
 9-4-multi-stage-dockerfile-generation 1
+9-5-multi-stack-docs-remaining-consumers 2

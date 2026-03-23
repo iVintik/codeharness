@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, cpSync, rmSync, statS
 import { join, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { info } from '../../lib/output.js';
-import { detectStack } from '../../lib/stack-detect.js';
+import { detectStacks } from '../../lib/stack-detect.js';
 import { readStateWithBody, writeState } from '../../lib/state.js';
 import { isDockerAvailable } from '../../lib/docker.js';
 import type { BuildOptions, BuildResult, CheckResult, ProjectType } from './types.js';
@@ -67,7 +67,10 @@ function storeDistHash(projectDir: string, hash: string): void {
 
 /** Detects the project type for verification strategy selection. */
 export function detectProjectType(projectDir: string): ProjectType {
-  const stack = detectStack(projectDir);
+  // Use detectStacks() (plural) for multi-stack awareness; derive primary from root detection
+  const allStacks = detectStacks(projectDir);
+  const rootDetection = allStacks.find(s => s.dir === '.');
+  const stack = rootDetection ? rootDetection.stack : null;
   // Prefer nodejs/python when the project has a buildable package — the npm tarball
   // or Python wheel includes all distributable files. Plugin-only detection is the
   // fallback for projects that are purely Claude Code plugins with no build artifact.

@@ -427,6 +427,36 @@ describe('teardown command', () => {
     });
   });
 
+  describe('OTLP cleanup — multi-stack state', () => {
+    it('triggers OTLP cleanup when stacks includes nodejs', async () => {
+      createInitializedProject({
+        stack: 'rust',
+        stacks: ['nodejs', 'rust'],
+        otlp: {
+          enabled: true,
+          endpoint: 'http://localhost:4318',
+          service_name: 'test',
+          mode: 'local-shared' as const,
+          node_require: '--require @opentelemetry/auto-instrumentations-node/register',
+        },
+      });
+
+      const pkgPath = join(testDir, 'package.json');
+      writeFileSync(pkgPath, JSON.stringify({
+        name: 'test',
+        scripts: {
+          start: 'node index.js',
+          'start:instrumented': "NODE_OPTIONS='--require @opentelemetry/auto-instrumentations-node/register' node index.js",
+        },
+      }, null, 2) + '\n', 'utf-8');
+
+      const { stdout } = await runCli(['teardown']);
+
+      // Even though primary stack is rust, stacks includes nodejs so OTLP cleanup should trigger
+      expect(stdout).toContain('[OK] OTLP: removed instrumented scripts from package.json');
+    });
+  });
+
   describe('beads preservation', () => {
     it('never touches .beads/ directory during teardown', async () => {
       createInitializedProject();

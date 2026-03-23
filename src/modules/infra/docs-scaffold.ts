@@ -11,6 +11,7 @@ import { readmeTemplate } from '../../templates/readme.js';
 import type { Result } from '../../types/result.js';
 import { ok, fail } from '../../types/result.js';
 import type { InitDocumentationResult } from './types.js';
+import type { StackDetection } from '../../lib/stack-detect.js';
 
 const DO_NOT_EDIT_HEADER = '<!-- DO NOT EDIT MANUALLY -->\n';
 
@@ -64,7 +65,17 @@ export function getCoverageTool(stack: string | null): 'c8' | 'coverage.py' | 'c
   return 'c8';
 }
 
-export function generateAgentsMdContent(projectDir: string, stack: string | null): string {
+export function generateAgentsMdContent(projectDir: string, stack: string | StackDetection[] | null): string {
+  // Multi-stack path: StackDetection[] with more than one entry
+  if (Array.isArray(stack) && stack.length > 1) {
+    return generateMultiStackAgentsMd(projectDir, stack);
+  }
+  // Single-element array: unwrap to string for backward-compatible single-stack output
+  if (Array.isArray(stack)) {
+    stack = stack.length === 1 ? stack[0].stack : null;
+  }
+
+  // Single-stack path: string | null (backward compat)
   const projectName = basename(projectDir);
   const stackLabel = stack === 'nodejs' ? 'Node.js' : stack === 'python' ? 'Python' : stack === 'rust' ? 'Rust' : 'Unknown';
 
@@ -129,6 +140,80 @@ export function generateAgentsMdContent(projectDir: string, stack: string | null
   return lines.join('\n');
 }
 
+/** Maps stack identifier to display name for AGENTS.md generation. */
+function stackDisplayName(stack: string): string {
+  if (stack === 'nodejs') return 'Node.js';
+  if (stack === 'python') return 'Python';
+  if (stack === 'rust') return 'Rust';
+  return 'Unknown';
+}
+
+function generateMultiStackAgentsMd(projectDir: string, stacks: StackDetection[]): string {
+  const projectName = basename(projectDir);
+  const stackNames = stacks.map(s => stackDisplayName(s.stack));
+
+  const lines = [
+    `# ${projectName}`,
+    '',
+    '## Stack',
+    '',
+    `- **Language/Runtime:** ${stackNames.join(' + ')}`,
+    '',
+    '## Build & Test Commands',
+    '',
+  ];
+
+  for (const detection of stacks) {
+    const label = stackDisplayName(detection.stack);
+    const heading = detection.dir === '.' ? `### ${label}` : `### ${label} (${detection.dir}/)`;
+    const prefix = detection.dir === '.' ? '' : `cd ${detection.dir} && `;
+
+    lines.push(heading, '', '```bash');
+
+    if (detection.stack === 'nodejs') {
+      lines.push(
+        `${prefix}npm install    # Install dependencies`,
+        `${prefix}npm run build  # Build the project`,
+        `${prefix}npm test       # Run tests`,
+      );
+    } else if (detection.stack === 'python') {
+      lines.push(
+        `${prefix}pip install -r requirements.txt  # Install dependencies`,
+        `${prefix}python -m pytest                 # Run tests`,
+      );
+    } else if (detection.stack === 'rust') {
+      lines.push(
+        `${prefix}cargo build    # Build the project`,
+        `${prefix}cargo test     # Run tests`,
+        `${prefix}cargo tarpaulin --out json  # Run coverage`,
+      );
+    }
+
+    lines.push('```', '');
+  }
+
+  lines.push(
+    '## Project Structure',
+    '',
+    '```',
+    `${projectName}/`,
+    '├── src/           # Source code',
+    '├── tests/         # Test files',
+    '├── docs/          # Documentation',
+    '└── .claude/       # Codeharness state',
+    '```',
+    '',
+    '## Conventions',
+    '',
+    '- All changes must pass tests before commit',
+    '- Maintain test coverage targets',
+    '- Follow existing code style and patterns',
+    '',
+  );
+
+  return lines.join('\n');
+}
+
 export function generateDocsIndexContent(): string {
   return [
     '# Project Documentation',
@@ -152,6 +237,7 @@ export function generateDocsIndexContent(): string {
 interface ScaffoldDocsOptions {
   readonly projectDir: string;
   readonly stack: string | null;
+  readonly stacks?: StackDetection[];
   readonly isJson: boolean;
 }
 
@@ -164,7 +250,8 @@ export async function scaffoldDocs(opts: ScaffoldDocsOptions): Promise<Result<In
     // AGENTS.md
     const agentsMdPath = join(opts.projectDir, 'AGENTS.md');
     if (!existsSync(agentsMdPath)) {
-      const content = generateAgentsMdContent(opts.projectDir, opts.stack);
+      const stackArg = opts.stacks && opts.stacks.length > 1 ? opts.stacks : opts.stack;
+      const content = generateAgentsMdContent(opts.projectDir, stackArg);
       generateFile(agentsMdPath, content);
       agentsMd = 'created';
     } else {
@@ -198,9 +285,12 @@ export async function scaffoldDocs(opts: ScaffoldDocsOptions): Promise<Result<In
         cliHelpOutput = 'Run: codeharness --help';
       }
 
+      const readmeStack = opts.stacks && opts.stacks.length > 1
+        ? opts.stacks.map(s => s.stack)
+        : opts.stack;
       const readmeContent = readmeTemplate({
         projectName: getProjectName(opts.projectDir),
-        stack: opts.stack,
+        stack: readmeStack,
         cliHelpOutput,
       });
       generateFile(readmePath, readmeContent);

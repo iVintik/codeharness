@@ -10,8 +10,8 @@
 export interface ReadmeTemplateConfig {
   /** Project name (from package.json name or directory basename) */
   projectName: string;
-  /** Detected stack: 'nodejs', 'python', or null */
-  stack: string | null;
+  /** Detected stack: 'nodejs', 'python', 'rust', array of stacks, or null */
+  stack: string | string[] | null;
   /** Output of `codeharness --help` for CLI reference section */
   cliHelpOutput: string;
 }
@@ -69,9 +69,17 @@ export function readmeTemplate(config: ReadmeTemplateConfig): string {
   return lines.join('\n');
 }
 
-function getInstallCommand(stack: string | null): string {
-  if (stack === 'python') {
-    return 'pip install codeharness';
+export function getInstallCommand(stack: string | string[] | null): string {
+  if (Array.isArray(stack)) {
+    const commands = stack.map(s => getSingleInstallCommand(s));
+    // Deduplicate in case multiple stacks share an install command
+    return [...new Set(commands)].join('\n');
   }
+  return getSingleInstallCommand(stack);
+}
+
+function getSingleInstallCommand(stack: string | null): string {
+  if (stack === 'python') return 'pip install codeharness';
+  if (stack === 'rust') return 'cargo install codeharness';
   return 'npm install -g codeharness';
 }

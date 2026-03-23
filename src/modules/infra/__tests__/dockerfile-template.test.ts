@@ -427,3 +427,307 @@ describe('generated Dockerfiles pass validateDockerfile()', () => {
     }
   });
 });
+
+// ─── Multi-stage Dockerfile generation ──────────────────────────────────────
+
+import type { StackDetection } from '../../../lib/stack-detect.js';
+
+describe('generateDockerfileTemplate — multi-stage (nodejs+rust)', () => {
+  const detections: StackDetection[] = [
+    { stack: 'nodejs', dir: '.' },
+    { stack: 'rust', dir: 'services/backend' },
+  ];
+
+  it('produces FROM node:22-slim AS build-nodejs and FROM rust:1.82-slim AS build-rust', () => {
+    mockExistsSync.mockReturnValue(false);
+    const r = generateDockerfileTemplate('/project', detections);
+    expect(r.success).toBe(true);
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('FROM node:22-slim AS build-nodejs');
+    expect(written).toContain('FROM rust:1.82-slim AS build-rust');
+  });
+
+  it('produces combined FROM debian:bookworm-slim runtime stage', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', detections);
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('FROM debian:bookworm-slim');
+  });
+
+  it('contains COPY --from=build-nodejs and COPY --from=build-rust', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', detections);
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('COPY --from=build-nodejs');
+    expect(written).toContain('COPY --from=build-rust');
+  });
+
+  it('runtime stage has curl, jq, USER nobody, WORKDIR /workspace', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', detections);
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('curl');
+    expect(written).toContain('jq');
+    expect(written).toContain('USER nobody');
+    expect(written).toContain('WORKDIR /workspace');
+  });
+
+  it('returns stacks array with both stacks', () => {
+    mockExistsSync.mockReturnValue(false);
+    const r = generateDockerfileTemplate('/project', detections);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.stacks).toEqual(['nodejs', 'rust']);
+      expect(r.data.stack).toBe('nodejs');
+    }
+  });
+
+  it('each build stage is named build-{stack}', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', detections);
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('AS build-nodejs');
+    expect(written).toContain('AS build-rust');
+  });
+
+  it('includes section comments for build stages and runtime', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', detections);
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('# === Build stage: nodejs ===');
+    expect(written).toContain('# === Build stage: rust ===');
+    expect(written).toContain('# === Runtime stage ===');
+  });
+});
+
+describe('generateDockerfileTemplate — multi-stage (3 stacks: nodejs+python+rust)', () => {
+  const detections: StackDetection[] = [
+    { stack: 'nodejs', dir: '.' },
+    { stack: 'python', dir: 'services/ml' },
+    { stack: 'rust', dir: 'services/core' },
+  ];
+
+  it('all 3 build stages present', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', detections);
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('FROM node:22-slim AS build-nodejs');
+    expect(written).toContain('FROM python:3.12-slim AS build-python');
+    expect(written).toContain('FROM rust:1.82-slim AS build-rust');
+  });
+
+  it('runtime stage copies from all 3 build stages', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', detections);
+
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('COPY --from=build-nodejs');
+    expect(written).toContain('COPY --from=build-python');
+    expect(written).toContain('COPY --from=build-rust');
+  });
+
+  it('returns stacks array with all 3', () => {
+    mockExistsSync.mockReturnValue(false);
+    const r = generateDockerfileTemplate('/project', detections);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.stacks).toEqual(['nodejs', 'python', 'rust']);
+    }
+  });
+});
+
+describe('generateDockerfileTemplate — single-stack StackDetection[] backward compat', () => {
+  it('single nodejs detection produces identical output to string arg', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'nodejs');
+    const stringOutput = mockWriteFileSync.mock.calls[0][1] as string;
+
+    vi.resetAllMocks();
+    mockExistsSync.mockReturnValue(false);
+    const detections: StackDetection[] = [{ stack: 'nodejs', dir: '.' }];
+    generateDockerfileTemplate('/project', detections);
+    const arrayOutput = mockWriteFileSync.mock.calls[0][1] as string;
+
+    expect(arrayOutput).toBe(stringOutput);
+  });
+
+  it('single rust detection produces identical output to string arg', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'rust');
+    const stringOutput = mockWriteFileSync.mock.calls[0][1] as string;
+
+    vi.resetAllMocks();
+    mockExistsSync.mockReturnValue(false);
+    const detections: StackDetection[] = [{ stack: 'rust', dir: '.' }];
+    generateDockerfileTemplate('/project', detections);
+    const arrayOutput = mockWriteFileSync.mock.calls[0][1] as string;
+
+    expect(arrayOutput).toBe(stringOutput);
+  });
+
+  it('single python detection produces identical output to string arg', () => {
+    mockExistsSync.mockReturnValue(false);
+    generateDockerfileTemplate('/project', 'python');
+    const stringOutput = mockWriteFileSync.mock.calls[0][1] as string;
+
+    vi.resetAllMocks();
+    mockExistsSync.mockReturnValue(false);
+    const detections: StackDetection[] = [{ stack: 'python', dir: '.' }];
+    generateDockerfileTemplate('/project', detections);
+    const arrayOutput = mockWriteFileSync.mock.calls[0][1] as string;
+
+    expect(arrayOutput).toBe(stringOutput);
+  });
+});
+
+describe('generateDockerfileTemplate — backward-compat string argument', () => {
+  it('string argument still works after signature change', () => {
+    mockExistsSync.mockReturnValue(false);
+    const r = generateDockerfileTemplate('/project', 'nodejs');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.stack).toBe('nodejs');
+      expect(r.data.stacks).toEqual(['nodejs']);
+    }
+  });
+
+  it('null argument still works after signature change', () => {
+    mockExistsSync.mockReturnValue(false);
+    const r = generateDockerfileTemplate('/project', null);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.stack).toBe('generic');
+      expect(r.data.stacks).toEqual(['generic']);
+    }
+  });
+});
+
+describe('multi-stage Dockerfile passes validateDockerfile()', () => {
+  it('nodejs+rust multi-stage passes all 6 rule categories', () => {
+    mockExistsSync.mockReturnValue(false);
+    const detections: StackDetection[] = [
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: 'services/backend' },
+    ];
+    generateDockerfileTemplate('/project', detections);
+    const content = mockWriteFileSync.mock.calls[0][1] as string;
+
+    mockExistsSync.mockImplementation((p: unknown) => {
+      const path = String(p);
+      if (path.endsWith('Dockerfile')) return true;
+      return false;
+    });
+    vi.mocked(readFileSync).mockReturnValue(content);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.passed).toBe(true);
+      expect(r.data.gaps).toHaveLength(0);
+    }
+  });
+
+  it('nodejs+python+rust multi-stage passes all 6 rule categories', () => {
+    mockExistsSync.mockReturnValue(false);
+    const detections: StackDetection[] = [
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'python', dir: 'services/ml' },
+      { stack: 'rust', dir: 'services/core' },
+    ];
+    generateDockerfileTemplate('/project', detections);
+    const content = mockWriteFileSync.mock.calls[0][1] as string;
+
+    mockExistsSync.mockImplementation((p: unknown) => {
+      const path = String(p);
+      if (path.endsWith('Dockerfile')) return true;
+      return false;
+    });
+    vi.mocked(readFileSync).mockReturnValue(content);
+
+    const r = validateDockerfile('/project');
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.passed).toBe(true);
+      expect(r.data.gaps).toHaveLength(0);
+    }
+  });
+});
+
+describe('generateDockerfileTemplate — multi-stage error handling', () => {
+  it('returns fail when writeFileSync throws on multi-stage', () => {
+    mockExistsSync.mockReturnValue(false);
+    mockWriteFileSync.mockImplementation(() => {
+      throw new Error('EACCES: permission denied');
+    });
+
+    const detections: StackDetection[] = [
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: 'services/backend' },
+    ];
+    const r = generateDockerfileTemplate('/project', detections);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error).toContain('Failed to write Dockerfile');
+    }
+  });
+
+  it('returns fail when Dockerfile already exists for multi-stage', () => {
+    mockExistsSync.mockReturnValue(true);
+
+    const detections: StackDetection[] = [
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: 'services/backend' },
+    ];
+    const r = generateDockerfileTemplate('/project', detections);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error).toBe('Dockerfile already exists');
+    }
+  });
+
+  it('empty StackDetection[] falls through to generic template', () => {
+    mockExistsSync.mockReturnValue(false);
+    const r = generateDockerfileTemplate('/project', []);
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.stack).toBe('generic');
+    }
+  });
+
+  it('multi-stage with all unknown stacks falls back to generic template', () => {
+    mockExistsSync.mockReturnValue(false);
+    const detections = [
+      { stack: 'java' as StackDetection['stack'], dir: 'svc/a' },
+      { stack: 'go' as StackDetection['stack'], dir: 'svc/b' },
+    ];
+    const r = generateDockerfileTemplate('/project', detections);
+    expect(r.success).toBe(true);
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    // Should fall back to generic template content
+    expect(written).toContain('FROM node:22-slim');
+    expect(written).toContain('placeholder');
+  });
+
+  it('multi-stage with mix of known and unknown stacks only generates known stages', () => {
+    mockExistsSync.mockReturnValue(false);
+    const detections = [
+      { stack: 'nodejs' as StackDetection['stack'], dir: '.' },
+      { stack: 'java' as StackDetection['stack'], dir: 'svc/api' },
+      { stack: 'rust' as StackDetection['stack'], dir: 'svc/core' },
+    ];
+    const r = generateDockerfileTemplate('/project', detections);
+    expect(r.success).toBe(true);
+    const written = mockWriteFileSync.mock.calls[0][1] as string;
+    expect(written).toContain('FROM node:22-slim AS build-nodejs');
+    expect(written).toContain('FROM rust:1.82-slim AS build-rust');
+    // No java build stage
+    expect(written).not.toContain('build-java');
+  });
+});

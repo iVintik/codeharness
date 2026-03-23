@@ -1772,3 +1772,286 @@ Story 9-2 progressed through create → dev → code-review → verification sta
 | Total tests passing | 3100 |
 | Coverage | 97.03% |
 | Sprint completion | 35/39 = ~90% (counting 9-2 as nearly done) |
+
+---
+
+# Session 8 Retrospective — 2026-03-23T18:47Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~18:47 - 19:09 UTC+4 (~22 minutes)
+**Stories attempted:** 9-2 (verification completion), 9-3 (full lifecycle)
+**Final status:** 9-2 done, 9-3 done
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Outcome |
+|-------|-------------|------------|---------|
+| 9-2-state-schema-migration-multi-stack | verifying | done | Verification completed, committed at 18:47 |
+| 9-3-init-orchestrator-per-stack-iteration | backlog | done | Full lifecycle: create → dev → review → verify → done at 19:08 |
+
+Story 9-2 carried over from session 7 with verification in progress. It completed and was committed. Story 9-3 then ran a full create-dev-review-verify cycle in approximately 20 minutes. Both stories shipped. This completes Epic 9.1 (Multi-Stack Detection & State) and the first story of Epic 9.2 (Multi-Stack Consumers).
+
+## 2. Issues Analysis
+
+### Bugs Found During Code Review — Story 9-3 (4 fixed)
+
+1. **HIGH — Per-stack coverage loop was dead code.** Called `getCoverageTool()` per stack inside a loop but discarded all return values. The entire per-stack coverage iteration did nothing.
+
+2. **HIGH — OTLP result matched by stack name only.** When multiple subdirectories share the same stack type (e.g., two `nodejs` dirs), `result.otlp` would be assigned from the wrong detection. Matched on stack name instead of detection directory.
+
+3. **MEDIUM — Double filesystem scan.** `detectStack()` internally calls `detectStacks()`, and init-project called both separately. This means the filesystem was scanned twice for stack detection with no benefit.
+
+4. **MEDIUM — Integration tests mocked `detectStack` but init-project no longer called it.** After the refactor to use `detectStacks()` directly, the old mocks in integration tests were targeting a function that was no longer invoked, making the tests pass vacuously.
+
+5. **MEDIUM — `state.coverage.tools` assigned without type interface field.** The per-stack coverage map was persisted to state but the `CoverageState` interface had no `tools` property, creating an untyped field.
+
+### Unfixed Issues (LOW priority, carried forward)
+
+- `state.coverage.tools` map is persisted but no consumer reads it yet — dead data in state file
+- `detectAppType` only considers primary root stack in multi-stack projects — secondary stacks ignored for app-type classification
+
+### Unfixed Issues Carried from Session 7
+
+- `migrateState()` casts `raw.stack as StackName` without validating against known values
+- `recoverCorruptedState()` calls both `detectStack()` and `detectStacks()` — double detection
+- Flaky test: `state.test.ts > writeStateAtomic` — shared file race condition
+
+### Spec / Planning Issues
+
+- **Stale technical notes in story 9-3.** Original story referenced line numbers from before story 9-2 changed the code. Had to be rewritten at create-story time. This is a recurring problem when stories are written in advance and code changes between planning and execution.
+- **Missing files list.** Original story listed `src/commands/init.ts` but missed `docs-scaffold.ts` which needed `getStackLabel()` changes. `init.ts` itself didn't need changes.
+- **Missing import.** `path` import was needed in `init-project.ts` for per-stack OTLP loop (`path.join()`) but only `basename` was imported. Caught during implementation.
+
+### Verification Notes — Story 9-3
+
+- All 4 ACs passed black-box verification
+- Beads sync failed (story file status line not found) — non-blocking tooling issue
+- VictoriaMetrics stack was down at start, `codeharness stack start` reported shared stack already running — inconsistent state detection in observability stack management
+
+### Coverage Gaps Carried Forward
+
+- `init-project.test.ts` still has zero assertions on `stacks` field after init (noted in session 7, not addressed)
+- No test for recovery when root stack is null but subdirectory stacks exist
+
+## 3. What Went Well
+
+- **Two stories completed in ~22 minutes.** The pipeline ran efficiently — 9-3 went from backlog to done including a full code review cycle.
+- **Code review continued to find real bugs.** 2 HIGH and 3 MEDIUM issues caught. The dead-code coverage loop (HIGH) would have meant per-stack coverage was completely broken for multi-stack projects.
+- **Review fixes were applied and verified.** All HIGH and MEDIUM issues were fixed before verification.
+- **Story 9-2 verification completed cleanly** after carrying over from session 7.
+- **Epic 9.1 is fully complete.** Multi-stack detection, state migration, and init orchestration all shipped today.
+
+## 4. What Went Wrong
+
+- **Stale story specs waste time.** Story 9-3 had to be substantially rewritten at create-story time because the technical notes referenced pre-9-2 code. This is the second time this pattern has occurred.
+- **Dead code shipped from dev phase.** The per-stack coverage loop was entirely dead code — calling a function and discarding the result. This should have been caught during implementation, not review.
+- **Integration test mocks were stale after refactor.** When `init-project.ts` stopped calling `detectStack()` and switched to `detectStacks()`, the mocks weren't updated. Tests passed but were testing nothing.
+- **Beads sync tooling failure.** Story file status line parsing failed, preventing automatic bead tracking. Non-blocking but losing provenance data.
+- **Observability stack inconsistency.** VictoriaMetrics was down but the management command thought it was running. This affects verification reliability.
+
+## 5. Lessons Learned
+
+- **Write story technical notes at create-story time, not in advance.** Pre-written line references go stale. The create-story agent already reads current code — let it generate fresh references.
+- **Review mocks after refactoring.** When a function's call graph changes (e.g., `detectStack` replaced by `detectStacks`), grep for mocks of the old function. Stale mocks are silent test gaps.
+- **Dead code detection.** Any loop body that calls a function without using its return value should be flagged during implementation. Consider adding a lint rule or review checklist item.
+- **Observability stack state detection needs work.** The `stack start` command should accurately report whether containers are actually running vs. just existing.
+
+## 6. Action Items
+
+### Fix Now (before next session)
+- None — both stories shipped clean
+
+### Fix Soon (next sprint)
+- Add `stacks` assertions to `init-project.test.ts` (carried from session 7)
+- Add test for recovery when root stack null + subdirectory stacks present (carried from session 7)
+- Fix beads sync status-line parsing to handle current story file format
+- Investigate observability stack state detection inconsistency
+
+### Backlog
+- Fix flaky `writeStateAtomic` test (carried from session 7)
+- Validate `StackName` enum values in `migrateState()` (carried from session 7)
+- Optimize `recoverCorruptedState()` to avoid double detection (carried from session 7)
+- Add `tools` field to `CoverageState` interface or remove the dead write
+- Make `detectAppType` consider all stacks in multi-stack projects
+- Add lint rule or review checklist for unused return values in loops
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 2 (9-2 verification + 9-3 full lifecycle) |
+| Stories completed | 2 |
+| Stories failed | 0 |
+| Bugs found by review (9-3) | 5 (2 HIGH, 3 MEDIUM) |
+| Total bugs found today (sessions 7+8) | 9 (3 HIGH, 6 MEDIUM) |
+| Sprint completion | 37/39 = ~95% |
+| Remaining backlog | 9-4, 9-5 |
+
+## Cumulative Day Summary (Sessions 1-8)
+
+Today was a highly productive day spanning 8 sessions:
+
+- **Epic 8 completed** (stories 8-3 through 8-9): Full Rust stack support including detection, coverage, Dockerfile, OTLP, docs, and Semgrep rules.
+- **Epic 9.1 completed** (stories 9-1, 9-2, 9-3): Multi-stack detection, state schema migration, and init orchestrator per-stack iteration.
+- **12 stories shipped** across the day (8-3, 8-4, 8-5, 8-6, 8-7, 8-8, 8-9, epic-8 retro, 9-1, 9-2, 9-3, plus several fix commits).
+- **Code review caught 9+ real bugs** across the day, including 3 HIGH severity issues that would have broken core functionality.
+- **Sprint is at ~95% completion** with only 9-4 (multi-stage Dockerfile) and 9-5 (remaining consumers) in backlog.
+
+---
+
+# Session Retrospective — 2026-03-23 (Sessions 7-9)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~14:24 - 15:33 UTC (sessions 7, 8, 9)
+**Ralph iterations:** 4 (per status.json)
+**Elapsed:** ~4048 seconds (~67 minutes)
+**Stories attempted:** 4 (9-2, 9-3, 9-4, plus 9-1 context from prior session)
+**Commits produced:** 3 (`a300d23`, `1a81ec1`, plus 9-4 in-progress)
+
+---
+
+## 1. Session Summary
+
+| Story | Outcome | Commit | Notes |
+|-------|---------|--------|-------|
+| 9-1-multi-stack-detection-subdir-scanning | done | `b4ca7af` | Completed in prior session, context carried forward |
+| 9-2-state-schema-migration-multi-stack | done | `a300d23` | State schema extended for multi-stack. Code review caught 4 HIGH/MEDIUM bugs, all fixed. |
+| 9-3-init-orchestrator-per-stack-iteration | done | `1a81ec1` | Per-stack init loops for OTLP and coverage. Code review caught 2 HIGH bugs (dead code, wrong detection). |
+| 9-4-multi-stage-dockerfile-generation | verifying | — | Dev complete, code review done (6 fixes applied), verification started but session time exhausted. |
+
+Three stories fully shipped (9-1, 9-2, 9-3). One story (9-4) left in `verifying` state — verification was in-progress when the session budget ran out. Epic 9.1 (Multi-Stack Detection & State) is complete. Epic 9.2 is partially complete.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| HIGH | 9-2 | `init-project.ts` never persisted multi-stacks to state file — all `detectStacks()` results lost on init | Yes |
+| HIGH | 9-3 | Per-stack coverage loop was dead code — called `getCoverageTool()` per stack but discarded all return values | Yes |
+| HIGH | 9-3 | OTLP `result.otlp` matched by stack name only — wrong detection when multiple subdirs share same stack | Yes |
+| HIGH | 9-4 | Missing Showboat proof document — story claimed done but file didn't exist | Yes |
+| HIGH | 9-4 | Type inconsistency between `DockerfileTemplateResult.stacks` (required) and `InitResult.dockerfile.stacks` (optional) | Yes |
+| HIGH | 9-4 | AGENTS.md stale — didn't reflect new `StackDetection[]` signature or 5 new helpers | Yes |
+| MEDIUM | 9-2 | `writeState()` mutated caller's state object via `state.stack = state.stacks[0]` side effect | Yes |
+| MEDIUM | 9-2 | `isValidState()` accepted `stacks: [42, true]` as valid — no element type checking | Yes |
+| MEDIUM | 9-2 | `recoverCorruptedState()` produced inconsistent `stack: null` / `stacks: ['nodejs']` state | Yes |
+| MEDIUM | 9-3 | Double filesystem scan — `detectStack()` calls `detectStacks()` internally, then init called it again | Yes |
+| MEDIUM | 9-3 | Integration tests mocked `detectStack` but `init-project` no longer called it after refactor | Yes |
+| MEDIUM | 9-3 | `state.coverage.tools` assigned without type interface field existing | Yes |
+| MEDIUM | 9-4 | Unknown stacks in multi-stage array produced malformed Dockerfile with no error | Yes |
+| MEDIUM | 9-4 | Hardcoded `python3.12` path in `runtimeCopyDirectives` — breaks on version change | Yes |
+| MEDIUM | 9-4 | `COPY . .` copies entire monorepo into each build stage (wasteful, potential secret leak) | Yes |
+| MEDIUM | 9-4 | No `.dockerignore` warning for multi-stage builds | Yes |
+
+**Total bugs caught by code review: 16 (6 HIGH, 10 MEDIUM) — all fixed.**
+
+### Workarounds / Tech Debt Introduced
+
+| Story | Tech Debt | Risk |
+|-------|-----------|------|
+| 9-2 | `migrateState()` casts `raw.stack as StackName` without validating against known stack names | LOW — invalid stack names propagate silently |
+| 9-2 | `recoverCorruptedState()` calls both `detectStack()` and `detectStacks()` — detection runs twice | LOW — performance only |
+| 9-2 | Flaky test in `state.test.ts > writeStateAtomic` — shared file race condition under parallel execution | LOW — intermittent CI failures |
+| 9-3 | `state.coverage.tools` map persisted but no consumer reads it yet | LOW — dead data until story 9-5 |
+| 9-3 | `detectAppType` only considers primary root stack in multi-stack projects | LOW — wrong app type for secondary stacks |
+| 9-4 | `stacks` field naming collision between `DockerfileTemplateResult.stacks` and `InitResult.stacks` | LOW — confusing but not broken |
+| 9-4 | Inconsistent non-root user strategy (`node` vs `nobody`) | LOW — cosmetic |
+
+### Verification Gaps
+
+| Story | Gap |
+|-------|-----|
+| 9-2 | `recoverCorruptedState()` recovery path not directly unit-tested for `stacks` field |
+| 9-2 | `init-project.test.ts` has zero assertions on `stacks` field after init |
+| 9-4 | Verification incomplete — session time exhausted before verifier finished |
+
+### Tooling / Infrastructure Problems
+
+| Issue | Impact |
+|-------|--------|
+| Beads sync failed on 9-3 verify (story file status line not found) | Non-blocking — status tracking gap |
+| VictoriaMetrics stack inconsistent — reported as down, then `codeharness stack start` said "already running" | Non-blocking — stale state detection in observability stack |
+
+---
+
+## 3. What Went Well
+
+- **Code review is catching real bugs.** 16 bugs caught across 3 stories, including 6 HIGH severity issues that would have broken core functionality (lost stacks on init, dead code in coverage loop, wrong OTLP detection). The review step continues to be the highest-value quality gate.
+- **Story velocity.** 3 stories fully completed in ~67 minutes. The create-story -> dev -> review -> verify pipeline is flowing efficiently.
+- **Code review fixes applied immediately.** Every HIGH and MEDIUM issue was fixed in the same session. No deferred critical bugs.
+- **Test counts growing healthily.** From 3098 tests (session 7) to 3131 tests (session 9). New code is well-covered.
+- **Branch coverage at 91-97%** across touched files — solid quality floor.
+
+---
+
+## 4. What Went Wrong
+
+- **Session time exhaustion on 9-4 verify.** Story 9-4 completed dev and code review but the verification step couldn't finish before the session budget ran out. The story is stuck in `verifying` and will need to be picked up as Tier C next session.
+- **Stale story files.** Story 9-4 had a pre-existing skeleton with 3 ACs that needed to be overwritten. Story 9-3 had stale technical notes referencing line numbers from before 9-2 changes. Both caused extra work in create-story phase.
+- **Dead code shipped through dev.** The per-stack coverage loop in 9-3 was entirely dead code — called a function and discarded the return value. Dev didn't catch it; code review did. Dev should be checking that new code actually has observable effects.
+- **Double filesystem scanning.** Stories 9-2 and 9-3 both introduced redundant `detectStack()`/`detectStacks()` calls. This was caught and fixed in review, but the pattern repeated across stories — suggests the detection API needs a clearer contract.
+
+---
+
+## 5. Lessons Learned
+
+### Repeat
+- **Code review before verify** — continues to catch serious bugs that would waste verifier time.
+- **Fixing all HIGH/MEDIUM issues in-session** — prevents accumulation of known defects.
+- **Session issues log** — raw material for this retro. Every subagent logging issues makes retrospectives accurate rather than guesswork.
+
+### Avoid
+- **Trusting that "code compiles and tests pass" means "code works."** Dead code (9-3 coverage loop) compiled fine and passed all tests because nothing asserted on its output. Need assertions on side effects, not just absence of errors.
+- **Starting verification late in session budget.** If verification needs container spinup + black-box testing, budget at least 15 minutes. 9-4 was started with <10 minutes remaining.
+- **Referencing line numbers in story files.** They go stale after any prior story touches the same file. Reference function names or section headers instead.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next session)
+- [ ] **Pick up 9-4 verification** — story is in `verifying` state, container may still have state. Re-verify from scratch if needed.
+
+### Fix Soon (next sprint)
+- [ ] **Add `stacks` field assertions to `init-project.test.ts`** — coverage gap flagged in 9-2 review.
+- [ ] **Add `recoverCorruptedState()` test for `stacks` field** — needs planted `package.json` in temp dir.
+- [ ] **Investigate flaky `writeStateAtomic` test** — shared file race condition under parallel execution.
+- [ ] **Clean up detection API** — `detectStack()` vs `detectStacks()` overlap causes double scanning. Consider deprecating `detectStack()` in favor of `detectStacks()[0]`.
+
+### Backlog (track but not urgent)
+- [ ] **Validate `raw.stack` against known `StackName` values in `migrateState()`** — currently casts blindly.
+- [ ] **Wire up `state.coverage.tools` consumer** — data is persisted but nothing reads it (story 9-5 scope).
+- [ ] **Fix `detectAppType` for secondary stacks** — only considers primary root stack.
+- [ ] **Resolve `stacks` field naming collision** between `DockerfileTemplateResult` and `InitResult`.
+- [ ] **Standardize non-root user strategy** in Dockerfiles (`node` vs `nobody`).
+- [ ] **Investigate VictoriaMetrics stack state inconsistency** — stale "already running" detection.
+
+---
+
+## Sprint Progress Snapshot
+
+| Metric | Value |
+|--------|-------|
+| Sprint stories total | 39 |
+| Stories completed | 37 |
+| Stories remaining | 2 (9-4 verifying, 9-5 backlog) |
+| Sprint completion | ~95% |
+| Tests passing | 3131 |
+| Bugs caught by review today (sessions 7-9) | 16 (6 HIGH, 10 MEDIUM) |
+| Tech debt items deferred | 7 (all LOW) |
+
+## Cumulative Day Summary (Sessions 1-9)
+
+Today spanned 9 sessions across the full day:
+
+- **Epic 8 completed** (stories 8-1 through 8-9): Full Rust stack support.
+- **Epic 9.1 completed** (stories 9-1, 9-2, 9-3): Multi-stack detection, state schema, init orchestrator.
+- **Epic 9.2 partially complete** (story 9-4 in verifying, 9-5 in backlog): Multi-stage Dockerfile generation nearly done.
+- **13+ stories shipped** across the day.
+- **Code review caught 25+ real bugs** across all sessions, with every HIGH and MEDIUM issue fixed same-session.
+- **Sprint is at ~95% completion** — 2 stories remain (9-4 verification, 9-5 backlog).

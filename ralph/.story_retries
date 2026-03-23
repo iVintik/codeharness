@@ -4,3 +4,4 @@ only-story 2
 8-9-semgrep-rules-rust-observability 1
 9-2-state-schema-migration-multi-stack 1
 9-3-init-orchestrator-per-stack-iteration 1
+9-4-multi-stage-dockerfile-generation 1

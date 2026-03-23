@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 42,
-    "done": 36,
+    "done": 37,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -297,7 +297,7 @@
       "acResults": null
     },
     "9-3-init-orchestrator-per-stack-iteration": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -305,8 +305,8 @@
       "acResults": null
     },
     "9-4-multi-stage-dockerfile-generation": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -348,14 +348,14 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 3,
+    "iteration": 4,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "9-3-init-orchestrator-per-stack-iteration",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification",
-    "acProgress": "4/4"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": [
     {
@@ -516,6 +516,139 @@
       "id": "migrated-23",
       "story": "9-3-init-orchestrator-per-stack-iteration",
       "description": "**Observation:** Fallback `if (!result.otlp)` after OTLP loop handles edge case where primary stack isn't in `allStacks`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**HIGH (fixed):** Per-stack coverage loop was dead code — called `getCoverageTool()` per stack but discarded all return values",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-25",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**HIGH (fixed):** OTLP `result.otlp` matched by stack name only, wrong detection when multiple subdirs share same stack",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-26",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**MEDIUM (fixed):** Double filesystem scan — `detectStack()` calls `detectStacks()` internally, then init called it again",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-27",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**MEDIUM (fixed):** Integration tests mocked `detectStack` but init-project no longer called it after refactor",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-28",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**MEDIUM (fixed):** `state.coverage.tools` assigned without type interface field existing",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-29",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**LOW (not fixed):** `state.coverage.tools` map persisted but no consumer reads it yet",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-30",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**LOW (not fixed):** `detectAppType` only considers primary root stack in multi-stack projects",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-31",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "All 4 ACs passed black-box verification",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-32",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "Beads sync failed (story file status line not found) — non-blocking",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-33",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "Container cleanup succeeded",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-34",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "Observability check: VictoriaMetrics stack was down at start, `codeharness stack start` reported shared stack already running (inconsistent)",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-35",
+      "story": "9-4-multi-stage-dockerfile-generation",
+      "description": "**Workaround:** Overwrote existing skeleton story file (had 3 ACs without verification tags) with full 6-AC story",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-36",
+      "story": "9-4-multi-stage-dockerfile-generation",
+      "description": "**Risk:** AC4 (validator passes on multi-stage output) depends on dockerfile-validator.ts handling multiple FROM lines — may need validator updates",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-37",
+      "story": "9-4-multi-stage-dockerfile-generation",
+      "description": "**Risk:** Tech spec says new `generateMultiStackDockerfile()` but epics say update existing function — story opts for backward-compat overload approach",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-38",
+      "story": "9-4-multi-stage-dockerfile-generation",
+      "description": "**Observation:** All 6 ACs tagged cli-verifiable (unit tests and CLI commands only)",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-39",
+      "story": "9-4-multi-stage-dockerfile-generation",
+      "description": "**Positive finding:** Validator already handles multi-stage (multiple FROM lines) — no changes needed",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-40",
+      "story": "9-4-multi-stage-dockerfile-generation",
+      "description": "**Branch coverage 91.17%:** vitest/istanbul artifact with else-if chains — statement/function/line at 100%",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-41",
+      "story": "9-4-multi-stage-dockerfile-generation",
+      "description": "**No exec-plan/proof docs created:** Story mentions docs/exec-plans/active/ but dev focused on code+tests only",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-42",
+      "story": "9-4-multi-stage-dockerfile-generation",
+      "description": "**File growth:** dockerfile-template.ts grew from 149 to 220 lines (under 300-line limit)",
       "source": "retro",
       "resolved": false
     }

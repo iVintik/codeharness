@@ -75,7 +75,7 @@ export interface InitResult {
   beads?: InitBeadsResult;
   bmad?: InitBmadResult;
   otlp?: OtlpResult;
-  dockerfile?: { generated: boolean; stack: string };
+  dockerfile?: { generated: boolean; stack: string; stacks: string[] };
   docker?: InitDockerResult | null;
   error?: string;
 }

@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 42,
-    "done": 35,
+    "done": 36,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -289,7 +289,7 @@
       "acResults": null
     },
     "9-2-state-schema-migration-multi-stack": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -297,8 +297,8 @@
       "acResults": null
     },
     "9-3-init-orchestrator-per-stack-iteration": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -348,7 +348,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 2,
+    "iteration": 3,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -411,6 +411,111 @@
       "id": "migrated-8",
       "story": "9-2-state-schema-migration-multi-stack",
       "description": "**Observation:** 19 new tests added, all 3098 tests pass with 0 failures.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**HIGH (fixed):** `init-project.ts` never persisted multi-stacks to state file — only single root stack written. All `detectStacks()` results lost on init.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**MEDIUM (fixed):** `writeState()` mutated caller's state object via `state.stack = state.stacks[0]` side effect.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**MEDIUM (fixed):** `isValidState()` accepted `stacks: [42, true]` as valid — no element type checking.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**MEDIUM (fixed):** `recoverCorruptedState()` produced inconsistent `stack: null` / `stacks: ['nodejs']` state.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**LOW (not fixed):** `migrateState()` casts `raw.stack as StackName` without validating against known stack names.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**LOW (not fixed):** `recoverCorruptedState()` calls both `detectStack()` and `detectStacks()` — detection runs twice.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**LOW (not fixed):** Flaky test in `sprint/__tests__/state.test.ts > writeStateAtomic` — shared file race condition under parallel execution.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Coverage gap:** `init-project.test.ts` has zero assertions on `stacks` field after init. No test for recovery when root null but subdirs have stacks.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**Stale technical notes:** Original story referenced line numbers from before story 9-2. Rewrote to reflect actual current code state.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**Files list correction:** Original story listed `src/commands/init.ts` but missed `docs-scaffold.ts`. `init.ts` doesn't need changes; `docs-scaffold.ts` does for `getStackLabel()`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**Risk:** `path` import missing in init-project.ts — per-stack OTLP loop needs `path.join()` but only `basename` is imported.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**Observation:** Story 9-2 already did partial work (added `detectStacks` call and stacks population), reducing scope to per-stack iteration loops.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**Code quality concern:** Per-stack coverage loop calls `getCoverageTool()` per stack but discards return value — `HarnessState.coverage` only has single `tool` field, not per-stack map. Future addition needed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**Observation:** OTLP per-stack loop assigns `result.otlp` based on matching `detection.stack === stack` (primary stack). Last match wins if duplicates exist.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "9-3-init-orchestrator-per-stack-iteration",
+      "description": "**Observation:** Fallback `if (!result.otlp)` after OTLP loop handles edge case where primary stack isn't in `allStacks`.",
       "source": "retro",
       "resolved": false
     }

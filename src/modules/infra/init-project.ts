@@ -84,10 +84,10 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   }
 
   // --- Dockerfile template generation ---
-  const dfResult = generateDockerfileTemplate(projectDir, stack);
+  const dfResult = generateDockerfileTemplate(projectDir, allStacks);
   if (isOk(dfResult)) {
-    result.dockerfile = { generated: true, stack: dfResult.data.stack };
-    if (!isJson) info(`Generated Dockerfile for ${dfResult.data.stack} project.`);
+    result.dockerfile = { generated: true, stack: dfResult.data.stack, stacks: dfResult.data.stacks };
+    if (!isJson) info(`Generated Dockerfile for ${dfResult.data.stacks.join('+') || dfResult.data.stack} project.`);
   } else {
     if (!isJson) info('Dockerfile already exists -- skipping template generation.');
   }

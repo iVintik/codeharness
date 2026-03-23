@@ -83,7 +83,6 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   const inkInstance = inkRender(<App state={state} />, {
     exitOnCtrlC: false,
     patchConsole: !options?._forceTTY,
-    incrementalRendering: true,
     maxFps: 15,
   });
 

@@ -6,7 +6,12 @@ import { join } from 'node:path';
 // Mock all lib modules
 vi.mock('../../../lib/stack-detect.js', async (importOriginal) => {
   const orig = await importOriginal<typeof import('../../../lib/stack-detect.js')>();
-  return { ...orig, detectStack: vi.fn(orig.detectStack), detectAppType: vi.fn(orig.detectAppType) };
+  return { ...orig, detectStacks: vi.fn(orig.detectStacks), detectAppType: vi.fn(orig.detectAppType) };
+});
+
+vi.mock('../docs-scaffold.js', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../docs-scaffold.js')>();
+  return { ...orig, getCoverageTool: vi.fn(orig.getCoverageTool), getStackLabel: vi.fn(orig.getStackLabel) };
 });
 
 vi.mock('../../../lib/stack-path.js', () => ({
@@ -89,11 +94,17 @@ import { isDockerAvailable } from '../../../lib/docker.js';
 import { installAllDependencies, CriticalDependencyError } from '../../../lib/deps.js';
 import { isBeadsInitialized, BeadsError } from '../../../lib/beads.js';
 import { readState, writeState, getDefaultState } from '../../../lib/state.js';
+import { detectStacks, detectAppType } from '../../../lib/stack-detect.js';
+import { instrumentProject } from '../../../lib/otlp.js';
+import { getCoverageTool } from '../docs-scaffold.js';
 import { initProject } from '../init-project.js';
 
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);
 const mockInstallAll = vi.mocked(installAllDependencies);
 const mockIsBeadsInitialized = vi.mocked(isBeadsInitialized);
+const mockDetectStacks = vi.mocked(detectStacks);
+const mockInstrumentProject = vi.mocked(instrumentProject);
+const mockGetCoverageTool = vi.mocked(getCoverageTool);
 
 let testDir: string;
 let originalCwd: string;
@@ -357,9 +368,8 @@ describe('initProject — observability modes', () => {
 
 describe('initProject — unexpected errors', () => {
   it('returns fail instead of throwing on unexpected error', async () => {
-    // Force an unexpected error by making detectStack throw
-    const stackDetect = await import('../../../lib/stack-detect.js');
-    vi.mocked(stackDetect.detectStack).mockImplementation(() => { throw new Error('kaboom'); });
+    // Force an unexpected error by making detectStacks throw
+    mockDetectStacks.mockImplementation(() => { throw new Error('kaboom'); });
     writeFileSync(join(testDir, 'package.json'), '{}');
     const result = await initProject({
       projectDir: testDir,
@@ -371,6 +381,143 @@ describe('initProject — unexpected errors', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain('kaboom');
+    }
+  });
+});
+
+describe('initProject — multi-stack orchestration', () => {
+  const defaultOpts = {
+    projectDir: '', // set in beforeEach via testDir
+    frontend: true,
+    database: true,
+    api: true,
+    observability: true,
+  };
+
+  function makeOpts(overrides: Partial<typeof defaultOpts> = {}) {
+    return { ...defaultOpts, projectDir: testDir, ...overrides };
+  }
+
+  it('calls getCoverageTool() once per detected stack and stores tools map (Task 6)', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "test"');
+    mockDetectStacks.mockReturnValue([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: '.' },
+    ]);
+    mockGetCoverageTool.mockClear();
+
+    await initProject(makeOpts({ observability: false }));
+
+    // getCoverageTool called for each stack in the loop + once for primary stack backward compat
+    const calls = mockGetCoverageTool.mock.calls.map(c => c[0]);
+    expect(calls).toContain('nodejs');
+    expect(calls).toContain('rust');
+
+    // Verify per-stack tools map is persisted in state
+    const state = readState(testDir);
+    expect(state.coverage.tools).toBeDefined();
+    expect(state.coverage.tools!['nodejs']).toBe('c8');
+    expect(state.coverage.tools!['rust']).toBe('cargo-tarpaulin');
+  });
+
+  it('calls instrumentProject() once per detected stack with correct dir (Task 7)', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "test"');
+    mockDetectStacks.mockReturnValue([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: 'services/backend' },
+    ]);
+    mockInstrumentProject.mockClear();
+
+    await initProject(makeOpts({ observability: true }));
+
+    expect(mockInstrumentProject).toHaveBeenCalledTimes(2);
+    // First call: nodejs at project root
+    expect(mockInstrumentProject.mock.calls[0][0]).toBe(testDir);
+    expect(mockInstrumentProject.mock.calls[0][1]).toBe('nodejs');
+    // Second call: rust at subdirectory
+    expect(mockInstrumentProject.mock.calls[1][0]).toBe(join(testDir, 'services/backend'));
+    expect(mockInstrumentProject.mock.calls[1][1]).toBe('rust');
+  });
+
+  it('info output includes all detected stacks label (Task 8)', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "test"');
+    mockDetectStacks.mockReturnValue([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: '.' },
+    ]);
+
+    await initProject(makeOpts({ observability: false }));
+
+    const logCalls = (console.log as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c: unknown[]) => String(c[0])
+    );
+    const stackLine = logCalls.find((l: string) => l.includes('Stack detected:'));
+    expect(stackLine).toBeDefined();
+    expect(stackLine).toContain('Node.js (package.json)');
+    expect(stackLine).toContain('Rust (Cargo.toml)');
+  });
+
+  it('state file has stacks array and app_type from primary stack (Task 9)', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "test"');
+    mockDetectStacks.mockReturnValue([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: '.' },
+    ]);
+
+    await initProject(makeOpts({ observability: false }));
+
+    const state = readState(testDir);
+    expect(state.stacks).toEqual(['nodejs', 'rust']);
+    expect(state.app_type).toBeDefined();
+    // Primary stack coverage tool should be set for backward compat
+    expect(state.coverage.tool).toBe('c8'); // nodejs primary
+  });
+
+  it('single-stack backward compat — single-stack project still works identically (Task 10)', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    mockDetectStacks.mockReturnValue([{ stack: 'nodejs', dir: '.' }]);
+    mockInstrumentProject.mockClear();
+
+    const result = await initProject(makeOpts({ observability: true }));
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.stack).toBe('nodejs');
+      expect(result.data.stacks).toEqual(['nodejs']);
+    }
+
+    const state = readState(testDir);
+    expect(state.stack).toBe('nodejs');
+    expect(state.stacks).toEqual(['nodejs']);
+    expect(state.coverage.tool).toBe('c8');
+
+    // instrumentProject called exactly once for single stack
+    expect(mockInstrumentProject).toHaveBeenCalledTimes(1);
+    expect(mockInstrumentProject.mock.calls[0][1]).toBe('nodejs');
+  });
+
+  it('OTLP result.otlp comes from root detection, not first matching stack name', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    // Subdirectory detection appears first but root detection appears second
+    mockDetectStacks.mockReturnValue([
+      { stack: 'nodejs', dir: 'packages/app' },
+      { stack: 'nodejs', dir: '.' },
+    ]);
+    const rootOtlp = { status: 'configured' as const, packages_installed: true, start_script_patched: true, env_vars_configured: true };
+    const subOtlp = { status: 'configured' as const, packages_installed: false, start_script_patched: false, env_vars_configured: false };
+    mockInstrumentProject.mockClear();
+    mockInstrumentProject.mockReturnValueOnce(subOtlp).mockReturnValueOnce(rootOtlp);
+
+    const result = await initProject(makeOpts({ observability: true }));
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // result.otlp should be from the root detection (dir === '.'), not the subdirectory
+      expect(result.data.otlp).toEqual(rootOtlp);
     }
   });
 });

@@ -124,6 +124,18 @@ describe('getStackLabel', () => {
   it('returns Rust label for rust stack', () => {
     expect(getStackLabel('rust')).toBe('Rust (Cargo.toml)');
   });
+
+  it('returns joined label for multi-stack array', () => {
+    expect(getStackLabel(['nodejs', 'rust'])).toBe('Node.js (package.json) + Rust (Cargo.toml)');
+  });
+
+  it('returns single label for single-element array', () => {
+    expect(getStackLabel(['python'])).toBe('Python');
+  });
+
+  it('returns Unknown for empty array', () => {
+    expect(getStackLabel([])).toBe('Unknown');
+  });
 });
 
 describe('getCoverageTool', () => {

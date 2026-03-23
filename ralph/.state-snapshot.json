@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 42,
-    "done": 34,
+    "done": 35,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -281,7 +281,7 @@
       "acResults": null
     },
     "9-1-multi-stack-detection-subdir-scanning": {
-      "status": "ready",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -289,8 +289,8 @@
       "acResults": null
     },
     "9-2-state-schema-migration-multi-stack": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -348,7 +348,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 1,
+    "iteration": 2,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -360,15 +360,57 @@
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "9-1-multi-stack-detection-subdir-scanning",
-      "description": "**Observation:** Story technical notes suggested `vi.mock('node:fs')` but existing tests use real temp directories. Followed existing pattern for consistency.",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Ambiguity:** Epic says `stacks: string[]` but `StackName` union type exists from story 9-1. Chose `StackName[]` for type safety.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "9-1-multi-stack-detection-subdir-scanning",
-      "description": "**Observation:** AC2 specifies return order `[nodejs/frontend, rust/backend]` but AC6 says alphabetical by dir name — which gives `[backend, frontend]`. Implementation follows AC6. Spec inconsistency in story file.",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Missing context:** `InitResult` in `types.ts` may need `stacks` field but epic FR4 doesn't explicitly call it out — implied by scope.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-3",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Risk:** `detectStacks()` can return duplicate stack names from multiple directories. `stacks` field needs deduplication.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Observation:** All 8 ACs are cli-verifiable via unit tests — no external dependencies.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Pre-existing type errors:** `bridge.test.ts` implicit `any`, `run.test.ts` spread arg type error, `stack.test.ts` missing `endpoint`, `status.test.ts` missing `timeoutSummary`. None from this story.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Workaround:** Used `stacks: ['nodejs'] as StackName[]` instead of `as const` in `stack.test.ts` because readonly tuples aren't assignable to `StackName[]`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Risk:** `recoverCorruptedState()` recovery path not directly unit-tested for `stacks` field — would need planted `package.json` in temp dir.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "9-2-state-schema-migration-multi-stack",
+      "description": "**Observation:** 19 new tests added, all 3098 tests pass with 0 failures.",
       "source": "retro",
       "resolved": false
     }

@@ -94,6 +94,6 @@ development_status:
   9-2-state-schema-migration-multi-stack: done
 
   # Epic 9.2: Multi-Stack Consumers
-  9-3-init-orchestrator-per-stack-iteration: backlog
+  9-3-init-orchestrator-per-stack-iteration: done
   9-4-multi-stage-dockerfile-generation: backlog
   9-5-multi-stack-docs-remaining-consumers: backlog

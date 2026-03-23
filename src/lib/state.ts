@@ -20,6 +20,8 @@ export interface HarnessState {
     baseline: number | null;
     current: number | null;
     tool: 'c8' | 'coverage.py' | 'cargo-tarpaulin' | 'unknown';
+    /** Per-stack coverage tools map (stack name -> tool) for multi-stack projects */
+    tools?: Record<string, string>;
   };
   session_flags: {
     logs_queried: boolean;

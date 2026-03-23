@@ -47,7 +47,11 @@ export function getProjectName(projectDir: string): string {
   return basename(projectDir);
 }
 
-export function getStackLabel(stack: string | null): string {
+export function getStackLabel(stack: string | string[] | null): string {
+  if (Array.isArray(stack)) {
+    if (stack.length === 0) return 'Unknown';
+    return stack.map(s => getStackLabel(s)).join(' + ');
+  }
   if (stack === 'nodejs') return 'Node.js (package.json)';
   if (stack === 'python') return 'Python';
   if (stack === 'rust') return 'Rust (Cargo.toml)';

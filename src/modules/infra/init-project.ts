@@ -4,9 +4,9 @@
  */
 
 import { existsSync } from 'node:fs';
-import { basename } from 'node:path';
-import { ok as okOutput, fail as failOutput, info, jsonOutput } from '../../lib/output.js';
-import { detectStack, detectStacks, detectAppType } from '../../lib/stack-detect.js';
+import { basename, join } from 'node:path';
+import { ok as okOutput, fail as failOutput, info, warn, jsonOutput } from '../../lib/output.js';
+import { detectStacks, detectAppType } from '../../lib/stack-detect.js';
 import { readState, writeState, getDefaultState, getStatePath } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
 import { instrumentProject } from '../../lib/otlp.js';
@@ -65,14 +65,21 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   if (urlError !== null) { emitError(urlError, isJson); return ok(failResult(opts, urlError)); }
 
   // --- Stack detection ---
-  const stack = detectStack(projectDir);
-  result.stack = stack;
+  // Call detectStacks() once; derive primary root stack from it to avoid double filesystem scan
   const allStacks = detectStacks(projectDir);
+  const rootDetection = allStacks.find(s => s.dir === '.');
+  const stack = rootDetection ? rootDetection.stack : null;
+  if (!stack && !isJson) warn('No recognized stack detected');
+  result.stack = stack;
   result.stacks = [...new Set(allStacks.map(s => s.stack))];
   const appType = detectAppType(projectDir, stack);
   result.app_type = appType;
   if (!isJson) {
-    if (stack) info(`Stack detected: ${getStackLabel(stack)}`);
+    if (result.stacks.length > 0) {
+      info(`Stack detected: ${getStackLabel(result.stacks)}`);
+    } else if (stack) {
+      info(`Stack detected: ${getStackLabel(stack)}`);
+    }
     info(`App type: ${appType}`);
   }
 
@@ -120,7 +127,13 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   state.initialized = true;
   state.app_type = appType;
   state.enforcement = { frontend: opts.frontend, database: opts.database, api: opts.api };
+  // Per-stack coverage detection: build tools map keyed by stack name, primary stack's tool for backward compat
+  const coverageTools: Record<string, string> = {};
+  for (const detection of allStacks) {
+    coverageTools[detection.stack] = getCoverageTool(detection.stack);
+  }
   state.coverage.tool = getCoverageTool(stack);
+  state.coverage.tools = coverageTools;
   // Persist all detected stacks (not just the primary root stack)
   state.stacks = result.stacks as import('../../lib/stack-detect.js').StackName[];
   writeState(state, projectDir);
@@ -135,7 +148,19 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
     result.otlp = { status: 'skipped', packages_installed: false, start_script_patched: false, env_vars_configured: false };
     if (!isJson) info('OTLP: skipped (--no-observability)');
   } else {
-    result.otlp = instrumentProject(projectDir, stack, { json: isJson, appType });
+    // Per-stack OTLP instrumentation: instrument each detected stack in its directory
+    for (const detection of allStacks) {
+      const stackDir = detection.dir === '.' ? projectDir : join(projectDir, detection.dir);
+      const stackOtlp = instrumentProject(stackDir, detection.stack, { json: isJson, appType });
+      // Primary (root) stack's result goes to result.otlp for backward compat
+      if (detection.dir === '.' && detection.stack === stack) {
+        result.otlp = stackOtlp;
+      }
+    }
+    // Fallback: if primary stack wasn't in allStacks (shouldn't happen), use single-stack call
+    if (!result.otlp) {
+      result.otlp = instrumentProject(projectDir, stack, { json: isJson, appType });
+    }
   }
 
   // Re-read state to pick up otlp changes written by instrumentProject

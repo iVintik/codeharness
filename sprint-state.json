@@ -1,10 +1,10 @@
 {
   "version": 1,
   "sprint": {
-    "total": 34,
-    "done": 30,
+    "total": 37,
+    "done": 31,
     "failed": 0,
-    "blocked": 0,
+    "blocked": 2,
     "inProgress": null
   },
   "stories": {
@@ -146,7 +146,7 @@
     },
     "4-2-dockerfile-template-dev-integration": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -154,7 +154,7 @@
     },
     "5-1-code-review-observability-check": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -162,7 +162,7 @@
     },
     "5-2-verification-runtime-integration": {
       "status": "done",
-      "attempts": 2,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -170,7 +170,7 @@
     },
     "6-1-rewrite-ink-components-match-ux-spec": {
       "status": "done",
-      "attempts": 2,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -178,7 +178,7 @@
     },
     "6-2-verify-stream-json-pipeline-e2e": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -186,7 +186,7 @@
     },
     "7-1-install-semgrep-static-analysis": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -194,7 +194,7 @@
     },
     "7-2-fix-bats-runtime-tests": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -202,7 +202,7 @@
     },
     "7-3-create-dockerfile": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -218,7 +218,7 @@
     },
     "8-2-expand-state-types-for-rust": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -226,7 +226,7 @@
     },
     "8-3-cargo-tarpaulin-coverage-detection": {
       "status": "done",
-      "attempts": 2,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -234,7 +234,7 @@
     },
     "8-4-register-cargo-tarpaulin-dep-registry": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -242,23 +242,23 @@
     },
     "8-5-rust-dockerfile-template": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "8-6-rust-verification-dockerfile": {
-      "status": "review",
-      "attempts": 1,
+      "status": "done",
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "8-7-rust-otlp-instrumentation": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -279,403 +279,98 @@
       "lastError": null,
       "proofPath": null,
       "acResults": null
+    },
+    "only-story": {
+      "status": "backlog",
+      "attempts": 2,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-x": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-y": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
     }
   },
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 7,
+    "iteration": 9,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "8-6-rust-verification-dockerfile",
+    "currentStory": "8-7-rust-otlp-instrumentation",
     "currentPhase": "verify",
-    "lastAction": "Re-verifying after package.json fix",
-    "acProgress": "6/8"
+    "lastAction": "Starting verification",
+    "acProgress": "8/8"
   },
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Leftover container:** Previous session left `codeharness-verify` container running. Had to clean up before starting fresh verification.",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Bug found in existing code:** `configureAgent()` falls through to set `agent_sdk: 'traceloop'` for Rust projects — no Rust Traceloop SDK exists. Story task 4 fixes this.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Stack detection mismatch:** `codeharness status --check-docker` reported stack as down, but shared stack containers were running (using `codeharness-shared-*` naming). The `docker-compose.harness.yml` tried to start duplicate containers and hit port conflicts. Worked around by using the shared stack directly.",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Scope expansion:** AC2 requires writing `OTEL_EXPORTER_OTLP_ENDPOINT` to `.env.codeharness` — current code only writes `OTEL_SERVICE_NAME` there. Necessary for Rust apps that read env vars directly.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Observability gap:** Both AC1 and AC2 verifications showed no log events emitted to VictoriaLogs during `codeharness init` operations. Silent code path.",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Risk: otlp.ts at 375 lines**, will grow to ~410 (exceeds 300-line NFR1 limit). Pre-existing violation.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Beads sync failure:** `codeharness sync` couldn't find story Status line in the story file — likely looking for `## Status:` pattern that was stripped or mismatched.",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Risk: AC8 integration-required** — needs real Rust toolchain + `cargo` for full pipeline verification.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Pre-existing file:** Story file already existed with partial/draft version (status: backlog). Overwrote with complete version.",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Pre-existing test failures:** 6 tests fail in `modules/sprint/__tests__/migration.test.ts` and `modules/sprint/__tests__/state.test.ts`. Unrelated to story 8-7. May have broken between 8-6 and now.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**File size risk:** `coverage.ts` is already 568 lines (exceeds 300-line architecture limit). Story adds ~40 more lines. Explicitly noted not to refactor/split.",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Mock isolation quirk:** `installRustOtlp` test needed explicit `mockClear()` because `vi.restoreAllMocks()` in `beforeEach` doesn't fully clear `mock.calls` on module-level `vi.mock`'d functions. Minor fragility.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Mock complexity:** AC #5 (tarpaulin not installed) requires `execSync` mock for rust path — existing tests don't mock `execSync` for rust yet.",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**File line count:** `otlp.ts` is now ~423 lines, exceeding the 300-line NFR1 limit. `ensureEndpointEnvVar` duplicates pattern from `ensureServiceNameEnvVar` — could be consolidated.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**ESM mocking limitation:** `vi.spyOn` cannot spy on `execSync` from `node:child_process` in ESM mode. Used `vi.mock('node:child_process', async (importOriginal) => ...)` as workaround — adds file-level mock applying to all tests (mitigated by `mockReset()` in `afterEach`).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-9",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Cargo test regex ordering:** The cargo test regex was placed before pytest regex because pytest regex would false-match on cargo test output. Ordering matters — fragile to reordering by future contributors.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-10",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**No integration test for actual `cargo tarpaulin` execution:** All tests mock the subprocess call. Consistent with existing Node.js/Python coverage tool tests in codebase.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-11",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**HIGH bug fixed:** `parseTestCounts()` only captured first `test result:` line from cargo test output. Workspace projects emit one per crate, so counts were wrong. Fixed with global regex + aggregation loop.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-12",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**LOW not fixed:** No type validation on `parseTarpaulinCoverage` — if tarpaulin outputs `\"coverage\": \"85.5\"` (string), `?? 0` won't catch it. Low risk.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-13",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**LOW not fixed:** `checkOnlyCoverage()` shells out to `cargo tarpaulin --version` for Rust projects — unnecessary side effect in check-only mode. Pre-existing pattern.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-14",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Coverage note:** `coverage.ts` branch coverage 77.98% (below 80% floor for branches) — caused by pre-existing untested branches, not new Rust code. Statement coverage 90.51% passes.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-15",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Time constraint:** Verification not started — insufficient time remaining in session budget. Story left at `verifying` for next session.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-16",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**CLI does not expose `runCommand` or `reportFormat` in JSON output.** `codeharness coverage --json` output includes `tool` but not other `detectCoverageTool()` fields. AC1 and AC2 required supplemental verification by replicating function logic from `dist/index.js`. Documentation/API gap.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-17",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**AC4 verified via function replication, not CLI.** `parseTestCounts` is internal and not exercised by any CLI subcommand that accepts raw test output. No `codeharness parse-test-output` command.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**[OBSERVABILITY GAP]** No log entries in VictoriaLogs during verification. Expected — container doesn't have Docker-in-Docker so observability stack not running inside it.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-19",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Workspace aggregation confirmed.** Bundle shows `parseTestCounts` uses global regex with `matchAll`-style loop for multi-crate workspace test output.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-20",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Unconditional dependency registry:** Adding `cargo-tarpaulin` means `cargo install cargo-tarpaulin` will be attempted on all projects regardless of stack. Fails gracefully (`critical: false`) but is noisy. Stack-conditional filtering would be a separate story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-21",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Pre-existing stub overwritten:** The file already existed as a skeleton from sprint planning. Overwritten with comprehensive story as expected.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-22",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Risk: deps-install.test.ts mock registry:** Consumer test mocks `DEPENDENCY_REGISTRY` with hardcoded single-entry array. Mock isolates consumer from registry changes — no update needed there.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-23",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Pre-existing test failures:** 4 tests fail in `modules/sprint/__tests__/state.test.ts` when run as full suite — test isolation issue, not related to this story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-24",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Unconditional registry design acknowledged:** `cargo install cargo-tarpaulin` will be attempted on non-Rust projects. `critical: false` handles graceful failure. Stack-conditional filtering deferred.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-25",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**MEDIUM (fixed):** AGENTS.md stale — deps.ts description omitted cargo-tarpaulin from tool list.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-26",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**MEDIUM (fixed):** Story File List empty — no files documented in Dev Agent Record.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-27",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**LOW (not fixed):** Fragile catch-all mock in installAllDependencies tests — implicitly handles cargo-tarpaulin via fallthrough rather than explicit mock branch.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-28",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "Coverage: 97% overall, all 123 files above 80% floor. No gaps.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-29",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "All 5 ACs passed black-box verification.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-30",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Beads sync failed:** `bd` binary not installed — recurring issue across sessions.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-31",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Showboat not installed warning** during `codeharness verify` — non-blocking but means no re-verification via showboat.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-32",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "No observability gaps reported by verifier for this story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-33",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Pre-existing stub overwritten:** Stub story file already existed from earlier epic planning. Overwritten with comprehensive version.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-34",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Workflow naming mismatch:** workflow.md referenced in skill was actually workflow.yaml — minor.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-35",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Risk: checkNoSourceCopy validator false positive:** The `COPY src/` pattern in the validator regex could false-match on Rust template's `COPY . .` builder stage. Story documents this prominently but dev agent could miss it.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-36",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Risk: AC7 integration-required:** Depends on `detectStack()` returning `'rust'` for real Rust project during `codeharness init`. Cannot verify purely via unit tests.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-37",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Pre-existing test failure:** `modules/sprint/__tests__/migration.test.ts` line 261 fails (`migrateFromOldFormat` returns `success: false`). Unrelated to this story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-38",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**No workarounds applied.** Implementation follows existing patterns exactly.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-39",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**34/34 dockerfile-template tests pass.** 2994/2995 full suite (1 pre-existing failure).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-40",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Proof format issue:** AC3 and AC4 referenced AC2's Dockerfile output without their own `bash`+`output` code blocks. Proof validator counted them as \"pending\" (5/7). Fixed by adding per-AC grep evidence blocks.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-41",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Observability gap:** All 7 ACs showed no log events in VictoriaLogs. Recurring pattern — CLI commands don't emit telemetry in verify container.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-42",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Beads sync skipped:** `bd` binary not installed (recurring).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-43",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**Showboat re-verification skipped:** showboat not installed (recurring).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-44",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**HIGH (fixed):** Missing showboat proof document — created with AC-by-AC evidence.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-45",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**MEDIUM (fixed):** AGENTS.md stale — omitted rust from dockerfile-template.ts entry.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-46",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**MEDIUM (not fixed, design decision):** Rust template has no ENTRYPOINT/CMD — consistent with all other templates.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-47",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**LOW (not fixed):** Hardcoded `rust:1.82-slim` will age. Users edit the template.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-48",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "**LOW (not fixed):** Error-path tests only exercise nodejs stack (code is stack-agnostic).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-49",
-      "story": "8-5-rust-dockerfile-template",
-      "description": "Coverage: 97% overall, 100% for dockerfile-template.ts, all files above 80% floor.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-50",
-      "story": "8-6-rust-verification-dockerfile",
-      "description": "**Ambiguity: showboat installation in Rust image.** Epic says \"showboat\" but doesn't mention it's an npm package requiring Node.js. Prior draft incorrectly listed `pipx install showboat`. Story now documents Node.js dependency.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-51",
-      "story": "8-6-rust-verification-dockerfile",
-      "description": "**Risk: env.ts approaching 300-line limit.** File is 293 lines. Adding `buildRustImage()` puts it around ~308 lines.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-52",
-      "story": "8-6-rust-verification-dockerfile",
-      "description": "**Observation: prior draft existed.** Minimal draft (74 lines, 2 ACs) overwritten with comprehensive version (217 lines, 8 ACs, 8 tasks).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-53",
-      "story": "8-6-rust-verification-dockerfile",
-      "description": "**Task 5.2 deviation:** Story specified copying Cargo.toml/Cargo.lock/src into build context. Dev Notes clarified this is a tools-only image (project mounted at runtime), so buildRustImage follows buildGenericImage pattern with Dockerfile-only context. Task marked complete despite deviation.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-54",
-      "story": "8-6-rust-verification-dockerfile",
-      "description": "**Build timeout:** buildRustImage uses 300s timeout (vs 120s for others) because cargo install cargo-tarpaulin compiles from source. Minor pattern deviation.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-55",
-      "story": "8-6-rust-verification-dockerfile",
-      "description": "**env.ts line count:** File grew from 293 to ~307 lines, slightly over 300-line soft limit.",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Sprint-status.yaml corruption:** The dev-story agent overwrote sprint-status.yaml with placeholder content. Had to restore from git and manually set status to `review`.",
       "source": "retro",
       "resolved": false
     }

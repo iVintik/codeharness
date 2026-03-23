@@ -12,8 +12,10 @@ import {
   installNodeOtlp,
   patchNodeStartScript,
   installPythonOtlp,
+  installRustOtlp,
   configureOtlpEnvVars,
   ensureServiceNameEnvVar,
+  ensureEndpointEnvVar,
   instrumentProject,
   configureCli,
   configureWeb,
@@ -213,6 +215,52 @@ describe('installPythonOtlp', () => {
   });
 });
 
+describe('installRustOtlp', () => {
+  it('installs OTLP packages via cargo add', () => {
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+    const result = installRustOtlp(testDir);
+    expect(result.status).toBe('configured');
+    expect(result.packages_installed).toBe(true);
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'cargo',
+      expect.arrayContaining(['add', 'opentelemetry', 'opentelemetry-otlp', 'tracing-opentelemetry', 'tracing-subscriber']),
+      expect.objectContaining({ cwd: testDir }),
+    );
+  });
+
+  it('returns failed when cargo add fails', () => {
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error('cargo add failed');
+    });
+    const result = installRustOtlp(testDir);
+    expect(result.status).toBe('failed');
+    expect(result.packages_installed).toBe(false);
+    expect(result.error).toContain('Failed to install Rust OTLP packages');
+  });
+
+  it('truncates long error messages', () => {
+    const longStderr = 'E'.repeat(500);
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error(longStderr);
+    });
+    const result = installRustOtlp(testDir);
+    expect(result.error).toBeDefined();
+    expect(result.error!.length).toBeLessThan(500);
+    expect(result.error).toContain('(truncated)');
+  });
+
+  it('includes all four Rust OTLP packages in cargo add command', () => {
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+    mockExecFileSync.mockClear();
+    installRustOtlp(testDir);
+    const args = mockExecFileSync.mock.calls[0][1] as string[];
+    expect(args).toContain('opentelemetry');
+    expect(args).toContain('opentelemetry-otlp');
+    expect(args).toContain('tracing-opentelemetry');
+    expect(args).toContain('tracing-subscriber');
+  });
+});
+
 describe('configureOtlpEnvVars', () => {
   it('writes OTLP config for Node.js to state', () => {
     initState('nodejs');
@@ -271,6 +319,25 @@ describe('configureOtlpEnvVars', () => {
 
     const state = readState(testDir);
     expect(state.otlp!.resource_attributes).toBe('service.instance.id=$(hostname)-$$');
+  });
+
+  it('writes OTEL_EXPORTER_OTLP_ENDPOINT to .env.codeharness for Rust', () => {
+    initState('rust');
+
+    configureOtlpEnvVars(testDir, 'rust');
+
+    const content = readFileSync(join(testDir, '.env.codeharness'), 'utf-8');
+    expect(content).toContain('OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318');
+    expect(content).toContain('OTEL_SERVICE_NAME=');
+  });
+
+  it('does not write OTEL_EXPORTER_OTLP_ENDPOINT for non-Rust stacks', () => {
+    initState('nodejs');
+
+    configureOtlpEnvVars(testDir, 'nodejs');
+
+    const content = readFileSync(join(testDir, '.env.codeharness'), 'utf-8');
+    expect(content).not.toContain('OTEL_EXPORTER_OTLP_ENDPOINT');
   });
 
   it('does not set cli_env_vars (cli config is handled by configureCli)', () => {
@@ -476,6 +543,29 @@ describe('configureAgent', () => {
     expect(state.otlp!.agent_sdk).toBe('traceloop');
   });
 
+  it('skips for Rust stack without installing packages or setting agent_sdk', () => {
+    initStateWithOtlp('rust');
+    mockExecFileSync.mockClear();
+
+    configureAgent(testDir, 'rust');
+
+    // Should not call any execFileSync
+    expect(mockExecFileSync).not.toHaveBeenCalled();
+    // Should not set agent_sdk in state
+    const state = readState(testDir);
+    expect(state.otlp!.agent_sdk).toBeUndefined();
+  });
+
+  it('prints info message when skipping Rust agent configuration', () => {
+    initStateWithOtlp('rust');
+    const logSpy = vi.spyOn(console, 'log');
+
+    configureAgent(testDir, 'rust');
+
+    const calls = logSpy.mock.calls.map(c => String(c[0]));
+    expect(calls.some(c => c.includes('Rust agent SDK not yet supported'))).toBe(true);
+  });
+
   it('does nothing for null stack', () => {
     initStateWithOtlp(null);
 
@@ -510,6 +600,63 @@ describe('instrumentProject', () => {
     expect(result.status).toBe('configured');
     expect(result.packages_installed).toBe(true);
     expect(result.env_vars_configured).toBe(true);
+  });
+
+  it('instruments Rust project end-to-end', () => {
+    initState('rust');
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    const result = instrumentProject(testDir, 'rust');
+    expect(result.status).toBe('configured');
+    expect(result.packages_installed).toBe(true);
+    expect(result.env_vars_configured).toBe(true);
+
+    // cargo add should have been called
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'cargo',
+      expect.arrayContaining(['add', 'opentelemetry']),
+      expect.objectContaining({ cwd: testDir }),
+    );
+  });
+
+  it('prints Rust info message in non-json mode', () => {
+    initState('rust');
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+    const logSpy = vi.spyOn(console, 'log');
+
+    instrumentProject(testDir, 'rust', { json: false });
+
+    const calls = logSpy.mock.calls.map(c => String(c[0]));
+    expect(calls.some(c => c.includes('OTLP: Rust packages installed'))).toBe(true);
+    expect(calls.some(c => c.includes('OTLP: environment variables configured'))).toBe(true);
+  });
+
+  it('handles Rust install failure gracefully — env vars still configured', () => {
+    initState('rust');
+    mockExecFileSync.mockImplementation(() => {
+      throw new Error('cargo add failed');
+    });
+
+    const result = instrumentProject(testDir, 'rust');
+    expect(result.status).toBe('failed');
+    expect(result.packages_installed).toBe(false);
+    // Env vars are always configured even when package install fails
+    expect(result.env_vars_configured).toBe(true);
+
+    // State should have rust_env_hint set
+    const state = readState(testDir);
+    expect(state.otlp).toBeDefined();
+    expect(state.otlp!.rust_env_hint).toBe('OTEL_EXPORTER_OTLP_ENDPOINT');
+  });
+
+  it('writes OTEL_EXPORTER_OTLP_ENDPOINT to .env.codeharness for Rust project', () => {
+    initState('rust');
+    mockExecFileSync.mockReturnValue(Buffer.from(''));
+
+    instrumentProject(testDir, 'rust');
+
+    const content = readFileSync(join(testDir, '.env.codeharness'), 'utf-8');
+    expect(content).toContain('OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318');
   });
 
   it('skips for unsupported stack', () => {
@@ -807,6 +954,46 @@ describe('ensureServiceNameEnvVar', () => {
 
     const content = readFileSync(join(testDir, '.env.codeharness'), 'utf-8');
     expect(content).toBe('OTHER_VAR=value\nOTEL_SERVICE_NAME=my-project\n');
+    expect(content).not.toContain('\n\n');
+  });
+});
+
+describe('ensureEndpointEnvVar', () => {
+  it('creates .env.codeharness with OTEL_EXPORTER_OTLP_ENDPOINT when file does not exist', () => {
+    ensureEndpointEnvVar(testDir, 'http://localhost:4318');
+
+    const content = readFileSync(join(testDir, '.env.codeharness'), 'utf-8');
+    expect(content).toBe('OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318\n');
+  });
+
+  it('updates existing OTEL_EXPORTER_OTLP_ENDPOINT without clobbering other entries', () => {
+    writeFileSync(join(testDir, '.env.codeharness'), 'OTHER_VAR=value\nOTEL_EXPORTER_OTLP_ENDPOINT=http://old:4318\n', 'utf-8');
+
+    ensureEndpointEnvVar(testDir, 'http://new:4318');
+
+    const content = readFileSync(join(testDir, '.env.codeharness'), 'utf-8');
+    expect(content).toContain('OTHER_VAR=value');
+    expect(content).toContain('OTEL_EXPORTER_OTLP_ENDPOINT=http://new:4318');
+    expect(content).not.toContain('http://old:4318');
+  });
+
+  it('appends to existing file when OTEL_EXPORTER_OTLP_ENDPOINT is not present', () => {
+    writeFileSync(join(testDir, '.env.codeharness'), 'OTHER_VAR=value\n', 'utf-8');
+
+    ensureEndpointEnvVar(testDir, 'http://localhost:4318');
+
+    const content = readFileSync(join(testDir, '.env.codeharness'), 'utf-8');
+    expect(content).toContain('OTHER_VAR=value');
+    expect(content).toContain('OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318');
+  });
+
+  it('does not introduce blank lines when appending to file ending with newline', () => {
+    writeFileSync(join(testDir, '.env.codeharness'), 'OTHER_VAR=value\n', 'utf-8');
+
+    ensureEndpointEnvVar(testDir, 'http://localhost:4318');
+
+    const content = readFileSync(join(testDir, '.env.codeharness'), 'utf-8');
+    expect(content).toBe('OTHER_VAR=value\nOTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318\n');
     expect(content).not.toContain('\n\n');
   });
 });

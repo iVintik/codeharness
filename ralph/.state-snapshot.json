@@ -1,14 +1,14 @@
 {
   "version": 1,
   "sprint": {
-    "total": 34,
-    "done": 28,
-    "failed": 0,
-    "blocked": 0,
+    "total": 6,
+    "done": 2,
+    "failed": 1,
+    "blocked": 1,
     "inProgress": null
   },
   "stories": {
-    "0-1-sprint-state-live-updates": {
+    "s1": {
       "status": "done",
       "attempts": 0,
       "lastAttempt": null,
@@ -16,7 +16,7 @@
       "proofPath": null,
       "acResults": null
     },
-    "0-2-ralph-progress-display": {
+    "s2": {
       "status": "done",
       "attempts": 0,
       "lastAttempt": null,
@@ -24,257 +24,33 @@
       "proofPath": null,
       "acResults": null
     },
-    "0-3-run-command-dashboard": {
-      "status": "done",
+    "s3": {
+      "status": "failed",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
-    "0-5-1-stream-json-claude-driver": {
-      "status": "done",
+    "s4": {
+      "status": "blocked",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
-    "0-5-2-stream-event-parser": {
-      "status": "done",
+    "s5": {
+      "status": "backlog",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
-    "0-5-3-ink-terminal-renderer": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "0-5-4-run-command-integration": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "1-1-semgrep-rules-for-observability": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "1-2-analyzer-module-interface": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "1-3-observability-coverage-state-tracking": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "2-1-verification-observability-check": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "2-2-observability-hook-enforcement": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "2-3-standalone-runtime-check-audit-mode": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "3-1-audit-coordinator-dimensions": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "3-2-audit-fix-story-generation": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "3-3-onboard-alias": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "4-1-dockerfile-rules-validation": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "4-2-dockerfile-template-dev-integration": {
-      "status": "done",
-      "attempts": 1,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "5-1-code-review-observability-check": {
-      "status": "done",
-      "attempts": 1,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "5-2-verification-runtime-integration": {
-      "status": "done",
+    "only-story": {
+      "status": "backlog",
       "attempts": 2,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "6-1-rewrite-ink-components-match-ux-spec": {
-      "status": "done",
-      "attempts": 2,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "6-2-verify-stream-json-pipeline-e2e": {
-      "status": "done",
-      "attempts": 1,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "7-1-install-semgrep-static-analysis": {
-      "status": "done",
-      "attempts": 1,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "7-2-fix-bats-runtime-tests": {
-      "status": "done",
-      "attempts": 1,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "7-3-create-dockerfile": {
-      "status": "done",
-      "attempts": 1,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-1-rust-stack-and-app-type-detection": {
-      "status": "done",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-2-expand-state-types-for-rust": {
-      "status": "done",
-      "attempts": 1,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-3-cargo-tarpaulin-coverage-detection": {
-      "status": "done",
-      "attempts": 2,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-4-register-cargo-tarpaulin-dep-registry": {
-      "status": "review",
-      "attempts": 1,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-5-rust-dockerfile-template": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-6-rust-verification-dockerfile": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-7-rust-otlp-instrumentation": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-8-rust-documentation-scaffolding": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "8-9-semgrep-rules-rust-observability": {
-      "status": "backlog",
-      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -282,9 +58,9 @@
     }
   },
   "run": {
-    "active": true,
+    "active": false,
     "startedAt": null,
-    "iteration": 5,
+    "iteration": 0,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -293,174 +69,5 @@
     "lastAction": null,
     "acProgress": null
   },
-  "actionItems": [
-    {
-      "id": "migrated-1",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Leftover container:** Previous session left `codeharness-verify` container running. Had to clean up before starting fresh verification.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-2",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Stack detection mismatch:** `codeharness status --check-docker` reported stack as down, but shared stack containers were running (using `codeharness-shared-*` naming). The `docker-compose.harness.yml` tried to start duplicate containers and hit port conflicts. Worked around by using the shared stack directly.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-3",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Observability gap:** Both AC1 and AC2 verifications showed no log events emitted to VictoriaLogs during `codeharness init` operations. Silent code path.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-4",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Beads sync failure:** `codeharness sync` couldn't find story Status line in the story file — likely looking for `## Status:` pattern that was stripped or mismatched.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-5",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Pre-existing file:** Story file already existed with partial/draft version (status: backlog). Overwrote with complete version.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-6",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**File size risk:** `coverage.ts` is already 568 lines (exceeds 300-line architecture limit). Story adds ~40 more lines. Explicitly noted not to refactor/split.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-7",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Mock complexity:** AC #5 (tarpaulin not installed) requires `execSync` mock for rust path — existing tests don't mock `execSync` for rust yet.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-8",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**ESM mocking limitation:** `vi.spyOn` cannot spy on `execSync` from `node:child_process` in ESM mode. Used `vi.mock('node:child_process', async (importOriginal) => ...)` as workaround — adds file-level mock applying to all tests (mitigated by `mockReset()` in `afterEach`).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-9",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Cargo test regex ordering:** The cargo test regex was placed before pytest regex because pytest regex would false-match on cargo test output. Ordering matters — fragile to reordering by future contributors.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-10",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**No integration test for actual `cargo tarpaulin` execution:** All tests mock the subprocess call. Consistent with existing Node.js/Python coverage tool tests in codebase.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-11",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**HIGH bug fixed:** `parseTestCounts()` only captured first `test result:` line from cargo test output. Workspace projects emit one per crate, so counts were wrong. Fixed with global regex + aggregation loop.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-12",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**LOW not fixed:** No type validation on `parseTarpaulinCoverage` — if tarpaulin outputs `\"coverage\": \"85.5\"` (string), `?? 0` won't catch it. Low risk.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-13",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**LOW not fixed:** `checkOnlyCoverage()` shells out to `cargo tarpaulin --version` for Rust projects — unnecessary side effect in check-only mode. Pre-existing pattern.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-14",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Coverage note:** `coverage.ts` branch coverage 77.98% (below 80% floor for branches) — caused by pre-existing untested branches, not new Rust code. Statement coverage 90.51% passes.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-15",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Time constraint:** Verification not started — insufficient time remaining in session budget. Story left at `verifying` for next session.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-16",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**CLI does not expose `runCommand` or `reportFormat` in JSON output.** `codeharness coverage --json` output includes `tool` but not other `detectCoverageTool()` fields. AC1 and AC2 required supplemental verification by replicating function logic from `dist/index.js`. Documentation/API gap.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-17",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**AC4 verified via function replication, not CLI.** `parseTestCounts` is internal and not exercised by any CLI subcommand that accepts raw test output. No `codeharness parse-test-output` command.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**[OBSERVABILITY GAP]** No log entries in VictoriaLogs during verification. Expected — container doesn't have Docker-in-Docker so observability stack not running inside it.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-19",
-      "story": "8-3-cargo-tarpaulin-coverage-detection",
-      "description": "**Workspace aggregation confirmed.** Bundle shows `parseTestCounts` uses global regex with `matchAll`-style loop for multi-crate workspace test output.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-20",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Unconditional dependency registry:** Adding `cargo-tarpaulin` means `cargo install cargo-tarpaulin` will be attempted on all projects regardless of stack. Fails gracefully (`critical: false`) but is noisy. Stack-conditional filtering would be a separate story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-21",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Pre-existing stub overwritten:** The file already existed as a skeleton from sprint planning. Overwritten with comprehensive story as expected.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-22",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Risk: deps-install.test.ts mock registry:** Consumer test mocks `DEPENDENCY_REGISTRY` with hardcoded single-entry array. Mock isolates consumer from registry changes — no update needed there.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-23",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Pre-existing test failures:** 4 tests fail in `modules/sprint/__tests__/state.test.ts` when run as full suite — test isolation issue, not related to this story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-24",
-      "story": "8-4-register-cargo-tarpaulin-dep-registry",
-      "description": "**Unconditional registry design acknowledged:** `cargo install cargo-tarpaulin` will be attempted on non-Rust projects. `critical: false` handles graceful failure. Stack-conditional filtering deferred.",
-      "source": "retro",
-      "resolved": false
-    }
-  ]
+  "actionItems": []
 }

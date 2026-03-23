@@ -1,13 +1,2 @@
- 
-4-2-dockerfile-template-dev-integration 1
-5-1-code-review-observability-check 1
-5-2-verification-runtime-integration 2
-6-1-rewrite-ink-components-match-ux-spec 2
-6-2-verify-stream-json-pipeline-e2e 1
-7-1-install-semgrep-static-analysis 1
-7-2-fix-bats-runtime-tests 1
-7-3-create-dockerfile 1
-8-2-expand-state-types-for-rust 1
-8-3-cargo-tarpaulin-coverage-detection 2
-8-4-register-cargo-tarpaulin-dep-registry 1
-8-5-rust-dockerfile-template 1
+only-story 2
+8-7-rust-otlp-instrumentation 1

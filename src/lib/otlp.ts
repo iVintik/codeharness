@@ -26,6 +26,13 @@ const PYTHON_OTLP_PACKAGES = [
   'opentelemetry-exporter-otlp',
 ];
 
+const RUST_OTLP_PACKAGES = [
+  'opentelemetry',
+  'opentelemetry-otlp',
+  'tracing-opentelemetry',
+  'tracing-subscriber',
+];
+
 export const WEB_OTLP_PACKAGES = [
   '@opentelemetry/sdk-trace-web',
   '@opentelemetry/instrumentation-fetch',
@@ -135,6 +142,27 @@ export function installPythonOtlp(projectDir: string): OtlpResult {
   };
 }
 
+export function installRustOtlp(projectDir: string): OtlpResult {
+  try {
+    execFileSync('cargo', ['add', ...RUST_OTLP_PACKAGES], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
+    return {
+      status: 'configured',
+      packages_installed: true,
+      start_script_patched: false,
+      env_vars_configured: false,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return {
+      status: 'failed',
+      packages_installed: false,
+      start_script_patched: false,
+      env_vars_configured: false,
+      error: `Failed to install Rust OTLP packages: ${truncateError(message)}`,
+    };
+  }
+}
+
 export function configureCli(projectDir: string): void {
   const { state, body } = readStateWithBody(projectDir);
 
@@ -224,6 +252,9 @@ export function configureAgent(projectDir: string, stack: string | null): void {
         // Agent packages are supplementary; failure is non-fatal
       }
     }
+  } else if (stack === 'rust') {
+    info('Rust agent SDK not yet supported — skipping agent configuration');
+    return;
   }
 
   const { state, body } = readStateWithBody(projectDir);
@@ -244,6 +275,25 @@ export function ensureServiceNameEnvVar(projectDir: string, serviceName: string)
     // Split and remove trailing empty lines from the split result
     const lines = content.split('\n').filter((l, i, arr) => i < arr.length - 1 || l.trim() !== '');
     const idx = lines.findIndex(l => l.startsWith('OTEL_SERVICE_NAME='));
+    if (idx !== -1) {
+      lines[idx] = envLine;
+    } else {
+      lines.push(envLine);
+    }
+    writeFileSync(envFilePath, lines.join('\n') + '\n', 'utf-8');
+  } else {
+    writeFileSync(envFilePath, envLine + '\n', 'utf-8');
+  }
+}
+
+export function ensureEndpointEnvVar(projectDir: string, endpoint: string): void {
+  const envFilePath = join(projectDir, '.env.codeharness');
+  const envLine = `OTEL_EXPORTER_OTLP_ENDPOINT=${endpoint}`;
+
+  if (existsSync(envFilePath)) {
+    const content = readFileSync(envFilePath, 'utf-8');
+    const lines = content.split('\n').filter((l, i, arr) => i < arr.length - 1 || l.trim() !== '');
+    const idx = lines.findIndex(l => l.startsWith('OTEL_EXPORTER_OTLP_ENDPOINT='));
     if (idx !== -1) {
       lines[idx] = envLine;
     } else {
@@ -283,6 +333,11 @@ export function configureOtlpEnvVars(projectDir: string, stack: string | null, o
 
   // Write OTEL_SERVICE_NAME to .env.codeharness file
   ensureServiceNameEnvVar(projectDir, projectName);
+
+  // Rust reads env vars directly — also write OTEL_EXPORTER_OTLP_ENDPOINT
+  if (stack === 'rust') {
+    ensureEndpointEnvVar(projectDir, state.otlp.endpoint);
+  }
 }
 
 export function instrumentProject(
@@ -316,16 +371,9 @@ export function instrumentProject(
       info('OTLP: wrap your command with: opentelemetry-instrument <command>');
     }
   } else if (stack === 'rust') {
-    // Rust OTLP package installation is story 8-7.
-    // For now, configure env vars and state hint only.
-    result = {
-      status: 'configured',
-      packages_installed: false,
-      start_script_patched: false,
-      env_vars_configured: false,
-    };
-    if (!isJson) {
-      info('OTLP: Rust — env vars configured. Run `cargo add opentelemetry opentelemetry-otlp tracing-opentelemetry tracing-subscriber` to add packages.');
+    result = installRustOtlp(projectDir);
+    if (result.status === 'configured' && !isJson) {
+      ok('OTLP: Rust packages installed');
     }
   } else {
     return {

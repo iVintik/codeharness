@@ -79,7 +79,7 @@ development_status:
   8-6-rust-verification-dockerfile: done
 
   # Epic 8.4: Rust Observability & Docs
-  8-7-rust-otlp-instrumentation: backlog
+  8-7-rust-otlp-instrumentation: done
   8-8-rust-documentation-scaffolding: backlog
 
   # Epic 8.5: Rust Static Analysis

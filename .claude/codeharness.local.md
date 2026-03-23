@@ -9,7 +9,7 @@ enforcement:
 coverage:
   target: 90
   baseline: 0
-  current: 97
+  current: 97.05
 session_flags:
   logs_queried: false
   tests_passed: true
@@ -118,11 +118,57 @@ verification_log:
   - "8-3-cargo-tarpaulin-coverage-detection: pass at 2026-03-23T06:17:19.968Z"
   - "8-4-register-cargo-tarpaulin-dep-registry: pass at 2026-03-23T06:37:10.390Z"
   - "8-5-rust-dockerfile-template: pass at 2026-03-23T07:04:01.064Z"
-verify_env_dist_hash: 7f62674587285b74329877143368e3b3705b8ae99e99ea15990a10cffb409821
+  - "8-6-rust-verification-dockerfile: pass at 2026-03-23T07:29:32.653Z"
+  - "8-7-rust-otlp-instrumentation: pass at 2026-03-23T08:07:40.861Z"
+verify_env_dist_hash: d99905427ffb648e778c4178a9b0b6e891203ec4f3f3fe571fe9b19453ee74d8
 tests_passed: true
 coverage_met: true
 verification_run: true
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -9,7 +9,7 @@ enforcement:
 coverage:
   target: 90
   baseline: 0
-  current: 97.03
+  current: 97
 session_flags:
   logs_queried: false
   tests_passed: true
@@ -114,11 +114,30 @@ verification_log:
   - "7-2-fix-bats-runtime-tests: pass at 2026-03-21T12:21:20.577Z"
   - "7-3-create-dockerfile: pass at 2026-03-21T12:43:24.435Z"
   - "8-1-rust-stack-and-app-type-detection: pass at 2026-03-23T05:18:12.983Z"
-verify_env_dist_hash: 36823b4ef1baefc9ccf477dc0926276dc82c7bd6b7b046b2e73834c81895fa56
+  - "8-2-expand-state-types-for-rust: pass at 2026-03-23T05:44:37.125Z"
+  - "8-3-cargo-tarpaulin-coverage-detection: pass at 2026-03-23T06:17:19.968Z"
+  - "8-4-register-cargo-tarpaulin-dep-registry: pass at 2026-03-23T06:37:10.390Z"
+verify_env_dist_hash: c0c7fb88a82d77402ea6b8bf94a9a4848d289e2bc9faf4a7b2b1caf94e016479
 tests_passed: true
 coverage_met: true
 verification_run: true
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -110,6 +110,6 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| deps.ts | Auto-install external tools (Showboat, agent-browser, beads, Semgrep, BATS) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
+| deps.ts | Auto-install external tools (Showboat, agent-browser, beads, Semgrep, BATS, cargo-tarpaulin) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
 **Total: 30 library files across 14 categories.**

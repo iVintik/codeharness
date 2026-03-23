@@ -72,6 +72,13 @@ export const DEPENDENCY_REGISTRY: readonly DependencySpec[] = [
     checkCommand: { cmd: 'bats', args: ['--version'] },
     critical: false,
   },
+  {
+    name: 'cargo-tarpaulin',
+    displayName: 'cargo-tarpaulin',
+    installCommands: [{ cmd: 'cargo', args: ['install', 'cargo-tarpaulin'] }],
+    checkCommand: { cmd: 'cargo', args: ['tarpaulin', '--version'] },
+    critical: false,
+  },
 ];
 
 export function checkInstalled(spec: DependencySpec): { installed: boolean; version: string | null } {

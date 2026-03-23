@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 34,
-    "done": 27,
+    "done": 28,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -225,7 +225,7 @@
       "acResults": null
     },
     "8-3-cargo-tarpaulin-coverage-detection": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
@@ -233,8 +233,8 @@
       "acResults": null
     },
     "8-4-register-cargo-tarpaulin-dep-registry": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -284,13 +284,13 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 4,
+    "iteration": 5,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "8-4-register-cargo-tarpaulin-dep-registry",
+    "currentPhase": "verify",
+    "lastAction": "Starting verification",
     "acProgress": "5/5"
   },
   "actionItems": [
@@ -396,6 +396,69 @@
       "id": "migrated-15",
       "story": "8-3-cargo-tarpaulin-coverage-detection",
       "description": "**Time constraint:** Verification not started — insufficient time remaining in session budget. Story left at `verifying` for next session.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**CLI does not expose `runCommand` or `reportFormat` in JSON output.** `codeharness coverage --json` output includes `tool` but not other `detectCoverageTool()` fields. AC1 and AC2 required supplemental verification by replicating function logic from `dist/index.js`. Documentation/API gap.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**AC4 verified via function replication, not CLI.** `parseTestCounts` is internal and not exercised by any CLI subcommand that accepts raw test output. No `codeharness parse-test-output` command.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**[OBSERVABILITY GAP]** No log entries in VictoriaLogs during verification. Expected — container doesn't have Docker-in-Docker so observability stack not running inside it.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Workspace aggregation confirmed.** Bundle shows `parseTestCounts` uses global regex with `matchAll`-style loop for multi-crate workspace test output.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "8-4-register-cargo-tarpaulin-dep-registry",
+      "description": "**Unconditional dependency registry:** Adding `cargo-tarpaulin` means `cargo install cargo-tarpaulin` will be attempted on all projects regardless of stack. Fails gracefully (`critical: false`) but is noisy. Stack-conditional filtering would be a separate story.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "8-4-register-cargo-tarpaulin-dep-registry",
+      "description": "**Pre-existing stub overwritten:** The file already existed as a skeleton from sprint planning. Overwritten with comprehensive story as expected.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "8-4-register-cargo-tarpaulin-dep-registry",
+      "description": "**Risk: deps-install.test.ts mock registry:** Consumer test mocks `DEPENDENCY_REGISTRY` with hardcoded single-entry array. Mock isolates consumer from registry changes — no update needed there.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "8-4-register-cargo-tarpaulin-dep-registry",
+      "description": "**Pre-existing test failures:** 4 tests fail in `modules/sprint/__tests__/state.test.ts` when run as full suite — test isolation issue, not related to this story.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "8-4-register-cargo-tarpaulin-dep-registry",
+      "description": "**Unconditional registry design acknowledged:** `cargo install cargo-tarpaulin` will be attempted on non-Rust projects. `critical: false` handles graceful failure. Stack-conditional filtering deferred.",
       "source": "retro",
       "resolved": false
     }

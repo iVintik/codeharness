@@ -1,8 +1,8 @@
 {
   "version": 1,
   "sprint": {
-    "total": 25,
-    "done": 24,
+    "total": 34,
+    "done": 27,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -201,8 +201,80 @@
       "acResults": null
     },
     "7-3-create-dockerfile": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-1-rust-stack-and-app-type-detection": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-2-expand-state-types-for-rust": {
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-3-cargo-tarpaulin-coverage-detection": {
+      "status": "verifying",
+      "attempts": 2,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-4-register-cargo-tarpaulin-dep-registry": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-5-rust-dockerfile-template": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-6-rust-verification-dockerfile": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-7-rust-otlp-instrumentation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-8-rust-documentation-scaffolding": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-9-semgrep-rules-rust-observability": {
+      "status": "backlog",
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -212,7 +284,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 7,
+    "iteration": 4,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -224,666 +296,106 @@
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "0-1-sprint-state-live-updates",
-      "description": "**Bug found and fixed:** `parseRalphStatus()` in `migration.ts` was missing the new `currentStory`, `currentPhase`, `lastAction`, `acProgress` fields added by this story. Migration test was failing. Fixed by adding null defaults to the return object.",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Leftover container:** Previous session left `codeharness-verify` container running. Had to clean up before starting fresh verification.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "0-1-sprint-state-live-updates",
-      "description": "**Observability gap:** VictoriaLogs returned zero log events for all `codeharness progress` CLI invocations. The progress command doesn't emit structured logs.",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Stack detection mismatch:** `codeharness status --check-docker` reported stack as down, but shared stack containers were running (using `codeharness-shared-*` naming). The `docker-compose.harness.yml` tried to start duplicate containers and hit port conflicts. Worked around by using the shared stack directly.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "0-2-ralph-progress-display",
-      "description": "**Proof format issue:** AC3 initially reused evidence from AC2 without its own `bash` code block, causing `codeharness verify` to report 3/4 ACs. Fixed by adding a distinct bash block.",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Observability gap:** Both AC1 and AC2 verifications showed no log events emitted to VictoriaLogs during `codeharness init` operations. Silent code path.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "0-2-ralph-progress-display",
-      "description": "**No BATS tests in container:** `ralph/tests/` not included in npm package. Verification relied on direct function invocation with mock data.",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Beads sync failure:** `codeharness sync` couldn't find story Status line in the story file — likely looking for `## Status:` pattern that was stripped or mismatched.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "0-2-ralph-progress-display",
-      "description": "**VictoriaLogs query syntax:** `_stream_id:*` pattern invalid for VictoriaLogs. Used `*` wildcard instead.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Pre-existing file:** Story file already existed with partial/draft version (status: backlog). Overwrote with complete version.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "0-3-run-command-dashboard",
-      "description": "**Minor format deviations:** Story specified checkmark/cross prefixes but implementation uses `[OK]`/`[FAIL]` tags. Functionally equivalent, passed verification.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**File size risk:** `coverage.ts` is already 568 lines (exceeds 300-line architecture limit). Story adds ~40 more lines. Explicitly noted not to refactor/split.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "0-3-run-command-dashboard",
-      "description": "**Architecture difference:** Story specified `DashboardFormatter` class but implementation uses Ink React components. Same functionality, different design.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Mock complexity:** AC #5 (tarpaulin not installed) requires `execSync` mock for rust path — existing tests don't mock `execSync` for rust yet.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "0-5-1-stream-json-claude-driver",
-      "description": "Clean verification — all 4 ACs passed without issues.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**ESM mocking limitation:** `vi.spyOn` cannot spy on `execSync` from `node:child_process` in ESM mode. Used `vi.mock('node:child_process', async (importOriginal) => ...)` as workaround — adds file-level mock applying to all tests (mitigated by `mockReset()` in `afterEach`).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
-      "story": "0-5-2-stream-event-parser",
-      "description": "**Infrastructure fix:** `parseStreamLine` was not exported from `src/index.ts`, making it inaccessible in the container's dist bundle. Added re-export to `src/index.ts` and rebuilt.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Cargo test regex ordering:** The cargo test regex was placed before pytest regex because pytest regex would false-match on cargo test output. Ordering matters — fragile to reordering by future contributors.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-10",
-      "story": "0-5-2-stream-event-parser",
-      "description": "**ESM import workaround:** Container requires `VITEST=1` env var to suppress CLI auto-parse on module import. Uses `node --input-type=module` for ESM.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**No integration test for actual `cargo tarpaulin` execution:** All tests mock the subprocess call. Consistent with existing Node.js/Python coverage tool tests in codebase.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-11",
-      "story": "0-5-2-stream-event-parser",
-      "description": "**[OBSERVABILITY GAP]** VictoriaLogs returned zero log events for all parser invocations — `parseStreamLine` is a pure function with no telemetry.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**HIGH bug fixed:** `parseTestCounts()` only captured first `test result:` line from cargo test output. Workspace projects emit one per crate, so counts were wrong. Fixed with global regex + aggregation loop.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-12",
-      "story": "0-5-2-stream-event-parser",
-      "description": "**Non-standard status from previous session:** Sprint status had `verified` (not a valid status). Normalized to `verifying` before proceeding.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**LOW not fixed:** No type validation on `parseTarpaulinCoverage` — if tarpaulin outputs `\"coverage\": \"85.5\"` (string), `?? 0` won't catch it. Low risk.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-13",
-      "story": "0-5-2-stream-event-parser",
-      "description": "All 6 ACs passed black-box verification after infrastructure fix.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**LOW not fixed:** `checkOnlyCoverage()` shells out to `cargo tarpaulin --version` for Rust projects — unnecessary side effect in check-only mode. Pre-existing pattern.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-14",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Ambiguity: No formal epic definition file for Epic 6.** Derived intent from story name, UX spec, and existing code.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Coverage note:** `coverage.ts` branch coverage 77.98% (below 80% floor for branches) — caused by pre-existing untested branches, not new Rust code. Statement coverage 90.51% passes.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-15",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Workaround: Cost field source unclear.** Story assumes `result` events contain cost data — needs verification during implementation.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-16",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Risk: AC10 snapshot test fragility.** Softened to \"matches spec format structure\" rather than literal character comparison.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-17",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Observation:** Old `epic-6-retrospective.md` documents Brownfield Onboarding epic, not Dashboard Visualization Rework — stale/misleading.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Workaround: file split to avoid circular imports** — NFR9 300-line limit forced a 3-file split. `ink-app.tsx` composes `ink-components.tsx` and `ink-activity-components.tsx` to avoid circular deps. Adds indirection.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-19",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Cost accumulation edge case** — `result` event cost only accumulates when `state.sprintInfo` is non-null. Cost from early events before sprint state init is lost.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-20",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Iteration count delay** — `currentIterationCount` in run.ts is a mutable closure variable, updated from stderr parsing. Iteration count updates are delayed until next 5-second polling interval.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-21",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Missing artifacts** — AGENTS.md, exec-plan, and proof document not created (not in story tasks).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-22",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**HIGH bug fixed:** `updateSprintState()` wiped accumulated `totalCost` every 5s during polling — cost display would flash and disappear. Fixed with field preservation.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-23",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**MEDIUM bug fixed:** `startsWith` key comparison in `StoryBreakdown` caused false matches (e.g., story `3-2` matching `3-20`). Fixed to exact comparison.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-24",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**LOW unfixed:** `run.ts` is 308 lines (8 over NFR9 300-line limit). Pre-existing.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-25",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Coverage gap:** No integration test for full run→renderer→component pipeline with cost accumulation across polling cycles.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-26",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Architecture concern:** Renderer accumulates cost internally with no external read path. `updateSprintState` has implicit merge behavior.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-27",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Infrastructure:** Shared observability stack was already running but `codeharness status --check-docker` reported it as down. Port conflict when harness-specific compose tried to start — shared stack already bound ports. Resolved by using shared stack directly.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-28",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Stale container:** Previous session left `codeharness-verify` container running. Had to `docker rm -f` before starting a new one.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-29",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Beads sync failure:** `codeharness sync --story 6-1 --direction files-to-beads` failed with \"Story file not found or has no Status line\".",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-30",
-      "story": "6-1-rewrite-ink-components-match-ux-spec",
-      "description": "**Observation:** Verifier used static analysis of the dist bundle rather than runtime rendering. Valid black-box approach but doesn't test runtime behavior.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-31",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**No epic-6 definition file exists.** Story file already existed with sufficient detail.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-32",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**Risk: AC5 requires manual verification** with screenshot proof — non-automatable, depends on having a valid story in backlog.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-33",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**Risk: AC1 references `ralph/logs/` for recorded NDJSON** — ephemeral/gitignored. Fixture needs hand-curation from real log.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-34",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**Observation:** Last story in Epic 6. Completing it closes the epic.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-35",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**Test file location diverges from story spec**: Story specified `tests/run-pipeline.test.ts` but vitest root is `src/`. Placed at `src/__tests__/run-pipeline.test.ts`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-36",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**No real recorded NDJSON logs available**: Fixture constructed synthetically — `ralph/logs/` only has single-line result events, not full stream-json output.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-37",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**makeLineHandler duplication**: Test reconstructs the handler because it's a closure in `run.ts`, not exported. Could diverge if `run.ts` changes.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-38",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**AC5 not completable autonomously**: Requires manual `codeharness run` and screenshot capture.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-39",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**HIGH fixed:** Test reimplemented production `makeLineHandler` instead of importing it — changes wouldn't be caught. Fixed by extracting `createLineProcessor` to `run-helpers.ts`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-40",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**HIGH fixed:** Story File List wrong path. Fixed.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-41",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**MEDIUM fixed:** `makeLineHandler` not exportable (closure in run.ts). Extracted to run-helpers.ts.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-42",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**MEDIUM fixed:** Unused `vi` import.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-43",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**LOW unfixed:** No test for multi-byte UTF-8 split across chunk boundaries.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-44",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**LOW unfixed:** Renderer state accumulation test uses manual switch, not real Ink renderer.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-45",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**Coverage gap:** AC5 manual verification still incomplete.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-46",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**Stale container from previous session:** Had to `docker rm -f codeharness-verify` before starting.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-47",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**Port conflict with shared stack:** `docker-compose.harness.yml` tried to bind already-used ports. Used shared stack directly.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-48",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**AC5 genuinely escalated:** Requires human visual judgment of real-time Ink rendering — correctly tagged `integration-required` in story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-49",
-      "story": "6-2-verify-stream-json-pipeline-e2e",
-      "description": "**All 4 automatable ACs passed** with 48 total assertions.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-50",
-      "story": "epic-6",
-      "description": "**Epic numbering collision:** Two sprints reused \"Epic 6\" for different epics. Stale retro file persisted across 4+ session retros before being overwritten.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-51",
-      "story": "epic-6",
-      "description": "**Action item carry-forward rate ~100%:** Retro action items are generated but never executed. Process failure, not documentation gap.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-52",
-      "story": "epic-6",
-      "description": "**Story 6-1 harder than expected:** NFR9 300-line limit forced 3-file split not anticipated during story creation.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-53",
-      "story": "epic-6",
-      "description": "**Story 6-2 harder than expected:** `makeLineHandler` was untestable closure — required production refactor to extract `createLineProcessor`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-54",
-      "story": "epic-6",
-      "description": "**Known tech debt:** Cost accumulation data loss for events before `sprintInfo` init.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-55",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Ambiguity: No formal Epic 7 definition exists.** Epic 7 only defined by story keys in sprint-status.yaml. No epic-level requirements in any planning artifact.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-56",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Workaround: Existing story file overwritten.** The `audit --fix` command had previously generated a skeletal story. Replaced with proper story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-57",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Workaround: Sprint-status.yaml not updated by agent.** Harness-run process handled it.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-58",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Risk: AC2 (fresh environment install) tagged integration-required** because verification container already has Semgrep pre-installed via Dockerfile.verify.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-59",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Observation: Very small story.** ~10 lines in deps.ts plus test updates.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-60",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**HIGH fixed:** Missing test for CriticalDependencyError throw path. Added.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-61",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**MEDIUM fixed:** Semgrep test spec was duplicated instead of referencing registry. Fixed to use DEPENDENCY_REGISTRY.find().",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-62",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**MEDIUM fixed:** AGENTS.md deps description omitted agent-browser.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-63",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**MEDIUM fixed:** Missing null-version branch coverage. Added two tests.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-64",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**LOW unfixed:** `skipped` status in DependencyResult is dead code. Pre-existing.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-65",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**LOW unfixed:** Semgrep fallback tests don't assert primary command attempted before fallback.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-66",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**LOW unfixed:** Unreachable nullish-coalescing branches (defensive code) preventing 100% branch coverage.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-67",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Proof quality issue:** AC5 (unit tests) and AC6 (AGENTS.md) initially failed proof validation — attestation-only evidence without bash code blocks. Fixed by adding indirect CLI evidence.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-68",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Stale container:** Previous session left `codeharness-verify` container running. Had to `docker rm -f` before starting.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-69",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Shared stack detection issue recurs:** `codeharness status --check-docker` reported stack as down, but shared stack running on all ports. Known recurring issue.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-70",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Minor bug observed:** Audit gap descriptions show `undefined` instead of Semgrep rule message text. `parseSemgrepOutput` may not map `extra.message` correctly.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-71",
-      "story": "7-1-install-semgrep-static-analysis",
-      "description": "**Observability gap:** No log events from VictoriaLogs during verification (test project has no OTLP instrumentation).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-72",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Existing story file had wrong title** (\"Story 6-2\") and was extremely thin. Overwrote entirely.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-73",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Epic numbering collision:** Epic 7 in epics-overhaul.md is \"OpenSearch Backend\" but sprint-status.yaml's Epic 7 is \"Onboarding — Compliance Gaps\". Different epics, same number from different planning cycles.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-74",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Risk: AC4 (fixing 14 skipped onboard.bats tests)** is the largest task with design ambiguity — tests broken because onboard.sh delegates to TS CLI.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-75",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Risk: AC1 uses `brew install bats-core`** — macOS only. npm fallback (`bats` package) may not be 100% compatible with `bats-core`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-76",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Risk: AC7 (CI impact)** tagged integration-required — cannot verify locally.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-77",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**BATS not installed locally** — had to `brew install bats-core` during implementation. This is the exact gap the story addresses.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-78",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**No formal coverage report run** — all code paths exercised by tests but no formal coverage measurement.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-79",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**CI workflows unchanged** — kept manual BATS install in CI (intentional belt-and-suspenders with registry).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-80",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**MEDIUM fixed:** AGENTS.md deps.ts description missing \"BATS\" in the dependency list.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-81",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**LOW unfixed:** `deps.ts` branch coverage 89.28% — unreachable `??` null-coalescing fallback branches (dead defensive code).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-82",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**LOW unfixed:** `onboard.sh --help` is a single line, doesn't document `--json`/`--output` flags.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-83",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Coverage:** 97.02% overall, all 123 files above 80% floor. deps.ts at 100% statements/functions/lines.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-84",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**4 ACs escalated:** AC2 (integration-required), AC4/AC5 (dev-time artifacts not in npm package), AC7 (integration-required). All genuinely impossible in black-box Docker.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-85",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**3 ACs passed:** Registry entry confirmed, bats installs and runs, audit no longer reports bats error.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-86",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Shared stack detection issue recurs:** `codeharness status --check-docker` reported stack as down, but shared stack running on all ports. Known recurring issue.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-87",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Beads sync failed:** `bd` binary not found (ENOENT). Known — beads not installed.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-88",
-      "story": "7-2-fix-bats-runtime-tests",
-      "description": "**Observability gap:** No log events from VictoriaLogs during verification (test project has no OTLP instrumentation).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-89",
-      "story": "7-3-create-dockerfile",
-      "description": "**Existing stub overwritten:** Prior `7-3-create-dockerfile.md` was auto-generated by `codeharness audit --fix`, titled \"Story 6-3\" with minimal ACs. Replaced entirely.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-90",
-      "story": "7-3-create-dockerfile",
-      "description": "**Risk: AC3/AC4 require Docker daemon** — tagged integration-required. Cannot verify in environments without Docker.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-91",
-      "story": "7-3-create-dockerfile",
-      "description": "**Risk: USER node in Dockerfile** — container runs as non-root, may fail if codeharness writes to root-owned paths.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-92",
-      "story": "7-3-create-dockerfile",
-      "description": "**Observation:** Final story in final epic. Completing this closes the sprint.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-93",
-      "story": "7-3-create-dockerfile",
-      "description": "**Validator limitation:** `dockerfile-validator.ts` checks lines individually — can't handle backslash continuations. Had to put `curl jq` on same line as `apt-get install`. Not fixing validator per story scope.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-94",
-      "story": "7-3-create-dockerfile",
-      "description": "**Integration tests not executed:** AC3/AC4 (docker build/run) are integration-required, not run in dev.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-95",
-      "story": "7-3-create-dockerfile",
-      "description": "**No code modified:** Only a new `Dockerfile` added. 2930 tests pass, 0 regressions.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Time constraint:** Verification not started — insufficient time remaining in session budget. Story left at `verifying` for next session.",
       "source": "retro",
       "resolved": false
     }

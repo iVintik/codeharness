@@ -275,6 +275,61 @@ describe('installDependency', () => {
       expect(result.error).toContain('npm install -g bats');
     });
   });
+
+  describe('cargo-tarpaulin entry', () => {
+    const cargoTarpaulinSpec = DEPENDENCY_REGISTRY.find(d => d.name === 'cargo-tarpaulin')!;
+
+    it('returns already-installed when cargo tarpaulin --version succeeds', () => {
+      mockExecFileSync.mockReturnValue(Buffer.from('cargo-tarpaulin 0.27.3'));
+      const result = installDependency(cargoTarpaulinSpec);
+      expect(result.status).toBe('already-installed');
+      expect(result.version).toBe('0.27.3');
+    });
+
+    it('installs via cargo install cargo-tarpaulin and returns installed', () => {
+      let checkCount = 0;
+      mockExecFileSync.mockImplementation((cmd, args) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+        const argsArr = Array.isArray(args) ? args.map(String) : [];
+        if (cmdStr === 'cargo' && argsArr[0] === 'tarpaulin') {
+          checkCount++;
+          if (checkCount === 1) throw new Error('not found');
+          return Buffer.from('cargo-tarpaulin 0.27.3');
+        }
+        // cargo install succeeds
+        return Buffer.from('');
+      });
+
+      const result = installDependency(cargoTarpaulinSpec);
+      expect(result.status).toBe('installed');
+      expect(result.version).toBe('0.27.3');
+    });
+
+    it('returns failed when cargo command not found (graceful failure)', () => {
+      mockExecFileSync.mockImplementation(() => {
+        throw new Error('command failed');
+      });
+
+      const result = installDependency(cargoTarpaulinSpec);
+      expect(result.status).toBe('failed');
+      expect(result.error).toContain('cargo install cargo-tarpaulin');
+    });
+
+    it('cargo-tarpaulin is not critical', () => {
+      expect(cargoTarpaulinSpec.critical).toBe(false);
+    });
+
+    it('has single install command via cargo', () => {
+      expect(cargoTarpaulinSpec.installCommands).toHaveLength(1);
+      expect(cargoTarpaulinSpec.installCommands[0].cmd).toBe('cargo');
+      expect(cargoTarpaulinSpec.installCommands[0].args).toEqual(['install', 'cargo-tarpaulin']);
+    });
+
+    it('check command is cargo tarpaulin --version', () => {
+      expect(cargoTarpaulinSpec.checkCommand.cmd).toBe('cargo');
+      expect(cargoTarpaulinSpec.checkCommand.args).toEqual(['tarpaulin', '--version']);
+    });
+  });
 });
 
 describe('installAllDependencies', () => {
@@ -332,6 +387,8 @@ describe('installAllDependencies', () => {
       // bats check fails, brew fails (npm already covered above)
       if (cmdStr === 'bats') throw new Error('not found');
       if (cmdStr === 'brew') throw new Error('not found');
+      // cargo-tarpaulin check and install both fail
+      if (cmdStr === 'cargo') throw new Error('not found');
       // pip/pipx for showboat/semgrep fail, for beads we don't reach (already installed)
       if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('showboat') || a.includes('semgrep'))) {
         throw new Error('not found');
@@ -452,6 +509,8 @@ describe('installAllDependencies', () => {
       // bats fails
       if (cmdStr === 'bats') throw new Error('not found');
       if (cmdStr === 'brew') throw new Error('not found');
+      // cargo-tarpaulin fails
+      if (cmdStr === 'cargo') throw new Error('not found');
       // beads succeeds
       if (cmdStr === 'bd') return Buffer.from('bd 1.0.0');
       throw new Error('unexpected');
@@ -466,17 +525,18 @@ describe('installAllDependencies', () => {
 });
 
 describe('DEPENDENCY_REGISTRY', () => {
-  it('contains showboat, agent-browser, beads, semgrep, and bats', () => {
+  it('contains showboat, agent-browser, beads, semgrep, bats, and cargo-tarpaulin', () => {
     const names = DEPENDENCY_REGISTRY.map(d => d.name);
     expect(names).toContain('showboat');
     expect(names).toContain('agent-browser');
     expect(names).toContain('beads');
     expect(names).toContain('semgrep');
     expect(names).toContain('bats');
+    expect(names).toContain('cargo-tarpaulin');
   });
 
-  it('has exactly 5 entries', () => {
-    expect(DEPENDENCY_REGISTRY).toHaveLength(5);
+  it('has exactly 6 entries', () => {
+    expect(DEPENDENCY_REGISTRY).toHaveLength(6);
   });
 
   it('beads is not critical', () => {

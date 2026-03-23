@@ -49,9 +49,26 @@ export function detectCoverageTool(dir?: string): CoverageToolInfo {
   }
 
   if (stack === 'rust') {
+    // Check if cargo-tarpaulin is installed
+    try {
+      execSync('cargo tarpaulin --version', { stdio: 'pipe', timeout: 10_000 });
+    } catch {
+      warn('cargo-tarpaulin not installed — coverage detection unavailable');
+      return { tool: 'unknown', runCommand: '', reportFormat: '' };
+    }
+
+    // Detect workspace
+    const cargoPath = join(baseDir, 'Cargo.toml');
+    let isWorkspace = false;
+    try {
+      const cargoContent = readFileSync(cargoPath, 'utf-8');
+      isWorkspace = /^\[workspace\]/m.test(cargoContent);
+    } catch { /* not a workspace */ }
+
+    const wsFlag = isWorkspace ? ' --workspace' : '';
     return {
       tool: 'cargo-tarpaulin',
-      runCommand: 'cargo tarpaulin --out json',
+      runCommand: `cargo tarpaulin --out json --output-dir coverage/${wsFlag}`,
       reportFormat: 'tarpaulin-json',
     };
   }
@@ -269,6 +286,9 @@ export function parseCoverageReport(dir: string, format: string): number {
   if (format === 'coverage-py-json') {
     return parsePythonCoverage(dir);
   }
+  if (format === 'tarpaulin-json') {
+    return parseTarpaulinCoverage(dir);
+  }
   return 0;
 }
 
@@ -313,6 +333,21 @@ function parsePythonCoverage(dir: string): number {
   }
 }
 
+function parseTarpaulinCoverage(dir: string): number {
+  const reportPath = join(dir, 'coverage', 'tarpaulin-report.json');
+  if (!existsSync(reportPath)) {
+    warn('Tarpaulin report not found at coverage/tarpaulin-report.json');
+    return 0;
+  }
+  try {
+    const report = JSON.parse(readFileSync(reportPath, 'utf-8')) as { coverage?: number };
+    return report.coverage ?? 0;
+  } catch {
+    warn('Failed to parse tarpaulin coverage report');
+    return 0;
+  }
+}
+
 export function parseTestCounts(output: string): { passCount: number; failCount: number } {
   // Vitest format: "Tests  12 passed | 3 failed"
   const vitestMatch = /Tests\s+(\d+)\s+passed(?:\s*\|\s*(\d+)\s+failed)?/i.exec(output);
@@ -330,6 +365,21 @@ export function parseTestCounts(output: string): { passCount: number; failCount:
       passCount: parseInt(jestMatch[2], 10),
       failCount: jestMatch[1] ? parseInt(jestMatch[1], 10) : 0,
     };
+  }
+
+  // cargo test format: "test result: ok. 42 passed; 3 failed; 0 ignored"
+  // Workspace projects emit multiple test result lines (one per crate) — aggregate all.
+  const cargoRegex = /test result:.*?(\d+)\s+passed;\s*(\d+)\s+failed/gi;
+  let cargoMatch = cargoRegex.exec(output);
+  if (cargoMatch) {
+    let totalPass = 0;
+    let totalFail = 0;
+    while (cargoMatch) {
+      totalPass += parseInt(cargoMatch[1], 10);
+      totalFail += parseInt(cargoMatch[2], 10);
+      cargoMatch = cargoRegex.exec(output);
+    }
+    return { passCount: totalPass, failCount: totalFail };
   }
 
   // pytest format: "12 passed, 3 failed"

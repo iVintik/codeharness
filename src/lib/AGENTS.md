@@ -28,7 +28,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| coverage.ts | Coverage tool detection (Vitest/c8/coverage.py), execution, evaluation, per-file floors | `detectCoverageTool`, `runCoverage`, `checkOnlyCoverage`, `evaluateCoverage`, `checkPerFileCoverage`, `getTestCommand` |
+| coverage.ts | Coverage tool detection (Vitest/c8/coverage.py/cargo-tarpaulin), execution, evaluation, per-file floors | `detectCoverageTool`, `runCoverage`, `checkOnlyCoverage`, `evaluateCoverage`, `checkPerFileCoverage`, `getTestCommand` |
 
 ## Verification Pipeline
 

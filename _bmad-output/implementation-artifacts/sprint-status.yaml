@@ -71,7 +71,7 @@ development_status:
   8-2-expand-state-types-for-rust: done
 
   # Epic 8.2: Rust Coverage & Testing
-  8-3-cargo-tarpaulin-coverage-detection: backlog
+  8-3-cargo-tarpaulin-coverage-detection: done
   8-4-register-cargo-tarpaulin-dep-registry: backlog
 
   # Epic 8.3: Rust Infrastructure

@@ -2,6 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return { ...actual, execSync: vi.fn(actual.execSync) };
+});
+
+import { execSync } from 'node:child_process';
+const mockedExecSync = vi.mocked(execSync);
 import {
   detectCoverageTool,
   getTestCommand,
@@ -26,6 +34,7 @@ beforeEach(() => {
 
 afterEach(() => {
   rmSync(testDir, { recursive: true, force: true });
+  mockedExecSync.mockReset();
 });
 
 // ─── detectCoverageTool ──────────────────────────────────────────────────────
@@ -140,12 +149,65 @@ describe('detectCoverageTool', () => {
     expect(info.tool).toBe('cargo-tarpaulin');
   });
 
-  it('detects cargo-tarpaulin for rust project with Cargo.toml', () => {
+  it('detects cargo-tarpaulin for rust project with Cargo.toml when tarpaulin installed (AC1)', () => {
     writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "my-crate"\nversion = "0.1.0"\n');
+
+    mockedExecSync.mockImplementation((cmd: unknown) => {
+      if (typeof cmd === 'string' && cmd.includes('cargo tarpaulin --version')) {
+        return Buffer.from('cargo-tarpaulin 0.27.0');
+      }
+      return Buffer.from('');
+    });
+
     const result = detectCoverageTool(testDir);
     expect(result.tool).toBe('cargo-tarpaulin');
-    expect(result.runCommand).toBe('cargo tarpaulin --out json');
+    expect(result.runCommand).toBe('cargo tarpaulin --out json --output-dir coverage/');
     expect(result.reportFormat).toBe('tarpaulin-json');
+  });
+
+  it('returns unknown for rust project when tarpaulin not installed (AC5)', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "my-crate"\nversion = "0.1.0"\n');
+
+    mockedExecSync.mockImplementation((cmd: unknown) => {
+      if (typeof cmd === 'string' && cmd.includes('cargo tarpaulin --version')) {
+        throw new Error('command not found: cargo-tarpaulin');
+      }
+      return Buffer.from('');
+    });
+
+    const result = detectCoverageTool(testDir);
+    expect(result.tool).toBe('unknown');
+    expect(result.runCommand).toBe('');
+  });
+
+  it('includes --workspace flag for rust workspace projects (AC2)', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[workspace]\nmembers = ["crate-a", "crate-b"]\n');
+
+    mockedExecSync.mockImplementation((cmd: unknown) => {
+      if (typeof cmd === 'string' && cmd.includes('cargo tarpaulin --version')) {
+        return Buffer.from('cargo-tarpaulin 0.27.0');
+      }
+      return Buffer.from('');
+    });
+
+    const result = detectCoverageTool(testDir);
+    expect(result.tool).toBe('cargo-tarpaulin');
+    expect(result.runCommand).toContain('--workspace');
+    expect(result.runCommand).toBe('cargo tarpaulin --out json --output-dir coverage/ --workspace');
+  });
+
+  it('omits --workspace flag for non-workspace rust projects', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "single-crate"\nversion = "0.1.0"\n');
+
+    mockedExecSync.mockImplementation((cmd: unknown) => {
+      if (typeof cmd === 'string' && cmd.includes('cargo tarpaulin --version')) {
+        return Buffer.from('cargo-tarpaulin 0.27.0');
+      }
+      return Buffer.from('');
+    });
+
+    const result = detectCoverageTool(testDir);
+    expect(result.runCommand).not.toContain('--workspace');
   });
 
   it('prefers test:coverage script when available', () => {
@@ -249,6 +311,43 @@ describe('parseTestCounts', () => {
     expect(failCount).toBe(2);
   });
 
+  it('parses cargo test output — ok with passed and failed (AC4)', () => {
+    const output = 'test result: ok. 42 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s';
+    const { passCount, failCount } = parseTestCounts(output);
+    expect(passCount).toBe(42);
+    expect(failCount).toBe(3);
+  });
+
+  it('parses cargo test output — FAILED result line', () => {
+    const output = 'test result: FAILED. 10 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out';
+    const { passCount, failCount } = parseTestCounts(output);
+    expect(passCount).toBe(10);
+    expect(failCount).toBe(2);
+  });
+
+  it('parses cargo test output — all passed', () => {
+    const output = 'test result: ok. 100 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.67s';
+    const { passCount, failCount } = parseTestCounts(output);
+    expect(passCount).toBe(100);
+    expect(failCount).toBe(0);
+  });
+
+  it('aggregates multiple cargo test result lines for workspace projects', () => {
+    const output = [
+      'running 5 tests',
+      'test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out',
+      '',
+      'running 10 tests',
+      'test result: ok. 10 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out',
+      '',
+      'running 3 tests',
+      'test result: FAILED. 3 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out',
+    ].join('\n');
+    const { passCount, failCount } = parseTestCounts(output);
+    expect(passCount).toBe(18);
+    expect(failCount).toBe(3);
+  });
+
   it('returns zeros for unrecognized output', () => {
     const output = 'no test results here';
     const { passCount, failCount } = parseTestCounts(output);
@@ -302,6 +401,46 @@ describe('parseCoverageReport', () => {
 
   it('returns 0 when python coverage report missing', () => {
     const pct = parseCoverageReport(testDir, 'coverage-py-json');
+    expect(pct).toBe(0);
+  });
+
+  it('parses tarpaulin-json coverage report (AC3)', () => {
+    const coverageDir = join(testDir, 'coverage');
+    mkdirSync(coverageDir, { recursive: true });
+    writeFileSync(
+      join(coverageDir, 'tarpaulin-report.json'),
+      JSON.stringify({
+        coverage: 85.5,
+        files: [{ path: 'src/main.rs', covered: 10, coverable: 12 }],
+      }),
+    );
+
+    const pct = parseCoverageReport(testDir, 'tarpaulin-json');
+    expect(pct).toBe(85.5);
+  });
+
+  it('returns 0 when tarpaulin report missing', () => {
+    const pct = parseCoverageReport(testDir, 'tarpaulin-json');
+    expect(pct).toBe(0);
+  });
+
+  it('returns 0 when tarpaulin report is malformed JSON', () => {
+    const coverageDir = join(testDir, 'coverage');
+    mkdirSync(coverageDir, { recursive: true });
+    writeFileSync(join(coverageDir, 'tarpaulin-report.json'), '{invalid');
+    const pct = parseCoverageReport(testDir, 'tarpaulin-json');
+    expect(pct).toBe(0);
+  });
+
+  it('returns 0 when tarpaulin report has no coverage field', () => {
+    const coverageDir = join(testDir, 'coverage');
+    mkdirSync(coverageDir, { recursive: true });
+    writeFileSync(
+      join(coverageDir, 'tarpaulin-report.json'),
+      JSON.stringify({ files: [] }),
+    );
+
+    const pct = parseCoverageReport(testDir, 'tarpaulin-json');
     expect(pct).toBe(0);
   });
 

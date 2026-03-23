@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 34,
-    "done": 26,
+    "done": 27,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -217,16 +217,16 @@
       "acResults": null
     },
     "8-2-expand-state-types-for-rust": {
-      "status": "verifying",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "8-3-cargo-tarpaulin-coverage-detection": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "verifying",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -284,139 +284,118 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 1,
+    "iteration": 4,
     "cost": 0,
     "completed": [],
     "failed": [],
     "currentStory": null,
     "currentPhase": null,
     "lastAction": null,
-    "acProgress": null
+    "acProgress": "5/5"
   },
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**Code quality concern:** Cargo.toml parsing uses simple string `includes()` matching, not a proper TOML parser. Per NFR4, but a dependency name in a comment or `[dev-dependencies]` would false-positive (e.g., `# we considered using axum` triggers server detection).",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Leftover container:** Previous session left `codeharness-verify` container running. Had to clean up before starting fresh verification.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**Observation:** Existing test for \"unrecognized stack\" was using `'rust'` as unrecognized — changed to `'java'`.",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Stack detection mismatch:** `codeharness status --check-docker` reported stack as down, but shared stack containers were running (using `codeharness-shared-*` naming). The `docker-compose.harness.yml` tried to start duplicate containers and hit port conflicts. Worked around by using the shared stack directly.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**Observation:** AC4 maps library crates to `generic` AppType rather than new `'library'` type — deliberate design choice but means library crates are indistinguishable from unknown projects.",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Observability gap:** Both AC1 and AC2 verifications showed no log events emitted to VictoriaLogs during `codeharness init` operations. Silent code path.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**HIGH fixed:** `[dev-dependencies]`/`[build-dependencies]` deps incorrectly matched as production deps — false positive agent/server detection. Added `getCargoDepsSection()` to extract only `[dependencies]` section.",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Beads sync failure:** `codeharness sync` couldn't find story Status line in the story file — likely looking for `## Status:` pattern that was stripped or mismatched.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**HIGH fixed:** Substring false positives on crate names (`anthropic` matching `anthropic-sdk`, `rocket` matching `sprocket`). Added `hasCargoDep()` with word-boundary regex.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Pre-existing file:** Story file already existed with partial/draft version (status: backlog). Overwrote with complete version.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**MEDIUM fixed:** `[[bin]]` and `[lib]` matched inside TOML comments. Used line-anchored regexes.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**File size risk:** `coverage.ts` is already 568 lines (exceeds 300-line architecture limit). Story adds ~40 more lines. Explicitly noted not to refactor/split.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**MEDIUM fixed:** Missing test coverage for 3 of 5 web frameworks (rocket, tide, warp).",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Mock complexity:** AC #5 (tarpaulin not installed) requires `execSync` mock for rust path — existing tests don't mock `execSync` for rust yet.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**MEDIUM fixed:** Missing test for `[lib]` + `[[bin]]` dual-crate pattern.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**ESM mocking limitation:** `vi.spyOn` cannot spy on `execSync` from `node:child_process` in ESM mode. Used `vi.mock('node:child_process', async (importOriginal) => ...)` as workaround — adds file-level mock applying to all tests (mitigated by `mockReset()` in `afterEach`).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**LOW unfixed:** `getCargoDepsSection()` does not handle `[dependencies.foo]` inline subsection TOML style. Acceptable per NFR4.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Cargo test regex ordering:** The cargo test regex was placed before pytest regex because pytest regex would false-match on cargo test output. Ordering matters — fragile to reordering by future contributors.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-10",
-      "story": "8-1-rust-stack-and-app-type-detection",
-      "description": "**Coverage:** 97.02% overall, all 123 files above 80% floor. No integration test for detectStack→detectAppType end-to-end (acceptable — unit tested independently).",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**No integration test for actual `cargo tarpaulin` execution:** All tests mock the subprocess call. Consistent with existing Node.js/Python coverage tool tests in codebase.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-11",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Observation:** Story spec said `coverage.tool` was `'c8' | 'coverage.py' | 'unknown'` but it was actually a plain `string` in `HarnessState`. Tightened to proper union — non-breaking.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**HIGH bug fixed:** `parseTestCounts()` only captured first `test result:` line from cargo test output. Workspace projects emit one per crate, so counts were wrong. Fixed with global regex + aggregation loop.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-12",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Observation:** ~40 pre-existing TypeScript compilation errors in test files (bridge.test.ts, run.test.ts, etc.). Unrelated to this story. Tests pass at runtime via Vitest despite `tsc --noEmit` errors.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**LOW not fixed:** No type validation on `parseTarpaulinCoverage` — if tarpaulin outputs `\"coverage\": \"85.5\"` (string), `?? 0` won't catch it. Low risk.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-13",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**HIGH fixed:** `getDefaultState()` hardcoded `coverage.tool` to `'c8'` regardless of stack. Rust projects got wrong default.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**LOW not fixed:** `checkOnlyCoverage()` shells out to `cargo tarpaulin --version` for Rust projects — unnecessary side effect in check-only mode. Pre-existing pattern.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-14",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**MEDIUM fixed:** `detectCoverageTool()` had no rust branch — Cargo.toml projects fell through to `'unknown'`.",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Coverage note:** `coverage.ts` branch coverage 77.98% (below 80% floor for branches) — caused by pre-existing untested branches, not new Rust code. Statement coverage 90.51% passes.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-15",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**MEDIUM fixed:** `getStackLabel('rust')` returned `'Unknown'` — AGENTS.md mislabeled Rust projects.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-16",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**MEDIUM fixed:** `generateAgentsMdContent()` had no rust branch — Rust projects got \"No recognized stack\" boilerplate.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-17",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**LOW unfixed:** `getCoverageTool()` in docs-scaffold.ts and `getDefaultCoverageTool()` in state.ts duplicate stack-to-tool mapping.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "8-2-expand-state-types-for-rust",
-      "description": "**Coverage gap:** `parseCoverageReport` has no `'tarpaulin-json'` parser — out of scope for 8-2 (story 8-3 will address).",
+      "story": "8-3-cargo-tarpaulin-coverage-detection",
+      "description": "**Time constraint:** Verification not started — insufficient time remaining in session budget. Story left at `verifying` for next session.",
       "source": "retro",
       "resolved": false
     }

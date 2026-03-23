@@ -24,8 +24,26 @@ export function getProjectName(projectDir: string): string {
       }
     }
   } catch {
+    // Fall through to Cargo.toml check
+  }
+
+  // Cargo.toml fallback for Rust projects
+  try {
+    const cargoPath = join(projectDir, 'Cargo.toml');
+    if (existsSync(cargoPath)) {
+      const content = readFileSync(cargoPath, 'utf-8');
+      const packageMatch = content.match(/\[package\]([\s\S]*?)(?=\n\[|$)/s);
+      if (packageMatch) {
+        const nameMatch = packageMatch[1].match(/^\s*name\s*=\s*["']([^"']+)["']/m);
+        if (nameMatch) {
+          return nameMatch[1];
+        }
+      }
+    }
+  } catch {
     // Fall through to basename
   }
+
   return basename(projectDir);
 }
 

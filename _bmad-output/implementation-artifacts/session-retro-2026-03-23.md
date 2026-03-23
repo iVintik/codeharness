@@ -1025,3 +1025,114 @@ Story 8-7 is the only new work in this window. Ralph completed the story definit
 | Remaining | 8-7 (review), 8-8, 8-9 (backlog) |
 | Key risk | sprint-status.yaml corruption by dev agent |
 | Top tech debt | otlp.ts at 423 lines, coverage.ts at 568 lines |
+
+---
+
+# Session 4 Retrospective — 2026-03-23T12:15Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~12:00 - 12:30 UTC (session 4 of the day)
+**Stories in scope:** 8-7-rust-otlp-instrumentation (review -> done)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Outcome |
+|-------|-------------|------------|---------|
+| 8-7-rust-otlp-instrumentation | review | done | Code review found HIGH bug + 2 MEDIUM issues. All fixed, tests pass (3014 tests, 97% coverage). Black-box Docker verification passed 7/8 ACs full PASS, AC4 partial (template is plugin-only, not in npm package — by design). Committed as done. |
+
+This session completed the final verification loop for story 8-7, which was left at `review` status from session 3. The code review subagent found a critical runtime bug (gRPC/HTTP transport mismatch) that would have caused silent failures in production Rust apps. The fix was straightforward and all tests were updated.
+
+With 8-7 done, Epic 8.4 (Rust Observability & Docs) is half-complete. Stories 8-8 and 8-9 remain in backlog.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found This Session
+
+| Severity | Source | Issue | Fixed? |
+|----------|--------|-------|--------|
+| HIGH | code-review | `templates/otlp/rust.md` used `.with_tonic()` (gRPC, port 4317) while env var writes `http://localhost:4318` (HTTP). Would silently fail at runtime — traces would never reach the collector. | Yes |
+| MEDIUM | code-review | `templates/otlp/rust.md` omitted `OTEL_TRACES_EXPORTER`, `OTEL_METRICS_EXPORTER`, `OTEL_LOGS_EXPORTER` env vars | Yes |
+| MEDIUM | code-review | `ensureEndpointEnvVar` had two uncovered branches ("update existing" and "create new file" paths) | Yes — 4 tests added |
+
+### Issues Carried Forward from Previous Sessions (context for this session)
+
+| Severity | Source | Issue | Status |
+|----------|--------|-------|--------|
+| HIGH | create-story (s3) | `configureAgent()` fallthrough bug — sets `agent_sdk: 'traceloop'` for Rust | Fixed in 8-7 impl |
+| MEDIUM | create-story (s3) | Scope expansion: `OTEL_EXPORTER_OTLP_ENDPOINT` needed in `.env.codeharness` | Addressed in 8-7 impl |
+| MEDIUM | dev-story (s3) | 6 pre-existing test failures in sprint modules | Not fixed — unrelated to 8-7 |
+| MEDIUM | dev-story (s3) | `otlp.ts` at 423 lines exceeds 300-line NFR1 | Not fixed — accepted as tech debt |
+| MEDIUM | dev-story (s3) | sprint-status.yaml corruption by dev agent | Recovered in s3; not recurred |
+| LOW | dev-story (s3) | Mock isolation quirk with `vi.mock()` / `mockClear()` | Workaround in place |
+| LOW | code-review (s4) | Code duplication between `ensureServiceNameEnvVar` and `ensureEndpointEnvVar` | Not fixed — tracked as tech debt |
+
+### Tech Debt Inventory (cumulative)
+
+1. **otlp.ts at 423 lines** — exceeds 300-line NFR1. `ensureServiceNameEnvVar` and `ensureEndpointEnvVar` should be consolidated into a generic `ensureEnvVar()` helper.
+2. **6 pre-existing test failures** in `modules/sprint/__tests__/migration.test.ts` and `modules/sprint/__tests__/state.test.ts` — unrelated to Epic 8, but erode trust in CI.
+3. **coverage.ts at 568 lines** — also exceeds NFR1 (carried from session 2).
+4. **sprint-status.yaml corruption risk** — dev-story agent can overwrite yaml with placeholder content. Needs guardrail.
+
+---
+
+## 3. What Went Well
+
+- **Code review caught a critical runtime bug.** The gRPC/HTTP transport mismatch in `rust.md` would have caused zero traces to reach the OTLP collector for any Rust project following the guide. Catching this before merge is exactly what the review gate is for.
+- **Fast turnaround.** Session 4 was short and focused — one story, review-to-done. No scope creep.
+- **Test coverage improved.** 4 new tests added for previously uncovered `ensureEndpointEnvVar` branches, bringing total to 3014 tests at 97% coverage.
+- **Black-box Docker verification** provided independent confirmation that the implementation works end-to-end.
+- **AC4 partial pass was correctly triaged.** The template file not being in the npm package is by design (plugin-only distribution). This was correctly identified and accepted rather than treated as a failure.
+
+---
+
+## 4. What Went Wrong
+
+- **HIGH bug shipped from dev-story to review.** The transport/port mismatch was introduced during implementation in session 3 and was not caught by unit tests. Unit tests validate code behavior but not template correctness — the template is a markdown file containing code snippets, so runtime correctness depends on human or LLM review.
+- **Template content had no automated validation.** The `rust.md` template contained incorrect Rust code that would compile but produce wrong runtime behavior. There are no tests that validate template content against the actual env var values written by the code.
+- **NFR1 (300-line file limit) continues to be violated.** `otlp.ts` grew from 375 to 423 lines across sessions 3-4 with no refactoring. The duplication between `ensureServiceNameEnvVar` and `ensureEndpointEnvVar` was noted but not addressed.
+- **Pre-existing sprint module test failures remain unaddressed** after 4 sessions. They are unrelated to Epic 8 work but reduce confidence in the test suite.
+
+---
+
+## 5. Lessons Learned
+
+1. **Template files need review-time scrutiny.** Markdown templates containing code snippets are not covered by unit tests. The code review step is the primary quality gate for template correctness. Consider adding a lint or validation step that cross-references template content with code constants (e.g., verifying port numbers match).
+2. **Transport protocol and port must be consistent.** gRPC uses 4317, HTTP uses 4318. When a template specifies one transport, the env var must use the matching port. This is a common OTLP gotcha.
+3. **The review gate works.** Session 3 left the story at `review` rather than forcing it to `done`. Session 4's review found a real bug. The multi-step pipeline (dev -> review -> verify) adds latency but catches real problems.
+4. **Tech debt accumulates when "accepted" repeatedly.** The NFR1 violation was noted in sessions 3 and 4 but not fixed either time. Each session adds more lines. A dedicated cleanup story would be more effective than hoping it gets addressed incidentally.
+
+---
+
+## 6. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Refactor `otlp.ts`: extract generic `ensureEnvVar()` helper to reduce duplication and line count | MEDIUM | Next sprint or story 8-8 |
+| 2 | Investigate and fix 6 pre-existing sprint module test failures | MEDIUM | Tech debt backlog |
+| 3 | Add template validation: cross-reference port numbers in templates vs. code constants | LOW | Tech debt backlog |
+| 4 | Add guardrail to prevent dev-story agent from overwriting sprint-status.yaml | MEDIUM | Ralph configuration |
+| 5 | Consider splitting `coverage.ts` (568 lines) into sub-modules | LOW | Tech debt backlog |
+
+---
+
+## Session 4 Final Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted this window | 1 (8-7) |
+| Stories completed this window | 1 (8-7 review -> done) |
+| Stories completed total (full day) | 7 (8-1 through 8-7) |
+| Stories failed | 0 |
+| Bugs found this window | 3 (1 HIGH, 2 MEDIUM) — all fixed |
+| Bugs found total (full day) | 24 |
+| Test count | 3014 |
+| Coverage | 97% |
+| Sprint progress | 32/34 done, 2 backlog (94%) |
+| Epics completed (full day) | 3 full (8.1, 8.2, 8.3), 1 half (8.4: 1/2 done) |
+| Remaining | 8-8 (backlog), 8-9 (backlog) |
+| Key risk | otlp.ts NFR1 violation growing unchecked |
+| Top tech debt | otlp.ts 423 lines, coverage.ts 568 lines, 6 failing sprint tests |

@@ -1,14 +1,14 @@
 {
   "version": 1,
   "sprint": {
-    "total": 6,
-    "done": 2,
-    "failed": 1,
-    "blocked": 1,
+    "total": 37,
+    "done": 31,
+    "failed": 0,
+    "blocked": 2,
     "inProgress": null
   },
   "stories": {
-    "s1": {
+    "0-1-sprint-state-live-updates": {
       "status": "done",
       "attempts": 0,
       "lastAttempt": null,
@@ -16,7 +16,7 @@
       "proofPath": null,
       "acResults": null
     },
-    "s2": {
+    "0-2-ralph-progress-display": {
       "status": "done",
       "attempts": 0,
       "lastAttempt": null,
@@ -24,23 +24,255 @@
       "proofPath": null,
       "acResults": null
     },
-    "s3": {
-      "status": "failed",
+    "0-3-run-command-dashboard": {
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
-    "s4": {
-      "status": "blocked",
+    "0-5-1-stream-json-claude-driver": {
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
-    "s5": {
+    "0-5-2-stream-event-parser": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-5-3-ink-terminal-renderer": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "0-5-4-run-command-integration": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-1-semgrep-rules-for-observability": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-2-analyzer-module-interface": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "1-3-observability-coverage-state-tracking": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-1-verification-observability-check": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-2-observability-hook-enforcement": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "2-3-standalone-runtime-check-audit-mode": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-1-audit-coordinator-dimensions": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-2-audit-fix-story-generation": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "3-3-onboard-alias": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-1-dockerfile-rules-validation": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "4-2-dockerfile-template-dev-integration": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "5-1-code-review-observability-check": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "5-2-verification-runtime-integration": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "6-1-rewrite-ink-components-match-ux-spec": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "6-2-verify-stream-json-pipeline-e2e": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "7-1-install-semgrep-static-analysis": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "7-2-fix-bats-runtime-tests": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "7-3-create-dockerfile": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-1-rust-stack-and-app-type-detection": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-2-expand-state-types-for-rust": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-3-cargo-tarpaulin-coverage-detection": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-4-register-cargo-tarpaulin-dep-registry": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-5-rust-dockerfile-template": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-6-rust-verification-dockerfile": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-7-rust-otlp-instrumentation": {
+      "status": "review",
+      "attempts": 1,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-8-rust-documentation-scaffolding": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "8-9-semgrep-rules-rust-observability": {
       "status": "backlog",
       "attempts": 0,
       "lastAttempt": null,
@@ -55,12 +287,28 @@
       "lastError": null,
       "proofPath": null,
       "acResults": null
+    },
+    "story-x": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "story-y": {
+      "status": "blocked",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
     }
   },
   "run": {
-    "active": false,
+    "active": true,
     "startedAt": null,
-    "iteration": 0,
+    "iteration": 9,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -69,5 +317,62 @@
     "lastAction": null,
     "acProgress": null
   },
-  "actionItems": []
+  "actionItems": [
+    {
+      "id": "migrated-1",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Bug found in existing code:** `configureAgent()` falls through to set `agent_sdk: 'traceloop'` for Rust projects — no Rust Traceloop SDK exists. Story task 4 fixes this.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-2",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Scope expansion:** AC2 requires writing `OTEL_EXPORTER_OTLP_ENDPOINT` to `.env.codeharness` — current code only writes `OTEL_SERVICE_NAME` there. Necessary for Rust apps that read env vars directly.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-3",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Risk: otlp.ts at 375 lines**, will grow to ~410 (exceeds 300-line NFR1 limit). Pre-existing violation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Risk: AC8 integration-required** — needs real Rust toolchain + `cargo` for full pipeline verification.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Pre-existing test failures:** 6 tests fail in `modules/sprint/__tests__/migration.test.ts` and `modules/sprint/__tests__/state.test.ts`. Unrelated to story 8-7. May have broken between 8-6 and now.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Mock isolation quirk:** `installRustOtlp` test needed explicit `mockClear()` because `vi.restoreAllMocks()` in `beforeEach` doesn't fully clear `mock.calls` on module-level `vi.mock`'d functions. Minor fragility.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**File line count:** `otlp.ts` is now ~423 lines, exceeding the 300-line NFR1 limit. `ensureEndpointEnvVar` duplicates pattern from `ensureServiceNameEnvVar` — could be consolidated.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "8-7-rust-otlp-instrumentation",
+      "description": "**Sprint-status.yaml corruption:** The dev-story agent overwrote sprint-status.yaml with placeholder content. Had to restore from git and manually set status to `review`.",
+      "source": "retro",
+      "resolved": false
+    }
+  ]
 }

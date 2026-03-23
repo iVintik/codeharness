@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, existsSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -38,7 +38,6 @@ afterEach(() => {
   rmSync(testDir, { recursive: true, force: true });
 });
 
-import { afterEach } from 'vitest';
 
 describe('getProjectName', () => {
   it('returns name from package.json', () => {
@@ -56,6 +55,56 @@ describe('getProjectName', () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     const name = getProjectName(testDir);
     expect(typeof name).toBe('string');
+  });
+
+  it('returns name from Cargo.toml [package] section when no package.json', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "myapp"\nversion = "0.1.0"\n');
+    expect(getProjectName(testDir)).toBe('myapp');
+  });
+
+  it('returns package.json name over Cargo.toml name (precedence)', () => {
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ name: 'npm-name' }));
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "rust-name"\nversion = "0.1.0"\n');
+    expect(getProjectName(testDir)).toBe('npm-name');
+  });
+
+  it('falls back to basename when Cargo.toml has name only in [dependencies]', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      '[dependencies]\nname = "dep-name"\nversion = "0.1.0"\n',
+    );
+    const name = getProjectName(testDir);
+    const { basename } = require('node:path');
+    // Should NOT return 'dep-name' — no [package] section; should return basename
+    expect(name).not.toBe('dep-name');
+    expect(name).toBe(basename(testDir));
+  });
+
+  it('falls back to basename when Cargo.toml is malformed', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), 'this is not valid toml!!!');
+    const name = getProjectName(testDir);
+    const { basename } = require('node:path');
+    expect(name).toBe(basename(testDir));
+  });
+
+  it('falls back to basename when Cargo.toml [package] has no name field', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nversion = "0.1.0"\nedition = "2021"\n');
+    const name = getProjectName(testDir);
+    const { basename } = require('node:path');
+    expect(name).toBe(basename(testDir));
+  });
+
+  it('handles single-quoted name in Cargo.toml', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), "[package]\nname = 'single-quoted'\nversion = \"0.1.0\"\n");
+    expect(getProjectName(testDir)).toBe('single-quoted');
+  });
+
+  it('handles Cargo.toml with [package] name before [dependencies] section', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      '[package]\nname = "real-name"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1.0"\n',
+    );
+    expect(getProjectName(testDir)).toBe('real-name');
   });
 });
 

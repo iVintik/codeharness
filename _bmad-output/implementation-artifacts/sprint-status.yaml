@@ -80,7 +80,7 @@ development_status:
 
   # Epic 8.4: Rust Observability & Docs
   8-7-rust-otlp-instrumentation: done
-  8-8-rust-documentation-scaffolding: backlog
+  8-8-rust-documentation-scaffolding: done
 
   # Epic 8.5: Rust Static Analysis
   8-9-semgrep-rules-rust-observability: backlog

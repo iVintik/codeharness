@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 34,
-    "done": 25,
+    "done": 26,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -209,7 +209,7 @@
       "acResults": null
     },
     "8-1-rust-stack-and-app-type-detection": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -217,7 +217,7 @@
       "acResults": null
     },
     "8-2-expand-state-types-for-rust": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -312,6 +312,111 @@
       "id": "migrated-3",
       "story": "8-1-rust-stack-and-app-type-detection",
       "description": "**Observation:** AC4 maps library crates to `generic` AppType rather than new `'library'` type — deliberate design choice but means library crates are indistinguishable from unknown projects.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "8-1-rust-stack-and-app-type-detection",
+      "description": "**HIGH fixed:** `[dev-dependencies]`/`[build-dependencies]` deps incorrectly matched as production deps — false positive agent/server detection. Added `getCargoDepsSection()` to extract only `[dependencies]` section.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "8-1-rust-stack-and-app-type-detection",
+      "description": "**HIGH fixed:** Substring false positives on crate names (`anthropic` matching `anthropic-sdk`, `rocket` matching `sprocket`). Added `hasCargoDep()` with word-boundary regex.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "8-1-rust-stack-and-app-type-detection",
+      "description": "**MEDIUM fixed:** `[[bin]]` and `[lib]` matched inside TOML comments. Used line-anchored regexes.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "8-1-rust-stack-and-app-type-detection",
+      "description": "**MEDIUM fixed:** Missing test coverage for 3 of 5 web frameworks (rocket, tide, warp).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "8-1-rust-stack-and-app-type-detection",
+      "description": "**MEDIUM fixed:** Missing test for `[lib]` + `[[bin]]` dual-crate pattern.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "8-1-rust-stack-and-app-type-detection",
+      "description": "**LOW unfixed:** `getCargoDepsSection()` does not handle `[dependencies.foo]` inline subsection TOML style. Acceptable per NFR4.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "8-1-rust-stack-and-app-type-detection",
+      "description": "**Coverage:** 97.02% overall, all 123 files above 80% floor. No integration test for detectStack→detectAppType end-to-end (acceptable — unit tested independently).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Observation:** Story spec said `coverage.tool` was `'c8' | 'coverage.py' | 'unknown'` but it was actually a plain `string` in `HarnessState`. Tightened to proper union — non-breaking.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Observation:** ~40 pre-existing TypeScript compilation errors in test files (bridge.test.ts, run.test.ts, etc.). Unrelated to this story. Tests pass at runtime via Vitest despite `tsc --noEmit` errors.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**HIGH fixed:** `getDefaultState()` hardcoded `coverage.tool` to `'c8'` regardless of stack. Rust projects got wrong default.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**MEDIUM fixed:** `detectCoverageTool()` had no rust branch — Cargo.toml projects fell through to `'unknown'`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**MEDIUM fixed:** `getStackLabel('rust')` returned `'Unknown'` — AGENTS.md mislabeled Rust projects.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**MEDIUM fixed:** `generateAgentsMdContent()` had no rust branch — Rust projects got \"No recognized stack\" boilerplate.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**LOW unfixed:** `getCoverageTool()` in docs-scaffold.ts and `getDefaultCoverageTool()` in state.ts duplicate stack-to-tool mapping.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "8-2-expand-state-types-for-rust",
+      "description": "**Coverage gap:** `parseCoverageReport` has no `'tarpaulin-json'` parser — out of scope for 8-2 (story 8-3 will address).",
       "source": "retro",
       "resolved": false
     }

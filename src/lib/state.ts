@@ -18,7 +18,7 @@ export interface HarnessState {
     target: number;
     baseline: number | null;
     current: number | null;
-    tool: string;
+    tool: 'c8' | 'coverage.py' | 'cargo-tarpaulin' | 'unknown';
   };
   session_flags: {
     logs_queried: boolean;
@@ -38,6 +38,7 @@ export interface HarnessState {
     web_snippet_path?: string;
     resource_attributes?: string;
     agent_sdk?: string;
+    rust_env_hint?: string;
   };
   retro_issue_targets?: Array<{ repo: string; labels: string[] }>;
   docker?: {
@@ -62,6 +63,12 @@ const STATE_DIR = '.claude';
 const STATE_FILE = 'codeharness.local.md';
 const DEFAULT_BODY = '\n# Codeharness State\n\nThis file is managed by the codeharness CLI. Do not edit manually.\n';
 
+export function getDefaultCoverageTool(stack?: string | null): HarnessState['coverage']['tool'] {
+  if (stack === 'python') return 'coverage.py';
+  if (stack === 'rust') return 'cargo-tarpaulin';
+  return 'c8';
+}
+
 export function getDefaultState(stack?: string | null): HarnessState {
   return {
     harness_version: '0.1.0',
@@ -76,7 +83,7 @@ export function getDefaultState(stack?: string | null): HarnessState {
       target: 90,
       baseline: null,
       current: null,
-      tool: 'c8',
+      tool: getDefaultCoverageTool(stack),
     },
     session_flags: {
       logs_queried: false,

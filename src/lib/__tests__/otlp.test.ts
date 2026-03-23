@@ -239,6 +239,19 @@ describe('configureOtlpEnvVars', () => {
     expect(state.otlp!.node_require).toBeUndefined();
   });
 
+  it('writes OTLP config for Rust with rust_env_hint', () => {
+    initState('rust');
+
+    configureOtlpEnvVars(testDir, 'rust');
+
+    const state = readState(testDir);
+    expect(state.otlp).toBeDefined();
+    expect(state.otlp!.enabled).toBe(true);
+    expect(state.otlp!.rust_env_hint).toBe('OTEL_EXPORTER_OTLP_ENDPOINT');
+    expect(state.otlp!.node_require).toBeUndefined();
+    expect(state.otlp!.python_wrapper).toBeUndefined();
+  });
+
   it('writes OTLP config for unknown stack without stack-specific fields', () => {
     initState(null);
 

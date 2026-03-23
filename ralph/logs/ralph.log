@@ -5018,3 +5018,6 @@ The following stories have exceeded the retry limit and should be skipped:
 [2026-03-23 09:11:27] [INFO] Story 8-1-rust-stack-and-app-type-detection: review (Starting code review)
 [2026-03-23 09:15:08] [INFO] Story 8-1-rust-stack-and-app-type-detection: verify (Starting verification)
 [2026-03-23 09:18:29] [INFO] Story 8-1-rust-stack-and-app-type-detection: verify (AC 7/7)
+[2026-03-23 09:18:59] [INFO] Story 8-2-expand-state-types-for-rust: dev (Starting dev-story)
+[2026-03-23 09:22:40] [INFO] Story 8-2-expand-state-types-for-rust: review (Starting code review)
+[2026-03-23 09:26:20] [INFO] Story 8-2-expand-state-types-for-rust: verify (Starting verification)

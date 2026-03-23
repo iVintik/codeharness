@@ -71,6 +71,10 @@ describe('getStackLabel', () => {
   it('returns Unknown for null stack', () => {
     expect(getStackLabel(null)).toBe('Unknown');
   });
+
+  it('returns Rust label for rust stack', () => {
+    expect(getStackLabel('rust')).toBe('Rust (Cargo.toml)');
+  });
 });
 
 describe('getCoverageTool', () => {
@@ -84,6 +88,10 @@ describe('getCoverageTool', () => {
 
   it('returns c8 for null', () => {
     expect(getCoverageTool(null)).toBe('c8');
+  });
+
+  it('returns cargo-tarpaulin for rust', () => {
+    expect(getCoverageTool('rust')).toBe('cargo-tarpaulin');
   });
 });
 
@@ -108,6 +116,18 @@ describe('generateAgentsMdContent', () => {
   it('includes generic message for unknown stack', () => {
     const content = generateAgentsMdContent(testDir, null);
     expect(content).toContain('No recognized stack');
+  });
+
+  it('includes Rust commands for rust stack', () => {
+    const content = generateAgentsMdContent(testDir, 'rust');
+    expect(content).toContain('cargo build');
+    expect(content).toContain('cargo test');
+    expect(content).toContain('cargo tarpaulin');
+  });
+
+  it('labels Rust stack correctly', () => {
+    const content = generateAgentsMdContent(testDir, 'rust');
+    expect(content).toContain('Rust');
   });
 });
 

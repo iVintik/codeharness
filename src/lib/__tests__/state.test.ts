@@ -54,6 +54,21 @@ describe('getDefaultState', () => {
     const state = getDefaultState(null);
     expect(state.stack).toBeNull();
   });
+
+  it('defaults coverage tool to cargo-tarpaulin for rust stack', () => {
+    const state = getDefaultState('rust');
+    expect(state.coverage.tool).toBe('cargo-tarpaulin');
+  });
+
+  it('defaults coverage tool to coverage.py for python stack', () => {
+    const state = getDefaultState('python');
+    expect(state.coverage.tool).toBe('coverage.py');
+  });
+
+  it('defaults coverage tool to c8 for nodejs stack', () => {
+    const state = getDefaultState('nodejs');
+    expect(state.coverage.tool).toBe('c8');
+  });
 });
 
 describe('writeState', () => {
@@ -345,5 +360,80 @@ describe('parseValue', () => {
 
   it('keeps strings as strings', () => {
     expect(parseValue('hello')).toBe('hello');
+  });
+});
+
+describe('HarnessState Rust type support', () => {
+  it('accepts cargo-tarpaulin as coverage.tool value', () => {
+    const state = getDefaultState();
+    state.coverage.tool = 'cargo-tarpaulin';
+    writeState(state, testDir);
+
+    const read = readState(testDir);
+    expect(read.coverage.tool).toBe('cargo-tarpaulin');
+  });
+
+  it('round-trips cargo-tarpaulin through YAML write/read', () => {
+    const state = getDefaultState();
+    state.coverage.tool = 'cargo-tarpaulin';
+    writeState(state, testDir);
+
+    const content = readFileSync(getStatePath(testDir), 'utf-8');
+    expect(content).toContain('tool: cargo-tarpaulin');
+
+    const { state: read } = readStateWithBody(testDir);
+    expect(read.coverage.tool).toBe('cargo-tarpaulin');
+  });
+
+  it('accepts rust_env_hint in OTLP state section', () => {
+    const state = getDefaultState();
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'my-rust-service',
+      mode: 'local-shared',
+      rust_env_hint: 'OTEL_EXPORTER_OTLP_ENDPOINT',
+    };
+    writeState(state, testDir);
+
+    const read = readState(testDir);
+    expect(read.otlp?.rust_env_hint).toBe('OTEL_EXPORTER_OTLP_ENDPOINT');
+  });
+
+  it('round-trips rust_env_hint through YAML write/read', () => {
+    const state = getDefaultState();
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'my-rust-service',
+      mode: 'local-shared',
+      rust_env_hint: 'OTEL_EXPORTER_OTLP_ENDPOINT',
+    };
+    writeState(state, testDir);
+
+    const content = readFileSync(getStatePath(testDir), 'utf-8');
+    expect(content).toContain('rust_env_hint: OTEL_EXPORTER_OTLP_ENDPOINT');
+
+    const { state: read, body } = readStateWithBody(testDir);
+    expect(read.otlp?.rust_env_hint).toBe('OTEL_EXPORTER_OTLP_ENDPOINT');
+
+    // Write back and verify round-trip
+    writeState(read, testDir, body);
+    const final = readState(testDir);
+    expect(final.otlp?.rust_env_hint).toBe('OTEL_EXPORTER_OTLP_ENDPOINT');
+  });
+
+  it('omits rust_env_hint when not set (optional field)', () => {
+    const state = getDefaultState();
+    state.otlp = {
+      enabled: true,
+      endpoint: 'http://localhost:4318',
+      service_name: 'my-node-service',
+      mode: 'local-shared',
+    };
+    writeState(state, testDir);
+
+    const read = readState(testDir);
+    expect(read.otlp?.rust_env_hint).toBeUndefined();
   });
 });

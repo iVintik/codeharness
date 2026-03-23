@@ -15,7 +15,7 @@ import {
   printCoverageOutput,
   checkPerFileCoverage,
 } from '../coverage.js';
-import type { CoverageResult, CoverageEvaluation } from '../coverage.js';
+import type { CoverageResult, CoverageEvaluation, CoverageToolInfo } from '../coverage.js';
 import { writeState, getDefaultState, readStateWithBody } from '../state.js';
 
 let testDir: string;
@@ -129,6 +129,23 @@ describe('detectCoverageTool', () => {
     // No package.json, no requirements.txt — no stack detected
     const result = detectCoverageTool(testDir);
     expect(result.tool).toBe('unknown');
+  });
+
+  it('CoverageToolInfo type accepts cargo-tarpaulin', () => {
+    const info: CoverageToolInfo = {
+      tool: 'cargo-tarpaulin',
+      runCommand: 'cargo tarpaulin --out json',
+      reportFormat: 'tarpaulin-json',
+    };
+    expect(info.tool).toBe('cargo-tarpaulin');
+  });
+
+  it('detects cargo-tarpaulin for rust project with Cargo.toml', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "my-crate"\nversion = "0.1.0"\n');
+    const result = detectCoverageTool(testDir);
+    expect(result.tool).toBe('cargo-tarpaulin');
+    expect(result.runCommand).toBe('cargo tarpaulin --out json');
+    expect(result.reportFormat).toBe('tarpaulin-json');
   });
 
   it('prefers test:coverage script when available', () => {

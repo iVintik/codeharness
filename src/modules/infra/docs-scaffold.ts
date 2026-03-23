@@ -32,17 +32,19 @@ export function getProjectName(projectDir: string): string {
 export function getStackLabel(stack: string | null): string {
   if (stack === 'nodejs') return 'Node.js (package.json)';
   if (stack === 'python') return 'Python';
+  if (stack === 'rust') return 'Rust (Cargo.toml)';
   return 'Unknown';
 }
 
-export function getCoverageTool(stack: string | null): string {
+export function getCoverageTool(stack: string | null): 'c8' | 'coverage.py' | 'cargo-tarpaulin' | 'unknown' {
   if (stack === 'python') return 'coverage.py';
+  if (stack === 'rust') return 'cargo-tarpaulin';
   return 'c8';
 }
 
 export function generateAgentsMdContent(projectDir: string, stack: string | null): string {
   const projectName = basename(projectDir);
-  const stackLabel = stack === 'nodejs' ? 'Node.js' : stack === 'python' ? 'Python' : 'Unknown';
+  const stackLabel = stack === 'nodejs' ? 'Node.js' : stack === 'python' ? 'Python' : stack === 'rust' ? 'Rust' : 'Unknown';
 
   const lines = [
     `# ${projectName}`,
@@ -68,6 +70,14 @@ export function generateAgentsMdContent(projectDir: string, stack: string | null
       '```bash',
       'pip install -r requirements.txt  # Install dependencies',
       'python -m pytest                 # Run tests',
+      '```',
+    );
+  } else if (stack === 'rust') {
+    lines.push(
+      '```bash',
+      'cargo build    # Build the project',
+      'cargo test     # Run tests',
+      'cargo tarpaulin --out json  # Run coverage',
       '```',
     );
   } else {

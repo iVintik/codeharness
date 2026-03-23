@@ -271,6 +271,9 @@ export function configureOtlpEnvVars(projectDir: string, stack: string | null, o
     ...(stack === 'python'
       ? { python_wrapper: 'opentelemetry-instrument' }
       : {}),
+    ...(stack === 'rust'
+      ? { rust_env_hint: 'OTEL_EXPORTER_OTLP_ENDPOINT' }
+      : {}),
   };
 
   // Resource attributes (Task 6)
@@ -311,6 +314,18 @@ export function instrumentProject(
     if (result.status === 'configured' && !isJson) {
       ok('OTLP: Python packages installed');
       info('OTLP: wrap your command with: opentelemetry-instrument <command>');
+    }
+  } else if (stack === 'rust') {
+    // Rust OTLP package installation is story 8-7.
+    // For now, configure env vars and state hint only.
+    result = {
+      status: 'configured',
+      packages_installed: false,
+      start_script_patched: false,
+      env_vars_configured: false,
+    };
+    if (!isJson) {
+      info('OTLP: Rust — env vars configured. Run `cargo add opentelemetry opentelemetry-otlp tracing-opentelemetry tracing-subscriber` to add packages.');
     }
   } else {
     return {

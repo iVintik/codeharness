@@ -8,7 +8,7 @@ import { detectStack } from './stack-detect.js';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface CoverageToolInfo {
-  tool: 'c8' | 'coverage.py' | 'unknown';
+  tool: 'c8' | 'coverage.py' | 'cargo-tarpaulin' | 'unknown';
   runCommand: string;
   reportFormat: string;
 }
@@ -46,6 +46,14 @@ export function detectCoverageTool(dir?: string): CoverageToolInfo {
 
   if (stack === 'python') {
     return detectPythonCoverageTool(baseDir);
+  }
+
+  if (stack === 'rust') {
+    return {
+      tool: 'cargo-tarpaulin',
+      runCommand: 'cargo tarpaulin --out json',
+      reportFormat: 'tarpaulin-json',
+    };
   }
 
   warn('No recognized stack detected — cannot determine coverage tool');

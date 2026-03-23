@@ -68,7 +68,7 @@ development_status:
 
   # Epic 8.1: Rust Detection Foundation
   8-1-rust-stack-and-app-type-detection: done
-  8-2-expand-state-types-for-rust: backlog
+  8-2-expand-state-types-for-rust: verifying
 
   # Epic 8.2: Rust Coverage & Testing
   8-3-cargo-tarpaulin-coverage-detection: backlog

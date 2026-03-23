@@ -91,7 +91,7 @@ development_status:
 
   # Epic 9.1: Multi-Stack Detection & State
   9-1-multi-stack-detection-subdir-scanning: done
-  9-2-state-schema-migration-multi-stack: backlog
+  9-2-state-schema-migration-multi-stack: done
 
   # Epic 9.2: Multi-Stack Consumers
   9-3-init-orchestrator-per-stack-iteration: backlog

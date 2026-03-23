@@ -2,12 +2,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse, stringify } from 'yaml';
 import { warn } from './output.js';
-import { detectStack } from './stack-detect.js';
+import { detectStack, detectStacks, type StackName } from './stack-detect.js';
 
 export interface HarnessState {
   harness_version: string;
   initialized: boolean;
   stack: string | null;
+  stacks: StackName[];
   app_type?: 'server' | 'cli' | 'web' | 'agent' | 'generic';
   enforcement: {
     frontend: boolean;
@@ -59,6 +60,28 @@ export interface HarnessState {
   };
 }
 
+function migrateState(state: HarnessState): HarnessState {
+  const raw = state as Record<string, unknown>;
+
+  // New format: stacks array already present
+  if (Array.isArray(raw.stacks) && raw.stacks.length > 0) {
+    state.stacks = raw.stacks as StackName[];
+    state.stack = state.stacks[0] ?? null;
+    return state;
+  }
+
+  // Old format: has stack string but no stacks array
+  if (typeof raw.stack === 'string' && raw.stack) {
+    state.stacks = [raw.stack as StackName];
+    return state;
+  }
+
+  // Neither present
+  state.stacks = [];
+  state.stack = null;
+  return state;
+}
+
 const STATE_DIR = '.claude';
 const STATE_FILE = 'codeharness.local.md';
 const DEFAULT_BODY = '\n# Codeharness State\n\nThis file is managed by the codeharness CLI. Do not edit manually.\n';
@@ -74,6 +97,7 @@ export function getDefaultState(stack?: string | null): HarnessState {
     harness_version: '0.1.0',
     initialized: false,
     stack: stack ?? null,
+    stacks: stack ? [stack as StackName] : [],
     enforcement: {
       frontend: true,
       database: true,
@@ -104,7 +128,13 @@ export function writeState(state: HarnessState, dir?: string, body?: string): vo
   const claudeDir = join(baseDir, STATE_DIR);
   mkdirSync(claudeDir, { recursive: true });
 
-  const yamlContent = stringify(state, { nullStr: 'null' });
+  // Sync stack from stacks[0] for backward compat (shallow copy to avoid mutating caller's object)
+  const toWrite = { ...state };
+  if (toWrite.stacks && toWrite.stacks.length > 0) {
+    toWrite.stack = toWrite.stacks[0];
+  }
+
+  const yamlContent = stringify(toWrite, { nullStr: 'null' });
   const markdownBody = body ?? DEFAULT_BODY;
   const fileContent = `---\n${yamlContent}---\n${markdownBody}`;
 
@@ -132,7 +162,7 @@ export function readState(dir?: string): HarnessState {
     if (!isValidState(state)) {
       return recoverCorruptedState(baseDir);
     }
-    return state;
+    return migrateState(state);
   } catch {
     return recoverCorruptedState(baseDir);
   }
@@ -162,7 +192,7 @@ export function readStateWithBody(dir?: string): { state: HarnessState; body: st
     }
     // Everything after the second --- is the body
     const body = parts.slice(2).join('---');
-    return { state, body: body || DEFAULT_BODY };
+    return { state: migrateState(state), body: body || DEFAULT_BODY };
   } catch {
     const state = recoverCorruptedState(baseDir);
     return { state, body: DEFAULT_BODY };
@@ -179,13 +209,24 @@ function isValidState(state: unknown): state is HarnessState {
   if (!s.coverage || typeof s.coverage !== 'object') return false;
   if (!s.session_flags || typeof s.session_flags !== 'object') return false;
   if (!Array.isArray(s.verification_log)) return false;
+  // Accept old format (no stacks) and new format (stacks is array of strings)
+  if (s.stacks !== undefined && !Array.isArray(s.stacks)) return false;
+  if (Array.isArray(s.stacks) && s.stacks.some((v: unknown) => typeof v !== 'string')) return false;
   return true;
 }
 
 function recoverCorruptedState(dir: string): HarnessState {
   warn('State file corrupted — recreating from detected config');
   const stack = detectStack(dir);
+  const allStacks = detectStacks(dir);
   const state = getDefaultState(stack);
+  // Dedupe: detectStacks may return same stack from multiple dirs
+  const uniqueStackNames = [...new Set(allStacks.map(s => s.stack))];
+  state.stacks = uniqueStackNames;
+  // Sync stack from stacks[0] if stacks were detected but root stack was null
+  if (state.stack === null && uniqueStackNames.length > 0) {
+    state.stack = uniqueStackNames[0];
+  }
   writeState(state, dir);
   return state;
 }

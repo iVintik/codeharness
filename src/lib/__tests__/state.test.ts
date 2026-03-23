@@ -14,6 +14,7 @@ import {
   StateFileNotFoundError,
   type HarnessState,
 } from '../state.js';
+import type { StackName } from '../stack-detect.js';
 
 let testDir: string;
 
@@ -435,5 +436,301 @@ describe('HarnessState Rust type support', () => {
 
     const read = readState(testDir);
     expect(read.otlp?.rust_env_hint).toBeUndefined();
+  });
+});
+
+describe('Multi-stack state migration', () => {
+  it('migrates old format (stack only, no stacks) to include stacks array', () => {
+    // Write a state file in old format (no stacks field)
+    const claudeDir = join(testDir, '.claude');
+    mkdirSync(claudeDir, { recursive: true });
+    const oldYaml = [
+      '---',
+      'harness_version: "0.1.0"',
+      'initialized: true',
+      'stack: nodejs',
+      'enforcement:',
+      '  frontend: true',
+      '  database: true',
+      '  api: true',
+      'coverage:',
+      '  target: 90',
+      '  baseline: null',
+      '  current: null',
+      '  tool: c8',
+      'session_flags:',
+      '  logs_queried: false',
+      '  tests_passed: false',
+      '  coverage_met: false',
+      '  verification_run: false',
+      'verification_log: []',
+      '---',
+      '',
+    ].join('\n');
+    writeFileSync(join(claudeDir, 'codeharness.local.md'), oldYaml, 'utf-8');
+
+    const state = readState(testDir);
+    expect(state.stacks).toEqual(['nodejs']);
+    expect(state.stack).toBe('nodejs');
+  });
+
+  it('reads new format (stacks array present) and syncs stack from stacks[0]', () => {
+    const claudeDir = join(testDir, '.claude');
+    mkdirSync(claudeDir, { recursive: true });
+    const newYaml = [
+      '---',
+      'harness_version: "0.1.0"',
+      'initialized: true',
+      'stack: nodejs',
+      'stacks:',
+      '  - nodejs',
+      '  - rust',
+      'enforcement:',
+      '  frontend: true',
+      '  database: true',
+      '  api: true',
+      'coverage:',
+      '  target: 90',
+      '  baseline: null',
+      '  current: null',
+      '  tool: c8',
+      'session_flags:',
+      '  logs_queried: false',
+      '  tests_passed: false',
+      '  coverage_met: false',
+      '  verification_run: false',
+      'verification_log: []',
+      '---',
+      '',
+    ].join('\n');
+    writeFileSync(join(claudeDir, 'codeharness.local.md'), newYaml, 'utf-8');
+
+    const state = readState(testDir);
+    expect(state.stacks).toEqual(['nodejs', 'rust']);
+    expect(state.stack).toBe('nodejs');
+  });
+
+  it('handles neither stack nor stacks present — produces stacks: [], stack: null', () => {
+    const claudeDir = join(testDir, '.claude');
+    mkdirSync(claudeDir, { recursive: true });
+    const emptyStackYaml = [
+      '---',
+      'harness_version: "0.1.0"',
+      'initialized: false',
+      'stack: null',
+      'enforcement:',
+      '  frontend: true',
+      '  database: true',
+      '  api: true',
+      'coverage:',
+      '  target: 90',
+      '  baseline: null',
+      '  current: null',
+      '  tool: c8',
+      'session_flags:',
+      '  logs_queried: false',
+      '  tests_passed: false',
+      '  coverage_met: false',
+      '  verification_run: false',
+      'verification_log: []',
+      '---',
+      '',
+    ].join('\n');
+    writeFileSync(join(claudeDir, 'codeharness.local.md'), emptyStackYaml, 'utf-8');
+
+    const state = readState(testDir);
+    expect(state.stacks).toEqual([]);
+    expect(state.stack).toBeNull();
+  });
+
+  it('writeState dual-write: both stacks array and stack field appear in YAML output', () => {
+    const state = getDefaultState('nodejs');
+    state.stacks = ['nodejs', 'rust'] as StackName[];
+    writeState(state, testDir);
+
+    const content = readFileSync(getStatePath(testDir), 'utf-8');
+    expect(content).toContain('stack: nodejs');
+    expect(content).toContain('stacks:');
+    expect(content).toContain('- nodejs');
+    expect(content).toContain('- rust');
+  });
+
+  it('getDefaultState returns consistent stack and stacks fields', () => {
+    const withStack = getDefaultState('nodejs');
+    expect(withStack.stack).toBe('nodejs');
+    expect(withStack.stacks).toEqual(['nodejs']);
+
+    const noStack = getDefaultState();
+    expect(noStack.stack).toBeNull();
+    expect(noStack.stacks).toEqual([]);
+
+    const nullStack = getDefaultState(null);
+    expect(nullStack.stack).toBeNull();
+    expect(nullStack.stacks).toEqual([]);
+  });
+
+  it('isValidState accepts old-format state (no stacks field)', () => {
+    // Old format without stacks should still be valid — migrateState will add it
+    const claudeDir = join(testDir, '.claude');
+    mkdirSync(claudeDir, { recursive: true });
+    const oldYaml = [
+      '---',
+      'harness_version: "0.1.0"',
+      'initialized: false',
+      'stack: nodejs',
+      'enforcement:',
+      '  frontend: true',
+      '  database: true',
+      '  api: true',
+      'coverage:',
+      '  target: 90',
+      '  baseline: null',
+      '  current: null',
+      '  tool: c8',
+      'session_flags:',
+      '  logs_queried: false',
+      '  tests_passed: false',
+      '  coverage_met: false',
+      '  verification_run: false',
+      'verification_log: []',
+      '---',
+      '',
+    ].join('\n');
+    writeFileSync(join(claudeDir, 'codeharness.local.md'), oldYaml, 'utf-8');
+
+    // Should not trigger recovery — isValidState should accept this
+    const consoleSpy = vi.spyOn(console, 'log');
+    const state = readState(testDir);
+    // Should not have logged corruption warning
+    expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('State file corrupted'));
+    expect(state.stack).toBe('nodejs');
+    expect(state.stacks).toEqual(['nodejs']);
+    consoleSpy.mockRestore();
+  });
+
+  it('isValidState accepts new-format state (with stacks field)', () => {
+    const state = getDefaultState('nodejs');
+    state.stacks = ['nodejs', 'rust'] as StackName[];
+    writeState(state, testDir);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+    const read = readState(testDir);
+    expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('State file corrupted'));
+    expect(read.stacks).toEqual(['nodejs', 'rust']);
+    consoleSpy.mockRestore();
+  });
+
+  it('round-trip: write multi-stack state, read back, verify both fields intact', () => {
+    const state = getDefaultState('nodejs');
+    state.stacks = ['nodejs', 'rust'] as StackName[];
+    state.initialized = true;
+    writeState(state, testDir);
+
+    const read = readState(testDir);
+    expect(read.stack).toBe('nodejs');
+    expect(read.stacks).toEqual(['nodejs', 'rust']);
+    expect(read.initialized).toBe(true);
+
+    // Write again and read again
+    writeState(read, testDir);
+    const read2 = readState(testDir);
+    expect(read2.stack).toBe('nodejs');
+    expect(read2.stacks).toEqual(['nodejs', 'rust']);
+  });
+
+  it('readStateWithBody also applies migration for old format', () => {
+    const claudeDir = join(testDir, '.claude');
+    mkdirSync(claudeDir, { recursive: true });
+    const oldYaml = [
+      '---',
+      'harness_version: "0.1.0"',
+      'initialized: true',
+      'stack: python',
+      'enforcement:',
+      '  frontend: true',
+      '  database: true',
+      '  api: true',
+      'coverage:',
+      '  target: 90',
+      '  baseline: null',
+      '  current: null',
+      '  tool: coverage.py',
+      'session_flags:',
+      '  logs_queried: false',
+      '  tests_passed: false',
+      '  coverage_met: false',
+      '  verification_run: false',
+      'verification_log: []',
+      '---',
+      '# Body',
+      '',
+    ].join('\n');
+    writeFileSync(join(claudeDir, 'codeharness.local.md'), oldYaml, 'utf-8');
+
+    const { state, body } = readStateWithBody(testDir);
+    expect(state.stacks).toEqual(['python']);
+    expect(state.stack).toBe('python');
+    expect(body).toContain('# Body');
+  });
+
+  it('writeState syncs stack from stacks[0] even when stack was different', () => {
+    const state = getDefaultState('nodejs');
+    state.stacks = ['rust', 'nodejs'] as StackName[];
+    state.stack = 'nodejs'; // intentionally different from stacks[0]
+    writeState(state, testDir);
+
+    // After write, stack should be synced to stacks[0] = 'rust'
+    const read = readState(testDir);
+    expect(read.stack).toBe('rust');
+    expect(read.stacks).toEqual(['rust', 'nodejs']);
+  });
+
+  it('writeState does not mutate the input state object', () => {
+    const state = getDefaultState('nodejs');
+    state.stacks = ['rust', 'nodejs'] as StackName[];
+    state.stack = 'nodejs'; // intentionally different from stacks[0]
+    writeState(state, testDir);
+
+    // The original state object should not have been mutated
+    expect(state.stack).toBe('nodejs');
+  });
+
+  it('isValidState rejects stacks array with non-string elements', () => {
+    const claudeDir = join(testDir, '.claude');
+    mkdirSync(claudeDir, { recursive: true });
+    const badYaml = [
+      '---',
+      'harness_version: "0.1.0"',
+      'initialized: false',
+      'stack: null',
+      'stacks:',
+      '  - 42',
+      '  - true',
+      'enforcement:',
+      '  frontend: true',
+      '  database: true',
+      '  api: true',
+      'coverage:',
+      '  target: 90',
+      '  baseline: null',
+      '  current: null',
+      '  tool: c8',
+      'session_flags:',
+      '  logs_queried: false',
+      '  tests_passed: false',
+      '  coverage_met: false',
+      '  verification_run: false',
+      'verification_log: []',
+      '---',
+      '',
+    ].join('\n');
+    writeFileSync(join(claudeDir, 'codeharness.local.md'), badYaml, 'utf-8');
+
+    // Should trigger recovery because isValidState rejects non-string stacks elements
+    const consoleSpy = vi.spyOn(console, 'log');
+    const state = readState(testDir);
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('State file corrupted'));
+    expect(state.harness_version).toBe('0.1.0');
+    consoleSpy.mockRestore();
   });
 });

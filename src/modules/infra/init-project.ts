@@ -6,7 +6,7 @@
 import { existsSync } from 'node:fs';
 import { basename } from 'node:path';
 import { ok as okOutput, fail as failOutput, info, jsonOutput } from '../../lib/output.js';
-import { detectStack, detectAppType } from '../../lib/stack-detect.js';
+import { detectStack, detectStacks, detectAppType } from '../../lib/stack-detect.js';
 import { readState, writeState, getDefaultState, getStatePath } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
 import { instrumentProject } from '../../lib/otlp.js';
@@ -26,7 +26,7 @@ const HARNESS_VERSION = typeof __PKG_VERSION__ !== 'undefined' ? __PKG_VERSION__
 /** Helper: build a fail-status InitResult for early returns */
 function failResult(opts: InitOptions, error: string): InitResult {
   return {
-    status: 'fail', stack: null, error,
+    status: 'fail', stack: null, stacks: [], error,
     enforcement: { frontend: opts.frontend, database: opts.database, api: opts.api },
     documentation: { agents_md: 'skipped', docs_scaffold: 'skipped', readme: 'skipped' },
   };
@@ -51,7 +51,7 @@ export async function initProject(opts: InitOptions): Promise<Result<InitResult>
 async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> {
   const { projectDir, json: isJson = false } = opts;
   const result: InitResult = {
-    status: 'ok', stack: null,
+    status: 'ok', stack: null, stacks: [],
     enforcement: { frontend: opts.frontend, database: opts.database, api: opts.api },
     documentation: { agents_md: 'skipped', docs_scaffold: 'skipped', readme: 'skipped' },
   };
@@ -67,6 +67,8 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   // --- Stack detection ---
   const stack = detectStack(projectDir);
   result.stack = stack;
+  const allStacks = detectStacks(projectDir);
+  result.stacks = [...new Set(allStacks.map(s => s.stack))];
   const appType = detectAppType(projectDir, stack);
   result.app_type = appType;
   if (!isJson) {
@@ -119,6 +121,8 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   state.app_type = appType;
   state.enforcement = { frontend: opts.frontend, database: opts.database, api: opts.api };
   state.coverage.tool = getCoverageTool(stack);
+  // Persist all detected stacks (not just the primary root stack)
+  state.stacks = result.stacks as import('../../lib/stack-detect.js').StackName[];
   writeState(state, projectDir);
   if (!isJson) okOutput('State file: .claude/codeharness.local.md created');
 
@@ -173,6 +177,7 @@ function handleRerun(opts: InitOptions, result: InitResult): Result<InitResult> 
       return null;
     }
     result.stack = existingState.stack;
+    result.stacks = existingState.stacks ?? [];
     result.enforcement = existingState.enforcement;
     result.documentation = { agents_md: 'exists', docs_scaffold: 'exists', readme: 'exists' };
     result.dependencies = verifyDeps(isJson);

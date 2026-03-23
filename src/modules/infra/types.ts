@@ -63,6 +63,7 @@ export interface InitDocumentationResult {
 export interface InitResult {
   status: 'ok' | 'fail';
   stack: string | null;
+  stacks: string[];
   app_type?: AppType;
   enforcement: {
     frontend: boolean;

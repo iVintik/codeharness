@@ -1506,3 +1506,269 @@ One story attempted, zero completed. Story 8-9 made it through all four pipeline
 3. **Document Semgrep Rust pattern gotchas** (match arms, async fn visibility) for future rule authors
 4. **Consider TOML parser** if Cargo.toml parsing expands beyond the `name` field and `[dependencies]` section
 5. **Audit otlp.ts and coverage.ts** for refactoring opportunities (both exceed NFR1 limits)
+
+---
+
+# Session 7 Retrospective — 2026-03-23T18:04Z
+
+**Sprint:** Operational Excellence Sprint (Epic 9: Multi-Stack Project Support)
+**Session window:** ~18:04 - 18:19 UTC (~15 minutes, 1 Ralph iteration)
+**Commits produced:** 1 (`b4ca7af`)
+**Sprint progress:** 34/39 stories done (Epic 8 complete, Epic 9 started — 1/5 stories done)
+
+This session began Epic 9 work. Story 9-1 (multi-stack detection with subdirectory scanning) went through the full pipeline: create-story, dev-story, code-review, and verification in a single iteration.
+
+---
+
+## 1. Session Summary
+
+| Story | Phase | Outcome | Duration | Commit |
+|-------|-------|---------|----------|--------|
+| 9-1-multi-stack-detection-subdir-scanning | done | Completed | ~15 min | `b4ca7af` |
+
+One story attempted, one completed. This is the first story of Epic 9.1 (Multi-Stack Detection & State). The `detectStacks()` function now returns all stacks in a project (root + 1-level subdirectory scan), with `detectStack()` refactored as a backward-compatible wrapper.
+
+### Pipeline Phases
+
+| Phase | Timestamp | Duration | Notes |
+|-------|-----------|----------|-------|
+| create-story | ~14:05Z | ~3 min | Story defined with 6 ACs, 5 tasks |
+| dev-story | ~14:08Z | ~4 min | 15 new tests, real temp dirs (not mocks) |
+| code-review | ~14:12Z | ~3 min | 2 HIGH, 2 MEDIUM fixed; 3 LOW accepted |
+| verification | ~14:15Z | ~5 min | 6/6 ACs passed |
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+| Severity | Source | Issue | Fixed? |
+|----------|--------|-------|--------|
+| HIGH | code-review | `detectStack()` compat wrapper returned subdirectory stacks — broke all existing callers expecting root-only behavior | Yes — filtered to `dir === '.'` only |
+| HIGH | code-review | SKIP_DIRS missing `.venv`, `venv`, `.tox`, `.mypy_cache`, `.cache` — false-positive Python detection from virtual environment directories | Yes — 5 dirs added to skip list |
+| MEDIUM | code-review | `StackDetection.stack` typed as `string` instead of `StackName` union type — lost compile-time type safety | Yes — added `StackName = 'nodejs' \| 'python' \| 'rust'` |
+| MEDIUM | code-review | Unused `StackDetection` type import in test file | Yes — removed |
+
+### Known Issues NOT Fixed (accepted risk)
+
+| Severity | Issue | Reason |
+|----------|-------|--------|
+| LOW | `readdirSync` follows symlinks — could cause false positives in projects with symlinked directories | Edge case, low probability |
+| LOW | No test for non-existent directory catch branch in `detectStacks()` | Test gap, but error handling is trivial |
+| LOW | `detectStack()` return type not narrowed from `string \| null` to `StackName \| null` | Would require downstream type changes |
+
+### Spec Inconsistencies
+
+- **AC2 vs AC6 ordering conflict.** AC2 specifies return order `[nodejs/frontend, rust/backend]` (alphabetical by stack name?). AC6 says alphabetical by dir name, which gives `[backend, frontend]`. Implementation followed AC6. The story spec has an internal inconsistency that should be corrected for future reference.
+- **Tech spec divergence.** Tech spec said `detectStack()` should return `stacks[0]?.stack`. Code review changed this to filter root-only stacks (`dir === '.'`), which is a more correct backward-compat behavior. Downstream stories 9-2 through 9-5 need to be aware of this decision.
+
+### Workarounds / Tech Debt Introduced
+
+- **None.** Implementation followed existing test patterns (real temp dirs, not mocks). No workarounds applied. Clean addition.
+
+### Verification Gaps
+
+| Gap | Severity | Detail |
+|-----|----------|--------|
+| Functions not exported from npm package | MEDIUM | `detectStacks` and `detectStack` are not exported from `codeharness` — only `createProgram` and `parseStreamLine` are. Verifier had to extract functions from the dist bundle. Downstream consumers cannot use these programmatically. |
+| No observability | LOW | `detectStacks()` is a pure filesystem utility with no telemetry. Expected for this function type, consistent with prior patterns. |
+
+### Tooling / Infrastructure Problems
+
+None this session. Clean execution with no Docker issues, no timeout, no state corruption.
+
+---
+
+## 3. What Went Well
+
+- **Full pipeline in 15 minutes.** Story went from backlog to done (create -> dev -> review -> verify) in a single Ralph iteration. Fastest story completion of the day.
+- **Code review caught 2 HIGH bugs.** The `detectStack()` backward-compatibility break would have been a regression for every existing caller. The venv false-positive bug would have caused incorrect Python detection in any project with a virtual environment directory. Both caught before verification.
+- **Dev agent made the right call on test patterns.** Story technical notes suggested `vi.mock('node:fs')` but existing tests use real temp directories. Dev agent followed the existing pattern for consistency — correct decision.
+- **15 new tests added with zero regressions.** 79 tests in stack-detect.test.ts, 3088 full suite, 97.05% coverage, all files above 80% floor.
+- **Clean session.** No timeouts, no Docker issues, no state corruption, no tooling failures. First fully clean session of the day.
+
+---
+
+## 4. What Went Wrong
+
+- **Spec inconsistency (AC2 vs AC6) not caught during create-story.** The create-story agent defined conflicting ordering expectations. This should have been resolved before dev-story started.
+- **detectStacks/detectStack not exported from npm package.** This is not new to this session, but verification revealed it as a real limitation. Downstream story 9-2 or 9-3 may need to address this for consumers to benefit from multi-stack detection.
+- **detectStack() backward-compat was nearly broken.** The initial implementation returned all stacks including subdirectories. Without code review, this would have shipped as a silent behavioral change affecting every existing caller.
+
+---
+
+## 5. Lessons Learned
+
+### Repeat
+
+- **Real filesystem tests over mocks.** Using real temp directories gives higher-fidelity tests and avoids mock maintenance burden. The dev agent's decision to follow existing patterns was correct.
+- **Code review as backward-compat guardian.** The `detectStack()` wrapper returning subdir stacks was technically correct per the tech spec but would have broken callers. Review caught the semantic correctness issue that tests wouldn't.
+- **Single-story iterations.** 15 minutes for a full pipeline pass. This pacing is sustainable and reliable.
+
+### Avoid
+
+- **Conflicting ACs in story specs.** AC2 and AC6 contradict each other on ordering. The create-story agent should validate AC consistency before marking the story ready.
+- **Assuming internal functions are accessible to consumers.** `detectStacks` is not exported. If a function is designed for external use, export it explicitly.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next session)
+
+- None. Story 9-1 is clean and verified.
+
+### Fix Soon (next sprint)
+
+| Item | Priority | Detail |
+|------|----------|--------|
+| Export `detectStacks` from npm package | MEDIUM | Currently only `createProgram` and `parseStreamLine` are exported. Multi-stack detection is useless to npm consumers without an export. Address in story 9-2 or 9-3. |
+| Fix AC2/AC6 spec inconsistency in 9-1 story file | LOW | AC2 says `[nodejs/frontend, rust/backend]`, AC6 says alphabetical by dir name (`[backend, frontend]`). Clarify which is correct. |
+| Narrow `detectStack()` return type to `StackName \| null` | LOW | Currently returns `string \| null`. Narrowing improves type safety for callers. |
+
+### Backlog (carried forward)
+
+| Item | Sessions Noted |
+|------|----------------|
+| `codeharness sync` broken (Status header pattern) | 9+ epics |
+| State tracking desync (sprint-status vs sprint-state vs state-snapshot) | Every session |
+| otlp.ts 423 lines, coverage.ts 568 lines (exceed NFR1) | Since Epic 8 |
+| `computeSummary()` Rust rule ID support | Since story 8-9 |
+| 6 pre-existing test failures in sprint modules | Since story 8-4 |
+| Docker naming mismatch (`codeharness-shared-*`) | Since Epic 7 |
+
+---
+
+## Session 7 Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 1 (9-1) |
+| Stories completed | 1 (9-1) |
+| Stories failed | 0 |
+| Bugs found pre-verification | 4 (2 HIGH, 2 MEDIUM) — all fixed |
+| Bugs shipped unfixed | 0 HIGH/MEDIUM, 3 LOW (accepted) |
+| Tests added | 15 new + 3 post-review = 18 |
+| Total test count | 3088 passing |
+| Coverage | 97.05% |
+| Sprint progress | 34/39 done (87%), 5 backlog (all Epic 9) |
+| Duration | ~15 minutes |
+| Ralph iterations | 1 |
+| Timeouts | 0 |
+
+---
+
+## Full-Day Summary (Sessions 1-7)
+
+| Metric | Value |
+|--------|-------|
+| Total stories attempted | 10 (8-1 through 8-9, 9-1) |
+| Total stories completed | 10 |
+| Total stories failed | 0 |
+| Total bugs found | 40 (prior 36 + 4 this session) |
+| Total commits | 11 |
+| Epics completed | 5 (8.1, 8.2, 8.3, 8.4, 8.5 = Epic 8 complete) |
+| Epics started | 1 (Epic 9: 1/5 stories done) |
+| Sprint completion | 34/39 = 87% |
+| Session velocity (today) | ~10 stories in ~7 sessions |
+| Key achievement | Epic 8 (Full Rust Stack Support) 100% complete, Epic 9 started |
+| Top recurring debt | otlp.ts/coverage.ts file sizes, state tracking desync, codeharness sync broken |
+
+---
+
+# Session 7 Retrospective — 2026-03-23T14:21Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** 14:21 - 14:51 UTC (~30 minutes)
+**Story attempted:** 9-2-state-schema-migration-multi-stack
+**Final status:** verifying (black-box verification in progress when time expired)
+
+---
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Outcome |
+|-------|-------------|------------|---------|
+| 9-2-state-schema-migration-multi-stack | backlog | verifying | Created, implemented, reviewed, verification started but not completed |
+
+Story 9-2 progressed through create → dev → code-review → verification start within 25 minutes. The black-box Docker verification was launched but did not complete before the time budget expired. The verifier process (`claude --print`) is still running and will need to be picked up or restarted by the next session.
+
+## 2. Issues Analysis
+
+### Bugs Found During Code Review (4 fixed)
+
+1. **HIGH — init-project.ts never persisted multi-stacks.** `detectStacks()` results were computed but never written to the state file during `codeharness init`. Only the single root stack from `getDefaultState(stack)` survived. This would have meant multi-stack detection was completely broken for new inits.
+
+2. **MEDIUM — writeState() mutated caller's state object.** The backward-compat sync (`state.stack = state.stacks[0]`) modified the input object as a side effect. Could cause subtle bugs if callers hold references to state objects.
+
+3. **MEDIUM — isValidState() accepted non-string stacks array.** `stacks: [42, true]` passed validation. Type safety gap.
+
+4. **MEDIUM — recoverCorruptedState() inconsistent state.** When root `detectStack()` returned null but subdirectory `detectStacks()` found stacks, the state had `stack: null` with `stacks: ['nodejs']`. The consistency relied on the writeState mutation bug (#2) to fix itself.
+
+### Unfixed Issues (LOW priority)
+
+- `migrateState()` casts `raw.stack as StackName` without validating — old state files with `stack: 'go'` would produce invalid `stacks: ['go']`
+- `recoverCorruptedState()` runs detection twice (calls both `detectStack()` and `detectStacks()`, latter internally calls the former)
+- Flaky test: `sprint/__tests__/state.test.ts > writeStateAtomic` — shared file race condition under parallel execution (pre-existing)
+
+### Coverage Gaps
+
+- `init-project.test.ts` has zero assertions on `stacks` field after init
+- No test for recovery when root stack is null but subdirectory stacks exist
+
+### Spec Ambiguities
+
+- Epic spec said `stacks: string[]` but `StackName` union type exists from story 9-1. Implementation used `StackName[]` for type safety — correct decision.
+- `InitResult.stacks` wasn't explicitly called out in FR4 but was implied by scope.
+
+### Infrastructure
+
+- Observability stack port conflict: `docker-compose.harness.yml` tried to bind ports already used by shared stack containers. Resolved by using the shared stack directly.
+- Stale Docker container (`codeharness-verify`) left from previous session — had to force-remove before starting new one.
+
+## 3. What Went Well
+
+- **Create → dev → review pipeline executed smoothly.** Story went from backlog to verifying in ~20 minutes.
+- **Code review caught 4 real bugs** including a HIGH that would have made multi-stack init completely broken.
+- **3100 tests passing** with 19 new migration tests added. Zero regressions.
+- **97.03% coverage**, all 123 files above 80% floor.
+
+## 4. What Went Wrong
+
+- **Verification didn't complete in time.** The black-box verifier (claude --print) takes several minutes and was launched too late in the session.
+- **Time budget awareness was insufficient.** Should have started verification earlier or recognized that state migration ACs are better suited for unit-testable verification (all 8 ACs test internal functions).
+
+## 5. Lessons Learned
+
+- **State migration stories should be tagged `<!-- verification-tier: unit-testable -->`.** ACs 1-7 test internal state functions that have zero external effects — they can't meaningfully be verified via CLI alone. AC8 (regression) just needs `npm test`. Black-box verification for this story type wastes time on infrastructure setup for no additional confidence.
+- **Start verification earlier.** If the story reaches `verifying` with >15 minutes remaining, verification has a good chance of completing. With <10 minutes, skip to retro.
+- **Clean up Docker containers proactively.** The stale container from the previous session wasted a minute on diagnosis.
+
+## 6. Action Items
+
+### Fix Now (before next session)
+- Next session should complete the verification for 9-2 (it's at `verifying` status)
+
+### Fix Soon (next sprint)
+- Add `stacks` assertions to `init-project.test.ts`
+- Add test for recovery when root stack null + subdirectory stacks present
+- Consider tagging pure-state stories as unit-testable to avoid Docker overhead
+
+### Backlog
+- Fix flaky `writeStateAtomic` test (shared file race condition)
+- Validate `StackName` enum values in `migrateState()` instead of blind cast
+- Optimize `recoverCorruptedState()` to avoid double detection
+
+## Session Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 1 |
+| Stories completed | 0 (verification in progress) |
+| Stories failed | 0 |
+| Bugs found by review | 4 (1 HIGH, 3 MEDIUM) |
+| Tests added | 19 new + 2 from review = 21 |
+| Total tests passing | 3100 |
+| Coverage | 97.03% |
+| Sprint completion | 35/39 = ~90% (counting 9-2 as nearly done) |

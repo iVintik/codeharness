@@ -9,7 +9,7 @@ enforcement:
 coverage:
   target: 90
   baseline: 0
-  current: 97.06
+  current: 97.05
 session_flags:
   logs_queried: false
   tests_passed: true
@@ -123,11 +123,16 @@ verification_log:
   - "8-8-rust-documentation-scaffolding: pass at 2026-03-23T08:28:31.637Z"
   - "8-9-semgrep-rules-rust-observability: pass at 2026-03-23T08:53:52.417Z"
   - "8-9-semgrep-rules-rust-observability: pass at 2026-03-23T09:21:24.502Z"
-verify_env_dist_hash: c7ecc6a16cd86482cca13fc7f8d6c6c220c8e8e5404ab9965b0a509cee553fa1
+  - "9-1-multi-stack-detection-subdir-scanning: pass at 2026-03-23T14:17:05.084Z"
+verify_env_dist_hash: 1a7b6ad92676ed4538aa328d2f7953bf4c7da344f071e04138b885b8ac1ac715
 tests_passed: true
 coverage_met: true
 verification_run: true
 ---
+
+
+
+
 
 
 

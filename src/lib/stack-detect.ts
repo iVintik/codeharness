@@ -1,15 +1,96 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { warn } from './output.js';
 
 export type AppType = 'server' | 'cli' | 'web' | 'agent' | 'generic';
 
+export type StackName = 'nodejs' | 'python' | 'rust';
+
+export interface StackDetection {
+  stack: StackName;
+  dir: string;
+}
+
+/** Directories to skip during subdirectory scanning. */
+const SKIP_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'target',
+  '__pycache__',
+  'dist',
+  'build',
+  'coverage',
+  '.venv',
+  'venv',
+  '.tox',
+  '.mypy_cache',
+  '.cache',
+]);
+
+/** Stack markers in priority order (nodejs > python > rust). */
+const STACK_MARKERS: Array<{ stack: StackName; files: string[] }> = [
+  { stack: 'nodejs', files: ['package.json'] },
+  { stack: 'python', files: ['requirements.txt', 'pyproject.toml', 'setup.py'] },
+  { stack: 'rust', files: ['Cargo.toml'] },
+];
+
+/**
+ * Detect all stacks present in a directory, checking root and one level of subdirectories.
+ * Root stacks appear first (in priority order: nodejs > python > rust),
+ * then subdirectory stacks sorted alphabetically by directory name.
+ */
+export function detectStacks(dir: string = process.cwd()): StackDetection[] {
+  const results: StackDetection[] = [];
+
+  // Root scan — check all markers, no early return
+  for (const marker of STACK_MARKERS) {
+    for (const file of marker.files) {
+      if (existsSync(join(dir, file))) {
+        results.push({ stack: marker.stack, dir: '.' });
+        break; // Only add each stack once for root
+      }
+    }
+  }
+
+  // Subdirectory scan — one level deep
+  let entries: import('node:fs').Dirent[];
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    entries = [];
+  }
+
+  const subdirs = entries
+    .filter((e) => e.isDirectory() && !SKIP_DIRS.has(e.name))
+    .map((e) => e.name)
+    .sort();
+
+  for (const subdir of subdirs) {
+    const subdirPath = join(dir, subdir);
+    for (const marker of STACK_MARKERS) {
+      for (const file of marker.files) {
+        if (existsSync(join(subdirPath, file))) {
+          results.push({ stack: marker.stack, dir: subdir });
+          break; // Only add each stack once per subdir
+        }
+      }
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Compat wrapper: returns the first detected ROOT stack name, or null.
+ * Preserves the original single-stack, root-only API for existing callers.
+ * Only considers root-level markers (dir === '.'), never subdirectory detections,
+ * so callers like init-project and state that operate on the root directory
+ * are not surprised by a stack detected in a subdirectory.
+ */
 export function detectStack(dir: string = process.cwd()): string | null {
-  if (existsSync(join(dir, 'package.json'))) return 'nodejs';
-  if (existsSync(join(dir, 'requirements.txt'))) return 'python';
-  if (existsSync(join(dir, 'pyproject.toml'))) return 'python';
-  if (existsSync(join(dir, 'setup.py'))) return 'python';
-  if (existsSync(join(dir, 'Cargo.toml'))) return 'rust';
+  const stacks = detectStacks(dir);
+  const rootStack = stacks.find((s) => s.dir === '.');
+  if (rootStack) return rootStack.stack;
   warn('No recognized stack detected');
   return null;
 }

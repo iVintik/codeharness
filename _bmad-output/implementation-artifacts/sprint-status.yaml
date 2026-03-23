@@ -84,3 +84,16 @@ development_status:
 
   # Epic 8.5: Rust Static Analysis
   8-9-semgrep-rules-rust-observability: done
+
+  # Epic 9: Multi-Stack Project Support
+  epic-9: backlog
+  epic-9-retrospective: optional
+
+  # Epic 9.1: Multi-Stack Detection & State
+  9-1-multi-stack-detection-subdir-scanning: done
+  9-2-state-schema-migration-multi-stack: backlog
+
+  # Epic 9.2: Multi-Stack Consumers
+  9-3-init-orchestrator-per-stack-iteration: backlog
+  9-4-multi-stage-dockerfile-generation: backlog
+  9-5-multi-stack-docs-remaining-consumers: backlog

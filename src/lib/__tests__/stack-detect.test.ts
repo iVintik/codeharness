@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { detectStack, detectAppType } from '../stack-detect.js';
+import { detectStack, detectStacks, detectAppType } from '../stack-detect.js';
 
 let testDir: string;
 
@@ -47,6 +47,189 @@ describe('detectStack', () => {
     writeFileSync(join(testDir, 'package.json'), '{}', 'utf-8');
     writeFileSync(join(testDir, 'requirements.txt'), '', 'utf-8');
     expect(detectStack(testDir)).toBe('nodejs');
+  });
+
+  it('returns null when stacks only exist in subdirectories (root-only compat)', () => {
+    mkdirSync(join(testDir, 'backend'), { recursive: true });
+    writeFileSync(join(testDir, 'backend', 'Cargo.toml'), '[package]\nname = "api"\n');
+    const consoleSpy = vi.spyOn(console, 'log');
+    const result = detectStack(testDir);
+    expect(result).toBeNull();
+    consoleSpy.mockRestore();
+  });
+});
+
+describe('detectStacks', () => {
+  // AC1: dual root stacks
+  it('detects multiple stacks at root (package.json + Cargo.toml)', () => {
+    writeFileSync(join(testDir, 'package.json'), '{}', 'utf-8');
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "foo"\n');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: '.' },
+    ]);
+  });
+
+  it('detects all three stacks at root', () => {
+    writeFileSync(join(testDir, 'package.json'), '{}', 'utf-8');
+    writeFileSync(join(testDir, 'requirements.txt'), '', 'utf-8');
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "foo"\n');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'python', dir: '.' },
+      { stack: 'rust', dir: '.' },
+    ]);
+  });
+
+  // AC2: monorepo layout
+  it('detects stacks in subdirectories (monorepo layout)', () => {
+    mkdirSync(join(testDir, 'frontend'), { recursive: true });
+    mkdirSync(join(testDir, 'backend'), { recursive: true });
+    writeFileSync(join(testDir, 'frontend', 'package.json'), '{}', 'utf-8');
+    writeFileSync(join(testDir, 'backend', 'Cargo.toml'), '[package]\nname = "api"\n');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([
+      { stack: 'rust', dir: 'backend' },
+      { stack: 'nodejs', dir: 'frontend' },
+    ]);
+  });
+
+  // AC3: single-stack compat
+  it('returns single entry for single-stack project', () => {
+    writeFileSync(join(testDir, 'package.json'), '{}', 'utf-8');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([{ stack: 'nodejs', dir: '.' }]);
+  });
+
+  // AC4: empty directory
+  it('returns empty array for empty directory', () => {
+    const result = detectStacks(testDir);
+    expect(result).toEqual([]);
+  });
+
+  // AC5: skip list enforcement
+  it('skips node_modules during subdirectory scan', () => {
+    mkdirSync(join(testDir, 'node_modules', 'some-package'), { recursive: true });
+    writeFileSync(join(testDir, 'node_modules', 'some-package', 'Cargo.toml'), '[package]\nname = "fake"\n');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([]);
+  });
+
+  it('skips .git directory during subdirectory scan', () => {
+    mkdirSync(join(testDir, '.git', 'hooks'), { recursive: true });
+    writeFileSync(join(testDir, '.git', 'package.json'), '{}', 'utf-8');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([]);
+  });
+
+  it('skips target directory during subdirectory scan', () => {
+    mkdirSync(join(testDir, 'target', 'debug'), { recursive: true });
+    writeFileSync(join(testDir, 'target', 'Cargo.toml'), '[package]\nname = "fake"\n');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([]);
+  });
+
+  it('skips __pycache__ directory during subdirectory scan', () => {
+    mkdirSync(join(testDir, '__pycache__'), { recursive: true });
+    writeFileSync(join(testDir, '__pycache__', 'setup.py'), '');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([]);
+  });
+
+  it('skips dist, build, and coverage directories', () => {
+    for (const skipDir of ['dist', 'build', 'coverage']) {
+      mkdirSync(join(testDir, skipDir), { recursive: true });
+      writeFileSync(join(testDir, skipDir, 'package.json'), '{}', 'utf-8');
+    }
+    const result = detectStacks(testDir);
+    expect(result).toEqual([]);
+  });
+
+  it('skips .venv and venv directories (Python virtual envs)', () => {
+    for (const skipDir of ['.venv', 'venv']) {
+      mkdirSync(join(testDir, skipDir), { recursive: true });
+      writeFileSync(join(testDir, skipDir, 'setup.py'), '', 'utf-8');
+      writeFileSync(join(testDir, skipDir, 'pyproject.toml'), '', 'utf-8');
+    }
+    const result = detectStacks(testDir);
+    expect(result).toEqual([]);
+  });
+
+  it('skips .tox, .mypy_cache, and .cache directories', () => {
+    for (const skipDir of ['.tox', '.mypy_cache', '.cache']) {
+      mkdirSync(join(testDir, skipDir), { recursive: true });
+      writeFileSync(join(testDir, skipDir, 'package.json'), '{}', 'utf-8');
+    }
+    const result = detectStacks(testDir);
+    expect(result).toEqual([]);
+  });
+
+  // AC6: ordering — root first, subdirs alphabetically
+  it('root stacks appear first, subdirs sorted alphabetically', () => {
+    writeFileSync(join(testDir, 'package.json'), '{}', 'utf-8');
+    mkdirSync(join(testDir, 'api'), { recursive: true });
+    writeFileSync(join(testDir, 'api', 'Cargo.toml'), '[package]\nname = "api"\n');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'rust', dir: 'api' },
+    ]);
+  });
+
+  it('root stacks in priority order (nodejs > python > rust)', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "foo"\n');
+    writeFileSync(join(testDir, 'requirements.txt'), '', 'utf-8');
+    writeFileSync(join(testDir, 'package.json'), '{}', 'utf-8');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([
+      { stack: 'nodejs', dir: '.' },
+      { stack: 'python', dir: '.' },
+      { stack: 'rust', dir: '.' },
+    ]);
+  });
+
+  it('subdirectory stacks sorted alphabetically by dir name', () => {
+    mkdirSync(join(testDir, 'zeta'), { recursive: true });
+    mkdirSync(join(testDir, 'alpha'), { recursive: true });
+    mkdirSync(join(testDir, 'middle'), { recursive: true });
+    writeFileSync(join(testDir, 'zeta', 'package.json'), '{}', 'utf-8');
+    writeFileSync(join(testDir, 'alpha', 'Cargo.toml'), '[package]\nname = "a"\n');
+    writeFileSync(join(testDir, 'middle', 'requirements.txt'), '', 'utf-8');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([
+      { stack: 'rust', dir: 'alpha' },
+      { stack: 'python', dir: 'middle' },
+      { stack: 'nodejs', dir: 'zeta' },
+    ]);
+  });
+
+  it('does not add duplicate stacks per directory (python detected once even with multiple markers)', () => {
+    writeFileSync(join(testDir, 'requirements.txt'), '', 'utf-8');
+    writeFileSync(join(testDir, 'pyproject.toml'), '', 'utf-8');
+    writeFileSync(join(testDir, 'setup.py'), '', 'utf-8');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([{ stack: 'python', dir: '.' }]);
+  });
+
+  it('detects multiple stacks in the same subdirectory', () => {
+    mkdirSync(join(testDir, 'app'), { recursive: true });
+    writeFileSync(join(testDir, 'app', 'package.json'), '{}', 'utf-8');
+    writeFileSync(join(testDir, 'app', 'Cargo.toml'), '[package]\nname = "mixed"\n');
+    const result = detectStacks(testDir);
+    expect(result).toEqual([
+      { stack: 'nodejs', dir: 'app' },
+      { stack: 'rust', dir: 'app' },
+    ]);
+  });
+
+  it('only scans one level deep (does not recurse into nested subdirectories)', () => {
+    mkdirSync(join(testDir, 'level1', 'level2'), { recursive: true });
+    writeFileSync(join(testDir, 'level1', 'level2', 'package.json'), '{}', 'utf-8');
+    const result = detectStacks(testDir);
+    // level1 has no stack markers, level2 is not scanned
+    expect(result).toEqual([]);
   });
 });
 

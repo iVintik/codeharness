@@ -5,7 +5,7 @@
     "done": 33,
     "failed": 0,
     "blocked": 2,
-    "inProgress": null
+    "inProgress": "8-9-semgrep-rules-rust-observability"
   },
   "stories": {
     "0-1-sprint-state-live-updates": {
@@ -273,7 +273,7 @@
       "acResults": null
     },
     "8-9-semgrep-rules-rust-observability": {
-      "status": "review",
+      "status": "in-progress",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -308,7 +308,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 11,
+    "iteration": 12,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -455,6 +455,83 @@
       "id": "migrated-20",
       "story": "8-9-semgrep-rules-rust-observability",
       "description": "**Large rule file:** `rust-function-no-tracing.yaml` is ~230 lines due to combinatorial explosion. Within NFR1 limit but verbose. Semgrep doesn't support wildcard matching across visibility/async modifiers.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**HIGH (fixed):** Test fixture missing `tracing::trace!()` namespaced test case. Only bare `trace!()` was tested — a regression in `pattern-not` for namespaced form would go undetected. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**LOW (not fixed):** `rust-function-no-tracing.yaml` at 282 lines (93% of NFR1 limit) due to N*M pattern explosion. Could be refactored with `pattern-not-inside` in future.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**LOW (not fixed):** Error path rules only exclude `error!/warn!` levels, not `info!/debug!`. Matches JS/TS precedent but may cause false positives for devs logging errors at info level.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Coverage gap:** `computeSummary()` won't recognize Rust rule IDs — follow-up story needed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-25",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**AC2 FAIL:** `rust-catch-without-tracing.yaml` has invalid Rust pattern syntax. `Err($E) => { ... }` is not a standalone expression — match arms only exist inside `match` blocks. Semgrep parse error: `Stdlib.Parsing.Parse_error`. Zero findings on any input.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-26",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Root cause:** Dev agent couldn't run `semgrep --validate` locally (macOS Bigarray crash). Relied on YAML-parsing unit tests which don't validate Semgrep pattern syntax.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-27",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Fix needed:** Wrap match arm patterns inside full `match` expressions, e.g. `match $X { Err($E) => { ... } }` or use `pattern-inside` with a `match` block.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-28",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**AC1, AC3, AC4 PASS.** AC5 partial (tests not shipped in container, CLI functional).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-29",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "Story returned to `in-progress` for AC2 fix.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-30",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Semgrep not installed locally** — Cannot run `semgrep --validate` to confirm the rule parses correctly at the Semgrep engine level. The fix is structurally correct (match arms must be inside match blocks), but full validation requires semgrep-core.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-31",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "No workarounds, no tech debt added. Single-file YAML fix.",
       "source": "retro",
       "resolved": false
     }

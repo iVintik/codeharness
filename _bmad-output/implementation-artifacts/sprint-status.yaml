@@ -86,8 +86,8 @@ development_status:
   8-9-semgrep-rules-rust-observability: done
 
   # Epic 9: Multi-Stack Project Support
-  epic-9: backlog
-  epic-9-retrospective: optional
+  epic-9: done
+  epic-9-retrospective: done
 
   # Epic 9.1: Multi-Stack Detection & State
   9-1-multi-stack-detection-subdir-scanning: done

@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 42,
-    "done": 38,
+    "done": 39,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -313,7 +313,7 @@
       "acResults": null
     },
     "9-5-multi-stack-docs-remaining-consumers": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
@@ -351,11 +351,7 @@
     "iteration": 6,
     "cost": 0,
     "completed": [],
-    "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "failed": []
   },
   "actionItems": [
     {

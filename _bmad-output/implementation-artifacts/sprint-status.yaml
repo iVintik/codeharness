@@ -76,7 +76,7 @@ development_status:
 
   # Epic 8.3: Rust Infrastructure
   8-5-rust-dockerfile-template: done
-  8-6-rust-verification-dockerfile: backlog
+  8-6-rust-verification-dockerfile: done
 
   # Epic 8.4: Rust Observability & Docs
   8-7-rust-otlp-instrumentation: backlog

@@ -1,0 +1,39 @@
+# Rust black-box verification environment
+# Provides Rust tooling, Semgrep, showboat, and cargo-tarpaulin for automated verification.
+# NO project source enters the image — the project is mounted at runtime.
+FROM rust:1.82-slim
+
+# System utilities + Python for Semgrep
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3 \
+    python3-pip \
+    python3-venv \
+    pipx \
+    curl \
+    jq \
+    git \
+  && rm -rf /var/lib/apt/lists/*
+
+# Semgrep for static analysis verification
+RUN pipx install semgrep && pipx ensurepath
+ENV PATH="/root/.local/bin:${PATH}"
+
+# Node.js 20 LTS (needed for showboat and claude-code npm packages)
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
+# Verification tools + Claude Code CLI
+RUN npm install -g showboat @anthropic-ai/claude-code
+
+# Rust coverage tool
+RUN cargo install cargo-tarpaulin
+
+# OTEL environment pointing to host observability stack
+ENV OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318
+ENV OTEL_SERVICE_NAME=codeharness-verify
+ENV OTEL_TRACES_EXPORTER=otlp
+ENV OTEL_METRICS_EXPORTER=otlp
+ENV OTEL_LOGS_EXPORTER=otlp
+
+WORKDIR /workspace

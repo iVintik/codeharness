@@ -11,7 +11,7 @@ and Docker environment management for isolated verification.
 | orchestrator.ts | Verification pipeline orchestration | `checkPreconditions`, `createProofDocument`, `runShowboatVerify`, `updateVerificationState`, `closeBeadsIssue` |
 | parser.ts | Story AC extraction and classification | `parseStoryACs`, `classifyAC`, `classifyVerifiability`, `classifyStrategy`, `parseVerificationTag` |
 | proof.ts | Proof quality validation + black-box enforcement | `validateProofQuality`, `proofHasContent`, `classifyEvidenceCommands`, `checkBlackBoxEnforcement` |
-| env.ts | Docker image lifecycle + clean workspace + stale container cleanup | `buildVerifyImage`, `prepareVerifyWorkspace`, `checkVerifyEnv`, `cleanupVerifyEnv`, `cleanupStaleContainers`, `isValidStoryKey`, `computeDistHash` |
+| env.ts | Docker image lifecycle + clean workspace + stale container cleanup. Supports nodejs, python, rust, plugin, and generic project types. | `buildVerifyImage`, `prepareVerifyWorkspace`, `checkVerifyEnv`, `cleanupVerifyEnv`, `cleanupStaleContainers`, `isValidStoryKey`, `computeDistHash`, `detectProjectType` |
 | browser.ts | Agent-browser integration for UI testing in Docker | `BrowserVerifier` class with `navigate`, `screenshot`, `click`, `type`, `evaluate`, `isAvailable`, `diffScreenshots` |
 | types.ts | All verify domain types | `VerifyResult`, `ProofQuality`, `ParsedAC`, `BuildOptions`, `BuildResult`, `CheckResult`, `BrowserActionResult`, `DiffResult`, etc. |
 | validation-acs.ts | Validation AC registry barrel — combines all 79 ACs | `VALIDATION_ACS`, `getACsByCategory`, `getCliVerifiableACs`, `getIntegrationRequiredACs`, `getACById` |

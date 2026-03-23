@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 34,
-    "done": 29,
+    "done": 30,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -241,7 +241,7 @@
       "acResults": null
     },
     "8-5-rust-dockerfile-template": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -249,8 +249,8 @@
       "acResults": null
     },
     "8-6-rust-verification-dockerfile": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -284,14 +284,14 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 6,
+    "iteration": 7,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "8-5-rust-dockerfile-template",
+    "currentStory": "8-6-rust-verification-dockerfile",
     "currentPhase": "verify",
-    "lastAction": "Starting verification",
-    "acProgress": "7/7"
+    "lastAction": "Re-verifying after package.json fix",
+    "acProgress": "6/8"
   },
   "actionItems": [
     {
@@ -564,6 +564,118 @@
       "id": "migrated-39",
       "story": "8-5-rust-dockerfile-template",
       "description": "**34/34 dockerfile-template tests pass.** 2994/2995 full suite (1 pre-existing failure).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-40",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**Proof format issue:** AC3 and AC4 referenced AC2's Dockerfile output without their own `bash`+`output` code blocks. Proof validator counted them as \"pending\" (5/7). Fixed by adding per-AC grep evidence blocks.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-41",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**Observability gap:** All 7 ACs showed no log events in VictoriaLogs. Recurring pattern — CLI commands don't emit telemetry in verify container.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-42",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**Beads sync skipped:** `bd` binary not installed (recurring).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-43",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**Showboat re-verification skipped:** showboat not installed (recurring).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-44",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**HIGH (fixed):** Missing showboat proof document — created with AC-by-AC evidence.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-45",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**MEDIUM (fixed):** AGENTS.md stale — omitted rust from dockerfile-template.ts entry.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-46",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**MEDIUM (not fixed, design decision):** Rust template has no ENTRYPOINT/CMD — consistent with all other templates.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-47",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**LOW (not fixed):** Hardcoded `rust:1.82-slim` will age. Users edit the template.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-48",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "**LOW (not fixed):** Error-path tests only exercise nodejs stack (code is stack-agnostic).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-49",
+      "story": "8-5-rust-dockerfile-template",
+      "description": "Coverage: 97% overall, 100% for dockerfile-template.ts, all files above 80% floor.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-50",
+      "story": "8-6-rust-verification-dockerfile",
+      "description": "**Ambiguity: showboat installation in Rust image.** Epic says \"showboat\" but doesn't mention it's an npm package requiring Node.js. Prior draft incorrectly listed `pipx install showboat`. Story now documents Node.js dependency.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-51",
+      "story": "8-6-rust-verification-dockerfile",
+      "description": "**Risk: env.ts approaching 300-line limit.** File is 293 lines. Adding `buildRustImage()` puts it around ~308 lines.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-52",
+      "story": "8-6-rust-verification-dockerfile",
+      "description": "**Observation: prior draft existed.** Minimal draft (74 lines, 2 ACs) overwritten with comprehensive version (217 lines, 8 ACs, 8 tasks).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-53",
+      "story": "8-6-rust-verification-dockerfile",
+      "description": "**Task 5.2 deviation:** Story specified copying Cargo.toml/Cargo.lock/src into build context. Dev Notes clarified this is a tools-only image (project mounted at runtime), so buildRustImage follows buildGenericImage pattern with Dockerfile-only context. Task marked complete despite deviation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-54",
+      "story": "8-6-rust-verification-dockerfile",
+      "description": "**Build timeout:** buildRustImage uses 300s timeout (vs 120s for others) because cargo install cargo-tarpaulin compiles from source. Minor pattern deviation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-55",
+      "story": "8-6-rust-verification-dockerfile",
+      "description": "**env.ts line count:** File grew from 293 to ~307 lines, slightly over 300-line soft limit.",
       "source": "retro",
       "resolved": false
     }

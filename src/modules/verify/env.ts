@@ -73,6 +73,7 @@ export function detectProjectType(projectDir: string): ProjectType {
   // fallback for projects that are purely Claude Code plugins with no build artifact.
   if (stack === 'nodejs') return 'nodejs';
   if (stack === 'python') return 'python';
+  if (stack === 'rust') return 'rust';
   if (existsSync(join(projectDir, '.claude-plugin', 'plugin.json'))) return 'plugin';
   return 'generic';
 }
@@ -85,8 +86,8 @@ export function buildVerifyImage(options: BuildOptions = {}): BuildResult {
   }
   const projectType = detectProjectType(projectDir);
   const currentHash = computeDistHash(projectDir);
-  if (projectType === 'generic' || projectType === 'plugin') {
-    // Generic and plugin projects may not have dist/ — skip hash check
+  if (projectType === 'generic' || projectType === 'plugin' || projectType === 'rust') {
+    // Generic, plugin, and Rust projects may not have dist/ — skip hash check
   } else if (!currentHash) {
     throw new Error('No dist/ directory found. Run your build command first (e.g., npm run build).');
   }
@@ -99,8 +100,9 @@ export function buildVerifyImage(options: BuildOptions = {}): BuildResult {
   const startTime = Date.now();
   if (projectType === 'nodejs') { buildNodeImage(projectDir); }
   else if (projectType === 'python') { buildPythonImage(projectDir); }
+  else if (projectType === 'rust') { buildSimpleImage(projectDir, 'rust', 300_000); }
   else if (projectType === 'plugin') { buildPluginImage(projectDir); }
-  else { buildGenericImage(projectDir); }
+  else { buildSimpleImage(projectDir, 'generic'); }
   if (currentHash) { storeDistHash(projectDir, currentHash); }
   return { imageTag: IMAGE_TAG, imageSize: getImageSize(IMAGE_TAG), buildTimeMs: Date.now() - startTime, cached: false };
 }
@@ -247,21 +249,26 @@ function buildPluginImage(projectDir: string): void {
   }
 }
 
-function buildGenericImage(projectDir: string): void {
+function buildSimpleImage(projectDir: string, variant: string, timeout = 120_000): void {
   const buildContext = join('/tmp', `codeharness-verify-build-${Date.now()}`);
   mkdirSync(buildContext, { recursive: true });
   try {
-    cpSync(resolveDockerfileTemplate(projectDir, 'generic'), join(buildContext, 'Dockerfile'));
+    cpSync(resolveDockerfileTemplate(projectDir, variant), join(buildContext, 'Dockerfile'));
     execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], {
-      cwd: buildContext, stdio: 'pipe', timeout: 120_000,
+      cwd: buildContext, stdio: 'pipe', timeout,
     });
   } finally {
     rmSync(buildContext, { recursive: true, force: true });
   }
 }
 
+const DOCKERFILE_VARIANTS: Record<string, string> = {
+  generic: 'Dockerfile.verify.generic',
+  rust: 'Dockerfile.verify.rust',
+};
+
 function resolveDockerfileTemplate(projectDir: string, variant?: string): string {
-  const filename = variant === 'generic' ? 'Dockerfile.verify.generic' : 'Dockerfile.verify';
+  const filename = (variant && DOCKERFILE_VARIANTS[variant]) ?? 'Dockerfile.verify';
   const local = join(projectDir, 'templates', filename);
   if (existsSync(local)) return local;
   const pkgDir = new URL('../../', import.meta.url).pathname;

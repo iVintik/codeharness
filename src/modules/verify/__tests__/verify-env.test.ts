@@ -670,9 +670,9 @@ describe('detectProjectType', () => {
     expect(detectProjectType(testDir)).toBe('generic');
   });
 
-  it('returns generic when detectStack returns unrecognized value', () => {
+  it('returns rust when detectStack returns rust', () => {
     mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
-    expect(detectProjectType(testDir)).toBe('generic');
+    expect(detectProjectType(testDir)).toBe('rust');
   });
 
   it('prioritizes nodejs over plugin when both exist', () => {
@@ -717,6 +717,58 @@ describe('buildVerifyImage — plugin project (AC #2)', () => {
       .mockReturnValueOnce(Buffer.from('50000000')); // docker image inspect (size)
 
     expect(() => buildVerifyImage({ projectDir: testDir })).not.toThrow();
+  });
+});
+
+// ─── buildVerifyImage — Rust project (AC #3, #4, #5, #6) ────────────────────
+
+describe('buildVerifyImage — Rust project', () => {
+  it('builds Rust image when detectStack returns rust (AC #4)', () => {
+    mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
+    writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('150000000')); // docker image inspect (size)
+
+    const result = buildVerifyImage({ projectDir: testDir });
+    expect(result.cached).toBe(false);
+    expect(result.imageTag).toBe('codeharness-verify');
+
+    const buildCall = mockExecFileSync.mock.calls.find(
+      c => (c[1] as string[]).includes('build'),
+    );
+    expect(buildCall).toBeDefined();
+    // Rust build should NOT have --build-arg TARBALL (no tarball for Rust)
+    expect((buildCall![1] as string[])).not.toContain('--build-arg');
+  });
+
+  it('does not throw for Rust projects without dist/ (AC #4)', () => {
+    mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
+    writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('150000000')); // docker image inspect (size)
+
+    expect(() => buildVerifyImage({ projectDir: testDir })).not.toThrow();
+  });
+
+  it('resolves Dockerfile.verify.rust template for rust variant (AC #5)', () => {
+    writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
+    mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
+
+    mockExecFileSync
+      .mockReturnValueOnce(Buffer.from('')) // docker build
+      .mockReturnValueOnce(Buffer.from('150000000')); // docker image inspect (size)
+
+    buildVerifyImage({ projectDir: testDir });
+
+    // Verify docker build was called (proves the Dockerfile was found and used)
+    const buildCall = mockExecFileSync.mock.calls.find(
+      c => (c[1] as string[]).includes('build'),
+    );
+    expect(buildCall).toBeDefined();
   });
 });
 

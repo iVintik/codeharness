@@ -11,6 +11,8 @@
     "bin",
     "patches",
     "templates/Dockerfile.verify",
+    "templates/Dockerfile.verify.rust",
+    "templates/Dockerfile.verify.generic",
     "ralph/**/*.sh",
     "ralph/AGENTS.md"
   ],

@@ -1,0 +1,62 @@
+rules:
+  - id: rust-error-path-no-tracing
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $X.map_err(|$E| { ... })
+          - pattern: |
+              $X.unwrap_or_else(|$E| { ... })
+      - pattern-not: |
+          $X.map_err(|$E| {
+            ...
+            tracing::error!(...);
+            ...
+          })
+      - pattern-not: |
+          $X.map_err(|$E| {
+            ...
+            tracing::warn!(...);
+            ...
+          })
+      - pattern-not: |
+          $X.map_err(|$E| {
+            ...
+            error!(...);
+            ...
+          })
+      - pattern-not: |
+          $X.map_err(|$E| {
+            ...
+            warn!(...);
+            ...
+          })
+      - pattern-not: |
+          $X.unwrap_or_else(|$E| {
+            ...
+            tracing::error!(...);
+            ...
+          })
+      - pattern-not: |
+          $X.unwrap_or_else(|$E| {
+            ...
+            tracing::warn!(...);
+            ...
+          })
+      - pattern-not: |
+          $X.unwrap_or_else(|$E| {
+            ...
+            error!(...);
+            ...
+          })
+      - pattern-not: |
+          $X.unwrap_or_else(|$E| {
+            ...
+            warn!(...);
+            ...
+          })
+    message: "Rust error-path closure without tracing — observability gap"
+    languages: [rust]
+    severity: WARNING
+    metadata:
+      category: observability
+      cwe: "CWE-778: Insufficient Logging"

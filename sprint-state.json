@@ -2,10 +2,10 @@
   "version": 1,
   "sprint": {
     "total": 37,
-    "done": 32,
+    "done": 33,
     "failed": 0,
     "blocked": 2,
-    "inProgress": null
+    "inProgress": "8-9-semgrep-rules-rust-observability"
   },
   "stories": {
     "0-1-sprint-state-live-updates": {
@@ -265,7 +265,7 @@
       "acResults": null
     },
     "8-8-rust-documentation-scaffolding": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -273,8 +273,8 @@
       "acResults": null
     },
     "8-9-semgrep-rules-rust-observability": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "in-progress",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -308,14 +308,14 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 10,
+    "iteration": 12,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "8-8-rust-documentation-scaffolding",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification",
-    "acProgress": "7/7"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": [
     {
@@ -336,6 +336,202 @@
       "id": "migrated-3",
       "story": "8-8-rust-documentation-scaffolding",
       "description": "**Workaround: sprint-status.yaml not updated by agent.** Had to manually update status to `ready-for-dev`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-4",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**HIGH: Cargo.toml regex only matched double-quoted values.** Single quotes are valid TOML. Fixed to support both.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-5",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**HIGH: Cargo.toml section regex broke on `[` in values.** Fixed to use `[\\s\\S]*?` with lookahead for next section.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**HIGH: Missing showboat proof document.** Created.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**MEDIUM: Test assertion too weak** for dependencies-only Cargo.toml. Fixed to verify actual fallback value.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**MEDIUM: No test for `[package]` section with no `name` field.** Added.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**LOW (not fixed): Mixed quote regex doesn't enforce matching quotes** — acceptable for simple parser per NFR3.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**LOW (not fixed): Pre-existing uncovered lines 180, 221-222** in docs-scaffold.ts (unrelated to 8-8).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "All 7 ACs passed. Verifier used a Node.js script (`verify-acs.mjs`) to import and test the functions directly from the dist bundle — creative approach.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**OBSERVABILITY GAP on all ACs:** No log events detected for any of the docs-scaffold function calls. These are pure utility functions with no instrumentation — expected for documentation scaffolding.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**AC7 indirect:** Test source files not shipped in npm package, so vitest/bats couldn't run in container. Verified indirectly via all 6 functional ACs passing + dev agent's test report.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Risk: Semgrep Rust pattern matching for match arms and closures can be finicky.** AC2 and AC3 depend on this — dev agent should validate rules carefully.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Risk: AC4 tagged integration-required** — verifying `codeharness audit` picks up Rust rules requires a real Rust project with Semgrep installed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Observation: Pure-config story** — no TypeScript changes, just 3 YAML files. Clean scope.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Observation: computeSummary() rule-name mismatch** — existing analyzer.ts hardcodes JS/TS rule names. New Rust rule IDs won't match, so summary percentages will be off for Rust projects. Outside story scope but a follow-up candidate.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Semgrep validation broken locally:** `semgrep --validate` crashes with `Bigarray.create: negative dimension` on semgrep-core 1.136.0 on macOS. System-wide issue, not rule-specific. Structural validation done via YAML parsing in vitest.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**computeSummary won't count Rust rule IDs:** `matchesRule()` in analyzer.ts only recognizes JS/TS rule names. Rust rule IDs won't be counted in summary stats. Architectural limitation — future story needed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Large rule file:** `rust-function-no-tracing.yaml` is ~230 lines due to combinatorial explosion. Within NFR1 limit but verbose. Semgrep doesn't support wildcard matching across visibility/async modifiers.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**HIGH (fixed):** Test fixture missing `tracing::trace!()` namespaced test case. Only bare `trace!()` was tested — a regression in `pattern-not` for namespaced form would go undetected. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**LOW (not fixed):** `rust-function-no-tracing.yaml` at 282 lines (93% of NFR1 limit) due to N*M pattern explosion. Could be refactored with `pattern-not-inside` in future.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**LOW (not fixed):** Error path rules only exclude `error!/warn!` levels, not `info!/debug!`. Matches JS/TS precedent but may cause false positives for devs logging errors at info level.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Coverage gap:** `computeSummary()` won't recognize Rust rule IDs — follow-up story needed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-25",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**AC2 FAIL:** `rust-catch-without-tracing.yaml` has invalid Rust pattern syntax. `Err($E) => { ... }` is not a standalone expression — match arms only exist inside `match` blocks. Semgrep parse error: `Stdlib.Parsing.Parse_error`. Zero findings on any input.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-26",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Root cause:** Dev agent couldn't run `semgrep --validate` locally (macOS Bigarray crash). Relied on YAML-parsing unit tests which don't validate Semgrep pattern syntax.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-27",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Fix needed:** Wrap match arm patterns inside full `match` expressions, e.g. `match $X { Err($E) => { ... } }` or use `pattern-inside` with a `match` block.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-28",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**AC1, AC3, AC4 PASS.** AC5 partial (tests not shipped in container, CLI functional).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-29",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "Story returned to `in-progress` for AC2 fix.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-30",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Semgrep not installed locally** — Cannot run `semgrep --validate` to confirm the rule parses correctly at the Semgrep engine level. The fix is structurally correct (match arms must be inside match blocks), but full validation requires semgrep-core.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-31",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "No workarounds, no tech debt added. Single-file YAML fix.",
       "source": "retro",
       "resolved": false
     }

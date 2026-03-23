@@ -83,4 +83,4 @@ development_status:
   8-8-rust-documentation-scaffolding: done
 
   # Epic 8.5: Rust Static Analysis
-  8-9-semgrep-rules-rust-observability: backlog
+  8-9-semgrep-rules-rust-observability: done

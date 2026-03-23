@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 37,
-    "done": 31,
+    "done": 33,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -257,7 +257,7 @@
       "acResults": null
     },
     "8-7-rust-otlp-instrumentation": {
-      "status": "review",
+      "status": "done",
       "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
@@ -265,16 +265,16 @@
       "acResults": null
     },
     "8-8-rust-documentation-scaffolding": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "8-9-semgrep-rules-rust-observability": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "review",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -308,7 +308,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 9,
+    "iteration": 11,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -320,57 +320,141 @@
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "8-7-rust-otlp-instrumentation",
-      "description": "**Bug found in existing code:** `configureAgent()` falls through to set `agent_sdk: 'traceloop'` for Rust projects — no Rust Traceloop SDK exists. Story task 4 fixes this.",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**Observation: ACs 1-3 are already implemented.** Code for `getStackLabel('rust')`, `getCoverageTool('rust')`, and the Rust branch in `generateAgentsMdContent()` was added in earlier stories. Only AC4 (`getProjectName` Cargo.toml parsing) is new work.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "8-7-rust-otlp-instrumentation",
-      "description": "**Scope expansion:** AC2 requires writing `OTEL_EXPORTER_OTLP_ENDPOINT` to `.env.codeharness` — current code only writes `OTEL_SERVICE_NAME` there. Necessary for Rust apps that read env vars directly.",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**Risk: Cargo.toml parsing edge cases.** Simple regex parsing without a TOML parser could break on comments, inline tables, or multi-line strings. Known tradeoff per NFR4.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "8-7-rust-otlp-instrumentation",
-      "description": "**Risk: otlp.ts at 375 lines**, will grow to ~410 (exceeds 300-line NFR1 limit). Pre-existing violation.",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**Workaround: sprint-status.yaml not updated by agent.** Had to manually update status to `ready-for-dev`.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "8-7-rust-otlp-instrumentation",
-      "description": "**Risk: AC8 integration-required** — needs real Rust toolchain + `cargo` for full pipeline verification.",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**HIGH: Cargo.toml regex only matched double-quoted values.** Single quotes are valid TOML. Fixed to support both.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "8-7-rust-otlp-instrumentation",
-      "description": "**Pre-existing test failures:** 6 tests fail in `modules/sprint/__tests__/migration.test.ts` and `modules/sprint/__tests__/state.test.ts`. Unrelated to story 8-7. May have broken between 8-6 and now.",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**HIGH: Cargo.toml section regex broke on `[` in values.** Fixed to use `[\\s\\S]*?` with lookahead for next section.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "8-7-rust-otlp-instrumentation",
-      "description": "**Mock isolation quirk:** `installRustOtlp` test needed explicit `mockClear()` because `vi.restoreAllMocks()` in `beforeEach` doesn't fully clear `mock.calls` on module-level `vi.mock`'d functions. Minor fragility.",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**HIGH: Missing showboat proof document.** Created.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "8-7-rust-otlp-instrumentation",
-      "description": "**File line count:** `otlp.ts` is now ~423 lines, exceeding the 300-line NFR1 limit. `ensureEndpointEnvVar` duplicates pattern from `ensureServiceNameEnvVar` — could be consolidated.",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**MEDIUM: Test assertion too weak** for dependencies-only Cargo.toml. Fixed to verify actual fallback value.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "8-7-rust-otlp-instrumentation",
-      "description": "**Sprint-status.yaml corruption:** The dev-story agent overwrote sprint-status.yaml with placeholder content. Had to restore from git and manually set status to `review`.",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**MEDIUM: No test for `[package]` section with no `name` field.** Added.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**LOW (not fixed): Mixed quote regex doesn't enforce matching quotes** — acceptable for simple parser per NFR3.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**LOW (not fixed): Pre-existing uncovered lines 180, 221-222** in docs-scaffold.ts (unrelated to 8-8).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "All 7 ACs passed. Verifier used a Node.js script (`verify-acs.mjs`) to import and test the functions directly from the dist bundle — creative approach.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**OBSERVABILITY GAP on all ACs:** No log events detected for any of the docs-scaffold function calls. These are pure utility functions with no instrumentation — expected for documentation scaffolding.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "8-8-rust-documentation-scaffolding",
+      "description": "**AC7 indirect:** Test source files not shipped in npm package, so vitest/bats couldn't run in container. Verified indirectly via all 6 functional ACs passing + dev agent's test report.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Risk: Semgrep Rust pattern matching for match arms and closures can be finicky.** AC2 and AC3 depend on this — dev agent should validate rules carefully.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Risk: AC4 tagged integration-required** — verifying `codeharness audit` picks up Rust rules requires a real Rust project with Semgrep installed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Observation: Pure-config story** — no TypeScript changes, just 3 YAML files. Clean scope.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Observation: computeSummary() rule-name mismatch** — existing analyzer.ts hardcodes JS/TS rule names. New Rust rule IDs won't match, so summary percentages will be off for Rust projects. Outside story scope but a follow-up candidate.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Semgrep validation broken locally:** `semgrep --validate` crashes with `Bigarray.create: negative dimension` on semgrep-core 1.136.0 on macOS. System-wide issue, not rule-specific. Structural validation done via YAML parsing in vitest.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**computeSummary won't count Rust rule IDs:** `matchesRule()` in analyzer.ts only recognizes JS/TS rule names. Rust rule IDs won't be counted in summary stats. Architectural limitation — future story needed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "8-9-semgrep-rules-rust-observability",
+      "description": "**Large rule file:** `rust-function-no-tracing.yaml` is ~230 lines due to combinatorial explosion. Within NFR1 limit but verbose. Semgrep doesn't support wildcard matching across visibility/async modifiers.",
       "source": "retro",
       "resolved": false
     }

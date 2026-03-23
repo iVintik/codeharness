@@ -121,11 +121,23 @@ verification_log:
   - "8-6-rust-verification-dockerfile: pass at 2026-03-23T07:29:32.653Z"
   - "8-7-rust-otlp-instrumentation: pass at 2026-03-23T08:07:40.861Z"
   - "8-8-rust-documentation-scaffolding: pass at 2026-03-23T08:28:31.637Z"
+  - "8-9-semgrep-rules-rust-observability: pass at 2026-03-23T08:53:52.417Z"
+  - "8-9-semgrep-rules-rust-observability: pass at 2026-03-23T09:21:24.502Z"
 verify_env_dist_hash: c7ecc6a16cd86482cca13fc7f8d6c6c220c8e8e5404ab9965b0a509cee553fa1
 tests_passed: true
 coverage_met: true
 verification_run: true
 ---
+
+
+
+
+
+
+
+
+
+
 
 
 

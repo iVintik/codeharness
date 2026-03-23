@@ -1136,3 +1136,289 @@ With 8-7 done, Epic 8.4 (Rust Observability & Docs) is half-complete. Stories 8-
 | Remaining | 8-8 (backlog), 8-9 (backlog) |
 | Key risk | otlp.ts NFR1 violation growing unchecked |
 | Top tech debt | otlp.ts 423 lines, coverage.ts 568 lines, 6 failing sprint tests |
+
+---
+
+# Session 5 Retrospective — 2026-03-23T12:10Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~12:10 - 12:30 UTC (~20 minutes)
+**Ralph iteration:** 10
+**Commits produced:** 1 (`b1dd9c0`)
+
+---
+
+## 1. Session Summary
+
+| Story | Phase | Outcome | Duration | Notes |
+|-------|-------|---------|----------|-------|
+| 8-8-rust-documentation-scaffolding | create-story | done | ~3 min (12:11-12:14) | ACs 1-3 already implemented by earlier stories; only AC4 was new work |
+| 8-8-rust-documentation-scaffolding | dev-story | done | ~3.5 min (12:14-12:18) | 28 docs-scaffold tests added, 3018 vitest + 307 BATS all pass |
+| 8-8-rust-documentation-scaffolding | code-review | done | ~4 min (12:18-12:22) | 2 HIGH, 2 MEDIUM, 2 LOW findings; 4 fixed, 2 accepted |
+| 8-8-rust-documentation-scaffolding | verification | done | ~6.5 min (12:22-12:29) | 7/7 ACs passed |
+
+One story attempted, one completed. Epic 8.4 (Rust Observability & Docs) is now fully done. This was the final story that Ralph could pick up — only 8-9 (semgrep rules for Rust) remains in backlog.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Review
+
+| Severity | Issue | Fixed? |
+|----------|-------|--------|
+| HIGH | Cargo.toml regex only matched double-quoted values; single quotes are valid TOML | Yes |
+| HIGH | Cargo.toml section regex broke on `[` characters inside values; used `[\s\S]*?` with lookahead | Yes |
+| MEDIUM | Test assertion for dependencies-only Cargo.toml was too weak — didn't verify actual fallback value | Yes |
+| MEDIUM | No test for `[package]` section with no `name` field | Yes (test added) |
+
+### Workarounds Applied (Tech Debt)
+
+| Item | Detail |
+|------|--------|
+| Mixed-quote regex | Regex doesn't enforce matching open/close quotes (e.g., `name = 'foo"` would parse). Accepted per NFR3 — simple parser, not a TOML spec implementation. |
+| Pre-existing uncovered lines | Lines 180, 221-222 in docs-scaffold.ts remain uncovered — pre-existing, not introduced by 8-8. |
+| sprint-status.yaml not auto-updated | Agent couldn't update sprint-status.yaml during create-story phase; required manual update to `ready-for-dev`. Same issue seen in earlier sessions. |
+
+### Verification Gaps
+
+| AC | Gap | Severity |
+|----|-----|----------|
+| AC1-AC6 | No log/observability events detected — these are pure utility functions with no instrumentation. Expected for documentation scaffolding, but means zero runtime observability. | LOW |
+| AC7 (test coverage) | Verified indirectly — test source files not shipped in npm package, so vitest/bats couldn't run in verification container. Relied on dev agent's test report + all 6 functional ACs passing. | MEDIUM |
+
+### Tooling/Infrastructure Problems
+
+None this session. Clean execution.
+
+---
+
+## 3. What Went Well
+
+- **Full pipeline in 20 minutes.** Story went from backlog to done (create -> dev -> review -> verify) in a single Ralph iteration with no retries or failures.
+- **Code review caught real bugs.** The double-quote-only and section-boundary regex issues were legitimate parsing bugs that would have caused failures on real Cargo.toml files. Both fixed before verification.
+- **Creative verification approach.** Verifier wrote a `verify-acs.mjs` script to import functions directly from the dist bundle — effective workaround for the test-files-not-in-npm-package limitation.
+- **ACs 1-3 pre-implemented.** Earlier stories (8-1 through 8-7) had already added `getStackLabel('rust')`, `getCoverageTool('rust')`, and the Rust branch in `generateAgentsMdContent()`. Story 8-8 only needed to add Cargo.toml project name parsing. Good incremental architecture.
+- **Test count grew.** 3014 -> 3021 tests (net +7 from 28 new docs-scaffold tests minus pre-existing adjustments).
+- **Zero regressions.** All 3021 vitest tests and 307 BATS tests pass.
+
+---
+
+## 4. What Went Wrong
+
+- **sprint-status.yaml still not auto-updated by agents.** This has been a recurring issue across multiple sessions. The create-story agent sets status to `ready-for-dev` in its output but doesn't write to sprint-status.yaml. Not blocking (Ralph handles it), but creates state drift between the YAML and actual execution.
+- **Observability gap on pure utility functions.** The docs-scaffold functions have zero instrumentation. While this is acceptable for scaffolding utilities, it means any failures in production would be invisible. Pattern to watch as more utility functions are added.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Incremental story design pays off.** Because earlier stories already handled the core Rust integration points, story 8-8 was small and focused. The create-story agent correctly identified that ACs 1-3 were already done — no wasted work.
+- **Code review as quality gate.** 2 HIGH bugs caught and fixed before verification. Without review, these would have been shipped as latent bugs in Cargo.toml parsing.
+- **Single-iteration completion.** When stories are well-scoped and prerequisites are met, the full pipeline (create/dev/review/verify) completes in one pass. No retries, no stuck stories.
+
+### Patterns to Avoid
+
+- **Regex-based TOML parsing.** Works for the simple case but accumulates edge-case bugs (quotes, section boundaries, comments). If Cargo.toml parsing grows beyond `name` extraction, switch to a proper TOML parser.
+- **Indirect test verification.** AC7 was verified indirectly because test files aren't in the npm package. If more stories depend on test execution in the verification container, need to address the packaging gap.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+- None. Story 8-8 is clean and verified.
+
+### Fix Soon (Next Sprint)
+
+| Item | Priority | Detail |
+|------|----------|--------|
+| sprint-status.yaml agent auto-update | MEDIUM | Agents should write status changes to sprint-status.yaml, not just log them. Recurring issue across 5 sessions. |
+| docs-scaffold.ts uncovered lines | LOW | Lines 180, 221-222 remain uncovered. Pre-existing but should be addressed. |
+
+### Backlog
+
+| Item | Detail |
+|------|--------|
+| TOML parser for Cargo.toml | If Cargo.toml parsing expands beyond `name`, replace regex with a proper parser (e.g., `@iarna/toml` or similar). |
+| Utility function observability policy | Decide whether pure utility functions (docs-scaffold, etc.) need instrumentation or if the current zero-observability stance is acceptable. |
+| 8-9 semgrep rules for Rust | Last remaining story in Epic 8. Blocked on semgrep rule authoring for Rust-specific observability patterns. |
+| otlp.ts / coverage.ts file size | Carried forward: otlp.ts 423 lines, coverage.ts 568 lines — both exceed NFR1 limits. |
+
+---
+
+## Session 5 Final Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted this window | 1 (8-8) |
+| Stories completed this window | 1 (8-8) |
+| Stories completed total (full day) | 8 (8-1 through 8-8) |
+| Stories failed | 0 |
+| Bugs found this window | 4 (2 HIGH, 2 MEDIUM) — all fixed |
+| Bugs found total (full day) | 28 |
+| Test count | 3021 |
+| Sprint progress | 33/34 done, 1 backlog (97%) |
+| Epics completed (full day) | 4 full (8.1, 8.2, 8.3, 8.4) |
+| Remaining | 8-9 (backlog) |
+| Key risk | otlp.ts NFR1 violation growing unchecked |
+| Top tech debt | otlp.ts 423 lines, coverage.ts 568 lines, regex-based TOML parsing |
+
+---
+
+# Session 6 Retrospective — 2026-03-23T12:32Z
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~12:32 UTC (session 6, final session of the day)
+**Stories in scope:** 8-9-semgrep-rules-rust-observability
+**Ralph iterations:** loop 11, calls 9/100
+
+---
+
+## 1. Session Summary
+
+| Story | Phase Reached | Outcome | Notes |
+|-------|--------------|---------|-------|
+| 8-9-semgrep-rules-rust-observability | create-story -> dev -> code-review -> verification | **FAILED (AC2)** — returned to `in-progress` | AC2 invalid Semgrep Rust pattern syntax; AC1, AC3, AC4 passed |
+
+One story attempted, zero completed. Story 8-9 made it through all four pipeline phases but failed verification on AC2. The Semgrep rule `rust-catch-without-tracing.yaml` contains invalid Rust pattern syntax — match arms written as standalone expressions, which Semgrep cannot parse. Story sent back to `in-progress`.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation / Verification
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| **CRITICAL** | 8-9 | `rust-catch-without-tracing.yaml` uses `Err($E) => { ... }` as standalone expression — match arms only valid inside `match` blocks. Semgrep returns `Stdlib.Parsing.Parse_error`. Zero findings on any input. | No — root cause of AC2 failure |
+| HIGH | 8-8 | Cargo.toml regex only matched double-quoted values; single quotes are valid TOML | Yes (code review) |
+| HIGH | 8-8 | Cargo.toml section regex broke on `[` in values | Yes (code review) |
+| HIGH | 8-8 | Missing showboat proof document | Yes (code review) |
+| HIGH | 8-9 | Test fixture missing `tracing::trace!()` namespaced test case — regression gap | Yes (code review) |
+| MEDIUM | 8-8 | Test assertion too weak for dependencies-only Cargo.toml | Yes (code review) |
+| MEDIUM | 8-8 | No test for `[package]` section with no `name` field | Yes (code review) |
+
+### Workarounds / Tech Debt Introduced
+
+| Item | Severity | Detail |
+|------|----------|--------|
+| sprint-status.yaml manual update | LOW | Agent did not update status to `ready-for-dev` for 8-8; required manual intervention. Recurring issue across sessions. |
+| YAML-only Semgrep validation | **HIGH** | Dev agent couldn't run `semgrep --validate` locally (macOS `Bigarray.create: negative dimension` crash on semgrep-core 1.136.0). Relied on YAML structure tests only. This is the direct cause of the AC2 failure. |
+| Mixed-quote regex (8-8) | LOW | Cargo.toml regex accepts `name = 'foo"` — mismatched quotes not enforced. Acceptable per NFR3. |
+
+### Verification Gaps
+
+| Story | Gap | Impact |
+|-------|-----|--------|
+| 8-8 | No observability on docs-scaffold functions — zero log events | Expected for pure utilities, but policy unclear |
+| 8-8 | AC7 indirect — tests not shipped in npm package, verified via dev agent report only | Weak evidence |
+| 8-9 | AC2 completely broken — invalid Semgrep pattern syntax undetectable without `semgrep --validate` | Story failure |
+| 8-9 | AC5 partial — tests not shipped in container | Consistent with prior stories |
+
+### Tooling / Infrastructure Problems
+
+| Problem | Impact | Mitigation |
+|---------|--------|------------|
+| `semgrep --validate` crashes on macOS (semgrep-core 1.136.0, `Bigarray.create: negative dimension`) | Cannot validate Semgrep rules locally. Dev agent cannot catch syntax errors in patterns. | None available locally. Must validate in CI or Docker container with different semgrep version. |
+| `computeSummary()` hardcodes JS/TS rule names | Rust Semgrep rule IDs won't appear in audit summary stats for Rust projects | Out of scope for 8-9; follow-up story needed |
+
+---
+
+## 3. What Went Well
+
+- **8-8 completed cleanly.** All 7 ACs verified. Code review caught 4 real bugs (2 HIGH, 2 MEDIUM), all fixed before verification.
+- **Code review quality high.** Both 8-8 and 8-9 reviews caught substantive issues — the namespaced `tracing::trace!()` gap and the Cargo.toml regex bugs would have caused real-world failures.
+- **Verification rigor caught the AC2 failure.** The verifier correctly identified that zero Semgrep findings = broken rule, rather than passing it as "no violations found."
+- **Creative verification approach (8-8).** Verifier wrote a Node.js script to import and test dist bundle functions directly — good pattern for utility function verification.
+- **Epic 8.4 (Rust Observability & Docs) complete.** Stories 8-7 and 8-8 both done.
+
+---
+
+## 4. What Went Wrong
+
+- **8-9 AC2 failure is a process failure, not just a code bug.** The dev agent knew `semgrep --validate` was broken locally but proceeded anyway with YAML-only validation. The code review also did not catch the invalid pattern syntax (it flagged a missing test case but not the fundamental pattern structure issue). Three agents (dev, reviewer, verifier) touched this rule — only the verifier caught it.
+- **Semgrep macOS crash is a blocker for Rust rule development.** Without local validation, the only feedback loop is "write rule -> commit -> verify -> fail -> retry." This is expensive.
+- **`rust-function-no-tracing.yaml` at 282 lines (93% of NFR1 limit).** The combinatorial explosion from Rust's visibility/async modifiers is pushing against file size limits. One more modifier variant and it exceeds NFR1.
+- **Sprint-status manual update still needed.** The agent automation gap for updating sprint-status.yaml persists from earlier sessions.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Code review before verification catches most bugs.** 6 of 7 bugs this session were caught and fixed in code review, before verification.
+2. **Direct function import for verification** (the `verify-acs.mjs` approach) is effective for utility functions without side effects.
+3. **Session issues log as source of truth** — the multi-agent log captured every issue across all phases, making retrospective analysis straightforward.
+
+### Patterns to Avoid
+
+1. **Never ship Semgrep rules without running `semgrep --validate` or `semgrep --test`.** YAML structure validation is necessary but not sufficient. If local validation is broken, validate in Docker or CI before marking dev complete.
+2. **Match arm patterns in Semgrep must be wrapped in full `match` blocks.** Rust match arms are not standalone expressions. This is a Semgrep Rust-specific gotcha that should be documented.
+3. **Do not rely on the dev agent's "all tests pass" when the critical validation tool is known-broken.** The dev agent should have flagged the story as blocked rather than proceeding with partial validation.
+
+---
+
+## 6. Action Items
+
+### Fix Now (before next session)
+
+| Item | Owner | Detail |
+|------|-------|--------|
+| Fix 8-9 AC2 | dev | Wrap `Err($E) => { ... }` patterns inside `match $X { ... }` blocks or use `pattern-inside` with a match context. Re-validate. |
+| Validate Semgrep rules in Docker | dev | Run `semgrep --validate` and `semgrep --test` inside a Linux Docker container where semgrep-core works. Add this as a pre-verification step. |
+
+### Fix Soon (next sprint)
+
+| Item | Detail |
+|------|--------|
+| `computeSummary()` Rust rule ID support | `matchesRule()` in analyzer.ts only recognizes JS/TS rule names. Rust rule IDs silently ignored in audit summaries. |
+| Refactor `rust-function-no-tracing.yaml` | At 282 lines / 93% of NFR1 limit. Explore `pattern-not-inside` to reduce combinatorial explosion. |
+| Document Semgrep Rust pattern gotchas | Match arms, closures, async fn, visibility modifiers — document known pitfalls for future rule authors. |
+| Automate sprint-status.yaml updates | Agent repeatedly fails to update this file. Either fix the agent or remove the manual dependency. |
+
+### Backlog
+
+| Item | Detail |
+|------|--------|
+| Pre-existing uncovered lines in docs-scaffold.ts | Lines 180, 221-222. Not urgent but contributes to coverage debt. |
+| Error path rules: info/debug level exclusion | Current rules only exclude `error!/warn!`. Devs logging errors at `info!` level will get false positives. Matches JS/TS precedent but worth revisiting. |
+| TOML parser for Cargo.toml | If parsing expands beyond `name`, replace regex approach. Carried forward from session 5. |
+| Utility function observability policy | Pure utility functions have zero instrumentation. Decide if this is acceptable project-wide. |
+| otlp.ts / coverage.ts file size | Carried forward: otlp.ts 423 lines, coverage.ts 568 lines — both exceed NFR1 limits. |
+
+---
+
+## Session 6 Final Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 1 (8-9) |
+| Stories completed | 0 |
+| Stories failed verification | 1 (8-9, AC2) |
+| Bugs found | 7 (1 CRITICAL, 3 HIGH, 2 MEDIUM, 1 LOW) |
+| Bugs fixed | 6 (all except AC2 root cause) |
+| Test count | 3021 (unchanged — 8-9 added tests but no commit landed) |
+| Sprint progress | 33/34 done, 1 in-progress (97%) |
+| Remaining | 8-9 (in-progress, AC2 fix needed) |
+| Key blocker | `semgrep --validate` broken on macOS — no local rule validation |
+| Top risk | 8-9 fix may require multiple iterations if Semgrep Rust pattern matching remains flaky |
+
+---
+
+## Full-Day Summary (Sessions 1-6)
+
+| Metric | Value |
+|--------|-------|
+| Total stories attempted | 9 (8-1 through 8-9) |
+| Total stories completed | 8 (8-1 through 8-8) |
+| Total stories failed | 1 (8-9, in-progress) |
+| Total bugs found across all sessions | 29+ |
+| Total commits | 9 |
+| Epics completed | 4 (8.1, 8.2, 8.3, 8.4) |
+| Epics remaining | 8.5 (1 story left: 8-9) |
+| Sprint completion | 33/34 = 97% |

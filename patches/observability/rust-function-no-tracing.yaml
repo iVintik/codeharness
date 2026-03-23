@@ -1,0 +1,282 @@
+rules:
+  - id: rust-function-no-tracing
+    patterns:
+      - pattern-either:
+          - pattern: |
+              fn $FUNC(...) { ... }
+          - pattern: |
+              pub fn $FUNC(...) { ... }
+          - pattern: |
+              async fn $FUNC(...) { ... }
+          - pattern: |
+              pub async fn $FUNC(...) { ... }
+      - pattern-not: |
+          #[tracing::instrument]
+          fn $FUNC(...) { ... }
+      - pattern-not: |
+          #[tracing::instrument]
+          pub fn $FUNC(...) { ... }
+      - pattern-not: |
+          #[tracing::instrument]
+          async fn $FUNC(...) { ... }
+      - pattern-not: |
+          #[tracing::instrument]
+          pub async fn $FUNC(...) { ... }
+      - pattern-not: |
+          #[instrument]
+          fn $FUNC(...) { ... }
+      - pattern-not: |
+          #[instrument]
+          pub fn $FUNC(...) { ... }
+      - pattern-not: |
+          #[instrument]
+          async fn $FUNC(...) { ... }
+      - pattern-not: |
+          #[instrument]
+          pub async fn $FUNC(...) { ... }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            tracing::debug!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            tracing::info!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            tracing::warn!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            tracing::error!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            tracing::trace!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            debug!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            info!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            warn!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            error!(...);
+            ...
+          }
+      - pattern-not: |
+          fn $FUNC(...) {
+            ...
+            trace!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            tracing::debug!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            tracing::info!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            tracing::warn!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            tracing::error!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            tracing::trace!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            debug!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            info!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            warn!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            error!(...);
+            ...
+          }
+      - pattern-not: |
+          pub fn $FUNC(...) {
+            ...
+            trace!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            tracing::debug!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            tracing::info!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            tracing::warn!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            tracing::error!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            tracing::trace!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            debug!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            info!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            warn!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            error!(...);
+            ...
+          }
+      - pattern-not: |
+          async fn $FUNC(...) {
+            ...
+            trace!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            tracing::debug!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            tracing::info!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            tracing::warn!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            tracing::error!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            tracing::trace!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            debug!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            info!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            warn!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            error!(...);
+            ...
+          }
+      - pattern-not: |
+          pub async fn $FUNC(...) {
+            ...
+            trace!(...);
+            ...
+          }
+    message: "Rust function without tracing instrumentation — observability gap"
+    languages: [rust]
+    severity: INFO
+    metadata:
+      category: observability
+      cwe: "CWE-778: Insufficient Logging"

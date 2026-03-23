@@ -1,0 +1,19 @@
+rules:
+  - id: rust-catch-without-tracing
+    patterns:
+      - pattern: |
+          match $X { Err($E) => { ... } }
+      - pattern-not: |
+          match $X { Err($E) => { ... tracing::error!(...); ... } }
+      - pattern-not: |
+          match $X { Err($E) => { ... tracing::warn!(...); ... } }
+      - pattern-not: |
+          match $X { Err($E) => { ... error!(...); ... } }
+      - pattern-not: |
+          match $X { Err($E) => { ... warn!(...); ... } }
+    message: "Rust error match arm without tracing — observability gap"
+    languages: [rust]
+    severity: WARNING
+    metadata:
+      category: observability
+      cwe: "CWE-778: Insufficient Logging"

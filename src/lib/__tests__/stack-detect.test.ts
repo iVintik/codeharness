@@ -226,7 +226,7 @@ describe('detectAppType', () => {
   });
 
   it('returns "generic" for unrecognized stack', () => {
-    expect(detectAppType(testDir, 'rust')).toBe('generic');
+    expect(detectAppType(testDir, 'java')).toBe('generic');
   });
 
   // --- Python false positive prevention ---
@@ -263,5 +263,189 @@ describe('detectAppType', () => {
     );
     // Has start script, so not CLI. Agent/web don't match either. Has start => server.
     expect(detectAppType(testDir, 'nodejs')).toBe('server');
+  });
+
+  // --- Rust app type detection ---
+  it('returns "cli" for Rust project with [[bin]] and no web framework deps', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-cli"\nversion = "0.1.0"\n\n[[bin]]\nname = "my-cli"\npath = "src/main.rs"\n\n[dependencies]\nclap = "4.0"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('cli');
+  });
+
+  it('returns "server" for Rust project with axum in dependencies', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-server"\nversion = "0.1.0"\n\n[dependencies]\naxum = "0.7"\ntokio = { version = "1", features = ["full"] }\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('server');
+  });
+
+  it('returns "server" for Rust project with actix-web in dependencies', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-server"\nversion = "0.1.0"\n\n[dependencies]\nactix-web = "4"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('server');
+  });
+
+  it('returns "generic" for Rust library crate with [lib] and no [[bin]]', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-lib"\nversion = "0.1.0"\n\n[lib]\nname = "my_lib"\npath = "src/lib.rs"\n\n[dependencies]\nserde = "1.0"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('generic');
+  });
+
+  it('returns "agent" for Rust project with async-openai in dependencies', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-agent"\nversion = "0.1.0"\n\n[dependencies]\nasync-openai = "0.18"\ntokio = "1"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('agent');
+  });
+
+  it('returns "agent" for Rust project with llm-chain in dependencies', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-agent"\nversion = "0.1.0"\n\n[dependencies]\nllm-chain = "0.13"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('agent');
+  });
+
+  it('agent takes priority over server for Rust project', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "ai-server"\nversion = "0.1.0"\n\n[dependencies]\naxum = "0.7"\nasync-openai = "0.18"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('agent');
+  });
+
+  it('returns "generic" for Rust project with no distinguishing features', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "basic"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1.0"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('generic');
+  });
+
+  it('returns "generic" for Rust project when Cargo.toml is missing', () => {
+    // No Cargo.toml written — readTextSafe returns null
+    expect(detectAppType(testDir, 'rust')).toBe('generic');
+  });
+
+  // --- Rust false positive prevention ---
+  it('does not false-positive on agent dep in [dev-dependencies]', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-app"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1.0"\n\n[dev-dependencies]\nasync-openai = "0.18"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).not.toBe('agent');
+  });
+
+  it('does not false-positive on web framework in [dev-dependencies]', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-app"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1.0"\n\n[dev-dependencies]\naxum = "0.7"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).not.toBe('server');
+  });
+
+  it('does not false-positive on substring match for anthropic', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-app"\nversion = "0.1.0"\n\n[dependencies]\nanthropic-sdk = "1.0"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).not.toBe('agent');
+  });
+
+  it('does not false-positive on substring match for rocket', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-app"\nversion = "0.1.0"\n\n[dependencies]\nsprocket = "1.0"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).not.toBe('server');
+  });
+
+  it('does not false-positive on [[bin]] in a comment', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-lib"\nversion = "0.1.0"\n# this is not a [[bin]] project\n\n[lib]\nname = "my_lib"\n\n[dependencies]\nserde = "1.0"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('generic');
+  });
+
+  it('returns "cli" for Rust project with both [lib] and [[bin]]', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-tool"\nversion = "0.1.0"\n\n[lib]\nname = "my_tool"\npath = "src/lib.rs"\n\n[[bin]]\nname = "my-tool"\npath = "src/main.rs"\n\n[dependencies]\nclap = "4.0"\n`,
+    );
+    // [[bin]] takes priority over [lib] per detection order
+    expect(detectAppType(testDir, 'rust')).toBe('cli');
+  });
+
+  it('returns "server" for Rust project with rocket in dependencies', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-server"\nversion = "0.1.0"\n\n[dependencies]\nrocket = "0.5"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('server');
+  });
+
+  it('returns "server" for Rust project with warp in dependencies', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-server"\nversion = "0.1.0"\n\n[dependencies]\nwarp = "0.3"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('server');
+  });
+
+  it('returns "server" for Rust project with tide in dependencies', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-server"\nversion = "0.1.0"\n\n[dependencies]\ntide = "0.17"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).toBe('server');
+  });
+
+  it('does not false-positive on agent dep in [build-dependencies]', () => {
+    writeFileSync(
+      join(testDir, 'Cargo.toml'),
+      `[package]\nname = "my-app"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1.0"\n\n[build-dependencies]\nasync-openai = "0.18"\n`,
+    );
+    expect(detectAppType(testDir, 'rust')).not.toBe('agent');
+  });
+});
+
+describe('detectStack — Rust', () => {
+  it('returns "rust" when Cargo.toml exists', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "foo"\n');
+    expect(detectStack(testDir)).toBe('rust');
+  });
+
+  it('returns "rust" for workspace Cargo.toml', () => {
+    writeFileSync(join(testDir, 'Cargo.toml'), '[workspace]\nmembers = ["crate-a", "crate-b"]\n');
+    expect(detectStack(testDir)).toBe('rust');
+  });
+
+  it('does not detect Rust when no Cargo.toml exists', () => {
+    // Empty dir — should not return 'rust'
+    const consoleSpy = vi.spyOn(console, 'log');
+    const result = detectStack(testDir);
+    expect(result).not.toBe('rust');
+    consoleSpy.mockRestore();
+  });
+
+  it('Node.js takes priority over Rust when both exist', () => {
+    writeFileSync(join(testDir, 'package.json'), '{}', 'utf-8');
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "foo"\n');
+    expect(detectStack(testDir)).toBe('nodejs');
+  });
+
+  it('Python takes priority over Rust when both exist', () => {
+    writeFileSync(join(testDir, 'requirements.txt'), '', 'utf-8');
+    writeFileSync(join(testDir, 'Cargo.toml'), '[package]\nname = "foo"\n');
+    expect(detectStack(testDir)).toBe('python');
   });
 });

@@ -61,3 +61,26 @@ development_status:
   7-1-install-semgrep-static-analysis: done
   7-2-fix-bats-runtime-tests: done
   7-3-create-dockerfile: done
+
+  # Epic 8: Full Rust Stack Support
+  epic-8: backlog
+  epic-8-retrospective: optional
+
+  # Epic 8.1: Rust Detection Foundation
+  8-1-rust-stack-and-app-type-detection: done
+  8-2-expand-state-types-for-rust: backlog
+
+  # Epic 8.2: Rust Coverage & Testing
+  8-3-cargo-tarpaulin-coverage-detection: backlog
+  8-4-register-cargo-tarpaulin-dep-registry: backlog
+
+  # Epic 8.3: Rust Infrastructure
+  8-5-rust-dockerfile-template: backlog
+  8-6-rust-verification-dockerfile: backlog
+
+  # Epic 8.4: Rust Observability & Docs
+  8-7-rust-otlp-instrumentation: backlog
+  8-8-rust-documentation-scaffolding: backlog
+
+  # Epic 8.5: Rust Static Analysis
+  8-9-semgrep-rules-rust-observability: backlog

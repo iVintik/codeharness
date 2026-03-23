@@ -9,6 +9,7 @@ export function detectStack(dir: string = process.cwd()): string | null {
   if (existsSync(join(dir, 'requirements.txt'))) return 'python';
   if (existsSync(join(dir, 'pyproject.toml'))) return 'python';
   if (existsSync(join(dir, 'setup.py'))) return 'python';
+  if (existsSync(join(dir, 'Cargo.toml'))) return 'rust';
   warn('No recognized stack detected');
   return null;
 }
@@ -17,6 +18,8 @@ const AGENT_DEPS_NODE = ['anthropic', '@anthropic-ai/sdk', 'openai', 'langchain'
 const AGENT_DEPS_PYTHON = ['anthropic', 'openai', 'langchain', 'llama-index', 'traceloop-sdk'];
 const WEB_FRAMEWORK_DEPS = ['react', 'vue', 'svelte', 'angular', '@angular/core', 'next', 'nuxt', 'vite', 'webpack'];
 const PYTHON_WEB_FRAMEWORKS = ['flask', 'django', 'fastapi', 'streamlit'];
+const RUST_WEB_FRAMEWORKS = ['actix-web', 'axum', 'rocket', 'tide', 'warp'];
+const RUST_AGENT_DEPS = ['async-openai', 'anthropic', 'llm-chain'];
 
 function readJsonSafe(path: string): Record<string, unknown> | null {
   try {
@@ -57,6 +60,31 @@ function hasPythonDep(content: string, dep: string): boolean {
   const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(`(?:^|[\\s"',])${escaped}(?:[\\[>=<~!;\\s"',]|$)`, 'm');
   return pattern.test(content);
+}
+
+/**
+ * Extract the [dependencies] section from Cargo.toml content.
+ * Stops at the next section header (e.g., [dev-dependencies], [build-dependencies]).
+ * Returns empty string if no [dependencies] section found.
+ */
+function getCargoDepsSection(content: string): string {
+  const match = content.match(/^\[dependencies\]\s*$/m);
+  if (!match || match.index === undefined) return '';
+  const start = match.index + match[0].length;
+  // Find next section header
+  const nextSection = content.slice(start).search(/^\[/m);
+  return nextSection === -1 ? content.slice(start) : content.slice(start, start + nextSection);
+}
+
+/**
+ * Check if a Cargo.toml [dependencies] section contains a specific crate.
+ * Uses word-boundary matching to avoid substring false positives
+ * (e.g., "anthropic-sdk" should not match "anthropic").
+ */
+function hasCargoDep(depsSection: string, dep: string): boolean {
+  const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(?:^|\\s)${escaped}(?:\\s*=|\\s*\\{)`, 'm');
+  return pattern.test(depsSection);
 }
 
 function getPythonDepsContent(dir: string): string {
@@ -136,6 +164,35 @@ export function detectAppType(dir: string, stack: string | null): AppType {
       existsSync(join(dir, 'manage.py'))
     ) {
       return 'server';
+    }
+
+    return 'generic';
+  }
+
+  if (stack === 'rust') {
+    const cargoContent = readTextSafe(join(dir, 'Cargo.toml'));
+    if (!cargoContent) return 'generic';
+
+    const depsSection = getCargoDepsSection(cargoContent);
+
+    // Priority 1: Agent detection (only in [dependencies], not [dev-dependencies])
+    if (RUST_AGENT_DEPS.some(d => hasCargoDep(depsSection, d))) {
+      return 'agent';
+    }
+
+    // Priority 2: Server detection (web framework in [dependencies])
+    if (RUST_WEB_FRAMEWORKS.some(d => hasCargoDep(depsSection, d))) {
+      return 'server';
+    }
+
+    // Priority 3: CLI detection ([[bin]] section present)
+    if (/^\[\[bin\]\]\s*$/m.test(cargoContent)) {
+      return 'cli';
+    }
+
+    // Priority 4: Library detection ([lib] section present, no [[bin]])
+    if (/^\[lib\]\s*$/m.test(cargoContent)) {
+      return 'generic';
     }
 
     return 'generic';

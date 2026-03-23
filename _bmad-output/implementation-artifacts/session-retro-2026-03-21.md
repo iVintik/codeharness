@@ -2173,3 +2173,146 @@ This retrospective covers the full day's session activity across 5 ralph session
 | Sprint completion | 24/25 (96%) — 1 story backlog (7-3) |
 | Test count | 2920+ |
 | Coverage | 97.02% |
+
+---
+
+# Session Retrospective — 2026-03-21 (Session 7: Sprint Closeout)
+
+**Sprint:** Operational Excellence Sprint
+**Session window:** ~12:24Z – ~12:44Z (approx 20 minutes, ralph loop 7)
+**Sprint progress at end:** 25/25 stories done (100%). Sprint complete.
+**Ralph loops:** 7 total (loop 7 this window)
+**Elapsed:** ~6945 seconds (~116 minutes total ralph runtime)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Phases Completed | Notes |
+|-------|------|---------|-----------------|-------|
+| 7-3-create-dockerfile | Epic 7: Onboarding — Compliance Gaps | done | create-story, dev, review, verify | Final story. 2 HIGH bugs fixed in review. 2 ACs escalated (integration-required). |
+| epic-7-retrospective | Epic 7 | done | — | Epic retrospective generated. |
+
+**Total:** 1 full-lifecycle story completed, closing Epic 7 and the entire sprint.
+
+**Test results at session end:** 2930 tests passing, 97.02% overall coverage, all 123 files above 80% floor.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Severity | Story | Bug | Status |
+|----------|-------|-----|--------|
+| HIGH | 7-3 | `.dockerignore` only had 4 entries — 85MB of unnecessary files entered build context | Fixed in review: expanded to 18 entries |
+| HIGH | 7-3 | No `ENTRYPOINT` instruction — container required explicit `codeharness` arg to run | Fixed in review: added `ENTRYPOINT ["codeharness"]` |
+| MEDIUM | 7-3 | No `npm cache clean --force` after install — cache persisted in image layer | Fixed in review |
+| MEDIUM | 7-3 | `WORKDIR /workspace` created after `USER node` without ownership setup | Fixed in review: added `mkdir` + `chown` |
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **Validator limitation (7-3):** `dockerfile-validator.ts` checks lines individually and cannot handle backslash continuations. Had to put `curl jq` on the same `apt-get install` line instead of using multi-line format. The validator was not fixed (out of story scope).
+2. **COPY tarball layer persistence (7-3):** The COPY'd tarball persists in an intermediate Docker layer even though it is deleted in the next RUN instruction. Multi-stage build would fix this but was not in scope.
+
+### Code Quality Concerns
+
+- **No HEALTHCHECK in Dockerfile** — acceptable for a CLI tool, but noted.
+- **`deps.ts` branch coverage still 89.28%** — same unreachable null-coalescing branches from previous session.
+
+### Verification Gaps
+
+| Story | AC | Gap | Disposition |
+|-------|----|-----|-------------|
+| 7-3 | AC3 | `docker build` requires Docker-in-Docker, unavailable in verification container | Escalated: `integration-required` |
+| 7-3 | AC4 | `docker run` requires Docker-in-Docker | Escalated: `integration-required` |
+
+**4 ACs passed:** Dockerfile exists, passes all 6 validator rules, audit infra passes, Dockerfile excluded from npm package.
+
+### Tooling/Infrastructure Problems
+
+1. **Stale container (again):** Previous session's `codeharness-verify` container had to be `docker rm -f`'d before starting. 5th consecutive occurrence.
+2. **Shared stack detection failure (again):** `codeharness status --check-docker` reported stack down while shared stack was healthy on all ports. 5th consecutive occurrence.
+3. **Epic numbering collision (3rd occurrence):** Three different "Epic 7" definitions found across sprint artifacts. epics-overhaul.md says "OpenSearch Backend", sprint-status.yaml says "Onboarding — Compliance Gaps". Still unresolved.
+
+---
+
+## 3. What Went Well
+
+- **Sprint completed: 25/25 stories done (100%).** All 8 epics closed.
+- **Story 7-3 completed in ~20 minutes** — fastest full-lifecycle story of the day.
+- **Code review caught 2 HIGH bugs** in the Dockerfile (missing `.dockerignore` entries and missing `ENTRYPOINT`). Without review, the Docker image would have been 85MB larger and unusable without manual args.
+- **No test regressions** — 2930 tests passing, 0 failures introduced.
+- **Epic 7 was the smallest epic by code volume (~60 LOC)** but all 3 stories completed autonomously in one day across sessions 5-7.
+- **Consistent quality bar maintained** despite being the final session: review still found real issues, verification still properly escalated untestable ACs.
+
+---
+
+## 4. What Went Wrong
+
+- **Infrastructure issues are fully chronic at this point.** Stale containers and shared stack detection failure occurred in every session today (5+ times each). No fix has been applied despite being flagged in every retro.
+- **Zero retro action items resolved across 4 consecutive epics** (noted in epic-7 retro). The retrospective process is producing documentation that nobody reads.
+- **Epic numbering collision remains unresolved** after being flagged 3 times today. Three different "Epic 7" definitions coexist.
+- **2 ACs escalated on 7-3** for Docker-in-Docker testing. These will likely never be manually verified.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Small, well-scoped stories ship fast.** Story 7-3 (Dockerfile creation) had clear scope and completed in 20 minutes including review and verification.
+- **Code review on infrastructure artifacts (Dockerfiles) catches real issues.** The `.dockerignore` expansion saved 85MB per build. This is not something automated tests would catch.
+- **Proper escalation of integration-required ACs** preserves verification integrity. Faking Docker-in-Docker results would be worse than escalating.
+
+### Patterns to Avoid
+
+- **Ignoring retro action items.** This is the single largest process failure of the sprint. Every retro identifies the same issues; none get fixed.
+- **Reusing epic numbers across sprints.** Still happening. Still causing confusion.
+- **Not auto-cleaning verification containers.** This was flagged as "fix now" in the previous retro entry. It was not fixed. It cost time again.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Sprint)
+
+1. **Auto-cleanup stale verify containers.** Add `docker rm -f codeharness-verify 2>/dev/null` to the start of the verification flow. Hit 5+ times today. Flagged in every retro. Zero action taken.
+2. **Fix shared stack detection in `codeharness status --check-docker`.** Reports "down" when shared stack is running. Hit 5+ times today. Causes port conflicts every session.
+
+### Fix Soon (Next Sprint)
+
+3. **Assign epic numbers globally.** Audit all epic references across all sprint artifacts. Archive stale planning files. Enforce unique epic IDs.
+4. **Create a retro-to-backlog pipeline.** Retro action items must become trackable stories. Otherwise they are write-only documentation.
+5. **Fix `dockerfile-validator.ts` to handle backslash continuations.** Currently forces single-line `apt-get install` commands.
+6. **Verify 7-3 AC3/AC4 manually** — run `docker build` and `docker run` against the Dockerfile.
+7. **Carry forward all unfixed action items from previous retro entries** (cost accumulation data loss, `run.ts` split, `parseSemgrepOutput` undefined bug, `onboard.sh --help`).
+
+### Backlog (Track But Not Urgent)
+
+8. **Evaluate multi-stage Docker build** to eliminate COPY tarball layer persistence.
+9. **Add HEALTHCHECK to Dockerfile** if container is ever used as a service.
+10. **All backlog items from previous retro entries remain open** (items 8-13 from Sessions 3-6 retro).
+
+---
+
+## Full-Day Sprint Summary
+
+| Metric | Value |
+|--------|-------|
+| Total ralph loops | 7 |
+| Total elapsed time | ~116 minutes |
+| Stories verified (carry-over) | 5 |
+| Stories completed (full lifecycle) | 5 (6-1, 6-2, 7-1, 7-2, 7-3) |
+| Sprint completion | 25/25 (100%) |
+| Epics closed today | 3 (Epic 6, Epic 7, plus 5 carry-over verifications closing earlier epics) |
+| HIGH bugs found and fixed | 6 |
+| MEDIUM bugs found and fixed | 6 |
+| LOW bugs unfixed | 8 |
+| Tech debt items introduced | 7 |
+| Infrastructure issues hit | 5 recurring (stale containers, stack detection, beads sync, VictoriaLogs, epic numbering) |
+| ACs escalated to human | 9 across 4 stories |
+| Test count | 2930 |
+| Coverage | 97.02% |
+| Retro action items created | 13+ |
+| Retro action items resolved | 0 |

@@ -253,6 +253,24 @@ describe('selectNextStory', () => {
     expect(MAX_STORY_ATTEMPTS).toBe(10);
   });
 
+  // Tech Debt Gate — Decision 6c: TD- prefixed stories prioritized within backlog tier
+  type S = Record<string, Partial<StoryState>>;
+  it.each<[string, S, string]>([
+    ['TD backlog before feature', { 'TD-1-fix': { status: 'backlog' }, '15-1-ci': { status: 'backlog' } }, 'TD-1-fix'],
+    ['all TD done, normal resumes', { 'TD-1-fix': { status: 'done' }, 'TD-2-log': { status: 'done' }, '15-1-ci': { status: 'backlog' } }, '15-1-ci'],
+    ['in-progress non-TD beats TD backlog', { 'TD-1-fix': { status: 'backlog' }, '15-1-ci': { status: 'in-progress' } }, '15-1-ci'],
+    ['verifying non-TD beats TD backlog', { 'TD-1-fix': { status: 'backlog' }, '15-1-ci': { status: 'verifying' } }, '15-1-ci'],
+    ['no TD, normal lex order', { '15-2-eslint': { status: 'backlog' }, '15-1-ci': { status: 'backlog' } }, '15-1-ci'],
+    ['TD in-progress = Tier A', { 'TD-1-fix': { status: 'in-progress' }, '15-1-ci': { status: 'backlog' } }, 'TD-1-fix'],
+    ['TD fewer attempts wins', { 'TD-1-fix': { status: 'backlog', attempts: 3 }, 'TD-2-log': { status: 'backlog', attempts: 1 } }, 'TD-2-log'],
+    ['TD gate applies to ready', { 'TD-1-fix': { status: 'ready' }, '15-1-ci': { status: 'ready' } }, 'TD-1-fix'],
+    ['lowercase td- not treated as TD', { 'td-1-fix': { status: 'backlog' }, '15-1-ci': { status: 'backlog' } }, '15-1-ci'],
+  ])('TD gate: %s', (_label, stories, expectedKey) => {
+    const result = selectNextStory(makeState(stories));
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.selected!.key).toBe(expectedKey);
+  });
+
   it('mixed scenario: selects actionable and reports exhausted', () => {
     const state = makeState({
       'story-done': { status: 'done' },

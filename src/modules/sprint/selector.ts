@@ -100,6 +100,12 @@ export function selectNextStory(
     candidates.sort((a, b) => {
       // Primary: priority tier ascending (lower = higher priority)
       if (a.tier !== b.tier) return a.tier - b.tier;
+      // TD gate: within Tier 3 (backlog), TD- stories come first
+      if (a.tier === 3) {
+        const aIsTd = a.key.startsWith('TD-');
+        const bIsTd = b.key.startsWith('TD-');
+        if (aIsTd !== bIsTd) return aIsTd ? -1 : 1;
+      }
       // Secondary: fewer attempts first
       if (a.story.attempts !== b.story.attempts) {
         return a.story.attempts - b.story.attempts;

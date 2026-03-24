@@ -10,7 +10,7 @@
 
 import React from 'react';
 import { render as inkRender } from 'ink';
-import type { StreamEvent } from './stream-parser.js';
+import type { StreamEvent } from './agents/stream-parser.js';
 import {
   App,
   type SprintInfo,

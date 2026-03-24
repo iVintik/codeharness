@@ -1,9 +1,8 @@
 /**
  * Public API for the agents subsystem.
  *
- * Currently exports only type definitions (story 13-1).
- * Future stories will add driver registry and concrete implementations
- * (e.g., RalphDriver in story 13-2).
+ * Re-exports types (story 13-1), RalphDriver implementation (story 13-2),
+ * stream parser functions/types, and ralph prompt functions/types.
  */
 
 // Types
@@ -13,3 +12,23 @@ export type {
   AgentEvent,
   AgentDriver,
 } from './types.js';
+
+// RalphDriver
+export { RalphDriver } from './ralph.js';
+export { buildSpawnArgs, resolveRalphPath, parseRalphMessage, parseIterationMessage } from './ralph.js';
+
+// Stream parser
+export { parseStreamLine } from './stream-parser.js';
+export type {
+  StreamEvent,
+  ToolStartEvent,
+  ToolInputEvent,
+  ToolCompleteEvent,
+  TextEvent,
+  RetryEvent,
+  ResultEvent,
+} from './stream-parser.js';
+
+// Ralph prompt
+export { generateRalphPrompt } from './ralph-prompt.js';
+export type { RalphPromptConfig } from './ralph-prompt.js';

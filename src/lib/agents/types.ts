@@ -37,7 +37,7 @@ export interface AgentProcess {
  */
 export type AgentEvent =
   | { type: 'tool-start'; name: string }
-  | { type: 'tool-complete'; name: string; args: string }
+  | { type: 'tool-complete'; name?: string; args?: string }
   | { type: 'text'; text: string }
   | { type: 'story-complete'; key: string; details: string }
   | { type: 'story-failed'; key: string; reason: string }

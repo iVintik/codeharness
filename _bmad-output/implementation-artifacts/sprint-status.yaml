@@ -98,7 +98,7 @@ development_status:
   # Epic 13
   epic-13: backlog
   13-1-agentdriver-interface-and-types: done
-  13-2-ralph-driver-implementation: backlog
+  13-2-ralph-driver-implementation: done
   13-3-migrate-run-ts-to-agentdriver: backlog
 
   # Epic 14

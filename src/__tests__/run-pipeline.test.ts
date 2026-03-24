@@ -16,8 +16,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { parseStreamLine } from '../lib/stream-parser.js';
-import type { StreamEvent } from '../lib/stream-parser.js';
+import { parseStreamLine } from '../lib/agents/stream-parser.js';
+import type { StreamEvent } from '../lib/agents/stream-parser.js';
 import { createLineProcessor } from '../lib/run-helpers.js';
 import type { StoryMessage } from '../lib/ink-components.js';
 

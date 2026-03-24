@@ -125,7 +125,6 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| stream-parser.ts | Stateless NDJSON stream parser — converts Claude API streaming events into typed `StreamEvent` objects | `parseStreamLine`, `StreamEvent`, `StreamEventType` |
 | ink-components.tsx | Ink/React terminal UI components — Header, ActiveTool, CompletedTool, LastThought, RetryNotice, StoryBreakdown, StoryMessages, App | `Header`, `App`, `SprintInfo`, `StoryStatusEntry`, `StoryStatusValue`, `StoryMessage` |
 | ink-renderer.tsx | Ink renderer controller — creates/manages Ink instance, exposes RendererHandle for state updates, signal cleanup | `startRenderer`, `RendererHandle`, `RendererState`, `noopHandle` |
 
@@ -133,7 +132,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| run-helpers.ts | Extracted helpers for `run.ts` (NFR9 compliance) — elapsed time formatting, sprint status mapping, ralph output parsing, story counting, spawn args builder | `formatElapsed`, `mapSprintStatus`, `mapSprintStatuses`, `parseRalphMessage`, `countStories`, `buildSpawnArgs` |
+| run-helpers.ts | Extracted helpers for `run.ts` — elapsed time formatting, sprint status mapping, story counting, line processor | `formatElapsed`, `mapSprintStatus`, `mapSprintStatuses`, `countStories`, `createLineProcessor` |
 
 ## Dashboard Formatting
 
@@ -161,6 +160,9 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | agents/types.ts | AgentDriver interface and related types — SpawnOpts, AgentProcess, AgentEvent discriminated union | `AgentDriver`, `SpawnOpts`, `AgentProcess`, `AgentEvent` |
-| agents/index.ts | Barrel re-exports for agents subsystem; placeholder for future driver registry | all public API from types.ts |
+| agents/ralph.ts | RalphDriver implementation — wraps ralph.sh spawning and output parsing in AgentDriver interface | `RalphDriver`, `buildSpawnArgs`, `resolveRalphPath`, `parseRalphMessage`, `parseIterationMessage` |
+| agents/stream-parser.ts | Stateless NDJSON stream parser — converts Claude API streaming events into typed `StreamEvent` objects | `parseStreamLine`, `StreamEvent`, `StreamEventType` |
+| agents/ralph-prompt.ts | Ralph system prompt generator — builds the prompt template for ralph sessions | `generateRalphPrompt`, `RalphPromptConfig` |
+| agents/index.ts | Barrel re-exports for agents subsystem — RalphDriver, stream parser, ralph prompt | all public API from ralph.ts, stream-parser.ts, ralph-prompt.ts, types.ts |
 
-**Total: 50 library files + 4 shared test utility files across 21 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**
+**Total: 53 library files + 4 shared test utility files across 21 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**

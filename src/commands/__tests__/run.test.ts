@@ -79,11 +79,11 @@ vi.mock('../../lib/sync/index.js', () => ({
   readSprintStatus: (...args: unknown[]) => readSprintStatusMock(...args),
 }));
 
-vi.mock('../../templates/ralph-prompt.js', () => ({
+vi.mock('../../lib/agents/ralph-prompt.js', () => ({
   generateRalphPrompt: vi.fn(() => 'mock prompt content'),
 }));
 
-vi.mock('../../lib/stream-parser.js', () => ({
+vi.mock('../../lib/agents/stream-parser.js', () => ({
   parseStreamLine: (...args: unknown[]) => parseStreamLineMock(...args),
 }));
 
@@ -346,7 +346,7 @@ describe('run command', () => {
         },
       });
 
-      const { generateRalphPrompt } = await import('../../templates/ralph-prompt.js');
+      const { generateRalphPrompt } = await import('../../lib/agents/ralph-prompt.js');
       const promptMock = vi.mocked(generateRalphPrompt);
       promptMock.mockClear();
 

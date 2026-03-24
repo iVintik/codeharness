@@ -3,7 +3,7 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { startRenderer } from '../ink-renderer.js';
 import type { RendererHandle } from '../ink-renderer.js';
-import type { StreamEvent } from '../stream-parser.js';
+import type { StreamEvent } from '../agents/stream-parser.js';
 import {
   App,
   Header,

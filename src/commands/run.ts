@@ -1,25 +1,16 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { fail, info, jsonOutput } from '../lib/output.js';
 import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
-import { generateRalphPrompt } from '../templates/ralph-prompt.js';
+import { generateRalphPrompt } from '../lib/agents/ralph-prompt.js';
 import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
 import { getSprintState } from '../modules/sprint/index.js';
-import { formatElapsed, mapSprintStatuses, countStories, buildSpawnArgs, createLineProcessor } from '../lib/run-helpers.js';
+import { formatElapsed, mapSprintStatuses, countStories, createLineProcessor } from '../lib/run-helpers.js';
+import { buildSpawnArgs, resolveRalphPath } from '../lib/agents/ralph.js';
 
-/** Resolves the path to ralph/ralph.sh relative to the package root. */
-export function resolveRalphPath(): string {
-  const currentFile = fileURLToPath(import.meta.url);
-  const currentDir = dirname(currentFile);
-  let root = dirname(currentDir);
-  if (root.endsWith('/src') || root.endsWith('\\src')) {
-    root = dirname(root);
-  }
-  return join(root, 'ralph', 'ralph.sh');
-}
+// resolveRalphPath moved to src/lib/agents/ralph.ts (story 13-2)
 
 /** Resolves the plugin directory path (.claude/ in project root). */
 export function resolvePluginDir(): string {
@@ -27,7 +18,8 @@ export function resolvePluginDir(): string {
 }
 
 // Re-export helpers that tests import from run.ts
-export { countStories, buildSpawnArgs } from '../lib/run-helpers.js';
+export { countStories } from '../lib/run-helpers.js';
+export { buildSpawnArgs, resolveRalphPath } from '../lib/agents/ralph.js';
 
 export function registerRunCommand(program: Command): void {
   program

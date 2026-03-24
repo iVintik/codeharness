@@ -15,6 +15,15 @@ vi.mock('../migration.js', () => ({
     success: false,
     error: 'No old format files found for migration',
   })),
+  migrateV1ToV2: vi.fn((v1: Record<string, unknown>) => ({
+    ...v1,
+    version: 2,
+    retries: {},
+    flagged: [],
+    epics: {},
+    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
+  })),
 }));
 
 // Import after mock setup
@@ -40,9 +49,9 @@ function cleanup(): void {
 }
 
 describe('defaultState', () => {
-  it('returns version 1 with empty stories', () => {
+  it('returns version 2 with empty stories and v2 fields', () => {
     const state = defaultState();
-    expect(state.version).toBe(1);
+    expect(state.version).toBe(2);
     expect(state.stories).toEqual({});
     expect(state.run.active).toBe(false);
     expect(state.run.iteration).toBe(0);
@@ -69,7 +78,7 @@ describe('writeStateAtomic', () => {
 
     const raw = readFileSync(STATE_FILE, 'utf-8');
     const parsed = JSON.parse(raw);
-    expect(parsed.version).toBe(1);
+    expect(parsed.version).toBe(2);
   });
 
   it('tmp file does not remain after successful write', () => {
@@ -87,11 +96,16 @@ describe('getSprintState', () => {
     const result = getSprintState();
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.version).toBe(1);
+      expect(result.data.version).toBe(2);
       expect(result.data.stories).toEqual({});
       expect(result.data.run.active).toBe(false);
       expect(result.data.sprint.inProgress).toBeNull();
       expect(result.data.actionItems).toEqual([]);
+      expect(result.data.retries).toEqual({});
+      expect(result.data.flagged).toEqual([]);
+      expect(result.data.epics).toEqual({});
+      expect(result.data.session.active).toBe(false);
+      expect(result.data.observability.statementCoverage).toBeNull();
     }
   });
 

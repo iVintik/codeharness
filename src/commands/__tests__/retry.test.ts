@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
@@ -11,11 +11,33 @@ import { retriesPath, flaggedPath } from '../../lib/retry-state.js';
 let testDir: string;
 let ralphDir: string;
 let originalCwd: string;
+let stateFile: string;
+
+function makeStateJson(overrides?: { retries?: Record<string, number>; flagged?: string[] }): string {
+  return JSON.stringify({
+    version: 2,
+    sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
+    stories: {},
+    retries: overrides?.retries ?? {},
+    flagged: overrides?.flagged ?? [],
+    epics: {},
+    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
+    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
+    actionItems: [],
+  }, null, 2) + '\n';
+}
+
+function readState(): { retries: Record<string, number>; flagged: string[] } {
+  const raw = readFileSync(stateFile, 'utf-8');
+  const parsed = JSON.parse(raw);
+  return { retries: parsed.retries, flagged: parsed.flagged };
+}
 
 beforeEach(() => {
   testDir = mkdtempSync(join(tmpdir(), 'ch-retry-cmd-'));
   ralphDir = join(testDir, 'ralph');
-  const { mkdirSync } = require('node:fs');
+  stateFile = join(testDir, 'sprint-state.json');
   mkdirSync(ralphDir, { recursive: true });
   originalCwd = process.cwd();
   process.chdir(testDir);
@@ -50,14 +72,16 @@ async function runCli(args: string[]): Promise<{ stdout: string }> {
 // ─── --status ─────────────────────────────────────────────────────────────────
 
 describe('retry --status', () => {
-  it('shows "No retry entries." when no files exist', async () => {
+  it('shows "No retry entries." when no state exists', async () => {
     const { stdout } = await runCli(['retry', '--status']);
     expect(stdout).toContain('No retry entries.');
   });
 
   it('shows table with retry counts and flagged status', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\nstory-b=1\n');
-    writeFileSync(flaggedPath(ralphDir), 'story-a\n');
+    writeFileSync(stateFile, makeStateJson({
+      retries: { 'story-a': 3, 'story-b': 1 },
+      flagged: ['story-a'],
+    }));
 
     const { stdout } = await runCli(['retry', '--status']);
     expect(stdout).toContain('story-a');
@@ -68,7 +92,7 @@ describe('retry --status', () => {
   });
 
   it('includes flagged-only stories (no retry entry)', async () => {
-    writeFileSync(flaggedPath(ralphDir), 'story-c\n');
+    writeFileSync(stateFile, makeStateJson({ flagged: ['story-c'] }));
 
     const { stdout } = await runCli(['retry', '--status']);
     expect(stdout).toContain('story-c');
@@ -76,7 +100,7 @@ describe('retry --status', () => {
   });
 
   it('shows header line', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=1\n');
+    writeFileSync(stateFile, makeStateJson({ retries: { 'story-a': 1 } }));
 
     const { stdout } = await runCli(['retry', '--status']);
     expect(stdout).toContain('Story');
@@ -89,8 +113,10 @@ describe('retry --status', () => {
 
 describe('retry --status --json', () => {
   it('outputs JSON with entries', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\nstory-b=1\n');
-    writeFileSync(flaggedPath(ralphDir), 'story-a\n');
+    writeFileSync(stateFile, makeStateJson({
+      retries: { 'story-a': 3, 'story-b': 1 },
+      flagged: ['story-a'],
+    }));
 
     const { stdout } = await runCli(['--json', 'retry', '--status']);
     const parsed = JSON.parse(stdout);
@@ -107,7 +133,7 @@ describe('retry --status --json', () => {
   });
 
   it('includes flagged-only stories in JSON', async () => {
-    writeFileSync(flaggedPath(ralphDir), 'story-x\n');
+    writeFileSync(stateFile, makeStateJson({ flagged: ['story-x'] }));
 
     const { stdout } = await runCli(['--json', 'retry', '--status']);
     const parsed = JSON.parse(stdout);
@@ -119,13 +145,16 @@ describe('retry --status --json', () => {
 
 describe('retry --reset', () => {
   it('clears all retries and flagged stories', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\nstory-b=1\n');
-    writeFileSync(flaggedPath(ralphDir), 'story-a\n');
+    writeFileSync(stateFile, makeStateJson({
+      retries: { 'story-a': 3, 'story-b': 1 },
+      flagged: ['story-a'],
+    }));
 
     const { stdout } = await runCli(['retry', '--reset']);
     expect(stdout).toContain('[OK] All retry counters and flagged stories cleared');
-    expect(readFileSync(retriesPath(ralphDir), 'utf-8')).toBe('');
-    expect(readFileSync(flaggedPath(ralphDir), 'utf-8')).toBe('');
+    const state = readState();
+    expect(state.retries).toEqual({});
+    expect(state.flagged).toEqual([]);
   });
 
   it('JSON output for reset all', async () => {
@@ -140,23 +169,23 @@ describe('retry --reset', () => {
 
 describe('retry --reset --story', () => {
   it('clears only the specified story', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\nstory-b=1\n');
-    writeFileSync(flaggedPath(ralphDir), 'story-a\nstory-b\n');
+    writeFileSync(stateFile, makeStateJson({
+      retries: { 'story-a': 3, 'story-b': 1 },
+      flagged: ['story-a', 'story-b'],
+    }));
 
     const { stdout } = await runCli(['retry', '--reset', '--story', 'story-a']);
     expect(stdout).toContain('[OK] Retry counter and flagged status cleared for story-a');
 
-    const content = readFileSync(retriesPath(ralphDir), 'utf-8');
-    expect(content).toContain('story-b=1');
-    expect(content).not.toContain('story-a');
-
-    const flagged = readFileSync(flaggedPath(ralphDir), 'utf-8');
-    expect(flagged).toContain('story-b');
-    expect(flagged).not.toContain('story-a');
+    const state = readState();
+    expect(state.retries['story-b']).toBe(1);
+    expect(state.retries['story-a']).toBeUndefined();
+    expect(state.flagged).toContain('story-b');
+    expect(state.flagged).not.toContain('story-a');
   });
 
   it('JSON output for single story reset', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\n');
+    writeFileSync(stateFile, makeStateJson({ retries: { 'story-a': 3 } }));
 
     const { stdout } = await runCli(['--json', 'retry', '--reset', '--story', 'story-a']);
     const parsed = JSON.parse(stdout);
@@ -170,8 +199,10 @@ describe('retry --reset --story', () => {
 
 describe('retry --status --story', () => {
   it('filters table to specified story', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\nstory-b=1\n');
-    writeFileSync(flaggedPath(ralphDir), 'story-a\n');
+    writeFileSync(stateFile, makeStateJson({
+      retries: { 'story-a': 3, 'story-b': 1 },
+      flagged: ['story-a'],
+    }));
 
     const { stdout } = await runCli(['retry', '--status', '--story', 'story-a']);
     expect(stdout).toContain('story-a');
@@ -179,14 +210,14 @@ describe('retry --status --story', () => {
   });
 
   it('shows "No retry entries." when filtered story not found', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\n');
+    writeFileSync(stateFile, makeStateJson({ retries: { 'story-a': 3 } }));
 
     const { stdout } = await runCli(['retry', '--status', '--story', 'nonexistent']);
     expect(stdout).toContain('No retry entries.');
   });
 
   it('filters JSON output to specified story', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\nstory-b=1\n');
+    writeFileSync(stateFile, makeStateJson({ retries: { 'story-a': 3, 'story-b': 1 } }));
 
     const { stdout } = await runCli(['--json', 'retry', '--status', '--story', 'story-a']);
     const parsed = JSON.parse(stdout);
@@ -225,7 +256,9 @@ describe('retry input validation', () => {
 
 describe('retry --story without --reset', () => {
   it('warns and shows status for that story', async () => {
-    writeFileSync(retriesPath(ralphDir), 'story-a=3\nstory-b=1\n');
+    writeFileSync(stateFile, makeStateJson({
+      retries: { 'story-a': 3, 'story-b': 1 },
+    }));
 
     const { stdout } = await runCli(['retry', '--story', 'story-a']);
     expect(stdout).toContain('[WARN]');

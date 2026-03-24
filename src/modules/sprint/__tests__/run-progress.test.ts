@@ -16,6 +16,19 @@ vi.mock('../migration.js', () => ({
     success: false,
     error: 'No old format files found for migration',
   })),
+  migrateV1ToV2: vi.fn((v1: Record<string, unknown>) => {
+    const defaultRun = { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null };
+    return {
+      ...v1,
+      version: 2,
+      retries: {},
+      flagged: [],
+      epics: {},
+      session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+      observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
+      run: { ...defaultRun, ...(v1.run as Record<string, unknown>) },
+    };
+  }),
 }));
 
 // Import after mock setup
@@ -371,7 +384,7 @@ describe('atomic write guarantee for concurrent readers', () => {
     const raw = readFileSync(stateFile(), 'utf-8');
     const parsed = JSON.parse(raw) as SprintState;
 
-    expect(parsed.version).toBe(1);
+    expect(parsed.version).toBe(2);
     expect(parsed.run.currentStory).toBe('1-2-user-auth');
     expect(parsed.run.currentPhase).toBe('verify');
     expect(parsed.run.lastAction).toBe('Running AC checks');

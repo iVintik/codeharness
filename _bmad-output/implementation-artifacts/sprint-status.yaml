@@ -114,7 +114,7 @@ development_status:
   # Epic 11: Unified State
   epic-11: backlog
   epic-11-retrospective: optional
-  11-1-unified-sprintstate-schema-versioning: backlog
+  11-1-unified-sprintstate-schema-versioning: done
   11-2-sprint-status-yaml-derived-view: backlog
   11-3-state-reconciliation-on-session-start: backlog
 

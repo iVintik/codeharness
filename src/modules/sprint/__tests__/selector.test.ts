@@ -15,10 +15,15 @@ function makeState(
     };
   }
   return {
-    version: 1,
+    version: 2,
     sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
     stories: full,
-    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [] },
+    retries: {},
+    flagged: [],
+    epics: {},
+    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
+    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     actionItems: [],
   };
 }
@@ -26,10 +31,15 @@ function makeState(
 /** Helper: build a bad state that throws on stories access */
 function makeBadState(throwValue: unknown): SprintState {
   return {
-    version: 1,
+    version: 2,
     sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
     get stories() { throw throwValue; },
-    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [] },
+    retries: {},
+    flagged: [],
+    epics: {},
+    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
+    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     actionItems: [],
   } as unknown as SprintState;
 }

@@ -13,10 +13,15 @@ function s(overrides?: Partial<StoryState>): StoryState {
 
 function makeState(overrides?: Partial<SprintState>): SprintState {
   return {
-    version: 1,
+    version: 2,
     sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
     stories: {},
-    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [] },
+    retries: {},
+    flagged: [],
+    epics: {},
+    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
+    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     actionItems: [],
     ...overrides,
   };
@@ -52,7 +57,7 @@ describe('generateReport', () => {
         '2-2-wip': s({ status: 'in-progress', attempts: 2 }),
         '2-3-status': s(),
       },
-      run: { active: true, startedAt: '2026-03-18T09:46:00Z', iteration: 7, cost: 23.40, completed: ['2-1-done'], failed: [] },
+      run: { active: true, startedAt: '2026-03-18T09:46:00Z', iteration: 7, cost: 23.40, completed: ['2-1-done'], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     });
     const result = generateReport(state, NOW);
     expect(result.success).toBe(true);
@@ -75,7 +80,7 @@ describe('generateReport', () => {
         '2-2-d': s({ status: 'blocked', attempts: 10, lastError: 'retry-exhausted' }),
         '3-1-e': s(),
       },
-      run: { active: false, startedAt: '2026-03-18T09:46:00Z', iteration: 7, cost: 23.40, completed: ['1-1-a', '1-2-b'], failed: ['2-1-c'] },
+      run: { active: false, startedAt: '2026-03-18T09:46:00Z', iteration: 7, cost: 23.40, completed: ['1-1-a', '1-2-b'], failed: ['2-1-c'], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     });
     const result = generateReport(state, NOW);
     expect(result.success).toBe(true);
@@ -109,7 +114,7 @@ describe('generateReport', () => {
 
   it('labels action items as NEW or CARRIED', () => {
     const state = makeState({
-      run: { active: false, startedAt: '2026-03-18T09:00:00Z', iteration: 3, cost: 10, completed: ['1-1-a'], failed: ['2-1-b'] },
+      run: { active: false, startedAt: '2026-03-18T09:00:00Z', iteration: 3, cost: 10, completed: ['1-1-a'], failed: ['2-1-b'], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
       actionItems: [
         { id: 'ai-1', story: '1-1-a', description: 'Fix test', source: 'verification', resolved: false },
         { id: 'ai-2', story: '2-1-b', description: 'Edge case', source: 'verification', resolved: false },
@@ -176,7 +181,7 @@ describe('generateReport', () => {
     const state = makeState({
       sprint: { total: 2, done: 1, failed: 0, blocked: 0, inProgress: null },
       stories: { '1-1-a': s({ status: 'done', attempts: 1 }), '2-1-b': s() },
-      run: { active: false, startedAt: '2026-03-18T10:00:00Z', iteration: 3, cost: 5.50, completed: ['1-1-a'], failed: [] },
+      run: { active: false, startedAt: '2026-03-18T10:00:00Z', iteration: 3, cost: 5.50, completed: ['1-1-a'], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     });
     const result = generateReport(state, NOW);
     expect(result.success).toBe(true);
@@ -195,7 +200,7 @@ describe('generateReport', () => {
 
   it('computes duration correctly for short runs', () => {
     const state = makeState({
-      run: { active: true, startedAt: '2026-03-18T11:55:00Z', iteration: 1, cost: 0.5, completed: [], failed: [] },
+      run: { active: true, startedAt: '2026-03-18T11:55:00Z', iteration: 1, cost: 0.5, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     });
     const result = generateReport(state, NOW);
     expect(result.success).toBe(true);
@@ -205,7 +210,7 @@ describe('generateReport', () => {
 
   it('clamps negative elapsed duration to 0m', () => {
     const state = makeState({
-      run: { active: true, startedAt: '2026-03-18T13:00:00Z', iteration: 1, cost: 0.5, completed: [], failed: [] },
+      run: { active: true, startedAt: '2026-03-18T13:00:00Z', iteration: 1, cost: 0.5, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     });
     // NOW is 12:00, startedAt is 13:00 — clock skew
     const result = generateReport(state, NOW);
@@ -228,7 +233,7 @@ describe('generateReport', () => {
         '1-2-b': s({ status: 'blocked', attempts: 3 }),
         '2-1-c': s({ status: 'done', attempts: 1 }),
       },
-      run: { active: false, startedAt: '2026-03-18T10:00:00Z', iteration: 5, cost: 10, completed: ['2-1-c'], failed: [] },
+      run: { active: false, startedAt: '2026-03-18T10:00:00Z', iteration: 5, cost: 10, completed: ['2-1-c'], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     });
     const result = generateReport(state, NOW);
     expect(result.success).toBe(true);

@@ -8,6 +8,15 @@ vi.mock('../migration.js', () => ({
     success: false,
     error: 'No old format files found for migration',
   })),
+  migrateV1ToV2: vi.fn((v1: Record<string, unknown>) => ({
+    ...v1,
+    version: 2,
+    retries: {},
+    flagged: [],
+    epics: {},
+    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
+  })),
 }));
 
 const {
@@ -145,7 +154,7 @@ describe('sprint module', () => {
     const result = getSprintState();
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.version).toBe(1);
+      expect(result.data.version).toBe(2);
       expect(result.data.stories).toEqual({});
     }
   });

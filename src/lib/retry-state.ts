@@ -1,65 +1,57 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { warn } from './output.js';
+import { getSprintState, writeStateAtomic } from '../modules/sprint/state.js';
+import type { SprintState } from '../types/state.js';
 
 const RETRIES_FILE = '.story_retries';
 const FLAGGED_FILE = '.flagged_stories';
 
-const LINE_PATTERN = /^([^=]+)=(\d+)$/;
+/**
+ * Internal helper: read current state, apply a mutation, write back atomically.
+ * Returns silently on failure to preserve backward-compatible void API.
+ */
+function mutateState(mutator: (state: SprintState) => SprintState): void {
+  const result = getSprintState();
+  if (!result.success) return;
+  writeStateAtomic(mutator(result.data));
+}
 
+/**
+ * @deprecated Legacy path helper. retry-state now reads/writes sprint-state.json.
+ * Kept for backward compatibility — will be removed in story 11-3.
+ */
 export function retriesPath(dir: string): string {
   return join(dir, RETRIES_FILE);
 }
 
+/**
+ * @deprecated Legacy path helper. retry-state now reads/writes sprint-state.json.
+ * Kept for backward compatibility — will be removed in story 11-3.
+ */
 export function flaggedPath(dir: string): string {
   return join(dir, FLAGGED_FILE);
 }
 
 /**
- * Parse `.story_retries` into a Map<storyKey, retryCount>.
- * Lines not matching `{key}={count}` are ignored with a warning.
+ * Read retries from sprint-state.json as a Map<storyKey, retryCount>.
+ * The `dir` parameter is kept for backward compatibility but is not used.
  */
-export function readRetries(dir: string): Map<string, number> {
-  const filePath = retriesPath(dir);
-  if (!existsSync(filePath)) {
+export function readRetries(_dir: string): Map<string, number> {
+  const result = getSprintState();
+  if (!result.success) {
     return new Map();
   }
-
-  const raw = readFileSync(filePath, 'utf-8');
-  const result = new Map<string, number>();
-
-  for (const line of raw.split('\n')) {
-    const trimmed = line.trim();
-    if (trimmed === '') continue;
-
-    const match = LINE_PATTERN.exec(trimmed);
-    if (!match) {
-      warn(`Ignoring malformed retry line: ${trimmed}`);
-      continue;
-    }
-
-    const key = match[1];
-    const count = parseInt(match[2], 10);
-    // Last occurrence wins (deduplication on read)
-    result.set(key, count);
-  }
-
-  return result;
+  return new Map(Object.entries(result.data.retries));
 }
 
 /**
- * Write retries map to `.story_retries` in strict `key=count` format.
- * Deduplicates by nature of Map.
+ * Write retries map to sprint-state.json.
+ * The `dir` parameter is kept for backward compatibility but is not used.
  */
-export function writeRetries(dir: string, retries: Map<string, number>): void {
-  const filePath = retriesPath(dir);
-  const lines: string[] = [];
-
-  for (const [key, count] of retries) {
-    lines.push(`${key}=${count}`);
-  }
-
-  writeFileSync(filePath, lines.length > 0 ? lines.join('\n') + '\n' : '', 'utf-8');
+export function writeRetries(_dir: string, retries: Map<string, number>): void {
+  mutateState(state => ({
+    ...state,
+    retries: Object.fromEntries(retries),
+  }));
 }
 
 /**
@@ -96,31 +88,30 @@ export function resetRetry(dir: string, storyKey?: string): void {
 }
 
 /**
- * Read `.flagged_stories` — one story key per line.
+ * Read flagged stories from sprint-state.json.
+ * The `dir` parameter is kept for backward compatibility but is not used.
  */
-export function readFlaggedStories(dir: string): string[] {
-  const filePath = flaggedPath(dir);
-  if (!existsSync(filePath)) {
+export function readFlaggedStories(_dir: string): string[] {
+  const result = getSprintState();
+  if (!result.success) {
     return [];
   }
-
-  const raw = readFileSync(filePath, 'utf-8');
-  return raw
-    .split('\n')
-    .map(l => l.trim())
-    .filter(l => l !== '');
+  return [...result.data.flagged];
 }
 
 /**
- * Write flagged stories list to file.
+ * Write flagged stories list to sprint-state.json.
+ * The `dir` parameter is kept for backward compatibility but is not used.
  */
-export function writeFlaggedStories(dir: string, stories: string[]): void {
-  const filePath = flaggedPath(dir);
-  writeFileSync(filePath, stories.length > 0 ? stories.join('\n') + '\n' : '', 'utf-8');
+export function writeFlaggedStories(_dir: string, stories: string[]): void {
+  mutateState(state => ({
+    ...state,
+    flagged: stories,
+  }));
 }
 
 /**
- * Remove a single story from `.flagged_stories`.
+ * Remove a single story from flagged stories in sprint-state.json.
  */
 export function removeFlaggedStory(dir: string, key: string): void {
   const stories = readFlaggedStories(dir);

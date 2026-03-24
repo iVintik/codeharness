@@ -44,8 +44,31 @@ export interface ActionItem {
   readonly resolved: boolean;
 }
 
-/** Top-level sprint state persisted to disk */
-export interface SprintState {
+/** State of an epic within the sprint */
+export interface EpicState {
+  readonly status: string;
+  readonly storiesTotal: number;
+  readonly storiesDone: number;
+}
+
+/** Session runtime state */
+export interface SessionState {
+  readonly active: boolean;
+  readonly startedAt: string | null;
+  readonly iteration: number;
+  readonly elapsedSeconds: number;
+}
+
+/** Observability coverage metrics */
+export interface ObservabilityState {
+  readonly statementCoverage: number | null;
+  readonly branchCoverage: number | null;
+  readonly functionCoverage: number | null;
+  readonly lineCoverage: number | null;
+}
+
+/** V1 sprint state (original schema) */
+export interface SprintStateV1 {
   readonly version: 1;
   readonly sprint: {
     readonly total: number;
@@ -69,3 +92,40 @@ export interface SprintState {
   };
   readonly actionItems: ActionItem[];
 }
+
+/** V2 sprint state (unified schema with versioning) */
+export interface SprintStateV2 {
+  readonly version: 2;
+  readonly sprint: {
+    readonly total: number;
+    readonly done: number;
+    readonly failed: number;
+    readonly blocked: number;
+    readonly inProgress: string | null;
+  };
+  readonly stories: Record<string, StoryState>;
+  readonly retries: Record<string, number>;
+  readonly flagged: string[];
+  readonly epics: Record<string, EpicState>;
+  readonly session: SessionState;
+  readonly observability: ObservabilityState;
+  readonly run: {
+    readonly active: boolean;
+    readonly startedAt: string | null;
+    readonly iteration: number;
+    readonly cost: number;
+    readonly completed: string[];
+    readonly failed: string[];
+    readonly currentStory: string | null;
+    readonly currentPhase: 'create' | 'dev' | 'review' | 'verify' | null;
+    readonly lastAction: string | null;
+    readonly acProgress: string | null;
+  };
+  readonly actionItems: ActionItem[];
+}
+
+/** Union of all sprint state versions */
+export type SprintStateAny = SprintStateV1 | SprintStateV2;
+
+/** Top-level sprint state — alias for current version (v2) */
+export type SprintState = SprintStateV2;

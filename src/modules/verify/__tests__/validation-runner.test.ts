@@ -53,10 +53,15 @@ import type { ValidationACResult } from '../validation-runner-types.js';
 
 function emptyState(): SprintState {
   return {
-    version: 1,
+    version: 2,
     sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
     stories: {},
-    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [] },
+    retries: {},
+    flagged: [],
+    epics: {},
+    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
+    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
     actionItems: [],
   };
 }

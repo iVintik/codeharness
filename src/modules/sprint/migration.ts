@@ -7,7 +7,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
-import type { SprintState, StoryState, StoryStatus, ActionItem } from '../../types/state.js';
+import type { SprintState, SprintStateV1, StoryState, StoryStatus, ActionItem, SessionState } from '../../types/state.js';
 import { defaultState, writeStateAtomic, computeSprintCounts } from './state.js';
 
 const OLD_FILES = {
@@ -55,6 +55,40 @@ function parseStoryRetries(content: string, stories: Record<string, StoryState>)
     const count = parseInt(parts[1], 10);
     if (!isNaN(count)) upsertStory(stories, parts[0], { attempts: count });
   }
+}
+
+/**
+ * Parse ralph/.story_retries into a Record<string, number> for v2 retries field.
+ * Format: "<key> <count>" per line (space-separated).
+ */
+export function parseStoryRetriesRecord(content: string): Record<string, number> {
+  const result: Record<string, number> = {};
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split(/\s+/);
+    if (parts.length < 2) continue;
+    const count = parseInt(parts[1], 10);
+    if (!isNaN(count) && count >= 0) result[parts[0]] = count;
+  }
+  return result;
+}
+
+/**
+ * Parse ralph/.flagged_stories into a string[] for v2 flagged field.
+ * Format: one key per line.
+ */
+export function parseFlaggedStoriesList(content: string): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed !== '' && !seen.has(trimmed)) {
+      seen.add(trimmed);
+      result.push(trimmed);
+    }
+  }
+  return result;
 }
 
 /** Parse ralph/.flagged_stories: one key per line */
@@ -113,6 +147,19 @@ function parseRalphStatus(content: string): SprintState['run'] | null {
   } catch { return null; }
 }
 
+/** Parse ralph/status.json into SessionState for v2 */
+function parseRalphStatusToSession(content: string): SessionState | null {
+  try {
+    const data = JSON.parse(content) as RalphStatusJson;
+    return {
+      active: data.status === 'running',
+      startedAt: null,
+      iteration: data.loop_count ?? 0,
+      elapsedSeconds: data.elapsed_seconds ?? 0,
+    };
+  } catch { return null; }
+}
+
 /** Parse .session-issues.md for action items (best effort) */
 function parseSessionIssues(content: string): ActionItem[] {
   const items: ActionItem[] = [];
@@ -131,6 +178,44 @@ function parseSessionIssues(content: string): ActionItem[] {
     }
   }
   return items;
+}
+
+/**
+ * Migrate a v1 state to v2 by reading external files and merging into unified schema.
+ * Does NOT delete source files (.story_retries, .flagged_stories).
+ */
+export function migrateV1ToV2(v1: SprintStateV1): SprintState {
+  const defaults = defaultState();
+
+  // Read retries from external file
+  const retriesContent = readIfExists(OLD_FILES.storyRetries);
+  const retries = retriesContent ? parseStoryRetriesRecord(retriesContent) : {};
+
+  // Read flagged stories from external file
+  const flaggedContent = readIfExists(OLD_FILES.flaggedStories);
+  const flagged = flaggedContent ? parseFlaggedStoriesList(flaggedContent) : [];
+
+  // Read session info from ralph/status.json
+  const statusContent = readIfExists(OLD_FILES.ralphStatus);
+  const session = statusContent
+    ? (parseRalphStatusToSession(statusContent) ?? defaults.session)
+    : defaults.session;
+
+  return {
+    version: 2,
+    sprint: v1.sprint,
+    stories: v1.stories,
+    retries,
+    flagged,
+    epics: {},
+    session,
+    observability: defaults.observability,
+    run: {
+      ...defaults.run,
+      ...v1.run,
+    },
+    actionItems: v1.actionItems,
+  };
 }
 
 /**
@@ -156,9 +241,12 @@ export function migrateFromOldFormat(): Result<SprintState> {
     if (flaggedContent) parseFlaggedStories(flaggedContent, stories);
 
     const statusContent = readIfExists(OLD_FILES.ralphStatus);
+    let session = defaultState().session;
     if (statusContent) {
       const parsed = parseRalphStatus(statusContent);
       if (parsed) run = parsed;
+      const parsedSession = parseRalphStatusToSession(statusContent);
+      if (parsedSession) session = parsedSession;
     }
 
     const issuesContent = readIfExists(OLD_FILES.sessionIssues);
@@ -166,10 +254,21 @@ export function migrateFromOldFormat(): Result<SprintState> {
 
     const sprint = computeSprintCounts(stories);
 
+    // Parse retries and flagged for v2 fields
+    const retries = retriesContent ? parseStoryRetriesRecord(retriesContent) : {};
+    const flagged = flaggedContent ? parseFlaggedStoriesList(flaggedContent) : [];
+
     const migrated: SprintState = {
-      version: 1,
+      version: 2,
       sprint,
-      stories, run, actionItems,
+      stories,
+      retries,
+      flagged,
+      epics: {},
+      session,
+      observability: defaultState().observability,
+      run,
+      actionItems,
     };
 
     const writeResult = writeStateAtomic(migrated);

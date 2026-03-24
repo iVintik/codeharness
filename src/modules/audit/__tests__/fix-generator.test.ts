@@ -287,9 +287,14 @@ describe('generateFixStories', () => {
 
 describe('addFixStoriesToState', () => {
   const defaultState = {
-    version: 1 as const,
+    version: 2 as const,
     sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
     stories: {},
+    retries: {},
+    flagged: [] as string[],
+    epics: {},
+    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
+    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
     run: {
       active: false,
       startedAt: null,

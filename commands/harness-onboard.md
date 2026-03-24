@@ -6,7 +6,7 @@ description: Scan an existing project and generate an onboarding plan to bring i
 
 Scan an existing project for harness compliance gaps and generate an executable onboarding plan. Produces two outputs:
 1. **New stories** for coverage, documentation, and observability gaps (appended to sprint-status.yaml)
-2. **Verification resets** for completed stories that lack real showboat proofs (reset to `verified` status so harness-run re-verifies them)
+2. **Verification resets** for completed stories that lack real showboat proofs (reset to `verifying` status so harness-run re-verifies them)
 
 ## Step 1: Build the CLI
 
@@ -46,7 +46,7 @@ A story needs real verification if:
 - No showboat proof exists at `verification/{story-key}-proof.md`
 
 For each such story:
-1. Reset its status from `done` to `verified` in sprint-status.yaml
+1. Reset its status from `done` to `verifying` in sprint-status.yaml
 2. Reset its parent epic from `done` to `in-progress`
 3. Reset the epic's retrospective from `done` to `optional`
 
@@ -54,7 +54,7 @@ This causes harness-run to pick them up at Step 3d (verification) and run real s
 
 Print the reset count:
 ```
-[INFO] Verification reset: {N} stories across {M} epics reset to 'verified' (missing showboat proofs)
+[INFO] Verification reset: {N} stories across {M} epics reset to 'verifying' (missing showboat proofs)
 ```
 
 If all done stories already have showboat proofs:
@@ -85,7 +85,7 @@ New stories: {N} across {categories}
   Epic: epic-{N} added to sprint-status.yaml
 
 Verification resets: {N} stories across {M} epics
-  Stories reset to 'verified' for real showboat verification
+  Stories reset to 'verifying' for real showboat verification
 
 Ready for: /harness-run
 ```

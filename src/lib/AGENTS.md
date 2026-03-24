@@ -15,7 +15,8 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | stacks/types.ts | Canonical stack type definitions and `StackProvider` interface | `StackProvider`, `StackName`, `AppType`, `CoverageToolName`, `CoverageToolInfo`, `OtlpResult`, `TestCounts` |
 | stacks/registry.ts | Provider registry with marker-based stack detection | `registerProvider`, `getStackProvider`, `detectStacks`, `detectStack`, `StackDetection`, `_resetRegistry` |
-| stacks/nodejs.ts | Minimal NodejsProvider stub (full impl in story 10-2) | `NodejsProvider` |
+| stacks/nodejs.ts | Full NodejsProvider — all Node.js-specific logic extracted from consumer files | `NodejsProvider` |
+| stacks/utils.ts | Shared helpers for stack providers — JSON/text file reading, Node.js dep extraction | `readJsonSafe`, `readTextSafe`, `getNodeDeps` |
 | stacks/index.ts | Barrel re-exports + auto-registers NodejsProvider on import | all public API from types.ts and registry.ts |
 
 ## Stack & Environment (Legacy)

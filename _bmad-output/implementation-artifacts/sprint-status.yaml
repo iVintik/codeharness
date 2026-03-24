@@ -108,7 +108,7 @@ development_status:
   10-1-stackprovider-interface-and-registry: done
   10-2-nodejs-provider: done
   10-3-python-provider: done
-  10-4-rust-provider: backlog
+  10-4-rust-provider: done
   10-5-migrate-consumers-to-stackprovider: backlog
 
   # Epic 11: Unified State

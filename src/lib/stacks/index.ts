@@ -27,6 +27,8 @@ export {
 import { registerProvider } from './registry.js';
 import { NodejsProvider } from './nodejs.js';
 import { PythonProvider } from './python.js';
+import { RustProvider } from './rust.js';
 
 registerProvider(new NodejsProvider());
 registerProvider(new PythonProvider());
+registerProvider(new RustProvider());

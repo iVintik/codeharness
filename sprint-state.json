@@ -345,7 +345,7 @@
       "acResults": null
     },
     "10-4-rust-provider": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -548,153 +548,76 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 4,
+    "iteration": 1,
     "cost": 0,
     "completed": [],
     "failed": [],
     "currentStory": null,
     "currentPhase": null,
     "lastAction": null,
-    "acProgress": null
+    "acProgress": "27/27"
   },
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "10-3-python-provider",
-      "description": "**Workaround:** Epic mentions CLI/library detection for Python app types, but codebase only has agent/web/server/generic. ACs reflect actual code, not aspirational epic text.",
+      "story": "10-4-rust-provider",
+      "description": "**Ambiguity in epic definition:** Story notes mention `'library'` AppType for Rust, but `AppType` union in `src/lib/stacks/types.ts` has no `'library'` variant — only `'generic'`. Followed actual code behavior (returns `'generic'`).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "10-3-python-provider",
-      "description": "**Risk:** `getProjectName()` uses TOML regex (fragile for edge cases). Proper TOML parser would be better but adds dependency.",
+      "story": "10-4-rust-provider",
+      "description": "**Bevy system libs:** Story notes mention Bevy detection for Docker system libs, but no such logic exists in current `dockerfile-template.ts`. Deferred to avoid scope creep.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "10-3-python-provider",
-      "description": "**Risk:** `hasPythonDep()` regex fragile for packages with hyphens/underscores (Python normalizes these).",
+      "story": "10-4-rust-provider",
+      "description": "**Risk — workspace aggregation ordering:** No cross-provider ordering concern in the provider pattern; handled within Rust provider alone.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "10-3-python-provider",
-      "description": "**Observation:** `PYTHON_OTLP_PACKAGES` in code are `opentelemetry-distro`/`opentelemetry-exporter-otlp`, not what the original story skeleton stated.",
+      "story": "10-4-rust-provider",
+      "description": "**Observation:** All 27 ACs are `cli-verifiable`. No external system dependencies for unit testing.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "10-3-python-provider",
-      "description": "**Observation:** Python has no `patchStartScript()` — uses `opentelemetry-instrument` wrapper via env vars instead.",
+      "story": "10-4-rust-provider",
+      "description": "**MEDIUM (fixed):** Misleading JSDoc in `hasCargoDep` — example was backwards.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "10-3-python-provider",
-      "description": "**HIGH (fixed):** `detectCoverageConfig` substring false positives — `String.includes('coverage')` matched `coverage-conditional-plugin`. Switched to `hasPythonDep()`.",
+      "story": "10-4-rust-provider",
+      "description": "**MEDIUM (fixed):** Missing false-positive prevention tests for crate substring matching (2 tests added).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "10-3-python-provider",
-      "description": "**MEDIUM (fixed):** `installOtlp` pipx fallback lost track of partially installed packages.",
+      "story": "10-4-rust-provider",
+      "description": "**LOW (not fixed):** `hasCargoDep` matches commented-out dependencies. Pre-existing behavior from `stack-detect.ts`.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "10-3-python-provider",
-      "description": "**MEDIUM (fixed):** `getProjectName` TOML regex crossed section boundaries.",
+      "story": "10-4-rust-provider",
+      "description": "**LOW (not fixed):** `getCargoDepsSection` doesn't handle `[dependencies.foo]` subsection format. Pre-existing behavior.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
-      "story": "10-3-python-provider",
-      "description": "**MEDIUM (fixed):** Missing direct tests for `getPythonDepsContent()` and `hasPythonDep()` utils — added 13 tests.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-10",
-      "story": "10-3-python-provider",
-      "description": "**LOW (not fixed):** `hasPythonDep` matches package names inside comments — pre-existing behavior, low real-world impact.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-11",
-      "story": "10-3-python-provider",
-      "description": "**LOW (not fixed):** Task comment markers in code could be cleaned up.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-12",
-      "story": "10-3-python-provider",
-      "description": "**Coverage gap:** `installOtlp` success path untested (needs real pip/pipx binaries).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-13",
-      "story": "10-3-python-provider",
-      "description": "**BLOCKER:** Docker Desktop is not running — `codeharness stack start` failed with \"Docker Desktop is unable to start\". Cannot perform black-box verification.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-14",
-      "story": "10-3-python-provider",
-      "description": "**Observation:** All 21 ACs are tagged `cli-verifiable` (unit-testable). Story could benefit from `<!-- verification-tier: unit-testable -->` tag to skip Docker requirement for pure unit-test stories.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-15",
-      "story": "10-3-python-provider",
-      "description": "**Action:** Story left at `verifying` for next session when Docker is available.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-16",
-      "story": "10-3-python-provider",
-      "description": "**Resolution:** Used unit-testable verification (story was already tagged `<!-- verification-tier: unit-testable -->`), bypassing Docker requirement.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-17",
-      "story": "10-3-python-provider",
-      "description": "**Issue:** Initial proof document format was incorrect — missing `bash`/`output` code blocks and wrong `**Tier:**` format. Proof parser requires specific format for evidence recognition. Had to rewrite proof after studying the `validateProofQuality()` parser in `src/modules/verify/proof.ts`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "10-3-python-provider",
-      "description": "**Issue:** AGENTS.md was stale — missing `python.ts` entry. Fixed by adding PythonProvider and updating utils.ts description.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-19",
-      "story": "10-3-python-provider",
-      "description": "**Observation:** `codeharness verify` preconditions check requires tests + coverage to have been run in the same session. Running `npm test` alone isn't enough — need `codeharness coverage --min-file 80` too.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-20",
-      "story": "10-3-python-provider",
-      "description": "**Outcome:** 21/21 ACs passed. Story marked done and committed.",
+      "story": "10-4-rust-provider",
+      "description": "**Coverage gap:** No integration test for `installOtlp` success path (requires `cargo` binary).",
       "source": "retro",
       "resolved": false
     }

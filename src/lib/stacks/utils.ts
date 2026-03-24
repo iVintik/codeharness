@@ -64,3 +64,28 @@ export function hasPythonDep(content: string, dep: string): boolean {
   const pattern = new RegExp(`(?:^|[\\s"',])${escaped}(?:[\\[>=<~!;\\s"',]|$)`, 'm');
   return pattern.test(content);
 }
+
+/**
+ * Extract the [dependencies] section from Cargo.toml content.
+ * Stops at the next section header (e.g., [dev-dependencies], [build-dependencies]).
+ * Returns empty string if no [dependencies] section found.
+ */
+export function getCargoDepsSection(content: string): string {
+  const match = content.match(/^\[dependencies\]\s*$/m);
+  if (!match || match.index === undefined) return '';
+  const start = match.index + match[0].length;
+  // Find next section header
+  const nextSection = content.slice(start).search(/^\[/m);
+  return nextSection === -1 ? content.slice(start) : content.slice(start, start + nextSection);
+}
+
+/**
+ * Check if a Cargo.toml [dependencies] section contains a specific crate.
+ * Uses word-boundary matching to avoid substring false positives
+ * (e.g., searching for "anthropic" should not match "anthropic-sdk").
+ */
+export function hasCargoDep(depsSection: string, dep: string): boolean {
+  const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(?:^|\\s)${escaped}(?:\\s*=|\\s*\\{)`, 'm');
+  return pattern.test(depsSection);
+}

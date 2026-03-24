@@ -17,8 +17,9 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | stacks/registry.ts | Provider registry with marker-based stack detection | `registerProvider`, `getStackProvider`, `detectStacks`, `detectStack`, `StackDetection`, `_resetRegistry` |
 | stacks/nodejs.ts | Full NodejsProvider — all Node.js-specific logic extracted from consumer files | `NodejsProvider` |
 | stacks/python.ts | Full PythonProvider — all Python-specific logic (app type detection, coverage, OTLP, Dockerfile, pytest parsing) | `PythonProvider` |
-| stacks/utils.ts | Shared helpers for stack providers — JSON/text file reading, Node.js dep extraction, Python dep content reading | `readJsonSafe`, `readTextSafe`, `getNodeDeps`, `getPythonDepsContent`, `hasPythonDep` |
-| stacks/index.ts | Barrel re-exports + auto-registers NodejsProvider and PythonProvider on import | all public API from types.ts and registry.ts |
+| stacks/rust.ts | Full RustProvider — Cargo.toml parsing, tarpaulin coverage, OTLP packages, multi-stage Dockerfile, workspace test aggregation | `RustProvider` |
+| stacks/utils.ts | Shared helpers for stack providers — JSON/text file reading, Node.js/Python/Cargo dependency extraction | `readJsonSafe`, `readTextSafe`, `getNodeDeps`, `getPythonDepsContent`, `hasPythonDep`, `getCargoDepsSection`, `hasCargoDep` |
+| stacks/index.ts | Barrel re-exports + auto-registers NodejsProvider, PythonProvider, RustProvider on import | all public API from types.ts and registry.ts |
 
 ## Stack & Environment (Legacy)
 
@@ -123,4 +124,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, agent-browser, beads, Semgrep, BATS, cargo-tarpaulin) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-**Total: 35 library files across 15 categories.**
+**Total: 36 library files across 15 categories.**

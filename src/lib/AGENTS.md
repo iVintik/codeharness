@@ -72,11 +72,12 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | doc-health/report.ts | Doc health output formatting and exec-plan lifecycle | `formatDocHealthOutput`, `printDocHealthOutput`, `createExecPlan`, `completeExecPlan`, `getExecPlanStatus` |
 | doc-health/types.ts | Shared types for doc-health subsystem | `DocHealthResult`, `ModuleDocHealth`, `SOURCE_EXTENSIONS` |
 
-## Retrospective Parsing
+## Retrospective Parsing & Retro-to-Sprint Pipeline
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| retro-parser.ts | Retro markdown parser — action item extraction, classification, priority derivation | `parseRetroActionItems`, `classifyFinding`, `derivePriority`, `RetroActionItem`, `Classification` |
+| retro-parser.ts | Retro markdown parser — action item extraction, classification, priority derivation, section parsing, deduplication | `parseRetroActionItems`, `parseRetroSections`, `normalizeText`, `wordOverlap`, `isDuplicate`, `classifyFinding`, `derivePriority`, `RetroActionItem`, `RetroSectionItem`, `Classification` |
+| retro-to-sprint.ts | Retro-to-sprint pipeline — processes retro action items into TD stories and backlog entries | `processRetroActionItems`, `ensureEpicTd`, `createTdStory`, `nextTdStoryNumber`, `generateSlug`, `getExistingTdTitles`, `appendToBacklogFile` |
 
 ## GitHub CLI Integration
 
@@ -165,4 +166,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/ralph-prompt.ts | Ralph system prompt generator — builds the prompt template for ralph sessions | `generateRalphPrompt`, `RalphPromptConfig` |
 | agents/index.ts | Barrel re-exports for agents subsystem — RalphDriver, stream parser, ralph prompt | all public API from ralph.ts, stream-parser.ts, ralph-prompt.ts, types.ts |
 
-**Total: 53 library files + 4 shared test utility files across 21 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**
+**Total: 54 library files + 4 shared test utility files across 21 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**

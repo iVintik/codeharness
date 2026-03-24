@@ -120,3 +120,123 @@ export function derivePriority(item: RetroActionItem): number {
   // Default priority
   return 2;
 }
+
+// ─── Section-based retro parsing (subsection format) ────────────────────
+
+/** Section classification for action items under ## 6. Action Items */
+export type RetroSection = 'fix-now' | 'fix-soon' | 'backlog';
+
+/** An action item parsed from a retro subsection */
+export interface RetroSectionItem {
+  readonly section: RetroSection;
+  readonly text: string;
+}
+
+/**
+ * Classify a subsection header into a RetroSection.
+ * Matches case-insensitively and strips parenthetical suffixes.
+ * Returns null if the header doesn't match a known section.
+ */
+function classifyHeader(header: string): RetroSection | null {
+  // Strip leading #+ and trim
+  const text = header.replace(/^#+\s*/, '').trim();
+  // Strip parenthetical suffix: "Fix Now (Before Next Session)" -> "Fix Now"
+  const base = text.replace(/\s*\(.*\)\s*$/, '').trim().toLowerCase();
+  if (base === 'fix now') return 'fix-now';
+  if (base === 'fix soon') return 'fix-soon';
+  if (base === 'backlog') return 'backlog';
+  return null;
+}
+
+/**
+ * Parse retro subsection-based action items from the `## 6. Action Items` section.
+ * Handles varying header formats (### or ####, with/without parenthetical suffixes).
+ * Extracts bullet items (`- ` or numbered `1. `) under each subsection.
+ */
+export function parseRetroSections(content: string): RetroSectionItem[] {
+  const lines = content.split('\n');
+  const items: RetroSectionItem[] = [];
+  let currentSection: RetroSection | null = null;
+  let inActionItems = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Detect ## 6. Action Items header (or similar)
+    if (/^#{2}\s+\d+\.\s*Action\s*Items/i.test(trimmed)) {
+      inActionItems = true;
+      continue;
+    }
+
+    // If we hit another ## header (not ###/####), stop
+    if (inActionItems && /^#{2}\s+[^#]/.test(trimmed) && !/Action\s*Items/i.test(trimmed)) {
+      break;
+    }
+
+    if (!inActionItems) continue;
+
+    // Detect ### or #### subsection headers
+    if (/^#{3,4}\s+/.test(trimmed)) {
+      const section = classifyHeader(trimmed);
+      currentSection = section;
+      continue;
+    }
+
+    // Extract bullet items under current section
+    if (currentSection !== null) {
+      const bulletMatch = trimmed.match(/^(?:-|\d+\.)\s+(.+)$/);
+      if (bulletMatch) {
+        items.push({ section: currentSection, text: bulletMatch[1].trim() });
+      }
+    }
+  }
+
+  return items;
+}
+
+// ─── Deduplication utilities ────────────────────────────────────────────
+
+/**
+ * Normalize text for deduplication: lowercase, remove punctuation, split into words.
+ */
+export function normalizeText(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 0);
+}
+
+/**
+ * Compute word overlap between two normalized word arrays.
+ * Returns overlap percentage (0-1) using min(|a|, |b|) as denominator.
+ */
+export function wordOverlap(a: string[], b: string[]): number {
+  if (a.length === 0 || b.length === 0) return 0;
+  const setA = new Set(a);
+  const setB = new Set(b);
+  let intersection = 0;
+  for (const w of setA) {
+    if (setB.has(w)) intersection++;
+  }
+  return intersection / Math.min(setA.size, setB.size);
+}
+
+/**
+ * Check if a new item is a duplicate of any existing title.
+ * Uses word overlap with configurable threshold (default 0.8).
+ */
+export function isDuplicate(
+  newItem: string,
+  existingTitles: string[],
+  threshold = 0.8,
+): { duplicate: boolean; matchedTitle?: string } {
+  const newWords = normalizeText(newItem);
+  for (const title of existingTitles) {
+    const titleWords = normalizeText(title);
+    if (wordOverlap(newWords, titleWords) >= threshold) {
+      return { duplicate: true, matchedTitle: title };
+    }
+  }
+  return { duplicate: false };
+}

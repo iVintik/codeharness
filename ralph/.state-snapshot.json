@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 66,
-    "done": 52,
+    "done": 53,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -433,7 +433,7 @@
       "acResults": null
     },
     "13-3-migrate-run-ts-to-agentdriver": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -441,7 +441,7 @@
       "acResults": null
     },
     "14-1-retro-to-sprint-pipeline-epic-td": {
-      "status": "backlog",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "14-1-retro-to-sprint-pipeline-epic-td",
+    "currentPhase": "dev",
+    "lastAction": "Starting dev-story workflow",
     "acProgress": null
   },
   "actionItems": [

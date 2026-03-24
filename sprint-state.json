@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 66,
-    "done": 53,
+    "done": 54,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -441,11 +441,11 @@
       "acResults": null
     },
     "14-1-retro-to-sprint-pipeline-epic-td": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/14-1-retro-to-sprint-pipeline-epic-td-proof.md",
       "acResults": null
     },
     "14-2-tech-debt-gate-story-selection": {
@@ -561,10 +561,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "13-3-migrate-run-ts-to-agentdriver",
-    "currentPhase": "verify",
-    "lastAction": "Starting unit-testable verification",
-    "acProgress": "13/13"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": [
     {

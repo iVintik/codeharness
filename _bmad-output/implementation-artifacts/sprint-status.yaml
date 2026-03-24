@@ -96,14 +96,14 @@ development_status:
   12-4-shared-test-utilities-fixtures: done
 
   # Epic 13
-  epic-13: backlog
+  epic-13: done
   13-1-agentdriver-interface-and-types: done
   13-2-ralph-driver-implementation: done
   13-3-migrate-run-ts-to-agentdriver: done
 
   # Epic 14
   epic-14: backlog
-  14-1-retro-to-sprint-pipeline-epic-td: backlog
+  14-1-retro-to-sprint-pipeline-epic-td: done
   14-2-tech-debt-gate-story-selection: backlog
   14-3-docker-precheck-orphan-cleanup: backlog
   14-4-observability-backend-choice: backlog

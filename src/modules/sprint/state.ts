@@ -129,10 +129,10 @@ export function generateSprintStatusYaml(state: SprintState): string {
     'development_status:',
   ];
 
-  // Group stories by epic prefix (first number segment)
+  // Group stories by epic prefix (first number segment, or 'TD' for TD- stories)
   const epicGroups = new Map<string, string[]>();
   const sortedKeys = Object.keys(state.stories).sort((a, b) => {
-    // Sort by epic number, then story number
+    // Sort by epic number, then story number (TD stories sort last)
     const [aEpic, aStory] = parseStoryKey(a);
     const [bEpic, bStory] = parseStoryKey(b);
     if (aEpic !== bEpic) return aEpic - bEpic;
@@ -140,8 +140,7 @@ export function generateSprintStatusYaml(state: SprintState): string {
   });
 
   for (const key of sortedKeys) {
-    const epicNum = parseStoryKey(key)[0];
-    const epicKey = String(epicNum);
+    const epicKey = getEpicGroupKey(key);
     if (!epicGroups.has(epicKey)) {
       epicGroups.set(epicKey, []);
     }
@@ -154,8 +153,14 @@ export function generateSprintStatusYaml(state: SprintState): string {
     lines.push(`  # Epic ${epicKey}`);
 
     // Compute epic status from stories
-    const allDone = storyKeys.every(k => state.stories[k].status === 'done');
-    const epicStatus = allDone ? 'done' : 'backlog';
+    // epic-TD is always in-progress regardless of story statuses
+    let epicStatus: string;
+    if (epicKey === 'TD') {
+      epicStatus = 'in-progress';
+    } else {
+      const allDone = storyKeys.every(k => state.stories[k].status === 'done');
+      epicStatus = allDone ? 'done' : 'backlog';
+    }
     lines.push(`  epic-${epicKey}: ${epicStatus}`);
 
     for (const key of storyKeys) {
@@ -171,11 +176,25 @@ export function generateSprintStatusYaml(state: SprintState): string {
 /**
  * Parse a story key into [epicNumber, storyNumber].
  * e.g. "11-2-sprint-status-yaml-derived-view" → [11, 2]
+ * TD-prefix stories (e.g. "TD-1-slug") return [Infinity, storyNumber].
  */
 function parseStoryKey(key: string): [number, number] {
+  // Handle TD-prefix stories
+  const tdMatch = key.match(/^TD-(\d+)/);
+  if (tdMatch) return [Infinity, parseInt(tdMatch[1], 10)];
   const match = key.match(/^(\d+)-(\d+)/);
   if (!match) return [Infinity, Infinity];
   return [parseInt(match[1], 10), parseInt(match[2], 10)];
+}
+
+/**
+ * Get the epic group key for a story key.
+ * Returns 'TD' for TD-prefix stories, or the numeric epic prefix as string.
+ */
+function getEpicGroupKey(key: string): string {
+  if (key.startsWith('TD-')) return 'TD';
+  const match = key.match(/^(\d+)-/);
+  return match ? match[1] : String(Infinity);
 }
 
 /**

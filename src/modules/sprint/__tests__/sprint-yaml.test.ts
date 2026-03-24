@@ -225,6 +225,34 @@ describe('generateSprintStatusYaml', () => {
     expect(yaml).toContain('no-match-key: backlog');
   });
 
+  it('always shows epic-TD as in-progress even when all TD stories are done', () => {
+    const state: SprintState = {
+      ...defaultState(),
+      stories: {
+        '1-1-normal': mkStory('done'),
+        'TD-1-fix-catch-blocks': mkStory('done'),
+        'TD-2-add-tests': mkStory('done'),
+      },
+    };
+    const yaml = generateSprintStatusYaml(state);
+    expect(yaml).toContain('epic-TD: in-progress');
+    // Normal epic should still be done
+    expect(yaml).toContain('epic-1: done');
+  });
+
+  it('groups TD stories under Epic TD section', () => {
+    const state: SprintState = {
+      ...defaultState(),
+      stories: {
+        'TD-1-some-fix': mkStory('backlog'),
+        '1-1-normal': mkStory('done'),
+      },
+    };
+    const yaml = generateSprintStatusYaml(state);
+    expect(yaml).toContain('# Epic TD');
+    expect(yaml).toContain('TD-1-some-fix: backlog');
+  });
+
   it('handles state with epics field populated (ignored — epics derived from stories)', () => {
     const state: SprintState = {
       ...defaultState(),

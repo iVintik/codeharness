@@ -2214,3 +2214,165 @@ No bugs discovered — this story is purely additive (new test utility files) wi
 | Verification gaps (escalated ACs) | 1 (12-1 AC11 integration-required) |
 | Test count at session end | 3,600+ Vitest + 307 BATS |
 | Coverage at session end | 97.08% overall, 153 files above 80% floor |
+
+---
+
+# Session Retrospective — 2026-03-24 (Final Session, appended 2026-03-24T20:45:00Z)
+
+**Sprint:** Operational Excellence (Architecture v3 Migration phase)
+**Session:** Final session of the day — covers 13-2 verification, 13-3 code review + verification, Epic 13 closure
+**Timestamp:** 2026-03-24T20:45:00Z
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages This Session |
+|-------|------|---------|------------------------------|
+| 13-2-ralph-driver-implementation | Epic 13 (AgentDriver) | done | code-review (3 fixes), verification |
+| 13-3-migrate-run-ts-to-agentdriver | Epic 13 (AgentDriver) | done | create-story, dev-story, code-review (2 fixes), verification |
+
+**Net progress:** Epic 13 fully closed (all 3 stories done). This completes the AgentDriver abstraction layer: types (13-1), RalphDriver implementation (13-2), and run.ts migration (13-3).
+
+**Commits landed:**
+- `a3509d5` feat: story 13-2-ralph-driver-implementation — verified and done
+- `bbb2ca6` feat: story 13-3-migrate-run-ts-to-agentdriver — verified and done
+
+**Sprint totals:** 53 of 66 stories done (80.3%). Epics 0-13 all closed. Epics 14-15 remain in backlog (13 stories).
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| HIGH | 13-2 | `tool-complete` AgentEvent emitted fabricated empty `name`/`args` strings — types.ts fields made optional | Yes |
+| MEDIUM | 13-2 | Zero test coverage for `RalphDriver.spawn()` method — added 5 tests | Yes |
+| MEDIUM | 13-2 | No tool-complete delegation test — added 1 test | Yes |
+| MEDIUM | 13-3 | `getDriver()` factory in `src/lib/agents/index.ts` had 0% test coverage — created dedicated test file | Yes |
+| MEDIUM | 13-3 | Hardcoded "Failed to start Ralph" error message in agent-agnostic `run.ts` — changed to "Failed to start agent" | Yes |
+
+### Workarounds Applied (Tech Debt Introduced)
+
+| Story | Workaround | Debt Level |
+|-------|-----------|------------|
+| 13-2 | `RalphDriver.spawn()` hardcodes maxIterations/iterationTimeout/calls defaults — SpawnOpts needs expansion | Medium — partially addressed in 13-3 via constructor config but hardcoded values remain as fallbacks |
+| 13-2 | `retry` event maps `delay: 0` because ralph stderr doesn't include delay info | Low — data loss, no functional impact |
+| 13-3 | AgentEvent-to-StreamEvent type cast via assertion — shapes match structurally but no formal type relationship | Medium — unsafe cast at boundary between two type systems |
+| 13-3 | `storyKey: ''` passed to driver.spawn() — SpawnOpts requires it but run.ts operates across all stories | Medium — empty string satisfies type but is semantically wrong |
+| 13-3 | `createLineProcessor` still exists in run-helpers.ts, unused by run.ts, imports from agents/ralph.js | Low — dead code from run.ts perspective, creates reverse dependency |
+
+### Code Quality Concerns
+
+| Severity | Story | Concern |
+|----------|-------|---------|
+| LOW | 13-2 | `resolveRalphPath()` uses fragile `endsWith('/src')` check for path calculation |
+| LOW | 13-2 | `retry` event drops story key — AgentEvent.retry has no `key` field |
+| LOW | 13-3 | `getDriver()` accepts `RalphConfig` type — couples generic factory to ralph-specific type |
+| LOW | 13-3 | `handleAgentEvent()` uses type assertion to cast `AgentEvent` to `StreamEvent` |
+| LOW | 13-3 | `run.ts` and `ralph.ts` both at 287 lines — 13 lines from 300-line limit |
+| LOW | 13-3 | `RalphConfig` exported from both ralph.ts and index.ts barrel — dual entry points |
+
+### Verification Gaps
+
+| Story | Gap |
+|-------|-----|
+| 13-1 | Beads sync failed — story file status line not found (parsing issue, non-blocking) |
+| 13-3 | `codeharness verify` showed warnings for missing showboat, beads, and exec-plan — non-blocking |
+| 12-1 | AC11 (integration-required) still escalated from earlier — Docker never came up this session |
+
+### Tooling/Infrastructure Problems
+
+| Problem | Impact |
+|---------|--------|
+| Docker Desktop never started throughout the entire day | All integration-required ACs deferred. Only 12-1 AC11 was affected — all Epic 13 stories were unit-testable. |
+| Pre-existing ~80 TS type errors in test files | Noise in every story. Reported by 11-3 and 13-2 dev agents. Not introduced this session. |
+| AGENTS.md staleness checker fallback logic gap | 13-1 had to create `src/lib/__tests__/fixtures/AGENTS.md` workaround — masking a real bug in `checkAgentsMdForModule` |
+
+---
+
+## 3. What Went Well
+
+- **Epic 13 fully closed in one session** — AgentDriver interface, RalphDriver implementation, and run.ts migration all landed. The abstraction layer is complete: `run.ts` no longer imports `spawn` from `node:child_process`, all process management goes through `AgentDriver.spawn()`.
+- **Code review caught every 0% coverage gap** — `getDriver()` factory (13-3) and `RalphDriver.spawn()` (13-2) both had zero test coverage before review. Both now have dedicated tests.
+- **Agent-agnostic error messaging** — code review caught the hardcoded "Failed to start Ralph" string in the now-generic `run.ts`. Small fix with real impact on future multi-agent support.
+- **All 13 ACs in 13-3 passed verification** with unit-testable tier. No Docker needed for any Epic 13 story.
+- **3,600+ Vitest tests and 307 BATS tests passing** with zero regressions across the entire day's work (10 stories).
+- **Coverage held at 97.08%** across 153 files, all above the 80% per-file floor.
+
+---
+
+## 4. What Went Wrong
+
+- **Docker Desktop down all day** — this is the third retro in a row mentioning it. 12-1 AC11 remains the only escalated AC, but the repeated failure to start Docker indicates a systemic issue (Docker Desktop may need reinstall, or the daemon has a startup bug).
+- **Type casting at AgentEvent/StreamEvent boundary** — the migration from direct process management to AgentDriver introduced a type assertion (`as StreamEvent`) that bypasses TypeScript's safety. This is architectural tech debt from two type systems that evolved separately and now overlap.
+- **`storyKey: ''` semantic mismatch** — SpawnOpts requires `storyKey` but `run.ts` manages all stories. Passing empty string satisfies the type checker but is meaningfully wrong. SpawnOpts was designed for single-story agent runs, not multi-story orchestration.
+- **`createLineProcessor` is now dead code** — run.ts no longer uses it, but it still exists in run-helpers.ts and imports from agents/ralph.js. This creates a reverse dependency (helpers importing from agents) that should have been cleaned up in 13-3.
+- **Files approaching 300-line limit** — both `run.ts` and `ralph.ts` are at 287 lines. Any feature addition will require a split. This is not a failure per se, but a signal that the migration packed the files full.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Unit-testable verification tier for interface/type/migration stories** — all 3 Epic 13 stories used unit-testable tier and passed cleanly. Docker was irrelevant. Correct tier selection avoided the Docker blocker entirely.
+2. **Code review finding 0% coverage on new factories/methods** — `getDriver()` and `spawn()` would have shipped untested without review. The review stage continues to justify its cost.
+3. **Completing an epic in a single session** — Epic 13 had 3 stories with clear dependencies (types -> implementation -> migration). Running them sequentially in one session avoided context loss.
+
+### Patterns to Avoid
+
+1. **Leaving dead code after migration** — `createLineProcessor` should have been removed or at minimum commented as dead in the same commit that made it unused. Migration stories should have a "clean up removed code paths" AC.
+2. **Passing empty strings to satisfy type constraints** — `storyKey: ''` is a code smell. Better to make the field optional or use a discriminated union for single-story vs multi-story modes.
+3. **Deferring type unification** — AgentEvent and StreamEvent overlap was known before 13-3 started. Unifying them (or creating a formal adapter) should have been scoped into the migration story, not deferred.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+_None required. All stories committed and verified. Epic 13 is closed._
+
+### Fix Soon (Next Sprint)
+
+| Item | Source |
+|------|--------|
+| Remove `createLineProcessor` from run-helpers.ts (dead code) | 13-3 architecture observation |
+| Unify AgentEvent and StreamEvent types (or create formal adapter) | 13-3 type casting concern |
+| Make `storyKey` optional in SpawnOpts or add multi-story spawn mode | 13-3 semantic mismatch |
+| Fix `resolveRalphPath()` fragile `endsWith('/src')` check | 13-2 code quality LOW |
+| Decouple `getDriver()` from `RalphConfig` — use generic config type | 13-3 code quality LOW |
+| Fix Docker Desktop — investigate why it failed to start all session | 12-1 AC11 still escalated |
+| Fix `checkAgentsMdForModule` fallback to resolve nearest AGENTS.md | 13-1 workaround |
+
+### Backlog (Track But Not Urgent)
+
+| Item | Source |
+|------|--------|
+| Add `key` field to AgentEvent.retry type | 13-2 code quality LOW |
+| Expose mock process handlers in `createMockProcess()` for richer driver testing | 13-1 code quality LOW |
+| Split run.ts or ralph.ts if either grows past 300 lines | Both at 287 lines |
+| Remove `RalphConfig` dual export (ralph.ts and index.ts barrel) | 13-3 code quality LOW |
+| Fix beads sync story file status line parsing | 13-1 verification gap |
+| Address pre-existing ~80 TS type errors in test files | Story 15-4 in backlog |
+
+---
+
+## Full Day Summary (2026-03-24)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed today | 10 (11-1, 11-2, 11-3, 12-1, 12-2, 12-3, 12-4, 13-1, 13-2, 13-3) |
+| Epics closed today | 3 (Epic 11, Epic 12, Epic 13) |
+| Sprint stories done | 53 of 66 (80.3%) |
+| Stories remaining (backlog) | 13 (Epics 14-15) |
+| HIGH issues found and fixed | 5 |
+| MEDIUM issues found and fixed | 9 |
+| LOW issues tracked (unfixed) | 15+ |
+| Escalated ACs | 1 (12-1 AC11 — Docker down) |
+| Test count | 3,600+ Vitest + 307 BATS |
+| Coverage | 97.08% overall, 153 files above 80% floor |
+| Architectural milestones | Domain subdirectory pattern (Epic 12), AgentDriver abstraction (Epic 13) |

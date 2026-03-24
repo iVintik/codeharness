@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 66,
-    "done": 53,
+    "done": 56,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -441,15 +441,15 @@
       "acResults": null
     },
     "14-1-retro-to-sprint-pipeline-epic-td": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/14-1-retro-to-sprint-pipeline-epic-td-proof.md",
       "acResults": null
     },
     "14-2-tech-debt-gate-story-selection": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "14-1-retro-to-sprint-pipeline-epic-td",
-    "currentPhase": "dev",
-    "lastAction": "Starting dev-story workflow",
+    "currentStory": "14-2-tech-debt-gate-story-selection",
+    "currentPhase": "verify",
+    "lastAction": "Starting unit-testable verification",
     "acProgress": null
   },
   "actionItems": [
@@ -605,7 +605,7 @@
     {
       "id": "migrated-6",
       "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "LOW (not fixed): `retriesPath()` and `flaggedPath()` are exported dead code — deferred to 11-3",
+      "description": "LOW (not fixed): `retriesPath()` and `flaggedPath()` are exported dead code \u2014 deferred to 11-3",
       "source": "retro",
       "resolved": false
     },

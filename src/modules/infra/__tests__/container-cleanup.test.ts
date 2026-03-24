@@ -122,6 +122,33 @@ describe('cleanupContainers', () => {
     }
   });
 
+  it('removes stale verify containers (AC#3, AC#4)', () => {
+    mockExecFileSync.mockImplementation((cmd: string, args?: readonly string[]) => {
+      const argsArray = args as string[];
+      if (cmd === 'docker' && argsArray?.[0] === 'ps' && argsArray?.includes('name=codeharness-shared-')) {
+        return Buffer.from('');
+      }
+      if (cmd === 'docker' && argsArray?.[0] === 'ps' && argsArray?.includes('name=codeharness-collector-')) {
+        return Buffer.from('');
+      }
+      if (cmd === 'docker' && argsArray?.[0] === 'ps' && argsArray?.includes('name=codeharness-verify-')) {
+        return Buffer.from('codeharness-verify-abc123\ncodeharness-verify-def456\n');
+      }
+      if (cmd === 'docker' && argsArray?.[0] === 'rm') {
+        return Buffer.from('');
+      }
+      return Buffer.from('');
+    });
+
+    const result = cleanupContainers();
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.containersRemoved).toBe(2);
+      expect(result.data.names).toContain('codeharness-verify-abc123');
+      expect(result.data.names).toContain('codeharness-verify-def456');
+    }
+  });
+
   it('handles docker ps failure gracefully for a pattern', () => {
     mockExecFileSync.mockImplementation((cmd: string, args?: readonly string[]) => {
       const argsArray = args as string[];

@@ -6,19 +6,16 @@
  * TODO: Consolidate cleanup logic here if container-cleanup.ts is refactored.
  */
 
-import { isDockerAvailable } from './health.js';
+import { cleanupContainers } from '../../modules/infra/container-cleanup.js';
 
 /**
  * Cleans up orphaned containers left behind by previous codeharness runs.
+ * Delegates to the infra module's cleanupContainers().
  * Returns the number of containers removed.
  */
 export function cleanupOrphanedContainers(): number {
-  if (!isDockerAvailable()) {
-    return 0;
-  }
-  // Cleanup logic currently lives in src/modules/infra/container-cleanup.ts
-  // This is a placeholder for future consolidation
-  return 0;
+  const result = cleanupContainers();
+  return result.success ? result.data.containersRemoved : 0;
 }
 
 /**

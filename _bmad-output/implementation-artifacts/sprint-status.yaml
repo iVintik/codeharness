@@ -105,7 +105,7 @@ development_status:
   epic-14: backlog
   14-1-retro-to-sprint-pipeline-epic-td: done
   14-2-tech-debt-gate-story-selection: done
-  14-3-docker-precheck-orphan-cleanup: backlog
+  14-3-docker-precheck-orphan-cleanup: verifying
   14-4-observability-backend-choice: backlog
   14-5-stack-aware-verify-dockerfile: backlog
   14-6-subagent-status-ownership-time-budget: backlog

@@ -1,28 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('node:child_process', () => ({
-  execFileSync: vi.fn(),
+vi.mock('../../../modules/infra/container-cleanup.js', () => ({
+  cleanupContainers: vi.fn(),
 }));
 
-import { execFileSync } from 'node:child_process';
+import { cleanupContainers } from '../../../modules/infra/container-cleanup.js';
 import { cleanupOrphanedContainers, cleanupVerifyEnv } from '../cleanup.js';
 
-const mockExecFileSync = vi.mocked(execFileSync);
+const mockCleanupContainers = vi.mocked(cleanupContainers);
 
 describe('cleanupOrphanedContainers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('returns 0 when docker is available (placeholder behavior)', () => {
-    mockExecFileSync.mockReturnValueOnce(Buffer.from('Docker version 20.10.0'));
+  it('delegates to infra cleanupContainers and returns count on success', () => {
+    mockCleanupContainers.mockReturnValue({
+      success: true,
+      data: { containersRemoved: 3, names: ['a', 'b', 'c'] },
+    });
+    const result = cleanupOrphanedContainers();
+    expect(result).toBe(3);
+    expect(mockCleanupContainers).toHaveBeenCalledOnce();
+  });
+
+  it('returns 0 when infra cleanupContainers fails', () => {
+    mockCleanupContainers.mockReturnValue({
+      success: false,
+      error: 'Docker not available',
+    });
     const result = cleanupOrphanedContainers();
     expect(result).toBe(0);
   });
 
-  it('returns 0 when docker is not available', () => {
-    mockExecFileSync.mockImplementationOnce(() => {
-      throw new Error('docker not found');
+  it('returns 0 when no containers removed', () => {
+    mockCleanupContainers.mockReturnValue({
+      success: true,
+      data: { containersRemoved: 0, names: [] },
     });
     const result = cleanupOrphanedContainers();
     expect(result).toBe(0);

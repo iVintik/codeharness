@@ -15,9 +15,9 @@ Bridges BMAD epics/stories into the Beads task store. Parses a BMAD epics markdo
 - **Subcommands:** none; requires `--epics <path>`, supports `--dry-run`
 
 ### run.ts
-Executes the autonomous coding loop by spawning the Ralph shell script. Resolves ralph.sh path, reads sprint status to find ready stories, generates Ralph prompt, and launches Ralph with configurable iteration limits, timeouts, and retry counts.
-- **Key deps:** `lib/beads-sync` (sprint status), `lib/output`, `templates/ralph-prompt` (prompt generation)
-- **Exports:** `resolveRalphPath()`, `resolvePluginDir()`, `countStoriesByStatus()`, `registerRunCommand(program)`
+Executes the autonomous coding loop. Pre-flight checks: plugin directory, state reconciliation, Docker availability (`isDockerAvailable()`), and orphan container cleanup (`cleanupContainers()`). Then reads sprint status, generates Ralph prompt, and spawns the agent driver with configurable iteration limits, timeouts, and retry counts. Pipes agent stdout/stderr through `driver.parseOutput()` into the Ink renderer.
+- **Key deps:** `lib/docker` (isDockerAvailable), `modules/infra` (cleanupContainers), `modules/sprint` (readSprintStatusFromState, reconcileState, getSprintState), `lib/agents` (getDriver), `lib/ink-renderer` (startRenderer), `lib/output`
+- **Exports:** `resolvePluginDir()`, `countStories` (re-export from run-helpers), `registerRunCommand(program)`
 - **Subcommands:** none (single action with many options)
 
 ### verify.ts

@@ -3,6 +3,8 @@ import { join, dirname } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { Command } from 'commander';
 import { fail, info, jsonOutput } from '../lib/output.js';
+import { isDockerAvailable } from '../lib/docker/index.js';
+import { cleanupContainers } from '../modules/infra/index.js';
 import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
 import { generateRalphPrompt } from '../lib/agents/ralph-prompt.js';
 import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
@@ -103,6 +105,19 @@ export function registerRunCommand(program: Command): void {
         info(`[WARN] State reconciliation failed: ${reconciliation.error}`, outputOpts);
       }
 
+      // 1c. Docker pre-flight: fail fast if Docker unavailable
+      if (!isDockerAvailable()) {
+        fail('[FAIL] Docker not available — install Docker or start the daemon', outputOpts);
+        process.exitCode = 1;
+        return;
+      }
+      // 1d. Orphan container cleanup (best-effort — failures warn but don't abort)
+      const cleanup = cleanupContainers();
+      if (cleanup.success && cleanup.data.containersRemoved > 0) {
+        info(`[INFO] Cleaned up ${cleanup.data.containersRemoved} orphaned container(s): ${cleanup.data.names.join(', ')}`, outputOpts);
+      } else if (!cleanup.success) {
+        info(`[WARN] Container cleanup failed: ${cleanup.error}`, outputOpts);
+      }
       // 2. Read sprint status for story count (from sprint-state.json)
       const projectDir = process.cwd();
       const sprintStatusPath = join(projectDir, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml');
@@ -116,14 +131,12 @@ export function registerRunCommand(program: Command): void {
       }
 
       info(`Starting autonomous execution — ${counts.ready} ready, ${counts.inProgress} in progress, ${counts.verified} verified, ${counts.done}/${counts.total} done`, outputOpts);
-
       // 3. Parse and validate numeric options
       const maxIterations = parseInt(options.maxIterations, 10);
       const timeout = parseInt(options.timeout, 10);
       const iterationTimeout = parseInt(options.iterationTimeout, 10);
       const calls = parseInt(options.calls, 10);
       const maxStoryRetries = parseInt(options.maxStoryRetries, 10);
-
       if (isNaN(maxIterations) || isNaN(timeout) || isNaN(iterationTimeout) || isNaN(calls) || isNaN(maxStoryRetries)) {
         fail('Invalid numeric option — --max-iterations, --timeout, --iteration-timeout, --calls, and --max-story-retries must be numbers', outputOpts);
         process.exitCode = 1;

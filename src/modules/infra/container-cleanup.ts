@@ -1,9 +1,8 @@
 /**
  * Stale container cleanup for infra containers.
  *
- * Removes exited/dead containers matching codeharness-shared-* and
- * codeharness-collector-* patterns. Complements verify/env.ts which
- * handles codeharness-verify-* containers.
+ * Removes exited/dead containers matching codeharness-shared-*,
+ * codeharness-collector-*, and codeharness-verify-* patterns.
  *
  * Public functions return Result<T> and never throw.
  */
@@ -15,7 +14,7 @@ import type { Result } from '../../types/result.js';
 import type { CleanupResult } from './types.js';
 
 /** Container name patterns to match for cleanup */
-const STALE_PATTERNS = ['codeharness-shared-', 'codeharness-collector-'];
+const STALE_PATTERNS = ['codeharness-shared-', 'codeharness-collector-', 'codeharness-verify-'];
 
 /**
  * Remove stale codeharness infra containers (exited or dead).

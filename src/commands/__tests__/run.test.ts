@@ -15,6 +15,7 @@ const {
   rendererUpdateMock, rendererUpdateSprintStateMock, rendererCleanupMock,
   rendererUpdateStoriesMock, rendererAddMessageMock,
   getSprintStateMock, reconcileStateMock,
+  isDockerAvailableMock, cleanupContainersMock,
 } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('node:fs');
@@ -71,6 +72,8 @@ const {
     rendererAddMessageMock,
     getSprintStateMock: vi.fn(() => ({ success: false, error: 'no state' })),
     reconcileStateMock: vi.fn(() => ({ success: true, data: { corrections: [], stateChanged: false } })),
+    isDockerAvailableMock: vi.fn(() => true),
+    cleanupContainersMock: vi.fn(() => ({ success: true, data: { containersRemoved: 0, names: [] } })),
   };
 });
 
@@ -95,6 +98,14 @@ vi.mock('../../modules/sprint/index.js', () => ({
   getSprintState: (...args: unknown[]) => getSprintStateMock(...args),
   readSprintStatusFromState: (...args: unknown[]) => readSprintStatusMock(...args),
   reconcileState: (...args: unknown[]) => reconcileStateMock(...args),
+}));
+
+vi.mock('../../lib/docker/index.js', () => ({
+  isDockerAvailable: (...args: unknown[]) => isDockerAvailableMock(...args),
+}));
+
+vi.mock('../../modules/infra/index.js', () => ({
+  cleanupContainers: (...args: unknown[]) => cleanupContainersMock(...args),
 }));
 
 describe('run command', () => {
@@ -122,6 +133,10 @@ describe('run command', () => {
     getSprintStateMock.mockReturnValue({ success: false, error: 'no state' });
     reconcileStateMock.mockClear();
     reconcileStateMock.mockReturnValue({ success: true, data: { corrections: [], stateChanged: false } });
+    isDockerAvailableMock.mockClear();
+    isDockerAvailableMock.mockReturnValue(true);
+    cleanupContainersMock.mockClear();
+    cleanupContainersMock.mockReturnValue({ success: true, data: { containersRemoved: 0, names: [] } });
     process.exitCode = undefined;
   });
 
@@ -186,6 +201,71 @@ describe('run command', () => {
 
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No stories found'));
       expect(process.exitCode).toBe(1);
+    });
+
+    it('fails when Docker is not available (AC#1, AC#2)', async () => {
+      mockPaths({ '.claude': true });
+      isDockerAvailableMock.mockReturnValue(false);
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Docker not available'));
+      expect(process.exitCode).toBe(1);
+      expect(mockDriverInstance.spawn).not.toHaveBeenCalled();
+    });
+
+    it('continues normally when Docker available and no orphans (AC#5)', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(mockDriverInstance.spawn).toHaveBeenCalled());
+      mockDriverInstance._getChildOnHandlers()['close'](0);
+      await p;
+
+      expect(isDockerAvailableMock).toHaveBeenCalled();
+      expect(cleanupContainersMock).toHaveBeenCalled();
+    });
+
+    it('logs info when orphaned containers are cleaned up (AC#3)', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      cleanupContainersMock.mockReturnValue({
+        success: true,
+        data: { containersRemoved: 2, names: ['codeharness-verify-abc', 'codeharness-shared-xyz'] },
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(mockDriverInstance.spawn).toHaveBeenCalled());
+      mockDriverInstance._getChildOnHandlers()['close'](0);
+      await p;
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Cleaned up 2 orphaned container(s)'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('codeharness-verify-abc'));
+    });
+
+    it('warns but continues when cleanup fails (AC#6)', async () => {
+      vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      cleanupContainersMock.mockReturnValue({
+        success: false,
+        error: 'Docker daemon unreachable',
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      const p = runCommand();
+      await vi.waitFor(() => expect(mockDriverInstance.spawn).toHaveBeenCalled());
+      mockDriverInstance._getChildOnHandlers()['close'](0);
+      await p;
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Container cleanup failed'));
+      expect(mockDriverInstance.spawn).toHaveBeenCalled();
     });
 
     it('fails with invalid numeric options', async () => {

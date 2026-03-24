@@ -25,8 +25,8 @@ import {
   getSourceFilesInModule,
   getMentionedFilesInAgentsMd,
   checkAgentsMdCompleteness,
-} from '../doc-health.js';
-import type { DocHealthReport } from '../doc-health.js';
+} from '../index.js';
+import type { DocHealthReport } from '../index.js';
 
 let testDir: string;
 

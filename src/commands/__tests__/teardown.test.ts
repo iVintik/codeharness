@@ -13,7 +13,7 @@ vi.mock('../../lib/stack-path.js', () => ({
 }));
 
 // Mock docker module
-vi.mock('../../lib/docker.js', () => ({
+vi.mock('../../lib/docker/index.js', () => ({
   isStackRunning: vi.fn(() => false),
   stopStack: vi.fn(),
   stopCollectorOnly: vi.fn(),
@@ -26,7 +26,7 @@ vi.mock('../../lib/patch-engine.js', () => ({
 
 import { registerTeardownCommand } from '../teardown.js';
 import { writeState, getDefaultState } from '../../lib/state.js';
-import { isStackRunning, stopStack, stopCollectorOnly } from '../../lib/docker.js';
+import { isStackRunning, stopStack, stopCollectorOnly } from '../../lib/docker/index.js';
 import { removePatch } from '../../lib/patch-engine.js';
 import { PATCH_TARGETS } from '../../lib/bmad.js';
 

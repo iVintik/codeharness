@@ -21,7 +21,7 @@ vi.mock('../../lib/stack-path.js', () => ({
 }));
 
 // Mock the docker module
-vi.mock('../../lib/docker.js', () => ({
+vi.mock('../../lib/docker/index.js', () => ({
   isDockerAvailable: vi.fn(() => true),
   isSharedStackRunning: vi.fn(() => false),
   startSharedStack: vi.fn(() => ({
@@ -132,7 +132,7 @@ vi.mock('../../lib/bmad.js', () => ({
 }));
 
 // Mock the otlp module
-vi.mock('../../lib/otlp.js', () => ({
+vi.mock('../../lib/observability/index.js', () => ({
   instrumentProject: vi.fn(() => ({
     status: 'configured',
     packages_installed: true,
@@ -142,9 +142,9 @@ vi.mock('../../lib/otlp.js', () => ({
   configureOtlpEnvVars: vi.fn(),
 }));
 
-import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollectorOnly } from '../../lib/docker.js';
+import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollectorOnly } from '../../lib/docker/index.js';
 import { installAllDependencies, CriticalDependencyError, checkInstalled } from '../../lib/deps.js';
-import { instrumentProject } from '../../lib/otlp.js';
+import { instrumentProject } from '../../lib/observability/index.js';
 import { isBeadsInitialized, initBeads, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../../lib/beads.js';
 import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, detectBmalph, BmadError } from '../../lib/bmad.js';
 

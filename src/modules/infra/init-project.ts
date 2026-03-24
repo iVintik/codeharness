@@ -9,7 +9,7 @@ import { ok as okOutput, fail as failOutput, info, warn, jsonOutput } from '../.
 import { detectStacks, detectAppType } from '../../lib/stacks/index.js';
 import { readState, writeState, getDefaultState, getStatePath } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
-import { instrumentProject } from '../../lib/otlp.js';
+import { instrumentProject } from '../../lib/observability/index.js';
 import type { Result } from '../../types/result.js';
 import { ok, fail, isOk } from '../../types/result.js';
 import type { InitOptions, InitResult } from './types.js';

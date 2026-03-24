@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { info } from '../../lib/output.js';
 import { detectStacks } from '../../lib/stacks/index.js';
 import { readStateWithBody, writeState } from '../../lib/state.js';
-import { isDockerAvailable } from '../../lib/docker.js';
+import { isDockerAvailable } from '../../lib/docker/index.js';
 import type { BuildOptions, BuildResult, CheckResult, ProjectType } from './types.js';
 
 const IMAGE_TAG = 'codeharness-verify';

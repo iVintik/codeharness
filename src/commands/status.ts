@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { ok, fail, info, jsonOutput } from '../lib/output.js';
-import { getStackHealth, getCollectorHealth, isSharedStackRunning, checkRemoteEndpoint } from '../lib/docker.js';
+import { getStackHealth, getCollectorHealth, isSharedStackRunning, checkRemoteEndpoint } from '../lib/docker/index.js';
 import { readState, StateFileNotFoundError } from '../lib/state.js';
 import { listIssues, isBeadsInitialized } from '../lib/beads.js';
 import { getOnboardingProgress } from '../lib/onboard-checks.js';
@@ -8,7 +8,7 @@ import { getStackDir, getComposeFilePath } from '../lib/stack-path.js';
 import { generateReport, getStoryDrillDown } from '../modules/sprint/index.js';
 import { getValidationProgress } from '../modules/verify/index.js';
 import type { HarnessState } from '../lib/state.js';
-import type { DockerHealthResult } from '../lib/docker.js';
+import type { DockerHealthResult } from '../lib/docker/index.js';
 import type { StatusReport, StoryDrillDown } from '../modules/sprint/index.js';
 
 interface StatusOptions {

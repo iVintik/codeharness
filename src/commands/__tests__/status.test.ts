@@ -13,7 +13,7 @@ vi.mock('../../lib/stack-path.js', () => ({
 }));
 
 // Mock the docker module
-vi.mock('../../lib/docker.js', () => ({
+vi.mock('../../lib/docker/index.js', () => ({
   getStackHealth: vi.fn(() => ({
     healthy: true,
     services: [
@@ -61,7 +61,7 @@ vi.mock('../../modules/sprint/index.js', () => ({
 }));
 
 import { registerStatusCommand, DEFAULT_ENDPOINTS, buildScopedEndpoints } from '../status.js';
-import { getStackHealth, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker.js';
+import { getStackHealth, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker/index.js';
 import { isBeadsInitialized, listIssues } from '../../lib/beads.js';
 import { getOnboardingProgress } from '../../lib/onboard-checks.js';
 import { generateReport, getStoryDrillDown } from '../../modules/sprint/index.js';

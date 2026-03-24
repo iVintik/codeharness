@@ -23,11 +23,11 @@ vi.mock('../../lib/output.js', () => ({
   jsonOutput: vi.fn(),
 }));
 
-vi.mock('../../lib/beads-sync.js', () => ({
+vi.mock('../../lib/sync/index.js', () => ({
   updateSprintStatus: vi.fn(),
 }));
 
-vi.mock('../../lib/doc-health.js', () => ({
+vi.mock('../../lib/doc-health/index.js', () => ({
   completeExecPlan: vi.fn(),
 }));
 
@@ -42,7 +42,7 @@ import {
   parseStoryACs,
 } from '../../modules/verify/index.js';
 import { ok, fail, warn, info, jsonOutput } from '../../lib/output.js';
-import { updateSprintStatus } from '../../lib/beads-sync.js';
+import { updateSprintStatus } from '../../lib/sync/index.js';
 
 let testDir: string;
 let originalCwd: string;

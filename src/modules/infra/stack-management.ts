@@ -10,7 +10,7 @@ import {
   isSharedStackRunning,
   startSharedStack,
   getStackHealth,
-} from '../../lib/docker.js';
+} from '../../lib/docker/index.js';
 import { getComposeFilePath } from '../../lib/stack-path.js';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';

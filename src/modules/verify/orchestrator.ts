@@ -11,9 +11,9 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { warn } from '../../lib/output.js';
 import { readState, readStateWithBody, writeState } from '../../lib/state.js';
-import { checkStoryDocFreshness } from '../../lib/doc-health.js';
+import { checkStoryDocFreshness } from '../../lib/doc-health/index.js';
 import { isBeadsInitialized, listIssues, closeIssue } from '../../lib/beads.js';
-import { syncClose } from '../../lib/beads-sync.js';
+import { syncClose } from '../../lib/sync/index.js';
 import { showboatProofTemplate } from '../../templates/showboat-template.js';
 import type { AcceptanceCriterion } from '../../templates/showboat-template.js';
 import type {

@@ -18,7 +18,7 @@ vi.mock('../../../lib/stack-path.js', () => ({
   ensureStackDir: vi.fn(),
 }));
 
-vi.mock('../../../lib/docker.js', () => ({
+vi.mock('../../../lib/docker/index.js', () => ({
   isDockerAvailable: vi.fn(() => true),
   isSharedStackRunning: vi.fn(() => false),
   startSharedStack: vi.fn(() => ({ started: true, services: [] })),
@@ -58,7 +58,7 @@ vi.mock('../../../lib/bmad.js', () => ({
   BmadError: class extends Error { constructor(c: string, m: string) { super(m); } },
 }));
 
-vi.mock('../../../lib/otlp.js', () => ({
+vi.mock('../../../lib/observability/index.js', () => ({
   instrumentProject: vi.fn(() => ({
     status: 'configured',
     packages_installed: true,

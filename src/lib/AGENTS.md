@@ -29,12 +29,23 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | stack-path.ts | XDG-compliant paths for shared observability stack | `getStackDir`, `getComposeFilePath`, `ensureStackDir` |
 | templates.ts | File generation with `{{var}}` mustache-style rendering | `generateFile`, `renderTemplate` |
 
-## Docker & Observability
+## Docker (src/lib/docker/)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| docker.ts | Docker Compose lifecycle — start/stop, health checks, remote probing | `startSharedStack`, `stopSharedStack`, `isStackRunning`, `getStackHealth`, `checkRemoteEndpoint` |
-| otlp.ts | OTLP instrumentation — package install, script patching, env vars | `instrumentProject`, `configureOtlpEnvVars`, `patchNodeStartScript` |
+| docker/index.ts | Barrel re-exports for docker subsystem | all public API from compose, health, cleanup |
+| docker/compose.ts | Docker Compose lifecycle — start/stop shared stack, collector | `startStack`, `stopStack`, `startSharedStack`, `stopSharedStack`, `startCollectorOnly`, `stopCollectorOnly`, `isStackRunning`, `isSharedStackRunning`, `isCollectorRunning` |
+| docker/health.ts | Docker health checks, availability, remote probing | `isDockerAvailable`, `isDockerComposeAvailable`, `getStackHealth`, `getCollectorHealth`, `checkRemoteEndpoint`, `DockerHealthResult` |
+| docker/cleanup.ts | Container cleanup utilities | `cleanupOrphanedContainers`, `cleanupVerifyEnv` |
+
+## Observability / OTLP (src/lib/observability/)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| observability/index.ts | Barrel re-exports for OTLP subsystem | all public API from instrument, config, backends |
+| observability/instrument.ts | OTLP instrumentation — package install, script patching | `installNodeOtlp`, `installPythonOtlp`, `installRustOtlp`, `instrumentProject`, `patchNodeStartScript` |
+| observability/config.ts | OTLP env var configuration for CLI/web/agent modes | `configureOtlpEnvVars`, `ensureServiceNameEnvVar`, `ensureEndpointEnvVar`, `configureCli`, `configureWeb`, `configureAgent` |
+| observability/backends.ts | Observability backend interface with Victoria and ELK implementations | `ObservabilityBackend`, `VictoriaBackend`, `ElkBackend` |
 
 ## Coverage & Testing
 
@@ -51,11 +62,15 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | verify-env.ts | Black-box verification environment — Docker image build (npm pack/pip install), clean workspace prep, env check, cleanup | `buildVerifyImage`, `prepareVerifyWorkspace`, `checkVerifyEnv`, `cleanupVerifyEnv`, `computeDistHash`, `isValidStoryKey` |
 | verifier-session.ts | Black-box verifier session spawner — runs `claude --print` in clean workspace, returns `Result<VerifyResult>`, copies proof back to project | `spawnVerifierSession`, `copyProofToProject` |
 
-## Documentation Health
+## Documentation Health (src/lib/doc-health/)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| doc-health.ts | AGENTS.md/exec-plan freshness scanner, exec-plan lifecycle | `scanDocHealth`, `findModules`, `isDocStale`, `createExecPlan`, `completeExecPlan` |
+| doc-health/index.ts | Barrel re-exports for doc-health subsystem | all public API from scanner, staleness, report |
+| doc-health/scanner.ts | Module detection and doc health scanning | `findModules`, `scanDocHealth`, `DocHealthResult`, `DocHealthReport` |
+| doc-health/staleness.ts | Staleness checks, AGENTS.md completeness, story freshness | `isDocStale`, `getSourceFilesInModule`, `getMentionedFilesInAgentsMd`, `checkAgentsMdCompleteness`, `checkAgentsMdForModule`, `checkDoNotEditHeaders`, `checkStoryDocFreshness` |
+| doc-health/report.ts | Doc health output formatting and exec-plan lifecycle | `formatDocHealthOutput`, `printDocHealthOutput`, `createExecPlan`, `completeExecPlan`, `getExecPlanStatus` |
+| doc-health/types.ts | Shared types for doc-health subsystem | `DocHealthResult`, `ModuleDocHealth`, `SOURCE_EXTENSIONS` |
 
 ## Retrospective Parsing
 
@@ -74,7 +89,15 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | beads.ts | `bd` CLI wrapper — CRUD, init, hook detection, gap-id dedup | `createIssue`, `closeIssue`, `buildGapId`, `createOrFindIssue`, `BeadsError` |
-| beads-sync.ts | Bidirectional sync between beads issues, story files, sprint YAML | `syncAll`, `readSprintStatus`, `updateSprintStatus` |
+
+## Sync (src/lib/sync/)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| sync/index.ts | Barrel re-exports for sync subsystem | all public API from beads, sprint-yaml, story-files |
+| sync/beads.ts | Bidirectional sync between beads issues, story files, sprint YAML | `syncBeadsToStoryFile`, `syncStoryFileToBeads`, `syncClose`, `syncAll` |
+| sync/sprint-yaml.ts | Sprint status YAML read/write and onboarding epic append | `readSprintStatus`, `updateSprintStatus`, `appendOnboardingEpicToSprint` |
+| sync/story-files.ts | Story file path resolution and status management | `resolveStoryFilePath`, `readStoryFileStatus`, `updateStoryFileStatus`, `beadsStatusToStoryStatus`, `storyStatusToBeadsStatus` |
 
 ## BMAD Method Integration
 
@@ -124,4 +147,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, agent-browser, beads, Semgrep, BATS, cargo-tarpaulin) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-**Total: 36 library files across 15 categories.**
+**Total: 48 library files across 19 categories (includes 4 domain subdirectories: docker/, observability/, sync/, doc-health/).**

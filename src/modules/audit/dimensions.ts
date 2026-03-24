@@ -12,7 +12,7 @@ import type { DimensionResult, AuditGap } from './types.js';
 import { analyze, validateRuntime } from '../observability/index.js';
 import type { AnalyzerResult, RuntimeValidationResult } from '../observability/index.js';
 import { checkOnlyCoverage } from '../../lib/coverage/index.js';
-import { scanDocHealth } from '../../lib/doc-health.js';
+import { scanDocHealth } from '../../lib/doc-health/index.js';
 import { parseProof } from '../verify/index.js';
 import { validateDockerfile } from '../infra/index.js';
 

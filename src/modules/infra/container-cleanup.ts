@@ -9,7 +9,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { isDockerAvailable } from '../../lib/docker.js';
+import { isDockerAvailable } from '../../lib/docker/index.js';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
 import type { CleanupResult } from './types.js';

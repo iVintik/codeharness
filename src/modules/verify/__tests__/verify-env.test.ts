@@ -9,7 +9,7 @@ vi.mock('node:child_process', () => ({
 }));
 
 // Mock docker module
-vi.mock('../../../lib/docker.js', () => ({
+vi.mock('../../../lib/docker/index.js', () => ({
   isDockerAvailable: vi.fn(() => true),
 }));
 
@@ -37,7 +37,7 @@ vi.mock('../../../lib/stacks/index.js', () => ({
 }));
 
 import { execFileSync } from 'node:child_process';
-import { isDockerAvailable } from '../../../lib/docker.js';
+import { isDockerAvailable } from '../../../lib/docker/index.js';
 import { detectStack, detectStacks } from '../../../lib/stacks/index.js';
 import { readStateWithBody, writeState } from '../../../lib/state.js';
 import {

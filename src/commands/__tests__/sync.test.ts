@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
 import { registerSyncCommand } from '../sync.js';
-import type { SyncResult } from '../../lib/beads-sync.js';
+import type { SyncResult } from '../../lib/sync/index.js';
 
 // Mock beads module
 vi.mock('../../lib/beads.js', () => ({
@@ -11,7 +11,7 @@ vi.mock('../../lib/beads.js', () => ({
 }));
 
 // Mock beads-sync module
-vi.mock('../../lib/beads-sync.js', () => ({
+vi.mock('../../lib/sync/index.js', () => ({
   syncAll: vi.fn(() => []),
   syncStoryFileToBeads: vi.fn(() => ({
     storyKey: 'test-story',
@@ -30,7 +30,7 @@ vi.mock('../../lib/beads-sync.js', () => ({
 }));
 
 import { listIssues } from '../../lib/beads.js';
-import { syncAll, syncStoryFileToBeads, syncBeadsToStoryFile } from '../../lib/beads-sync.js';
+import { syncAll, syncStoryFileToBeads, syncBeadsToStoryFile } from '../../lib/sync/index.js';
 
 const mockListIssues = vi.mocked(listIssues);
 const mockSyncAll = vi.mocked(syncAll);

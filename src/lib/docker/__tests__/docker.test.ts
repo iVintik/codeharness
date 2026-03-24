@@ -12,18 +12,18 @@ vi.mock('node:fs', async () => {
   };
 });
 
-vi.mock('../stack-path.js', () => ({
+vi.mock('../../stack-path.js', () => ({
   getComposeFilePath: vi.fn(() => '/mock/.codeharness/stack/docker-compose.harness.yml'),
   getOtelConfigPath: vi.fn(() => '/mock/.codeharness/stack/otel-collector-config.yaml'),
   ensureStackDir: vi.fn(),
 }));
 
-vi.mock('../../templates/docker-compose.js', () => ({
+vi.mock('../../../templates/docker-compose.js', () => ({
   dockerComposeTemplate: vi.fn(() => '# compose content'),
   dockerComposeCollectorOnlyTemplate: vi.fn(() => '# collector-only content'),
 }));
 
-vi.mock('../../templates/otel-config.js', () => ({
+vi.mock('../../../templates/otel-config.js', () => ({
   otelCollectorConfigTemplate: vi.fn(() => '# otel content'),
   otelCollectorRemoteTemplate: vi.fn(() => '# remote otel content'),
 }));
@@ -43,10 +43,10 @@ import {
   stopCollectorOnly,
   getCollectorHealth,
   checkRemoteEndpoint,
-} from '../docker.js';
+} from '../index.js';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
-import { ensureStackDir } from '../stack-path.js';
+import { ensureStackDir } from '../../stack-path.js';
 const mockExecFileSync = vi.mocked(execFileSync);
 const mockWriteFileSync = vi.mocked(writeFileSync);
 const mockEnsureStackDir = vi.mocked(ensureStackDir);

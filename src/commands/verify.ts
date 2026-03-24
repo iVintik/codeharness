@@ -12,8 +12,8 @@ import {
   closeBeadsIssue,
   parseObservabilityGaps,
 } from '../modules/verify/index.js';
-import { completeExecPlan } from '../lib/doc-health.js';
-import { updateSprintStatus } from '../lib/beads-sync.js';
+import { completeExecPlan } from '../lib/doc-health/index.js';
+import { updateSprintStatus } from '../lib/sync/index.js';
 import type { VerifyResult, ProofQuality } from '../modules/verify/index.js';
 
 const STORY_DIR = '_bmad-output/implementation-artifacts';

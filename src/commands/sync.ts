@@ -5,8 +5,8 @@ import {
   syncAll,
   syncStoryFileToBeads,
   syncBeadsToStoryFile,
-} from '../lib/beads-sync.js';
-import type { SyncDirection, SyncResult } from '../lib/beads-sync.js';
+} from '../lib/sync/index.js';
+import type { SyncDirection, SyncResult } from '../lib/sync/index.js';
 
 export interface SyncCommandResult {
   status: 'ok' | 'fail';

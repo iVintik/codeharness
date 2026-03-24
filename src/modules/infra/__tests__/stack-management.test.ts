@@ -5,7 +5,7 @@ vi.mock('node:child_process', () => ({
   execFileSync: vi.fn(),
 }));
 
-vi.mock('../../../lib/docker.js', () => ({
+vi.mock('../../../lib/docker/index.js', () => ({
   isDockerAvailable: vi.fn(() => true),
   isSharedStackRunning: vi.fn(() => false),
   startSharedStack: vi.fn(() => ({
@@ -36,7 +36,7 @@ import {
   isSharedStackRunning,
   startSharedStack,
   getStackHealth,
-} from '../../../lib/docker.js';
+} from '../../../lib/docker/index.js';
 import { ensureStack, detectRunningStack, detectPortConflicts } from '../stack-management.js';
 
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);

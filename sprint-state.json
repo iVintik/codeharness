@@ -393,11 +393,11 @@
       "acResults": null
     },
     "12-2-split-docker-otlp-beads-dochealth": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-03-24T17:25:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/12-2-split-docker-otlp-beads-dochealth-proof.md",
       "acResults": null
     },
     "12-3-move-status-logic-to-module": {
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "12-1-split-coverage-ts-domain-subdirectory",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": [

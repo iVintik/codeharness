@@ -12,7 +12,7 @@ import {
   statSync,
 } from 'node:fs';
 import { join, relative } from 'node:path';
-import { findModules, isDocStale } from './doc-health.js';
+import { findModules, isDocStale } from './doc-health/index.js';
 import { detectCoverageTool, parseCoverageReport } from './coverage/index.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────

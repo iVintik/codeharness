@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../../lib/docker.js', () => ({
+vi.mock('../../../lib/docker/index.js', () => ({
   isDockerAvailable: vi.fn(() => true),
   isSharedStackRunning: vi.fn(() => false),
   startSharedStack: vi.fn(() => ({
@@ -33,7 +33,7 @@ import {
   isSharedStackRunning,
   startSharedStack,
   startCollectorOnly,
-} from '../../../lib/docker.js';
+} from '../../../lib/docker/index.js';
 import { writeState } from '../../../lib/state.js';
 import { checkDocker, setupDocker } from '../docker-setup.js';
 import type { HarnessState } from '../../../lib/state.js';

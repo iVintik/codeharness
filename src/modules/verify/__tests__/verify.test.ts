@@ -25,20 +25,20 @@ vi.mock('../../../lib/beads.js', () => ({
 }));
 
 // Mock beads-sync
-vi.mock('../../../lib/beads-sync.js', () => ({
+vi.mock('../../../lib/sync/index.js', () => ({
   syncClose: vi.fn(),
 }));
 
 // Mock doc-health
-vi.mock('../../../lib/doc-health.js', () => ({
+vi.mock('../../../lib/doc-health/index.js', () => ({
   checkStoryDocFreshness: vi.fn(),
 }));
 
 import { execFileSync } from 'node:child_process';
 import { warn } from '../../../lib/output.js';
 import { isBeadsInitialized, listIssues, closeIssue } from '../../../lib/beads.js';
-import { syncClose } from '../../../lib/beads-sync.js';
-import { checkStoryDocFreshness } from '../../../lib/doc-health.js';
+import { syncClose } from '../../../lib/sync/index.js';
+import { checkStoryDocFreshness } from '../../../lib/doc-health/index.js';
 import {
   checkPreconditions,
   createProofDocument,

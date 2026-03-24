@@ -19,7 +19,7 @@ vi.mock('../../lib/state.js', () => ({
 }));
 
 // Mock docker module
-vi.mock('../../lib/docker.js', () => ({
+vi.mock('../../lib/docker/index.js', () => ({
   isSharedStackRunning: vi.fn(() => false),
   startSharedStack: vi.fn(() => ({
     started: true,
@@ -54,7 +54,7 @@ vi.mock('../../lib/docker.js', () => ({
 }));
 
 import { registerStackCommand, STACK_ENDPOINTS } from '../stack.js';
-import { isSharedStackRunning, startSharedStack, stopSharedStack, getStackHealth, isCollectorRunning, startCollectorOnly, stopCollectorOnly, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker.js';
+import { isSharedStackRunning, startSharedStack, stopSharedStack, getStackHealth, isCollectorRunning, startCollectorOnly, stopCollectorOnly, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker/index.js';
 import { readState } from '../../lib/state.js';
 
 const mockIsSharedStackRunning = vi.mocked(isSharedStackRunning);

@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { ok, info, warn, fail, jsonOutput } from '../lib/output.js';
-import { isSharedStackRunning, startSharedStack, stopSharedStack, getStackHealth, isCollectorRunning, startCollectorOnly, stopCollectorOnly, getCollectorHealth, checkRemoteEndpoint } from '../lib/docker.js';
+import { isSharedStackRunning, startSharedStack, stopSharedStack, getStackHealth, isCollectorRunning, startCollectorOnly, stopCollectorOnly, getCollectorHealth, checkRemoteEndpoint } from '../lib/docker/index.js';
 import { readState } from '../lib/state.js';
 import { getComposeFilePath } from '../lib/stack-path.js';
 

@@ -91,7 +91,7 @@ development_status:
   # Epic 12
   epic-12: backlog
   12-1-split-coverage-ts-domain-subdirectory: done
-  12-2-split-docker-otlp-beads-dochealth: backlog
+  12-2-split-docker-otlp-beads-dochealth: done
   12-3-move-status-logic-to-module: backlog
   12-4-shared-test-utilities-fixtures: backlog
 

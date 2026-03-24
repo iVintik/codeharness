@@ -19,7 +19,7 @@ vi.mock('../../../lib/stack-path.js', () => ({
   ensureStackDir: vi.fn(),
 }));
 
-vi.mock('../../../lib/docker.js', () => ({
+vi.mock('../../../lib/docker/index.js', () => ({
   isDockerAvailable: vi.fn(() => true),
   isSharedStackRunning: vi.fn(() => false),
   startSharedStack: vi.fn(() => ({
@@ -72,7 +72,7 @@ vi.mock('../../../lib/bmad.js', () => ({
   },
 }));
 
-vi.mock('../../../lib/otlp.js', () => ({
+vi.mock('../../../lib/observability/index.js', () => ({
   instrumentProject: vi.fn(() => ({
     status: 'configured',
     packages_installed: true,
@@ -90,12 +90,12 @@ vi.mock('../../../templates/readme.js', () => ({
   readmeTemplate: vi.fn(() => '# README'),
 }));
 
-import { isDockerAvailable } from '../../../lib/docker.js';
+import { isDockerAvailable } from '../../../lib/docker/index.js';
 import { installAllDependencies, CriticalDependencyError } from '../../../lib/deps.js';
 import { isBeadsInitialized, BeadsError } from '../../../lib/beads.js';
 import { readState, writeState, getDefaultState } from '../../../lib/state.js';
 import { detectStacks, detectAppType } from '../../../lib/stacks/index.js';
-import { instrumentProject } from '../../../lib/otlp.js';
+import { instrumentProject } from '../../../lib/observability/index.js';
 import { getCoverageTool } from '../docs-scaffold.js';
 import { initProject } from '../init-project.js';
 

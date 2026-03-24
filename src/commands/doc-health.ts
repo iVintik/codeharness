@@ -4,7 +4,7 @@ import {
   scanDocHealth,
   checkStoryDocFreshness,
   printDocHealthOutput,
-} from '../lib/doc-health.js';
+} from '../lib/doc-health/index.js';
 
 export function registerDocHealthCommand(program: Command): void {
   program

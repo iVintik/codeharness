@@ -7,7 +7,7 @@ import {
   isSharedStackRunning,
   startSharedStack,
   startCollectorOnly,
-} from '../../lib/docker.js';
+} from '../../lib/docker/index.js';
 import { getComposeFilePath } from '../../lib/stack-path.js';
 import { ok as okOutput, fail as failOutput, info } from '../../lib/output.js';
 import { readState, writeState } from '../../lib/state.js';

@@ -4,12 +4,12 @@ vi.mock('node:child_process', () => ({
   execFileSync: vi.fn(),
 }));
 
-vi.mock('../../../lib/docker.js', () => ({
+vi.mock('../../../lib/docker/index.js', () => ({
   isDockerAvailable: vi.fn(() => true),
 }));
 
 import { execFileSync } from 'node:child_process';
-import { isDockerAvailable } from '../../../lib/docker.js';
+import { isDockerAvailable } from '../../../lib/docker/index.js';
 import { cleanupContainers } from '../container-cleanup.js';
 
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);

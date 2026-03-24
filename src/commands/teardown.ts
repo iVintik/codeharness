@@ -6,7 +6,7 @@ import { readState, getStatePath, StateFileNotFoundError } from '../lib/state.js
 import { getStackDir } from '../lib/stack-path.js';
 import { PATCH_TARGETS } from '../lib/bmad.js';
 import { removePatch } from '../lib/patch-engine.js';
-import { NODE_REQUIRE_FLAG } from '../lib/otlp.js';
+import { NODE_REQUIRE_FLAG } from '../lib/observability/index.js';
 import type { HarnessState } from '../lib/state.js';
 
 export interface TeardownResult {
@@ -78,7 +78,7 @@ export function registerTeardownCommand(program: Command): void {
         // Remote-routed: stop collector-only container
         if (!options.keepDocker) {
           try {
-            const { stopCollectorOnly } = await import('../lib/docker.js');
+            const { stopCollectorOnly } = await import('../lib/docker/index.js');
             stopCollectorOnly();
             result.docker.stopped = true;
             if (!isJson) {
@@ -112,7 +112,7 @@ export function registerTeardownCommand(program: Command): void {
         }
       } else if (isLegacyStack) {
         // Legacy per-project stack — stop and clean up
-        const { isStackRunning, stopStack } = await import('../lib/docker.js');
+        const { isStackRunning, stopStack } = await import('../lib/docker/index.js');
         let stackRunning = false;
         try {
           stackRunning = isStackRunning(composeFile);

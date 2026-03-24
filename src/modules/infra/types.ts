@@ -4,8 +4,8 @@
 
 import type { AppType } from '../../lib/stacks/index.js';
 import type { DependencyResult } from '../../lib/deps.js';
-import type { OtlpResult } from '../../lib/otlp.js';
-import type { DockerStartResult } from '../../lib/docker.js';
+import type { OtlpResult } from '../../lib/observability/index.js';
+import type { DockerStartResult } from '../../lib/docker/index.js';
 
 /** Options for project initialization */
 export interface InitOptions {

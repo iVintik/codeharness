@@ -7,7 +7,7 @@ vi.mock('../bmad.js', () => ({
   isBmadInstalled: vi.fn(),
 }));
 
-vi.mock('../docker.js', () => ({
+vi.mock('../docker/index.js', () => ({
   isStackRunning: vi.fn(),
 }));
 
@@ -24,7 +24,7 @@ import {
   getOnboardingProgress,
 } from '../onboard-checks.js';
 import { isBmadInstalled } from '../bmad.js';
-import { isStackRunning } from '../docker.js';
+import { isStackRunning } from '../docker/index.js';
 import type { OnboardingStory } from '../epic-generator.js';
 import type { BeadsIssue } from '../beads.js';
 import { stringify } from 'yaml';

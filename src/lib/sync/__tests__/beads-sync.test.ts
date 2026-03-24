@@ -16,11 +16,11 @@ import {
   readSprintStatus,
   updateSprintStatus,
   appendOnboardingEpicToSprint,
-} from '../beads-sync.js';
-import type { BeadsIssue } from '../beads.js';
+} from '../index.js';
+import type { BeadsIssue } from '../../beads.js';
 
 // Mock output.ts to suppress warnings during tests
-vi.mock('../output.js', () => ({
+vi.mock('../../output.js', () => ({
   ok: vi.fn(),
   fail: vi.fn(),
   warn: vi.fn(),

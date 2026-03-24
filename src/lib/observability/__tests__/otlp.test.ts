@@ -23,8 +23,8 @@ import {
   WEB_OTLP_PACKAGES,
   AGENT_OTLP_PACKAGES_NODE,
   AGENT_OTLP_PACKAGES_PYTHON,
-} from '../otlp.js';
-import { writeState, getDefaultState, readState } from '../state.js';
+} from '../index.js';
+import { writeState, getDefaultState, readState } from '../../state.js';
 
 const mockExecFileSync = vi.mocked(execFileSync);
 

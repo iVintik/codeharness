@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { Command } from 'commander';
 
 // Mock the doc-health library
-vi.mock('../../lib/doc-health.js', () => ({
+vi.mock('../../lib/doc-health/index.js', () => ({
   scanDocHealth: vi.fn(),
   checkStoryDocFreshness: vi.fn(),
   printDocHealthOutput: vi.fn(),
@@ -24,9 +24,9 @@ import {
   scanDocHealth,
   checkStoryDocFreshness,
   printDocHealthOutput,
-} from '../../lib/doc-health.js';
+} from '../../lib/doc-health/index.js';
 import { ok, fail, warn, info, jsonOutput } from '../../lib/output.js';
-import type { DocHealthReport } from '../../lib/doc-health.js';
+import type { DocHealthReport } from '../../lib/doc-health/index.js';
 
 let testDir: string;
 let originalCwd: string;

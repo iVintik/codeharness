@@ -75,7 +75,7 @@ vi.mock('node:fs', async (importOriginal) => {
   return { ...actual, existsSync: existsSyncMock };
 });
 
-vi.mock('../../lib/beads-sync.js', () => ({
+vi.mock('../../lib/sync/index.js', () => ({
   readSprintStatus: (...args: unknown[]) => readSprintStatusMock(...args),
 }));
 

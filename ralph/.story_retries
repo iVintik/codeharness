@@ -1,12 +1,2 @@
-only-story 2
-8-7-rust-otlp-instrumentation 1
-8-8-rust-documentation-scaffolding 1
-8-9-semgrep-rules-rust-observability 1
-9-2-state-schema-migration-multi-stack 1
-9-3-init-orchestrator-per-stack-iteration 1
-9-4-multi-stage-dockerfile-generation 1
-9-5-multi-stack-docs-remaining-consumers 2
-10-2-nodejs-provider 1
-10-3-python-provider 2
-10-5-migrate-consumers-to-stackprovider 1
+11-2-sprint-status-yaml-derived-view 1
 11-1-unified-sprintstate-schema-versioning 1

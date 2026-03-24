@@ -1,8 +1,8 @@
 {
-  "version": 1,
+  "version": 2,
   "sprint": {
-    "total": 67,
-    "done": 43,
+    "total": 66,
+    "done": 44,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -258,7 +258,7 @@
     },
     "8-7-rust-otlp-instrumentation": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -266,7 +266,7 @@
     },
     "8-8-rust-documentation-scaffolding": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -274,7 +274,7 @@
     },
     "8-9-semgrep-rules-rust-observability": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -290,7 +290,7 @@
     },
     "9-2-state-schema-migration-multi-stack": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -298,7 +298,7 @@
     },
     "9-3-init-orchestrator-per-stack-iteration": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -306,7 +306,7 @@
     },
     "9-4-multi-stage-dockerfile-generation": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -314,7 +314,7 @@
     },
     "9-5-multi-stack-docs-remaining-consumers": {
       "status": "done",
-      "attempts": 2,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -330,7 +330,7 @@
     },
     "10-2-nodejs-provider": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -338,7 +338,7 @@
     },
     "10-3-python-provider": {
       "status": "done",
-      "attempts": 2,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -353,15 +353,15 @@
       "acResults": null
     },
     "10-5-migrate-consumers-to-stackprovider": {
-      "status": "verifying",
-      "attempts": 1,
+      "status": "done",
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "11-1-unified-sprintstate-schema-versioning": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -369,8 +369,8 @@
       "acResults": null
     },
     "11-2-sprint-status-yaml-derived-view": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -535,20 +535,29 @@
       "lastError": null,
       "proofPath": null,
       "acResults": null
-    },
-    "only-story": {
-      "status": "backlog",
-      "attempts": 2,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
     }
+  },
+  "retries": {
+    "11-2-sprint-status-yaml-derived-view": 1
+  },
+  "flagged": [],
+  "epics": {},
+  "session": {
+    "active": true,
+    "startedAt": null,
+    "iteration": 5,
+    "elapsedSeconds": 6550
+  },
+  "observability": {
+    "statementCoverage": null,
+    "branchCoverage": null,
+    "functionCoverage": null,
+    "lineCoverage": null
   },
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 2,
+    "iteration": 3,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -560,169 +569,71 @@
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "10-4-rust-provider",
-      "description": "**Ambiguity in epic definition:** Story notes mention `'library'` AppType for Rust, but `AppType` union in `src/lib/stacks/types.ts` has no `'library'` variant — only `'generic'`. Followed actual code behavior (returns `'generic'`).",
+      "story": "story-abc",
+      "description": "Something went wrong",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "10-4-rust-provider",
-      "description": "**Bevy system libs:** Story notes mention Bevy detection for Docker system libs, but no such logic exists in current `dockerfile-template.ts`. Deferred to avoid scope creep.",
+      "story": "story-abc",
+      "description": "Another concern",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "10-4-rust-provider",
-      "description": "**Risk — workspace aggregation ordering:** No cross-provider ordering concern in the provider pattern; handled within Rust provider alone.",
+      "story": "story-def",
+      "description": "Review finding",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "10-4-rust-provider",
-      "description": "**Observation:** All 27 ACs are `cli-verifiable`. No external system dependencies for unit testing.",
+      "story": "11-1-unified-sprintstate-schema-versioning",
+      "description": "MEDIUM (fixed): `parseStoryRetriesRecord` accepted negative retry counts",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "10-4-rust-provider",
-      "description": "**MEDIUM (fixed):** Misleading JSDoc in `hasCargoDep` — example was backwards.",
+      "story": "11-1-unified-sprintstate-schema-versioning",
+      "description": "MEDIUM (fixed): `parseFlaggedStoriesList` allowed duplicate entries",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "10-4-rust-provider",
-      "description": "**MEDIUM (fixed):** Missing false-positive prevention tests for crate substring matching (2 tests added).",
+      "story": "11-1-unified-sprintstate-schema-versioning",
+      "description": "LOW (not fixed): `retriesPath()` and `flaggedPath()` are exported dead code — deferred to 11-3",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "10-4-rust-provider",
-      "description": "**LOW (not fixed):** `hasCargoDep` matches commented-out dependencies. Pre-existing behavior from `stack-detect.ts`.",
+      "story": "11-1-unified-sprintstate-schema-versioning",
+      "description": "LOW (not fixed): `writeRetries`/`writeFlaggedStories` silently swallow write failures",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "10-4-rust-provider",
-      "description": "**LOW (not fixed):** `getCargoDepsSection` doesn't handle `[dependencies.foo]` subsection format. Pre-existing behavior.",
+      "story": "11-1-unified-sprintstate-schema-versioning",
+      "description": "LOW (not fixed): `as unknown as SprintState` casts bypass type safety in getSprintState() v2 branch",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
-      "story": "10-4-rust-provider",
-      "description": "**Coverage gap:** No integration test for `installOtlp` success path (requires `cargo` binary).",
+      "story": "11-1-unified-sprintstate-schema-versioning",
+      "description": "Coverage gap: No tests for concurrent read-modify-write race conditions in retry-state.ts",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-10",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**Risk:** AC17 (`verify-prompt.ts`) compares `AppType` not `StackName` — could false-positive boundary tests.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-11",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**Risk:** AC16 (`teardown.ts`) accesses state field not local variable — migration needs state shape understanding.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-12",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**Risk:** `detectAppType()` export chain may break if `stack-detect.ts` deleted before re-export verified.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-13",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**Observation:** `otlp.ts` is heaviest migration target (~10 stack conditionals). `scanner.ts` had zero stack conditionals.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-14",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**Coverage tool name mismatch (tech debt):** `StackProvider.getCoverageTool()` returns `CoverageToolName` values (`'tarpaulin'`, `'coverage-py'`) but `HarnessState.coverage.tool` uses different strings (`'cargo-tarpaulin'`, `'coverage.py'`). Docs-scaffold had to use hardcoded lookup instead of provider delegation.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-15",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**RustProvider.getBuildCommands() duplication:** Returns `['cargo build', 'cargo test']` from `getBuildCommands()` and `['cargo test']` from `getTestCommands()`, causing `cargo test` to appear twice in generated AGENTS.md. Pre-existing provider design issue.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-16",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**AGENTS.md format change:** Old hardcoded Rust section had inline comments and `cargo tarpaulin` line. Provider-based output omits these. Minor behavioral change, test updated.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-17",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**verify-prompt.ts intentional exception:** Uses `projectType === 'nodejs'` (`PromptProjectType`, not `StackName`). Documented in boundary test's `ALLOWED_EXCEPTIONS` per AC17.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**teardown.ts uses `.includes('nodejs')`:** String literal reference to stack name outside `src/lib/stacks/`, but acceptable per AC16 (array membership test allowed).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-19",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**MEDIUM (fixed):** Unused import `_detectStack` in `src/lib/stacks/index.ts` — imported but never referenced.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-20",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**MEDIUM (fixed):** Stale comment in `src/lib/stacks/types.ts` — referenced deleted `stack-detect.ts`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-21",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**LOW (not fixed):** `coverage.ts` uses local dispatch map instead of delegating to `provider.detectCoverageConfig()` — consumer `CoverageToolInfo` type differs from provider type. Future refactoring opportunity.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-22",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**LOW (not fixed):** Multiple files use stack name strings as object keys in dispatch maps. Maintenance burden when adding 4th stack.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-23",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**LOW (not fixed):** `verify/env.ts` `STACK_TO_PROJECT_TYPE` map is redundant given StackName/ProjectType value overlap.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-24",
-      "story": "10-5-migrate-consumers-to-stackprovider",
-      "description": "**Architecture concern:** `CoverageToolInfo` exists in two incompatible forms (consumer vs provider). Pre-existing, not introduced by this story.",
+      "story": "11-1-unified-sprintstate-schema-versioning",
+      "description": "Architecture concern: File-based state has inherent race conditions without file locking",
       "source": "retro",
       "resolved": false
     }

@@ -84,7 +84,7 @@ development_status:
 
   # Epic 11
   epic-11: backlog
-  11-1-unified-sprintstate-schema-versioning: verifying
+  11-1-unified-sprintstate-schema-versioning: done
   11-2-sprint-status-yaml-derived-view: done
   11-3-state-reconciliation-on-session-start: backlog
 

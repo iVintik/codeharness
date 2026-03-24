@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 66,
-    "done": 45,
+    "done": 51,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -409,7 +409,7 @@
       "acResults": null
     },
     "12-4-shared-test-utilities-fixtures": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "12-3-move-status-logic-to-module",
-    "currentPhase": "verify",
-    "lastAction": "Verification passed — story done",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": [

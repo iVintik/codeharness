@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { buildSprintState, buildSprintStateWithStory } from '../../../lib/__tests__/helpers.js';
 
 // Mock node:fs before importing the module under test
 vi.mock('node:fs', () => ({
@@ -402,27 +403,11 @@ describe('processVerifyResult', () => {
   function mockState(attempts: number, status: string = 'verifying'): void {
     mockedGetSprintState.mockReturnValue({
       success: true,
-      data: {
-        version: 2,
-        sprint: { total: 1, done: 0, failed: 0, blocked: 0, inProgress: null },
-        stories: {
-          '3-3-test': {
-            status: status as 'verifying',
-            attempts,
-            lastAttempt: '2026-01-01T00:00:00Z',
-            lastError: null,
-            proofPath: null,
-            acResults: null,
-          },
-        },
-        retries: {},
-        flagged: [],
-        epics: {},
-        session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
-        observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
-        run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
-        actionItems: [],
-      },
+      data: buildSprintStateWithStory('3-3-test', {
+        status: status as 'verifying',
+        attempts,
+        lastAttempt: '2026-01-01T00:00:00Z',
+      }),
     });
   }
 
@@ -621,18 +606,7 @@ describe('processVerifyResult', () => {
       .mockReturnValueOnce('# Story\n\n## Dev Agent Record\n');
     mockedGetSprintState.mockReturnValue({
       success: true,
-      data: {
-        version: 2,
-        sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
-        stories: {},
-        retries: {},
-        flagged: [],
-        epics: {},
-        session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
-        observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
-        run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
-        actionItems: [],
-      },
+      data: buildSprintState(),
     });
     mockedUpdateStoryStatus.mockReturnValue({ success: true, data: undefined });
 

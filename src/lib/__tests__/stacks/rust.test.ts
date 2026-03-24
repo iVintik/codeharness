@@ -3,6 +3,16 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { RustProvider } from '../../stacks/rust.js';
+import {
+  CARGO_TOML_MINIMAL,
+  CARGO_TOML_ACTIX_WEB,
+  CARGO_TOML_AXUM,
+  CARGO_TOML_ASYNC_OPENAI,
+  CARGO_TOML_WORKSPACE,
+  CARGO_TOML_BINARY,
+  CARGO_TOML_LIBRARY,
+  CARGO_TOML_GENERIC,
+} from '../helpers.js';
 
 let testDir: string;
 let provider: RustProvider;
@@ -36,10 +46,7 @@ describe('RustProvider — static properties', () => {
 
 describe('RustProvider.detectAppType', () => {
   it('returns "agent" when async-openai is in dependencies (AC2)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[package]\nname = "myapp"\nversion = "0.1.0"\n\n[dependencies]\nasync-openai = "0.18"\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_ASYNC_OPENAI);
     expect(provider.detectAppType(testDir)).toBe('agent');
   });
 
@@ -60,18 +67,12 @@ describe('RustProvider.detectAppType', () => {
   });
 
   it('returns "server" when actix-web is in dependencies (AC3)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[package]\nname = "myapp"\n\n[dependencies]\nactix-web = "4"\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_ACTIX_WEB);
     expect(provider.detectAppType(testDir)).toBe('server');
   });
 
   it('returns "server" when axum is in dependencies (AC4)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[package]\nname = "myapp"\n\n[dependencies]\naxum = "0.7"\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_AXUM);
     expect(provider.detectAppType(testDir)).toBe('server');
   });
 
@@ -108,26 +109,17 @@ describe('RustProvider.detectAppType', () => {
   });
 
   it('returns "cli" when [[bin]] section is present and no web framework deps (AC6)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[package]\nname = "myapp"\n\n[[bin]]\nname = "myapp"\npath = "src/main.rs"\n\n[dependencies]\nclap = "4"\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_BINARY);
     expect(provider.detectAppType(testDir)).toBe('cli');
   });
 
   it('returns "generic" when [lib] section is present and no [[bin]] section (AC7)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[package]\nname = "mylib"\n\n[lib]\nname = "mylib"\n\n[dependencies]\nserde = "1"\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_LIBRARY);
     expect(provider.detectAppType(testDir)).toBe('generic');
   });
 
   it('returns "generic" for minimal Cargo.toml with no [[bin]], [lib], or framework deps (AC8)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[package]\nname = "myapp"\nversion = "0.1.0"\n\n[dependencies]\nserde = "1"\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_MINIMAL);
     expect(provider.detectAppType(testDir)).toBe('generic');
   });
 
@@ -180,10 +172,7 @@ describe('RustProvider.getCoverageTool', () => {
 
 describe('RustProvider.detectCoverageConfig', () => {
   it('returns tarpaulin with configFile for standard Cargo.toml (AC10)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[package]\nname = "myapp"\nversion = "0.1.0"\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_GENERIC);
     const result = provider.detectCoverageConfig(testDir);
     expect(result.tool).toBe('tarpaulin');
     expect(result.configFile).toBeDefined();
@@ -191,10 +180,7 @@ describe('RustProvider.detectCoverageConfig', () => {
   });
 
   it('returns tarpaulin with configFile for workspace Cargo.toml (AC11)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[workspace]\nmembers = ["crate-a", "crate-b"]\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_WORKSPACE);
     const result = provider.detectCoverageConfig(testDir);
     expect(result.tool).toBe('tarpaulin');
     expect(result.configFile).toBeDefined();
@@ -370,10 +356,7 @@ describe('RustProvider.parseCoverageReport', () => {
 
 describe('RustProvider.getProjectName', () => {
   it('returns name from [package] section (AC22)', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[package]\nname = "my-rust-app"\nversion = "0.1.0"\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_GENERIC.replace('myapp', 'my-rust-app'));
     expect(provider.getProjectName(testDir)).toBe('my-rust-app');
   });
 
@@ -390,10 +373,7 @@ describe('RustProvider.getProjectName', () => {
   });
 
   it('returns null when no [package] section', () => {
-    writeFileSync(
-      join(testDir, 'Cargo.toml'),
-      `[workspace]\nmembers = ["crate-a"]\n`,
-    );
+    writeFileSync(join(testDir, 'Cargo.toml'), CARGO_TOML_WORKSPACE);
     expect(provider.getProjectName(testDir)).toBeNull();
   });
 

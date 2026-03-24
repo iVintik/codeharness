@@ -1,46 +1,25 @@
 import { describe, it, expect } from 'vitest';
 import { selectNextStory, MAX_STORY_ATTEMPTS } from '../selector.js';
 import type { SprintState, StoryState } from '../../../types/state.js';
+import { buildSprintState, buildStoryEntry } from '../../../lib/__tests__/helpers.js';
 
-/** Helper: build a minimal SprintState with given stories */
+/** Helper: build a SprintState with given partial stories */
 function makeState(
   stories: Record<string, Partial<StoryState>>,
 ): SprintState {
   const full: Record<string, StoryState> = {};
   for (const [key, partial] of Object.entries(stories)) {
-    full[key] = {
-      status: 'backlog', attempts: 0, lastAttempt: null,
-      lastError: null, proofPath: null, acResults: null,
-      ...partial,
-    };
+    full[key] = buildStoryEntry(partial);
   }
-  return {
-    version: 2,
-    sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
-    stories: full,
-    retries: {},
-    flagged: [],
-    epics: {},
-    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
-    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
-    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
-    actionItems: [],
-  };
+  return buildSprintState({ stories: full });
 }
 
 /** Helper: build a bad state that throws on stories access */
 function makeBadState(throwValue: unknown): SprintState {
+  const base = buildSprintState();
   return {
-    version: 2,
-    sprint: { total: 0, done: 0, failed: 0, blocked: 0, inProgress: null },
+    ...base,
     get stories() { throw throwValue; },
-    retries: {},
-    flagged: [],
-    epics: {},
-    session: { active: false, startedAt: null, iteration: 0, elapsedSeconds: 0 },
-    observability: { statementCoverage: null, branchCoverage: null, functionCoverage: null, lineCoverage: null },
-    run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [], currentStory: null, currentPhase: null, lastAction: null, acProgress: null },
-    actionItems: [],
   } as unknown as SprintState;
 }
 

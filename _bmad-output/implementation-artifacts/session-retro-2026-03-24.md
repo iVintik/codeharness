@@ -1430,3 +1430,416 @@ This section consolidates all work done across the full day session (multiple it
 | Total sprint progress | 45/66 (68%) |
 | Session iterations | 5 |
 | Elapsed time | ~109 minutes |
+
+---
+
+## Sessions 23-24 (Loop 9-10) — 2026-03-24T17:30Z
+
+**Sprint:** Operational Excellence (Architecture v3 Migration phase)
+**Sessions:** 23 (12-2 dev-story, timed out at 30m) and 24 (12-2 code-review + completion)
+**Loop iterations:** 9-10
+**Appended:** 2026-03-24T17:30Z
+
+---
+
+### 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages Completed |
+|-------|------|---------|---------------------------|
+| 12-2-split-docker-otlp-beads-dochealth | Epic 12 (Module Decomposition) | done (lastAttempt 17:25Z) | dev-story (iter 9, timed out), code-review (iter 10), verification completed |
+
+**Key events:**
+- **Iteration 9 (~13:06-13:09Z):** Dev-story for 12-2 executed. Split 4 monolithic files (docker.ts 378 lines, otlp.ts 453 lines, beads-sync.ts 590 lines, doc-health.ts 832 lines) into 4 domain subdirectories. Hit 30-minute timeout. Changes were saved but iteration was flagged as timeout (timeout-report-9-unknown.md).
+- **Iteration 10 (~16:28-17:25Z):** Code-review completed. Two HIGH severity issues found and fixed (docker/cleanup.ts 0% coverage, observability/backends.ts 0% coverage). Story marked done.
+- **Total files deleted:** 4 monolithic source files + 4 monolithic test files (3,204 lines of tests, 2,253 lines of source).
+- **Total files created:** 16 new module files across 4 domain directories + 4 barrel indexes + 2 new test files (cleanup.test.ts, backends.test.ts).
+
+**Net progress:** Epic 12 at 2/4 stories done (12-1 and 12-2). Sprint at 48/66 stories done per ralph/status.json (46/66 per sprint-state.json, discrepancy noted).
+
+---
+
+### 2. Issues Analysis
+
+#### Bugs Discovered During Implementation or Verification
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| HIGH | 12-2 | docker/cleanup.ts had 0% coverage -- no tests existed for the new stub module | Yes -- added cleanup.test.ts |
+| HIGH | 12-2 | observability/backends.ts had 0% coverage -- entirely new code with no tests | Yes -- added backends.test.ts |
+| MEDIUM | 12-2 | Circular dependency between doc-health/scanner.ts and doc-health/staleness.ts (mutual imports) | Yes -- extracted shared utilities to doc-health/types.ts |
+| MEDIUM | 12-2 | Dynamic import in teardown.ts (`await import('../lib/docker.js')`) missed by initial sed-based import replacement | Yes -- fixed manually |
+| LOW | 12-2 | doc-health/index.ts barrel leaks internal utility functions | No -- unfixed tech debt |
+| LOW | 12-2 | doc-health/types.ts contains 3 duplicate copies of SOURCE_EXTENSIONS constant | No -- unfixed tech debt |
+
+#### Workarounds Applied (Tech Debt Introduced)
+
+1. **backends.ts is entirely new code.** The story framed this as "splitting otlp.ts," but no backend abstraction existed in the original file. `ObservabilityBackend` interface with Victoria and ELK implementations was created from scratch. This is new functionality masquerading as a refactor.
+2. **cleanup.ts is stubs only.** The actual container cleanup logic lives in `src/modules/infra/container-cleanup.ts`, not in `src/lib/docker.ts`. The new `cleanup.ts` exports placeholder functions (`cleanupOrphanedContainers`, `cleanupVerifyEnv`) that don't do real work. Misleading module boundary.
+3. **doc-health/types.ts was not in the story spec.** Created as an unplanned extra file to resolve the circular dependency between scanner.ts and staleness.ts. Architecturally sound but deviates from the story plan.
+4. **Test files moved as monolithic blocks, not split per-module.** AC10 suggested reorganizing tests into per-module `__tests__/` directories. Instead, the 4 large test files (524-1011 lines each) were moved whole into `__tests__/` subdirectories. Less granular than specified.
+5. **beads.ts 300-line limit forced moving types/functions to story-files.ts.** The story spec placed them in beads.ts, but the file size limit required redistribution.
+
+#### Code Quality Concerns
+
+1. **staleness.ts at 284 lines.** Close to the 300-line limit. Any future additions will force another split.
+2. **doc-health/index.ts leaks internal utility functions through its barrel export.** Internal helpers are exposed as public API, violating encapsulation.
+3. **SOURCE_EXTENSIONS constant duplicated 3 times in doc-health/.** Should be a single export from types.ts, imported by scanner.ts and staleness.ts.
+4. **docker/cleanup.ts and observability/backends.ts are placeholder stubs.** They exist to satisfy the story's directory structure ACs but contain no real logic. Future stories may either flesh them out or they become dead code.
+
+#### Verification Gaps
+
+- **AC12 (integration-required) status unclear.** AC12 requires running `codeharness stack`, `codeharness sync`, `codeharness doc-health` end-to-end to verify behavioral identity. Docker was not running this session. If the verification proof exists at `verification/12-2-split-docker-otlp-beads-dochealth-proof.md`, it may have used unit-testable path only.
+- **Test files not split per-module (AC10 partial).** Tests were reorganized into `__tests__/` dirs but kept as single files. The AC asked for tests to be "reorganized under corresponding `__tests__/` subdirectories" which was technically met, but the intent (per-module test files) was not.
+
+#### Tooling/Infrastructure Problems
+
+1. **Iteration 9 timed out at 30 minutes.** The dev-story subagent hit the timeout while splitting 4 files simultaneously. The timeout report was logged as `timeout-report-9-unknown.md` with story listed as "unknown" -- ralph could not identify which story was running.
+2. **Ralph story tracking failure.** The timeout report says "Story: unknown" despite 12-2 being the active story. Ralph's story detection mechanism failed to capture the current story context during the iteration.
+3. **sed-based import replacement missed dynamic imports.** The dev agent used `sed` for bulk import path updates, which cannot detect `await import(...)` patterns. The dynamic import in teardown.ts had to be caught and fixed manually.
+
+---
+
+### 3. What Went Well
+
+- **12-2 completed successfully despite being the most complex story in Epic 12.** Four monolithic files totaling 2,253 lines of source code were split into 16 module files across 4 domain directories, with all consumer imports updated and all tests passing.
+- **Code review caught both 0% coverage files.** The review gate works -- cleanup.test.ts and backends.test.ts were added to bring coverage above the floor. Without the review gate, these would have shipped with zero tests.
+- **Circular dependency resolution was clean.** The scanner.ts/staleness.ts mutual import was resolved by extracting shared types to types.ts -- a proper architectural fix, not a workaround.
+- **Domain subdirectory pattern from 12-1 scaled.** The pattern established by 12-1 (barrel index, domain-specific modules, `__tests__/` subdirectory) was successfully applied to 4 more domains. The pattern is proven and repeatable.
+- **All 50+ consumer import paths updated without regressions.** Across commands, modules, and test files, every import from the 4 old monolithic files was redirected to the new barrel exports.
+
+---
+
+### 4. What Went Wrong
+
+- **Iteration 9 timed out.** 30 minutes was not enough to split all 4 files. The dev agent was doing 4 parallel file splits (docker, otlp, beads-sync, doc-health) in a single iteration. This is too much work for one pass.
+- **Story framing as "split" was misleading for 2 of 4 modules.** backends.ts is new code (not extracted from otlp.ts). cleanup.ts is stubs (real logic lives in modules/infra/). The "split" framing created false expectations about what the work entailed.
+- **Ralph could not identify the story during timeout.** The timeout report lists "Story: unknown." This undermines timeout diagnostics -- if ralph cannot attribute timeouts to stories, retry logic and story-level metrics are unreliable.
+- **Test reorganization was incomplete.** Moving 4 monolithic test files (3,204 lines total) as-is into `__tests__/` dirs technically satisfies AC10 but does not achieve the granularity benefit that per-module test files would provide.
+- **Three instances of SOURCE_EXTENSIONS duplication introduced.** The split created copies of the same constant in doc-health/types.ts rather than having a single authoritative export. This is a code smell that will cause drift.
+
+---
+
+### 5. Lessons Learned
+
+#### Repeat
+
+- **Code review as a coverage gate.** Both 0% coverage files were caught and fixed before verification. This continues to be the highest-value quality gate in the pipeline.
+- **Extracting shared types to resolve circular dependencies.** The types.ts pattern for breaking scanner/staleness circular imports is clean and should be the standard approach for intra-module circular deps.
+- **Domain subdirectory pattern.** Barrel index + domain modules + `__tests__/` subdirectory is now battle-tested across 5 domains (coverage, docker, observability, sync, doc-health). It works.
+
+#### Avoid
+
+- **Splitting 4 files in one story.** 12-2 was too large. Each of the 4 file splits could have been its own story. The 30-minute timeout on iteration 9 confirms this -- the work volume exceeded a single iteration's capacity.
+- **Calling new code a "split."** If the original file does not contain the logic, the new file is new code, not a refactor. Story specs should distinguish between extraction (moving existing code) and creation (writing new code). backends.ts and cleanup.ts should have been flagged as "new module" tasks.
+- **sed for import path updates.** sed cannot handle dynamic imports, template literals, or multi-line import statements. Use AST-based tools or at minimum grep-verify after sed to catch misses.
+- **Monolithic test file moves.** When splitting source files into domain modules, split the tests too. Moving a 1011-line test file as-is defeats the purpose of modularization.
+
+---
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+
+1. **Deduplicate SOURCE_EXTENSIONS in doc-health/.** Export once from types.ts, import in scanner.ts and staleness.ts. Three copies will drift.
+2. **Audit doc-health/index.ts barrel exports.** Remove internal utility functions that should not be part of the public API.
+
+#### Fix Soon (Next Sprint)
+
+1. **Split monolithic test files in doc-health/, docker/, observability/, sync/.** The moved test files (524-1011 lines each) should be split into per-module test files to match the source structure. Track as a follow-up story or fold into 12-4 (shared test utilities).
+2. **Decide on cleanup.ts and backends.ts.** Either implement real logic or delete the stubs. Placeholder modules that never get filled become confusing dead code. If container cleanup stays in modules/infra/, remove docker/cleanup.ts.
+3. **Fix ralph story tracking during timeouts.** Timeout report listed "Story: unknown." Ralph should capture the current story from sprint-state.json's `inProgress` field before the timeout report is generated.
+4. **Reduce story scope for remaining 12-x stories.** 12-2 proved that 4 file splits in one story is too much. 12-3 and 12-4 should each target a single module or concern.
+
+#### Backlog (Track But Not Urgent)
+
+- staleness.ts at 284 lines -- monitor, may need split if it grows past 300.
+- beads.ts function redistribution to story-files.ts deviated from story spec -- verify the API surface is correct.
+- Dynamic import detection in automated import path updates -- needs a better approach than sed.
+- All carried-forward items from sessions 8-22 remain open (see prior retro entries).
+
+---
+
+### Sprint Velocity (updated)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed this session | 1 (12-2) |
+| Stories completed today (cumulative) | 5 (11-1, 11-2, 11-3, 12-1, 12-2) |
+| Epic 12 progress | 2/4 stories done |
+| Epics closed today | 1 (Epic 11) |
+| Total sprint progress | 48/66 (73%) per ralph, 46/66 per sprint-state.json |
+| Iterations this session | 2 (one timed out) |
+| Files split this session | 4 monolithic -> 16 modules + 4 barrels |
+| Lines reorganized | ~5,457 (2,253 source + 3,204 tests) |
+
+---
+
+# Session Retrospective — 2026-03-24 (Session 10, Evening)
+
+**Sprint:** Operational Excellence (Architecture v3 Migration phase)
+**Session:** 10 (continuation, evening)
+**Timestamp:** 2026-03-24T17:31:00Z
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages |
+|-------|------|---------|-----------------|
+| 12-3-move-status-logic-to-module | Epic 12 (File Size Reduction) | done | dev-story, code-review (3 fixes), verification (passed) |
+
+**Scope:** Single story — extracted the monolithic `status.ts` command (745 lines) into `src/modules/status/` with 4 module files. Command file reduced to 56 lines (thin shell delegating to module).
+
+**Test results:** 3,493 tests passing, 97.09% coverage. No regressions.
+
+**Net progress:** Epic 12 now 3/4 stories done (12-4 remains in backlog).
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Severity | Issue | Fixed? |
+|----------|-------|--------|
+| MEDIUM | Unused import `isSharedStackRunning` in formatters.ts — dead code leftover from extraction | Yes |
+| MEDIUM | Unused type import `DockerHealthResult` in formatters.ts | Yes |
+| MEDIUM | Missing mock for `modules/verify/index.js` in status.test.ts — tests passed only because error handling was graceful | Yes |
+
+### Workarounds Applied (Tech Debt Introduced)
+
+| Issue | Status |
+|-------|--------|
+| No dedicated unit tests for formatters.ts or drill-down.ts at module level | Unfixed — covered only via integration through status command tests |
+| `printSprintState()` and `handleFullStatusJson()` independently call report generation — potential duplication | Unfixed — LOW severity, no functional impact |
+| `getValidationProgress` integration path only implicitly tested | Unfixed — coverage gap, no dedicated assertion |
+
+### Code Quality Concerns
+
+- All 3 MEDIUM issues from code review were fixed before verification.
+- 2 LOW issues remain unfixed (no dedicated module-level tests, report generation duplication). Both are acceptable tech debt for a refactoring story.
+
+### Verification Observations
+
+- Verification used **unit-testable** tier for both ACs (both were cli-verifiable).
+- Had to add explicit `**Tier:** unit-testable` marker to proof document for `blackBoxPass` to parse correctly — the verification parser requires this metadata.
+- No Docker needed for this story (unlike 12-1 which was blocked by Docker Desktop being down).
+
+### Tooling / Infrastructure Issues
+
+- **Stale AGENTS.md files:** 4 directories from prior story 12-2 had stale AGENTS.md files that needed updating. These were leftover from the split operations — the dev subagent for 12-2 did not regenerate them.
+
+---
+
+## 3. What Went Well
+
+- **Clean extraction:** 745-line monolith reduced to 56-line command + 4 focused modules with no behavioral changes.
+- **Zero test regressions:** All 3,493 tests pass. Coverage held at 97.09%.
+- **Code review caught real issues:** All 3 MEDIUM findings (unused imports, missing mock) were genuine problems that could mask future bugs.
+- **Fast cycle:** dev-story reported zero issues. Code review found and fixed problems efficiently. Verification passed cleanly.
+- **Verification tier selection was correct:** unit-testable tier was appropriate — no need to spin up Docker for a pure refactoring story.
+
+---
+
+## 4. What Went Wrong
+
+- **Stale AGENTS.md from prior story:** 4 directories needed AGENTS.md fixes that should have been caught during 12-2's code review or verification. This was cleanup debt from the previous session leaking into this one.
+- **Proof format requirement:** The `blackBoxPass` parser required a `**Tier:** unit-testable` annotation that wasn't obvious. This has now tripped up multiple stories (also seen in 12-1 with `bash`/`output` block requirements).
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Single-story sessions for refactoring:** Focused scope with one extraction story works well. Clean in, clean out.
+- **Fix all code review findings before verification:** The 3 MEDIUM fixes prevented false confidence in the test suite.
+- **Dev subagent reporting "no issues" is a positive signal** — when the extraction is straightforward, the dev phase should be fast and clean.
+
+### Patterns to Avoid
+
+- **Not regenerating AGENTS.md after file splits:** Every story that moves files between directories must update AGENTS.md in affected directories. This should be an explicit AC or a post-dev checklist item.
+- **Assuming proof format is self-evident:** The verification parser has specific format requirements (`**Tier:**`, `bash`/`output` fenced blocks). These need to be documented or enforced by the create-story template.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+_None — all MEDIUM issues were already fixed during this session._
+
+### Fix Soon (Next Sprint)
+
+| Item | Source |
+|------|--------|
+| Add AGENTS.md regeneration as explicit step in file-split stories | 12-2 and 12-3 both needed manual AGENTS.md fixes |
+| Document verification proof format requirements (Tier marker, bash/output blocks) | Hit in 12-1 and 12-3 |
+| Add module-level unit tests for formatters.ts and drill-down.ts | Code review LOW finding |
+
+### Backlog (Track But Not Urgent)
+
+| Item | Source |
+|------|--------|
+| Deduplicate report generation between `printSprintState()` and `handleFullStatusJson()` | Code review LOW finding |
+| Add explicit test for `getValidationProgress` integration path | Coverage gap noted in review |
+| story 12-4 (shared test utilities/fixtures) remains — last story in Epic 12 | Sprint status |
+
+---
+
+### Sprint Velocity (updated)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed this session | 1 (12-3) |
+| Stories completed today (cumulative) | 6 (11-1, 11-2, 11-3, 12-1, 12-2, 12-3) |
+| Epic 12 progress | 3/4 stories done |
+| Epics closed today | 1 (Epic 11) |
+| Total tests | 3,493 passing |
+| Coverage | 97.09% |
+| Lines extracted this session | 745 -> 56 command + 4 modules |
+
+---
+
+# Session Retrospective — 2026-03-24 (Session 11, Late Evening)
+
+**Sprint:** Operational Excellence (Architecture v3 Migration phase)
+**Session:** 11 (continuation, late evening)
+**Timestamp:** 2026-03-24T18:10:00Z
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages |
+|-------|------|---------|-----------------|
+| 12-4-shared-test-utilities-fixtures | Epic 12 (File Size Reduction) | review (in progress) | create-story, dev-story, code-review completed; verification not yet run |
+
+**Scope:** Final story in Epic 12. Created shared test utility modules (`src/test-utils/`) with factory functions for `SprintState`, `StoryEntry`, mock factories for `fs` and `child_process`, and refactored one existing test file to prove adoption.
+
+**Net progress:** Epic 12 is 3/4 done + 1 in review. Epic 12 cannot close until 12-4 passes verification.
+
+**Session duration:** ~6,550 seconds elapsed (per sprint-state.json), 5 iterations.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+No bugs discovered — this story is purely additive (new test utility files) with no production code changes.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+| Issue | Story | Status |
+|-------|-------|--------|
+| `vi.mock()` hoisting prevents using imported factory functions inside `vi.mock()` callbacks — fundamental Vitest limitation | 12-4 | Unfixed (permanent constraint). Mock factories work for `vi.mocked()` return value configuration, not for `vi.mock()` declarations. Story dev notes example was misleading. |
+| Story specified refactoring `docker.test.ts` but it was incompatible; `selector.test.ts` used instead | 12-4 | Deviation accepted — selector.test.ts was a better fit for `buildSprintState`/`buildStoryEntry` usage patterns. |
+| Epic ACs extremely terse (2 ACs for the whole story) — had to expand to 10 ACs during create-story | 12-4 | Workaround applied. Consistent pattern seen across all Epic 12 stories. |
+
+### Code Quality Concerns
+
+- Dev subagent reported no code quality concerns. All new files clean, typed, under 300 lines.
+- No coverage regressions expected (additive utility code).
+
+### Verification Gaps
+
+- **12-1 AC11 (integration-required) still escalated** from earlier session — needs Docker for CLI behavior identity testing. Docker Desktop was down during verification.
+- **12-4 not yet verified** — story is in `review` status, verification has not been attempted.
+
+### Tooling / Infrastructure Issues
+
+| Issue | Story | Impact |
+|-------|-------|--------|
+| Docker Desktop not running | 12-1 verification | Blocked black-box verification; AC11 escalated |
+| `codeharness coverage --check-only` misparses test counts as "0 passed, 0 failed" | 12-1 verification | Output format mismatch in coverage check CLI |
+| `codeharness verify` requires `tests_passed` session flag — had to run `codeharness coverage` first | 12-1 verification | Hidden precondition, not documented |
+| Proof format requires `bash`/`output` fenced block pairs, not plain code blocks | 12-1 verification | Tripped up verifier initially |
+| Workflow file was `.yaml` not `.md` — skill invocation message referenced wrong extension | 12-1 create-story | Minor confusion during story creation |
+| Pre-existing ~60 type errors in unrelated test files | 11-3 dev | Not introduced this session but noted repeatedly |
+
+---
+
+## 3. What Went Well
+
+- **Seven stories completed in one day:** 11-1, 11-2, 11-3, 12-1, 12-2, 12-3 all done and committed. 12-4 through code review.
+- **Epic 11 fully closed:** Unified SprintState schema, derived YAML view, and state reconciliation all landed.
+- **Epic 12 nearly complete:** 3/4 stories done, 1 in review. The codebase's largest files have been split into domain subdirectories.
+- **Code review consistently caught real bugs:** Across all stories — 0% coverage on new files (12-2), unused imports (12-3), coverage gaps (12-1). All HIGH/MEDIUM findings were fixed before commit.
+- **Session issues log is comprehensive:** Every subagent stage reported issues, risks, and deviations. This made the retrospective possible without guesswork.
+- **Circular dependency in doc-health resolved cleanly:** Scanner/staleness mutual dependency handled by extracting shared types — textbook resolution.
+
+---
+
+## 4. What Went Wrong
+
+- **Docker Desktop down throughout the session:** Blocked all black-box verification. AC11 of 12-1 remains escalated. No workaround available for integration-required ACs.
+- **Epic AC definitions too terse:** Every Epic 12 story required significant AC expansion during create-story (from 1-2 ACs to 10-13). This is wasted effort that could be done once at epic planning time.
+- **12-2 test files not reorganized per AC10:** Monolithic test files moved as-is to `__tests__/` directories rather than split per-module. AC was partially satisfied but the intent (granular test organization) was not achieved.
+- **Stub files shipped as "done":** `docker/cleanup.ts` and `observability/backends.ts` are placeholder stubs with no real logic. Code review flagged this as LOW but they are committed artifacts that look complete.
+- **doc-health/types.ts has 3 copies of SOURCE_EXTENSIONS constant:** Duplication introduced during the split that should have been caught and consolidated.
+- **vi.mock() hoisting limitation not anticipated in story design:** The dev notes for 12-4 included an example that doesn't work with Vitest's hoisting behavior. The dev subagent had to deviate from the story's guidance.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Domain subdirectory pattern works:** The `src/lib/{domain}/` structure with `index.ts` barrel, `types.ts`, and focused modules is clean and scalable. Established in 12-1, replicated consistently in 12-2 and 12-3.
+- **Code review as quality gate before commit:** Every story that went through code review had real issues found and fixed. The pipeline's insistence on review before verification prevented shipping bugs.
+- **Session issues log as retrospective raw material:** The structured per-story, per-stage issue reporting made this retrospective straightforward. Every subagent contributing context is valuable.
+
+### Patterns to Avoid
+
+- **Writing story dev notes with untested code examples:** The 12-4 `vi.mock()` example was incorrect. Dev notes examples should be verified before inclusion in the story.
+- **Accepting "moved but not split" as satisfying test reorg ACs:** If the AC says "reorganize tests per module," moving monolithic files intact does not satisfy that intent. Be explicit about what reorganization means.
+- **Leaving stub files without marking them as stubs:** `cleanup.ts` and `backends.ts` should have `// STUB: implementation deferred to story X` comments and corresponding backlog items.
+- **Not starting Docker Desktop before a verification-heavy session:** Docker being down wasted time attempting starts and forced AC escalation. Pre-flight check should verify Docker availability.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| Item | Source |
+|------|--------|
+| Start Docker Desktop and verify it's running | 12-1 AC11 escalation, blocked all session |
+| Run verification for 12-4 to close it and complete Epic 12 | 12-4 in review status |
+
+### Fix Soon (Next Sprint)
+
+| Item | Source |
+|------|--------|
+| Consolidate 3 copies of `SOURCE_EXTENSIONS` in doc-health/ into single export from types.ts | 12-2 code review LOW finding |
+| Add `// STUB` markers to `docker/cleanup.ts` and `observability/backends.ts`, create backlog items | 12-2 code review LOW finding |
+| Export `findCoverageSummary` from coverage `index.ts` barrel or make it module-private | 12-1 code review MEDIUM finding |
+| Fix `codeharness coverage --check-only` test count parsing ("0 passed, 0 failed" bug) | 12-1 verification tooling issue |
+| Expand epic-level ACs before sprint starts (avoid per-story expansion overhead) | Pattern across all Epic 12 stories |
+| Re-attempt 12-1 AC11 integration test with Docker running | 12-1 verification escalation |
+
+### Backlog (Track But Not Urgent)
+
+| Item | Source |
+|------|--------|
+| Split monolithic test files in doc-health/, docker/, observability/ into per-module test files | 12-2 AC10 partially satisfied |
+| Remove `doc-health/index.ts` leaking internal utility functions through barrel | 12-2 code review LOW finding |
+| Address ~60 pre-existing TS compilation errors in test files | 11-3 dev observation (tracked as story 15-4) |
+| staleness.ts at 284 lines — near 300-line limit, may need split if it grows | 12-2 code review observation |
+| Document `codeharness verify` precondition (requires `tests_passed` session flag) | 12-1 verification tooling issue |
+| Investigate `parseStoryKey()` returning `[Infinity, Infinity]` for non-matching keys | 11-3 create-story risk |
+| Optimize YAML regeneration to skip if content unchanged (no-op case) | 11-3 dev observation |
+
+---
+
+### Sprint Velocity (updated)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed today (cumulative) | 6 done + 1 in review (11-1, 11-2, 11-3, 12-1, 12-2, 12-3 done; 12-4 in review) |
+| Epics closed today | 1 (Epic 11). Epic 12 pending 12-4 verification. |
+| Total stories in sprint | 66 (45 done, 21 backlog) |
+| Sprint completion | 68.2% |
+| Session iterations | 5 |
+| Session elapsed | ~6,550 seconds (~109 minutes) |

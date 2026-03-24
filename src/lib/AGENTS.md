@@ -147,4 +147,13 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, agent-browser, beads, Semgrep, BATS, cargo-tarpaulin) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-**Total: 48 library files across 19 categories (includes 4 domain subdirectories: docker/, observability/, sync/, doc-health/).**
+## Shared Test Utilities (src/lib/__tests__/)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| __tests__/helpers.ts | Single import point for test helpers, fixtures, and mock factories; `withTempDir()` utility | `withTempDir`, re-exports all fixtures |
+| __tests__/fixtures/cargo-toml-variants.ts | Named Cargo.toml string constants for 8 variants (minimal, actix-web, axum, async-openai, workspace, binary, library, generic) | `CARGO_TOML_MINIMAL`, `CARGO_TOML_ACTIX_WEB`, `CARGO_TOML_AXUM`, `CARGO_TOML_ASYNC_OPENAI`, `CARGO_TOML_WORKSPACE`, `CARGO_TOML_BINARY`, `CARGO_TOML_LIBRARY`, `CARGO_TOML_GENERIC` |
+| __tests__/fixtures/state-builders.ts | Builder factories for SprintStateV2 and related test data | `buildSprintState`, `buildStoryEntry`, `buildEpicState`, `buildActionItem`, `buildSprintStateWithStory` |
+| __tests__/fixtures/mock-factories.ts | Mock factory functions for commonly mocked modules (fs, child_process, docker, state) | `createFsMock`, `createChildProcessMock`, `createDockerMock`, `createStateMock`, `createSprintStateMock` |
+
+**Total: 48 library files + 4 shared test utility files across 20 categories (includes 4 domain subdirectories: docker/, observability/, sync/, doc-health/).**

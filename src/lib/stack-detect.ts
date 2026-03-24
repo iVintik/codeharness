@@ -2,9 +2,9 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { warn } from './output.js';
 
-export type AppType = 'server' | 'cli' | 'web' | 'agent' | 'generic';
-
-export type StackName = 'nodejs' | 'python' | 'rust';
+// Re-export canonical types from stacks/types.ts for backward compatibility.
+// Existing consumers that `import { StackName, AppType } from './stack-detect.js'` continue to work.
+export type { StackName, AppType } from './stacks/types.js';
 
 export interface StackDetection {
   stack: StackName;

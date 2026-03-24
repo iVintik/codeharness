@@ -9,11 +9,20 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | state.ts | YAML front-matter state persistence in `.claude/codeharness.local.md` | `readState`, `writeState`, `readStateWithBody`, `getStatePath`, `HarnessState` |
 | output.ts | Structured `[OK]/[FAIL]/[WARN]/[INFO]` CLI output with JSON mode | `ok`, `fail`, `warn`, `info`, `jsonOutput` |
 
-## Stack & Environment
+## Stack Provider System
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| stack-detect.ts | Detects project language (nodejs/python) and app type | `detectStack`, `detectAppType`, `AppType` |
+| stacks/types.ts | Canonical stack type definitions and `StackProvider` interface | `StackProvider`, `StackName`, `AppType`, `CoverageToolName`, `CoverageToolInfo`, `OtlpResult`, `TestCounts` |
+| stacks/registry.ts | Provider registry with marker-based stack detection | `registerProvider`, `getStackProvider`, `detectStacks`, `detectStack`, `StackDetection`, `_resetRegistry` |
+| stacks/nodejs.ts | Minimal NodejsProvider stub (full impl in story 10-2) | `NodejsProvider` |
+| stacks/index.ts | Barrel re-exports + auto-registers NodejsProvider on import | all public API from types.ts and registry.ts |
+
+## Stack & Environment (Legacy)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| stack-detect.ts | Legacy stack detection — re-exports `StackName`, `AppType` from stacks/types.ts for backward compat | `detectStack`, `detectAppType`, `AppType` |
 | stack-path.ts | XDG-compliant paths for shared observability stack | `getStackDir`, `getComposeFilePath`, `ensureStackDir` |
 | templates.ts | File generation with `{{var}}` mustache-style rendering | `generateFile`, `renderTemplate` |
 
@@ -112,4 +121,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, agent-browser, beads, Semgrep, BATS, cargo-tarpaulin) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-**Total: 30 library files across 14 categories.**
+**Total: 34 library files across 15 categories.**

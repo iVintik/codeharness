@@ -321,7 +321,7 @@
       "acResults": null
     },
     "10-1-stackprovider-interface-and-registry": {
-      "status": "backlog",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -562,16 +562,16 @@
     }
   },
   "run": {
-    "active": false,
+    "active": true,
     "startedAt": null,
     "iteration": 1,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "currentStory": "10-1-stackprovider-interface-and-registry",
+    "currentPhase": "verify",
+    "lastAction": "Starting verification",
+    "acProgress": "3/3"
   },
   "actionItems": [
     {
@@ -688,428 +688,57 @@
     },
     {
       "id": "migrated-17",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**Stale technical notes:** Original story referenced line numbers from before story 9-2. Rewrote to reflect actual current code state.",
+      "story": "10-1-stackprovider-interface-and-registry",
+      "description": "**Ambiguity:** Epic says StackName/AppType in `src/types/state.ts` but they actually live in `src/lib/stack-detect.ts`. Fixed in story.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-18",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**Files list correction:** Original story listed `src/commands/init.ts` but missed `docs-scaffold.ts`. `init.ts` doesn't need changes; `docs-scaffold.ts` does for `getStackLabel()`.",
+      "story": "10-1-stackprovider-interface-and-registry",
+      "description": "**Implicit dependency:** AC3 requires stub NodejsProvider but epic puts full impl in story 10-2. Added minimal stub task.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-19",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**Risk:** `path` import missing in init-project.ts — per-stack OTLP loop needs `path.join()` but only `basename` is imported.",
+      "story": "10-1-stackprovider-interface-and-registry",
+      "description": "**Risk:** Registry `detectStacks()` will coexist with existing `stack-detect.ts` `detectStacks()` during transition.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-20",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**Observation:** Story 9-2 already did partial work (added `detectStacks` call and stacks population), reducing scope to per-stack iteration loops.",
+      "story": "10-1-stackprovider-interface-and-registry",
+      "description": "**Observation:** `patchStartScript?` optional method not in AC1 checklist but should be in interface definition.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-21",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**Code quality concern:** Per-stack coverage loop calls `getCoverageTool()` per stack but discards return value — `HarnessState.coverage` only has single `tool` field, not per-stack map. Future addition needed.",
+      "story": "10-1-stackprovider-interface-and-registry",
+      "description": "**Parallel detection codepaths:** `stack-detect.ts` retains hardcoded detection; `registry.ts` has marker-based detection. Two codepaths coexist until story 10-5 migrates consumers.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-22",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**Observation:** OTLP per-stack loop assigns `result.otlp` based on matching `detection.stack === stack` (primary stack). Last match wins if duplicates exist.",
+      "story": "10-1-stackprovider-interface-and-registry",
+      "description": "**Pre-existing TS errors:** ~10 test files have unrelated compilation errors (bridge, run, stack, status, teardown, deps, sync).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-23",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**Observation:** Fallback `if (!result.otlp)` after OTLP loop handles edge case where primary stack isn't in `allStacks`.",
+      "story": "10-1-stackprovider-interface-and-registry",
+      "description": "**Code quality note:** Registry uses module-level Map state. Auto-registration in `index.ts` ensures NodejsProvider is registered on import, but direct `registry.ts` imports skip auto-registration.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-24",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**HIGH (fixed):** Per-stack coverage loop was dead code — called `getCoverageTool()` per stack but discarded all return values",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-25",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**HIGH (fixed):** OTLP `result.otlp` matched by stack name only, wrong detection when multiple subdirs share same stack",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-26",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**MEDIUM (fixed):** Double filesystem scan — `detectStack()` calls `detectStacks()` internally, then init called it again",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-27",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**MEDIUM (fixed):** Integration tests mocked `detectStack` but init-project no longer called it after refactor",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-28",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**MEDIUM (fixed):** `state.coverage.tools` assigned without type interface field existing",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-29",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**LOW (not fixed):** `state.coverage.tools` map persisted but no consumer reads it yet",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-30",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "**LOW (not fixed):** `detectAppType` only considers primary root stack in multi-stack projects",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-31",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "All 4 ACs passed black-box verification",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-32",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "Beads sync failed (story file status line not found) — non-blocking",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-33",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "Container cleanup succeeded",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-34",
-      "story": "9-3-init-orchestrator-per-stack-iteration",
-      "description": "Observability check: VictoriaMetrics stack was down at start, `codeharness stack start` reported shared stack already running (inconsistent)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-35",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Workaround:** Overwrote existing skeleton story file (had 3 ACs without verification tags) with full 6-AC story",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-36",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Risk:** AC4 (validator passes on multi-stage output) depends on dockerfile-validator.ts handling multiple FROM lines — may need validator updates",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-37",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Risk:** Tech spec says new `generateMultiStackDockerfile()` but epics say update existing function — story opts for backward-compat overload approach",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-38",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Observation:** All 6 ACs tagged cli-verifiable (unit tests and CLI commands only)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-39",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Positive finding:** Validator already handles multi-stage (multiple FROM lines) — no changes needed",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-40",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Branch coverage 91.17%:** vitest/istanbul artifact with else-if chains — statement/function/line at 100%",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-41",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**No exec-plan/proof docs created:** Story mentions docs/exec-plans/active/ but dev focused on code+tests only",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-42",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**File growth:** dockerfile-template.ts grew from 149 to 220 lines (under 300-line limit)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-43",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**HIGH (fixed):** Missing Showboat proof document — story claimed done but file didn't exist",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-44",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**HIGH (fixed):** Type inconsistency between DockerfileTemplateResult.stacks (required) and InitResult.dockerfile.stacks (optional)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-45",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**HIGH (fixed):** AGENTS.md stale — didn't reflect new StackDetection[] signature or 5 new helpers",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-46",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**MEDIUM (fixed):** Unknown stacks in multi-stage array produced malformed Dockerfile with no error",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-47",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**MEDIUM (fixed):** Hardcoded python3.12 path in runtimeCopyDirectives — breaks on version change",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-48",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**MEDIUM (fixed):** COPY . . copies entire monorepo into each build stage (wasteful, potential secret leak)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-49",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**MEDIUM (fixed):** No .dockerignore warning for multi-stage builds",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-50",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**LOW (not fixed):** stacks field naming collision between DockerfileTemplateResult.stacks and InitResult.stacks",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-51",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**LOW (not fixed):** Inconsistent non-root user strategy (node vs nobody)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-52",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Coverage:** 97.05% overall, all files above 80% floor. 3131 tests pass.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-53",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Time constraint:** Verification started but session time budget exhausted before verifier could complete",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-54",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**State:** Docker container running, verifier session spawned but still in progress",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-55",
-      "story": "9-4-multi-stage-dockerfile-generation",
-      "description": "**Story left at:** `verifying` — next session will pick it up as Tier C (verifying without proof)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-56",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Ambiguity in epic AC4:** Original epic says verify/env.ts uses `stacks.includes('nodejs')` but actual code calls `detectStack()` directly, not state-based. AC rewritten to reflect actual code path.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-57",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**ACs already satisfied:** AC2 (getStackLabel arrays) and AC3 (getProjectName multi-file) already implemented from story 9-3. Kept as verify-not-reimplement ACs.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-58",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**File size risk:** `docs-scaffold.ts` at 229/300 lines, adding multi-stack AGENTS.md generation brings it close to ceiling.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-59",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**No `readme.test.ts` found:** May need new test file for readme template changes.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-60",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**File size risk:** `docs-scaffold.ts` grew from 229 to ~295 lines — under 300 limit but very close. Future extraction needed.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-61",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**AC text mismatch:** Story AC mentions `npm ci` but template uses `npm install`. Tests match actual template behavior.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-62",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Test ripple effect:** ~15 existing verify-env tests needed updating to add `mockDetectStacks` calls due to detection method change.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-63",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**AC7 logic difference:** AC specifies `state.stacks?.[0]` but implementation uses `state.stacks?.includes('nodejs')` which is more correct (checks anywhere in array).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-64",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**HIGH (fixed):** Single-element `StackDetection[]` bypassed single-stack path — direct callers of `generateAgentsMdContent` got wrong format.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-65",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**HIGH (fixed):** Empty `StackDetection[]` produced degenerate AGENTS.md with no stack info.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-66",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**MEDIUM (fixed):** `getInstallCommand('rust')` returned `cargo build` instead of install command.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-67",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**MEDIUM (fixed):** Zero test coverage for `scaffoldDocs` with `stacks` option (AC5 gap). Added 2 integration tests.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-68",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**LOW (not fixed):** Duplicated stack-to-label mapping between `getStackLabel()` and `stackDisplayName()`.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-69",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**LOW (not fixed):** `verify-env.test.ts` still imports/mocks stale `detectStack` (singular).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-70",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Coverage:** 97.05% overall, all files above 80% floor. 3153 tests pass.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-71",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Time constraint:** Verification not started — session time budget exhausted (27/30 min used, <3 min remaining)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-72",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Story left at:** `verifying` — next session will pick it up as Tier C (verifying without proof)",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-73",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Port conflict:** Shared observability stack was running on ports 8428/9428/16686. Harness-specific docker-compose tried to bind same ports. Required `docker compose -f docker-compose.harness.yml down` to clean up conflicting containers.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-74",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Proof parser gap:** AC5 cross-referenced AC1's evidence without its own bash/output code blocks. `codeharness verify` reported 7/8 ACs. Fixed by adding a grep command to AC5 section.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-75",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Beads sync failure:** `codeharness sync` failed with `spawnSync bd ENOENT` — beads CLI not installed. Chronic issue across all sessions.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-76",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**All 8 ACs passed** black-box verification on first attempt.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-77",
-      "story": "9-5-multi-stack-docs-remaining-consumers",
-      "description": "**Epic 9 completed:** All 5 stories done. Retrospective written. Sprint is ALL_DONE (39 stories, 11 epics).",
+      "story": "10-1-stackprovider-interface-and-registry",
+      "description": "**Test results:** 30 new tests pass, 79 existing stack-detect tests pass (backward compat confirmed).",
       "source": "retro",
       "resolved": false
     }

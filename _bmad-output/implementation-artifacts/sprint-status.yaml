@@ -97,3 +97,58 @@ development_status:
   9-3-init-orchestrator-per-stack-iteration: done
   9-4-multi-stage-dockerfile-generation: done
   9-5-multi-stack-docs-remaining-consumers: done
+
+  # ═══════════════════════════════════════════════════
+  # Architecture v3 Migration
+  # ═══════════════════════════════════════════════════
+
+  # Epic 10: Stack Provider Pattern
+  epic-10: backlog
+  epic-10-retrospective: optional
+  10-1-stackprovider-interface-and-registry: done
+  10-2-nodejs-provider: backlog
+  10-3-python-provider: backlog
+  10-4-rust-provider: backlog
+  10-5-migrate-consumers-to-stackprovider: backlog
+
+  # Epic 11: Unified State
+  epic-11: backlog
+  epic-11-retrospective: optional
+  11-1-unified-sprintstate-schema-versioning: backlog
+  11-2-sprint-status-yaml-derived-view: backlog
+  11-3-state-reconciliation-on-session-start: backlog
+
+  # Epic 12: lib/ Restructuring
+  epic-12: backlog
+  epic-12-retrospective: optional
+  12-1-split-coverage-ts-domain-subdirectory: backlog
+  12-2-split-docker-otlp-beads-dochealth: backlog
+  12-3-move-status-logic-to-module: backlog
+  12-4-shared-test-utilities-fixtures: backlog
+
+  # Epic 13: Agent Abstraction
+  epic-13: backlog
+  epic-13-retrospective: optional
+  13-1-agentdriver-interface-and-types: backlog
+  13-2-ralph-driver-implementation: backlog
+  13-3-migrate-run-ts-to-agentdriver: backlog
+
+  # Epic 14: Process & Infrastructure Fixes
+  epic-14: backlog
+  epic-14-retrospective: optional
+  14-1-retro-to-sprint-pipeline-epic-td: backlog
+  14-2-tech-debt-gate-story-selection: backlog
+  14-3-docker-precheck-orphan-cleanup: backlog
+  14-4-observability-backend-choice: backlog
+  14-5-stack-aware-verify-dockerfile: backlog
+  14-6-subagent-status-ownership-time-budget: backlog
+  14-7-fix-beads-flags-ralph-tracking-proof-docs: backlog
+
+  # Epic 15: Enforcement
+  epic-15: backlog
+  epic-15-retrospective: optional
+  15-1-ci-file-size-gate: backlog
+  15-2-eslint-no-empty-catch-boundary-tests: backlog
+  15-3-template-migration-static-files: backlog
+  15-4-fix-ts-compilation-errors: backlog
+  15-5-lint-rule-bare-exception-swallowing: backlog

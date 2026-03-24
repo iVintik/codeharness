@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { Command } from 'commander';
 
 // Mock the coverage library module
-vi.mock('../../lib/coverage.js', () => ({
+vi.mock('../../lib/coverage/index.js', () => ({
   detectCoverageTool: vi.fn(),
   runCoverage: vi.fn(),
   checkOnlyCoverage: vi.fn(),
@@ -31,7 +31,7 @@ import {
   evaluateCoverage,
   updateCoverageState,
   printCoverageOutput,
-} from '../../lib/coverage.js';
+} from '../../lib/coverage/index.js';
 import { ok, fail, info, jsonOutput } from '../../lib/output.js';
 
 let testDir: string;

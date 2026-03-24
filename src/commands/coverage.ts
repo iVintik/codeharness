@@ -8,7 +8,7 @@ import {
   updateCoverageState,
   printCoverageOutput,
   checkPerFileCoverage,
-} from '../lib/coverage.js';
+} from '../lib/coverage/index.js';
 
 export function registerCoverageCommand(program: Command): void {
   program

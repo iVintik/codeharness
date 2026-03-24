@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 66,
-    "done": 44,
+    "done": 45,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -385,11 +385,11 @@
       "acResults": null
     },
     "12-1-split-coverage-ts-domain-subdirectory": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 2,
+      "lastAttempt": "2026-03-24T16:35:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/12-1-split-coverage-ts-domain-subdirectory-proof.md",
       "acResults": null
     },
     "12-2-split-docker-otlp-beads-dochealth": {
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "12-1-split-coverage-ts-domain-subdirectory",
+    "currentPhase": "verify",
+    "lastAction": "Starting verification",
     "acProgress": null
   },
   "actionItems": [

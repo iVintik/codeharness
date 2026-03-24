@@ -12,7 +12,7 @@ vi.mock('../../observability/index.js', () => ({
   validateRuntime: vi.fn(),
 }));
 
-vi.mock('../../../lib/coverage.js', () => ({
+vi.mock('../../../lib/coverage/index.js', () => ({
   checkOnlyCoverage: vi.fn(),
 }));
 
@@ -30,7 +30,7 @@ vi.mock('../../infra/index.js', () => ({
 
 import { existsSync, readdirSync } from 'node:fs';
 import { analyze, validateRuntime } from '../../observability/index.js';
-import { checkOnlyCoverage } from '../../../lib/coverage.js';
+import { checkOnlyCoverage } from '../../../lib/coverage/index.js';
 import { scanDocHealth } from '../../../lib/doc-health.js';
 import { parseProof } from '../../verify/index.js';
 import { validateDockerfile } from '../../infra/index.js';

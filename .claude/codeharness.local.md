@@ -9,7 +9,7 @@ enforcement:
 coverage:
   target: 90
   baseline: 0
-  current: 96.82
+  current: 97.09
 session_flags:
   logs_queried: false
   tests_passed: true
@@ -140,6 +140,8 @@ verification_log:
     2026-03-24T11:31:29.378Z"
   - "11-3-state-reconciliation-on-session-start: pass at
     2026-03-24T11:52:39.225Z"
+  - "12-1-split-coverage-ts-domain-subdirectory: pass at
+    2026-03-24T12:35:48.281Z"
 verify_env_dist_hash: 903f1c537bf105c882bb19e04428cfaf362d837fb003c550a7b2ac84f311d430
 tests_passed: true
 coverage_met: true
@@ -147,6 +149,37 @@ verification_run: true
 stacks:
   - nodejs
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

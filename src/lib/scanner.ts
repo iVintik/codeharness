@@ -13,7 +13,7 @@ import {
 } from 'node:fs';
 import { join, relative } from 'node:path';
 import { findModules, isDocStale } from './doc-health.js';
-import { detectCoverageTool, parseCoverageReport } from './coverage.js';
+import { detectCoverageTool, parseCoverageReport } from './coverage/index.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

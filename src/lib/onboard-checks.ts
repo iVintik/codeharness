@@ -14,7 +14,7 @@ import { buildGapId, findExistingByGapId } from './beads.js';
 import type { BeadsIssue } from './beads.js';
 import type { OnboardingStory } from './epic-generator.js';
 import { readSprintStatusFromState } from '../modules/sprint/index.js';
-import { checkPerFileCoverage } from './coverage.js';
+import { checkPerFileCoverage } from './coverage/index.js';
 import { isStackRunning } from './docker.js';
 
 // ─── Precondition Checks ────────────────────────────────────────────────────

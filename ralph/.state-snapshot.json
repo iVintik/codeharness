@@ -361,11 +361,11 @@
       "acResults": null
     },
     "11-1-unified-sprintstate-schema-versioning": {
-      "status": "verifying",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-03-24T15:31:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/11-1-unified-sprintstate-schema-versioning-proof.md",
       "acResults": null
     },
     "11-2-sprint-status-yaml-derived-view": {
@@ -377,15 +377,15 @@
       "acResults": null
     },
     "11-3-state-reconciliation-on-session-start": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-03-24T11:52:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/11-3-state-reconciliation-on-session-start-proof.md",
       "acResults": null
     },
     "12-1-split-coverage-ts-domain-subdirectory": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

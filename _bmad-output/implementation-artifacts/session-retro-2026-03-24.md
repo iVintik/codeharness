@@ -1075,3 +1075,172 @@ All items from sessions 8-17 backlog remain open: 15-2/15-5 lint rules, StackDet
 - Pipeline throughput: degraded in sessions 16-19 due to timeouts and state corruption
 - Primary bottleneck shifted: from retro file size (sessions 16-17) to state file corruption (sessions 18-19)
 - Total stories completed today: 6 across 12 sessions (0.5 stories/session average, dragged down by timeouts and recovery work in later sessions)
+
+---
+
+# Session Retrospective — 2026-03-24 (Sessions 20-21)
+
+**Sprint:** Operational Excellence (Architecture v3 Migration phase)
+**Sessions:** 20 (11-1 verification + 11-2 full pipeline) and 21 (11-3 create-story + dev-story + epic 11 close)
+**Session start:** ~14:12 UTC (ralph loop iterations 3-6)
+**Appended:** 2026-03-24T15:45Z
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages Completed |
+|-------|------|---------|---------------------------|
+| 11-1-unified-sprintstate-schema-versioning | Epic 11 (Unified State) | done (committed `db73c24`, verified `2817127`) | verification completed, committed |
+| 11-2-sprint-status-yaml-derived-view | Epic 11 (Unified State) | done (committed `503648c`) | create-story, dev-story, code-review, verification all completed |
+| 11-3-state-reconciliation-on-session-start | Epic 11 (Unified State) | done (per sprint-status.yaml) | create-story, dev-story completed |
+| Epic 11 complete | Epic 11 (Unified State) | done (committed `f830795`) | epic marked done |
+
+**Key events:**
+- Ralph loop iterations 3-6 ran between ~14:12Z and ~15:45Z (current).
+- **Iteration 3 (~14:12-14:38Z):** Completed 11-1 code review and committed as `db73c24`. Story moved to `review` -> committed.
+- **Iteration 4 (~14:38-15:00Z):** Verified 11-1 (committed `2817127` marking it verified and done). Also completed 11-2 full pipeline (create-story, dev-story, code-review) and committed as `503648c`.
+- **Iteration 5 (~15:00-15:28Z):** Completed 11-2 verification. Started 11-3 (state reconciliation on session start) with create-story and dev-story stages. The story creation agent expanded the epic's 1 AC into 12 ACs.
+- **Iteration 6 (~15:28Z-ongoing):** Continuing 11-3 pipeline. Sprint-status.yaml shows 11-3 as done and Epic 11 as complete (`f830795`).
+- Iterations 1-2 (sessions 16-17, ~13:11-14:12Z) both timed out. These were covered in the prior retro entry.
+
+**Net progress:** Epic 11 fully completed -- all 3 stories done (11-1, 11-2, 11-3). Sprint at 45/66 done (per ralph status.json, though sprint-state.json may show different counts due to state reconciliation).
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| MEDIUM | 11-1 | `parseStoryRetriesRecord` accepted negative retry counts | Yes (prior session, confirmed in this session's verification) |
+| MEDIUM | 11-1 | `parseFlaggedStoriesList` allowed duplicate entries | Yes (prior session, confirmed in this session's verification) |
+| RISK | 11-3 | `parseStoryKey()` returns `[Infinity, Infinity]` for non-matching keys -- edge case in sprint-state ordering | Flagged, status unknown |
+| RISK | 11-3 | `run.ts` reads `ralph/.flagged_stories` directly (line 93-101), bypassing `sprint-state.json` flagged field -- must update before file deletion | Flagged during create-story |
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **Readonly mutation workaround in 11-3.** Uses `JSON.parse(JSON.stringify(...))` deep clone + type assertions to mutate SprintState clone. Necessary because SprintState is `Readonly<>` but reconciliation needs mutable access.
+2. **YAML always regenerated even in no-op case (11-3).** Reconciliation regenerates sprint-status.yaml even when no changes are detected. Cheap but wasteful -- could be optimized to skip if content unchanged.
+3. **`as unknown as SprintState` casts in getSprintState() v2 branch (11-1, carried forward).** Bypasses type safety. Would be safer with a parse/validate function.
+4. **`retriesPath()` and `flaggedPath()` exported dead code (11-1, carried forward).** Deferred to 11-3 cleanup, should now be handled.
+5. **Orphan file deletion in 11-3 is one-way.** ACs 3-4 require deleting `.story_retries` and `.flagged_stories` AFTER successful state write. If deletion happens before write, data loss is possible.
+
+### Code Quality Concerns
+
+1. **Pre-existing ~60 type errors in unrelated test files (reported by 11-3 dev agent).** Down from ~87-100 in sessions 16-19, but still significant noise. These are not introduced by this session's stories.
+2. **`writeStateAtomic()` double YAML generation risk (11-3).** Since `writeStateAtomic()` already calls `writeSprintStatusYaml()`, `reconcileState()` calling both could cause double YAML generation. The dev agent flagged this.
+3. **`retry-state.ts` has `@deprecated` comments referencing story 11-3.** These legacy path helpers should be cleaned up as part of 11-3 implementation.
+
+### Verification Gaps
+
+- **11-1 formally verified and committed as `2817127`.** Clean verification.
+- **11-2 completed full pipeline including verification.** Committed as `503648c`.
+- **11-3 verification status unclear.** Sprint-status.yaml shows `done`, but the session issues log only records create-story and dev-story entries. No code-review or verification log entries for 11-3 were found in the session issues log. The story may have been fast-tracked or the review/verification may have happened within iteration 6 (still running).
+- **`ralph/.state-snapshot.json` still shows 11-1 at `verifying` and 11-3 at `backlog`.** The snapshot is stale -- it does not reflect the actual sprint-status.yaml which shows all of Epic 11 as done.
+
+### Tooling/Infrastructure Problems
+
+1. **Two timeouts in iterations 1-2 (already documented).** Both were caused by agents spending excessive time writing/reading the session retro file (now 1000+ lines).
+2. **State snapshot divergence.** `.state-snapshot.json` does not match `sprint-status.yaml`. The snapshot shows 44 done with 11-1 at `verifying` and 11-3 at `backlog`, but sprint-status.yaml shows all of Epic 11 complete. This indicates the snapshot was not updated after the later iterations completed their work.
+3. **`ralph/status.json` shows 45 done vs sprint-status.yaml showing 44 stories as done (epics 0-11).** Discrepancy in story counting between tracking systems.
+4. **Docker Desktop status still unknown.** Not tested in any Epic 11 story since all were `cli-verifiable`.
+
+---
+
+## 3. What Went Well
+
+- **Epic 11 fully completed.** All 3 stories (11-1, 11-2, 11-3) went from backlog/in-progress to done across sessions 14-21. The Unified SprintState Schema is now fully landed: v2 schema with versioning and migration (11-1), sprint-status.yaml as a derived view (11-2), and state reconciliation on session start (11-3).
+- **Two epics completed in a single day.** Epic 10 (Stack Provider Pattern, 5 stories) and Epic 11 (Unified State, 3 stories) both went from backlog to complete on 2026-03-24. That is 8 stories across approximately 14 active sessions.
+- **Pipeline recovered from timeout degradation.** After two timeouts in iterations 1-2, iterations 3-6 completed without timing out. The agents adapted by producing shorter outputs.
+- **11-2 completed the full pipeline in a single iteration pair.** Create-story, dev-story, code-review, and verification all ran to completion efficiently.
+- **Story creation agent expanded 11-3 from 1 AC to 12 ACs.** The pattern of expanding minimal epic specs into detailed story specs continues to work well.
+- **Code review bugs from 11-1 confirmed fixed during verification.** The negative retry count and duplicate flagged entry bugs were validated as resolved.
+
+---
+
+## 4. What Went Wrong
+
+- **11-3 verification evidence is thin.** Sprint-status.yaml shows 11-3 as done, but the session issues log only has create-story and dev-story entries. No code-review or verification entries exist for 11-3. The story may have been committed without formal review or verification, or the entries may have been overwritten by a later iteration.
+- **State file divergence persists.** Three different sources show different story counts and statuses: `sprint-state.json` (44 done in snapshot), `ralph/status.json` (45 done), `sprint-status.yaml` (Epic 11 complete = 44+3 stories done but counting differs due to epic-level entries). The state reconciliation story (11-3) is supposed to fix this, but the fix may not have been applied to the live state files yet.
+- **Session retro file is now 1000+ lines.** This continues to cause operational problems. The file grew significantly during today's sessions and is approaching unmanageable size for agents to read and synthesize.
+- **Two iterations lost to timeouts.** 60 minutes of wall clock time consumed with no story progress. Both were caused by retro-writing overhead on the large retro file.
+- **Pre-existing TS compilation errors still at ~60.** Story 15-4 remains in backlog for the 13th consecutive session.
+
+---
+
+## 5. Lessons Learned
+
+### Repeat
+
+- **Completing multiple epics in a single day.** The pipeline throughput, despite timeouts, delivered 8 stories across 2 epics. The key enablers: consistent story spec expansion, code review catching real bugs, and the proven provider pattern making implementation faster for each successive story.
+- **Story creation agent expanding minimal specs.** 11-3 went from 1 AC to 12 ACs. This pattern has been validated in every story since session 8.
+- **Iteration recovery after timeouts.** The agents adapted to the timeout problem by producing shorter outputs in later iterations, restoring throughput.
+
+### Avoid
+
+- **Unbounded retro file growth.** The retro file is now the primary cause of timeouts. It must be archived, split, or capped. This has been flagged since session 16-17 and is now a chronic operational problem.
+- **Committing stories without full pipeline evidence.** Story 11-3 appears to have been committed without session issues log entries for code-review or verification stages. The fast-track may have been justified (it is the last story in the epic), but it weakens the audit trail.
+- **Allowing state file divergence between tracking systems.** `sprint-state.json`, `.state-snapshot.json`, `ralph/status.json`, and `sprint-status.yaml` all show different views of sprint progress. Story 11-3 (state reconciliation) should address this, but the reconciliation itself needs to be verified.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Archive the session retro file.** Move sessions 8-17 content to `session-retro-2026-03-24-archive.md`. Keep only sessions 18+ in the main file. The 1000+ line file is causing agent timeouts and degrading throughput.
+2. **Reconcile state files.** Verify that `sprint-state.json`, `.state-snapshot.json`, and `sprint-status.yaml` all agree on story statuses. Epic 11 should show all 3 stories as done.
+3. **Verify 11-3 has proper verification evidence.** Check for a proof document in `verification/`. If none exists, either run a quick manual verification or document the gap.
+
+### Fix Soon (Next Session)
+
+1. **Start Epic 12 (Module Decomposition) or Epic 13 (AgentDriver).** Epic 11 is complete. The next work should be selected based on priority.
+2. **Fix `writeStateAtomic()` side-effect.** The YAML auto-generation side-effect is the root cause of repeated state corruption. Either make it conditional (skip in tests) or remove it entirely. This was escalated in sessions 18-19 and remains unfixed.
+3. **Investigate `parseStoryKey()` Infinity edge case.** Flagged during 11-3 create-story. Non-matching keys returning `[Infinity, Infinity]` could cause incorrect ordering in reconciliation.
+
+### Backlog (Escalated Priority)
+
+1. **Story 15-4: Fix pre-existing TS compilation errors.** ~60 errors, 13+ sessions unfixed. Chronic quality signal being ignored.
+2. **File locking for sprint-state.json.** Now that reconciliation runs on session start, concurrent access risk is higher.
+3. **Session retro file management automation.** Archival should be automatic, not manual. Either a retro agent post-step or a ralph hook.
+
+### Backlog (Carry Forward)
+
+All items from sessions 8-19 backlog remain open: 15-2/15-5 lint rules, StackDetection dedup, double detection in recoverCorruptedState, `_resetRegistry` export cleanup, readTextSafe catch branch, registry.ts 94.73% coverage, hasPythonDep normalization, TOML regex replacement, proof parser docs, installOtlp integration tests, comment-matching in dependency detection, CoverageToolName type fragmentation, dispatch maps explicit stack enumeration, ralph timeout report story tracking, `writeRetries`/`writeFlaggedStories` silent error swallowing, `as unknown as SprintState` casts.
+
+---
+
+## Cross-Session Summary (Sessions 8-21, 2026-03-24)
+
+### Stories completed today: 8
+- **10-1-stackprovider-interface-and-registry** -- done (session 8)
+- **10-2-nodejs-provider** -- done (session 9)
+- **10-3-python-provider** -- done (sessions 10-11)
+- **10-4-rust-provider** -- done (sessions 12-13)
+- **10-5-migrate-consumers-to-stackprovider** -- done (sessions 13-14)
+- **11-1-unified-sprintstate-schema-versioning** -- done (sessions 14-20, committed `db73c24`, verified `2817127`)
+- **11-2-sprint-status-yaml-derived-view** -- done (sessions 18-20, committed `503648c`)
+- **11-3-state-reconciliation-on-session-start** -- done (sessions 20-21)
+
+### Epics completed today: 2
+- **Epic 10: Stack Provider Pattern** -- done (all 5 stories)
+- **Epic 11: Unified SprintState Schema** -- done (all 3 stories, committed `f830795`)
+
+### Stories in progress: 0
+
+### Cumulative stats
+- Tests: 3098 -> 3397+ (299+ new tests confirmed through session 13, additional tests from 11-1/11-2/11-3 not yet confirmed)
+- Bugs caught by code review: 24+ across all sessions today
+- Bugs shipped: 0
+- Timeouts: 4+ across all ralph loops today
+- Tech debt items deferred: 20+ (growing -- includes carried forward items from all sessions)
+- Operational incidents: 3 (state file corruption x3 across sessions 14-19)
+
+### Sprint velocity
+- Epic 10: complete (5/5 stories, done in sessions 8-14)
+- Epic 11: complete (3/3 stories, done in sessions 14-21)
+- Pipeline throughput: ~0.6 stories/session average across 14 sessions (degraded from ~1.0 in sessions 8-13 due to timeouts and state corruption in later sessions)
+- Primary bottleneck: session retro file size causing timeouts, state file corruption requiring recovery
+- Remaining backlog: 22 stories across Epics 12-15

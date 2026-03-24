@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 66,
-    "done": 52,
+    "done": 53,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -433,7 +433,7 @@
       "acResults": null
     },
     "13-3-migrate-run-ts-to-agentdriver": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -561,10 +561,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "currentStory": "13-3-migrate-run-ts-to-agentdriver",
+    "currentPhase": "verify",
+    "lastAction": "Starting unit-testable verification",
+    "acProgress": "13/13"
   },
   "actionItems": [
     {

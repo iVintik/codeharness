@@ -6,6 +6,7 @@
  */
 
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AgentDriver, SpawnOpts, AgentProcess, AgentEvent } from './types.js';
@@ -171,27 +172,57 @@ export function resolveRalphPath(): string {
   return join(root, 'ralph', 'ralph.sh');
 }
 
+// --- RalphConfig for constructor-time configuration ---
+
+/**
+ * Ralph-specific configuration passed at construction time.
+ * Keeps SpawnOpts agent-agnostic while allowing RalphDriver
+ * to accept all ralph.sh flags.
+ */
+export interface RalphConfig {
+  pluginDir: string;
+  maxIterations?: number;
+  iterationTimeout?: number;
+  calls?: number;
+  quiet?: boolean;
+  maxStoryRetries?: number;
+  reset?: boolean;
+}
+
 // --- RalphDriver class ---
 
 export class RalphDriver implements AgentDriver {
   readonly name = 'ralph';
+  private readonly config: RalphConfig;
+
+  constructor(config?: RalphConfig) {
+    this.config = config ?? { pluginDir: join(process.cwd(), '.claude') };
+  }
 
   spawn(opts: SpawnOpts): AgentProcess {
+    const ralphPath = resolveRalphPath();
+    if (!existsSync(ralphPath)) {
+      throw new Error(`Ralph loop not found at ${ralphPath} — reinstall codeharness`);
+    }
+
     const args = buildSpawnArgs({
-      ralphPath: resolveRalphPath(),
-      pluginDir: join(opts.workDir, '.claude'),
+      ralphPath,
+      pluginDir: this.config.pluginDir,
       promptFile: opts.prompt,
-      maxIterations: 50,
+      maxIterations: this.config.maxIterations ?? 50,
       timeout: opts.timeout,
-      iterationTimeout: 30,
-      calls: 100,
-      quiet: false,
+      iterationTimeout: this.config.iterationTimeout ?? 30,
+      calls: this.config.calls ?? 100,
+      quiet: this.config.quiet ?? false,
+      maxStoryRetries: this.config.maxStoryRetries,
+      reset: this.config.reset,
     });
 
+    const quiet = this.config.quiet ?? false;
     const child = spawn('bash', args, {
       cwd: opts.workDir,
       env: { ...process.env, ...opts.env },
-      stdio: ['inherit', 'pipe', 'pipe'],
+      stdio: quiet ? 'ignore' : ['inherit', 'pipe', 'pipe'],
     });
 
     return child as unknown as AgentProcess;

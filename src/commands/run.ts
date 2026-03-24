@@ -1,16 +1,16 @@
-import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { Command } from 'commander';
 import { fail, info, jsonOutput } from '../lib/output.js';
 import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
 import { generateRalphPrompt } from '../lib/agents/ralph-prompt.js';
 import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
 import { getSprintState } from '../modules/sprint/index.js';
-import { formatElapsed, mapSprintStatuses, countStories, createLineProcessor } from '../lib/run-helpers.js';
-import { buildSpawnArgs, resolveRalphPath } from '../lib/agents/ralph.js';
-
-// resolveRalphPath moved to src/lib/agents/ralph.ts (story 13-2)
+import { formatElapsed, mapSprintStatuses, countStories } from '../lib/run-helpers.js';
+import { getDriver } from '../lib/agents/index.js';
+import type { AgentDriver, AgentEvent } from '../lib/agents/types.js';
+import type { RendererHandle } from '../lib/ink-renderer.js';
 
 /** Resolves the plugin directory path (.claude/ in project root). */
 export function resolvePluginDir(): string {
@@ -19,7 +19,55 @@ export function resolvePluginDir(): string {
 
 // Re-export helpers that tests import from run.ts
 export { countStories } from '../lib/run-helpers.js';
-export { buildSpawnArgs, resolveRalphPath } from '../lib/agents/ralph.js';
+
+/** Dispatches an AgentEvent to the appropriate renderer method. */
+function handleAgentEvent(
+  event: AgentEvent,
+  rendererHandle: RendererHandle,
+  state: { currentIterationCount: number },
+): void {
+  switch (event.type) {
+    case 'tool-start':
+    case 'tool-complete':
+    case 'text':
+    case 'result':
+    case 'retry':
+      // These AgentEvent types match StreamEvent shapes — pass through to renderer
+      rendererHandle.update(event as Parameters<RendererHandle['update']>[0]);
+      break;
+    case 'story-complete':
+      rendererHandle.addMessage({ type: 'ok', key: event.key, message: event.details });
+      break;
+    case 'story-failed':
+      rendererHandle.addMessage({ type: 'fail', key: event.key, message: event.reason });
+      break;
+    case 'iteration':
+      state.currentIterationCount = event.count;
+      break;
+  }
+}
+
+/** Line splitter: buffers partial lines, calls driver.parseOutput(), dispatches via handleAgentEvent(). */
+function createDriverLineHandler(
+  driver: AgentDriver,
+  rendererHandle: RendererHandle,
+  state: { currentIterationCount: number },
+): (data: Buffer) => void {
+  let partial = '';
+  const decoder = new StringDecoder('utf8');
+  return (data: Buffer): void => {
+    const text = partial + decoder.write(data);
+    const parts = text.split('\n');
+    partial = parts.pop() ?? '';
+    for (const line of parts) {
+      if (line.trim().length === 0) continue;
+      const event = driver.parseOutput(line);
+      if (event) {
+        handleAgentEvent(event, rendererHandle, state);
+      }
+    }
+  };
+}
 
 export function registerRunCommand(program: Command): void {
   program
@@ -37,15 +85,7 @@ export function registerRunCommand(program: Command): void {
       const isJson = !!globalOpts.json;
       const outputOpts = { json: isJson };
 
-      // 1. Resolve Ralph script path
-      const ralphPath = resolveRalphPath();
-      if (!existsSync(ralphPath)) {
-        fail('Ralph loop not found — reinstall codeharness', outputOpts);
-        process.exitCode = 1;
-        return;
-      }
-
-      // 2. Resolve plugin directory
+      // 1. Resolve plugin directory
       const pluginDir = resolvePluginDir();
       if (!existsSync(pluginDir)) {
         fail('Plugin directory not found — run codeharness init first', outputOpts);
@@ -53,7 +93,7 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      // 2b. Reconcile state (best-effort — failures warn but don't abort)
+      // 1b. Reconcile state (best-effort — failures warn but don't abort)
       const reconciliation = reconcileState();
       if (reconciliation.success && reconciliation.data.corrections.length > 0) {
         for (const correction of reconciliation.data.corrections) {
@@ -63,7 +103,7 @@ export function registerRunCommand(program: Command): void {
         info(`[WARN] State reconciliation failed: ${reconciliation.error}`, outputOpts);
       }
 
-      // 3. Read sprint status for story count (from sprint-state.json)
+      // 2. Read sprint status for story count (from sprint-state.json)
       const projectDir = process.cwd();
       const sprintStatusPath = join(projectDir, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml');
       const statuses = readSprintStatusFromState();
@@ -77,7 +117,7 @@ export function registerRunCommand(program: Command): void {
 
       info(`Starting autonomous execution — ${counts.ready} ready, ${counts.inProgress} in progress, ${counts.verified} verified, ${counts.done}/${counts.total} done`, outputOpts);
 
-      // 4. Parse and validate numeric options
+      // 3. Parse and validate numeric options
       const maxIterations = parseInt(options.maxIterations, 10);
       const timeout = parseInt(options.timeout, 10);
       const iterationTimeout = parseInt(options.iterationTimeout, 10);
@@ -90,10 +130,8 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      // 5. Generate prompt file (with flagged stories context if available)
+      // 4. Generate prompt file (with flagged stories context if available)
       const promptFile = join(projectDir, 'ralph', '.harness-prompt.md');
-      // Read flagged stories from sprint-state.json (reconcileState may have
-      // already deleted the orphan .flagged_stories file, so read from state)
       let flaggedStories: string[] | undefined;
       const flaggedState = getSprintState();
       if (flaggedState.success && flaggedState.data.flagged?.length > 0) {
@@ -114,33 +152,29 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      // 6. Build spawn arguments
-      const args = buildSpawnArgs({
-        ralphPath,
+      // 5. Create driver with ralph-specific configuration
+      const quiet = options.quiet;
+      const driver = getDriver('ralph', {
         pluginDir,
-        promptFile,
         maxIterations,
-        timeout,
         iterationTimeout,
         calls,
-        quiet: options.quiet,
+        quiet,
         maxStoryRetries,
         reset: options.reset,
       });
 
-      // 7. Set environment — stream-json is always the output format
-      const env = { ...process.env };
+      // 6. Set environment — stream-json is always the output format
+      const env: Record<string, string> = {};
       if (isJson) {
         env.CLAUDE_OUTPUT_FORMAT = 'stream-json';
       }
 
-      // 8. Spawn Ralph — pipe stdout/stderr through stream parser → Ink renderer
-      // Declare renderer handle outside try so cleanup is always reachable
-      const quiet = options.quiet;
+      // 7. Spawn agent — pipe stdout/stderr through driver.parseOutput() → Ink renderer
       const rendererHandle = startRenderer({ quiet });
       let sprintStateInterval: ReturnType<typeof setInterval> | null = null;
       const sessionStartTime = Date.now();
-      let currentIterationCount = 0;
+      const eventState = { currentIterationCount: 0 };
 
       try {
         // Read initial sprint state for the renderer header
@@ -153,7 +187,7 @@ export function registerRunCommand(program: Command): void {
             done: s.sprint.done,
             total: s.sprint.total,
             elapsed: formatElapsed(Date.now() - sessionStartTime),
-            iterationCount: currentIterationCount,
+            iterationCount: eventState.currentIterationCount,
           };
           rendererHandle.updateSprintState(sprintInfo);
         }
@@ -165,24 +199,18 @@ export function registerRunCommand(program: Command): void {
           rendererHandle.updateStories(initialStories);
         }
 
-        const child = spawn('bash', args, {
-          stdio: quiet ? 'ignore' : ['inherit', 'pipe', 'pipe'],
-          cwd: projectDir,
+        const child = driver.spawn({
+          storyKey: '',
+          prompt: promptFile,
+          workDir: projectDir,
+          timeout,
           env,
         });
 
         if (!quiet && child.stdout && child.stderr) {
-          // Wire up stream parser → Ink renderer via extracted createLineProcessor.
-          const stdoutHandler = createLineProcessor({
-            onEvent: (event) => rendererHandle.update(event),
-          });
-          const stderrHandler = createLineProcessor({
-            onEvent: (event) => rendererHandle.update(event),
-            onMessage: (msg) => rendererHandle.addMessage(msg),
-            onIteration: (iteration) => { currentIterationCount = iteration; },
-          }, { parseRalph: true });
-          child.stdout.on('data', stdoutHandler);
-          child.stderr.on('data', stderrHandler);
+          const lineHandler = createDriverLineHandler(driver, rendererHandle, eventState);
+          child.stdout.on('data', lineHandler);
+          child.stderr.on('data', lineHandler);
 
           // Periodically refresh sprint state for the header display
           sprintStateInterval = setInterval(() => {
@@ -196,11 +224,11 @@ export function registerRunCommand(program: Command): void {
                   done: s.sprint.done,
                   total: s.sprint.total,
                   elapsed: formatElapsed(Date.now() - sessionStartTime),
-                  iterationCount: currentIterationCount,
+                  iterationCount: eventState.currentIterationCount,
                 };
                 rendererHandle.updateSprintState(sprintInfo);
               }
-              // Refresh per-story statuses (AC #7)
+              // Refresh per-story statuses
               const currentStatuses = readSprintStatusFromState();
               const storyEntries = mapSprintStatuses(currentStatuses);
               rendererHandle.updateStories(storyEntries);
@@ -223,51 +251,28 @@ export function registerRunCommand(program: Command): void {
           });
         });
 
-        // 9. Handle JSON output on exit
+        // 8. Handle JSON output on exit
         if (isJson) {
-          const statusFile = join(projectDir, 'ralph', 'status.json');
+          const statusFile = join(projectDir, driver.getStatusFile());
+          let statusData: Record<string, unknown> | null = null;
+          let exitReason = 'status_file_missing';
           if (existsSync(statusFile)) {
             try {
-              const statusData = JSON.parse(readFileSync(statusFile, 'utf-8'));
-              const finalStatuses = readSprintStatusFromState();
-              const finalCounts = countStories(finalStatuses);
-              jsonOutput({
-                status: statusData.status ?? (exitCode === 0 ? 'completed' : 'stopped'),
-                iterations: statusData.loop_count ?? 0,
-                storiesCompleted: finalCounts.done,
-                storiesTotal: finalCounts.total,
-                storiesRemaining: finalCounts.total - finalCounts.done,
-                elapsedSeconds: statusData.elapsed_seconds ?? 0,
-                flaggedStories: statusData.flagged_stories ?? [],
-                exitReason: statusData.exit_reason ?? '',
-              });
-            } catch {
-              jsonOutput({
-                status: exitCode === 0 ? 'completed' : 'stopped',
-                iterations: 0,
-                storiesCompleted: 0,
-                storiesTotal: counts.total,
-                storiesRemaining: counts.total,
-                elapsedSeconds: 0,
-                flaggedStories: [],
-                exitReason: 'status_file_unreadable',
-              });
-            }
-          } else {
-            // status.json not created (Ralph crashed early or never started)
-            const finalStatuses = readSprintStatusFromState();
-            const finalCounts = countStories(finalStatuses);
-            jsonOutput({
-              status: exitCode === 0 ? 'completed' : 'stopped',
-              iterations: 0,
-              storiesCompleted: finalCounts.done,
-              storiesTotal: finalCounts.total,
-              storiesRemaining: finalCounts.total - finalCounts.done,
-              elapsedSeconds: 0,
-              flaggedStories: [],
-              exitReason: 'status_file_missing',
-            });
+              statusData = JSON.parse(readFileSync(statusFile, 'utf-8'));
+              exitReason = '';
+            } catch { exitReason = 'status_file_unreadable'; }
           }
+          const fc = statusData ? countStories(readSprintStatusFromState()) : counts;
+          jsonOutput({
+            status: statusData?.status ?? (exitCode === 0 ? 'completed' : 'stopped'),
+            iterations: (statusData?.loop_count as number) ?? 0,
+            storiesCompleted: statusData ? fc.done : 0,
+            storiesTotal: fc.total,
+            storiesRemaining: statusData ? fc.total - fc.done : fc.total,
+            elapsedSeconds: (statusData?.elapsed_seconds as number) ?? 0,
+            flaggedStories: (statusData?.flagged_stories as string[]) ?? [],
+            exitReason: (statusData?.exit_reason as string) ?? exitReason,
+          });
         }
 
         process.exitCode = exitCode;
@@ -275,7 +280,7 @@ export function registerRunCommand(program: Command): void {
         if (sprintStateInterval) clearInterval(sprintStateInterval);
         rendererHandle.cleanup();
         const message = err instanceof Error ? err.message : String(err);
-        fail(`Failed to start Ralph: ${message}`, outputOpts);
+        fail(`Failed to start agent: ${message}`, outputOpts);
         process.exitCode = 1;
       }
     });

@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 67,
-    "done": 42,
+    "done": 43,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -345,7 +345,7 @@
       "acResults": null
     },
     "10-4-rust-provider": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -353,8 +353,8 @@
       "acResults": null
     },
     "10-5-migrate-consumers-to-stackprovider": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "verifying",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -548,7 +548,7 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 1,
+    "iteration": 2,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -618,6 +618,111 @@
       "id": "migrated-9",
       "story": "10-4-rust-provider",
       "description": "**Coverage gap:** No integration test for `installOtlp` success path (requires `cargo` binary).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-10",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**Risk:** AC17 (`verify-prompt.ts`) compares `AppType` not `StackName` — could false-positive boundary tests.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**Risk:** AC16 (`teardown.ts`) accesses state field not local variable — migration needs state shape understanding.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**Risk:** `detectAppType()` export chain may break if `stack-detect.ts` deleted before re-export verified.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**Observation:** `otlp.ts` is heaviest migration target (~10 stack conditionals). `scanner.ts` had zero stack conditionals.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**Coverage tool name mismatch (tech debt):** `StackProvider.getCoverageTool()` returns `CoverageToolName` values (`'tarpaulin'`, `'coverage-py'`) but `HarnessState.coverage.tool` uses different strings (`'cargo-tarpaulin'`, `'coverage.py'`). Docs-scaffold had to use hardcoded lookup instead of provider delegation.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**RustProvider.getBuildCommands() duplication:** Returns `['cargo build', 'cargo test']` from `getBuildCommands()` and `['cargo test']` from `getTestCommands()`, causing `cargo test` to appear twice in generated AGENTS.md. Pre-existing provider design issue.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**AGENTS.md format change:** Old hardcoded Rust section had inline comments and `cargo tarpaulin` line. Provider-based output omits these. Minor behavioral change, test updated.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**verify-prompt.ts intentional exception:** Uses `projectType === 'nodejs'` (`PromptProjectType`, not `StackName`). Documented in boundary test's `ALLOWED_EXCEPTIONS` per AC17.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**teardown.ts uses `.includes('nodejs')`:** String literal reference to stack name outside `src/lib/stacks/`, but acceptable per AC16 (array membership test allowed).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**MEDIUM (fixed):** Unused import `_detectStack` in `src/lib/stacks/index.ts` — imported but never referenced.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**MEDIUM (fixed):** Stale comment in `src/lib/stacks/types.ts` — referenced deleted `stack-detect.ts`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**LOW (not fixed):** `coverage.ts` uses local dispatch map instead of delegating to `provider.detectCoverageConfig()` — consumer `CoverageToolInfo` type differs from provider type. Future refactoring opportunity.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**LOW (not fixed):** Multiple files use stack name strings as object keys in dispatch maps. Maintenance burden when adding 4th stack.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**LOW (not fixed):** `verify/env.ts` `STACK_TO_PROJECT_TYPE` map is redundant given StackName/ProjectType value overlap.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "10-5-migrate-consumers-to-stackprovider",
+      "description": "**Architecture concern:** `CoverageToolInfo` exists in two incompatible forms (consumer vs provider). Pre-existing, not introduced by this story.",
       "source": "retro",
       "resolved": false
     }

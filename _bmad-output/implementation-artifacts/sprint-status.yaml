@@ -103,8 +103,8 @@ development_status:
   # ═══════════════════════════════════════════════════
 
   # Epic 10: Stack Provider Pattern
-  epic-10: backlog
-  epic-10-retrospective: optional
+  epic-10: done
+  epic-10-retrospective: done
   10-1-stackprovider-interface-and-registry: done
   10-2-nodejs-provider: done
   10-3-python-provider: done

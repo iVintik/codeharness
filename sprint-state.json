@@ -552,10 +552,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": "17/17"
+    "currentStory": "epic-10",
+    "currentPhase": "verify",
+    "lastAction": "Running Epic 10 retrospective",
+    "acProgress": null
   },
   "actionItems": [
     {

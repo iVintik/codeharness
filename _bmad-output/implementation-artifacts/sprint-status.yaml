@@ -89,7 +89,7 @@ development_status:
   11-3-state-reconciliation-on-session-start: done
 
   # Epic 12
-  epic-12: in-progress
+  epic-12: done
   12-1-split-coverage-ts-domain-subdirectory: done
   12-2-split-docker-otlp-beads-dochealth: done
   12-3-move-status-logic-to-module: done

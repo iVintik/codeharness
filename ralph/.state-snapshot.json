@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 66,
-    "done": 45,
+    "done": 51,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -409,7 +409,7 @@
       "acResults": null
     },
     "12-4-shared-test-utilities-fixtures": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -417,7 +417,7 @@
       "acResults": null
     },
     "13-1-agentdriver-interface-and-types": {
-      "status": "backlog",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "13-1-agentdriver-interface-and-types",
+    "currentPhase": "review",
+    "lastAction": "Starting code review",
     "acProgress": null
   },
   "actionItems": [

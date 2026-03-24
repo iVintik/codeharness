@@ -156,4 +156,11 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | __tests__/fixtures/state-builders.ts | Builder factories for SprintStateV2 and related test data | `buildSprintState`, `buildStoryEntry`, `buildEpicState`, `buildActionItem`, `buildSprintStateWithStory` |
 | __tests__/fixtures/mock-factories.ts | Mock factory functions for commonly mocked modules (fs, child_process, docker, state) | `createFsMock`, `createChildProcessMock`, `createDockerMock`, `createStateMock`, `createSprintStateMock` |
 
-**Total: 48 library files + 4 shared test utility files across 20 categories (includes 4 domain subdirectories: docker/, observability/, sync/, doc-health/).**
+## Agent Abstraction (src/lib/agents/)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| agents/types.ts | AgentDriver interface and related types — SpawnOpts, AgentProcess, AgentEvent discriminated union | `AgentDriver`, `SpawnOpts`, `AgentProcess`, `AgentEvent` |
+| agents/index.ts | Barrel re-exports for agents subsystem; placeholder for future driver registry | all public API from types.ts |
+
+**Total: 50 library files + 4 shared test utility files across 21 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**

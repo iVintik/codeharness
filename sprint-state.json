@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 66,
-    "done": 51,
+    "done": 52,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -417,7 +417,7 @@
       "acResults": null
     },
     "13-1-agentdriver-interface-and-types": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

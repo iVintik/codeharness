@@ -3,13 +3,19 @@
  * Also generates sprint-status.yaml as a derived human-readable view.
  */
 
-import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, renameSync, existsSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
-import type { SprintState, SprintStateAny, StoryStatus, StoryState } from '../../types/state.js';
+import type { SprintState, SprintStateAny, StoryStatus, StoryState, EpicState } from '../../types/state.js';
 import type { StoryDetail, RunProgressUpdate } from './types.js';
-import { migrateFromOldFormat, migrateV1ToV2 } from './migration.js';
+import { migrateFromOldFormat, migrateV1ToV2, parseStoryRetriesRecord, parseFlaggedStoriesList } from './migration.js';
+
+/** Result of state reconciliation */
+export interface ReconciliationResult {
+  readonly corrections: string[];
+  readonly stateChanged: boolean;
+}
 
 /** Resolve project root (directory containing package.json) */
 function projectRoot(): string {
@@ -396,4 +402,123 @@ export function clearRunProgress(): Result<void> {
   };
 
   return writeStateAtomic(updatedState);
+}
+
+/**
+ * Reconcile sprint state on session start.
+ * Merges orphaned files, validates epic consistency, regenerates YAML.
+ * Best-effort: returns corrections made; callers should log them.
+ */
+export function reconcileState(): Result<ReconciliationResult> {
+  try {
+    // 1. Read current state (handles v1→v2 migration internally)
+    const stateResult = getSprintState();
+    if (!stateResult.success) {
+      return fail(stateResult.error);
+    }
+
+    // Work with a mutable copy
+    const state: SprintState = JSON.parse(JSON.stringify(stateResult.data));
+    const corrections: string[] = [];
+    let changed = false;
+
+    // 2. Merge orphaned .story_retries file
+    const retriesPath = join(projectRoot(), 'ralph', '.story_retries');
+    if (existsSync(retriesPath)) {
+      try {
+        const content = readFileSync(retriesPath, 'utf-8');
+        const fileRetries = parseStoryRetriesRecord(content);
+        const mergedRetries = { ...state.retries };
+        for (const [key, count] of Object.entries(fileRetries)) {
+          if (count > (mergedRetries[key] ?? 0)) {
+            mergedRetries[key] = count;
+            changed = true;
+          }
+        }
+        (state as { retries: Record<string, number> }).retries = mergedRetries;
+        unlinkSync(retriesPath);
+        corrections.push('merged .story_retries into sprint-state.json');
+      } catch {
+        // Malformed file — delete it and move on
+        try { unlinkSync(retriesPath); } catch { /* ignore */ }
+        corrections.push('removed malformed .story_retries file');
+      }
+    }
+
+    // 3. Merge orphaned .flagged_stories file
+    const flaggedPath = join(projectRoot(), 'ralph', '.flagged_stories');
+    if (existsSync(flaggedPath)) {
+      try {
+        const content = readFileSync(flaggedPath, 'utf-8');
+        const fileKeys = parseFlaggedStoriesList(content);
+        const existing = new Set(state.flagged);
+        const merged = [...state.flagged];
+        for (const key of fileKeys) {
+          if (!existing.has(key)) {
+            merged.push(key);
+            existing.add(key);
+            changed = true;
+          }
+        }
+        (state as { flagged: string[] }).flagged = merged;
+        unlinkSync(flaggedPath);
+        corrections.push('merged .flagged_stories into sprint-state.json');
+      } catch {
+        // Malformed file — delete it and move on
+        try { unlinkSync(flaggedPath); } catch { /* ignore */ }
+        corrections.push('removed malformed .flagged_stories file');
+      }
+    }
+
+    // 4. Validate epic consistency — ensure every story's epic prefix has an epic entry
+    const epicStories = new Map<string, string[]>();
+    for (const key of Object.keys(state.stories)) {
+      const [epicNum] = parseStoryKey(key);
+      if (epicNum === Infinity) continue; // Not a valid story key
+      const epicKey = `epic-${epicNum}`;
+      if (!epicStories.has(epicKey)) {
+        epicStories.set(epicKey, []);
+      }
+      epicStories.get(epicKey)!.push(key);
+    }
+
+    const updatedEpics: Record<string, import('../../types/state.js').EpicState> = { ...state.epics };
+    for (const [epicKey, storyKeys] of epicStories) {
+      if (!(epicKey in updatedEpics)) {
+        // Compute epic status from its stories
+        const total = storyKeys.length;
+        const doneCount = storyKeys.filter(k => state.stories[k].status === 'done').length;
+        const epicStatus = doneCount === total ? 'done' : 'in-progress';
+        updatedEpics[epicKey] = {
+          status: epicStatus,
+          storiesTotal: total,
+          storiesDone: doneCount,
+        };
+        changed = true;
+        corrections.push(`created missing epic entry: ${epicKey}`);
+      }
+    }
+    (state as { epics: Record<string, import('../../types/state.js').EpicState> }).epics = updatedEpics;
+
+    // 5. Write state atomically if mutations were made (also regenerates YAML),
+    //    otherwise just regenerate YAML standalone (idempotent, cheap).
+    if (changed) {
+      const writeResult = writeStateAtomic(state);
+      if (!writeResult.success) {
+        return fail(writeResult.error);
+      }
+    } else {
+      writeSprintStatusYaml(state);
+    }
+
+    // 7. Note YAML regeneration in corrections if any corrections were made
+    if (corrections.length > 0) {
+      corrections.push('regenerated sprint-status.yaml');
+    }
+
+    return ok({ corrections, stateChanged: changed });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return fail(`State reconciliation failed: ${msg}`);
+  }
 }

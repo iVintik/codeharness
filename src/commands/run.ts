@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { fail, info, jsonOutput } from '../lib/output.js';
-import { readSprintStatusFromState } from '../modules/sprint/index.js';
+import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
 import { generateRalphPrompt } from '../templates/ralph-prompt.js';
 import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
 import { getSprintState } from '../modules/sprint/index.js';
@@ -61,6 +61,16 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
+      // 2b. Reconcile state (best-effort — failures warn but don't abort)
+      const reconciliation = reconcileState();
+      if (reconciliation.success && reconciliation.data.corrections.length > 0) {
+        for (const correction of reconciliation.data.corrections) {
+          info(`[INFO] Reconciled: ${correction}`, outputOpts);
+        }
+      } else if (!reconciliation.success) {
+        info(`[WARN] State reconciliation failed: ${reconciliation.error}`, outputOpts);
+      }
+
       // 3. Read sprint status for story count (from sprint-state.json)
       const projectDir = process.cwd();
       const sprintStatusPath = join(projectDir, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml');
@@ -90,15 +100,12 @@ export function registerRunCommand(program: Command): void {
 
       // 5. Generate prompt file (with flagged stories context if available)
       const promptFile = join(projectDir, 'ralph', '.harness-prompt.md');
-      const flaggedFilePath = join(projectDir, 'ralph', '.flagged_stories');
+      // Read flagged stories from sprint-state.json (reconcileState may have
+      // already deleted the orphan .flagged_stories file, so read from state)
       let flaggedStories: string[] | undefined;
-      if (existsSync(flaggedFilePath)) {
-        try {
-          const flaggedContent = readFileSync(flaggedFilePath, 'utf-8');
-          flaggedStories = flaggedContent.split('\n').filter(s => s.trim().length > 0);
-        } catch {
-          // Ignore read errors
-        }
+      const flaggedState = getSprintState();
+      if (flaggedState.success && flaggedState.data.flagged?.length > 0) {
+        flaggedStories = flaggedState.data.flagged;
       }
       const promptContent = generateRalphPrompt({
         projectDir,

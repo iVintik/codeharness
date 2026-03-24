@@ -83,10 +83,10 @@ development_status:
   10-5-migrate-consumers-to-stackprovider: done
 
   # Epic 11
-  epic-11: backlog
+  epic-11: done
   11-1-unified-sprintstate-schema-versioning: done
   11-2-sprint-status-yaml-derived-view: done
-  11-3-state-reconciliation-on-session-start: backlog
+  11-3-state-reconciliation-on-session-start: done
 
   # Epic 12
   epic-12: backlog

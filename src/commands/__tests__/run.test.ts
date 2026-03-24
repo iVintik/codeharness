@@ -14,7 +14,7 @@ const {
   realExistsSync, getStdoutEmitter, getStderrEmitter,
   startRendererMock, rendererUpdateMock, rendererUpdateSprintStateMock, rendererCleanupMock,
   rendererUpdateStoriesMock, rendererAddMessageMock,
-  parseStreamLineMock, getSprintStateMock,
+  parseStreamLineMock, getSprintStateMock, reconcileStateMock,
 } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('node:fs');
@@ -64,6 +64,7 @@ const {
     rendererAddMessageMock,
     parseStreamLineMock: vi.fn(() => null),
     getSprintStateMock: vi.fn(() => ({ success: false, error: 'no state' })),
+    reconcileStateMock: vi.fn(() => ({ success: true, data: { corrections: [], stateChanged: false } })),
   };
 });
 
@@ -93,6 +94,7 @@ vi.mock('../../lib/ink-renderer.js', () => ({
 vi.mock('../../modules/sprint/index.js', () => ({
   getSprintState: (...args: unknown[]) => getSprintStateMock(...args),
   readSprintStatusFromState: (...args: unknown[]) => readSprintStatusMock(...args),
+  reconcileState: (...args: unknown[]) => reconcileStateMock(...args),
 }));
 
 describe('run command', () => {
@@ -115,6 +117,8 @@ describe('run command', () => {
     parseStreamLineMock.mockReturnValue(null);
     getSprintStateMock.mockClear();
     getSprintStateMock.mockReturnValue({ success: false, error: 'no state' });
+    reconcileStateMock.mockClear();
+    reconcileStateMock.mockReturnValue({ success: true, data: { corrections: [], stateChanged: false } });
     process.exitCode = undefined;
   });
 
@@ -324,14 +328,23 @@ describe('run command', () => {
       expect(output.exitReason).toBe('status_file_missing');
     });
 
-    it('reads flagged stories file when present', async () => {
+    it('reads flagged stories from sprint-state.json', async () => {
       vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
       mkdirSync(join(tmpDir, 'ralph'), { recursive: true });
-      writeFileSync(join(tmpDir, 'ralph', '.flagged_stories'), '1-1-broken\n2-1-stuck\n');
-      // Don't override .flagged_stories — let it hit the real filesystem
       mockPaths({ 'ralph.sh': true, '.claude': true });
       readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
       vi.spyOn(console, 'log').mockImplementation(() => {});
+      // Provide flagged stories via sprint-state.json (reconcileState merges orphan files into state)
+      getSprintStateMock.mockReturnValue({
+        success: true,
+        data: {
+          sprint: { total: 1, done: 0, failed: 0, blocked: 0, inProgress: null },
+          run: { currentStory: null, currentPhase: null, active: false },
+          stories: {},
+          actionItems: [],
+          flagged: ['1-1-broken', '2-1-stuck'],
+        },
+      });
 
       const { generateRalphPrompt } = await import('../../templates/ralph-prompt.js');
       const promptMock = vi.mocked(generateRalphPrompt);

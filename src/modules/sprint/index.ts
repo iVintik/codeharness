@@ -31,7 +31,9 @@ import {
   clearRunProgress as clearRunProgressImpl,
   generateSprintStatusYaml as generateSprintStatusYamlImpl,
   getStoryStatusesFromState as getStoryStatusesFromStateImpl,
+  reconcileState as reconcileStateImpl,
 } from './state.js';
+import type { ReconciliationResult } from './state.js';
 import { selectNextStory } from './selector.js';
 import { generateReport as generateReportImpl, getStoryDrillDown as getStoryDrillDownImpl } from './reporter.js';
 import { captureTimeoutReport as captureTimeoutReportImpl, findLatestTimeoutReport as findLatestTimeoutReportImpl } from './timeout.js';
@@ -57,6 +59,7 @@ export type {
 };
 
 export type { ValidationReport, ValidationIssue };
+export type { ReconciliationResult };
 
 /**
  * Select the next actionable story.
@@ -164,6 +167,14 @@ export function generateSprintStatusYaml(state: SprintState): string {
 
 export function getStoryStatusesFromState(state: SprintState): Record<string, string> {
   return getStoryStatusesFromStateImpl(state);
+}
+
+/**
+ * Reconcile sprint state on session start.
+ * Merges orphaned files, validates epic consistency, regenerates YAML.
+ */
+export function reconcileState(): Result<ReconciliationResult> {
+  return reconcileStateImpl();
 }
 
 /**

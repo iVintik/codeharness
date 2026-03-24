@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ok, fail as failOut, info, warn } from './output.js';
 import { readStateWithBody, writeState } from './state.js';
-import { detectStack } from './stack-detect.js';
+import { detectStack, getStackProvider } from './stacks/index.js';
+import type { StackName } from './stacks/index.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,42 +40,57 @@ export function detectCoverageTool(dir?: string): CoverageToolInfo {
   const stateHint = getStateToolHint(baseDir);
 
   const stack = detectStack(baseDir);
-
-  if (stack === 'nodejs') {
-    return detectNodeCoverageTool(baseDir, stateHint);
+  if (!stack) {
+    warn('No recognized stack detected — cannot determine coverage tool');
+    return { tool: 'unknown', runCommand: '', reportFormat: '' };
   }
 
-  if (stack === 'python') {
-    return detectPythonCoverageTool(baseDir);
+  const provider = getStackProvider(stack as StackName);
+  if (!provider) {
+    warn('No recognized stack detected — cannot determine coverage tool');
+    return { tool: 'unknown', runCommand: '', reportFormat: '' };
   }
 
-  if (stack === 'rust') {
-    // Check if cargo-tarpaulin is installed
-    try {
-      execSync('cargo tarpaulin --version', { stdio: 'pipe', timeout: 10_000 });
-    } catch {
-      warn('cargo-tarpaulin not installed — coverage detection unavailable');
-      return { tool: 'unknown', runCommand: '', reportFormat: '' };
-    }
-
-    // Detect workspace
-    const cargoPath = join(baseDir, 'Cargo.toml');
-    let isWorkspace = false;
-    try {
-      const cargoContent = readFileSync(cargoPath, 'utf-8');
-      isWorkspace = /^\[workspace\]/m.test(cargoContent);
-    } catch { /* not a workspace */ }
-
-    const wsFlag = isWorkspace ? ' --workspace' : '';
-    return {
-      tool: 'cargo-tarpaulin',
-      runCommand: `cargo tarpaulin --out json --output-dir coverage/${wsFlag}`,
-      reportFormat: 'tarpaulin-json',
-    };
+  // Delegate to stack-specific detection via provider-keyed helper map
+  const detector = coverageDetectors[provider.name];
+  if (detector) {
+    return detector(baseDir, stateHint);
   }
 
   warn('No recognized stack detected — cannot determine coverage tool');
   return { tool: 'unknown', runCommand: '', reportFormat: '' };
+}
+
+/** Stack-keyed coverage detection dispatchers (no stack string comparisons outside stacks/) */
+const coverageDetectors: Record<string, (dir: string, stateHint: string | null) => CoverageToolInfo> = {
+  nodejs: (dir, stateHint) => detectNodeCoverageTool(dir, stateHint),
+  python: (dir) => detectPythonCoverageTool(dir),
+  rust: (dir) => detectRustCoverageTool(dir),
+};
+
+function detectRustCoverageTool(dir: string): CoverageToolInfo {
+  // Check if cargo-tarpaulin is installed
+  try {
+    execSync('cargo tarpaulin --version', { stdio: 'pipe', timeout: 10_000 });
+  } catch {
+    warn('cargo-tarpaulin not installed — coverage detection unavailable');
+    return { tool: 'unknown', runCommand: '', reportFormat: '' };
+  }
+
+  // Detect workspace
+  const cargoPath = join(dir, 'Cargo.toml');
+  let isWorkspace = false;
+  try {
+    const cargoContent = readFileSync(cargoPath, 'utf-8');
+    isWorkspace = /^\[workspace\]/m.test(cargoContent);
+  } catch { /* not a workspace */ }
+
+  const wsFlag = isWorkspace ? ' --workspace' : '';
+  return {
+    tool: 'cargo-tarpaulin',
+    runCommand: `cargo tarpaulin --out json --output-dir coverage/${wsFlag}`,
+    reportFormat: 'tarpaulin-json',
+  };
 }
 
 function getStateToolHint(dir: string): string | null {

@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, cpSync, rmSync, statS
 import { join, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { info } from '../../lib/output.js';
-import { detectStacks } from '../../lib/stack-detect.js';
+import { detectStacks } from '../../lib/stacks/index.js';
 import { readStateWithBody, writeState } from '../../lib/state.js';
 import { isDockerAvailable } from '../../lib/docker.js';
 import type { BuildOptions, BuildResult, CheckResult, ProjectType } from './types.js';
@@ -66,17 +66,22 @@ function storeDistHash(projectDir: string, hash: string): void {
 }
 
 /** Detects the project type for verification strategy selection. */
+/** Stack names that map directly to ProjectType values. */
+const STACK_TO_PROJECT_TYPE: Record<string, ProjectType> = {
+  nodejs: 'nodejs',
+  python: 'python',
+  rust: 'rust',
+};
+
 export function detectProjectType(projectDir: string): ProjectType {
   // Use detectStacks() (plural) for multi-stack awareness; derive primary from root detection
   const allStacks = detectStacks(projectDir);
   const rootDetection = allStacks.find(s => s.dir === '.');
   const stack = rootDetection ? rootDetection.stack : null;
-  // Prefer nodejs/python when the project has a buildable package — the npm tarball
+  // Prefer known stacks when the project has a buildable package — the npm tarball
   // or Python wheel includes all distributable files. Plugin-only detection is the
   // fallback for projects that are purely Claude Code plugins with no build artifact.
-  if (stack === 'nodejs') return 'nodejs';
-  if (stack === 'python') return 'python';
-  if (stack === 'rust') return 'rust';
+  if (stack && STACK_TO_PROJECT_TYPE[stack]) return STACK_TO_PROJECT_TYPE[stack];
   if (existsSync(join(projectDir, '.claude-plugin', 'plugin.json'))) return 'plugin';
   return 'generic';
 }
@@ -89,7 +94,9 @@ export function buildVerifyImage(options: BuildOptions = {}): BuildResult {
   }
   const projectType = detectProjectType(projectDir);
   const currentHash = computeDistHash(projectDir);
-  if (projectType === 'generic' || projectType === 'plugin' || projectType === 'rust') {
+  /** Project types that don't require dist/ for verification image build */
+  const NO_DIST_REQUIRED = new Set<ProjectType>(['generic', 'plugin', 'rust']);
+  if (NO_DIST_REQUIRED.has(projectType)) {
     // Generic, plugin, and Rust projects may not have dist/ — skip hash check
   } else if (!currentHash) {
     throw new Error('No dist/ directory found. Run your build command first (e.g., npm run build).');
@@ -101,11 +108,15 @@ export function buildVerifyImage(options: BuildOptions = {}): BuildResult {
     }
   }
   const startTime = Date.now();
-  if (projectType === 'nodejs') { buildNodeImage(projectDir); }
-  else if (projectType === 'python') { buildPythonImage(projectDir); }
-  else if (projectType === 'rust') { buildSimpleImage(projectDir, 'rust', 300_000); }
-  else if (projectType === 'plugin') { buildPluginImage(projectDir); }
-  else { buildSimpleImage(projectDir, 'generic'); }
+  /** Per-project-type Docker image builders (no stack string comparisons). */
+  const imageBuilders: Record<ProjectType, () => void> = {
+    nodejs: () => buildNodeImage(projectDir),
+    python: () => buildPythonImage(projectDir),
+    rust: () => buildSimpleImage(projectDir, 'rust', 300_000),
+    plugin: () => buildPluginImage(projectDir),
+    generic: () => buildSimpleImage(projectDir, 'generic'),
+  };
+  imageBuilders[projectType]();
   if (currentHash) { storeDistHash(projectDir, currentHash); }
   return { imageTag: IMAGE_TAG, imageSize: getImageSize(IMAGE_TAG), buildTimeMs: Date.now() - startTime, cached: false };
 }

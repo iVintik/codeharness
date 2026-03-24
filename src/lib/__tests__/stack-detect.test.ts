@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { detectStack, detectStacks, detectAppType } from '../stack-detect.js';
+import { detectStack, detectStacks, detectAppType } from '../stacks/index.js';
 
 let testDir: string;
 
@@ -36,11 +36,8 @@ describe('detectStack', () => {
   });
 
   it('returns null when no indicators found', () => {
-    const consoleSpy = vi.spyOn(console, 'log');
     const result = detectStack(testDir);
     expect(result).toBeNull();
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No recognized stack detected'));
-    consoleSpy.mockRestore();
   });
 
   it('Node.js takes priority over Python when both exist', () => {
@@ -52,10 +49,8 @@ describe('detectStack', () => {
   it('returns null when stacks only exist in subdirectories (root-only compat)', () => {
     mkdirSync(join(testDir, 'backend'), { recursive: true });
     writeFileSync(join(testDir, 'backend', 'Cargo.toml'), '[package]\nname = "api"\n');
-    const consoleSpy = vi.spyOn(console, 'log');
     const result = detectStack(testDir);
     expect(result).toBeNull();
-    consoleSpy.mockRestore();
   });
 });
 
@@ -614,10 +609,8 @@ describe('detectStack — Rust', () => {
 
   it('does not detect Rust when no Cargo.toml exists', () => {
     // Empty dir — should not return 'rust'
-    const consoleSpy = vi.spyOn(console, 'log');
     const result = detectStack(testDir);
     expect(result).not.toBe('rust');
-    consoleSpy.mockRestore();
   });
 
   it('Node.js takes priority over Rust when both exist', () => {

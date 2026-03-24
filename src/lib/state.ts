@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse, stringify } from 'yaml';
 import { warn } from './output.js';
-import { detectStack, detectStacks, type StackName } from './stack-detect.js';
+import { detectStack, detectStacks, type StackName } from './stacks/index.js';
 
 export interface HarnessState {
   harness_version: string;
@@ -88,9 +88,14 @@ const STATE_DIR = '.claude';
 const STATE_FILE = 'codeharness.local.md';
 const DEFAULT_BODY = '\n# Codeharness State\n\nThis file is managed by the codeharness CLI. Do not edit manually.\n';
 
+/** Default coverage tool names keyed by stack. */
+const COVERAGE_TOOL_DEFAULTS: Record<string, HarnessState['coverage']['tool']> = {
+  python: 'coverage.py',
+  rust: 'cargo-tarpaulin',
+};
+
 export function getDefaultCoverageTool(stack?: string | null): HarnessState['coverage']['tool'] {
-  if (stack === 'python') return 'coverage.py';
-  if (stack === 'rust') return 'cargo-tarpaulin';
+  if (stack && COVERAGE_TOOL_DEFAULTS[stack]) return COVERAGE_TOOL_DEFAULTS[stack];
   return 'c8';
 }
 

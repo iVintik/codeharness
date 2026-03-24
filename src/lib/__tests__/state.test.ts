@@ -14,7 +14,7 @@ import {
   StateFileNotFoundError,
   type HarnessState,
 } from '../state.js';
-import type { StackName } from '../stack-detect.js';
+import type { StackName } from '../stacks/index.js';
 
 let testDir: string;
 

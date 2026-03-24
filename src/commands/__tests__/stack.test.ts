@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
-import type { StackName } from '../../lib/stack-detect.js';
+import type { StackName } from '../../lib/stacks/index.js';
 
 // Mock stack-path module
 vi.mock('../../lib/stack-path.js', () => ({

@@ -1,10 +1,10 @@
 {
   "version": 1,
   "sprint": {
-    "total": 69,
-    "done": 41,
+    "total": 67,
+    "done": 42,
     "failed": 0,
-    "blocked": 2,
+    "blocked": 0,
     "inProgress": null
   },
   "stories": {
@@ -337,15 +337,15 @@
       "acResults": null
     },
     "10-3-python-provider": {
-      "status": "review",
-      "attempts": 1,
+      "status": "done",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "10-4-rust-provider": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -543,28 +543,12 @@
       "lastError": null,
       "proofPath": null,
       "acResults": null
-    },
-    "story-x": {
-      "status": "blocked",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "story-y": {
-      "status": "blocked",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
     }
   },
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 3,
+    "iteration": 1,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -576,36 +560,64 @@
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "10-3-python-provider",
-      "description": "**Workaround:** Epic mentions CLI/library detection for Python app types, but codebase only has agent/web/server/generic. ACs reflect actual code, not aspirational epic text.",
+      "story": "10-4-rust-provider",
+      "description": "**Ambiguity in epic definition:** Story notes mention `'library'` AppType for Rust, but `AppType` union in `src/lib/stacks/types.ts` has no `'library'` variant — only `'generic'`. Followed actual code behavior (returns `'generic'`).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "10-3-python-provider",
-      "description": "**Risk:** `getProjectName()` uses TOML regex (fragile for edge cases). Proper TOML parser would be better but adds dependency.",
+      "story": "10-4-rust-provider",
+      "description": "**Bevy system libs:** Story notes mention Bevy detection for Docker system libs, but no such logic exists in current `dockerfile-template.ts`. Deferred to avoid scope creep.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "10-3-python-provider",
-      "description": "**Risk:** `hasPythonDep()` regex fragile for packages with hyphens/underscores (Python normalizes these).",
+      "story": "10-4-rust-provider",
+      "description": "**Risk — workspace aggregation ordering:** No cross-provider ordering concern in the provider pattern; handled within Rust provider alone.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "10-3-python-provider",
-      "description": "**Observation:** `PYTHON_OTLP_PACKAGES` in code are `opentelemetry-distro`/`opentelemetry-exporter-otlp`, not what the original story skeleton stated.",
+      "story": "10-4-rust-provider",
+      "description": "**Observation:** All 27 ACs are `cli-verifiable`. No external system dependencies for unit testing.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "10-3-python-provider",
-      "description": "**Observation:** Python has no `patchStartScript()` — uses `opentelemetry-instrument` wrapper via env vars instead.",
+      "story": "10-4-rust-provider",
+      "description": "**MEDIUM (fixed):** Misleading JSDoc in `hasCargoDep` — example was backwards.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-6",
+      "story": "10-4-rust-provider",
+      "description": "**MEDIUM (fixed):** Missing false-positive prevention tests for crate substring matching (2 tests added).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-7",
+      "story": "10-4-rust-provider",
+      "description": "**LOW (not fixed):** `hasCargoDep` matches commented-out dependencies. Pre-existing behavior from `stack-detect.ts`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-8",
+      "story": "10-4-rust-provider",
+      "description": "**LOW (not fixed):** `getCargoDepsSection` doesn't handle `[dependencies.foo]` subsection format. Pre-existing behavior.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-9",
+      "story": "10-4-rust-provider",
+      "description": "**Coverage gap:** No integration test for `installOtlp` success path (requires `cargo` binary).",
       "source": "retro",
       "resolved": false
     }

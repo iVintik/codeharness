@@ -8,3 +8,4 @@ only-story 2
 9-5-multi-stack-docs-remaining-consumers 2
 10-2-nodejs-provider 1
 10-3-python-provider 2
+10-5-migrate-consumers-to-stackprovider 1

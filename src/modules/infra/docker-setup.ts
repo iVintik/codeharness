@@ -12,7 +12,7 @@ import { getComposeFilePath } from '../../lib/stack-path.js';
 import { ok as okOutput, fail as failOutput, info } from '../../lib/output.js';
 import { readState, writeState } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
-import type { AppType } from '../../lib/stack-detect.js';
+import type { AppType } from '../../lib/stacks/index.js';
 import type { Result } from '../../types/result.js';
 import { ok, fail } from '../../types/result.js';
 import type { InitDockerResult } from './types.js';

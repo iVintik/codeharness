@@ -1,8 +1,8 @@
 /**
  * Stack provider types — the canonical location for all stack-related type definitions.
  *
- * Consumers that previously imported from `stack-detect.ts` continue to work
- * via re-exports in that module (backward compat until story 10-5).
+ * All consumers import from `src/lib/stacks/index.ts`. The legacy `stack-detect.ts`
+ * module was deleted in story 10-5.
  */
 
 /** Supported language stacks. */

@@ -30,15 +30,15 @@ vi.mock('../../../lib/state.js', () => ({
   writeState: vi.fn(),
 }));
 
-// Mock stack-detect module
-vi.mock('../../../lib/stack-detect.js', () => ({
+// Mock stacks module
+vi.mock('../../../lib/stacks/index.js', () => ({
   detectStack: vi.fn(() => 'nodejs'),
   detectStacks: vi.fn(() => [{ stack: 'nodejs', dir: '.' }]),
 }));
 
 import { execFileSync } from 'node:child_process';
 import { isDockerAvailable } from '../../../lib/docker.js';
-import { detectStack, detectStacks } from '../../../lib/stack-detect.js';
+import { detectStack, detectStacks } from '../../../lib/stacks/index.js';
 import { readStateWithBody, writeState } from '../../../lib/state.js';
 import {
   isValidStoryKey,

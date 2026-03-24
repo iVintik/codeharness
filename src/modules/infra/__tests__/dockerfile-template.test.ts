@@ -430,7 +430,7 @@ describe('generated Dockerfiles pass validateDockerfile()', () => {
 
 // ─── Multi-stage Dockerfile generation ──────────────────────────────────────
 
-import type { StackDetection } from '../../../lib/stack-detect.js';
+import type { StackDetection } from '../../../lib/stacks/index.js';
 
 describe('generateDockerfileTemplate — multi-stage (nodejs+rust)', () => {
   const detections: StackDetection[] = [

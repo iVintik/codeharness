@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Mock all lib modules
-vi.mock('../../../lib/stack-detect.js', async (importOriginal) => {
-  const orig = await importOriginal<typeof import('../../../lib/stack-detect.js')>();
+vi.mock('../../../lib/stacks/index.js', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../../../lib/stacks/index.js')>();
   return { ...orig, detectStacks: vi.fn(orig.detectStacks), detectAppType: vi.fn(orig.detectAppType) };
 });
 
@@ -94,7 +94,7 @@ import { isDockerAvailable } from '../../../lib/docker.js';
 import { installAllDependencies, CriticalDependencyError } from '../../../lib/deps.js';
 import { isBeadsInitialized, BeadsError } from '../../../lib/beads.js';
 import { readState, writeState, getDefaultState } from '../../../lib/state.js';
-import { detectStacks, detectAppType } from '../../../lib/stack-detect.js';
+import { detectStacks, detectAppType } from '../../../lib/stacks/index.js';
 import { instrumentProject } from '../../../lib/otlp.js';
 import { getCoverageTool } from '../docs-scaffold.js';
 import { initProject } from '../init-project.js';

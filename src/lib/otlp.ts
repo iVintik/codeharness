@@ -4,7 +4,7 @@ import { join, basename } from 'node:path';
 import { ok, info } from './output.js';
 import { readState, writeState, readStateWithBody } from './state.js';
 import type { HarnessState } from './state.js';
-import type { AppType } from './stack-detect.js';
+import type { AppType } from './stacks/index.js';
 
 export interface OtlpResult {
   status: 'configured' | 'skipped' | 'failed';
@@ -178,12 +178,18 @@ export function configureCli(projectDir: string): void {
 }
 
 export function configureWeb(projectDir: string, stack: string | null): void {
-  if (stack === 'nodejs') {
-    try {
-      execFileSync('npm', ['install', ...WEB_OTLP_PACKAGES], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-    } catch {
-      // Web packages are supplementary; failure is non-fatal
-    }
+  // Web OTLP packages are only applicable to Node.js — install via npm if the stack is nodejs
+  const webInstaller: Record<string, () => void> = {
+    nodejs: () => {
+      try {
+        execFileSync('npm', ['install', ...WEB_OTLP_PACKAGES], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
+      } catch {
+        // Web packages are supplementary; failure is non-fatal
+      }
+    },
+  };
+  if (stack && webInstaller[stack]) {
+    webInstaller[stack]();
   }
 
   // Read endpoint from state (may have been set by configureOtlpEnvVars)
@@ -233,28 +239,43 @@ registerInstrumentations({
 }
 
 export function configureAgent(projectDir: string, stack: string | null): void {
-  if (stack === 'nodejs') {
-    try {
-      execFileSync('npm', ['install', ...AGENT_OTLP_PACKAGES_NODE], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-    } catch {
-      // Agent packages are supplementary; failure is non-fatal
-    }
-  } else if (stack === 'python') {
-    try {
-      execFileSync('pip', ['install', ...AGENT_OTLP_PACKAGES_PYTHON], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-    } catch {
-      // Try pipx fallback
+  /** Per-stack agent package installation (no stack string comparisons). */
+  const agentInstallers: Record<string, () => boolean> = {
+    nodejs: () => {
       try {
-        for (const pkg of AGENT_OTLP_PACKAGES_PYTHON) {
-          execFileSync('pipx', ['install', pkg], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
-        }
+        execFileSync('npm', ['install', ...AGENT_OTLP_PACKAGES_NODE], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
       } catch {
         // Agent packages are supplementary; failure is non-fatal
       }
+      return true;
+    },
+    python: () => {
+      try {
+        execFileSync('pip', ['install', ...AGENT_OTLP_PACKAGES_PYTHON], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
+      } catch {
+        // Try pipx fallback
+        try {
+          for (const pkg of AGENT_OTLP_PACKAGES_PYTHON) {
+            execFileSync('pipx', ['install', pkg], { cwd: projectDir, stdio: 'pipe', timeout: 300_000 });
+          }
+        } catch {
+          // Agent packages are supplementary; failure is non-fatal
+        }
+      }
+      return true;
+    },
+    rust: () => {
+      info('Rust agent SDK not yet supported — skipping agent configuration');
+      return false;
+    },
+  };
+
+  if (stack) {
+    const installer = agentInstallers[stack];
+    if (installer) {
+      const proceed = installer();
+      if (!proceed) return;
     }
-  } else if (stack === 'rust') {
-    info('Rust agent SDK not yet supported — skipping agent configuration');
-    return;
   }
 
   const { state, body } = readStateWithBody(projectDir);
@@ -310,20 +331,19 @@ export function configureOtlpEnvVars(projectDir: string, stack: string | null, o
 
   const { state, body } = readStateWithBody(projectDir);
 
+  /** Per-stack OTLP state fields (no stack string comparisons). */
+  const stackOtlpFields: Record<string, Record<string, string>> = {
+    nodejs: { node_require: NODE_REQUIRE_FLAG },
+    python: { python_wrapper: 'opentelemetry-instrument' },
+    rust: { rust_env_hint: 'OTEL_EXPORTER_OTLP_ENDPOINT' },
+  };
+
   state.otlp = {
     enabled: true,
     endpoint: opts?.endpoint ?? 'http://localhost:4318',
     service_name: projectName,
     mode: state.otlp?.mode ?? 'local-shared',
-    ...(stack === 'nodejs'
-      ? { node_require: NODE_REQUIRE_FLAG }
-      : {}),
-    ...(stack === 'python'
-      ? { python_wrapper: 'opentelemetry-instrument' }
-      : {}),
-    ...(stack === 'rust'
-      ? { rust_env_hint: 'OTEL_EXPORTER_OTLP_ENDPOINT' }
-      : {}),
+    ...(stack && stackOtlpFields[stack] ? stackOtlpFields[stack] : {}),
   };
 
   // Resource attributes (Task 6)
@@ -334,8 +354,9 @@ export function configureOtlpEnvVars(projectDir: string, stack: string | null, o
   // Write OTEL_SERVICE_NAME to .env.codeharness file
   ensureServiceNameEnvVar(projectDir, projectName);
 
-  // Rust reads env vars directly — also write OTEL_EXPORTER_OTLP_ENDPOINT
-  if (stack === 'rust') {
+  // Stacks that read env vars directly need the endpoint written to .env.codeharness
+  const needsEndpointEnv = new Set(['rust']);
+  if (stack && needsEndpointEnv.has(stack)) {
     ensureEndpointEnvVar(projectDir, state.otlp.endpoint);
   }
 }
@@ -348,34 +369,42 @@ export function instrumentProject(
   const isJson = opts?.json === true;
   const appType = opts?.appType;
 
-  let result: OtlpResult;
-
-  if (stack === 'nodejs') {
-    result = installNodeOtlp(projectDir);
-    if (result.status === 'configured') {
-      const patched = patchNodeStartScript(projectDir);
-      result.start_script_patched = patched;
-      if (!isJson) {
-        ok('OTLP: Node.js packages installed');
-        if (patched) {
-          ok('OTLP: start script patched with --require flag');
-        } else {
-          info('OTLP: no start/dev script found or already patched');
+  /** Per-stack OTLP install+message handlers (no stack string comparisons). */
+  const stackInstallers: Record<string, () => OtlpResult> = {
+    nodejs: () => {
+      const r = installNodeOtlp(projectDir);
+      if (r.status === 'configured') {
+        const patched = patchNodeStartScript(projectDir);
+        r.start_script_patched = patched;
+        if (!isJson) {
+          ok('OTLP: Node.js packages installed');
+          if (patched) {
+            ok('OTLP: start script patched with --require flag');
+          } else {
+            info('OTLP: no start/dev script found or already patched');
+          }
         }
       }
-    }
-  } else if (stack === 'python') {
-    result = installPythonOtlp(projectDir);
-    if (result.status === 'configured' && !isJson) {
-      ok('OTLP: Python packages installed');
-      info('OTLP: wrap your command with: opentelemetry-instrument <command>');
-    }
-  } else if (stack === 'rust') {
-    result = installRustOtlp(projectDir);
-    if (result.status === 'configured' && !isJson) {
-      ok('OTLP: Rust packages installed');
-    }
-  } else {
+      return r;
+    },
+    python: () => {
+      const r = installPythonOtlp(projectDir);
+      if (r.status === 'configured' && !isJson) {
+        ok('OTLP: Python packages installed');
+        info('OTLP: wrap your command with: opentelemetry-instrument <command>');
+      }
+      return r;
+    },
+    rust: () => {
+      const r = installRustOtlp(projectDir);
+      if (r.status === 'configured' && !isJson) {
+        ok('OTLP: Rust packages installed');
+      }
+      return r;
+    },
+  };
+
+  if (!stack || !stackInstallers[stack]) {
     return {
       status: 'skipped',
       packages_installed: false,
@@ -384,6 +413,8 @@ export function instrumentProject(
       error: 'Unsupported stack for OTLP instrumentation',
     };
   }
+
+  const result = stackInstallers[stack]();
 
   // Always configure OTLP env vars and state, even when package install fails.
   // The env vars and python_wrapper/node_require fields are useful regardless

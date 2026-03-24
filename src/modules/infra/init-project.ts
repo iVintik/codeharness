@@ -6,7 +6,7 @@
 import { existsSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { ok as okOutput, fail as failOutput, info, warn, jsonOutput } from '../../lib/output.js';
-import { detectStacks, detectAppType } from '../../lib/stack-detect.js';
+import { detectStacks, detectAppType } from '../../lib/stacks/index.js';
 import { readState, writeState, getDefaultState, getStatePath } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
 import { instrumentProject } from '../../lib/otlp.js';
@@ -135,7 +135,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   state.coverage.tool = getCoverageTool(stack);
   state.coverage.tools = coverageTools;
   // Persist all detected stacks (not just the primary root stack)
-  state.stacks = result.stacks as import('../../lib/stack-detect.js').StackName[];
+  state.stacks = result.stacks as import('../../lib/stacks/index.js').StackName[];
   writeState(state, projectDir);
   if (!isJson) okOutput('State file: .claude/codeharness.local.md created');
 

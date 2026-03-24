@@ -11,7 +11,9 @@ import { readmeTemplate } from '../../templates/readme.js';
 import type { Result } from '../../types/result.js';
 import { ok, fail } from '../../types/result.js';
 import type { InitDocumentationResult } from './types.js';
-import type { StackDetection } from '../../lib/stack-detect.js';
+import type { StackDetection } from '../../lib/stacks/index.js';
+import { getStackProvider } from '../../lib/stacks/index.js';
+import type { StackName } from '../../lib/stacks/index.js';
 
 const DO_NOT_EDIT_HEADER = '<!-- DO NOT EDIT MANUALLY -->\n';
 
@@ -53,16 +55,21 @@ export function getStackLabel(stack: string | string[] | null): string {
     if (stack.length === 0) return 'Unknown';
     return stack.map(s => getStackLabel(s)).join(' + ');
   }
-  if (stack === 'nodejs') return 'Node.js (package.json)';
-  if (stack === 'python') return 'Python';
-  if (stack === 'rust') return 'Rust (Cargo.toml)';
-  return 'Unknown';
+  if (!stack) return 'Unknown';
+  const provider = getStackProvider(stack as StackName);
+  return provider ? provider.displayName : 'Unknown';
 }
 
+/** Coverage tool name mapping for state file (uses state-format names, not provider CoverageToolName). */
+const STATE_COVERAGE_TOOLS: Record<string, 'c8' | 'coverage.py' | 'cargo-tarpaulin'> = {
+  nodejs: 'c8',
+  python: 'coverage.py',
+  rust: 'cargo-tarpaulin',
+};
+
 export function getCoverageTool(stack: string | null): 'c8' | 'coverage.py' | 'cargo-tarpaulin' | 'unknown' {
-  if (stack === 'python') return 'coverage.py';
-  if (stack === 'rust') return 'cargo-tarpaulin';
-  return 'c8';
+  if (!stack) return 'c8';
+  return STATE_COVERAGE_TOOLS[stack] ?? 'c8';
 }
 
 export function generateAgentsMdContent(projectDir: string, stack: string | StackDetection[] | null): string {
@@ -77,7 +84,8 @@ export function generateAgentsMdContent(projectDir: string, stack: string | Stac
 
   // Single-stack path: string | null (backward compat)
   const projectName = basename(projectDir);
-  const stackLabel = stack === 'nodejs' ? 'Node.js' : stack === 'python' ? 'Python' : stack === 'rust' ? 'Rust' : 'Unknown';
+  const provider = stack ? getStackProvider(stack as StackName) : undefined;
+  const stackLabel = provider ? stackDisplayName(stack!) : 'Unknown';
 
   const lines = [
     `# ${projectName}`,
@@ -90,29 +98,8 @@ export function generateAgentsMdContent(projectDir: string, stack: string | Stac
     '',
   ];
 
-  if (stack === 'nodejs') {
-    lines.push(
-      '```bash',
-      'npm install    # Install dependencies',
-      'npm run build  # Build the project',
-      'npm test       # Run tests',
-      '```',
-    );
-  } else if (stack === 'python') {
-    lines.push(
-      '```bash',
-      'pip install -r requirements.txt  # Install dependencies',
-      'python -m pytest                 # Run tests',
-      '```',
-    );
-  } else if (stack === 'rust') {
-    lines.push(
-      '```bash',
-      'cargo build    # Build the project',
-      'cargo test     # Run tests',
-      'cargo tarpaulin --out json  # Run coverage',
-      '```',
-    );
+  if (provider) {
+    appendBuildTestCommands(lines, provider.name, '');
   } else {
     lines.push('```bash', '# No recognized stack — add build/test commands here', '```');
   }
@@ -140,12 +127,28 @@ export function generateAgentsMdContent(projectDir: string, stack: string | Stac
   return lines.join('\n');
 }
 
-/** Maps stack identifier to display name for AGENTS.md generation. */
+/** Maps stack identifier to short display name for AGENTS.md generation (no parenthetical). */
 function stackDisplayName(stack: string): string {
-  if (stack === 'nodejs') return 'Node.js';
-  if (stack === 'python') return 'Python';
-  if (stack === 'rust') return 'Rust';
-  return 'Unknown';
+  const provider = getStackProvider(stack as StackName);
+  if (!provider) return 'Unknown';
+  // Strip parenthetical qualifiers like " (package.json)" or " (Cargo.toml)"
+  return provider.displayName.replace(/ \(.*\)$/, '');
+}
+
+/** Build/test commands per stack, keyed by provider name. Uses provider methods. */
+function appendBuildTestCommands(lines: string[], stack: string, prefix: string): void {
+  const provider = getStackProvider(stack as StackName);
+  if (!provider) return;
+  const buildCmds = provider.getBuildCommands();
+  const testCmds = provider.getTestCommands();
+  lines.push('```bash');
+  for (const cmd of buildCmds) {
+    lines.push(`${prefix}${cmd}`);
+  }
+  for (const cmd of testCmds) {
+    lines.push(`${prefix}${cmd}`);
+  }
+  lines.push('```');
 }
 
 function generateMultiStackAgentsMd(projectDir: string, stacks: StackDetection[]): string {
@@ -168,28 +171,11 @@ function generateMultiStackAgentsMd(projectDir: string, stacks: StackDetection[]
     const heading = detection.dir === '.' ? `### ${label}` : `### ${label} (${detection.dir}/)`;
     const prefix = detection.dir === '.' ? '' : `cd ${detection.dir} && `;
 
-    lines.push(heading, '', '```bash');
+    lines.push(heading, '');
 
-    if (detection.stack === 'nodejs') {
-      lines.push(
-        `${prefix}npm install    # Install dependencies`,
-        `${prefix}npm run build  # Build the project`,
-        `${prefix}npm test       # Run tests`,
-      );
-    } else if (detection.stack === 'python') {
-      lines.push(
-        `${prefix}pip install -r requirements.txt  # Install dependencies`,
-        `${prefix}python -m pytest                 # Run tests`,
-      );
-    } else if (detection.stack === 'rust') {
-      lines.push(
-        `${prefix}cargo build    # Build the project`,
-        `${prefix}cargo test     # Run tests`,
-        `${prefix}cargo tarpaulin --out json  # Run coverage`,
-      );
-    }
+    appendBuildTestCommands(lines, detection.stack, prefix);
 
-    lines.push('```', '');
+    lines.push('');
   }
 
   lines.push(

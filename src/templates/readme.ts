@@ -78,8 +78,13 @@ export function getInstallCommand(stack: string | string[] | null): string {
   return getSingleInstallCommand(stack);
 }
 
+/** Per-stack install commands, keyed by stack name. */
+const INSTALL_COMMANDS: Record<string, string> = {
+  python: 'pip install codeharness',
+  rust: 'cargo install codeharness',
+};
+
 function getSingleInstallCommand(stack: string | null): string {
-  if (stack === 'python') return 'pip install codeharness';
-  if (stack === 'rust') return 'cargo install codeharness';
+  if (stack && INSTALL_COMMANDS[stack]) return INSTALL_COMMANDS[stack];
   return 'npm install -g codeharness';
 }

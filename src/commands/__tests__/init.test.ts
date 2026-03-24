@@ -6,9 +6,9 @@ import { Command } from 'commander';
 import { registerInitCommand, generateAgentsMdContent, generateDocsIndexContent, getCoverageTool, getStackLabel, getProjectName } from '../init.js';
 import { readState, writeState, getDefaultState } from '../../lib/state.js';
 
-// Mock the stack-detect module (wrap real implementation for overridability)
-vi.mock('../../lib/stack-detect.js', async (importOriginal) => {
-  const orig = await importOriginal<typeof import('../../lib/stack-detect.js')>();
+// Mock the stacks module (wrap real implementation for overridability)
+vi.mock('../../lib/stacks/index.js', async (importOriginal) => {
+  const orig = await importOriginal<typeof import('../../lib/stacks/index.js')>();
   return { ...orig, detectStack: vi.fn(orig.detectStack), detectStacks: vi.fn(orig.detectStacks), detectAppType: vi.fn(orig.detectAppType) };
 });
 
@@ -1718,7 +1718,7 @@ describe('init command — initProject fail() result handling', () => {
     // initProject to return ok(failResult). To trigger the actual fail() path,
     // we need an error in the orchestrator's own logic. We can achieve this by
     // making detectStacks throw — it's called before any try/catch in initProjectInner.
-    const { detectStacks } = await import('../../lib/stack-detect.js');
+    const { detectStacks } = await import('../../lib/stacks/index.js');
     const originalImpl = vi.mocked(detectStacks).getMockImplementation?.() ?? detectStacks;
     vi.mocked(detectStacks).mockImplementation(() => { throw new Error('boom'); });
 
@@ -1726,12 +1726,12 @@ describe('init command — initProject fail() result handling', () => {
     expect(exitCode).toBe(1);
 
     // Restore
-    if (originalImpl) vi.mocked(detectStacks).mockImplementation(originalImpl as () => import('../../lib/stack-detect.js').StackDetection[]);
+    if (originalImpl) vi.mocked(detectStacks).mockImplementation(originalImpl as () => import('../../lib/stacks/index.js').StackDetection[]);
   });
 
   it('outputs JSON error when initProject returns fail() in json mode', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
-    const { detectStacks } = await import('../../lib/stack-detect.js');
+    const { detectStacks } = await import('../../lib/stacks/index.js');
     const originalImpl = vi.mocked(detectStacks).getMockImplementation?.() ?? detectStacks;
     vi.mocked(detectStacks).mockImplementation(() => { throw new Error('boom'); });
 
@@ -1740,6 +1740,6 @@ describe('init command — initProject fail() result handling', () => {
     expect(stdout).toContain('"status":"fail"');
 
     // Restore
-    if (originalImpl) vi.mocked(detectStacks).mockImplementation(originalImpl as () => import('../../lib/stack-detect.js').StackDetection[]);
+    if (originalImpl) vi.mocked(detectStacks).mockImplementation(originalImpl as () => import('../../lib/stacks/index.js').StackDetection[]);
   });
 });

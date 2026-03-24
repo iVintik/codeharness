@@ -10,7 +10,9 @@ import { existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
-import type { StackDetection } from '../../lib/stack-detect.js';
+import type { StackDetection } from '../../lib/stacks/index.js';
+import { getStackProvider } from '../../lib/stacks/index.js';
+import type { StackName } from '../../lib/stacks/index.js';
 
 /** Result returned by generateDockerfileTemplate */
 export interface DockerfileTemplateResult {
@@ -141,25 +143,18 @@ RUN cargo build --release
 function runtimeCopyDirectives(stacks: string[]): string {
   const lines: string[] = [];
   for (const stack of stacks) {
-    if (stack === 'nodejs') {
-      lines.push('COPY --from=build-nodejs /build/node_modules ./node_modules');
-      lines.push('COPY --from=build-nodejs /build/ ./app/');
-    } else if (stack === 'python') {
-      lines.push('COPY --from=build-python /build/dist /opt/app/python/');
-    } else if (stack === 'rust') {
-      lines.push('COPY --from=build-rust /build/target/release/myapp /usr/local/bin/myapp');
+    const provider = getStackProvider(stack as StackName);
+    if (provider) {
+      lines.push(provider.getRuntimeCopyDirectives());
     }
   }
   return lines.join('\n');
 }
 
-/** Stacks that have multi-stage build support */
-const MULTI_STAGE_STACKS = new Set(['nodejs', 'python', 'rust']);
-
 /** Compose a multi-stage Dockerfile from multiple stack detections */
 function multiStageTemplate(detections: StackDetection[]): string {
-  // Filter to only stacks with known build-stage support
-  const supported = detections.filter(d => MULTI_STAGE_STACKS.has(d.stack));
+  // Filter to only stacks with a registered provider (all registered providers support multi-stage)
+  const supported = detections.filter(d => getStackProvider(d.stack) !== undefined);
   if (supported.length === 0) {
     // All stacks unknown — fall back to generic-like runtime-only Dockerfile
     return genericTemplate();
@@ -168,9 +163,10 @@ function multiStageTemplate(detections: StackDetection[]): string {
   const stacks = supported.map(d => d.stack);
 
   for (const stack of stacks) {
-    if (stack === 'nodejs') buildStages.push(nodejsBuildStage());
-    else if (stack === 'python') buildStages.push(pythonBuildStage());
-    else if (stack === 'rust') buildStages.push(rustBuildStage());
+    const provider = getStackProvider(stack as StackName);
+    if (provider) {
+      buildStages.push(provider.getDockerBuildStage());
+    }
   }
 
   const copyLines = runtimeCopyDirectives(stacks);
@@ -235,15 +231,10 @@ export function generateDockerfileTemplate(
   let content: string;
   let resolvedStack: string;
 
-  if (stack === 'nodejs') {
-    content = nodejsTemplate();
-    resolvedStack = 'nodejs';
-  } else if (stack === 'python') {
-    content = pythonTemplate();
-    resolvedStack = 'python';
-  } else if (stack === 'rust') {
-    content = rustTemplate();
-    resolvedStack = 'rust';
+  const provider = stack ? getStackProvider(stack as StackName) : undefined;
+  if (provider) {
+    content = provider.getDockerfileTemplate();
+    resolvedStack = provider.name;
   } else {
     content = genericTemplate();
     resolvedStack = 'generic';

@@ -187,7 +187,8 @@ export function registerTeardownCommand(program: Command): void {
       }
 
       // --- Task 4: Remove OTLP instrumentation ---
-      if (state.otlp?.enabled && (state.stacks?.includes('nodejs') ?? state.stack === 'nodejs')) {
+      const stacks = state.stacks ?? (state.stack ? [state.stack] : []);
+      if (state.otlp?.enabled && stacks.includes('nodejs')) {
         const pkgPath = join(projectDir, 'package.json');
         if (existsSync(pkgPath)) {
           try {

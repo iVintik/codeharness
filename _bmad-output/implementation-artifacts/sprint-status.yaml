@@ -109,7 +109,7 @@ development_status:
   10-2-nodejs-provider: done
   10-3-python-provider: done
   10-4-rust-provider: done
-  10-5-migrate-consumers-to-stackprovider: backlog
+  10-5-migrate-consumers-to-stackprovider: done
 
   # Epic 11: Unified State
   epic-11: backlog

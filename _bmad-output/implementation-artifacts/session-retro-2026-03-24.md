@@ -457,3 +457,142 @@ No new workarounds this session. All tech debt items from session 10 carry forwa
 - Epic 10 progress: 0/5 -> 3/5 in one day
 - Pipeline throughput: ~1 story per ralph session (consistent across all 4 sessions)
 - Estimated sessions remaining for Epic 10: 2 (10-4 + 10-5, assuming 10-5 is not split)
+
+---
+
+# Session Retrospective — 2026-03-24 (Sessions 12-13)
+
+**Sprint:** Operational Excellence (Architecture v3 Migration phase)
+**Sessions:** 12 (10-4 full pipeline) and 13 (10-5 story creation + 10-4 verification)
+**Session start:** ~09:14 UTC
+**Appended:** 2026-03-24T13:11Z
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages Completed |
+|-------|------|---------|---------------------------|
+| 10-4-rust-provider | Epic 10 (Stack Provider Pattern) | done | create-story, dev-story, code-review, verification (implicit via commit) |
+| 10-5-migrate-consumers-to-stackprovider | Epic 10 (Stack Provider Pattern) | ready-for-dev | create-story only |
+
+**Session 12 (~09:14-09:34Z):** Story 10-4 went through the full pipeline -- create-story, dev-story (55 new tests, 3397 total, 0 regressions), and code-review (2 MEDIUM fixed, 2 LOW deferred). Committed as `fa47c33`.
+
+**Session 13 (~09:43Z):** Story 10-5 had its create-story stage completed. The story creation agent expanded the backlog item into a detailed 17-AC spec covering consumer migration for all files that contain stack string comparisons. Story status moved from `backlog` to `ready-for-dev`.
+
+**Net progress:** Epic 10 now has 4 of 5 stories done (10-1, 10-2, 10-3, 10-4). Only 10-5 (consumer migration) remains, at `ready-for-dev`.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| MEDIUM | 10-4 | Misleading JSDoc in `hasCargoDep` -- example was backwards | Yes |
+| MEDIUM | 10-4 | Missing false-positive prevention tests for crate substring matching -- 2 tests added | Yes |
+
+Code review caught 2 MEDIUM issues, both fixed in-session. No HIGH-severity bugs this time -- the Rust provider had a cleaner implementation compared to Node.js and Python providers.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+1. **`hasCargoDep` matches commented-out dependencies.** Pre-existing behavior inherited from the pattern used in `stack-detect.ts` and other providers. LOW severity, consistent with the same issue in Python and Node.js providers.
+2. **`getCargoDepsSection` doesn't handle `[dependencies.foo]` subsection format.** TOML allows `[dependencies.foo]` as an alternative to inline table syntax. The current regex only handles the `[dependencies]` section block. Pre-existing limitation, not introduced by this story.
+3. **Bevy system libs detection deferred.** Story notes mention Bevy detection for Docker system libs, but no such logic exists in `dockerfile-template.ts`. Correctly deferred to avoid scope creep.
+
+### Code Quality Concerns
+
+1. **Coverage gap: no integration test for `installOtlp` success path.** Requires `cargo` binary. Same pattern as Python provider's `pip`/`pipx` gap. Consistent limitation across all providers.
+2. **`AppType` union lacks `'library'` variant.** Epic definition mentioned it for Rust, but actual code only has `'generic'`. Story creation agent correctly followed the code, not the aspirational epic text.
+
+### Verification Gaps
+
+- **10-4 verification was implicit.** The story was committed with all tests passing (55 new, 3397 total, 0 regressions). Sprint-status shows `done`. However, the session issues log does not record a formal verification stage for 10-4 -- the review stage at 09:34Z was the last recorded pipeline step.
+- **10-5 create-story flagged 3 risks** that the dev agent should watch for:
+  - AC17 (`verify-prompt.ts`) compares `AppType` not `StackName` -- could cause false positives in boundary tests
+  - AC16 (`teardown.ts`) accesses state field not local variable -- migration needs state shape understanding
+  - `detectAppType()` export chain may break if `stack-detect.ts` deleted before re-export verified
+
+### Tooling/Infrastructure Problems
+
+- No sandbox, permission, or CLI issues reported in these sessions.
+- Docker Desktop status remains unknown (not tested in 10-4 since all 27 ACs are `cli-verifiable`).
+
+---
+
+## 3. What Went Well
+
+- **10-4 completed cleanly.** 55 new tests, zero regressions, 2 review issues (both MEDIUM, both fixed). The cleanest provider implementation across all four (10-1 through 10-4).
+- **All 27 ACs verified as `cli-verifiable`.** No Docker dependency needed. The verification-tier pattern from session 11 is now standard.
+- **Story creation agent handled ambiguity well.** Three points of ambiguity in the epic definition (library AppType, Bevy detection, workspace ordering) were all resolved correctly by following the actual codebase rather than aspirational epic text.
+- **Epic 10 at 80% completion.** Four of five stories done in sessions 8-13. The StackProvider pattern (interface + registry + Node.js + Python + Rust) is fully implemented.
+- **Test suite continues to grow.** 3098 -> 3397 (+299 new tests across sessions 8-13). Zero regressions throughout.
+- **10-5 story spec is thorough.** 17 ACs covering every consumer file, with boundary tests (AC12-13) to enforce zero stack string comparisons outside `src/lib/stacks/`. This gives the dev agent strong guidance for the final migration.
+
+---
+
+## 4. What Went Wrong
+
+- **10-4 lacks a formal verification record.** The session issues log shows dev-story at 09:24Z with no issues and code-review at 09:34Z, but no explicit verification stage. Sprint-status shows `done`, so verification must have happened, but there is no proof document or verification log entry. This is a process gap.
+- **Comment-matching in dependency detection is now tech debt across all three providers.** `hasCargoDep`, `hasPythonDep`, and the Node.js equivalent all match package names inside comments. This was flagged as LOW in each review and deferred each time. It is now a systematic issue, not an isolated one.
+- **Story 10-5 is accumulating scope from all prior sessions.** It now owns: consumer migration for 8+ files, type reconciliation (CoverageToolInfo, OtlpResult), stack-detect.ts deletion, import migration for 7+ test files, boundary test creation, and the `StackDetection` type deduplication. This is the largest story in Epic 10 by far.
+- **`installOtlp` success path is untested in all three providers.** This is a systematic gap -- no provider has integration tests for actual package installation. The gap will persist until a CI/Docker environment is available for integration testing.
+
+---
+
+## 5. Lessons Learned
+
+### Repeat
+- **Following actual code over aspirational epic text.** The story creation agent's decision to use `'generic'` instead of `'library'` for Rust and to defer Bevy detection prevented scope creep and kept the story focused.
+- **Consistent provider implementation pattern.** The Rust provider followed the same structure as Node.js and Python, making it the fastest and cleanest implementation. The pattern is proven.
+- **Expanding minimal story specs before development.** The 10-5 create-story stage produced a 17-AC spec from a backlog item with no detail. This is now standard practice across sessions 8-13.
+
+### Avoid
+- **Systematic deferral of the same issue across stories.** Comment-matching in dependency detection was flagged LOW and deferred in 10-2, 10-3, and 10-4. Three deferrals of the same issue should trigger a tracked fix, not another deferral.
+- **Skipping formal verification for stories that "obviously pass."** Even when all tests pass and code review is clean, the verification stage should produce a record. Story 10-4 has no verification artifact.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+1. **Verify that 10-4 proof/verification artifact exists.** If not, document the gap. Do not retroactively create a fake proof.
+
+### Fix Soon (Next Sprint / Next Session)
+1. **Complete story 10-5 (consumer migration).** This is the final story in Epic 10. It is large -- consider whether it can be completed in a single session or needs splitting.
+2. **Evaluate splitting 10-5.** Carried forward from sessions 9-11. The story now has at least 5 distinct concerns: (a) consumer file migration, (b) test file import migration, (c) stack-detect.ts deletion, (d) type reconciliation (CoverageToolInfo, OtlpResult), (e) boundary test creation. Consider splitting into 2-3 sub-stories if the dev agent struggles.
+3. **Address the 10-5 risks flagged by create-story.** The `verify-prompt.ts` AppType vs StackName distinction, `teardown.ts` state field access, and `detectAppType()` export chain all need careful handling during implementation.
+4. **Fix comment-matching in dependency detection.** This is now a systematic issue across all providers. Create a single fix that adds comment-awareness to `hasCargoDep`, `hasPythonDep`, and the Node.js equivalent. Track as a backlog item at minimum.
+
+### Backlog (Track But Not Urgent)
+1. **`installOtlp` integration tests for all providers.** Requires Docker/CI. Systematic gap across Node.js, Python, Rust.
+2. **`getCargoDepsSection` `[dependencies.foo]` subsection format.** TOML edge case, low real-world impact.
+3. **Add `'library'` to `AppType` union.** If Rust library projects need distinct treatment in the future.
+4. **Story 15-4: Fix pre-existing TS compilation errors.** Still at ~50 errors. Noise is chronic.
+5. All items from sessions 8-11 backlog remain open (15-2/15-5, StackDetection dedup, double detection, recoverCorruptedState test, `_resetRegistry` export cleanup, readTextSafe catch branch, registry.ts 94.73%, hasPythonDep normalization, TOML regex replacement, proof parser docs).
+
+---
+
+## Cross-Session Summary (Sessions 8-13, 2026-03-24)
+
+### Stories completed today: 4
+- **10-1-stackprovider-interface-and-registry** -- done (session 8)
+- **10-2-nodejs-provider** -- done (session 9)
+- **10-3-python-provider** -- done (sessions 10-11)
+- **10-4-rust-provider** -- done (sessions 12-13)
+
+### Stories started: 1
+- **10-5-migrate-consumers-to-stackprovider** -- ready-for-dev (story created in session 13)
+
+### Cumulative stats
+- Tests: 3098 -> 3397 (+299 new tests)
+- Bugs caught by code review: 17 (7 in session 8, 4 in session 9, 4 in session 10, 2 in sessions 12-13) -- all fixed
+- Bugs shipped: 0
+- Stories blocked: 0
+- Tech debt items deferred: 11 (type mismatches x2, regex fragility x3, comment matching x3, task markers, consumer branches, AGENTS.md staleness)
+
+### Sprint velocity
+- Epic 10 progress: 0/5 -> 4/5 in one day (6 sessions)
+- Pipeline throughput: ~1 story per ralph session (consistent across all 6 sessions)
+- Estimated sessions remaining for Epic 10: 1 (10-5 only, but it is the largest story)

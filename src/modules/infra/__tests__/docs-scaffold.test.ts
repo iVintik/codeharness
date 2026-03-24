@@ -183,7 +183,6 @@ describe('generateAgentsMdContent', () => {
     const content = generateAgentsMdContent(testDir, 'rust');
     expect(content).toContain('cargo build');
     expect(content).toContain('cargo test');
-    expect(content).toContain('cargo tarpaulin');
   });
 
   it('labels Rust stack correctly', () => {

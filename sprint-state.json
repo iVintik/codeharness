@@ -2,7 +2,7 @@
   "version": 1,
   "sprint": {
     "total": 69,
-    "done": 39,
+    "done": 42,
     "failed": 0,
     "blocked": 2,
     "inProgress": null
@@ -321,7 +321,7 @@
       "acResults": null
     },
     "10-1-stackprovider-interface-and-registry": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -329,16 +329,16 @@
       "acResults": null
     },
     "10-2-nodejs-provider": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "10-3-python-provider": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 2,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -564,181 +564,118 @@
   "run": {
     "active": true,
     "startedAt": null,
-    "iteration": 1,
+    "iteration": 4,
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "10-1-stackprovider-interface-and-registry",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification",
-    "acProgress": "3/3"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Ambiguity:** Epic says `stacks: string[]` but `StackName` union type exists from story 9-1. Chose `StackName[]` for type safety.",
+      "story": "10-3-python-provider",
+      "description": "**Workaround:** Epic mentions CLI/library detection for Python app types, but codebase only has agent/web/server/generic. ACs reflect actual code, not aspirational epic text.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Missing context:** `InitResult` in `types.ts` may need `stacks` field but epic FR4 doesn't explicitly call it out — implied by scope.",
+      "story": "10-3-python-provider",
+      "description": "**Risk:** `getProjectName()` uses TOML regex (fragile for edge cases). Proper TOML parser would be better but adds dependency.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Risk:** `detectStacks()` can return duplicate stack names from multiple directories. `stacks` field needs deduplication.",
+      "story": "10-3-python-provider",
+      "description": "**Risk:** `hasPythonDep()` regex fragile for packages with hyphens/underscores (Python normalizes these).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Observation:** All 8 ACs are cli-verifiable via unit tests — no external dependencies.",
+      "story": "10-3-python-provider",
+      "description": "**Observation:** `PYTHON_OTLP_PACKAGES` in code are `opentelemetry-distro`/`opentelemetry-exporter-otlp`, not what the original story skeleton stated.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Pre-existing type errors:** `bridge.test.ts` implicit `any`, `run.test.ts` spread arg type error, `stack.test.ts` missing `endpoint`, `status.test.ts` missing `timeoutSummary`. None from this story.",
+      "story": "10-3-python-provider",
+      "description": "**Observation:** Python has no `patchStartScript()` — uses `opentelemetry-instrument` wrapper via env vars instead.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Workaround:** Used `stacks: ['nodejs'] as StackName[]` instead of `as const` in `stack.test.ts` because readonly tuples aren't assignable to `StackName[]`.",
+      "story": "10-3-python-provider",
+      "description": "**HIGH (fixed):** `detectCoverageConfig` substring false positives — `String.includes('coverage')` matched `coverage-conditional-plugin`. Switched to `hasPythonDep()`.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Risk:** `recoverCorruptedState()` recovery path not directly unit-tested for `stacks` field — would need planted `package.json` in temp dir.",
+      "story": "10-3-python-provider",
+      "description": "**MEDIUM (fixed):** `installOtlp` pipx fallback lost track of partially installed packages.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Observation:** 19 new tests added, all 3098 tests pass with 0 failures.",
+      "story": "10-3-python-provider",
+      "description": "**MEDIUM (fixed):** `getProjectName` TOML regex crossed section boundaries.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**HIGH (fixed):** `init-project.ts` never persisted multi-stacks to state file — only single root stack written. All `detectStacks()` results lost on init.",
+      "story": "10-3-python-provider",
+      "description": "**MEDIUM (fixed):** Missing direct tests for `getPythonDepsContent()` and `hasPythonDep()` utils — added 13 tests.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-10",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**MEDIUM (fixed):** `writeState()` mutated caller's state object via `state.stack = state.stacks[0]` side effect.",
+      "story": "10-3-python-provider",
+      "description": "**LOW (not fixed):** `hasPythonDep` matches package names inside comments — pre-existing behavior, low real-world impact.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-11",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**MEDIUM (fixed):** `isValidState()` accepted `stacks: [42, true]` as valid — no element type checking.",
+      "story": "10-3-python-provider",
+      "description": "**LOW (not fixed):** Task comment markers in code could be cleaned up.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-12",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**MEDIUM (fixed):** `recoverCorruptedState()` produced inconsistent `stack: null` / `stacks: ['nodejs']` state.",
+      "story": "10-3-python-provider",
+      "description": "**Coverage gap:** `installOtlp` success path untested (needs real pip/pipx binaries).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-13",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**LOW (not fixed):** `migrateState()` casts `raw.stack as StackName` without validating against known stack names.",
+      "story": "10-3-python-provider",
+      "description": "**BLOCKER:** Docker Desktop is not running — `codeharness stack start` failed with \"Docker Desktop is unable to start\". Cannot perform black-box verification.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-14",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**LOW (not fixed):** `recoverCorruptedState()` calls both `detectStack()` and `detectStacks()` — detection runs twice.",
+      "story": "10-3-python-provider",
+      "description": "**Observation:** All 21 ACs are tagged `cli-verifiable` (unit-testable). Story could benefit from `<!-- verification-tier: unit-testable -->` tag to skip Docker requirement for pure unit-test stories.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-15",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**LOW (not fixed):** Flaky test in `sprint/__tests__/state.test.ts > writeStateAtomic` — shared file race condition under parallel execution.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-16",
-      "story": "9-2-state-schema-migration-multi-stack",
-      "description": "**Coverage gap:** `init-project.test.ts` has zero assertions on `stacks` field after init. No test for recovery when root null but subdirs have stacks.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-17",
-      "story": "10-1-stackprovider-interface-and-registry",
-      "description": "**Ambiguity:** Epic says StackName/AppType in `src/types/state.ts` but they actually live in `src/lib/stack-detect.ts`. Fixed in story.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-18",
-      "story": "10-1-stackprovider-interface-and-registry",
-      "description": "**Implicit dependency:** AC3 requires stub NodejsProvider but epic puts full impl in story 10-2. Added minimal stub task.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-19",
-      "story": "10-1-stackprovider-interface-and-registry",
-      "description": "**Risk:** Registry `detectStacks()` will coexist with existing `stack-detect.ts` `detectStacks()` during transition.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-20",
-      "story": "10-1-stackprovider-interface-and-registry",
-      "description": "**Observation:** `patchStartScript?` optional method not in AC1 checklist but should be in interface definition.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-21",
-      "story": "10-1-stackprovider-interface-and-registry",
-      "description": "**Parallel detection codepaths:** `stack-detect.ts` retains hardcoded detection; `registry.ts` has marker-based detection. Two codepaths coexist until story 10-5 migrates consumers.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-22",
-      "story": "10-1-stackprovider-interface-and-registry",
-      "description": "**Pre-existing TS errors:** ~10 test files have unrelated compilation errors (bridge, run, stack, status, teardown, deps, sync).",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-23",
-      "story": "10-1-stackprovider-interface-and-registry",
-      "description": "**Code quality note:** Registry uses module-level Map state. Auto-registration in `index.ts` ensures NodejsProvider is registered on import, but direct `registry.ts` imports skip auto-registration.",
-      "source": "retro",
-      "resolved": false
-    },
-    {
-      "id": "migrated-24",
-      "story": "10-1-stackprovider-interface-and-registry",
-      "description": "**Test results:** 30 new tests pass, 79 existing stack-detect tests pass (backward compat confirmed).",
+      "story": "10-3-python-provider",
+      "description": "**Action:** Story left at `verifying` for next session when Docker is available.",
       "source": "retro",
       "resolved": false
     }

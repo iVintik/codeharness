@@ -4,6 +4,7 @@
  */
 
 import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 /** Safely read and parse a JSON file. Returns null on any error. */
 export function readJsonSafe(path: string): Record<string, unknown> | null {
@@ -37,4 +38,29 @@ export function getNodeDeps(pkg: Record<string, unknown>): Set<string> {
     }
   }
   return deps;
+}
+
+/**
+ * Read and concatenate content from Python dependency files
+ * (requirements.txt, pyproject.toml, setup.py) in a directory.
+ */
+export function getPythonDepsContent(dir: string): string {
+  const files = ['requirements.txt', 'pyproject.toml', 'setup.py'];
+  const parts: string[] = [];
+  for (const file of files) {
+    const content = readTextSafe(join(dir, file));
+    if (content) parts.push(content);
+  }
+  return parts.join('\n');
+}
+
+/**
+ * Check if a Python dependency is present in combined deps content.
+ * Uses word-boundary-aware matching to avoid substring false positives
+ * (e.g., "openai" should not match "not-openai" or "myopenai").
+ */
+export function hasPythonDep(content: string, dep: string): boolean {
+  const escaped = dep.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`(?:^|[\\s"',])${escaped}(?:[\\[>=<~!;\\s"',]|$)`, 'm');
+  return pattern.test(content);
 }

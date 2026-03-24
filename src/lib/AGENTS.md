@@ -16,8 +16,9 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | stacks/types.ts | Canonical stack type definitions and `StackProvider` interface | `StackProvider`, `StackName`, `AppType`, `CoverageToolName`, `CoverageToolInfo`, `OtlpResult`, `TestCounts` |
 | stacks/registry.ts | Provider registry with marker-based stack detection | `registerProvider`, `getStackProvider`, `detectStacks`, `detectStack`, `StackDetection`, `_resetRegistry` |
 | stacks/nodejs.ts | Full NodejsProvider — all Node.js-specific logic extracted from consumer files | `NodejsProvider` |
-| stacks/utils.ts | Shared helpers for stack providers — JSON/text file reading, Node.js dep extraction | `readJsonSafe`, `readTextSafe`, `getNodeDeps` |
-| stacks/index.ts | Barrel re-exports + auto-registers NodejsProvider on import | all public API from types.ts and registry.ts |
+| stacks/python.ts | Full PythonProvider — all Python-specific logic (app type detection, coverage, OTLP, Dockerfile, pytest parsing) | `PythonProvider` |
+| stacks/utils.ts | Shared helpers for stack providers — JSON/text file reading, Node.js dep extraction, Python dep content reading | `readJsonSafe`, `readTextSafe`, `getNodeDeps`, `getPythonDepsContent`, `hasPythonDep` |
+| stacks/index.ts | Barrel re-exports + auto-registers NodejsProvider and PythonProvider on import | all public API from types.ts and registry.ts |
 
 ## Stack & Environment (Legacy)
 
@@ -122,4 +123,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | deps.ts | Auto-install external tools (Showboat, agent-browser, beads, Semgrep, BATS, cargo-tarpaulin) with fallback chains | `DEPENDENCY_REGISTRY`, `installAllDependencies`, `CriticalDependencyError` |
 
-**Total: 34 library files across 15 categories.**
+**Total: 35 library files across 15 categories.**

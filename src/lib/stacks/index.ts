@@ -26,5 +26,7 @@ export {
 // Auto-register built-in providers
 import { registerProvider } from './registry.js';
 import { NodejsProvider } from './nodejs.js';
+import { PythonProvider } from './python.js';
 
 registerProvider(new NodejsProvider());
+registerProvider(new PythonProvider());

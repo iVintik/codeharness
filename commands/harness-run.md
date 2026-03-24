@@ -190,13 +190,31 @@ After the Agent completes:
 
 ### 3d: If status is `verifying` — Run Verification
 
-**Default: Black-box verification.** Every story gets full Docker verification unless explicitly tagged otherwise.
+> **CRITICAL — CHECK VERIFICATION TIER FIRST. DO NOT SKIP THIS CHECK.**
 
-**Check for unit-testable tag:** Read the story file. If it contains `<!-- verification-tier: unit-testable -->`, use unit-testable verification. This tag is ONLY for stories with zero external effect: file moves, type definitions, internal refactoring, test additions, documentation updates. If no tag exists, black-box is used.
+**Step 3d-0: Read the story file and check for verification tier tag.**
 
-**If unit-testable (tagged):** Run `npm test` and `npm run build`. Check ACs directly (file existence, exports, line counts). Generate proof at `verification/{story_key}-proof.md`. Skip Docker.
+Read `_bmad-output/implementation-artifacts/{story_key}.md`. Search for `<!-- verification-tier: unit-testable -->` anywhere in the file.
 
-**If black-box (default):** Full Docker container with no source code access.
+- **If the tag `<!-- verification-tier: unit-testable -->` IS found:** Use **unit-testable verification** (below). Do NOT use Docker. Do NOT run `codeharness stack start`. Do NOT build Docker images. Do NOT start containers. Go directly to the unit-testable verification flow.
+- **If the tag is NOT found:** Use **black-box verification** (default, with Docker).
+
+**Unit-testable verification (when tagged):**
+
+1. Run `npm run build` — if build fails, fix and retry
+2. Run `npm test` — all tests must pass
+3. For each AC in the story file, verify it directly:
+   - File existence: `ls path/to/file`
+   - Exports: `grep 'export' path/to/file`
+   - Line counts: `wc -l path/to/file`
+   - Function existence: `grep 'function name' path/to/file`
+   - Test passing: check vitest output
+4. Generate proof at `verification/{story_key}-proof.md` with evidence from each AC check
+5. Run `codeharness verify --story {story_key}` to validate the proof
+6. If proof passes → mark story `done`
+7. **No Docker involved at any point.** Skip steps 3d-i through 3d-viii entirely.
+
+**Black-box verification (default, no tag):** Full Docker container with no source code access.
 
 **No internal timeout.** Verification takes as long as it takes. Ralph's iteration timeout is the safety net.
 

@@ -1,10 +1,10 @@
 {
   "version": 1,
   "sprint": {
-    "total": 69,
+    "total": 67,
     "done": 42,
     "failed": 0,
-    "blocked": 2,
+    "blocked": 0,
     "inProgress": null
   },
   "stories": {
@@ -543,22 +543,6 @@
       "lastError": null,
       "proofPath": null,
       "acResults": null
-    },
-    "story-x": {
-      "status": "blocked",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
-    },
-    "story-y": {
-      "status": "blocked",
-      "attempts": 0,
-      "lastAttempt": null,
-      "lastError": null,
-      "proofPath": null,
-      "acResults": null
     }
   },
   "run": {
@@ -676,6 +660,41 @@
       "id": "migrated-15",
       "story": "10-3-python-provider",
       "description": "**Action:** Story left at `verifying` for next session when Docker is available.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "10-3-python-provider",
+      "description": "**Resolution:** Used unit-testable verification (story was already tagged `<!-- verification-tier: unit-testable -->`), bypassing Docker requirement.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "10-3-python-provider",
+      "description": "**Issue:** Initial proof document format was incorrect — missing `bash`/`output` code blocks and wrong `**Tier:**` format. Proof parser requires specific format for evidence recognition. Had to rewrite proof after studying the `validateProofQuality()` parser in `src/modules/verify/proof.ts`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "10-3-python-provider",
+      "description": "**Issue:** AGENTS.md was stale — missing `python.ts` entry. Fixed by adding PythonProvider and updating utils.ts description.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "10-3-python-provider",
+      "description": "**Observation:** `codeharness verify` preconditions check requires tests + coverage to have been run in the same session. Running `npm test` alone isn't enough — need `codeharness coverage --min-file 80` too.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "10-3-python-provider",
+      "description": "**Outcome:** 21/21 ACs passed. Story marked done and committed.",
       "source": "retro",
       "resolved": false
     }

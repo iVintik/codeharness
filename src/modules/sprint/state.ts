@@ -97,8 +97,13 @@ export function getSprintState(): Result<SprintState> {
       // Merge with defaults to handle old state files missing new fields
       const defaults = defaultState();
       const run = parsed.run as Record<string, unknown> | undefined;
+      const sprint = parsed.sprint as Record<string, unknown> | undefined;
       const state: SprintState = {
         ...(parsed as unknown as SprintState),
+        sprint: {
+          ...defaults.sprint,
+          ...(sprint as SprintState['sprint']),
+        },
         run: {
           ...defaults.run,
           ...(run as SprintState['run']),

@@ -401,7 +401,7 @@
       "acResults": null
     },
     "12-3-move-status-logic-to-module": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "12-3-move-status-logic-to-module",
+    "currentPhase": "verify",
+    "lastAction": "Verification passed — story done",
     "acProgress": null
   },
   "actionItems": [

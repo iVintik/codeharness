@@ -42,6 +42,14 @@ vi.mock('../../lib/onboard-checks.js', () => ({
   getOnboardingProgress: vi.fn(() => null),
 }));
 
+// Mock the verify module
+vi.mock('../../modules/verify/index.js', () => ({
+  getValidationProgress: vi.fn(() => ({
+    success: true,
+    data: { total: 0, passed: 0, failed: 0, blocked: 0, remaining: 0, perAC: [] },
+  })),
+}));
+
 // Mock the sprint module
 vi.mock('../../modules/sprint/index.js', () => ({
   generateReport: vi.fn(() => ({

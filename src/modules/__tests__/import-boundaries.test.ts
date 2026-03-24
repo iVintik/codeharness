@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 
 const MODULES_DIR = join(import.meta.dirname, '..');
 const COMMANDS_DIR = join(import.meta.dirname, '..', '..', 'commands');
-const MODULE_NAMES = ['infra', 'sprint', 'verify', 'dev', 'review', 'observability'];
+const MODULE_NAMES = ['infra', 'sprint', 'verify', 'dev', 'review', 'observability', 'status'];
 
 /** Recursively collect all .ts files under a directory, excluding __tests__ */
 function collectTsFiles(dir: string): string[] {

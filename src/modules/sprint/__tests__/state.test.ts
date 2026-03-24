@@ -5,8 +5,11 @@ import {
   unlinkSync,
   existsSync,
   chmodSync,
+  mkdtempSync,
+  rmSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import type { SprintState } from '../../../types/state.js';
 
 // Mock migration so state tests are isolated from real project files
@@ -30,23 +33,29 @@ vi.mock('../migration.js', () => ({
 const { getSprintState, updateStoryStatus, writeStateAtomic, defaultState, statePath } =
   await import('../state.js');
 
-const STATE_FILE = join(process.cwd(), 'sprint-state.json');
-const TMP_FILE = join(process.cwd(), '.sprint-state.json.tmp');
+// Use tmpdir isolation to prevent writeStateAtomic from corrupting real sprint-status.yaml
+let testDir: string;
+let originalCwd: string;
 
-function cleanup(): void {
-  for (const f of [STATE_FILE, TMP_FILE]) {
-    try {
-      chmodSync(f, 0o644);
-    } catch {
-      // ignore — file may not exist
-    }
-    try {
-      unlinkSync(f);
-    } catch {
-      // ignore — file may not exist
-    }
-  }
+function stateFile(): string {
+  return join(process.cwd(), 'sprint-state.json');
 }
+
+function tmpFile(): string {
+  return join(process.cwd(), '.sprint-state.json.tmp');
+}
+
+// Global setup/teardown for all describe blocks that touch the filesystem
+beforeEach(() => {
+  testDir = mkdtempSync(join(tmpdir(), 'ch-state-'));
+  originalCwd = process.cwd();
+  process.chdir(testDir);
+});
+
+afterEach(() => {
+  process.chdir(originalCwd);
+  rmSync(testDir, { recursive: true, force: true });
+});
 
 describe('defaultState', () => {
   it('returns version 2 with empty stories and v2 fields', () => {
@@ -62,21 +71,18 @@ describe('defaultState', () => {
 
 describe('statePath', () => {
   it('returns path ending in sprint-state.json', () => {
-    expect(statePath()).toBe(STATE_FILE);
+    expect(statePath()).toBe(stateFile());
   });
 });
 
 describe('writeStateAtomic', () => {
-  beforeEach(cleanup);
-  afterEach(cleanup);
-
   it('writes valid JSON to sprint-state.json', () => {
     const state = defaultState();
     const result = writeStateAtomic(state);
     expect(result.success).toBe(true);
-    expect(existsSync(STATE_FILE)).toBe(true);
+    expect(existsSync(stateFile())).toBe(true);
 
-    const raw = readFileSync(STATE_FILE, 'utf-8');
+    const raw = readFileSync(stateFile(), 'utf-8');
     const parsed = JSON.parse(raw);
     expect(parsed.version).toBe(2);
   });
@@ -84,14 +90,11 @@ describe('writeStateAtomic', () => {
   it('tmp file does not remain after successful write', () => {
     const result = writeStateAtomic(defaultState());
     expect(result.success).toBe(true);
-    expect(existsSync(TMP_FILE)).toBe(false);
+    expect(existsSync(tmpFile())).toBe(false);
   });
 });
 
 describe('getSprintState', () => {
-  beforeEach(cleanup);
-  afterEach(cleanup);
-
   it('returns default state when no file exists', () => {
     const result = getSprintState();
     expect(result.success).toBe(true);
@@ -123,7 +126,7 @@ describe('getSprintState', () => {
         },
       },
     };
-    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf-8');
 
     const result = getSprintState();
     expect(result.success).toBe(true);
@@ -134,7 +137,7 @@ describe('getSprintState', () => {
   });
 
   it('returns fail on invalid JSON', () => {
-    writeFileSync(STATE_FILE, '{not valid json', 'utf-8');
+    writeFileSync(stateFile(), '{not valid json', 'utf-8');
     const result = getSprintState();
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -158,7 +161,7 @@ describe('getSprintState', () => {
       };
     }
     const state: SprintState = { ...defaultState(), stories };
-    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf-8');
 
     const start = performance.now();
     const result = getSprintState();
@@ -169,8 +172,8 @@ describe('getSprintState', () => {
   });
 
   it('never throws — returns fail on fs error', () => {
-    writeFileSync(STATE_FILE, '{}', 'utf-8');
-    chmodSync(STATE_FILE, 0o000);
+    writeFileSync(stateFile(), '{}', 'utf-8');
+    chmodSync(stateFile(), 0o000);
 
     const result = getSprintState();
     expect(result).toBeDefined();
@@ -179,15 +182,12 @@ describe('getSprintState', () => {
 });
 
 describe('updateStoryStatus', () => {
-  beforeEach(cleanup);
-  afterEach(cleanup);
-
   it('creates file if missing and updates story', () => {
     const result = updateStoryStatus('story-1', 'in-progress');
     expect(result.success).toBe(true);
-    expect(existsSync(STATE_FILE)).toBe(true);
+    expect(existsSync(stateFile())).toBe(true);
 
-    const state = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as SprintState;
+    const state = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     expect(state.stories['story-1'].status).toBe('in-progress');
     expect(state.stories['story-1'].attempts).toBe(1);
     expect(state.sprint.inProgress).toBe('story-1');
@@ -197,7 +197,7 @@ describe('updateStoryStatus', () => {
     updateStoryStatus('story-1', 'in-progress');
     updateStoryStatus('story-2', 'done');
 
-    const state = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as SprintState;
+    const state = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     expect(state.stories['story-1']).toBeDefined();
     expect(state.stories['story-2'].status).toBe('done');
     expect(state.sprint.done).toBe(1);
@@ -207,7 +207,7 @@ describe('updateStoryStatus', () => {
   it('attaches error detail when provided', () => {
     updateStoryStatus('story-1', 'failed', { error: 'build broke' });
 
-    const state = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as SprintState;
+    const state = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     expect(state.stories['story-1'].lastError).toBe('build broke');
     expect(state.stories['story-1'].status).toBe('failed');
     expect(state.sprint.failed).toBe(1);
@@ -218,7 +218,7 @@ describe('updateStoryStatus', () => {
       proofPath: 'docs/proof.md',
     });
 
-    const state = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as SprintState;
+    const state = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     expect(state.stories['story-1'].proofPath).toBe('docs/proof.md');
   });
 
@@ -227,14 +227,14 @@ describe('updateStoryStatus', () => {
     updateStoryStatus('story-1', 'failed', { error: 'oops' });
     updateStoryStatus('story-1', 'in-progress');
 
-    const state = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as SprintState;
+    const state = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     expect(state.stories['story-1'].attempts).toBe(2);
   });
 
   it('uses atomic write (tmp then rename)', () => {
     updateStoryStatus('story-1', 'done');
-    expect(existsSync(TMP_FILE)).toBe(false);
-    expect(existsSync(STATE_FILE)).toBe(true);
+    expect(existsSync(tmpFile())).toBe(false);
+    expect(existsSync(stateFile())).toBe(true);
   });
 
   it('round-trips state correctly (write then read)', () => {
@@ -249,16 +249,13 @@ describe('updateStoryStatus', () => {
 });
 
 describe('lastAttempt semantics and error paths', () => {
-  beforeEach(cleanup);
-  afterEach(cleanup);
-
   it('sets lastAttempt only on in-progress transitions', () => {
     updateStoryStatus('story-1', 'in-progress');
-    const state1 = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as SprintState;
+    const state1 = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     const firstAttemptTime = state1.stories['story-1'].lastAttempt;
     expect(firstAttemptTime).not.toBeNull();
     updateStoryStatus('story-1', 'done');
-    const state2 = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as SprintState;
+    const state2 = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     expect(state2.stories['story-1'].lastAttempt).toBe(firstAttemptTime);
   });
 
@@ -283,14 +280,11 @@ describe('lastAttempt semantics and error paths', () => {
 });
 
 describe('concurrent writes', () => {
-  beforeEach(cleanup);
-  afterEach(cleanup);
-
   it('both writes produce valid JSON', () => {
     updateStoryStatus('concurrent-1', 'in-progress');
     updateStoryStatus('concurrent-2', 'done');
 
-    const raw = readFileSync(STATE_FILE, 'utf-8');
+    const raw = readFileSync(stateFile(), 'utf-8');
     expect(() => JSON.parse(raw)).not.toThrow();
 
     const state = JSON.parse(raw) as SprintState;

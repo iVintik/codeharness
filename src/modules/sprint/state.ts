@@ -1,9 +1,10 @@
 /**
  * Sprint state — read/write unified sprint-state.json with atomic writes.
+ * Also generates sprint-status.yaml as a derived human-readable view.
  */
 
 import { readFileSync, writeFileSync, renameSync, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
 import type { SprintState, SprintStateAny, StoryStatus, StoryState } from '../../types/state.js';
@@ -23,6 +24,11 @@ export function statePath(): string {
 /** Path to the temporary file used for atomic writes */
 function tmpPath(): string {
   return join(projectRoot(), '.sprint-state.json.tmp');
+}
+
+/** Path to the sprint-status.yaml file (derived view) */
+export function sprintStatusYamlPath(): string {
+  return join(projectRoot(), '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml');
 }
 
 /** Return an empty default SprintState (v2) */
@@ -81,7 +87,111 @@ function defaultStoryState(): StoryState {
 }
 
 /**
+ * Derive a flat story-key → status map from sprint state.
+ * This replaces the old `readSprintStatus()` which parsed YAML.
+ * Only includes story keys (digit-digit-name pattern), not epic keys.
+ */
+export function getStoryStatusesFromState(state: SprintState): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, story] of Object.entries(state.stories)) {
+    result[key] = story.status;
+  }
+  return result;
+}
+
+/**
+ * Map internal StoryStatus values to sprint-status.yaml status strings.
+ * Most map 1:1, but 'ready' maps to 'ready-for-dev' for YAML compatibility.
+ */
+function yamlStatus(status: StoryStatus): string {
+  if (status === 'ready') return 'ready-for-dev';
+  return status;
+}
+
+/**
+ * Generate sprint-status.yaml content from sprint state.
+ * Groups stories by epic prefix and produces the same YAML structure
+ * that existed as the hand-maintained file.
+ */
+export function generateSprintStatusYaml(state: SprintState): string {
+  const lines: string[] = [
+    '# codeharness Sprint Status (auto-generated from sprint-state.json)',
+    `# generated: ${new Date().toISOString().slice(0, 10)}`,
+    '# This file is a derived view — do NOT edit manually.',
+    '# Source of truth: sprint-state.json',
+    '',
+    'development_status:',
+  ];
+
+  // Group stories by epic prefix (first number segment)
+  const epicGroups = new Map<string, string[]>();
+  const sortedKeys = Object.keys(state.stories).sort((a, b) => {
+    // Sort by epic number, then story number
+    const [aEpic, aStory] = parseStoryKey(a);
+    const [bEpic, bStory] = parseStoryKey(b);
+    if (aEpic !== bEpic) return aEpic - bEpic;
+    return aStory - bStory;
+  });
+
+  for (const key of sortedKeys) {
+    const epicNum = parseStoryKey(key)[0];
+    const epicKey = String(epicNum);
+    if (!epicGroups.has(epicKey)) {
+      epicGroups.set(epicKey, []);
+    }
+    epicGroups.get(epicKey)!.push(key);
+  }
+
+  // Emit each epic group
+  for (const [epicKey, storyKeys] of epicGroups) {
+    lines.push('');
+    lines.push(`  # Epic ${epicKey}`);
+
+    // Compute epic status from stories
+    const allDone = storyKeys.every(k => state.stories[k].status === 'done');
+    const epicStatus = allDone ? 'done' : 'backlog';
+    lines.push(`  epic-${epicKey}: ${epicStatus}`);
+
+    for (const key of storyKeys) {
+      const story = state.stories[key];
+      lines.push(`  ${key}: ${yamlStatus(story.status)}`);
+    }
+  }
+
+  lines.push('');
+  return lines.join('\n');
+}
+
+/**
+ * Parse a story key into [epicNumber, storyNumber].
+ * e.g. "11-2-sprint-status-yaml-derived-view" → [11, 2]
+ */
+function parseStoryKey(key: string): [number, number] {
+  const match = key.match(/^(\d+)-(\d+)/);
+  if (!match) return [Infinity, Infinity];
+  return [parseInt(match[1], 10), parseInt(match[2], 10)];
+}
+
+/**
+ * Write the derived sprint-status.yaml from current state.
+ * Best-effort: failures are silently ignored since this is a convenience view.
+ */
+function writeSprintStatusYaml(state: SprintState): void {
+  try {
+    const yamlPath = sprintStatusYamlPath();
+    // Only write if the directory exists (project has been set up)
+    const dir = dirname(yamlPath);
+    if (!existsSync(dir)) return;
+    const content = generateSprintStatusYaml(state);
+    writeFileSync(yamlPath, content, 'utf-8');
+  } catch {
+    // Best-effort: YAML view is not critical
+  }
+}
+
+/**
  * Write state to disk atomically: write to tmp, then rename.
+ * Also regenerates sprint-status.yaml as a derived view.
  */
 export function writeStateAtomic(state: SprintState): Result<void> {
   try {
@@ -90,6 +200,8 @@ export function writeStateAtomic(state: SprintState): Result<void> {
     const final = statePath();
     writeFileSync(tmp, data, 'utf-8');
     renameSync(tmp, final);
+    // Regenerate YAML view after successful state write
+    writeSprintStatusYaml(state);
     return ok(undefined);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

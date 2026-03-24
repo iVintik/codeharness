@@ -13,7 +13,7 @@ import { isBmadInstalled } from './bmad.js';
 import { buildGapId, findExistingByGapId } from './beads.js';
 import type { BeadsIssue } from './beads.js';
 import type { OnboardingStory } from './epic-generator.js';
-import { readSprintStatus } from './beads-sync.js';
+import { readSprintStatusFromState } from '../modules/sprint/index.js';
 import { checkPerFileCoverage } from './coverage.js';
 import { isStackRunning } from './docker.js';
 
@@ -95,7 +95,7 @@ const STORY_KEY_PATTERN = /^\d+-\d+-/;
  * Returns the count of stories reset for reporting purposes.
  */
 export function findVerificationGaps(dir?: string): OnboardingStory[] {
-  const statuses = readSprintStatus(dir);
+  const statuses = readSprintStatusFromState();
   const root = dir ?? process.cwd();
   const unverified: string[] = [];
 

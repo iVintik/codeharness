@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { unlinkSync, existsSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 // Mock migration so index tests are isolated from real project files
 vi.mock('../migration.js', () => ({
@@ -25,23 +26,37 @@ const {
   getSprintState,
   generateReport,
   getStoryDrillDown,
+  generateSprintStatusYaml,
+  getStoryStatusesFromState,
+  readSprintStatusFromState,
+  writeStateAtomic,
+  computeSprintCounts,
 } = await import('../index.js');
 
+const { defaultState } = await import('../state.js');
 const { writeFileSync } = await import('node:fs');
 
-const STATE_FILE = join(process.cwd(), 'sprint-state.json');
-const TMP_FILE = join(process.cwd(), '.sprint-state.json.tmp');
+// Use tmpdir isolation to prevent writeStateAtomic side effects from
+// corrupting real sprint-status.yaml in the project directory.
+let testDir: string;
+let originalCwd: string;
 
-function cleanup(): void {
-  for (const f of [STATE_FILE, TMP_FILE]) {
-    if (existsSync(f)) unlinkSync(f);
-  }
+function stateFile(): string {
+  return join(process.cwd(), 'sprint-state.json');
 }
 
-describe('sprint module', () => {
-  beforeEach(cleanup);
-  afterEach(cleanup);
+beforeEach(() => {
+  testDir = mkdtempSync(join(tmpdir(), 'ch-index-'));
+  originalCwd = process.cwd();
+  process.chdir(testDir);
+});
 
+afterEach(() => {
+  process.chdir(originalCwd);
+  rmSync(testDir, { recursive: true, force: true });
+});
+
+describe('sprint module', () => {
   it('getNextStory returns ok with null selected when no stories exist', () => {
     const result = getNextStory();
     expect(result.success).toBe(true);
@@ -76,7 +91,7 @@ describe('sprint module', () => {
       },
       actionItems: [],
     };
-    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf-8');
 
     const result = getNextStory();
     expect(result.success).toBe(true);
@@ -118,7 +133,7 @@ describe('sprint module', () => {
       },
       actionItems: [],
     };
-    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf-8');
 
     const result = getNextStory();
     expect(result.success).toBe(true);
@@ -142,7 +157,7 @@ describe('sprint module', () => {
   });
 
   it('getNextStory returns fail on state read error', () => {
-    writeFileSync(STATE_FILE, '{invalid json!!!', 'utf-8');
+    writeFileSync(stateFile(), '{invalid json!!!', 'utf-8');
     const result = getNextStory();
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -202,7 +217,7 @@ describe('sprint module', () => {
       },
       actionItems: [],
     };
-    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf-8');
 
     const result = generateReport();
     expect(result.success).toBe(true);
@@ -225,7 +240,7 @@ describe('sprint module', () => {
   });
 
   it('generateReport returns fail on corrupted state file', () => {
-    writeFileSync(STATE_FILE, '{bad json!!!', 'utf-8');
+    writeFileSync(stateFile(), '{bad json!!!', 'utf-8');
     const result = generateReport();
     expect(result.success).toBe(false);
   });
@@ -247,7 +262,7 @@ describe('sprint module', () => {
       run: { active: false, startedAt: null, iteration: 0, cost: 0, completed: [], failed: [] },
       actionItems: [],
     };
-    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    writeFileSync(stateFile(), JSON.stringify(state, null, 2), 'utf-8');
 
     const result = getStoryDrillDown('2-3-status');
     expect(result.success).toBe(true);
@@ -261,7 +276,7 @@ describe('sprint module', () => {
   });
 
   it('getStoryDrillDown returns fail on state read error', () => {
-    writeFileSync(STATE_FILE, '{invalid json!!!', 'utf-8');
+    writeFileSync(stateFile(), '{invalid json!!!', 'utf-8');
     const result = getStoryDrillDown('anything');
     expect(result.success).toBe(false);
     if (!result.success) {
@@ -275,5 +290,52 @@ describe('sprint module', () => {
     if (!result.success) {
       expect(result.error).toContain("Story 'nonexistent' not found");
     }
+  });
+});
+
+// ─── Story 11-2: YAML generation and status derivation via index ────────────
+
+describe('sprint module — YAML generation exports', () => {
+  it('generateSprintStatusYaml delegates to state implementation', () => {
+    const state = defaultState();
+    const yaml = generateSprintStatusYaml(state);
+    expect(yaml).toContain('development_status:');
+    expect(yaml).toContain('auto-generated');
+  });
+
+  it('getStoryStatusesFromState delegates to state implementation', () => {
+    const state = {
+      ...defaultState(),
+      stories: {
+        '1-1-a': { status: 'done' as const, attempts: 0, lastAttempt: null, lastError: null, proofPath: null, acResults: null },
+      },
+    };
+    const result = getStoryStatusesFromState(state);
+    expect(result).toEqual({ '1-1-a': 'done' });
+  });
+
+  it('readSprintStatusFromState returns empty map when no state file', () => {
+    const result = readSprintStatusFromState();
+    expect(result).toEqual({});
+  });
+
+  it('readSprintStatusFromState returns statuses from written state', () => {
+    const state = {
+      ...defaultState(),
+      stories: {
+        '2-1-story': { status: 'in-progress' as const, attempts: 1, lastAttempt: null, lastError: null, proofPath: null, acResults: null },
+      },
+    };
+    writeStateAtomic(state);
+    const result = readSprintStatusFromState();
+    expect(result['2-1-story']).toBe('in-progress');
+  });
+
+  it('computeSprintCounts delegates to state implementation', () => {
+    const mk = (s: string) => ({ status: s as 'done', attempts: 0, lastAttempt: null, lastError: null, proofPath: null, acResults: null });
+    const counts = computeSprintCounts({ a: mk('done'), b: mk('failed') });
+    expect(counts.total).toBe(2);
+    expect(counts.done).toBe(1);
+    expect(counts.failed).toBe(1);
   });
 });

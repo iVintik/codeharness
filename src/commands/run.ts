@@ -4,13 +4,11 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Command } from 'commander';
 import { fail, info, jsonOutput } from '../lib/output.js';
-import { readSprintStatus } from '../lib/beads-sync.js';
+import { readSprintStatusFromState } from '../modules/sprint/index.js';
 import { generateRalphPrompt } from '../templates/ralph-prompt.js';
 import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
 import { getSprintState } from '../modules/sprint/index.js';
 import { formatElapsed, mapSprintStatuses, countStories, buildSpawnArgs, createLineProcessor } from '../lib/run-helpers.js';
-
-const SPRINT_STATUS_REL = '_bmad-output/implementation-artifacts/sprint-status.yaml';
 
 /** Resolves the path to ralph/ralph.sh relative to the package root. */
 export function resolveRalphPath(): string {
@@ -63,14 +61,14 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      // 3. Read sprint status for story count
+      // 3. Read sprint status for story count (from sprint-state.json)
       const projectDir = process.cwd();
-      const sprintStatusPath = join(projectDir, SPRINT_STATUS_REL);
-      const statuses = readSprintStatus(projectDir);
+      const sprintStatusPath = join(projectDir, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml');
+      const statuses = readSprintStatusFromState();
       const counts = countStories(statuses);
 
       if (counts.total === 0) {
-        fail('No stories found in sprint-status.yaml — nothing to execute', outputOpts);
+        fail('No stories found in sprint-state.json — nothing to execute', outputOpts);
         process.exitCode = 1;
         return;
       }
@@ -162,7 +160,7 @@ export function registerRunCommand(program: Command): void {
         }
 
         // Feed initial per-story statuses to the renderer
-        const initialStatuses = readSprintStatus(projectDir);
+        const initialStatuses = readSprintStatusFromState();
         const initialStories = mapSprintStatuses(initialStatuses);
         if (initialStories.length > 0) {
           rendererHandle.updateStories(initialStories);
@@ -204,7 +202,7 @@ export function registerRunCommand(program: Command): void {
                 rendererHandle.updateSprintState(sprintInfo);
               }
               // Refresh per-story statuses (AC #7)
-              const currentStatuses = readSprintStatus(projectDir);
+              const currentStatuses = readSprintStatusFromState();
               const storyEntries = mapSprintStatuses(currentStatuses);
               rendererHandle.updateStories(storyEntries);
             } catch {
@@ -232,7 +230,7 @@ export function registerRunCommand(program: Command): void {
           if (existsSync(statusFile)) {
             try {
               const statusData = JSON.parse(readFileSync(statusFile, 'utf-8'));
-              const finalStatuses = readSprintStatus(projectDir);
+              const finalStatuses = readSprintStatusFromState();
               const finalCounts = countStories(finalStatuses);
               jsonOutput({
                 status: statusData.status ?? (exitCode === 0 ? 'completed' : 'stopped'),
@@ -258,7 +256,7 @@ export function registerRunCommand(program: Command): void {
             }
           } else {
             // status.json not created (Ralph crashed early or never started)
-            const finalStatuses = readSprintStatus(projectDir);
+            const finalStatuses = readSprintStatusFromState();
             const finalCounts = countStories(finalStatuses);
             jsonOutput({
               status: exitCode === 0 ? 'completed' : 'stopped',

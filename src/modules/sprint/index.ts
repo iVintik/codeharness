@@ -29,6 +29,8 @@ import {
   computeSprintCounts as computeSprintCountsImpl,
   updateRunProgress as updateRunProgressImpl,
   clearRunProgress as clearRunProgressImpl,
+  generateSprintStatusYaml as generateSprintStatusYamlImpl,
+  getStoryStatusesFromState as getStoryStatusesFromStateImpl,
 } from './state.js';
 import { selectNextStory } from './selector.js';
 import { generateReport as generateReportImpl, getStoryDrillDown as getStoryDrillDownImpl } from './reporter.js';
@@ -154,4 +156,22 @@ export function updateRunProgress(update: RunProgressUpdate): Result<void> {
 
 export function clearRunProgress(): Result<void> {
   return clearRunProgressImpl();
+}
+
+export function generateSprintStatusYaml(state: SprintState): string {
+  return generateSprintStatusYamlImpl(state);
+}
+
+export function getStoryStatusesFromState(state: SprintState): Record<string, string> {
+  return getStoryStatusesFromStateImpl(state);
+}
+
+/**
+ * Read sprint state and derive story statuses as a flat map.
+ * Drop-in replacement for the old readSprintStatus() that parsed YAML.
+ */
+export function readSprintStatusFromState(): Record<string, string> {
+  const stateResult = getSprintStateImpl();
+  if (!stateResult.success) return {};
+  return getStoryStatusesFromStateImpl(stateResult.data);
 }

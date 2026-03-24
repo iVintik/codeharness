@@ -92,6 +92,7 @@ vi.mock('../../lib/ink-renderer.js', () => ({
 
 vi.mock('../../modules/sprint/index.js', () => ({
   getSprintState: (...args: unknown[]) => getSprintStateMock(...args),
+  readSprintStatusFromState: (...args: unknown[]) => readSprintStatusMock(...args),
 }));
 
 describe('run command', () => {

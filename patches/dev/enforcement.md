@@ -18,7 +18,7 @@ Before writing code, read the relevant `AGENTS.md` file for the module being cha
 
 ### Observability
 
-Run `semgrep scan --config patches/observability/` before committing and fix any gaps.
+Run `semgrep scan --config patches/observability/ --config patches/error-handling/` before committing and fix any gaps.
 
 After running tests, verify telemetry is flowing:
 - Query VictoriaLogs to confirm log events from test runs

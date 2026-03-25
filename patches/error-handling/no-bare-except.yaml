@@ -1,0 +1,22 @@
+rules:
+  - id: no-bare-except-pass
+    pattern: |
+      try:
+        ...
+      except Exception:
+        pass
+    message: "Bare `except Exception: pass` swallows errors silently. Handle the error, log it, or add a # IGNORE: comment explaining why."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: error-handling
+      confidence: HIGH
+
+  - id: no-bare-except-ellipsis
+    pattern-regex: 'except\s+Exception\s*:\s*\n\s+\.\.\.\s*$'
+    message: "Bare `except Exception: ...` swallows errors silently. Handle the error, log it, or add a # IGNORE: comment explaining why."
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: error-handling
+      confidence: HIGH

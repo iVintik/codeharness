@@ -403,10 +403,10 @@ describe('analyze', () => {
 
     analyze('/my/project');
 
-    // Second call is the scan
+    // Second call is the scan (includes both observability and error-handling rules)
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'semgrep',
-      ['scan', '--config', '/my/project/patches/observability/', '--json', '/my/project'],
+      ['scan', '--config', '/my/project/patches/observability/', '--config', '/my/project/patches/error-handling/', '--json', '/my/project'],
       expect.objectContaining({ encoding: 'utf-8' }),
     );
   });
@@ -513,7 +513,7 @@ describe('analyze', () => {
 
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'semgrep',
-      ['scan', '--config', '/project/custom/rules/', '--json', '/project'],
+      ['scan', '--config', '/project/custom/rules/', '--config', '/project/patches/error-handling/', '--json', '/project'],
       expect.objectContaining({ timeout: 30_000 }),
     );
   });

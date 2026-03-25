@@ -1,6 +1,7 @@
+<!-- verification-tier: unit-testable -->
 # Story 15-5: Lint Rule for Bare Exception Swallowing
 
-## Status: backlog
+## Status: verifying
 
 ## Story
 
@@ -79,3 +80,28 @@ In `src/modules/review/orchestrator.ts`, ensure the Semgrep rule scan includes:
 - `hooks/post-write-check.sh` — Update or create. Add Python bare-except detection after file writes
 - `src/modules/review/orchestrator.ts` — Include error-handling Semgrep rules in code review scan
 - `src/lib/scanner.ts` — Ensure Semgrep scanner can load rules from `patches/error-handling/` directory
+
+## Senior Developer Review (AI)
+
+**Reviewer:** Code Review Agent, 2026-03-25
+**Outcome:** Changes Requested -> Fixed
+
+### Issues Found and Fixed
+
+| # | Severity | Issue | Fix |
+|---|----------|-------|-----|
+| H1 | HIGH | Hook grep pattern `except Exception.*pass` never matches — `pass` is always on the next line in Python. AC2 was broken. | Replaced with awk-based multiline detection that checks the line following `except Exception:` for `pass` or `...` |
+| H2 | HIGH | `no-bare-except-ellipsis` Semgrep rule used `...` (Semgrep wildcard) in except body, matching ALL `except Exception:` blocks regardless of content. False positive machine. | Replaced with `pattern-regex` targeting literal `...` on the line after `except Exception:` |
+| M1 | MEDIUM | Hook only detected `pass` pattern, not Python's `...` (Ellipsis) | Fixed as part of H1 — awk now detects both `pass` and `...` |
+| M2 | MEDIUM | AGENTS.md for observability module not updated with new `additionalRulesDirs` config | Updated AGENTS.md |
+
+### Issues Not Fixed (LOW)
+
+- L1: `src/lib/scanner.ts` listed in story "Files to Change" but not modified — story spec was incorrect, change correctly went to `analyzer.ts`
+- L2: Missing Showboat proof document
+
+### Coverage
+
+- Overall: 97.11% (target: 90%) — PASS
+- Per-file floor: all 156 files above 80% — PASS
+- Tests: 147 passed, 0 failed

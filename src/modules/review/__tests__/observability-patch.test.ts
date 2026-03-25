@@ -24,9 +24,9 @@ describe('patches/review/enforcement.md — observability section', () => {
     expect(reviewPatch).toContain('### Observability');
   });
 
-  it('instructs to run semgrep scan --config patches/observability/ --json', () => {
+  it('instructs to run semgrep scan --config patches/observability/ --config patches/error-handling/ --json', () => {
     expect(reviewPatch).toContain(
-      'semgrep scan --config patches/observability/ --json',
+      'semgrep scan --config patches/observability/ --config patches/error-handling/ --json',
     );
   });
 

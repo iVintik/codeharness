@@ -107,14 +107,14 @@ development_status:
   14-2-tech-debt-gate-story-selection: done
   14-3-docker-precheck-orphan-cleanup: done
   14-4-observability-backend-choice: verifying
-  14-5-stack-aware-verify-dockerfile: done
-  14-6-subagent-status-ownership-time-budget: done
+  14-5-stack-aware-verify-dockerfile: verifying
+  14-6-subagent-status-ownership-time-budget: verifying
   14-7-fix-beads-flags-ralph-tracking-proof-docs: done
 
   # Epic 15
-  epic-15: backlog
+  epic-15: done
   15-1-ci-file-size-gate: done
   15-2-eslint-no-empty-catch-boundary-tests: done
   15-3-template-migration-static-files: done
   15-4-fix-ts-compilation-errors: done
-  15-5-lint-rule-bare-exception-swallowing: backlog
+  15-5-lint-rule-bare-exception-swallowing: done

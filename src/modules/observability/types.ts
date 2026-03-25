@@ -56,6 +56,8 @@ export interface AnalyzerConfig {
   readonly tool?: string;
   /** Directory containing analysis rules, relative to project root. Default: 'patches/observability/' */
   readonly rulesDir?: string;
+  /** Additional rule directories to include in the scan, relative to project root. Default: ['patches/error-handling/'] */
+  readonly additionalRulesDirs?: readonly string[];
   /** Timeout for the analysis subprocess in milliseconds. Default: 60000 */
   readonly timeout?: number;
   /**

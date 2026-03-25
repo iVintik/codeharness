@@ -21,6 +21,7 @@ import type {
 } from './types.js';
 
 const DEFAULT_RULES_DIR = 'patches/observability/';
+const ADDITIONAL_RULES_DIRS = ['patches/error-handling/'];
 const DEFAULT_TIMEOUT = 60_000;
 const FUNCTION_NO_LOG_RULE = 'function-no-debug-log';
 const CATCH_WITHOUT_LOGGING_RULE = 'catch-without-logging';
@@ -77,7 +78,11 @@ export function analyze(
   const timeout = config?.timeout ?? DEFAULT_TIMEOUT;
   const fullRulesDir = join(projectDir, rulesDir);
 
-  const rawResult = runSemgrep(projectDir, fullRulesDir, timeout);
+  // Collect additional rule directories (e.g., patches/error-handling/)
+  const additionalDirs = (config?.additionalRulesDirs ?? ADDITIONAL_RULES_DIRS)
+    .map(d => join(projectDir, d));
+
+  const rawResult = runSemgrep(projectDir, fullRulesDir, timeout, additionalDirs);
   if (!rawResult.success) {
     return fail(rawResult.error);
   }
@@ -119,11 +124,18 @@ export function runSemgrep(
   projectDir: string,
   rulesDir: string,
   timeout: number = DEFAULT_TIMEOUT,
+  additionalRulesDirs: string[] = [],
 ): Result<SemgrepRawOutput> {
   try {
+    // Build --config args: primary rules dir + any additional dirs that exist
+    const configArgs = ['--config', rulesDir];
+    for (const dir of additionalRulesDirs) {
+      configArgs.push('--config', dir);
+    }
+
     const stdout = execFileSync(
       'semgrep',
-      ['scan', '--config', rulesDir, '--json', projectDir],
+      ['scan', ...configArgs, '--json', projectDir],
       { encoding: 'utf-8', timeout, stdio: ['pipe', 'pipe', 'pipe'] },
     );
     const parsed: unknown = JSON.parse(stdout);

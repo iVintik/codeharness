@@ -27,7 +27,7 @@ The proof must pass black-box enforcement:
 
 ### Observability
 
-Run `semgrep scan --config patches/observability/ --json` against changed files and report gaps.
+Run `semgrep scan --config patches/observability/ --config patches/error-handling/ --json` against changed files and report gaps.
 
 - For each gap found, list it as a review issue: file path, line number, and description (e.g., "src/lib/docker.ts:42 — catch block without logging")
 - Semgrep JSON output fields to extract: `check_id`, `path`, `start.line`, `extra.message`

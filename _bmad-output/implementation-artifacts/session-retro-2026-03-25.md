@@ -1871,3 +1871,178 @@ This issue was first reported in session 15 (stories 14-5, 14-6) and persists. T
 **Sprint completion:** 65/66 (98.5%)
 **Remaining:** 14-4-observability-backend-choice (verifying — retry-exhausted, blocked by Docker, needs human intervention)
 **Consecutive no-op sessions:** 3 (sessions 7, 8, 9) — confirms need for circuit breaker
+
+---
+
+## Session 10 Retrospective — 2026-03-25T11:24Z
+
+### 1. Session Summary
+
+| Story | Subagent | Outcome | Time |
+|-------|----------|---------|------|
+| *(none)* | harness-run | NO_WORK — no actionable stories | ~2 min |
+
+This was the **4th consecutive no-op session**. Ralph scanned for actionable stories, found none, and exited. The only non-done story (14-4-observability-backend-choice) remains flagged as retry-exhausted with 8 prior retries.
+
+### 2. Issues Analysis
+
+#### Tooling/Infrastructure Problems
+
+- **Ralph keeps spawning sessions with no work available.** Sessions 7, 8, 9, and now 10 all produced identical NO_WORK results. The circuit breaker or session-termination logic is not stopping ralph from re-entering when the sprint is effectively complete. This is pure waste — each session costs API calls and wall-clock time.
+- **14-4-observability-backend-choice permanently stuck.** Flagged as retry-exhausted (8 retries). It requires Docker image pulls, which are blocked by keychain lock in non-interactive ralph sessions. No autonomous path forward exists.
+
+#### Bugs Discovered
+
+- None (no code was executed).
+
+#### Workarounds Applied
+
+- None (no work attempted).
+
+#### Verification Gaps
+
+- None new. The 14-4 story remains in `verifying` status in sprint-status.yaml but cannot progress.
+
+#### Code Quality Concerns
+
+- None new.
+
+### 3. What Went Well
+
+- **Sprint is 98.5% complete (65/66 stories).** This is a strong result for the day.
+- **Today's earlier sessions (1-6) were highly productive:** 10 stories completed, 106 TS compilation errors fixed, 2 stuck stories unblocked via verification-tier tagging, Semgrep lint rules shipped with code-review fixes.
+- **Zero regressions across all sessions** — 3799 tests passing, 97.11% coverage maintained.
+
+### 4. What Went Wrong
+
+- **4 wasted no-op sessions (7-10).** Ralph should have stopped after session 7 detected NO_WORK. Instead, it spawned 3 more identical sessions. This is the primary failure of session 10.
+- **14-4 remains stuck with no resolution path.** Docker keychain in non-interactive sessions is a known blocker that has persisted across multiple days. No automated workaround exists.
+
+### 5. Lessons Learned
+
+| Pattern | Action |
+|---------|--------|
+| **Repeat:** Verification-tier tagging for cli-verifiable stories | Correctly unblocked 14-5 and 14-6 today; should be applied earlier in future sprints |
+| **Repeat:** Code review catching HIGH-severity bugs before merge | Caught non-functional grep pattern in 15-5 hook |
+| **Avoid:** Running sessions when sprint is complete | Need circuit breaker that detects NO_WORK and halts ralph after 1-2 attempts, not 4+ |
+| **Avoid:** Leaving Docker-dependent stories in `verifying` indefinitely | Should fail them definitively or defer to manual intervention |
+
+### 6. Action Items
+
+#### Fix Now (before next session)
+
+- **Stop ralph from spawning more sessions.** The sprint is complete. There is no work left. Either halt ralph manually or ensure the circuit breaker fires after 2 consecutive NO_WORK results.
+
+#### Fix Soon (next sprint)
+
+- **Add NO_WORK circuit breaker to ralph.** After N consecutive NO_WORK sessions (suggest N=2), ralph should exit the session loop and report sprint-complete rather than continuing to spawn.
+- **Resolve 14-4-observability-backend-choice.** Either: (a) mark it as `blocked` / `deferred` so it stops appearing in scans, (b) create a follow-up story that doesn't require Docker, or (c) have a human run the Docker verification manually.
+- **Add Docker keychain handling for non-interactive sessions.** This has blocked multiple stories across multiple days. A pre-session docker-login step or credential-helper config would prevent this class of failure.
+
+#### Backlog
+
+- **Track tech debt from today's session:** HarnessState missing `opensearch` field, double-cast patterns in test mocks, story spec inaccuracies (scanner.ts vs analyzer.ts).
+- **Consider sprint-complete notification.** When 100% (or max-achievable%) is reached, ralph should emit a clear signal rather than silently no-oping.
+
+### Cumulative Day Summary
+
+| Session | Stories Attempted | Completed | Failed |
+|---------|-------------------|-----------|--------|
+| 1 | 3 | 3 | 0 |
+| 2 | 2 | 2 | 0 |
+| 3 | 1 | 0 | 1 |
+| 4 | 2 | 2 | 0 |
+| 5 | 2 | 2 | 0 |
+| 6 | 2 | 1 | 1 |
+| 7 (no-op) | 0 | 0 | 0 |
+| 8 (no-op) | 0 | 0 | 0 |
+| 9 (no-op) | 0 | 0 | 0 |
+| **10 (no-op)** | **0** | **0** | **0** |
+
+### Sprint Status After Session 10
+
+**Total stories completed today:** 10 (unchanged since session 6)
+**Sprint completion:** 65/66 (98.5%)
+**Remaining:** 14-4-observability-backend-choice (verifying — retry-exhausted, needs human intervention)
+**Consecutive no-op sessions:** 4 (sessions 7, 8, 9, 10)
+**Recommendation:** Halt autonomous sessions. Sprint is complete to the extent possible without human intervention.
+
+---
+
+## Session 11 Retrospective — 2026-03-25T11:27Z
+
+### Session Summary
+
+Session 11 was a no-op. No stories were worked on. This is the 5th consecutive no-op session (sessions 7-11). The sprint state is unchanged from session 6: 65/66 stories done (98.5%). The sole remaining story, 14-4-observability-backend-choice, has been retry-exhausted (9 retries) and flagged for skipping since session 6.
+
+Ralph spawned this session, scanned for actionable stories, found none, and exited. Identical behavior to sessions 7, 8, 9, and 10.
+
+### Issues Analysis
+
+**Recurring issue: ralph spawns sessions when no actionable work exists.**
+
+The session issues log documents 5 consecutive entries (sessions 7-11) all reporting `NO_WORK`. Each entry explicitly states the sprint is effectively complete and ralph should stop. Yet ralph continues to spawn new sessions.
+
+Root cause: ralph's loop logic has no "sprint complete" exit condition. It checks for non-done stories, finds 14-4 still in `verifying` status, and spawns a session to handle it. The session then discovers the story is retry-exhausted and exits. This cycle repeats indefinitely.
+
+The cost is not just wasted compute — it's noise. Each no-op session generates log files, updates state files, and creates entries in the issues log. Over 5 sessions, this has accumulated meaningless churn.
+
+### What Went Well
+
+- **Sprint is 98.5% complete.** 65 of 66 stories are done. This is an excellent completion rate.
+- **Sessions 1-6 were productive.** 10 stories completed, 106 TypeScript errors fixed, 2 stuck stories unblocked via verification-tier tagging, code review caught and fixed 3 HIGH-severity bugs.
+- **Test suite is healthy.** 3799 tests passing, 97.11% coverage, all 156 files above 80% floor.
+- **The issues log worked as designed.** Every subagent dutifully reported problems, workarounds, and observations. The log accurately reflects what happened across all 11 sessions.
+
+### What Went Wrong
+
+- **5 consecutive wasted sessions.** Sessions 7-11 did zero useful work. Each consumed resources to reach the same conclusion: nothing to do.
+- **No automatic halt mechanism.** Ralph has no way to detect "sprint complete" and stop its loop. It relies on external intervention (the user stopping ralph or the iteration deadline expiring).
+- **14-4 is stuck in limbo.** The story has been in `verifying` at 9 retries for 5+ sessions. It needs a human decision (skip, descope, or manually resolve) but ralph cannot make that call.
+- **State file churn.** Each no-op session modified `.call_count`, `.state-snapshot.json`, `status.json`, `live.log`, and generated a new `claude_output_*.log` file. 5 sessions of this created unnecessary git noise.
+
+### Lessons Learned
+
+1. **Ralph needs a "sprint complete" detection.** If all remaining stories are retry-exhausted or flagged for skipping, ralph should exit its loop with a clear "sprint complete" message instead of spawning another session.
+
+2. **No-op sessions should be capped.** After N consecutive no-op sessions (e.g., 2), ralph should halt and report to the user. The current behavior of unbounded retries wastes resources.
+
+3. **Retry-exhausted stories need auto-resolution.** When a story hits the retry limit and gets flagged, it should be moved to a terminal status (e.g., `skipped` or `blocked`) so it stops appearing as "actionable" to the scanner.
+
+4. **Verification-tier tagging (from sessions 5-6) was the right pattern.** Stories 14-5 and 14-6 were stuck for multiple sessions due to Docker issues. Tagging them as `unit-testable` unblocked them immediately. This pattern should be applied earlier in future sprints.
+
+5. **The session issues log is valuable.** It provided a clear, timestamped record of every problem and decision. Future sprints should continue this practice.
+
+### Action Items
+
+| # | Action | Owner | Priority |
+|---|--------|-------|----------|
+| 1 | Add "sprint complete" exit condition to ralph's loop — if all non-done stories are retry-exhausted/flagged, exit with status `SPRINT_COMPLETE` | Dev | HIGH |
+| 2 | Cap consecutive no-op sessions at 2 — auto-halt ralph after 2 consecutive `NO_WORK` results | Dev | HIGH |
+| 3 | Move 14-4-observability-backend-choice to `skipped` status with a note explaining it needs human decision on backend choice | Human | MEDIUM |
+| 4 | Add a `skipped` terminal status to the story lifecycle so retry-exhausted stories stop appearing in scans | Dev | MEDIUM |
+| 5 | Reduce state file writes during no-op sessions — if no work was done, don't update `.call_count`, `.state-snapshot.json`, etc. | Dev | LOW |
+
+### Session Throughput
+
+| Session | Stories Attempted | Completed | Failed |
+|---------|-------------------|-----------|--------|
+| 1 | 3 | 3 | 0 |
+| 2 | 2 | 2 | 0 |
+| 3 | 1 | 0 | 1 |
+| 4 | 2 | 2 | 0 |
+| 5 | 2 | 2 | 0 |
+| 6 | 2 | 1 | 1 |
+| 7 (no-op) | 0 | 0 | 0 |
+| 8 (no-op) | 0 | 0 | 0 |
+| 9 (no-op) | 0 | 0 | 0 |
+| 10 (no-op) | 0 | 0 | 0 |
+| **11 (no-op)** | **0** | **0** | **0** |
+
+### Sprint Status After Session 11
+
+**Total stories completed today:** 10 (unchanged since session 6)
+**Sprint completion:** 65/66 (98.5%)
+**Remaining:** 14-4-observability-backend-choice (verifying — retry-exhausted, needs human intervention)
+**Consecutive no-op sessions:** 5 (sessions 7, 8, 9, 10, 11)
+**Recommendation:** Halt autonomous sessions immediately. Sprint is complete to the extent possible without human intervention. Further sessions will produce identical no-op results.

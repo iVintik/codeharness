@@ -274,9 +274,11 @@ export function getSprintState(): Result<SprintState> {
             ...defaults.observability,
             ...(observability as unknown as SprintState['observability']),
           },
+          stories: (parsed.stories as Record<string, import('../../types/state.js').StoryState>) ?? {},
           retries: (parsed.retries as Record<string, number>) ?? {},
           flagged: (parsed.flagged as string[]) ?? [],
           epics: (parsed.epics as Record<string, import('../../types/state.js').EpicState>) ?? {},
+          actionItems: (parsed.actionItems as string[]) ?? [],
         };
         return ok(state);
       }

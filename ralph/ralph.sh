@@ -1124,13 +1124,20 @@ main() {
         # ── Check circuit breaker ──
 
         if should_halt_execution; then
-            local cb_no_progress=0
-            if [[ -f "$CB_STATE_FILE" ]]; then
-                cb_no_progress=$(jq -r '.consecutive_no_progress // 0' "$CB_STATE_FILE" 2>/dev/null || echo "0")
+            # Auto-reset: if there are actionable stories (sprint not complete),
+            # the breaker was tripped by a previous session's no-ops. Reset and retry.
+            if ! all_tasks_complete; then
+                log_status "INFO" "Circuit breaker open but actionable stories exist — auto-resetting"
+                reset_circuit_breaker "Auto-reset: actionable stories detected"
+            else
+                local cb_no_progress=0
+                if [[ -f "$CB_STATE_FILE" ]]; then
+                    cb_no_progress=$(jq -r '.consecutive_no_progress // 0' "$CB_STATE_FILE" 2>/dev/null || echo "0")
+                fi
+                log_status "WARN" "Circuit breaker: no progress in ${cb_no_progress} iterations"
+                update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker" "halted" "stagnation_detected"
+                break
             fi
-            log_status "WARN" "Circuit breaker: no progress in ${cb_no_progress} iterations"
-            update_status "$loop_count" "$(cat "$CALL_COUNT_FILE" 2>/dev/null || echo "0")" "circuit_breaker" "halted" "stagnation_detected"
-            break
         fi
 
         # ── Check rate limit ──

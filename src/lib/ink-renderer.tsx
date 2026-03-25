@@ -132,6 +132,17 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
     switch (event.type) {
       case 'tool-start':
+        // If a long-running tool was still active, promote it to completed now
+        if (state.activeTool) {
+          const entry: CompletedToolEntry = {
+            name: state.activeTool.name,
+            args: state.activeToolArgs,
+          };
+          const updated = [...state.completedTools, entry];
+          state.completedTools = updated.length > MAX_COMPLETED_TOOLS
+            ? updated.slice(updated.length - MAX_COMPLETED_TOOLS)
+            : updated;
+        }
         state.activeTool = { name: event.name };
         state.activeToolArgs = '';
         state.lastThought = null;
@@ -147,6 +158,14 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
         // The parser emits tool-complete for ALL content_block_stop events
         // (both tool and text blocks). Ignore if no activeTool is set.
         if (state.activeTool) {
+          // Long-running tools (Agent, Skill) get content_block_stop when their
+          // INPUT is complete, not when they finish executing. Keep them active
+          // so the spinner shows during the entire execution. They'll be promoted
+          // when the next tool-start fires (below in tool-start case).
+          const LONG_RUNNING_TOOLS = ['Agent', 'Skill'];
+          if (LONG_RUNNING_TOOLS.includes(state.activeTool.name)) {
+            break; // Keep as active — don't promote to completed yet
+          }
           const entry: CompletedToolEntry = {
             name: state.activeTool.name,
             args: state.activeToolArgs,

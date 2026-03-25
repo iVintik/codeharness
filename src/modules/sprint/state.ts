@@ -10,6 +10,7 @@ import type { Result } from '../../types/result.js';
 import type { SprintState, SprintStateAny, StoryStatus, StoryState, EpicState } from '../../types/state.js';
 import type { StoryDetail, RunProgressUpdate } from './types.js';
 import { migrateFromOldFormat, migrateV1ToV2, parseStoryRetriesRecord, parseFlaggedStoriesList } from './migration.js';
+import { readSprintStatus } from '../../lib/sync/index.js';
 
 /** Result of state reconciliation */
 export interface ReconciliationResult {
@@ -491,7 +492,32 @@ export function reconcileState(): Result<ReconciliationResult> {
       }
     }
 
-    // 4. Validate epic consistency — ensure every story's epic prefix has an epic entry
+    // 4. Import stories from sprint-status.yaml if stories is empty (unmigrated project)
+    if (Object.keys(state.stories).length === 0) {
+      try {
+        const yamlStatuses = readSprintStatus(projectRoot());
+        const storyKeyPattern = /^\d+-\d+-/;
+        for (const [key, status] of Object.entries(yamlStatuses)) {
+          if (!storyKeyPattern.test(key)) continue;
+          state.stories[key] = {
+            status: status as import('../../types/state.js').StoryStatus,
+            attempts: 0,
+            lastAttempt: null,
+            lastError: null,
+            proofPath: null,
+            acResults: null,
+          };
+          changed = true;
+        }
+        if (Object.keys(state.stories).length > 0) {
+          corrections.push(`imported ${Object.keys(state.stories).length} stories from sprint-status.yaml`);
+        }
+      } catch {
+        // IGNORE: sprint-status.yaml may not exist
+      }
+    }
+
+    // 5. Validate epic consistency (renumbered from 4) — ensure every story's epic prefix has an epic entry
     const epicStories = new Map<string, string[]>();
     for (const key of Object.keys(state.stories)) {
       const [epicNum] = parseStoryKey(key);

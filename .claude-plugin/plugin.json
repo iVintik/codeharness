@@ -1,5 +1,5 @@
 {
   "name": "codeharness",
-  "version": "0.25.6",
+  "version": "0.25.7",
   "description": "Makes autonomous coding agents produce software that actually works \u2014 real-world verification, observability, and mechanical enforcement via Claude Code hooks."
 }

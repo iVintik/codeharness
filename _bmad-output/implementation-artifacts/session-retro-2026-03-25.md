@@ -1733,3 +1733,141 @@ No new bugs, workarounds, code quality concerns, verification gaps, or tooling p
 **Remaining:** 14-4 (verifying — retry-exhausted, needs human intervention)
 **No-op sessions:** 2 consecutive (sessions 19 and 8)
 **Verdict:** Sprint is done. Stop spawning sessions. Human decision needed on 14-4 only.
+
+---
+
+# Session 9 Retrospective — 2026-03-25T11:22Z
+
+**Sprint:** Operational Excellence (Epics 0-15)
+**Session:** 9 (third consecutive no-op)
+**Session window:** ~2026-03-25 11:22 UTC (< 1 minute)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages | Notes |
+|-------|------|---------|-----------------|-------|
+| (none) | — | NO_WORK | scan only | No actionable stories found |
+
+**Net progress:** Zero. Sprint remains at 65/66 stories done (98.5%). Same state as sessions 7 and 8.
+
+The only non-done story is 14-4-observability-backend-choice (status: `verifying`, flagged as retry-exhausted after 7 attempts, operator-flagged for skip). Ralph correctly identified no actionable work but still spawned a session to reach that conclusion.
+
+---
+
+## 2. Issues Analysis
+
+### Issue 1: Repeated No-Op Sessions (CRITICAL — Budget Waste)
+
+Sessions 7, 8, and 9 all produced identical NO_WORK results. Each session:
+- Spawns a Claude subagent
+- Reads sprint state
+- Scans for actionable stories
+- Finds none
+- Exits
+
+This consumes API budget for zero value. Ralph lacks a "sprint complete" signal — it keeps polling because its loop condition is time-based (iteration deadline), not work-based.
+
+**Root cause:** Ralph's orchestration loop does not track consecutive NO_WORK results. It has no circuit breaker to stop spawning sessions when there is nothing to do.
+
+### Issue 2: 14-4-observability-backend-choice Stuck at `verifying`
+
+This story has been stuck for many sessions:
+- 7 retry attempts exhausted
+- Operator-flagged for skip
+- Still shows `verifying` in sprint-status.yaml (not `skipped` or `blocked`)
+
+The story cannot be verified because it requires Docker (observability backend infrastructure), and Docker is blocked by the macOS keychain issue in non-interactive sessions.
+
+**Root cause:** Two interacting problems — (1) Docker credential store requires interactive keychain unlock, and (2) the story's verification requires Docker containers that cannot start without image pulls.
+
+### Issue 3: Docker Keychain in Non-Interactive Sessions (Carry-Forward)
+
+This issue was first reported in session 15 (stories 14-5, 14-6) and persists. The workaround (tagging stories as `unit-testable`) worked for stories that don't genuinely need Docker, but 14-4 actually requires a running observability backend to verify.
+
+---
+
+## 3. What Went Well
+
+- **98.5% sprint completion** — 65 of 66 stories are done. This is an excellent completion rate for an autonomous sprint.
+- **Today's productive sessions (1-6)** delivered 10 stories including the final epic (15) and unblocked two Docker-stuck stories (14-5, 14-6) with the unit-testable tag workaround.
+- **Code quality remains high** — 97.11% test coverage, 3799 tests passing, zero regressions across all sessions today.
+- **The session issues log captured real problems** — subagents consistently reported Docker blockers, borderline logic changes, and Semgrep rule bugs. The code-review subagent caught two HIGH-severity bugs in session 6.
+
+---
+
+## 4. What Went Wrong
+
+- **3 consecutive no-op sessions (7, 8, 9)** wasted API budget. Each session invokes Claude to read state and scan stories, producing no value.
+- **14-4 remains unresolved** — stuck at `verifying` with no path to automated resolution. Should have been marked `blocked` or `skipped` earlier.
+- **No "sprint complete" detection** — Ralph does not distinguish between "temporarily no work" (stories in progress by other agents) and "permanently no work" (sprint is done). Both produce the same NO_WORK signal.
+- **Session numbering inconsistency** — the retro file uses different numbering schemes (sessions 10-19 vs sessions 1-9). This is confusing for tracking.
+
+---
+
+## 5. Lessons Learned
+
+1. **Ralph needs a circuit breaker for consecutive NO_WORK results.** Two consecutive NO_WORK results with no state change should halt the loop. Three is clearly wasteful.
+
+2. **Stories that cannot be verified should be moved to `blocked` status, not left in `verifying` indefinitely.** A retry counter alone is not enough — the status should reflect reality.
+
+3. **Sprint completion should be an explicit state.** When all stories are either `done`, `blocked`, or `skipped`, Ralph should declare the sprint complete and stop. This is different from "no work right now."
+
+4. **Docker-dependent verification needs a pre-check.** Before attempting Docker-based verification, check if Docker is functional. If not, fail fast with a clear message rather than burning retries.
+
+5. **The unit-testable tag workaround was effective** for stories that don't genuinely need Docker. This pattern should be formalized — stories should declare their verification tier at creation time, not as a post-hoc workaround.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Sprint)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 1 | Add circuit breaker: 2 consecutive NO_WORK results with no state change = halt loop | Prevents budget waste from no-op sessions |
+| 2 | Mark 14-4-observability-backend-choice as `blocked` (not `verifying`) | Reflects actual state; removes it from retry consideration |
+
+### Fix Soon (Next Sprint)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 3 | Add explicit "sprint complete" detection to Ralph | When all stories are terminal (done/blocked/skipped), declare sprint complete and stop |
+| 4 | Add Docker health pre-check before spawning verification sessions | Fail fast instead of burning retries on Docker-dependent stories |
+| 5 | Formalize verification-tier tagging at story creation time | Prevents Docker-dependent stories from blocking non-Docker stories |
+
+### Backlog (Track But Not Urgent)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 6 | Fix Docker credential store for non-interactive sessions (carry-forward from sessions 7-8) | Unblocks Docker-dependent verification permanently |
+| 7 | Add session cost tracking to Ralph | Quantify API budget waste from no-op sessions |
+| 8 | Normalize session numbering across retro entries | Avoid confusion between intra-day and cross-day session counts |
+
+---
+
+### Session Velocity (Updated)
+
+| Session | Stories Attempted | Stories Completed (done) | Stories Stuck |
+|---------|-------------------|--------------------------|---------------|
+| 10 | 4 | 4 | 0 |
+| 11 | 9 | 6 | 3 (Docker) |
+| 12 | 1 | 0 | 1 (ENOSPC) |
+| 13 | 3 | 0 | 3 (Docker) |
+| 14 | 1 | 1 | 0 (3 skipped) |
+| 15 | 10 | 6 | 3 (verifying) |
+| 16 | 1 | 1 | 0 |
+| 17 | 2 | 2 | 0 |
+| 18 | 1 | 1 | 0 |
+| 19 (no-op) | 0 | 0 | 0 |
+| **7 (no-op)** | **0** | **0** | **0** |
+| **8 (no-op)** | **0** | **0** | **0** |
+| **9 (no-op)** | **0** | **0** | **0** |
+
+### Sprint Status After Session 9
+
+**Total stories completed today:** 10 (no change since session 6)
+**Sprint completion:** 65/66 (98.5%)
+**Remaining:** 14-4-observability-backend-choice (verifying — retry-exhausted, blocked by Docker, needs human intervention)
+**Consecutive no-op sessions:** 3 (sessions 7, 8, 9) — confirms need for circuit breaker

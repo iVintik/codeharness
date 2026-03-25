@@ -561,10 +561,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "14-5-stack-aware-verify-dockerfile",
+    "currentStory": "14-6-subagent-status-ownership-time-budget",
     "currentPhase": "verify",
-    "lastAction": "Starting verification",
-    "acProgress": "10/10"
+    "lastAction": "Starting unit-testable verification",
+    "acProgress": null
   },
   "actionItems": [
     {

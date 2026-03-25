@@ -108,7 +108,7 @@ development_status:
   14-3-docker-precheck-orphan-cleanup: done
   14-4-observability-backend-choice: verifying
   14-5-stack-aware-verify-dockerfile: done
-  14-6-subagent-status-ownership-time-budget: verifying
+  14-6-subagent-status-ownership-time-budget: done
   14-7-fix-beads-flags-ralph-tracking-proof-docs: done
 
   # Epic 15

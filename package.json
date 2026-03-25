@@ -13,6 +13,11 @@
     "templates/Dockerfile.verify",
     "templates/Dockerfile.verify.rust",
     "templates/Dockerfile.verify.generic",
+    "templates/dockerfiles/",
+    "templates/compose/",
+    "templates/prompts/",
+    "templates/docs/",
+    "templates/otlp/",
     "ralph/**/*.sh",
     "ralph/AGENTS.md"
   ],

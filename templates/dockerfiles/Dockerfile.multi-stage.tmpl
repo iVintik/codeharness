@@ -1,0 +1,15 @@
+# NOTE: Customize COPY paths for your monorepo layout. Each build stage should only copy its own sources.
+{{BUILD_STAGES}}
+# === Runtime stage ===
+FROM debian:bookworm-slim
+
+# System utilities for verification
+RUN apt-get update && apt-get install -y --no-install-recommends curl jq && rm -rf /var/lib/apt/lists/*
+
+# Install artifacts from build stages
+{{COPY_DIRECTIVES}}
+
+# Run as non-root user
+USER nobody
+
+WORKDIR /workspace

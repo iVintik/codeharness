@@ -505,15 +505,15 @@
       "acResults": null
     },
     "15-2-eslint-no-empty-catch-boundary-tests": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-03-25T01:41:25.808Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/15-2-eslint-no-empty-catch-boundary-tests-proof.md",
       "acResults": null
     },
     "15-3-template-migration-static-files": {
-      "status": "backlog",
+      "status": "ready-for-dev",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "15-2-eslint-no-empty-catch-boundary-tests",
-    "currentPhase": "dev",
-    "lastAction": "Starting implementation",
+    "currentStory": "15-3-template-migration-static-files",
+    "currentPhase": "review",
+    "lastAction": "Starting code review",
     "acProgress": null
   },
   "actionItems": [

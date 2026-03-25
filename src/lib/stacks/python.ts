@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { renderTemplateFile } from '../templates.js';
 import type {
   AppType,
   CoverageToolInfo,
@@ -162,21 +163,7 @@ export class PythonProvider implements StackProvider {
   // ── Task 8: getDockerfileTemplate ─────────────────────────────────────
 
   getDockerfileTemplate(): string {
-    return `# Base image — pinned version for reproducibility
-FROM python:3.12-slim
-
-# System utilities for verification
-RUN apt-get update && apt-get install -y --no-install-recommends curl jq && rm -rf /var/lib/apt/lists/*
-
-# Install project from wheel or sdist
-COPY dist/ /tmp/dist/
-RUN pip install /tmp/dist/*.whl && rm -rf /tmp/dist/ && pip cache purge
-
-# Run as non-root user
-USER nobody
-
-WORKDIR /workspace
-`;
+    return renderTemplateFile('templates/dockerfiles/Dockerfile.python');
   }
 
   // ── Task 9: getDockerBuildStage ───────────────────────────────────────

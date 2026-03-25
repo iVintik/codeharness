@@ -1,10 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const packageRoot = resolve(__dirname, '..', '..', '..', '..');
+
+// Must mock before importing modules that use node:fs
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(),
   writeFileSync: vi.fn(),
   readFileSync: vi.fn(),
+  mkdirSync: vi.fn(),
 }));
+
+// Mock renderTemplateFile to use real file reads (the node:fs mock intercepts everything)
+vi.mock('../../../lib/templates.js', async () => {
+  const { readFileSync: realReadFileSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
+  return {
+    generateFile: vi.fn(),
+    renderTemplate(template: string, vars: Record<string, string>): string {
+      return template.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => vars[key] ?? match);
+    },
+    renderTemplateFile(templatePath: string, vars: Record<string, string> = {}): string {
+      const fullPath = resolve(packageRoot, templatePath);
+      const content = realReadFileSync(fullPath, 'utf-8');
+      if (Object.keys(vars).length === 0) return content;
+      return content.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => vars[key] ?? match);
+    },
+    getPackageRoot() { return packageRoot; },
+  };
+});
 
 import { existsSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';

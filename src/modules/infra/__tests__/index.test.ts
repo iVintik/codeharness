@@ -68,9 +68,25 @@ vi.mock('../../../lib/observability/index.js', () => ({
   configureOtlpEnvVars: vi.fn(),
 }));
 
-vi.mock('../../../lib/templates.js', () => ({
-  generateFile: vi.fn(),
-}));
+vi.mock('../../../lib/templates.js', async () => {
+  const { readFileSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const { resolve, dirname } = await vi.importActual<typeof import('node:path')>('node:path');
+  const { fileURLToPath } = await vi.importActual<typeof import('node:url')>('node:url');
+  const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
+  return {
+    generateFile: vi.fn(),
+    renderTemplate(template: string, vars: Record<string, string>): string {
+      return template.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => vars[key] ?? match);
+    },
+    renderTemplateFile(templatePath: string, vars: Record<string, string> = {}): string {
+      const fullPath = resolve(pkgRoot, templatePath);
+      const content = readFileSync(fullPath, 'utf-8');
+      if (Object.keys(vars).length === 0) return content;
+      return content.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => vars[key] ?? match);
+    },
+    getPackageRoot() { return pkgRoot; },
+  };
+});
 
 vi.mock('../../../templates/readme.js', () => ({
   readmeTemplate: vi.fn(() => '# README'),

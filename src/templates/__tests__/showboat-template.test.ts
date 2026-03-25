@@ -220,4 +220,35 @@ describe('showboatProofTemplate', () => {
     expect(result).toContain('<!-- /showboat exec -->');
     expect(result).toContain('<!-- showboat image: screenshots/test.png -->');
   });
+
+  it('includes screenshots section when screenshots are provided', () => {
+    const config: ShowboatProofConfig = {
+      storyId: 'screenshots-test',
+      storyTitle: 'Screenshots Test',
+      acceptanceCriteria: [
+        { id: '1', description: 'Basic AC', verified: true, evidence: [] },
+      ],
+      screenshots: [
+        { label: 'Home page', path: 'screenshots/home.png' },
+        { label: 'Dashboard', path: 'screenshots/dashboard.png' },
+      ],
+    };
+    const result = showboatProofTemplate(config);
+    expect(result).toContain('## Screenshots');
+    expect(result).toContain('- **Home page**: screenshots/home.png');
+    expect(result).toContain('- **Dashboard**: screenshots/dashboard.png');
+  });
+
+  it('omits screenshots section when screenshots array is empty', () => {
+    const config: ShowboatProofConfig = {
+      storyId: 'no-screenshots',
+      storyTitle: 'No Screenshots',
+      acceptanceCriteria: [
+        { id: '1', description: 'Basic AC', verified: true, evidence: [] },
+      ],
+      screenshots: [],
+    };
+    const result = showboatProofTemplate(config);
+    expect(result).not.toContain('## Screenshots');
+  });
 });

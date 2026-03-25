@@ -1,6 +1,6 @@
 # Story 15-3: Template Migration -- All Templates to Static Files
 
-## Status: backlog
+## Status: verifying
 
 ## Story
 
@@ -10,9 +10,9 @@ So that there's one template system.
 
 ## Acceptance Criteria
 
-- [ ] AC1: Given `templates/dockerfiles/`, `templates/prompts/`, `templates/docs/` directories, when inspected, then they contain all Dockerfile templates, prompt templates, and doc templates that were previously in `src/templates/*.ts` <!-- verification: cli-verifiable -->
-- [ ] AC2: Given `src/templates/` TypeScript generators, when migration completes, then they're replaced with `renderTemplate()` calls reading from `templates/` <!-- verification: cli-verifiable -->
-- [ ] AC3: Given `renderTemplate('templates/dockerfiles/Dockerfile.nodejs', { TARBALL: 'package.tgz' })`, when called, then it returns the same Dockerfile content as the current `nodejsTemplate()` function <!-- verification: cli-verifiable -->
+- [x] AC1: Given `templates/dockerfiles/`, `templates/prompts/`, `templates/docs/` directories, when inspected, then they contain all Dockerfile templates, prompt templates, and doc templates that were previously in `src/templates/*.ts` <!-- verification: cli-verifiable -->
+- [x] AC2: Given `src/templates/` TypeScript generators, when migration completes, then they're replaced with `renderTemplate()` calls reading from `templates/` <!-- verification: cli-verifiable -->
+- [x] AC3: Given `renderTemplate('templates/dockerfiles/Dockerfile.nodejs', { TARBALL: 'package.tgz' })`, when called, then it returns the same Dockerfile content as the current `nodejsTemplate()` function <!-- verification: cli-verifiable -->
 
 ## Technical Notes
 

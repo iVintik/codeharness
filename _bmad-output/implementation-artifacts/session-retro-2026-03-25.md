@@ -520,3 +520,225 @@ Thirteen open items. Seven are file splits or test coverage (same pattern as ses
 | 13 | 3 | 0 | 3 (verifying) |
 
 Sessions 12-13 show a verification bottleneck. Code throughput remains high but the "done" count dropped to zero because Docker-dependent verification cannot complete. The pipeline needs a way to handle infrastructure failures without stalling all progress.
+
+---
+
+# Session Retrospective — 2026-03-25 (Session 11)
+
+**Appended:** 2026-03-25T06:00:00Z
+**Sprint:** Operational Excellence (Epics 14-15)
+**Session window:** ~2026-03-25 00:14 UTC to ~2026-03-25 01:50 UTC (~1.5 hours)
+
+---
+
+## 1. Session Summary
+
+| Story | Outcome | Phases Completed |
+|-------|---------|-----------------|
+| 14-1-retro-to-sprint-pipeline-epic-td | **Done** | create, dev, code-review, verify |
+| 14-2-tech-debt-gate-story-selection | **Done** | create, dev, code-review, verify |
+| 14-3-docker-precheck-orphan-cleanup | **Done** | create, dev, code-review, verify |
+| 14-4-observability-backend-choice | **Stuck (verifying)** | create, dev, code-review — verification blocked by Docker |
+| 14-5-stack-aware-verify-dockerfile | **Stuck (verifying)** | create, dev, code-review — verification blocked by Docker |
+| 14-6-subagent-status-ownership-time-budget | **Stuck (verifying)** | create, dev, code-review — verification blocked by Docker |
+| 14-7-fix-beads-flags-ralph-tracking-proof-docs | **Done** | create, dev, code-review, verify |
+| 15-1-ci-file-size-gate | **Done** | create, dev, code-review, verify |
+| 15-2-eslint-no-empty-catch-boundary-tests | **Done** | create, dev, code-review, verify |
+
+**Totals:** 9 stories attempted, 6 completed and verified, 3 stuck in verification (Docker-blocked).
+
+---
+
+## 2. Issues Analysis
+
+### 2a. Bugs Discovered During Implementation or Code Review
+
+| Severity | Story | Issue | Status |
+|----------|-------|-------|--------|
+| HIGH | 14-1 | `generateSlug('')` returns empty string — malformed TD story keys | Fixed |
+| HIGH | 14-1 | `backlogAppended` falsely reports success when `projectRoot` is omitted | Fixed |
+| HIGH | 14-1 | `wordOverlap` exceeds 1.0 with duplicate words, breaking dedup contract | Fixed |
+| HIGH | 14-4 | Missing CLI validation for `--observability-backend` — unsafe `as` cast | Fixed |
+| HIGH | 14-6 | Time budget deferral was fire-and-forget — never killed agent process | Fixed |
+| HIGH | 14-6 | `updateStoryStatus()` return value silently discarded | Fixed |
+| HIGH | 15-1 | `.tsx` files excluded from CI file size gate | Fixed |
+| MEDIUM | 14-4 | ELK compose file resolution pointed to Victoria compose | Fixed |
+| MEDIUM | 14-4 | Wrong endpoints displayed for ELK backend (Victoria ports) | Fixed |
+| MEDIUM | 14-4 | `resolveEndpoints()` not backend-aware | Fixed |
+| MEDIUM | 14-6 | `shouldDeferPhase` returned false for NaN (unsafe default) | Fixed |
+| MEDIUM | 15-1 | Empty SRC_DIR="" scans project root instead of src/ | Fixed |
+| MEDIUM | 15-1 | Trailing slash in SRC_DIR produces double-slash in annotations | Fixed |
+| MEDIUM | 15-1 | No violation counts in output summary | Fixed |
+
+All HIGH and MEDIUM bugs were caught by code review and fixed before merge.
+
+### 2b. Workarounds / Tech Debt Introduced
+
+- **run.ts at exactly 300 lines** — zero margin. Any future addition requires extraction (14-3).
+- **docker-setup.ts at exactly 300 lines** — same situation (14-4).
+- **formatters.ts grew to 605 lines** — pre-existing violation, worsened by 23 lines (14-4).
+- **NodejsProvider at 358 lines** — grew by 12 lines, pre-existing violation (14-5).
+- **env.ts at 304 lines** — reduced from 313 but still over limit (14-5).
+- **Static Dockerfile templates kept deprecated** — dead code from main path, not deleted for backward compat (14-5).
+- **child.kill('SIGTERM') is abrupt** — no graceful shutdown protocol for subagent (14-6).
+- **5-second polling interval** for time budget creates up to 5s window before deferral fires (14-6).
+- **`docker --version` vs `docker info`** — only checks CLI presence, not daemon connectivity. Pre-existing across codebase.
+- **Double `isDockerAvailable()` call** in run.ts -> cleanupContainers() path (14-3).
+
+### 2c. Verification Gaps
+
+- **14-4, 14-5, 14-6 stuck at "verifying"** — Docker daemon unavailable. Story 14-4 exhausted 10 retries. 14-5 and 14-6 at 3-4 retries each.
+- **No integration test** for full init --observability-backend elk CLI flow (14-4).
+- **No integration test** for full deferral flow: polling -> deferral -> child.kill -> clean exit (14-6).
+- **`buildScopedEndpoints()`** uses Victoria-specific URL patterns for ELK — not tested (14-4).
+
+### 2d. Tooling / Infrastructure Problems
+
+- **Docker Desktop not running** — the dominant blocker this session. 6 verification attempts across 3 stories, all failed. `open -a Docker` fails with error -1712 in headless context. Cannot be fixed programmatically on macOS.
+- **Disk space critically low (45MB free)** — BATS tests failed with "No space left on device". Fixed by clearing npm cache (2.2GB).
+- **Beads CLI not installed** — beads sync failed during 15-2 verification. Non-blocking.
+- **`env -u` not portable on macOS** — used `unset` workaround in BATS tests (15-1).
+
+---
+
+## 3. What Went Well
+
+- **6 stories completed end-to-end** in a single session, including complex ones (retro pipeline, time budgets, CI gates).
+- **Code review caught every HIGH/MEDIUM bug** before merge. Zero regressions shipped.
+- **Test suite grew from ~3664 to 3744 tests** while maintaining 96.97% coverage across 156 files.
+- **BATS integration tests grew to 325** — CI gate story (15-1) alone added 18 BATS tests.
+- **Clean implementations** — 14-2 was 4 lines of production code with 7 test cases. Right-sized.
+- **Sprint-state / YAML consistency** issues detected and corrected during story creation (14-6).
+
+---
+
+## 4. What Went Wrong
+
+- **Docker verification blocked 3 stories** — 14-4, 14-5, and 14-6 all passed dev + code review but cannot be verified. 14-4 has exhausted its 10-retry budget. This is a persistent infrastructure problem with no automated fix.
+- **File size limit violations accumulating** — run.ts, docker-setup.ts, formatters.ts, env.ts, NodejsProvider all at or over 300 lines. The 15-1 CI gate is in warn mode because enforcing it would fail immediately. New stories keep pushing files closer to the edge.
+- **Epic AC underspecification** — 14-2 expanded from 2 ACs to 9 during story creation. 14-6 expanded from 2 to 10. Original epics were too vague to implement directly.
+- **ELK backend gap** — Victoria-specific patterns (URLs, endpoints, scoped endpoints) were hardcoded. Code review caught 4 separate issues. The initial implementation was incomplete.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+- **Code review as quality gate** works. Every HIGH bug this session was caught before merge.
+- **Testing with it.each** — 14-2 used typed it.each for combinatorial coverage in minimal lines.
+- **Expanding ACs during create-story** — catching underspecification early saves dev rework.
+
+### Patterns to Avoid
+- **Files at exactly 300 lines** — a ticking bomb. Any touch requires extraction. Should proactively split at 250.
+- **Docker-dependent verification without a fallback** — 3 stories are stuck indefinitely. Need a unit-testable verification tier or mock-Docker path.
+- **Shipping backend-specific defaults as generic** — 14-4's Victoria URLs appearing for ELK was caught by review but shouldn't have been written that way.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+- [ ] **Start Docker Desktop manually** — unblocks verification of 14-4, 14-5, 14-6
+- [ ] **Reset 14-4 retry count** — exhausted at 10, needs manual reset after Docker is available
+
+### Fix Soon (Next Sprint)
+- [ ] **Split run.ts** — at 300 lines, extract pre-flight checks to a helper module
+- [ ] **Split docker-setup.ts** — at 300 lines, extract compose selection logic
+- [ ] **Split formatters.ts** — at 605 lines, most egregious file-size violation in the codebase
+- [ ] **Add `docker info` check** — replace `docker --version` with daemon connectivity test
+- [ ] **Graceful subagent shutdown protocol** — replace raw SIGTERM with progress-saving handshake (14-6)
+- [ ] **Switch CI file-size gate from warn to error** — requires completing file-split TD stories first
+
+### Backlog (Track But Not Urgent)
+- [ ] **Remove deprecated static Dockerfile templates** once no older installs reference them
+- [ ] **Fix `keyToTitle()` lowercasing "TD" to "Td"** — cosmetic but visible in backlog output
+- [ ] **Fix `getExistingTdTitles()` lossy slug-to-title reconstruction** — low impact, could cause dedup false negatives
+- [ ] **Eliminate duplicate cleanup functions** — verify/env.ts `cleanupStaleContainers()` vs infra/container-cleanup.ts `cleanupContainers()`
+- [ ] **Address 50 ESLint unused-var warnings** — at warn level, needs cleanup pass
+- [ ] **Add cross-module import coverage to boundary tests** — gap noted in 15-2 review
+
+---
+
+# Session Retrospective — 2026-03-25 (Session 12 / Loop 12)
+
+**Appended:** 2026-03-25T06:35:00Z
+**Sprint:** Operational Excellence (Epics 14-15)
+**Session window:** ~2026-03-25 06:09 UTC to ~2026-03-25 06:39 UTC (~30 minutes)
+
+---
+
+## 1. Session Summary
+
+| Story | Outcome | Phases Completed |
+|-------|---------|-----------------|
+| 15-3-template-migration-static-files | **Stuck (review)** | code-review completed — cannot transition to verifying due to ENOSPC |
+
+**Totals:** 1 story attempted, 0 completed. Session dominated by disk space exhaustion.
+
+---
+
+## 2. Issues Analysis
+
+### 2a. Bugs Found by Code Review
+
+| Severity | Story | Issue | Status |
+|----------|-------|-------|--------|
+| HIGH | 15-3 | `package.json` `files` array missing all 5 new `templates/` subdirectories — npm publish would produce a broken package where `renderTemplateFile()` throws ENOENT at runtime | Fixed |
+
+### 2b. Infrastructure / Tooling Problems
+
+- **CRITICAL: Disk completely full (ENOSPC).** The Bash tool cannot write its output file to `/private/tmp/claude-501/`. This blocked ALL shell command execution — no npm test, npm build, codeharness coverage, or git commands could run.
+- **Root cause:** ~100+ ralph claude output logs (each 1-10MB) in `ralph/logs/` plus accumulated `/private/tmp` task output files from dozens of prior sessions. Total ralph log directory was likely 500MB+.
+- **Attempted fix:** Truncated ~28 log files via Read+Write tool chain (since Bash was unavailable). Insufficient — `/private/tmp` remained full because the main space consumers are the temp task output files from Claude itself, which cannot be deleted from within the session.
+- **Impact:** Story 15-3 could not transition from `review` to `verifying` because coverage verification requires Bash.
+
+### 2c. Stories Still Blocked
+
+| Story | Reason | Retry Count |
+|-------|--------|-------------|
+| 14-4-observability-backend-choice | retry-exhausted | 10/10 |
+| 14-5-stack-aware-verify-dockerfile | Docker daemon down | 7/10 |
+| 14-6-subagent-status-ownership-time-budget | Docker daemon down | 5/10 |
+| 15-3-template-migration-static-files | ENOSPC — disk full | 0/10 |
+
+---
+
+## 3. What Went Well
+
+- **Code review caught 1 HIGH bug** — the `package.json` `files` array omission would have broken npm publish entirely. All `renderTemplateFile()` calls would fail at runtime for any npm-installed user.
+- **Code review completed autonomously** despite limited session time.
+
+---
+
+## 4. What Went Wrong
+
+- **Disk space consumed entire session** — ~20 of 30 minutes spent attempting to free disk space through Read+Write truncation of log files. This was ultimately unsuccessful because the `/private/tmp` Claude task output directory is the real space hog and cannot be cleaned from within a session.
+- **Zero stories completed** — session produced useful work (code review, bug fix) but couldn't finalize anything.
+- **Ralph log accumulation unmanaged** — 100+ log files from March 15-25 were never cleaned. Each is a full JSON dump of a claude session (1-10MB). This is a known problem first noted in session issues weeks ago but never addressed.
+
+---
+
+## 5. Lessons Learned
+
+### Repeat
+- **Code review as quality gate** continues to find real bugs.
+
+### Avoid
+- **Letting ralph logs accumulate indefinitely** — need a retention policy (e.g., keep last 10 logs, delete older ones).
+- **Starting sessions without checking disk space** — ralph should check `df` at startup and warn if below 500MB.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+- [ ] **Clean disk space manually:** `rm -rf /private/tmp/claude-501/ && rm ralph/logs/claude_output_*.log` — unblocks all shell operations
+- [ ] **Transition 15-3 to verifying** — run `codeharness coverage --min-file 80` after disk cleanup, then update status
+
+### Fix Soon (Next Sprint)
+- [ ] **Add disk space pre-check to ralph** — check `df` at session start, warn if below 500MB, refuse to start if below 100MB
+- [ ] **Add ralph log retention policy** — keep last 10 session logs, delete older ones automatically in ralph.sh
+- [ ] **Add `/private/tmp` cleanup to ralph teardown** — remove old task output files between sessions
+
+### Backlog
+- All items from prior sessions remain open (13 cumulative items)

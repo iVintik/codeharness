@@ -7,20 +7,16 @@ Run the `/harness-run` command to execute the next story in the sprint.
 ## Instructions
 
 1. **Run `/harness-run`** — this is the sprint execution skill that:
-   - Reads sprint-status.yaml at `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml` to find the next story
+   - Reads sprint-status.yaml at `{{sprintStatusPath}}` to find the next story
    - Picks the first story with status NOT `done` (handles `backlog`, `ready-for-dev`, `in-progress`, `review`, and `verified`)
    - Executes the appropriate BMAD workflow for the story's current status
-   - Updates sprint-status.yaml when the story is complete
 
 2. **Follow all BMAD workflows** — the /harness-run skill handles this, but if prompted:
    - Use `/bmad-dev-story` for implementation
    - Use code-review workflow for quality checks
    - Ensure tests pass and coverage meets targets
 
-3. **Update sprint-status.yaml** — after each story completes, the skill updates
-   the story status to `done` in `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`.
-
-4. **Do not skip verification** — every story must pass verification gates
+3. **Do not skip verification** — every story must pass verification gates
    (tests, coverage, showboat proof) before being marked done.
 
 ## Verification Gates
@@ -31,16 +27,11 @@ until verification passes.
 
 ## Project Context
 
-- **Project directory:** `/Users/ivintik/dev/personal/codeharness`
-- **Sprint status:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml`
+- **Project directory:** `{{projectDir}}`
+- **Sprint status:** `{{sprintStatusPath}}`
 
 ## Important
 
 - Do NOT implement your own task-picking logic. Let /harness-run handle it.
-- Do NOT modify sprint-status.yaml directly. Let the skill manage it.
+- Do NOT write to sprint-state.json or sprint-status.yaml. The orchestrator owns all status writes.
 - Focus on one story per session. Ralph will spawn a new session for the next story.
-
-## Flagged Stories (Skip These)
-
-The following stories have exceeded the retry limit and should be skipped:
-- `14-4-observability-backend-choice`

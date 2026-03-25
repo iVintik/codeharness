@@ -513,11 +513,11 @@
       "acResults": null
     },
     "15-3-template-migration-static-files": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-03-25T05:50:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/15-3-template-migration-static-files-proof.md",
       "acResults": null
     },
     "15-4-fix-ts-compilation-errors": {

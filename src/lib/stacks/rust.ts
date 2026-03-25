@@ -9,6 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { renderTemplateFile } from '../templates.js';
 import type {
   AppType,
   CoverageToolInfo,
@@ -118,31 +119,7 @@ export class RustProvider implements StackProvider {
   // ── Task 8: getDockerfileTemplate ─────────────────────────────────────
 
   getDockerfileTemplate(): string {
-    return `# === Builder stage ===
-FROM rust:1.82-slim AS builder
-
-WORKDIR /build
-
-# Copy project files
-COPY . .
-
-# Build release binary
-RUN cargo build --release
-
-# === Runtime stage ===
-FROM debian:bookworm-slim
-
-# System utilities for verification
-RUN apt-get update && apt-get install -y --no-install-recommends curl jq && rm -rf /var/lib/apt/lists/*
-
-# Install compiled binary from builder (update 'myapp' to your binary name)
-COPY --from=builder /build/target/release/myapp /usr/local/bin/myapp
-
-# Run as non-root user
-USER nobody
-
-WORKDIR /workspace
-`;
+    return renderTemplateFile('templates/dockerfiles/Dockerfile.rust');
   }
 
   // ── Task 9: getDockerBuildStage ───────────────────────────────────────

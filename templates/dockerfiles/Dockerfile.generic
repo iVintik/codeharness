@@ -1,0 +1,13 @@
+# Base image — pinned version for reproducibility
+FROM node:22-slim
+
+# System utilities for verification
+RUN apt-get update && apt-get install -y --no-install-recommends bash curl jq git && rm -rf /var/lib/apt/lists/*
+
+# Install project binary (update this for your project)
+RUN npm install -g placeholder && npm cache clean --force
+
+# Run as non-root user
+USER node
+
+WORKDIR /workspace

@@ -1446,3 +1446,174 @@ No new tooling issues. The session ran cleanly without Docker dependency.
 **Epics closed this sprint:** 13, 14 (partially — 14-4 stuck), 15
 
 Sprint is effectively complete. The sole remaining story (14-4) is an infrastructure-blocked verification that has been stuck for 8 sessions. It should be manually resolved or descoped to close the sprint.
+
+---
+
+# Session 19 (Ralph Session 7) Retrospective — 2026-03-25 11:15 UTC
+
+**Sprint:** Operational Excellence (Epics 13-15)
+**Session window:** ~2026-03-25 11:15 UTC (brief — no stories executed)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages | Notes |
+|-------|------|---------|-----------------|-------|
+| 14-4-observability-backend-choice | Epic 14 | skipped (retry-exhausted) | — | 5 prior attempts failed; orchestrator correctly skipped |
+
+**Net progress:** Zero stories executed. No code changes produced this session.
+
+**Sprint completion:** 65/66 stories (98.5%) — unchanged from session 18.
+
+The orchestrator scanned for actionable stories, found only 14-4, determined it was retry-exhausted (5 attempts), and exited cleanly. This is correct behavior — the circuit breaker worked as designed.
+
+---
+
+## 2. Issues Analysis
+
+### From Today's Full Session History (Sessions 10-18 + 19)
+
+#### Bugs Discovered During Implementation or Verification
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| HIGH | 15-5 | Hook grep pattern `except Exception.*pass` never matches multiline Python — AC2 non-functional | Yes (code review) |
+| HIGH | 15-5 | Semgrep `no-bare-except-ellipsis` rule used `...` metavariable as wildcard, not Python Ellipsis literal — false positive generator | Yes (code review) |
+| MEDIUM | 15-4 | `run.ts` used `'in-review'` which is not a valid StoryStatus — runtime behavior change masked as type fix | Yes |
+| MEDIUM | 15-4 | `dimensions.ts` referenced `g.message` (non-existent property) — produced `undefined` at runtime | Yes |
+| MEDIUM | 15-4 | `docker-setup.ts` `opensearch` property not in HarnessState interface — suppressed with `as HarnessState` cast | Yes (workaround) |
+| MEDIUM | 15-5 | Hook only detected `pass` but not Python `...` (Ellipsis) exception swallowing | Yes (code review) |
+| LOW | 15-5 | AGENTS.md stale after `additionalRulesDirs` config addition | Yes |
+
+#### Workarounds Applied (Tech Debt Introduced)
+
+| Story | Workaround | Debt Level |
+|-------|-----------|------------|
+| 15-4 | `as HarnessState` cast in docker-setup.ts to suppress missing `opensearch` field | LOW — needs interface update |
+| 15-4 | Double-casts (`as unknown as T`) in several test files for partial mocks | LOW — vitest limitation |
+| 15-5 | Semgrep test fixtures validate file existence/content only (no semgrep binary in CI) | LOW — acceptable |
+| 14-5, 14-6 | Added `verification-tier: unit-testable` tags to bypass Docker-dependent verification | NONE — correct fix, not debt |
+
+#### Verification Gaps
+
+| Story | Gap | Impact |
+|-------|-----|--------|
+| 14-4 | Cannot verify — Docker keychain locked in non-interactive ralph session; observability stack requires image pulls | BLOCKING — story stuck for 8+ sessions |
+
+#### Tooling/Infrastructure Problems
+
+| Problem | Impact | Sessions Affected |
+|---------|--------|-------------------|
+| Docker keychain locked in non-interactive sessions | Blocks any story requiring Docker image pulls | 11, 13, 14, 15, 19 (persistent) |
+| Ralph retry-exhausted on 14-4 after 5 attempts | Story permanently blocked unless manually intervened | 14-19 |
+
+---
+
+## 3. What Went Well
+
+- **Sprint is 98.5% complete.** 65 of 66 stories done across 16 epics — a strong outcome.
+- **Today's velocity was high.** 10 stories completed in sessions 10-18, closing Epics 13 and 15.
+- **Code review caught real bugs.** Both HIGH severity issues in 15-5 (multiline grep, Semgrep wildcard misuse) were caught by adversarial code review before merge.
+- **Verification tagging fix unblocked 2 stories.** Stories 14-5 and 14-6 were stuck for multiple sessions due to Docker dependency, but their ACs were actually cli-verifiable. Adding the `unit-testable` tag was the correct fix.
+- **Circuit breaker worked correctly.** Session 19 cleanly skipped 14-4 after 5 failed attempts instead of wasting compute on a known-blocked story.
+- **Zero regressions.** All 3799 tests pass. Coverage at 97.1%.
+- **Story 15-4 fixed 106 TS compilation errors** in a single clean pass with no regressions.
+
+---
+
+## 4. What Went Wrong
+
+- **Session 19 produced no output.** The session started, found nothing to do, and exited. This is "correct" behavior but represents wasted orchestrator invocation.
+- **14-4 has been stuck since session 11** (8+ sessions). The Docker keychain issue is an environment problem, not a code problem, but no one escalated it.
+- **Story specs had inaccuracies.** 15-4 quoted ~40 TS errors but actual count was 106. 15-5 listed `scanner.ts` as the target file but the actual Semgrep logic lives in `analyzer.ts`.
+- **Tech debt accumulation in test files.** 16 of 20 files with TS errors in 15-4 were test files — tests are the primary debt vector.
+
+---
+
+## 5. Deep Dive: Story 14-4 (Observability Backend Choice) — Chronically Stuck
+
+**Story:** 14-4-observability-backend-choice
+**Status:** `verifying` (stuck)
+**Attempts:** 5 (retry-exhausted)
+**Blocked since:** Session 11 (~8 sessions ago)
+
+**Root cause:** The story requires starting an observability stack (VictoriaMetrics, VictoriaLogs, etc.) via Docker Compose. Ralph runs in a non-interactive session where the Docker keychain is locked, so `docker pull` fails for every image. No workaround was applied because — unlike 14-5 and 14-6 — this story's ACs genuinely require running Docker containers.
+
+**Why it stayed stuck:** The orchestrator retried 5 times across sessions, each time hitting the same Docker blocker. After 5 failures, the circuit breaker correctly marked it retry-exhausted. But no human was alerted that the story needed manual intervention.
+
+**Resolution options:**
+1. **Manual verification** — a human runs the Docker-dependent verification commands in an interactive terminal
+2. **Descope** — accept that the story cannot be verified in the current environment and close it as-is
+3. **Fix Docker auth** — configure Docker credentials for non-interactive sessions (e.g., credential store instead of keychain)
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Adversarial code review catches real bugs.** Both HIGH issues in 15-5 were functional defects, not style nits. The review-before-merge gate is earning its keep.
+2. **Verification tier tagging is effective.** Stories that are cli-verifiable should never be blocked on Docker. The `unit-testable` tag pattern should be applied proactively during story creation.
+3. **Circuit breaker prevents waste.** 14-4 would have burned unlimited compute without the retry-exhausted limit.
+
+### Patterns to Avoid
+
+1. **Stale epic/story specs.** Error counts, file paths, and scope estimates in stories diverged from reality. Stories should be validated against the codebase at creation time.
+2. **No escalation path for environment blockers.** 14-4 was stuck for 8 sessions with no mechanism to notify a human. Ralph needs a "needs-human" status that triggers an alert.
+3. **Semgrep `...` as literal.** The `...` token in Semgrep is always a metavariable/wildcard, never a literal match for Python Ellipsis. This was a knowledge gap. All existing Semgrep rules should be audited for this misuse.
+
+---
+
+## 7. Action Items
+
+### Fix Now (Before Next Session)
+
+| # | Action | Owner |
+|---|--------|-------|
+| 1 | Manually verify or descope story 14-4 to close the sprint | Human |
+| 2 | Decide if sprint is "done enough" at 98.5% to close formally | Human |
+
+### Fix Soon (Next Sprint)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 3 | Add `needs-human` story status that ralph can set when environment blockers are detected | Prevents stories from silently burning retries for 8 sessions |
+| 4 | Add HarnessState `opensearch` field to the interface (tech debt from 15-4 cast workaround) | Type safety |
+| 5 | Audit all Semgrep rules for `...` metavariable misuse (pattern from 15-5) | May have false positives in other rules |
+| 6 | Validate story specs against codebase at creation time (error counts, file paths) | Prevents scope surprises |
+
+### Backlog (Track But Not Urgent)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 7 | Fix Docker credential store for non-interactive sessions | Unblocks Docker-dependent verification in ralph |
+| 8 | Audit test files for double-cast (`as unknown as T`) patterns — consider vitest helpers | Test code quality |
+| 9 | Add ralph retry-waste metric (carry forward from prior sessions) | Measure compute spent on stuck stories |
+| 10 | Investigate `'in-review'` vs `'review'` status inconsistency across bash/yaml/TypeScript layers | Possible latent bug in other system parts |
+
+---
+
+### Session Velocity (Updated)
+
+| Session | Stories Attempted | Stories Completed (done) | Stories Stuck |
+|---------|-------------------|--------------------------|---------------|
+| 10 | 4 | 4 | 0 |
+| 11 | 9 | 6 | 3 (Docker) |
+| 12 | 1 | 0 | 1 (ENOSPC) |
+| 13 | 3 | 0 | 3 (Docker) |
+| 14 | 1 | 1 | 0 (3 skipped) |
+| 15 | 10 | 6 | 3 (verifying) |
+| 16 | 1 | 1 | 0 |
+| 17 | 2 | 2 | 0 |
+| 18 | 1 | 1 | 0 |
+| **19** | **0** | **0** | **0 (1 skipped: retry-exhausted)** |
+
+### Final Sprint Summary (2026-03-25)
+
+**Total stories completed today:** 10 (sessions 10-18)
+**Sprint completion:** 65/66 (98.5%)
+**Remaining:** 14-4 (verifying — retry-exhausted, needs human intervention)
+**Sessions today:** 10 (sessions 10-19)
+**Epics fully closed:** 0-15 except Epic 14 (1 story stuck)
+**Recommendation:** Close the sprint. Descope or manually verify 14-4 as a follow-up.

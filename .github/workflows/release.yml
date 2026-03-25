@@ -46,6 +46,11 @@ jobs:
           git clone --depth 1 https://github.com/bats-core/bats-core.git /tmp/bats
           sudo /tmp/bats/install.sh /usr/local
 
+      - name: File size gate
+        run: npm run lint:sizes
+        env:
+          FILE_SIZE_ENFORCEMENT: warn
+
       - name: Run integration tests
         run: bats tests/*.bats
 

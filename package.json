@@ -28,7 +28,8 @@
     "build": "tsup",
     "test": "bats tests/",
     "test:unit": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "lint:sizes": "bash scripts/check-file-sizes.sh"
   },
   "dependencies": {
     "@inkjs/ui": "^2.0.0",

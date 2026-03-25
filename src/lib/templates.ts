@@ -6,9 +6,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** Package root directory — works for both dev (src/) and installed (dist/) layouts. */
 export function getPackageRoot(): string {
-  // __dirname is src/lib/ in dev or dist/ in installed package
-  // Walk up to find the directory containing package.json
-  return resolve(__dirname, '..', '..');
+  // __dirname is src/lib/ in dev or dist/ in installed package.
+  // Dev:       src/lib/  → ../.. → project root (contains package.json + templates/)
+  // Installed: dist/     → ..    → package root (contains package.json + templates/)
+  // Check if we're in a nested src/ path or flat dist/ path.
+  if (__dirname.endsWith('/src/lib') || __dirname.endsWith('\\src\\lib')) {
+    return resolve(__dirname, '..', '..');
+  }
+  // dist/ or dist/chunk — go up to package root
+  return resolve(__dirname, '..');
 }
 
 export function generateFile(targetPath: string, content: string): void {

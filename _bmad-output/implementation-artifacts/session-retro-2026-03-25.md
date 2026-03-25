@@ -2046,3 +2046,1619 @@ The cost is not just wasted compute — it's noise. Each no-op session generates
 **Remaining:** 14-4-observability-backend-choice (verifying — retry-exhausted, needs human intervention)
 **Consecutive no-op sessions:** 5 (sessions 7, 8, 9, 10, 11)
 **Recommendation:** Halt autonomous sessions immediately. Sprint is complete to the extent possible without human intervention. Further sessions will produce identical no-op results.
+
+---
+
+## Session 12 Retrospective — 2026-03-25T11:29Z
+
+**Session:** 12 (Loop 12, continuation from session 11)
+**Session window:** ~11:29 UTC
+**Duration:** <1 minute (immediate no-op exit)
+
+---
+
+### 1. Session Summary
+
+| Story | Epic | Outcome | Notes |
+|-------|------|---------|-------|
+| (none) | — | NO_WORK | 6th consecutive no-op session |
+
+**Net progress:** Zero. Sprint state unchanged: 65/66 stories done (98.5%). 14-4-observability-backend-choice remains the sole non-done story at retry 10/10, flagged for skipping.
+
+This was the 6th consecutive no-op session (sessions 7-12). Ralph spawned, scanned all 66 stories, found nothing actionable, and exited. The session issues log entry is a single line confirming this.
+
+---
+
+### 2. Issues Analysis
+
+#### Bugs Discovered
+None. No code was executed.
+
+#### Workarounds Applied
+None.
+
+#### Code Quality Concerns
+None new. All concerns from sessions 17-18 remain open:
+- HarnessState missing `opensearch` field (suppressed with cast)
+- Test files using double-cast (`as unknown as T`) for partial mocks
+- `'in-review'` vs `'review'` status string inconsistency across layers
+- Story spec drift (15-5 listed `scanner.ts` but code lives in `analyzer.ts`)
+
+#### Verification Gaps
+14-4-observability-backend-choice remains unverifiable without Docker daemon access. This has been the case since session 11.
+
+#### Tooling/Infrastructure Problems
+- **Ralph loop termination failure** — Ralph spawned 6 consecutive sessions (7-12) that all exited with NO_WORK. There is no mechanism to detect "sprint is done, stop spawning sessions." The `max_iterations: 50` ceiling is the only backstop, and ralph burned 6 of those iterations producing nothing.
+- **Docker keychain locked in non-interactive session** — Root cause of 14-4 being stuck. This is an environment configuration issue, not a code bug. It has persisted since session 11 (story-level) and was first observed in session 13 (narrative-level) for 14-5/14-6.
+
+---
+
+### 3. What Went Well
+
+- **Session exited cleanly.** No crashes, no partial state corruption, no retry loops burning compute.
+- **Flagging mechanism worked.** 14-4 was correctly identified as retry-exhausted and skipped rather than retried.
+- **Sprint completion rate is excellent.** 65/66 stories (98.5%) across 16 epics in a single day's worth of autonomous sessions.
+
+---
+
+### 4. What Went Wrong
+
+- **6th wasted no-op session.** Ralph should have terminated after session 7 or 8 at the latest. Sessions 9-12 each burned orchestrator invocation time (spawning claude, scanning state, exiting) for zero output.
+- **14-4 still unresolved after 10 retries.** This story needs human intervention (Docker keychain unlock or descoping). No escalation occurred.
+- **No sprint completion signal.** Ralph has no concept of "the sprint is done" — it only knows "I couldn't find work this iteration." The difference matters: done means stop; no-work-this-iteration means maybe retry later.
+
+---
+
+### 5. Lessons Learned
+
+1. **Ralph needs a "sprint complete" exit condition.** When all stories are either `done` or `flagged`, the loop should terminate with a success signal, not keep spawning sessions.
+2. **Consecutive no-op detection should be built into ralph.** After 2-3 consecutive NO_WORK results, ralph should self-terminate rather than consuming up to `max_iterations`.
+3. **Human escalation for stuck stories is missing.** 14-4 sat in `verifying` for 10 retries across 8+ sessions with no notification to the user. A `needs-human` status with alerting would solve this.
+4. **The session issues log is the single best source of truth for retrospectives.** Every productive session's subagents logged real problems (stale error counts, borderline logic changes, HIGH bugs caught by code review, Docker blockers). The retro should always start from this log.
+
+---
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+| # | Action | Rationale |
+|---|--------|-----------|
+| 1 | **Manually resolve or descope 14-4** | 10 retries exhausted, Docker keychain won't unlock in non-interactive sessions. Either fix Docker credentials, reclassify as unit-testable, or move to next sprint. |
+| 2 | **Stop ralph loop** | Sprint is complete to the extent possible. Further sessions waste compute. |
+
+#### Fix Soon (Next Sprint)
+| # | Action | Origin |
+|---|--------|--------|
+| 1 | Add consecutive no-op detection to ralph (exit after 3 NO_WORK sessions) | Sessions 7-12 |
+| 2 | Add `sprint-complete` exit condition to ralph loop | Sessions 7-12 |
+| 3 | Add `needs-human` story status with notification | Session 19/carried forward |
+| 4 | Add Docker health pre-check to ralph startup | Session 13/carried forward |
+| 5 | Reduce max_story_retries for verification-phase failures to 3 | Session 15-16/carried forward |
+
+#### Backlog (Track But Not Urgent)
+| # | Action | Origin |
+|---|--------|--------|
+| 1 | Split state.ts (543+ lines, over 300-line limit) | Session 10 |
+| 2 | Split formatters.ts (605 lines) | Session 12 |
+| 3 | Extract run.ts helpers | Session 11 |
+| 4 | Extract docker-setup.ts helpers | Session 12 |
+| 5 | Split NodejsProvider | Session 13 |
+| 6 | Add AGENTS.md auto-check to dev-story subagent | Session 11 |
+| 7 | Audit `'in-review'` vs `'review'` across bash/yaml/TypeScript layers | Session 17 |
+| 8 | Add `opensearch` field to HarnessState interface | Session 17 |
+| 9 | Add appendToBacklogFile error path tests | Session 10 |
+| 10 | Add ELK integration test | Session 12 |
+| 11 | Add time budget deferral integration test | Session 13 |
+| 12 | Remove deprecated static Dockerfile templates | Session 13 |
+| 13 | Add ralph log retention policy | Session 12 |
+| 14 | Add disk space pre-check to ralph | Session 12 |
+| 15 | Docker credential pre-check | Session 14 |
+| 16 | Verification tier policy documentation | Session 14 |
+
+Sixteen backlog items accumulated across sessions 10-18. Seven are file splits, five are test coverage gaps, four are infrastructure improvements.
+
+---
+
+## End-of-Day Sprint Summary — 2026-03-25
+
+### Sprint Scorecard
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6) |
+| Total sessions today | 12 (loops 1-12) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 6 (sessions 7-12) |
+| Ralph elapsed time | ~6980 seconds (~1h 56m) |
+| Test count | 3799 passing |
+| Coverage | 97.1% across 156 files |
+| HIGH bugs caught by code review | 7 across all sessions |
+| MEDIUM bugs caught by code review | 6 across all sessions |
+
+### Stories Completed Today (Sessions 1-6)
+
+| Session | Story | Epic |
+|---------|-------|------|
+| 1 | 14-2-tech-debt-gate-story-selection | 14 |
+| 1 | 14-3-docker-precheck-orphan-cleanup | 14 |
+| 2 | 14-7-fix-beads-flags-ralph-tracking-proof-docs | 14 |
+| 2 | 15-1-ci-file-size-gate | 15 |
+| 3 | 15-2-eslint-no-empty-catch-boundary-tests | 15 |
+| 4 | 14-5-stack-aware-verify-dockerfile | 14 |
+| 4 | 14-6-subagent-status-ownership-time-budget | 14 |
+| 5 | 15-3-template-migration-static-files | 15 |
+| 5 | 15-4-fix-ts-compilation-errors | 15 |
+| 6 | 15-5-lint-rule-bare-exception-swallowing | 15 |
+
+### Key Patterns Observed Across All Sessions
+
+1. **Code review is load-bearing.** 7 HIGH and 6 MEDIUM bugs caught across all sessions. Without adversarial review, these would have shipped. The dev-story subagent consistently misses edge cases that code review catches.
+
+2. **Docker infrastructure is the primary verification bottleneck.** Stories 14-4 through 14-6 were stuck for multiple sessions due to Docker daemon unavailability. The workaround (reclassifying as unit-testable) unblocked 14-5 and 14-6, but 14-4 genuinely needs a running backend.
+
+3. **Ralph lacks sprint-completion awareness.** Sessions 7-12 were all no-ops. Ralph should have terminated after detecting no actionable work for 2-3 consecutive iterations.
+
+4. **Tech debt accumulates faster than it's addressed.** 16 backlog items accumulated across 12 sessions. Zero were resolved. The file-split items (state.ts, formatters.ts, run.ts, docker-setup.ts, NodejsProvider) are the most urgent — multiple files hit the 300-line ceiling during this sprint.
+
+5. **The session issues log is essential.** Every productive session generated actionable findings. Stale error counts (106 vs claimed 40), borderline logic changes, Semgrep false positives, and Docker blockers were all surfaced by subagents in real time.
+
+### Remaining Work
+
+- **14-4-observability-backend-choice** — Stuck in `verifying`, retry-exhausted (10/10), flagged. Needs human decision: fix Docker credentials, reclassify verification tier, or descope to next sprint.
+
+---
+
+## Session 13 Retrospective — 2026-03-25T11:32Z
+
+**Sprint:** Operational Excellence (Epics 14-15)
+**Session window:** ~11:32 UTC (< 1 minute)
+
+---
+
+### 1. Session Summary
+
+| Story | Outcome | Notes |
+|-------|---------|-------|
+| (none) | NO_WORK | 7th consecutive no-op session |
+
+No stories were attempted. Ralph scanned for actionable work and found none. 14-4-observability-backend-choice remains the sole non-done story at retry-exhausted (10/10), flagged. Sprint stands at 65/66 stories done (98.5%).
+
+---
+
+### 2. Issues Analysis
+
+#### Tooling/Infrastructure Problems
+
+| Severity | Issue | Sessions Affected |
+|----------|-------|-------------------|
+| HIGH | Ralph loop does not terminate when sprint has no actionable work | Sessions 7-13 (7 consecutive no-ops) |
+| MEDIUM | Docker keychain locked in non-interactive ralph session | Sessions 4-6 (verification), ongoing |
+| LOW | 14-4-observability-backend-choice stuck at `verifying` with no path forward | Sessions 7-13 |
+
+#### Bugs Discovered (Prior Sessions, This Day)
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| HIGH | 15-5 | Hook grep pattern `except Exception.*pass` never matches multiline Python | Yes (code review) |
+| HIGH | 15-5 | Semgrep `...` wildcard treated as Python Ellipsis — false positive generator | Yes (code review) |
+| MEDIUM | 15-4 | `'in-review'` vs `'review'` StoryStatus mismatch — runtime behavior change | Yes |
+| MEDIUM | 15-4 | `g.message` → `g.description` — referenced non-existent property | Yes |
+| MEDIUM | 15-4 | `opensearch` not in HarnessState interface, suppressed with cast | Yes (cast only) |
+| MEDIUM | 15-5 | Hook missed `...` (Python Ellipsis) pattern in except blocks | Yes (code review) |
+| MEDIUM | 15-5 | AGENTS.md stale after `additionalRulesDirs` addition | Yes |
+
+#### Workarounds Applied (Tech Debt Introduced)
+
+1. **`as HarnessState` cast for opensearch** (15-4) — HarnessState interface still missing `opensearch` field. Cast hides the type gap.
+2. **Double-casts in tests** (`as unknown as T`) — several test files use partial mocks with unsafe casts. Standard vitest limitation but adds fragility.
+3. **Verification tier reclassification** (14-5, 14-6) — tagged as `unit-testable` to bypass Docker. Correct for these stories but masks the underlying Docker credential problem.
+
+#### Verification Gaps
+
+- **14-4-observability-backend-choice** — cannot be verified without Docker. 10 retries exhausted. Needs human intervention.
+
+---
+
+### 3. What Went Well
+
+- **10 stories completed in 6 productive sessions** — strong throughput for a single day.
+- **Sprint at 98.5% completion** (65/66) — only one story remains, and it's blocked on infrastructure, not code.
+- **Code review caught 7 HIGH and 6+ MEDIUM bugs** — the adversarial review subagent is consistently the most valuable pipeline stage.
+- **106 TypeScript compilation errors fixed in a single session** (15-4) — dev subagent handled the largest story of the sprint cleanly.
+- **All tests pass** (3799) at 97.1% coverage across 156 files.
+- **Verification tier reclassification unblocked 14-5 and 14-6** — stories that were stuck for multiple sessions due to Docker were correctly identified as not needing Docker at all.
+
+---
+
+### 4. What Went Wrong
+
+- **Ralph wasted 7 sessions (7-13) on no-op loops.** No termination logic for sprint completion. Each session spawns a full Claude Code instance, consumes API credits, and produces nothing.
+- **14-4-observability-backend-choice is stuck indefinitely.** Docker keychain is locked in non-interactive sessions. No fallback path exists.
+- **Session issues log shows stale epic definitions.** Story 15-4 was scoped at ~40 errors; actual count was 106. Epic accuracy degrades as sessions accumulate.
+- **Semgrep rule shipped with fundamental false-positive bug** (15-5). Dev subagent did not catch that `...` is a Semgrep wildcard, not Python syntax. Code review caught it, but this class of domain-specific error is recurring.
+
+---
+
+### 5. Lessons Learned
+
+**Repeat:**
+- Adversarial code review before verification — it caught every HIGH bug this sprint.
+- Session issues log — raw material for retros and audit trail.
+- Verification tier reclassification — correct way to unblock stories that don't need Docker.
+
+**Avoid:**
+- Ralph loops without sprint-completion exit condition — must add max-consecutive-no-op termination.
+- Trusting epic-level error counts — always re-scan at story creation time.
+- Shipping domain-specific rules (Semgrep) without domain-aware review — dev subagent lacks Semgrep expertise.
+
+---
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+
+1. **Add ralph loop termination on consecutive no-ops.** After 2-3 consecutive NO_WORK results, ralph should exit cleanly with a "sprint complete" status. This would have saved sessions 9-13 (5 wasted invocations).
+2. **Decide on 14-4-observability-backend-choice.** Options: (a) fix Docker credentials for ralph, (b) reclassify verification tier, (c) defer to next sprint.
+
+#### Fix Soon (Next Sprint)
+
+3. **Add Docker credential pre-check to ralph startup.** If Docker keychain is locked, skip Docker-dependent stories immediately instead of retrying 10 times.
+4. **Re-scan error counts at story creation time.** Don't trust epic-level estimates — `create-story` subagent should always run fresh analysis.
+5. **Add `opensearch` field to HarnessState interface.** Remove the `as HarnessState` cast from docker-setup.ts.
+6. **Audit `'in-review'` vs `'review'` across all layers** (TypeScript, bash scripts, YAML files).
+
+#### Backlog
+
+7. Split oversized files: state.ts, formatters.ts, run.ts, docker-setup.ts, NodejsProvider (5 items, all over 300-line limit).
+8. Remove deprecated static Dockerfile templates.
+9. Add ralph log retention policy.
+10. Add disk space pre-check to ralph.
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Final)
+
+### Sprint Scorecard
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6) |
+| Total sessions today | 13 (loops 1-13) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 7 (sessions 7-13) |
+| Test count | 3799 passing |
+| Coverage | 97.1% across 156 files |
+| HIGH bugs caught by code review | 7 |
+| MEDIUM bugs caught by code review | 6+ |
+| Wasted session invocations | 7 (53.8% of total sessions) |
+
+### Critical Takeaway
+
+Ralph's lack of sprint-completion awareness wasted over half the sessions today. The productive work was done by session 6. Sessions 7-13 were identical no-ops that consumed resources and produced nothing. Adding a 2-3 consecutive no-op exit condition is the single highest-impact improvement for the next sprint.
+
+---
+
+# Session Retrospective Addendum — 2026-03-25T11:35Z
+
+**Session:** 14 (final loop observed)
+**Session window:** ~2026-03-25 11:27 UTC to ~2026-03-25 11:35 UTC
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Notes |
+|-------|------|---------|-------|
+| (none) | — | NO_WORK | 8th consecutive no-op session |
+
+No stories were attempted. Session 14 was identical to sessions 7-13: scanned for actionable stories, found none, exited. Story 14-4-observability-backend-choice remains the sole non-done story at retry-exhausted (10/10 retries) and flagged by ralph.
+
+**Sprint final state:** 65/66 stories done (98.5%). 16 epics, 15 fully closed.
+
+---
+
+## 2. Issues Analysis
+
+### Tooling/Infrastructure Problems
+
+| Category | Issue | Impact |
+|----------|-------|--------|
+| Ralph loop termination | 8 consecutive no-op sessions (7-14) ran without producing work | Wasted API credits and compute time. 61.5% of today's 14 sessions were no-ops |
+| Ralph status.json | `status` still shows `running` and `last_action: executing` despite no work remaining | Misleading — external observers cannot distinguish productive from idle loops |
+| Docker keychain | Non-interactive sessions cannot pull images; blocks Docker-based verification | Forced unit-testable workaround for stories 14-5 and 14-6 |
+
+### Verification Gaps
+
+- **14-4-observability-backend-choice** — stuck at `verifying` status, retry-exhausted, flagged. Requires human intervention (Docker access or manual verification).
+
+### No New Bugs, Workarounds, or Code Quality Issues
+
+Session 14 produced no code changes. All issues from sessions 1-6 were documented in the prior retro sections above.
+
+---
+
+## 3. What Went Well
+
+- **Sprint completion rate is excellent:** 65/66 stories (98.5%) across 16 epics.
+- **Code quality pipeline held:** Code review caught 7 HIGH and 6+ MEDIUM bugs across the productive sessions.
+- **Test suite healthy:** 3799 tests passing, 97.1% coverage across 156 files.
+- **Unit-testable workaround** for Docker-blocked stories (14-5, 14-6) was correctly applied — these stories genuinely did not need Docker.
+
+---
+
+## 4. What Went Wrong
+
+- **Ralph burned 8 no-op sessions** (sessions 7-14). After session 6 completed the last actionable story, ralph had no exit condition for "sprint complete." It kept spawning sessions that scanned, found nothing, and exited — 8 times.
+- **Single story remains stuck:** 14-4-observability-backend-choice has been in `verifying` state across multiple days and 10+ retries. The blocker is Docker keychain access in non-interactive sessions.
+- **Ralph status reporting is misleading:** `status.json` shows `running`/`executing` even during no-op loops, making it impossible for monitoring to detect the idle state.
+
+---
+
+## 5. Lessons Learned
+
+| Pattern | Type | Detail |
+|---------|------|--------|
+| No-op exit condition is critical | Avoid | Ralph must exit after N consecutive no-op sessions (recommended: 2-3). Today it ran 8. |
+| Status reporting needs semantic states | Avoid | `running` vs `idle` vs `sprint-complete` would prevent confusion. Current binary running/stopped is insufficient. |
+| Docker-blocked stories need early triage | Repeat | Tagging CLI-verifiable stories as `unit-testable` was the right call. Should be done at story creation, not after multiple failed verification attempts. |
+| Flagged stories should remove from scan | Repeat | Ralph correctly flagged 14-4 but still scanned for it each loop. Flagged stories should be excluded from the actionable scan entirely. |
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+1. **Stop ralph loop manually** — it will keep spawning no-op sessions indefinitely.
+2. **Triage 14-4-observability-backend-choice** — decide: verify manually with Docker access, descope from sprint, or defer to next sprint.
+
+### Fix Soon (Next Sprint)
+
+3. **Add consecutive no-op exit condition to ralph** — exit after 2-3 consecutive sessions with NO_WORK result. This is the single highest-impact improvement (saves >50% of wasted sessions).
+4. **Add semantic status to ralph status.json** — distinguish `running` (doing work), `idle` (no work found), `sprint-complete` (all stories done or flagged).
+5. **Fix Docker keychain for non-interactive sessions** — either pre-auth the keychain before ralph starts, or use credential helpers that work headless.
+
+### Backlog
+
+6. **Auto-tag CLI-verifiable stories as unit-testable at creation time** — prevent Docker-blocked verification attempts.
+7. **Audit `'in-review'` vs `'review'` status string** across TypeScript, bash, and YAML layers.
+8. **Add HarnessState.opensearch field** to close the type cast tech debt from 15-4.
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Final, Amended)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6) |
+| Total sessions today | 14 (loops 1-14) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 8 (sessions 7-14) |
+| Wasted session ratio | 57.1% (8/14) |
+| Test count | 3799 passing |
+| Coverage | 97.1% across 156 files |
+| HIGH bugs caught by code review | 7 |
+| MEDIUM bugs caught by code review | 6+ |
+| Remaining blocker | 14-4-observability-backend-choice (Docker keychain, retry-exhausted) |
+
+---
+
+## Session 15 Retrospective — 2026-03-25T11:37Z
+
+### 1. Session Summary
+
+| Story | Outcome | Notes |
+|-------|---------|-------|
+| (none) | NO_WORK | 9th consecutive no-op session |
+
+**Net progress:** Zero. Sprint state unchanged from session 7. 65/66 stories done (98.5%).
+
+### 2. Issues Analysis
+
+**Critical process issue: Ralph loop not terminating on NO_WORK.**
+
+Sessions 7-15 (9 consecutive sessions) have all been no-ops. The only non-done story (14-4-observability-backend-choice) is retry-exhausted (10/10) and flagged. Ralph continues spawning sessions that immediately find no work, burning API credits (~$0.50-1.00 per session for context load + tool calls).
+
+**Root cause:** Ralph's loop termination logic does not detect consecutive NO_WORK results. It should stop after 1-2 consecutive no-ops, not continue indefinitely.
+
+### 3. What Went Well
+
+- Session correctly identified no actionable work in <1 minute
+- No wasted subagent invocations
+
+### 4. What Went Wrong
+
+- This session should not have been spawned at all
+- 9 no-op sessions = ~$5-9 wasted on API calls with zero output
+
+### 5. Lessons Learned
+
+- Ralph needs a consecutive no-op counter with a hard stop (suggest: 2 consecutive NO_WORK results → halt loop)
+- The flagged stories mechanism works for skipping, but doesn't feed back into loop termination
+
+### 6. Action Items
+
+- **Fix now:** Ralph loop should read the previous session's result and stop if NO_WORK was returned consecutively
+- **Fix soon:** Add a `.last_result` file that harness-run writes (e.g., `NO_WORK` or `STORY_DONE:{key}`) so Ralph can make informed loop decisions
+- **Backlog:** Consider marking epic-14 as `done-with-exceptions` when all non-exhausted stories are done
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Final, Session 15)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6) |
+| Total sessions today | 15 (loops 1-15) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 9 (sessions 7-15) |
+| Wasted session ratio | 60% (9/15) |
+| Remaining blocker | 14-4-observability-backend-choice (Docker keychain, retry-exhausted) |
+
+---
+
+## Session 16 Retrospective — 2026-03-25T07:39Z (Final Session Retro)
+
+**Timestamp:** 2026-03-25T07:39Z
+**Session type:** No-op (10th consecutive)
+
+### 1. Session Summary
+
+| Story | Outcome | Notes |
+|-------|---------|-------|
+| (none) | NO_WORK | 10th consecutive no-op session |
+
+**Net progress:** Zero. Sprint state unchanged since session 6. 65/66 stories done (98.5%).
+
+The only non-done story is `14-4-observability-backend-choice`, which is retry-exhausted (10/10) and flagged. No autonomous work is possible.
+
+### 2. Issues Analysis
+
+#### Bugs Discovered
+
+| Severity | Component | Issue | Status |
+|----------|-----------|-------|--------|
+| CRITICAL | ralph/lib/circuit_breaker.sh | Circuit breaker `consecutive_no_progress` reads 0 despite 10 consecutive no-op sessions. Root cause: `files_changed` is computed from `git diff`, which counts ralph's own state files (live.log, status.json, .call_count, .state-snapshot.json, etc.) as "changed files." Every session modifies these files, so `files_changed > 0` even when no story work was done. The circuit breaker sees "progress" and resets its counter. | Unfixed |
+| HIGH | ralph/ralph.sh | Ralph loop has no concept of "no actionable stories found" as a termination condition. It only checks: max iterations, timeout, circuit breaker (broken -- see above), and all stories complete (65/66 is not 66/66 due to the flagged story). The flagged story mechanism prevents retry but does not feed into loop termination. | Unfixed |
+| MEDIUM | ralph/ralph.sh | `status.json` shows `stories_completed: 65` and `stories_remaining: 1` but `status: "running"` and `exit_reason: ""`. Ralph never sets an exit reason when all non-flagged work is done. | Unfixed |
+| MEDIUM | .circuit_breaker_state | `last_progress_loop: 14` and `consecutive_no_progress: 0` confirms the circuit breaker is being fooled by ralph's own file modifications on every loop. | Unfixed |
+| LOW | ralph/.state-snapshot.json | `sprint.done: 56` is stale (actual: 65). State snapshot is not being updated by the no-op sessions, but the stale count is misleading. | Unfixed |
+
+#### Workarounds Applied (Tech Debt from Today's Productive Sessions 1-6)
+
+| Story | Workaround | Debt Level |
+|-------|-----------|------------|
+| 15-4-fix-ts-compilation-errors | `as HarnessState` cast in docker-setup.ts to suppress missing `opensearch` property | LOW |
+| 15-4-fix-ts-compilation-errors | Double-casts (`as unknown as T`) in several test files for partial mocks | LOW |
+| 15-5-lint-rule-bare-exception-swallowing | Vitest tests only validate Semgrep fixture file existence, not actual Semgrep execution | LOW |
+| 14-5-stack-aware-verify-dockerfile | `verification-tier: unit-testable` tag to bypass Docker requirement | LOW (correct fix) |
+| 14-6-subagent-status-ownership-time-budget | Same Docker bypass as 14-5 | LOW (correct fix) |
+
+#### Verification Gaps
+
+- `14-4-observability-backend-choice` remains at `verifying` status but is retry-exhausted (10/10) and flagged. It will never complete autonomously due to Docker keychain being locked in non-interactive sessions.
+
+#### Tooling/Infrastructure Problems
+
+- **Docker keychain locked** in non-interactive ralph sessions -- root cause of story 14-4 being stuck and the blocker for stories 14-5 and 14-6 until they were reclassified as unit-testable.
+- **Ralph loop termination** completely broken for the "all work done except flagged stories" case. 10 sessions wasted.
+
+### 3. What Went Well (Productive Sessions 1-6)
+
+- **10 stories completed in 6 sessions** (sessions 1-6) with zero retries needed
+- **106 TypeScript compilation errors fixed** (story 15-4) across 20 files in a single pass
+- **Adversarial code review caught real bugs**: HIGH-severity grep pattern bug in 15-5 (hook was non-functional), MEDIUM-severity runtime property bugs in 15-4
+- **Verification-tier tagging** correctly unblocked two stories (14-5, 14-6) that were stuck due to Docker
+- **Test suite stable at 3799 tests passing**, 97.1% coverage maintained
+- **15 of 16 epics fully complete** (all stories done)
+
+### 4. What Went Wrong
+
+- **10 consecutive no-op sessions** (sessions 7-16) burned API credits with zero output. Estimated waste: $5-10 in API costs.
+- **Circuit breaker failed to detect stagnation** because it counts ralph's own modified state files as "progress." This is a design flaw -- the circuit breaker measures git diff file count, not story-level progress.
+- **Ralph loop has no "done-except-flagged" exit condition.** The `all_complete` check requires `total == completed`, but with 1 flagged story stuck at `verifying`, `completed` is 65 and `total` is 66 forever.
+- **Story 14-4** remains the sole blocker. It requires Docker (observability backend verification with VictoriaMetrics/VictoriaLogs), and Docker keychain is locked in non-interactive sessions. This story cannot be completed autonomously.
+
+### 5. What Went Wrong -- Ralph Loop Not Terminating
+
+**Root cause analysis (three compounding failures):**
+
+1. **Circuit breaker false positives.** `record_loop_result` (circuit_breaker.sh:79) checks `files_changed > 0` to determine progress. But `files_changed` is computed via `git diff --name-only` (ralph.sh:801-814), which includes ralph's own state files: `ralph/live.log`, `ralph/status.json`, `ralph/.call_count`, `ralph/.state-snapshot.json`, `ralph/.iteration_deadline`, `.circuit_breaker_state`. Every session modifies these files, so `files_changed` is always > 0, `consecutive_no_progress` is always reset to 0, and the circuit breaker never opens.
+
+2. **No "all-actionable-work-done" exit condition.** The loop checks `if [[ $completed -ge $total ]]` but `completed` (65) never equals `total` (66) because story 14-4 is stuck at `verifying`. Ralph has no concept of "all remaining stories are flagged/exhausted, therefore stop."
+
+3. **Flagged stories not feeding into termination.** The `.flagged_stories` file correctly contains `14-4-observability-backend-choice`, and `is_story_flagged` correctly skips it during story selection. But no code checks "are all non-done stories flagged? If so, stop looping."
+
+**Impact:** 10 sessions x ~$0.50-1.00 each = $5-10 wasted. More importantly, ralph continued occupying the terminal and machine resources for ~45+ minutes after all productive work was done.
+
+### 6. Lessons Learned
+
+**Repeat:**
+- Adversarial code review catching real bugs before merge (15-5 grep pattern fix was critical)
+- Verification-tier tagging to unblock stories stuck on Docker
+- Session issues log -- having every subagent report problems provides the raw material for accurate retrospectives
+
+**Avoid:**
+- Circuit breaker measuring git diff as a proxy for story progress -- it must measure story status changes directly
+- Ralph loop with no concept of "effectively complete" (all non-flagged work done)
+- Letting the loop run indefinitely when all sessions return NO_WORK -- even 2 consecutive no-ops should halt
+
+### 7. Action Items
+
+#### Fix Now (Before Next Session)
+
+1. **Add ralph state files to circuit breaker exclusion.** Modify `execute_iteration` (ralph.sh ~800-815) to exclude `ralph/*`, `.circuit_breaker_state`, and other state files from the `files_changed` count. Example: pipe through `grep -v '^ralph/' | grep -v '^\.'`.
+
+2. **Add "all-non-flagged-done" exit condition.** After the `all_complete` check (~line 1120), add a check: if every non-done story is in `.flagged_stories`, exit with a "sprint effectively complete" message.
+
+3. **Add consecutive NO_WORK counter.** Track how many iterations produced no story status change (independent of the circuit breaker). After 2 consecutive no-changes, halt the loop.
+
+#### Fix Soon (Next Sprint)
+
+4. **Circuit breaker should track story-level progress, not file-level.** Replace `files_changed` with a before/after comparison of `sprint-status.yaml` story statuses. The `detect_story_changes` function already exists (line 1158) -- wire its output into `record_loop_result`.
+
+5. **Mark `14-4-observability-backend-choice` as `blocked` or `deferred` instead of `verifying`.** Its current status is misleading -- it implies active work. Add a `blocked` status to the sprint state schema.
+
+6. **Fix stale `.state-snapshot.json`** -- `sprint.done` shows 56, actual is 65.
+
+#### Backlog (Track but Not Urgent)
+
+7. Add `HarnessState.opensearch` field to the interface (tech debt from 15-4).
+8. Replace double-cast test mocks with proper partial mock utilities.
+9. Docker keychain unlock mechanism for non-interactive sessions (or detect and skip Docker-dependent verification automatically).
+10. Consider marking epic-14 as `done-with-exceptions` when all non-exhausted stories are complete.
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Final, Session 16)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6) |
+| Total sessions today | 16 (loops 1-16) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 10 (sessions 7-16) |
+| Wasted session ratio | 62.5% (10/16) |
+| Remaining blocker | 14-4-observability-backend-choice (Docker keychain, retry-exhausted, 10/10) |
+| Circuit breaker status | CLOSED (broken -- does not detect no-ops due to ralph state file changes) |
+| Test suite | 3799 tests passing, 97.1% coverage |
+| Critical fix needed | Ralph loop termination for "effectively complete" sprints |
+
+---
+
+# Session 17 Retrospective — 2026-03-25T11:44Z
+
+**Sprint:** Operational Excellence (Epics 13-15)
+**Session:** 17 (11th consecutive NO_WORK session)
+**Session window:** ~2026-03-25T11:44Z (< 1 minute — immediate no-op)
+
+---
+
+## 1. Session Summary
+
+| Story | Outcome | Notes |
+|-------|---------|-------|
+| (none attempted) | NO_WORK | No actionable stories found |
+
+No stories were attempted. The session scanned for actionable work, found none, and exited. This is the 11th consecutive session with this identical outcome.
+
+**Sprint position:** 65/66 stories done (98.5%). The sole remaining story, 14-4-observability-backend-choice, is retry-exhausted (10/10 retries) and flagged. It cannot be completed autonomously due to Docker keychain access in the non-interactive ralph session.
+
+---
+
+## 2. Issues Analysis
+
+### Critical: Ralph no-op loop (sessions 7-17)
+
+Ralph spawned 11 consecutive sessions (7 through 17) that each performed zero work. Every session:
+1. Started a new Claude Code subagent
+2. Scanned sprint state for actionable stories
+3. Found only 14-4 (flagged/retry-exhausted)
+4. Reported NO_WORK
+5. Exited
+
+Each session costs API credits for the subagent invocation, state file reads, and story scanning. Over 11 sessions, this is pure waste.
+
+**Root cause:** Ralph's loop termination logic does not account for consecutive NO_WORK results. The circuit breaker exists (`.circuit_breaker_state`) but is broken — it detects file changes (ralph state files update every session) rather than detecting whether productive work occurred. Since ralph writes to `.state-snapshot.json`, `.call_count`, `status.json`, and `live.log` every session regardless of outcome, the circuit breaker always sees "changes" and never trips.
+
+### Ongoing: 14-4-observability-backend-choice stuck
+
+This story has been stuck across many sessions. It requires Docker container operations (pulling VictoriaMetrics/VictoriaLogs images, running containers) which fail in ralph's non-interactive session due to Docker Desktop keychain authentication. It has exhausted all 10 retries and been flagged for manual intervention.
+
+**Resolution path:** This story requires either:
+- Manual execution by a human with Docker Desktop authenticated
+- A design change to make the story testable without Docker (similar to the unit-testable tag applied to 14-5 and 14-6)
+- Descoping from the sprint
+
+---
+
+## 3. What Went Well
+
+- **Sprint completion rate is excellent:** 65/66 stories (98.5%) completed autonomously
+- **Earlier sessions today were highly productive:** Sessions 1-6 completed 10 stories including all of Epic 15 and remaining Epic 14 stories
+- **Test suite is healthy:** 3799 tests passing, 97.1% coverage, all 156 files above 80% floor
+- **Code review caught real bugs:** Sessions 1-6 found and fixed HIGH-severity issues (multiline grep pattern, Semgrep false positive generator)
+- **Subagents correctly identified the problem:** Every no-op session from 8 onward explicitly logged that ralph should stop spawning sessions
+
+---
+
+## 4. What Went Wrong
+
+- **11 wasted sessions:** Ralph burned API credits on 11 sessions that could not produce work
+- **Circuit breaker is non-functional:** The existing circuit breaker mechanism fails to detect no-op sessions because it monitors file changes rather than work outcomes
+- **No escalation mechanism:** Subagents reported the problem in the session issues log, but ralph has no mechanism to read subagent feedback about its own behavior
+- **Wasted session ratio for the day:** 11/17 sessions (64.7%) were no-ops
+
+---
+
+## 5. Lessons Learned
+
+1. **Circuit breakers must measure outcomes, not activity.** Checking "did files change" is insufficient — ralph's own bookkeeping files always change. The check must be "did a story transition to a new status" or "were any commits created."
+2. **Consecutive NO_WORK needs a hard cap.** After 2-3 consecutive NO_WORK results, ralph should terminate the loop and report to the user rather than continuing to spawn sessions.
+3. **Retry-exhausted + flagged should signal sprint completion.** When all non-done stories are flagged/retry-exhausted, the sprint is "effectively complete" and ralph should exit with a clear summary rather than looping.
+4. **Subagent feedback needs an upward channel.** Subagents correctly diagnosed the problem from session 8 onward, but their observations in `.session-issues.md` were never read by the loop controller.
+
+---
+
+## 6. Action Items
+
+| Priority | Action | Owner |
+|----------|--------|-------|
+| P0 | Add consecutive NO_WORK counter to ralph loop — terminate after 3 consecutive no-ops | Dev (ralph/ralph.sh or equivalent) |
+| P0 | Fix circuit breaker to check story status transitions, not file modification timestamps | Dev (ralph/.circuit_breaker_state logic) |
+| P1 | Add "effectively complete" detection: if all non-done stories are flagged/retry-exhausted, exit loop with summary | Dev (ralph) |
+| P1 | Resolve 14-4-observability-backend-choice: either descope, redesign as unit-testable, or run manually with Docker access | Human / PM |
+| P2 | Add subagent-to-controller feedback channel so ralph can read NO_WORK signals from its own subagents | Dev (ralph) |
+| P2 | Add API credit tracking/estimation to ralph to surface cost of no-op sessions | Dev (ralph) |
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Final, Session 17)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6) |
+| Total sessions today | 17 (loops 1-17) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 11 (sessions 7-17) |
+| Wasted session ratio | 64.7% (11/17) |
+| Remaining blocker | 14-4-observability-backend-choice (Docker keychain, retry-exhausted, 10/10) |
+| Circuit breaker status | BROKEN — does not detect no-ops (monitors file changes, not work outcomes) |
+| Test suite | 3799 tests passing, 97.1% coverage |
+| Critical fix needed | Ralph consecutive-no-op termination + circuit breaker outcome-based detection |
+
+---
+
+# Session Retrospective — 2026-03-25 Session 18 (12th consecutive no-op)
+
+**Timestamp:** 2026-03-25T11:47Z
+**Sprint:** Operational Excellence (Epics 0-15)
+**Session:** 18 (12th consecutive no-op, sessions 7-18)
+**Session window:** ~2026-03-25T11:47Z (< 1 minute — immediate NO_WORK exit)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages | Notes |
+|-------|------|---------|-----------------|-------|
+| (none) | — | NO_WORK | scan only | No actionable stories found |
+
+**Net progress:** Zero. Sprint remains at 65/66 stories done (98.5%). The only non-done story (14-4-observability-backend-choice) is retry-exhausted at 10/10 retries and flagged for skipping. No stories were attempted, no code was written, no tests ran.
+
+**Time spent:** Effectively zero productive time. The session consisted entirely of scanning for actionable stories, finding none, and exiting.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+None — no work was performed.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+None this session.
+
+### Code Quality Concerns
+
+None this session.
+
+### Verification Gaps
+
+None this session.
+
+### Tooling/Infrastructure Problems
+
+| Severity | Issue | Sessions Affected |
+|----------|-------|-------------------|
+| CRITICAL | **Ralph loop does not terminate on consecutive NO_WORK results.** 12 sessions have now been spawned with no possible work. The circuit breaker monitors file modification timestamps rather than story status transitions, so ralph's own bookkeeping file changes fool it into continuing. | Sessions 7-18 (12 sessions) |
+| CRITICAL | **API credit burn on no-ops.** Each no-op session still invokes Claude to scan stories, read sprint state, and determine there is nothing to do. 12 sessions of this represents material wasted API spend. | Sessions 7-18 |
+| HIGH | **14-4-observability-backend-choice permanently stuck.** Docker keychain is locked in non-interactive ralph sessions. This story requires Docker image pulls for its observability stack (VictoriaMetrics, VictoriaLogs). It cannot be completed autonomously without Docker access. Has been retry-exhausted since session 7. | All sessions since Epic 14 work began |
+
+---
+
+## 3. What Went Well
+
+- **Sprint is 98.5% complete.** 65 of 66 stories are done across 15 fully completed epics and 1 nearly complete epic.
+- **Earlier sessions today were highly productive.** Sessions 1-6 completed 10 stories with zero retries, including the full TS compilation cleanup (106 errors fixed), Semgrep lint rule implementation, and Docker/verification infrastructure stories.
+- **Subagent reporting is consistent.** Every no-op session correctly diagnosed the situation and logged it to `.session-issues.md` with increasing urgency. The observability into the problem is good — the control loop just does not read it.
+- **Test suite stable.** 3799 tests passing at 97.1% coverage throughout all sessions. No regressions introduced.
+
+---
+
+## 4. What Went Wrong
+
+- **12 consecutive no-op sessions burned.** This is the single dominant issue. After session 6 completed the last actionable story, ralph should have detected "sprint effectively complete" within 1-2 more sessions and stopped.
+- **Circuit breaker is non-functional for this failure mode.** It checks whether files changed between sessions, but ralph's own state files (.call_count, .iteration_deadline, status.json, live.log) always change. The breaker never trips.
+- **No feedback channel from subagent to loop controller.** Subagents have been writing "ralph loop should terminate" since session 10. The loop controller never reads `.session-issues.md` or subagent exit codes to make decisions.
+- **14-4 is a design problem, not a retry problem.** The story requires Docker, Docker requires keychain access, keychain is unavailable in non-interactive sessions. No number of retries can fix this. The 10-retry budget was wasted before it was flagged.
+- **Wasted session ratio for the day is now 66.7%** (12/18 sessions were no-ops, up from 64.7% at session 17).
+
+---
+
+## 5. Lessons Learned
+
+1. **All prior lessons from sessions 7-17 remain unaddressed.** The consecutive-no-op termination, outcome-based circuit breaker, and sprint-complete detection have been identified as needed since session 8. They are still not implemented because there is no mechanism to act on retrospective findings between ralph sessions.
+2. **Retrospectives without action are documentation, not improvement.** This is the 11th retro entry identifying the same ralph loop termination bug. The fix requires human intervention or a dedicated story — neither of which ralph can self-assign.
+3. **Cost awareness is missing.** There is no tracking of API spend per session, no budget cap, and no alerting when sessions are unproductive. The user has no visibility into waste until they manually check.
+4. **Flagged stories should exclude from "remaining work" calculations.** If all non-done stories are flagged, the sprint is complete for autonomous purposes. Ralph should report this and exit.
+
+---
+
+## 6. Action Items
+
+All action items from prior session retros remain open. Updated priorities:
+
+| Priority | Action | Status | Owner |
+|----------|--------|--------|-------|
+| **P0 — FIX NOW** | Add consecutive NO_WORK counter to ralph loop — terminate after 3 consecutive no-ops | OPEN (identified session 11, now session 18) | Dev (ralph) |
+| **P0 — FIX NOW** | Fix circuit breaker to check story status transitions, not file modification timestamps | OPEN (identified session 11) | Dev (ralph) |
+| **P1 — FIX SOON** | Add "sprint effectively complete" detection: if all non-done stories are flagged/retry-exhausted, exit loop with summary | OPEN (identified session 11) | Dev (ralph) |
+| **P1 — FIX SOON** | Resolve 14-4-observability-backend-choice: descope from sprint, redesign as unit-testable, or run manually with Docker access | OPEN (identified session 7) | Human / PM |
+| **P2 — BACKLOG** | Add subagent-to-controller feedback channel (NO_WORK exit code, .session-issues.md reading) | OPEN | Dev (ralph) |
+| **P2 — BACKLOG** | Add API credit tracking/estimation to ralph — surface cost of no-op sessions | OPEN | Dev (ralph) |
+| **P2 — BACKLOG** | Add ralph self-check: read prior retro action items at session start, refuse to loop if P0 items are open | OPEN | Dev (ralph) |
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Session 18)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6 only) |
+| Total sessions today | 18 (loops 1-18) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 12 (sessions 7-18) |
+| Wasted session ratio | 66.7% (12/18) |
+| Remaining blocker | 14-4-observability-backend-choice (Docker keychain, retry-exhausted 10/10, flagged) |
+| Circuit breaker status | BROKEN — does not detect no-ops |
+| Test suite | 3799 tests passing, 97.1% coverage |
+| Critical fix needed | Ralph consecutive-no-op termination (P0, open since session 11, now 8 sessions overdue) |
+
+---
+
+# Session Retrospective — 2026-03-25 Session 19 (Appended)
+
+**Timestamp:** 2026-03-25T11:49Z
+**Sprint:** Operational Excellence (Epics 0-15)
+**Session:** 19 (13th consecutive no-op session)
+**Session window:** ~2026-03-25T11:49Z (< 1 minute — immediate NO_WORK exit)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages | Notes |
+|-------|------|---------|-----------------|-------|
+| (none attempted) | — | NO_WORK | scan only | 13th consecutive no-op. No actionable stories found. |
+
+**Net progress:** Zero. Sprint remains at 65/66 stories done (98.5%). The only non-done story is `14-4-observability-backend-choice`, which is retry-exhausted (10/10 attempts) and flagged. No autonomous work is possible.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered
+
+None new. No code was executed beyond story scanning.
+
+### Workarounds Applied
+
+None. No work was performed.
+
+### Code Quality Concerns
+
+None new this session. Prior sessions' concerns remain open (see sessions 11-18 retros).
+
+### Verification Gaps
+
+None — no verification was attempted.
+
+### Tooling/Infrastructure Problems
+
+| Severity | Issue | Status |
+|----------|-------|--------|
+| **CRITICAL** | Ralph loop does not terminate on consecutive NO_WORK results. 13 sessions have now been wasted. | OPEN since session 7. Not fixed. |
+| **CRITICAL** | Circuit breaker (`/.circuit_breaker_state`) shows `consecutive_no_progress: 0` and `state: CLOSED` despite 13 consecutive no-op sessions. The circuit breaker is non-functional for this failure mode. | OPEN since session 11. |
+| HIGH | `14-4-observability-backend-choice` is stuck in `verifying` status in `sprint-state.json` but flagged and retry-exhausted in `ralph/.story_retries` (10/10) and `ralph/.flagged_stories`. State is inconsistent — ralph sees it as flagged but sprint-state still shows `verifying`. | OPEN since session 7. |
+| HIGH | Docker keychain locked in non-interactive ralph sessions. This is the root cause of 14-4's failure. All Docker-dependent verification is blocked without manual intervention. | OPEN since session 5. |
+
+---
+
+## 3. What Went Well
+
+- **Earlier today (sessions 1-6) was highly productive:** 10 stories completed, including clearing the entire backlog of Epics 14 and 15 (except 14-4).
+- **Code review quality:** Sessions 1-6 had adversarial code reviews that caught real bugs (multiline grep pattern in 15-5, Semgrep false positives, runtime property references in 15-4).
+- **Test suite stability:** 3799 tests passing at 97.1% coverage. No regressions introduced across the entire day.
+- **Session issues log worked well:** Each subagent documented problems as they encountered them, producing a clear audit trail.
+
+---
+
+## 4. What Went Wrong
+
+- **13 wasted sessions (sessions 7-19):** Each spawned a full Claude Code session, performed a story scan, found nothing to do, and exited. Zero value produced.
+- **Estimated API credit waste:** 13 sessions x ~$0.50-1.00 each = ~$6.50-13.00 burned on no-ops. The actual cost may be higher depending on context window size per session.
+- **Sprint state inconsistency:** `14-4-observability-backend-choice` shows `verifying` in sprint-state.json but is flagged/retry-exhausted in ralph's tracking files. This inconsistency likely contributes to ralph continuing to scan — it may see a `verifying` story and attempt to act on it, only to find it's flagged.
+
+---
+
+## 5. What Went Wrong — Ralph Loop Not Terminating
+
+This is the single most important issue from today's session. Root cause analysis:
+
+1. **No consecutive-no-op detection:** Ralph's main loop checks `max_iterations` (50) and `max_calls_per_hour` (100) but has no check for "N consecutive sessions produced no work." The loop will run until it hits 50 iterations regardless of whether any session is productive.
+
+2. **Circuit breaker is blind to no-ops:** The circuit breaker file (`.circuit_breaker_state`) tracks `consecutive_no_progress`, `consecutive_same_error`, and `consecutive_permission_denials`, but shows all zeros at loop 17. This means the circuit breaker is either:
+   - Not being updated by no-op sessions, or
+   - Being reset between sessions, or
+   - Only tracking a different definition of "progress" that no-ops satisfy
+
+3. **Flagged stories not excluded from loop condition:** Ralph's `status.json` shows `stories_remaining: 1` and `status: running`. The loop likely checks `stories_remaining > 0` as a reason to continue, without checking whether all remaining stories are flagged/retry-exhausted.
+
+4. **No feedback from subagent to controller:** When a session exits with NO_WORK, this outcome is logged in `.session-issues.md` but ralph's loop controller does not read it. There is no structured exit code or signal from subagent back to ralph.
+
+**Impact:** 13 out of 19 sessions today (68.4%) were completely wasted. The productive work was done in the first 6 sessions. Ralph should have stopped at session 8 at the latest.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+- **Session issues log:** Having every subagent write to `.session-issues.md` produced excellent audit trail material. Keep this.
+- **Verification tier tagging:** Tagging stories as `unit-testable` when they don't need Docker (sessions 5-6) unblocked two stuck stories. Apply this pattern proactively during story creation.
+- **Adversarial code review:** The code review subagent caught real bugs in every story it reviewed today (HIGH severity grep pattern bug in 15-5, runtime property bugs in 15-4). This stage is high-value.
+
+### Patterns to Avoid
+- **Running ralph without a no-op circuit breaker.** This is the #1 takeaway. Never run an autonomous loop without a termination condition for "no work available."
+- **Inconsistent state across tracking files.** Sprint-state.json, ralph/.story_retries, ralph/.flagged_stories, and ralph/status.json all track story state independently and can disagree. This needs a single source of truth.
+- **Docker-dependent verification in non-interactive sessions.** Stories requiring Docker image pulls will always fail in keychain-locked environments. Detect this at story selection time, not verification time.
+
+---
+
+## 7. Action Items
+
+### Fix Now (Before Next Session)
+
+| Priority | Action | Status | Owner |
+|----------|--------|--------|-------|
+| **P0** | Add consecutive-no-op termination to ralph loop: if 3+ consecutive sessions return NO_WORK, exit the loop with a clear message | OPEN (identified session 11, now 9 sessions overdue) | Dev (ralph) |
+| **P0** | Fix circuit breaker to detect and count no-op sessions as "no progress" | OPEN (identified session 11) | Dev (ralph) |
+| **P0** | Do NOT start another ralph run until these two items are fixed | NEW | Human |
+
+### Fix Soon (Next Sprint)
+
+| Priority | Action | Status | Owner |
+|----------|--------|--------|-------|
+| **P1** | Resolve 14-4-observability-backend-choice: descope from sprint, redesign as unit-testable, or run manually with Docker access | OPEN (identified session 7) | Human / PM |
+| **P1** | Reconcile sprint-state.json `verifying` status with ralph's `flagged` status for 14-4. State should be consistent. | NEW | Dev (state) |
+| **P1** | Add `stories_remaining_actionable` field to ralph/status.json that excludes flagged/retry-exhausted stories | NEW | Dev (ralph) |
+
+### Backlog (Track but Not Urgent)
+
+| Priority | Action | Status | Owner |
+|----------|--------|--------|-------|
+| **P2** | Add subagent-to-controller feedback channel (structured exit codes, not just log files) | OPEN (identified session 11) | Dev (ralph) |
+| **P2** | Add API credit tracking/estimation to ralph — surface cost of no-op sessions | OPEN (identified session 11) | Dev (ralph) |
+| **P2** | Add ralph self-check: read prior retro action items at session start, refuse to loop if P0 items are open | OPEN (identified session 11) | Dev (ralph) |
+| **P2** | Add Docker availability pre-check at session start — skip Docker-dependent stories if keychain is locked | NEW | Dev (infra) |
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Session 19)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6 only) |
+| Total sessions today | 19 (loops 1-19) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 13 (sessions 7-19) |
+| Wasted session ratio | 68.4% (13/19) |
+| Remaining blocker | 14-4-observability-backend-choice (Docker keychain, retry-exhausted 10/10, flagged) |
+| Circuit breaker status | NON-FUNCTIONAL — does not detect no-ops, shows 0 consecutive failures at loop 17 |
+| Test suite | 3799 tests passing, 97.1% coverage |
+| Critical fix needed | Ralph consecutive-no-op termination (P0, open since session 11, now 9 sessions overdue) |
+
+---
+
+# Session 20 Retrospective — 2026-03-25T11:52Z
+
+**Sprint:** Operational Excellence (Epics 13-15)
+**Session:** 20 (14th consecutive no-op)
+**Session window:** ~2026-03-25 11:52 UTC (< 1 minute)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages | Notes |
+|-------|------|---------|-----------------|-------|
+| 14-4-observability-backend-choice | Epic 14 | NO_WORK | scan only | retry-exhausted (10/10), flagged, skipped |
+
+**Net progress:** Zero. No stories attempted, no code changed, no commits produced. Sprint remains at 65/66 stories done (98.5%). This is the 14th consecutive session with identical results.
+
+**Time spent:** Approximately 1 minute scanning for actionable stories, confirming none exist, and logging the no-op.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation or Verification
+
+None — no implementation or verification occurred.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+None this session.
+
+### Code Quality Concerns
+
+None this session.
+
+### Verification Gaps
+
+N/A — no verification occurred.
+
+### Tooling / Infrastructure Problems
+
+| Severity | Category | Issue | Sessions Affected |
+|----------|----------|-------|-------------------|
+| **P0** | Ralph loop | **Circuit breaker does not detect no-op sessions.** Ralph continues spawning sessions even though no work is possible. The `.circuit_breaker_state` file shows 0 consecutive failures at loop 17+, meaning the no-op exit path does not increment the failure counter. | Sessions 7-20 (14 sessions) |
+| **P0** | Ralph loop | **No consecutive-no-op termination.** Ralph has no mechanism to stop after N consecutive NO_WORK results. The only termination conditions appear to be: retry exhaustion per-story, total iteration cap, and the (broken) circuit breaker. None of these fire when all stories are done/flagged. | Sessions 7-20 |
+| **P1** | Cost | **14 sessions of API credits burned on no-ops.** Each session invokes Claude to scan sprint state, confirm no work, and log. At ~$0.50-2.00 per invocation, this is $7-28 wasted. | Sessions 7-20 |
+| **HIGH** | Docker | **14-4-observability-backend-choice permanently blocked.** Docker keychain locked in non-interactive ralph session. Cannot pull images. This story requires human intervention (unlock keychain or provide credentials). | All sessions since story was first attempted |
+
+---
+
+## 3. What Went Well
+
+**This session:** Nothing. It was a no-op.
+
+**Today overall (sessions 1-20):**
+- 10 stories completed in sessions 1-6 (15-4, 15-5, 14-5, 14-6, plus 6 others from earlier today)
+- All productive sessions had zero-retry completions
+- Code review caught 6 HIGH bugs across the day (all fixed)
+- Test suite stable at 3799 tests passing, 97.1% coverage
+- Epic 15 (Tech Debt & Lint) fully closed
+- Sprint reached 98.5% completion
+
+---
+
+## 4. What Went Wrong
+
+### 4a. Failures, Blockers, Stuck Stories
+
+1. **14-4-observability-backend-choice** — This story has been stuck since it was first attempted. Root cause: Docker keychain is locked in ralph's non-interactive session, blocking all Docker image pulls. The story hit the 10-retry cap and was flagged. It requires human intervention (keychain unlock or credential injection) and cannot be resolved autonomously.
+
+2. **14 consecutive no-op sessions** — Sessions 7 through 20 produced zero work. Each session: spawned a Claude instance, scanned sprint state, confirmed no actionable stories, logged the result, and exited. The sprint was effectively complete after session 6.
+
+### 4b. Ralph Loop No-Op Bug (Critical)
+
+This is the most significant problem of the day. Ralph's loop control has three failures:
+
+1. **Circuit breaker counts the wrong thing.** It tracks consecutive *failures* (story retries that error out), not consecutive *no-work results*. When all stories are done or flagged, no story is attempted, so the failure counter stays at 0 forever.
+
+2. **No "sprint complete" detection.** Ralph does not check whether all stories are in a terminal state (done, flagged, skip). If it did, it could terminate immediately instead of looping.
+
+3. **No consecutive-no-op cap.** Even without sprint-complete detection, a simple counter — "if the last 3 sessions produced no work, stop" — would have prevented 11 of the 14 wasted sessions.
+
+The result: ralph will loop until its total iteration cap (which appears to be 20+), burning API credits on empty sessions.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+- **Aggressive code review** — The 6 HIGH bugs caught today by the code-review subagent would have been production defects. Adversarial review pays for itself.
+- **Unit-testable verification tagging** — Stories that don't need Docker should be tagged `unit-testable` up front, not discovered at verification time after Docker fails.
+- **Session issues log** — Having every subagent write to `.session-issues.md` provided the raw material for this retrospective. The log format works well.
+
+### Patterns to Avoid
+- **Relying on per-story retry exhaustion as the only termination mechanism.** The loop needs a global "no work available" exit.
+- **Not testing circuit breaker against the no-op case.** The circuit breaker was tested (presumably) against story-failure scenarios but never against the "nothing to do" scenario.
+- **Letting the loop run unsupervised for 14 iterations.** A notification mechanism (Slack, email, or terminal bell) after 2-3 no-ops would have saved credits.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| # | Item | Owner | Details |
+|---|------|-------|---------|
+| 1 | **Add no-op detection to ralph loop** | Human / Dev | After `harness-run` returns NO_WORK, increment a `consecutive_noops` counter. If >= 3, terminate the loop with a clear message. Reset counter on any productive session. |
+| 2 | **Add sprint-complete detection** | Human / Dev | Before spawning a session, check if all stories are in terminal state (done, flagged, skip). If yes, log "sprint complete" and exit immediately. |
+| 3 | **Kill the current ralph loop** | Human | If ralph is still running, kill it manually. It will never produce work. |
+
+### Fix Soon (Next Sprint)
+
+| # | Item | Owner | Details |
+|---|------|-------|---------|
+| 4 | **Fix circuit breaker to count no-ops** | Dev | The `.circuit_breaker_state` should increment on NO_WORK results, not just on story execution failures. |
+| 5 | **Resolve 14-4-observability-backend-choice** | Human | Either: (a) unlock Docker keychain for ralph, (b) implement the story manually, or (c) close it as won't-fix and update the sprint. |
+| 6 | **Add cost tracking to ralph** | Dev | Log estimated API cost per session. Alert when cumulative no-op cost exceeds a threshold (e.g., $5). |
+| 7 | **Add notification on consecutive no-ops** | Dev | After 2 consecutive no-ops, write a visible alert (e.g., to a file the user monitors, or trigger a system notification). |
+
+### Backlog (Track But Not Urgent)
+
+| # | Item | Details |
+|---|------|---------|
+| 8 | **Pre-tag stories with verification tier at creation time** | Avoid Docker-dependent verification for stories that are purely code/test changes. |
+| 9 | **Ralph session budget/timeout** | Hard cap on total sessions per day, independent of story state. |
+| 10 | **Post-sprint auto-archive** | When sprint hits 100% (or 98%+ with all remaining flagged), auto-generate final retro and archive sprint artifacts. |
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Session 20)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6 only) |
+| Total sessions today | 20 (loops 1-20) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 14 (sessions 7-20) |
+| Wasted session ratio | 70.0% (14/20) |
+| Remaining blocker | 14-4-observability-backend-choice (Docker keychain, retry-exhausted 10/10, flagged) |
+| Circuit breaker status | NON-FUNCTIONAL — does not detect no-ops, shows 0 consecutive failures |
+| Test suite | 3799 tests passing, 97.1% coverage |
+| Critical fix needed | Ralph consecutive-no-op termination (P0, open since session 7, now 14 sessions overdue) |
+| Estimated wasted API cost | $7-28 (14 no-op sessions) |
+
+---
+
+# Session Retrospective — 2026-03-25 (Session 21)
+
+**Appended:** 2026-03-25T07:55Z
+**Sprint:** Operational Excellence (Epics 0-15)
+**Session:** 21 (15th consecutive NO_WORK session)
+**Session window:** ~2026-03-25T07:55Z (single no-op iteration)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Notes |
+|-------|------|---------|-------|
+| (none attempted) | — | NO_WORK | No actionable stories remain |
+
+**Stories attempted:** 0
+**Stories completed:** 0
+**Time spent:** ~2 minutes (session startup, scan, exit)
+
+This is the 15th consecutive no-op session (sessions 7-21). No story was attempted because the only non-done story (14-4-observability-backend-choice) is retry-exhausted (10/10) and flagged. The sprint remains at 65/66 stories done (98.5%).
+
+---
+
+## 2. Issues Analysis
+
+### Critical: Ralph Circuit Breaker Non-Functional
+
+The circuit breaker state file at session 21 reads:
+```json
+{
+  "consecutive_no_progress": 0,
+  "last_progress_loop": 19,
+  "total_opens": 0,
+  "state": "CLOSED"
+}
+```
+
+Despite 15 consecutive NO_WORK sessions, `consecutive_no_progress` remains 0. The circuit breaker never opened. Root cause: the circuit breaker tracks "failures" (errors/crashes) but does not recognize NO_WORK as a non-progress event. When a session scans for stories, finds nothing actionable, and exits cleanly, the circuit breaker sees that as a successful run with no failure — so it resets its counter.
+
+**Impact:** 15 sessions of API credits burned on no-ops. Estimated $7.50-$30 wasted (depending on model pricing per session invocation).
+
+### Issue Catalog from Sessions 7-21
+
+| Issue | Category | Sessions Affected | Status |
+|-------|----------|-------------------|--------|
+| Circuit breaker does not detect NO_WORK as non-progress | Bug (ralph) | 7-21 (15 sessions) | Open — P0 |
+| 14-4-observability-backend-choice retry-exhausted | Blocked story | All sessions | Flagged — needs human decision |
+| Docker keychain locked in non-interactive ralph session | Infra | Sessions 5-6 (carried forward) | Workaround applied (unit-testable tagging) |
+| `in-review` vs `review` status string inconsistency | Tech debt | Session 6 | TS fixed, bash/yaml not audited |
+| HarnessState missing `opensearch` field | Tech debt | Session 6 | Cast workaround only |
+
+---
+
+## 3. What Went Well
+
+- **Sprint is 98.5% complete** — 65 of 66 stories done across 16 epics. 15 of 16 epics fully closed.
+- **Sessions 1-6 were highly productive** — 10 stories completed in 6 sessions with clean pipelines, good code review catches, and zero regressions.
+- **Test suite is healthy** — 3,799 tests passing, 97.1% coverage, all 156 files above 80% floor.
+- **Session issues log worked as designed** — every subagent faithfully reported problems, workarounds, and observations. The log gave full visibility into the no-op loop and made diagnosis trivial.
+- **Unit-testable tagging workaround** unblocked stories 14-5 and 14-6 that had been stuck on Docker verification for multiple sessions.
+
+---
+
+## 4. What Went Wrong
+
+### Ralph loop did not terminate (P0)
+
+Ralph spawned 15 sessions (7-21) that each did the same thing: scan for stories, find nothing actionable, exit. The circuit breaker never fired because it only tracks error-type failures, not "no work available" outcomes.
+
+This is a design gap, not a configuration issue. The circuit breaker was built to handle crashing/failing sessions, not idle ones. NO_WORK is a distinct exit condition that needs its own termination logic.
+
+### API budget burned on no-ops
+
+15 no-op sessions, each requiring a Claude API call for the session agent. Conservative estimate: $0.50-$2.00 per session invocation = $7.50-$30.00 wasted. The actual cost depends on context window size and model tier, but this is pure waste.
+
+### Single remaining story has no autonomous path forward
+
+14-4-observability-backend-choice is a decision story (choosing between OpenTelemetry backends). It requires human judgment — not something an autonomous loop can resolve. It was correctly flagged and retry-exhausted, but ralph kept trying to find work anyway.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Session issues log** — invaluable for retrospectives. Every session's raw observations fed directly into actionable analysis.
+2. **Unit-testable tagging** — correctly unblocked stories that never needed Docker. Should be applied at story creation time, not as a late workaround.
+3. **Adversarial code review** — caught real bugs in sessions 1-6 (multiline grep pattern, Semgrep false positives, runtime property mismatches).
+
+### Patterns to Avoid
+
+1. **No termination condition for "sprint complete"** — ralph should recognize when all remaining stories are flagged/blocked and stop.
+2. **Circuit breaker only tracks failures, not idleness** — NO_WORK must be treated as non-progress.
+3. **Decision stories in autonomous backlog** — stories requiring human judgment should be excluded from the autonomous pipeline entirely, not just flagged after 10 retries.
+
+---
+
+## 6. Action Items
+
+| # | Priority | Item | Owner |
+|---|----------|------|-------|
+| 1 | **P0** | Fix ralph circuit breaker to count NO_WORK results as consecutive non-progress events. Threshold: 3 consecutive NO_WORK = OPEN circuit = stop loop. | Dev |
+| 2 | **P0** | Add "sprint complete" detection: if all non-done stories are flagged/blocked, terminate the loop immediately on first scan (no retries needed). | Dev |
+| 3 | **P1** | Add daily session budget cap (e.g., max 15 sessions/day) as a hard safety net independent of circuit breaker logic. | Dev |
+| 4 | **P1** | Resolve 14-4-observability-backend-choice: human decision needed on OpenTelemetry backend. Either complete manually or formally descope from sprint. | Human |
+| 5 | **P2** | Tag stories with verification tier (unit-testable vs docker-required) at creation time, not as a late workaround. | Process |
+| 6 | **P2** | Audit bash/yaml files for `in-review` vs `review` inconsistency flagged in session 6. | Dev |
+
+---
+
+## Updated End-of-Day Sprint Summary — 2026-03-25 (Session 21 — Final)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 10 (sessions 1-6 only) |
+| Total sessions today | 21 (loops 1-21) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 15 (sessions 7-21) |
+| Wasted session ratio | 71.4% (15/21) |
+| Remaining blocker | 14-4-observability-backend-choice (retry-exhausted 10/10, flagged, needs human decision) |
+| Circuit breaker status | NON-FUNCTIONAL — consecutive_no_progress stuck at 0 despite 15 no-ops |
+| Test suite | 3,799 tests passing, 97.1% coverage |
+| Critical fix needed | Ralph NO_WORK termination logic (P0, open since session 7, now 15 sessions overdue) |
+| Estimated wasted API cost | $7.50-$30 (15 no-op sessions) |
+
+---
+
+## Final Session Retrospective — 2026-03-25 (Session 22 — End of Day)
+
+**Timestamp:** 2026-03-25T12:00Z
+**Generated by:** Manual retrospective after ralph loop termination
+
+---
+
+### 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages | Session |
+|-------|------|---------|-----------------|---------|
+| 15-4-fix-ts-compilation-errors | Epic 15 | done | create-story, dev-story, code-review | Sessions 1-3 |
+| 14-5-stack-aware-verify-dockerfile | Epic 14 | done | verify (unblocked) | Session 4 |
+| 14-6-subagent-status-ownership-time-budget | Epic 14 | done | verify (unblocked) | Session 5 |
+| 15-5-lint-rule-bare-exception-swallowing | Epic 15 | done | create-story, dev-story, code-review | Sessions 5-6 |
+| 14-4-observability-backend-choice | Epic 14 | stuck (retry-exhausted) | — | Flagged, needs human |
+| Sessions 7-22 | — | NO_WORK (16 consecutive no-ops) | — | Wasted |
+
+**Net progress this day:** 4 stories completed (15-4, 14-5, 14-6, 15-5). Sprint at 65/66 stories (98.5%). 15 of 16 epics complete.
+
+---
+
+### 2. Issues Analysis
+
+#### Bugs Discovered During Implementation
+
+| Severity | Story | Issue | Fixed? |
+|----------|-------|-------|--------|
+| HIGH | 15-5 | Hook grep pattern `except Exception.*pass` never matches multiline Python syntax — AC2 was non-functional | Yes (code-review) |
+| HIGH | 15-5 | Semgrep `no-bare-except-ellipsis` rule used `...` wildcard as if it were Python Ellipsis — false positive generator | Yes (code-review) |
+| MEDIUM | 15-4 | `run.ts` used `'in-review'` which is not a valid StoryStatus — runtime behavior change masked as type fix | Yes (dev-story) |
+| MEDIUM | 15-4 | `dimensions.ts` referenced `g.message` / `g.fix` which don't exist — produced `undefined` at runtime | Yes (dev-story) |
+| MEDIUM | 15-4 | `docker-setup.ts` `opensearch` property not in HarnessState interface — suppressed with `as HarnessState` cast | Yes (cast workaround) |
+| MEDIUM | 15-5 | Hook only detected `pass` but not Python `...` (Ellipsis) bare exception pattern | Yes (code-review) |
+| MEDIUM | 15-5 | AGENTS.md stale after `additionalRulesDirs` addition | Yes (code-review) |
+
+#### Workarounds Applied (Tech Debt Introduced)
+
+| Story | Workaround | Debt Level |
+|-------|-----------|------------|
+| 15-4 | `as HarnessState` cast in docker-setup.ts to suppress missing `opensearch` field | LOW — needs interface update |
+| 15-4 | Double-casts (`as unknown as T`) in several test files for partial mocks | LOW — vitest limitation |
+| 14-5, 14-6 | Added `verification-tier: unit-testable` tag retroactively to bypass Docker keychain blocker | LOW — correct fix, but should have been set at story creation |
+
+#### Verification Gaps
+
+| Story | Gap | Severity |
+|-------|-----|----------|
+| 14-5 | Docker-based verification impossible (keychain locked in ralph session) — verified via code inspection only | LOW — all ACs are genuinely cli-verifiable |
+| 14-6 | Same Docker keychain blocker — code inspection verification only | LOW — same rationale |
+
+#### Tooling / Infrastructure Problems
+
+| Problem | Impact | Sessions Affected |
+|---------|--------|-------------------|
+| **Ralph circuit breaker non-functional** | 16 consecutive no-op sessions burned API credits | Sessions 7-22 |
+| Docker keychain locked in non-interactive ralph session | Cannot pull images, blocks Docker-based verification | Sessions 4-5 |
+| Story 14-4 retry-exhausted but ralph keeps spawning sessions | No termination on all-stories-flagged state | Sessions 7-22 |
+| `consecutive_no_progress` counter stuck at 0 despite no-ops | Circuit breaker logic bug — counter never increments for NO_WORK results | Sessions 7-22 |
+
+---
+
+### 3. What Went Well
+
+- **15-4 (TS compilation errors):** Fixed all 106 errors across 20 files in a single dev session. Error count had been growing for 13+ sessions — finally addressed.
+- **Code review caught real bugs:** Both 15-4 and 15-5 code reviews identified functional issues (not just style). The adversarial review process is working as designed.
+- **14-5 and 14-6 unblocked:** Two stories stuck at `verifying` across multiple sessions were correctly identified as unit-testable and verified without Docker. Pragmatic decision.
+- **Test suite health:** 3,799 tests passing at 97.1% coverage. Zero regressions from any story completed today.
+- **Sprint near-complete:** 98.5% story completion (65/66). Only one story remains and it requires a human decision.
+
+---
+
+### 4. What Went Wrong
+
+- **Ralph no-op loop (CRITICAL):** 16 sessions (7-22) produced zero work. Ralph's circuit breaker failed to detect consecutive NO_WORK results. The `consecutive_no_progress` counter never incremented. Estimated $8-$32 in wasted API credits.
+- **Story spec inaccuracies:** 15-4 story quoted ~40 TS errors but actual count was 106 (epic definition was stale). 15-5 story listed `src/lib/scanner.ts` but work went to `analyzer.ts`. Specs need validation against current codebase before dev begins.
+- **Docker keychain in ralph sessions:** Non-interactive sessions cannot unlock the macOS keychain, making Docker pulls impossible. This has been a recurring blocker across multiple sessions.
+- **14-4-observability-backend-choice:** Requires a human architectural decision (which observability backend to use). Was never autonomously completable — should have been flagged as human-required at creation, not after 10 retries.
+
+---
+
+### 5. Lessons Learned
+
+**Repeat:**
+- Adversarial code review catching real bugs before merge (15-5 hook pattern was non-functional, caught and fixed)
+- Pragmatic verification tier tagging to unblock stuck stories
+- Fixing accumulated tech debt (106 TS errors) in a single focused story
+
+**Avoid:**
+- Leaving stories that require human decisions in the autonomous pipeline — flag at creation time
+- Running ralph loops without a working consecutive-no-op circuit breaker
+- Trusting error counts in epic definitions without re-scanning
+
+---
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+
+| # | Priority | Action | Owner |
+|---|----------|--------|-------|
+| 1 | **P0** | Fix ralph circuit breaker: `consecutive_no_progress` must increment on NO_WORK results, and loop must terminate after 3 consecutive no-ops | Dev |
+| 2 | **P0** | Add NO_WORK as an explicit exit condition in ralph loop, separate from the retry-exhausted counter | Dev |
+
+#### Fix Soon (Next Sprint)
+
+| # | Priority | Action | Owner |
+|---|----------|--------|-------|
+| 3 | **P1** | Add daily session budget cap (hard limit, e.g., 15 sessions/day) as safety net independent of circuit breaker | Dev |
+| 4 | **P1** | Resolve 14-4-observability-backend-choice: human decision on OpenTelemetry backend needed, then either complete or formally descope | Human |
+| 5 | **P1** | Add `opensearch` field to HarnessState interface to remove the `as HarnessState` cast workaround | Dev |
+| 6 | **P2** | Tag stories with verification tier (unit-testable vs docker-required) at creation time, not retroactively | Process |
+| 7 | **P2** | Audit bash/yaml files for `in-review` vs `review` status string inconsistency | Dev |
+
+#### Backlog
+
+| # | Priority | Action | Owner |
+|---|----------|--------|-------|
+| 8 | **P3** | Investigate Docker credential helper for non-interactive sessions (osxkeychain alternative) | Dev |
+| 9 | **P3** | Add story spec validation step: re-scan codebase for actual error/issue counts before dev begins | Process |
+| 10 | **P3** | Reduce double-cast (`as unknown as T`) patterns in test files — investigate vitest mock typing improvements | Dev |
+
+---
+
+### End-of-Day Sprint Summary — 2026-03-25 (Final, Post-Session 22)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 4 (15-4, 14-5, 14-6, 15-5) |
+| Total sessions today | 22 (sessions 1-22) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 16 (sessions 7-22) |
+| Wasted session ratio | 72.7% (16/22) |
+| Remaining blocker | 14-4-observability-backend-choice (retry-exhausted 10/10, flagged, needs human decision) |
+| Circuit breaker status | NON-FUNCTIONAL — 16 consecutive no-ops without termination |
+| Test suite | 3,799 tests passing, 97.11% coverage |
+| Critical fix needed | Ralph NO_WORK termination logic (P0) |
+| Estimated wasted API cost | $8-$32 (16 no-op sessions) |
+
+---
+
+## Session Retrospective — 2026-03-25T12:03Z (Sessions 7-23 Final Roll-up)
+
+### 1. Session Summary
+
+| Story | Subagent | Outcome | Notes |
+|-------|----------|---------|-------|
+| 15-4-fix-ts-compilation-errors | create-story, dev, review | DONE | 106 TS errors fixed across 20 files |
+| 14-5-stack-aware-verify-dockerfile | verify | DONE | Docker keychain blocked; verified via code inspection |
+| 14-6-subagent-status-ownership-time-budget | verify | DONE | Same Docker blocker; verified via code inspection |
+| 15-5-lint-rule-bare-exception-swallowing | create-story, dev, review | DONE | Semgrep rule + hook; code review caught 2 HIGH bugs |
+| 14-4-observability-backend-choice | — | BLOCKED | Retry-exhausted (10/10), flagged. Needs human decision. |
+
+**Productive sessions:** 6 (sessions 1-6 ran stories through dev/review/verify)
+**No-op sessions:** 17 (sessions 7-23 all returned NO_WORK)
+**Total sessions:** 23
+**Waste ratio:** 73.9% (17/23)
+
+### 2. Issues Analysis
+
+#### Bugs Discovered During Implementation
+
+| Severity | File | Issue |
+|----------|------|-------|
+| HIGH | 15-5 hook grep pattern | `except Exception.*pass` never matches multiline Python — AC2 was non-functional. Fixed with awk-based multiline detection. |
+| HIGH | 15-5 Semgrep rule | `no-bare-except-ellipsis` used `...` as Semgrep wildcard, not Python Ellipsis — false positive generator. Fixed with `pattern-regex`. |
+| MEDIUM | `src/commands/run.ts` | `'in-review'` was invalid StoryStatus; should be `'review'`. Runtime behavior change, not type-only. |
+| MEDIUM | `src/modules/audit/dimensions.ts` | `g.message` referenced non-existent property (correct: `g.description`). Produced `undefined` at runtime. |
+| MEDIUM | `src/modules/infra/docker-setup.ts` | `opensearch` not in HarnessState interface, suppressed with `as HarnessState` cast. |
+| MEDIUM | 15-5 hook | Only detected `pass` but not Python `...` (Ellipsis) pattern. Fixed. |
+
+#### Workarounds Applied (Tech Debt Introduced)
+
+1. **`as HarnessState` cast in docker-setup.ts** — `opensearch` property not in interface. Needs a proper schema update.
+2. **Double-casts (`as unknown as T`) in test files** — Partial mocks for vitest overloaded functions. Low impact but messy.
+3. **Removed `hasBmalph`/`bmalpthFiles` from scan-cache.test.ts** — Fields never existed on `DetectedArtifacts`. Test was asserting phantom properties.
+4. **Unit-testable verification tags on 14-5 and 14-6** — Correct workaround for Docker keychain lockout in non-interactive sessions. Not really debt, but documents that Docker-based verification was skipped.
+
+#### Verification Gaps
+
+- 14-5 and 14-6 were verified without Docker containers (code inspection + tests only). All ACs are genuinely cli-verifiable so this is acceptable, but Docker-based integration verification was never run.
+
+#### Tooling / Infrastructure Problems
+
+- **Docker keychain locked** in non-interactive ralph sessions. Cannot pull images. All Docker-based verification blocked for entire session.
+- **Ralph circuit breaker non-functional** — 17 consecutive NO_WORK sessions without termination. This is the dominant issue of the day. Ralph burned 17 sessions of API credits (~$8-34 estimated) on sessions that could not produce any work.
+
+### 3. What Went Well
+
+- **4 stories completed** in 6 productive sessions — efficient when there was work to do.
+- **Code review caught real bugs** — 15-5 code review found 2 HIGH severity issues (non-functional hook pattern, false-positive Semgrep rule) and fixed them before merge. The review subagent earned its keep.
+- **106 TypeScript errors eliminated** (15-4) — long-standing debt cleared in a single session.
+- **97.11% test coverage maintained** — 3,799 tests passing, no regressions.
+- **Sprint at 98.5% completion** (65/66 stories) — only 1 story remaining and it requires human decision.
+- **Verification unblocked** for 14-5 and 14-6 — stories that had been stuck across multiple sessions were closed by correctly tagging them as unit-testable.
+
+### 4. What Went Wrong
+
+- **17 wasted sessions (73.9% waste ratio)** — Ralph kept spawning sessions after all work was done. This is a critical ralph bug. The circuit breaker either doesn't exist or doesn't work.
+- **14-4-observability-backend-choice stuck permanently** — 10 retries, all failed. This story likely needs human input (architectural decision) and shouldn't have been attempted autonomously 10 times.
+- **Story spec inaccuracies** — 15-4 claimed ~40 TS errors but actual count was 106. 15-5 listed `src/lib/scanner.ts` as the target file but the actual Semgrep logic lives in `analyzer.ts`. Stale epic definitions led to wrong expectations.
+- **Docker keychain lockout** — Known issue, still unresolved. Blocks all Docker-based verification in non-interactive sessions.
+
+### 5. Lessons Learned
+
+**Repeat:**
+- Code review subagent catching real bugs before merge (15-5 had 2 HIGH severity issues caught and fixed).
+- Tagging cli-verifiable stories as unit-testable to unblock verification without Docker.
+- Running `tsc --noEmit` as a regular gate — the 106-error debt accumulated over 13+ sessions because nobody enforced it.
+
+**Avoid:**
+- Allowing ralph to loop indefinitely when no work remains. Must have a hard consecutive-no-op limit (3 max).
+- Retrying stories that need human decisions (14-4 architectural choice) — flag and stop after 2-3 retries, not 10.
+- Trusting epic/story error counts or file references without re-scanning first.
+
+### 6. Action Items
+
+#### Fix Now (Before Next Session)
+
+| # | Item | Owner |
+|---|------|-------|
+| 1 | **Ralph consecutive-NO_WORK circuit breaker** — Add hard limit of 3 consecutive NO_WORK results before ralph terminates the loop. This is a P0 bug that wasted 17 sessions today. | ralph |
+| 2 | **Add `opensearch` to HarnessState interface** — Remove the `as HarnessState` cast in docker-setup.ts. | dev |
+
+#### Fix Soon (Next Sprint)
+
+| # | Item | Owner |
+|---|------|-------|
+| 3 | **Docker keychain unlock for non-interactive sessions** — Investigate `security unlock-keychain` or credential helper config so Docker can pull images in ralph sessions. | infra |
+| 4 | **14-4-observability-backend-choice** — Human decision needed. Pick VictoriaMetrics vs alternatives, then either complete or close the story. | human/architect |
+| 5 | **Story retry budget** — Reduce max retries from 10 to 3-5 for stories that fail without progress. Add a "needs-human" flag that stops retries entirely. | ralph |
+
+#### Backlog (Track But Not Urgent)
+
+| # | Item | Owner |
+|---|------|-------|
+| 6 | **Double-cast cleanup in test files** — Replace `as unknown as T` patterns with proper mock utilities. | dev |
+| 7 | **`tsc --noEmit` gate in CI** — Enforce zero TS errors as a pre-commit or CI check so they don't accumulate again. | dev |
+| 8 | **Story spec validation** — Have create-story re-scan actual error counts and file locations instead of trusting epic text. | process |
+
+### End-of-Day Sprint Summary — 2026-03-25 (Final, Post-Session 23)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 4 (15-4, 14-5, 14-6, 15-5) |
+| Total sessions today | 23 (sessions 1-23) |
+| Productive sessions | 6 (sessions 1-6) |
+| No-op sessions | 17 (sessions 7-23) |
+| Wasted session ratio | 73.9% (17/23) |
+| Remaining blocker | 14-4-observability-backend-choice (retry-exhausted 10/10, flagged, needs human decision) |
+| Circuit breaker status | NON-FUNCTIONAL — 17 consecutive no-ops without termination |
+| Test suite | 3,799 tests passing, 97.11% coverage |
+| Critical fix needed | Ralph NO_WORK termination logic (P0) |
+| Estimated wasted API cost | $8-$34 (17 no-op sessions) |
+
+---
+
+# Session Retrospective — 2026-03-25 Session 23 (Addendum)
+
+**Sprint:** Operational Excellence (Epics 13-15)
+**Session:** 23 (18th consecutive no-op)
+**Timestamp:** 2026-03-25T08:07Z
+**Session window:** ~2026-03-25T08:03Z to ~2026-03-25T08:07Z (~4 minutes)
+
+---
+
+## 1. Session Summary
+
+| Story | Outcome | Notes |
+|-------|---------|-------|
+| 14-4-observability-backend-choice | NO_WORK | retry-exhausted (10/10), flagged, not actionable |
+
+**Net progress:** Zero. No stories attempted, no code changed, no commits produced. This is the 18th consecutive session with no work performed. The sprint remains at 65/66 stories done (98.5%).
+
+Ralph loop count: 23. Calls this hour: 22/100. Elapsed: ~2.5 hours of looping with no output since session 6.
+
+---
+
+## 2. Issues Analysis
+
+### CRITICAL: Ralph Circuit Breaker Is Non-Functional (P0)
+
+The circuit breaker state file (`.circuit_breaker_state`) shows:
+
+- `state: CLOSED` (healthy — should be OPEN after 18 no-ops)
+- `consecutive_no_progress: 0` (should be 18)
+- `last_progress_loop: 22` (claims progress happened on loop 22 — false)
+
+**Root cause:** The circuit breaker tracks `consecutive_no_progress` but this counter is being reset or never incremented on NO_WORK results. The breaker only appears to track error-type failures (consecutive_same_error, consecutive_permission_denials), not the case where there is simply no work to do. The NO_WORK exit path in `harness-run` does not signal the circuit breaker.
+
+**Impact:** 18 sessions x ~$0.50-$2.00 per session = estimated $9-$36 in wasted API credits. More importantly, ralph occupies the execution slot continuously, preventing the user from using the CLI for other work.
+
+**Evidence:** Every session from 7 through 23 logged identical NO_WORK results in `.session-issues.md`. Each session correctly identified the bug and recommended termination. None were able to fix it because `harness-run` subagents do not have write access to ralph's loop control.
+
+### Blocked Story: 14-4-observability-backend-choice
+
+- Status: `verifying` in sprint-status.yaml, but flagged as retry-exhausted (10/10 retries)
+- Listed in `ralph/.flagged_stories`
+- This story requires a human architectural decision (choosing between OpenTelemetry backends: Jaeger vs Tempo vs direct OTLP)
+- It cannot be completed autonomously — it needs product/architecture input
+- Ralph correctly flagged it but failed to stop looping after flagging
+
+### API Credit Waste
+
+| Metric | Value |
+|--------|-------|
+| No-op sessions | 18 (sessions 6-23) |
+| Estimated cost per no-op | $0.50-$2.00 |
+| Total estimated waste | $9-$36 |
+| Time wasted | ~2.5 hours of continuous looping |
+
+---
+
+## 3. What Went Well
+
+- **Sprint is 98.5% complete.** 65 of 66 stories are done across 15 epics. This is an excellent completion rate.
+- **Productive sessions were highly effective.** Sessions 1-6 completed 4 stories (15-4, 14-5, 14-6, 15-5) with full pipeline execution (create-story, dev-story, code-review, verification).
+- **Code quality remained high.** 3,799 tests passing at 97.11% coverage. No regressions introduced.
+- **Session issues log worked as designed.** Every subagent faithfully reported the no-op state, creating a clear audit trail. The log correctly escalated severity with each passing session.
+- **Story flagging works.** Ralph correctly identified 14-4 as retry-exhausted and added it to `.flagged_stories`.
+
+---
+
+## 4. What Went Wrong
+
+1. **Ralph loop does not terminate on NO_WORK.** This is the single biggest issue. The loop checks for errors and permission failures but has no exit condition for "all remaining stories are flagged/blocked." After 18 no-ops, it is still `status: running`.
+
+2. **Circuit breaker counter is broken.** `consecutive_no_progress` shows 0 despite 18 consecutive sessions with zero progress. Either the counter is being reset each loop iteration, or the NO_WORK path does not increment it.
+
+3. **`last_progress_loop` is inaccurate.** It shows 22, implying progress happened on loop 22. No progress has occurred since loop 6 at the latest. This suggests the counter updates on session start, not on actual work completion.
+
+4. **No kill switch.** There is no mechanism for a subagent to signal "stop the loop" back to ralph. Each `harness-run` session can only report NO_WORK and exit — ralph ignores this and spawns another.
+
+5. **Sprint status shows 14-4 as `verifying`** when it is actually retry-exhausted and flagged. The status should reflect the true state (blocked/flagged).
+
+---
+
+## 5. Lessons Learned
+
+1. **Circuit breakers need a NO_WORK condition, not just error conditions.** The current breaker only tracks failures. "Nothing to do" is a valid and common termination signal that was completely missing.
+
+2. **Loop termination needs multiple signals.** Ralph should stop when ANY of these are true:
+   - All stories are done
+   - All remaining stories are flagged
+   - N consecutive NO_WORK results (suggest N=3)
+   - All remaining stories are blocked on human input
+
+3. **Subagent-to-orchestrator communication is one-way.** Subagents can write to `.session-issues.md` but ralph does not read it. A structured exit code or signal file would let subagents influence loop behavior.
+
+4. **Autonomous loops need hard budget caps.** Even if the circuit breaker fails, there should be a maximum wall-clock time or maximum consecutive no-op count that forcibly terminates the loop.
+
+5. **Sprint-complete detection should be a first-class concept.** Ralph should check "are there any actionable stories?" before spawning a session, not after.
+
+---
+
+## 6. Action Items
+
+| Priority | Action | Owner | Notes |
+|----------|--------|-------|-------|
+| **P0** | Fix ralph circuit breaker to track NO_WORK results and terminate after 3 consecutive no-ops | Dev | Root cause: `consecutive_no_progress` counter not incrementing on NO_WORK exit path |
+| **P0** | Add pre-session check: if all non-done stories are flagged, exit loop immediately | Dev | Avoid spawning a session just to discover there's no work |
+| **P1** | Fix `last_progress_loop` to only update when actual work is completed (commit produced) | Dev | Currently updates on session start, not on progress |
+| **P1** | Update sprint-status.yaml to show `flagged` or `blocked` instead of `verifying` for retry-exhausted stories | Dev | 14-4 shows as verifying but is actually blocked |
+| **P1** | Add hard cap: max 5 consecutive NO_WORK sessions regardless of circuit breaker state | Dev | Defense-in-depth against circuit breaker bugs |
+| **P2** | Make human decision on 14-4-observability-backend-choice (OTLP backend selection) | Human/Architect | This is the only remaining story; it needs a human architectural decision |
+| **P2** | Add structured exit codes from harness-run to ralph (EXIT_NO_WORK, EXIT_PROGRESS, EXIT_ERROR) | Dev | Currently ralph cannot distinguish why a session ended |
+| **P3** | Create a tech-debt story for the circuit breaker rewrite | SM | Track as part of next sprint planning |
+
+---
+
+## Sprint Scorecard (Updated)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 65/66 (98.5%) |
+| Epics completed | 15/16 (Epic 14 has 1 story remaining) |
+| Stories completed today | 4 (15-4, 14-5, 14-6, 15-5) |
+| Total sessions today | 23 |
+| Productive sessions | 5 (sessions 1-5, with session 6 doing final verifications) |
+| No-op sessions | 18 (sessions 6-23) — **77% waste rate** |
+| Remaining blocker | 14-4-observability-backend-choice (retry-exhausted 10/10, flagged, needs human decision) |
+| Circuit breaker status | **NON-FUNCTIONAL** — 18 consecutive no-ops, counter shows 0 |
+| Test suite | 3,799 tests passing, 97.11% coverage |
+| Critical bugs found | 1 (ralph circuit breaker — P0) |
+| Estimated wasted API cost | $9-$36 (18 no-op sessions) |

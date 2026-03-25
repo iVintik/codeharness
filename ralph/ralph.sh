@@ -277,6 +277,16 @@ check_sprint_complete() {
 
     local total=0
     local done_count=0
+    local flagged_count=0
+
+    # Load flagged stories for comparison
+    local -A flagged_map
+    if [[ -f "$FLAGGED_STORIES_FILE" ]]; then
+        while IFS= read -r flagged_key; do
+            flagged_key=$(echo "$flagged_key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [[ -n "$flagged_key" ]] && flagged_map["$flagged_key"]=1
+        done < "$FLAGGED_STORIES_FILE"
+    fi
 
     while IFS=: read -r key value; do
         # Trim whitespace
@@ -291,6 +301,10 @@ check_sprint_complete() {
             total=$((total + 1))
             if [[ "$value" == "done" ]]; then
                 done_count=$((done_count + 1))
+            elif [[ -n "${flagged_map[$key]+x}" ]]; then
+                # Retry-exhausted/flagged stories count as "effectively done"
+                # — no autonomous work can be done on them
+                flagged_count=$((flagged_count + 1))
             fi
         fi
     done < "$SPRINT_STATUS_FILE"
@@ -299,7 +313,8 @@ check_sprint_complete() {
         return 1
     fi
 
-    [[ $done_count -eq $total ]]
+    # Sprint is complete if all stories are either done or flagged (no autonomous work left)
+    [[ $((done_count + flagged_count)) -eq $total ]]
 }
 
 # codeharness: Replaces all_tasks_complete() with sprint-status.yaml check.
@@ -813,6 +828,13 @@ execute_iteration() {
                     } | sort -u | wc -l
                 )
             fi
+        fi
+
+        # If harness-run reported NO_WORK, don't count file changes as progress.
+        # Writing session-issues.md with "NO_WORK" creates git diffs but is NOT real progress.
+        if grep -qE 'Result: NO_WORK|no actionable stories remain' "$output_file" 2>/dev/null; then
+            files_changed=0
+            log_status "INFO" "NO_WORK detected — overriding files_changed to 0 for circuit breaker"
         fi
 
         local has_errors="false"

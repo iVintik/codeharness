@@ -473,19 +473,19 @@
       "acResults": null
     },
     "14-5-stack-aware-verify-dockerfile": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/14-5-stack-aware-verify-dockerfile-proof.md",
       "acResults": null
     },
     "14-6-subagent-status-ownership-time-budget": {
-      "status": "verifying",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/14-6-subagent-status-ownership-time-budget-proof.md",
       "acResults": null
     },
     "14-7-fix-beads-flags-ralph-tracking-proof-docs": {
@@ -529,11 +529,11 @@
       "acResults": null
     },
     "15-5-lint-rule-bare-exception-swallowing": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/15-5-lint-rule-bare-exception-swallowing-proof.md",
       "acResults": null
     }
   },

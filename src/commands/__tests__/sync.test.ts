@@ -8,6 +8,7 @@ vi.mock('../../lib/beads.js', () => ({
   listIssues: vi.fn(() => []),
   updateIssue: vi.fn(),
   closeIssue: vi.fn(),
+  isBeadsCLIInstalled: vi.fn(() => true),
 }));
 
 // Mock beads-sync module
@@ -29,13 +30,14 @@ vi.mock('../../lib/sync/index.js', () => ({
   })),
 }));
 
-import { listIssues } from '../../lib/beads.js';
+import { listIssues, isBeadsCLIInstalled } from '../../lib/beads.js';
 import { syncAll, syncStoryFileToBeads, syncBeadsToStoryFile } from '../../lib/sync/index.js';
 
 const mockListIssues = vi.mocked(listIssues);
 const mockSyncAll = vi.mocked(syncAll);
 const mockSyncStoryFileToBeads = vi.mocked(syncStoryFileToBeads);
 const mockSyncBeadsToStoryFile = vi.mocked(syncBeadsToStoryFile);
+const mockIsBeadsCLIInstalled = vi.mocked(isBeadsCLIInstalled);
 
 describe('sync command', () => {
   let consoleSpy: ReturnType<typeof vi.spyOn>;
@@ -204,5 +206,17 @@ describe('sync command', () => {
     const calls = consoleSpy.mock.calls.map(c => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[FAIL] No beads issue found'));
     expect(process.exitCode).toBe(1);
+  });
+
+  it('prints info and skips when beads CLI is not installed (AC2)', async () => {
+    mockIsBeadsCLIInstalled.mockReturnValue(false);
+
+    const program = createProgram();
+    await program.parseAsync(['node', 'test', 'sync']);
+
+    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    expect(calls).toContainEqual(expect.stringContaining('[INFO] beads CLI not installed -- skipping'));
+    expect(process.exitCode).toBe(0);
+    expect(mockSyncAll).not.toHaveBeenCalled();
   });
 });

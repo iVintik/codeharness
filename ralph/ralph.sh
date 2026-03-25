@@ -192,6 +192,10 @@ update_status() {
         flagged_json=$(jq -R -s 'split("\n") | map(select(length > 0))' < "$FLAGGED_STORIES_FILE")
     fi
 
+    # Get current story key for status tracking
+    local current_story
+    current_story=$(get_current_task)
+
     jq -n \
         --arg timestamp "$(get_iso_timestamp)" \
         --argjson loop_count "$loop_count" \
@@ -202,6 +206,7 @@ update_status() {
         --arg status "$status" \
         --arg exit_reason "$exit_reason" \
         --arg version "$VERSION" \
+        --arg story "${current_story:-}" \
         --argjson stories_total "$stories_total" \
         --argjson stories_completed "$stories_completed" \
         --argjson stories_remaining "$stories_remaining" \
@@ -216,6 +221,7 @@ update_status() {
             max_iterations: $max_iterations,
             last_action: $last_action,
             status: $status,
+            story: $story,
             exit_reason: $exit_reason,
             stories_total: $stories_total,
             stories_completed: $stories_completed,
@@ -228,8 +234,36 @@ update_status() {
 # codeharness: Task picking is handled by /harness-run skill inside each Claude session.
 # Ralph just spawns sessions and checks sprint-status.yaml for completion.
 get_current_task() {
-    # No-op — task picking is done by the /harness-run skill, not Ralph.
-    echo ""
+    # Read the first in-progress or ready-for-dev story from sprint-state.json.
+    # Task picking is done by /harness-run, but Ralph needs the story key
+    # for timeout reports and status tracking.
+    local state_file="sprint-state.json"
+    if [[ ! -f "$state_file" ]]; then
+        echo ""
+        return 0
+    fi
+
+    # First try to find an in-progress story
+    local story_key
+    story_key=$(jq -r '
+      .stories // {} | to_entries[]
+      | select(.value.status == "in-progress")
+      | .key
+    ' "$state_file" 2>/dev/null | head -1)
+
+    if [[ -n "$story_key" ]]; then
+        echo "$story_key"
+        return 0
+    fi
+
+    # Fall back to the first ready-for-dev story
+    story_key=$(jq -r '
+      .stories // {} | to_entries[]
+      | select(.value.status == "ready-for-dev")
+      | .key
+    ' "$state_file" 2>/dev/null | head -1)
+
+    echo "${story_key:-}"
     return 0
 }
 

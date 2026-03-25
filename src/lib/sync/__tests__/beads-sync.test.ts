@@ -129,6 +129,30 @@ describe('readStoryFileStatus', () => {
     writeFileSync(filePath, '# Story\n\nStatus:   in-progress  \n');
     expect(readStoryFileStatus(filePath)).toBe('in-progress');
   });
+
+  it('handles ## Status: prefix (double-hash markdown header)', () => {
+    const dir = join(testDir, '_bmad-output', 'implementation-artifacts');
+    mkdirSync(dir, { recursive: true });
+    const filePath = join(dir, 'double-hash.md');
+    writeFileSync(filePath, '# Story Title\n\n## Status: backlog\n\n## Story\n');
+    expect(readStoryFileStatus(filePath)).toBe('backlog');
+  });
+
+  it('handles # Status: prefix (single-hash)', () => {
+    const dir = join(testDir, '_bmad-output', 'implementation-artifacts');
+    mkdirSync(dir, { recursive: true });
+    const filePath = join(dir, 'single-hash.md');
+    writeFileSync(filePath, '# Story Title\n\n# Status: in-progress\n');
+    expect(readStoryFileStatus(filePath)).toBe('in-progress');
+  });
+
+  it('does NOT match ### Status: (triple-hash is beyond supported range)', () => {
+    const dir = join(testDir, '_bmad-output', 'implementation-artifacts');
+    mkdirSync(dir, { recursive: true });
+    const filePath = join(dir, 'triple-hash.md');
+    writeFileSync(filePath, '# Story Title\n\n### Status: backlog\n');
+    expect(readStoryFileStatus(filePath)).toBeNull();
+  });
 });
 
 // ─── updateStoryFileStatus ──────────────────────────────────────────────────
@@ -176,6 +200,18 @@ describe('updateStoryFileStatus', () => {
     updateStoryFileStatus(filePath, 'done');
     const content = readFileSync(filePath, 'utf-8');
     expect(content).toContain('Status: done');
+  });
+
+  it('updates ## Status: prefix preserving the format', () => {
+    const dir = join(testDir, '_bmad-output', 'implementation-artifacts');
+    mkdirSync(dir, { recursive: true });
+    const filePath = join(dir, 'double-hash.md');
+    writeFileSync(filePath, '# Story Title\n\n## Status: backlog\n\n## Story\n');
+
+    updateStoryFileStatus(filePath, 'in-progress');
+    const content = readFileSync(filePath, 'utf-8');
+    expect(content).toContain('## Status: in-progress');
+    expect(content).not.toContain('backlog');
   });
 });
 

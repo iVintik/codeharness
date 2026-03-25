@@ -40,6 +40,7 @@ import { captureTimeoutReport as captureTimeoutReportImpl, findLatestTimeoutRepo
 import { processVerifyResult as processVerifyResultImpl } from './feedback.js';
 import { validateStateConsistency as validateStateConsistencyImpl } from './validator.js';
 import type { ValidationReport, ValidationIssue } from './validator.js';
+import { shouldDeferPhase as shouldDeferPhaseImpl, getPhaseEstimate as getPhaseEstimateImpl, computeRemainingMinutes as computeRemainingMinutesImpl, PHASE_ESTIMATES } from './budget.js';
 
 export type {
   StorySelection,
@@ -185,4 +186,20 @@ export function readSprintStatusFromState(): Record<string, string> {
   const stateResult = getSprintStateImpl();
   if (!stateResult.success) return {};
   return getStoryStatusesFromStateImpl(stateResult.data);
+}
+
+// ── Budget awareness ────────────────────────────────────────────────────────
+
+export { PHASE_ESTIMATES };
+
+export function shouldDeferPhase(phase: string, remainingMinutes: number): boolean {
+  return shouldDeferPhaseImpl(phase, remainingMinutes);
+}
+
+export function getPhaseEstimate(phase: string): number {
+  return getPhaseEstimateImpl(phase);
+}
+
+export function computeRemainingMinutes(sessionStartMs: number, totalBudgetMinutes: number): number {
+  return computeRemainingMinutesImpl(sessionStartMs, totalBudgetMinutes);
 }

@@ -25,6 +25,18 @@ export const DEFAULT_ENDPOINTS: EndpointUrls = {
   otel_http: 'http://localhost:4318',
 };
 
+export const ELK_ENDPOINTS: EndpointUrls = {
+  logs: 'http://localhost:9200',
+  metrics: 'http://localhost:9200',
+  traces: 'http://localhost:9200',
+  otel_http: 'http://localhost:4318',
+};
+
+/** Return the correct default endpoints for the given backend type. */
+export function getDefaultEndpointsForBackend(backend?: string): EndpointUrls {
+  return backend === 'elk' ? ELK_ENDPOINTS : DEFAULT_ENDPOINTS;
+}
+
 /**
  * Build service-scoped endpoint URLs for observability dashboards.
  * Produces URLs filtered by service_name for logs, metrics, and traces.
@@ -46,6 +58,7 @@ export function buildScopedEndpoints(endpoints: EndpointUrls, serviceName: strin
  */
 export function resolveEndpoints(state: HarnessState): EndpointUrls {
   const mode = state.otlp?.mode ?? 'local-shared';
+  const backend = state.otlp?.backend ?? 'victoria';
   if (mode === 'remote-direct') {
     const endpoint = state.otlp?.endpoint ?? 'http://localhost:4318';
     return {
@@ -55,14 +68,15 @@ export function resolveEndpoints(state: HarnessState): EndpointUrls {
       otel_http: endpoint,
     };
   }
+  const defaults = getDefaultEndpointsForBackend(backend);
   if (mode === 'remote-routed') {
     const re = state.docker?.remote_endpoints;
     return {
-      logs: re?.logs_url ?? DEFAULT_ENDPOINTS.logs,
-      metrics: re?.metrics_url ?? DEFAULT_ENDPOINTS.metrics,
-      traces: re?.traces_url ?? DEFAULT_ENDPOINTS.traces,
-      otel_http: DEFAULT_ENDPOINTS.otel_http,
+      logs: re?.logs_url ?? defaults.logs,
+      metrics: re?.metrics_url ?? defaults.metrics,
+      traces: re?.traces_url ?? defaults.traces,
+      otel_http: defaults.otel_http,
     };
   }
-  return DEFAULT_ENDPOINTS;
+  return defaults;
 }

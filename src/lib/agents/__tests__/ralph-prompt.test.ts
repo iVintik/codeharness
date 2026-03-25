@@ -35,10 +35,11 @@ describe('ralph-prompt', () => {
       expect(prompt).toContain('BMAD');
     });
 
-    it('instructs to update sprint-status.yaml', () => {
+    it('references sprint-status.yaml but does NOT instruct subagents to write it (AC 6)', () => {
       const prompt = generateRalphPrompt(config);
       expect(prompt).toContain('sprint-status.yaml');
-      expect(prompt).toContain('update');
+      // Orchestrator owns all status writes — subagents must not write state files
+      expect(prompt).toContain('Do NOT write to sprint-state.json or sprint-status.yaml');
     });
 
     it('mentions verification gates', () => {

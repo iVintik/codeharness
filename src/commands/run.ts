@@ -2,10 +2,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
 import { Command } from 'commander';
-import { fail, info, jsonOutput } from '../lib/output.js';
+import { fail, info, warn, jsonOutput } from '../lib/output.js';
 import { isDockerAvailable } from '../lib/docker/index.js';
 import { cleanupContainers } from '../modules/infra/index.js';
-import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
+import { readSprintStatusFromState, reconcileState, updateStoryStatus, shouldDeferPhase, getPhaseEstimate, computeRemainingMinutes } from '../modules/sprint/index.js';
 import { generateRalphPrompt } from '../lib/agents/ralph-prompt.js';
 import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
 import { getSprintState } from '../modules/sprint/index.js';
@@ -37,12 +37,24 @@ function handleAgentEvent(
       // These AgentEvent types match StreamEvent shapes — pass through to renderer
       rendererHandle.update(event as Parameters<RendererHandle['update']>[0]);
       break;
-    case 'story-complete':
+    case 'story-complete': {
+      // Status ownership: orchestrator writes status, not the subagent (AC 1)
+      const completeResult = updateStoryStatus(event.key, 'in-review');
+      if (!completeResult.success) {
+        info(`[WARN] Failed to update status for ${event.key}: ${completeResult.error}`);
+      }
       rendererHandle.addMessage({ type: 'ok', key: event.key, message: event.details });
       break;
-    case 'story-failed':
+    }
+    case 'story-failed': {
+      // Status ownership: orchestrator writes status, not the subagent (AC 2)
+      const failResult = updateStoryStatus(event.key, 'failed');
+      if (!failResult.success) {
+        info(`[WARN] Failed to update status for ${event.key}: ${failResult.error}`);
+      }
       rendererHandle.addMessage({ type: 'fail', key: event.key, message: event.reason });
       break;
+    }
     case 'iteration':
       state.currentIterationCount = event.count;
       break;
@@ -187,6 +199,7 @@ export function registerRunCommand(program: Command): void {
       const rendererHandle = startRenderer({ quiet });
       let sprintStateInterval: ReturnType<typeof setInterval> | null = null;
       const sessionStartTime = Date.now();
+      const totalBudgetMinutes = timeout / 60;
       const eventState = { currentIterationCount: 0 };
 
       try {
@@ -240,6 +253,23 @@ export function registerRunCommand(program: Command): void {
                   iterationCount: eventState.currentIterationCount,
                 };
                 rendererHandle.updateSprintState(sprintInfo);
+
+                // Time budget awareness: check if the current phase should be deferred (AC 5, AC 8)
+                const currentPhase = s.run.currentPhase;
+                if (currentPhase) {
+                  const remaining = computeRemainingMinutes(sessionStartTime, totalBudgetMinutes);
+                  const estimate = getPhaseEstimate(currentPhase);
+                  if (shouldDeferPhase(currentPhase, remaining)) {
+                    info(`[INFO] deferring ${currentPhase} to next session (${remaining}min remaining, ${estimate}min needed)`, outputOpts);
+                    // Actually defer: kill the child process so the session ends gracefully
+                    child.kill('SIGTERM');
+                    if (sprintStateInterval) {
+                      clearInterval(sprintStateInterval);
+                      sprintStateInterval = null;
+                    }
+                    return; // Stop polling after deferral
+                  }
+                }
               }
               // Refresh per-story statuses
               const currentStatuses = readSprintStatusFromState();

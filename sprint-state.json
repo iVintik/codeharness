@@ -465,7 +465,7 @@
       "acResults": null
     },
     "14-4-observability-backend-choice": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -473,7 +473,7 @@
       "acResults": null
     },
     "14-5-stack-aware-verify-dockerfile": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -481,7 +481,7 @@
       "acResults": null
     },
     "14-6-subagent-status-ownership-time-budget": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -489,11 +489,11 @@
       "acResults": null
     },
     "14-7-fix-beads-flags-ralph-tracking-proof-docs": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/14-7-fix-beads-flags-ralph-tracking-proof-docs-proof.md",
       "acResults": null
     },
     "15-1-ci-file-size-gate": {
@@ -561,10 +561,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "14-3-docker-precheck-orphan-cleanup",
-    "currentPhase": "verify",
-    "lastAction": "Starting unit-testable verification",
-    "acProgress": "9/9"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": [
     {

@@ -35,6 +35,7 @@ export interface HarnessState {
     endpoint: string;
     service_name: string;
     mode: 'local-shared' | 'remote-direct' | 'remote-routed';
+    backend?: 'victoria' | 'elk' | 'none';
     node_require?: string;
     python_wrapper?: string;
     cli_env_vars?: Record<string, string>;
@@ -64,6 +65,11 @@ export interface HarnessState {
 
 function migrateState(state: HarnessState): HarnessState {
   const raw = state as Record<string, unknown>;
+
+  // Backfill otlp.backend for states created before backend choice was added
+  if (state.otlp && !state.otlp.backend) {
+    state.otlp.backend = 'victoria';
+  }
 
   // New format: stacks array already present
   if (Array.isArray(raw.stacks) && raw.stacks.length > 0) {

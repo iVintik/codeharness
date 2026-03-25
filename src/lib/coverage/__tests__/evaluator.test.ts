@@ -208,6 +208,32 @@ describe('updateCoverageState', () => {
     expect(updated.coverage.baseline).toBe(75);
   });
 
+  it('sets tests_passed true for Rust stack when cargo test passes (AC3)', () => {
+    const state = getDefaultState('rust');
+    writeState(state, testDir);
+
+    const result: CoverageResult = {
+      success: true,
+      testsPassed: true,
+      passCount: 42,
+      failCount: 0,
+      coveragePercent: 85,
+      rawOutput: 'test result: ok. 42 passed; 0 failed; 0 ignored',
+    };
+    const evaluation: CoverageEvaluation = {
+      met: false,
+      target: 90,
+      actual: 85,
+      delta: null,
+      baseline: 85,
+    };
+
+    updateCoverageState(result, evaluation, testDir);
+
+    const { state: updated } = readStateWithBody(testDir);
+    expect(updated.session_flags.tests_passed).toBe(true);
+  });
+
   it('does not overwrite existing baseline', () => {
     const state = getDefaultState('nodejs');
     state.coverage.baseline = 50;

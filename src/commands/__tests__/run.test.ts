@@ -16,6 +16,7 @@ const {
   rendererUpdateStoriesMock, rendererAddMessageMock,
   getSprintStateMock, reconcileStateMock,
   isDockerAvailableMock, cleanupContainersMock,
+  updateStoryStatusMock,
 } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('node:fs');
@@ -74,6 +75,7 @@ const {
     reconcileStateMock: vi.fn(() => ({ success: true, data: { corrections: [], stateChanged: false } })),
     isDockerAvailableMock: vi.fn(() => true),
     cleanupContainersMock: vi.fn(() => ({ success: true, data: { containersRemoved: 0, names: [] } })),
+    updateStoryStatusMock: vi.fn(() => ({ success: true, data: undefined })),
   };
 });
 
@@ -98,6 +100,10 @@ vi.mock('../../modules/sprint/index.js', () => ({
   getSprintState: (...args: unknown[]) => getSprintStateMock(...args),
   readSprintStatusFromState: (...args: unknown[]) => readSprintStatusMock(...args),
   reconcileState: (...args: unknown[]) => reconcileStateMock(...args),
+  updateStoryStatus: (...args: unknown[]) => updateStoryStatusMock(...args),
+  shouldDeferPhase: vi.fn(() => false),
+  getPhaseEstimate: vi.fn(() => 15),
+  computeRemainingMinutes: vi.fn(() => 60),
 }));
 
 vi.mock('../../lib/docker/index.js', () => ({
@@ -107,6 +113,7 @@ vi.mock('../../lib/docker/index.js', () => ({
 vi.mock('../../modules/infra/index.js', () => ({
   cleanupContainers: (...args: unknown[]) => cleanupContainersMock(...args),
 }));
+
 
 describe('run command', () => {
   let tmpDir: string;
@@ -137,6 +144,8 @@ describe('run command', () => {
     isDockerAvailableMock.mockReturnValue(true);
     cleanupContainersMock.mockClear();
     cleanupContainersMock.mockReturnValue({ success: true, data: { containersRemoved: 0, names: [] } });
+    updateStoryStatusMock.mockClear();
+    updateStoryStatusMock.mockReturnValue({ success: true, data: undefined });
     process.exitCode = undefined;
   });
 
@@ -613,6 +622,8 @@ describe('run command', () => {
         key: '1-1-foo',
         message: 'DONE — verified',
       });
+      // Status ownership: orchestrator must call updateStoryStatus (AC 1)
+      expect(updateStoryStatusMock).toHaveBeenCalledWith('1-1-foo', 'in-review');
     });
 
     it('dispatches story-failed events to renderer.addMessage', async () => {
@@ -638,6 +649,8 @@ describe('run command', () => {
         key: '2-1-bar',
         message: 'exceeded retry limit',
       });
+      // Status ownership: orchestrator must call updateStoryStatus (AC 2)
+      expect(updateStoryStatusMock).toHaveBeenCalledWith('2-1-bar', 'failed');
     });
 
     it('dispatches iteration events to state tracker', async () => {

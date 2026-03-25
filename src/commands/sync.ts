@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { ok, fail, info, jsonOutput } from '../lib/output.js';
-import { listIssues, updateIssue, closeIssue } from '../lib/beads.js';
+import { listIssues, updateIssue, closeIssue, isBeadsCLIInstalled } from '../lib/beads.js';
 import {
   syncAll,
   syncStoryFileToBeads,
@@ -34,6 +34,13 @@ export function registerSyncCommand(program: Command): void {
       if (!VALID_DIRECTIONS.has(direction)) {
         fail(`Invalid direction: ${direction}. Must be one of: beads-to-files, files-to-beads, bidirectional`, { json: isJson });
         process.exitCode = 2;
+        return;
+      }
+
+      // Check if beads CLI is installed before attempting sync
+      if (!isBeadsCLIInstalled()) {
+        info('beads CLI not installed -- skipping', { json: isJson });
+        process.exitCode = 0;
         return;
       }
 

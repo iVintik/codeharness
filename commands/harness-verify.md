@@ -117,3 +117,49 @@ If the verifier made code changes to fix issues found during verification:
 2. Rebuild if needed: `npm run build`
 3. The fixes are legitimate — they were discovered through real verification
 4. Do NOT revert them. They represent real bugs caught by the verification process.
+
+## Expected Proof Document Format
+
+The proof document at `verification/{story_id}-proof.md` must follow this structure:
+
+```markdown
+# Proof: {story_id}
+
+Story: {story title}
+Date: {ISO date}
+Verifier: codeharness:verifier
+
+## Test Suite
+
+<!-- showboat exec: {test command} -->
+```
+{test output showing all tests pass}
+```
+<!-- /showboat exec -->
+
+## AC {N}: {AC description}
+
+**Result:** PASS | FAIL
+
+<!-- showboat exec: {verification command} -->
+```
+{command output proving the AC is met}
+```
+<!-- /showboat exec -->
+
+{Optional narrative explaining what the evidence shows}
+
+## Summary
+
+- **Total ACs:** {count}
+- **Passed:** {pass_count}
+- **Failed:** {fail_count}
+- **Tests:** {test_count} passing
+- **Coverage:** {coverage_percent}%
+```
+
+Key rules:
+- Every AC must have at least one `showboat exec` block with real command output
+- The test suite section is mandatory and must show all tests passing
+- Use `showboat exec` for all evidence capture — do not write output by hand
+- The document must be reproducible via `showboat verify`

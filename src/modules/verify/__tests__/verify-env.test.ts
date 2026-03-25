@@ -36,6 +36,11 @@ vi.mock('../../../lib/stacks/index.js', () => ({
   detectStacks: vi.fn(() => [{ stack: 'nodejs', dir: '.' }]),
 }));
 
+// Mock dockerfile generator
+vi.mock('../dockerfile-generator.js', () => ({
+  generateVerifyDockerfile: vi.fn(() => 'FROM ubuntu:22.04\nRUN apt-get update\nWORKDIR /workspace\n'),
+}));
+
 import { execFileSync } from 'node:child_process';
 import { isDockerAvailable } from '../../../lib/docker/index.js';
 import { detectStack, detectStacks } from '../../../lib/stacks/index.js';
@@ -63,10 +68,6 @@ let testDir: string;
 beforeEach(() => {
   vi.clearAllMocks();
   testDir = mkdtempSync(join(tmpdir(), 'ch-verify-env-test-'));
-  // Create templates/Dockerfile.verify so buildVerifyImage can find it
-  mkdirSync(join(testDir, 'templates'), { recursive: true });
-  writeFileSync(join(testDir, 'templates', 'Dockerfile.verify'), 'FROM node:20-slim\nARG TARBALL=package.tgz\nCOPY ${TARBALL} /tmp/\n');
-  writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.generic'), 'FROM node:20-slim\nRUN apt-get update\n');
   // Reset default mock behaviors after clearAllMocks
   mockIsDockerAvailable.mockReturnValue(true);
   mockDetectStack.mockReturnValue('nodejs');
@@ -286,13 +287,13 @@ describe('buildVerifyImage', () => {
     expect(result.cached).toBe(false);
     expect(result.imageTag).toBe('codeharness-verify');
 
-    // Verify docker build was called with --build-arg TARBALL=mypackage-0.1.0.tar.gz
+    // Verify docker build was called (generated Dockerfile handles Python install)
     const buildCall = mockExecFileSync.mock.calls.find(
       c => (c[1] as string[]).includes('build'),
     );
     expect(buildCall).toBeDefined();
-    expect((buildCall![1] as string[])).toContain('--build-arg');
-    expect((buildCall![1] as string[]).join(' ')).toContain('TARBALL=mypackage-0.1.0.tar.gz');
+    // Python build no longer uses --build-arg TARBALL; the dist file is COPYed directly
+    expect((buildCall![1] as string[])).not.toContain('--build-arg');
   });
 
   it('throws when Python dist/ has no .tar.gz or .whl files', () => {
@@ -742,7 +743,6 @@ describe('buildVerifyImage — Rust project', () => {
   it('builds Rust image when detectStack returns rust (AC #4)', () => {
     mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
     mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: '.' }]);
-    writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
 
     mockExecFileSync
       .mockReturnValueOnce(Buffer.from('')) // docker build
@@ -763,7 +763,6 @@ describe('buildVerifyImage — Rust project', () => {
   it('does not throw for Rust projects without dist/ (AC #4)', () => {
     mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
     mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: '.' }]);
-    writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
 
     mockExecFileSync
       .mockReturnValueOnce(Buffer.from('')) // docker build
@@ -772,8 +771,7 @@ describe('buildVerifyImage — Rust project', () => {
     expect(() => buildVerifyImage({ projectDir: testDir })).not.toThrow();
   });
 
-  it('resolves Dockerfile.verify.rust template for rust variant (AC #5)', () => {
-    writeFileSync(join(testDir, 'templates', 'Dockerfile.verify.rust'), 'FROM rust:1.82-slim\n');
+  it('uses generated Dockerfile for rust variant (AC #5)', () => {
     mockDetectStack.mockReturnValue('rust' as ReturnType<typeof detectStack>);
     mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: '.' }]);
 
@@ -783,7 +781,7 @@ describe('buildVerifyImage — Rust project', () => {
 
     buildVerifyImage({ projectDir: testDir });
 
-    // Verify docker build was called (proves the Dockerfile was found and used)
+    // Verify docker build was called (Dockerfile is generated, not from template)
     const buildCall = mockExecFileSync.mock.calls.find(
       c => (c[1] as string[]).includes('build'),
     );
@@ -906,19 +904,17 @@ describe('buildVerifyImage — size formatting', () => {
   });
 });
 
-describe('buildVerifyImage — template resolution', () => {
-  it('throws when neither local nor pkg Dockerfile template exists', () => {
+describe('buildVerifyImage — generated Dockerfile', () => {
+  it('builds generic project using generated Dockerfile (no template needed)', () => {
     mockDetectStack.mockReturnValue(null);
     mockDetectStacks.mockReturnValue([]);
-    // Remove templates from testDir
+    // Remove templates from testDir — should not matter since we use generator now
     rmSync(join(testDir, 'templates'), { recursive: true, force: true });
 
     mockExecFileSync.mockReturnValue(Buffer.from(''));
 
-    // Generic image build needs Dockerfile.verify.generic — should throw since neither location has it
-    expect(() => buildVerifyImage({ projectDir: testDir })).toThrow(
-      'Dockerfile.verify.generic not found',
-    );
+    // Generic image build uses generated Dockerfile — should NOT throw
+    expect(() => buildVerifyImage({ projectDir: testDir })).not.toThrow();
   });
 });
 

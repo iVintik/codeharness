@@ -20,6 +20,7 @@ vi.mock('../../../lib/docker/index.js', () => ({
 
 vi.mock('../../../lib/stack-path.js', () => ({
   getComposeFilePath: vi.fn(() => '/mock/.codeharness/stack/docker-compose.harness.yml'),
+  getElkComposeFilePath: vi.fn(() => '/mock/.codeharness/stack/docker-compose.elk.yml'),
   ensureStackDir: vi.fn(),
 }));
 
@@ -47,6 +48,7 @@ const baseState: HarnessState = {
   harness_version: '0.0.0-dev',
   initialized: true,
   stack: 'nodejs',
+  stacks: ['nodejs'],
   enforcement: { frontend: true, database: true, api: true },
   coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
   session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
@@ -237,5 +239,37 @@ describe('setupDocker', () => {
       projectDir: '/tmp/test',
     });
     expect(writeState).toHaveBeenCalled();
+  });
+
+  it('selects ELK compose file when backend is elk', () => {
+    const elkState: HarnessState = {
+      ...baseState,
+      otlp: { ...baseState.otlp!, backend: 'elk' },
+    };
+    const result = setupDocker({
+      observability: true,
+      isJson: false,
+      dockerAvailable: true,
+      state: elkState,
+      projectDir: '/tmp/test',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.docker!.compose_file).toContain('docker-compose.elk.yml');
+    }
+  });
+
+  it('selects Victoria compose file when backend is victoria (default)', () => {
+    const result = setupDocker({
+      observability: true,
+      isJson: false,
+      dockerAvailable: true,
+      state: { ...baseState },
+      projectDir: '/tmp/test',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.docker!.compose_file).toContain('docker-compose.harness.yml');
+    }
   });
 });

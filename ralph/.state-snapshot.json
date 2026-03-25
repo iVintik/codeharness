@@ -457,15 +457,15 @@
       "acResults": null
     },
     "14-3-docker-precheck-orphan-cleanup": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-03-25T02:58:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/14-3-docker-precheck-orphan-cleanup-proof.md",
       "acResults": null
     },
     "14-4-observability-backend-choice": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -473,7 +473,7 @@
       "acResults": null
     },
     "14-5-stack-aware-verify-dockerfile": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -481,7 +481,7 @@
       "acResults": null
     },
     "14-6-subagent-status-ownership-time-budget": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "14-2-tech-debt-gate-story-selection",
-    "currentPhase": "verify",
-    "lastAction": "Starting unit-testable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": [
@@ -605,7 +605,7 @@
     {
       "id": "migrated-6",
       "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "LOW (not fixed): `retriesPath()` and `flaggedPath()` are exported dead code \u2014 deferred to 11-3",
+      "description": "LOW (not fixed): `retriesPath()` and `flaggedPath()` are exported dead code — deferred to 11-3",
       "source": "retro",
       "resolved": false
     },

@@ -14,6 +14,7 @@ export interface InitOptions {
   readonly database: boolean;
   readonly api: boolean;
   readonly observability: boolean;
+  readonly observabilityBackend?: 'victoria' | 'elk' | 'none';
   readonly otelEndpoint?: string;
   readonly opensearchUrl?: string;
   readonly logsUrl?: string;

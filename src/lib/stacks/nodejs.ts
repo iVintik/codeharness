@@ -336,6 +336,18 @@ COPY . .
 
   // ── Task 15: getProjectName ───────────────────────────────────────────
 
+  // ── getVerifyDockerfileSection ──────────────────────────────────────
+
+  getVerifyDockerfileSection(_projectDir: string): string {
+    return [
+      '# --- Node.js tooling ---',
+      'RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \\',
+      '    && apt-get install -y --no-install-recommends nodejs \\',
+      '    && rm -rf /var/lib/apt/lists/*',
+      'RUN npm install -g showboat @anthropic-ai/claude-code',
+    ].join('\n');
+  }
+
   getProjectName(dir: string): string | null {
     const pkg = readJsonSafe(join(dir, 'package.json'));
     if (pkg && typeof pkg.name === 'string') {

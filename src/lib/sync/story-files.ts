@@ -68,7 +68,7 @@ export function readStoryFileStatus(filePath: string): string | null {
     return null;
   }
   const content = readFileSync(filePath, 'utf-8');
-  const match = content.match(/^Status:\s*(.+)$/m);
+  const match = content.match(/^#{0,2}\s*Status:\s*(.+)$/m);
   if (!match) {
     return null;
   }
@@ -81,10 +81,10 @@ export function readStoryFileStatus(filePath: string): string | null {
  */
 export function updateStoryFileStatus(filePath: string, newStatus: string): void {
   const content = readFileSync(filePath, 'utf-8');
-  const statusRegex = /^Status:\s*.+$/m;
+  const statusRegex = /^(#{0,2}\s*)Status:\s*.+$/m;
 
   if (statusRegex.test(content)) {
-    const updated = content.replace(statusRegex, `Status: ${newStatus}`);
+    const updated = content.replace(statusRegex, `$1Status: ${newStatus}`);
     writeFileSync(filePath, updated, 'utf-8');
   } else {
     const lines = content.split('\n');

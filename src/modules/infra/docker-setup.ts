@@ -8,7 +8,7 @@ import {
   startSharedStack,
   startCollectorOnly,
 } from '../../lib/docker/index.js';
-import { getComposeFilePath } from '../../lib/stack-path.js';
+import { getComposeFilePath, getElkComposeFilePath } from '../../lib/stack-path.js';
 import { ok as okOutput, fail as failOutput, info } from '../../lib/output.js';
 import { readState, writeState } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
@@ -231,7 +231,8 @@ function handleLocalShared(
   opts: DockerSetupOptions,
   state: HarnessState,
 ): Result<DockerSetupResult> {
-  const sharedComposeFile = getComposeFilePath();
+  const backend = state.otlp?.backend ?? 'victoria';
+  const sharedComposeFile = backend === 'elk' ? getElkComposeFilePath() : getComposeFilePath();
 
   if (isSharedStackRunning()) {
     if (!opts.isJson) {

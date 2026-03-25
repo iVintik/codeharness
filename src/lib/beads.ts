@@ -12,6 +12,25 @@ export class BeadsError extends Error {
   }
 }
 
+export class BeadsNotInstalledError extends Error {
+  constructor() {
+    super('beads CLI (bd) is not installed');
+    this.name = 'BeadsNotInstalledError';
+  }
+}
+
+/**
+ * Check whether the `bd` CLI is available on the system PATH.
+ */
+export function isBeadsCLIInstalled(): boolean {
+  try {
+    execFileSync('which', ['bd'], { stdio: 'pipe', timeout: 5_000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export interface BeadsCreateOpts {
   type?: string;
   priority?: number;

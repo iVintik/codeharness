@@ -217,6 +217,34 @@ RUN cargo build --release
 
   // ── Task 16: getProjectName ───────────────────────────────────────────
 
+  // ── getVerifyDockerfileSection ──────────────────────────────────────
+
+  getVerifyDockerfileSection(projectDir: string): string {
+    const lines: string[] = [
+      '# --- Rust tooling ---',
+      'RUN curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable',
+      'ENV PATH="/root/.cargo/bin:$PATH"',
+      'RUN rustup component add clippy',
+      'RUN cargo install cargo-tarpaulin',
+    ];
+
+    // Detect Bevy dependency for system libs
+    const cargoContent = readTextSafe(join(projectDir, 'Cargo.toml'));
+    if (cargoContent) {
+      const depsSection = getCargoDepsSection(cargoContent);
+      if (hasCargoDep(depsSection, 'bevy')) {
+        lines.push(
+          'RUN apt-get update && apt-get install -y --no-install-recommends \\',
+          '    libudev-dev libasound2-dev libwayland-dev libxkbcommon-dev \\',
+          '    libfontconfig1-dev libx11-dev \\',
+          '    && rm -rf /var/lib/apt/lists/*',
+        );
+      }
+    }
+
+    return lines.join('\n');
+  }
+
   getProjectName(dir: string): string | null {
     const cargoContent = readTextSafe(join(dir, 'Cargo.toml'));
     if (!cargoContent) return null;

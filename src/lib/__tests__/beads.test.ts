@@ -23,7 +23,9 @@ import {
   findExistingByGapId,
   appendGapId,
   createOrFindIssue,
+  isBeadsCLIInstalled,
   BeadsError,
+  BeadsNotInstalledError,
 } from '../beads.js';
 import type { BeadsIssue } from '../beads.js';
 
@@ -52,6 +54,28 @@ describe('BeadsError', () => {
   it('is an instance of Error', () => {
     const err = new BeadsError('bd init', 'failed');
     expect(err).toBeInstanceOf(Error);
+  });
+});
+
+describe('BeadsNotInstalledError', () => {
+  it('has correct name and message', () => {
+    const err = new BeadsNotInstalledError();
+    expect(err.name).toBe('BeadsNotInstalledError');
+    expect(err.message).toBe('beads CLI (bd) is not installed');
+    expect(err).toBeInstanceOf(Error);
+  });
+});
+
+describe('isBeadsCLIInstalled', () => {
+  it('returns true when which bd succeeds', () => {
+    mockExecFileSync.mockReturnValue(Buffer.from('/usr/local/bin/bd'));
+    expect(isBeadsCLIInstalled()).toBe(true);
+    expect(mockExecFileSync).toHaveBeenCalledWith('which', ['bd'], expect.objectContaining({ stdio: 'pipe' }));
+  });
+
+  it('returns false when which bd throws', () => {
+    mockExecFileSync.mockImplementation(() => { throw new Error('not found'); });
+    expect(isBeadsCLIInstalled()).toBe(false);
   });
 });
 

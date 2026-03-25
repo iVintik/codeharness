@@ -14,6 +14,10 @@ export function getComposeFilePath(): string {
   return join(getStackDir(), 'docker-compose.harness.yml');
 }
 
+export function getElkComposeFilePath(): string {
+  return join(getStackDir(), 'docker-compose.elk.yml');
+}
+
 export function getOtelConfigPath(): string {
   return join(getStackDir(), 'otel-collector-config.yaml');
 }

@@ -8,12 +8,17 @@ import { readState, StateFileNotFoundError } from '../../lib/state.js';
 import { getStackHealth, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker/index.js';
 import { listIssues, isBeadsInitialized } from '../../lib/beads.js';
 import { getOnboardingProgress } from '../../lib/onboard-checks.js';
-import { getStackDir, getComposeFilePath } from '../../lib/stack-path.js';
+import { getStackDir, getComposeFilePath, getElkComposeFilePath } from '../../lib/stack-path.js';
 import { generateReport } from '../sprint/index.js';
 import { getValidationProgress } from '../verify/index.js';
-import { DEFAULT_ENDPOINTS, buildScopedEndpoints, resolveEndpoints } from './endpoints.js';
+import { DEFAULT_ENDPOINTS, buildScopedEndpoints, resolveEndpoints, getDefaultEndpointsForBackend } from './endpoints.js';
 import type { HarnessState } from '../../lib/state.js';
 import type { StatusReport } from '../sprint/index.js';
+
+/** Resolve the shared compose file path based on the backend type. */
+function resolveSharedCompose(backend: string): string {
+  return backend === 'elk' ? getElkComposeFilePath() : getComposeFilePath();
+}
 
 // ─── Full Status Display ────────────────────────────────────────────────────
 
@@ -61,11 +66,14 @@ export function handleFullStatus(isJson: boolean): void {
     `Enforcement: front:${e.frontend ? 'ON' : 'OFF'} db:${e.database ? 'ON' : 'OFF'} api:${e.api ? 'ON' : 'OFF'} obs:ON`,
   );
 
-  // Docker (always shown — observability is mandatory)
+  // Docker (always shown — observability is mandatory unless backend is 'none')
   {
+    const backend = state.otlp?.backend ?? 'victoria';
     const mode = state.otlp?.mode ?? 'local-shared';
 
-    if (mode === 'remote-direct') {
+    if (backend === 'none') {
+      console.log('Docker: disabled (observability off)');
+    } else if (mode === 'remote-direct') {
       const endpoint = state.otlp?.endpoint ?? 'unknown';
       console.log(`Docker: none (remote OTLP at ${endpoint})`);
     } else if (mode === 'remote-routed') {
@@ -81,7 +89,7 @@ export function handleFullStatus(isJson: boolean): void {
       const stackDir = getStackDir();
       const isShared = composeFile.startsWith(stackDir);
 
-      const resolvedComposeFile = isShared ? getComposeFilePath() : composeFile;
+      const resolvedComposeFile = isShared ? resolveSharedCompose(backend) : composeFile;
       const projectName = isShared ? 'codeharness-shared' : undefined;
       const header = isShared ? 'Docker: shared stack at ~/.codeharness/stack/' : 'Docker:';
 
@@ -91,8 +99,9 @@ export function handleFullStatus(isJson: boolean): void {
         console.log(`  ${svc.name}: ${svc.running ? 'running' : 'stopped'}`);
       }
       if (health.healthy) {
+        const ep = getDefaultEndpointsForBackend(backend);
         console.log(
-          `  Endpoints: logs=${DEFAULT_ENDPOINTS.logs} metrics=${DEFAULT_ENDPOINTS.metrics} traces=${DEFAULT_ENDPOINTS.traces}`,
+          `  Endpoints: logs=${ep.logs} metrics=${ep.metrics} traces=${ep.traces}`,
         );
       }
     }
@@ -134,12 +143,15 @@ export function handleFullStatus(isJson: boolean): void {
 }
 
 function handleFullStatusJson(state: HarnessState): void {
-  // Docker (always present — observability is mandatory)
+  // Docker (always present — observability is mandatory unless backend is 'none')
   let docker: Record<string, unknown>;
   {
+    const backend = state.otlp?.backend ?? 'victoria';
     const mode = state.otlp?.mode ?? 'local-shared';
 
-    if (mode === 'remote-direct') {
+    if (backend === 'none') {
+      docker = { mode: 'none', message: 'Observability disabled' };
+    } else if (mode === 'remote-direct') {
       docker = {
         mode: 'remote-direct',
         endpoint: state.otlp?.endpoint,
@@ -158,22 +170,23 @@ function handleFullStatusJson(state: HarnessState): void {
       const stackDir = getStackDir();
       const isShared = composeFile.startsWith(stackDir);
 
+      const ep = getDefaultEndpointsForBackend(backend);
       if (isShared) {
-        const sharedComposeFile = getComposeFilePath();
+        const sharedComposeFile = resolveSharedCompose(backend);
         const health = getStackHealth(sharedComposeFile, 'codeharness-shared');
         docker = {
           shared: true,
           stack_dir: '~/.codeharness/stack/',
           healthy: health.healthy,
           services: health.services,
-          ...(health.healthy ? { endpoints: DEFAULT_ENDPOINTS } : {}),
+          ...(health.healthy ? { endpoints: ep } : {}),
         };
       } else {
         const health = getStackHealth(composeFile);
         docker = {
           healthy: health.healthy,
           services: health.services,
-          ...(health.healthy ? { endpoints: DEFAULT_ENDPOINTS } : {}),
+          ...(health.healthy ? { endpoints: ep } : {}),
         };
       }
     }
@@ -232,11 +245,14 @@ export async function handleHealthCheck(isJson: boolean): Promise<void> {
     checks.push({ name: 'state_file', status: 'fail', detail: 'not found' });
   }
 
-  // 2. Docker health (always checked — observability is mandatory)
+  // 2. Docker health (always checked — observability is mandatory unless backend is 'none')
   if (state) {
+    const backend = state.otlp?.backend ?? 'victoria';
     const mode = state.otlp?.mode ?? 'local-shared';
 
-    if (mode === 'remote-direct') {
+    if (backend === 'none') {
+      checks.push({ name: 'docker', status: 'ok', detail: 'observability disabled — skipped' });
+    } else if (mode === 'remote-direct') {
       const endpoint = state.otlp?.endpoint ?? '';
       const result = await checkRemoteEndpoint(endpoint);
       checks.push({
@@ -271,7 +287,7 @@ export async function handleHealthCheck(isJson: boolean): Promise<void> {
       const composeFile = state.docker?.compose_file ?? 'docker-compose.harness.yml';
       const sDir = getStackDir();
       const isShared = composeFile.startsWith(sDir);
-      const healthComposeFile = isShared ? getComposeFilePath() : composeFile;
+      const healthComposeFile = isShared ? resolveSharedCompose(backend) : composeFile;
       const healthProjectName = isShared ? 'codeharness-shared' : undefined;
       const health = getStackHealth(healthComposeFile, healthProjectName);
       checks.push({
@@ -323,6 +339,17 @@ export async function handleDockerCheck(isJson: boolean): Promise<void> {
     state = readState();
   } catch {
     // No state file or corrupted
+  }
+
+  const backend = state?.otlp?.backend ?? 'victoria';
+
+  if (backend === 'none') {
+    if (isJson) {
+      jsonOutput({ status: 'ok', mode: 'none', message: 'Observability disabled — no Docker check needed' });
+    } else {
+      info('[INFO] Observability disabled — no Docker check needed');
+    }
+    return;
   }
 
   const mode = state?.otlp?.mode ?? 'local-shared';
@@ -393,7 +420,7 @@ export async function handleDockerCheck(isJson: boolean): Promise<void> {
 
   const stackDir = getStackDir();
   if (composeFile.startsWith(stackDir)) {
-    composeFile = getComposeFilePath();
+    composeFile = resolveSharedCompose(backend);
     projectName = 'codeharness-shared';
   }
 
@@ -402,25 +429,29 @@ export async function handleDockerCheck(isJson: boolean): Promise<void> {
   if (isJson) {
     jsonOutput({
       status: health.healthy ? 'ok' : 'fail',
+      backend,
       ...(projectName ? { project_name: projectName } : {}),
       docker: {
         healthy: health.healthy,
         services: health.services,
         remedy: health.remedy,
       },
-      ...(health.healthy ? { endpoints: DEFAULT_ENDPOINTS } : {}),
+      ...(health.healthy ? { endpoints: getDefaultEndpointsForBackend(backend) } : {}),
     });
     return;
   }
 
+  const stackLabel = backend === 'elk' ? 'OpenSearch/ELK stack' : 'VictoriaMetrics stack';
+  const ep = getDefaultEndpointsForBackend(backend);
+
   if (health.healthy) {
-    ok(`VictoriaMetrics stack: running${projectName ? ` (project: ${projectName})` : ''}`);
+    ok(`${stackLabel}: running${projectName ? ` (project: ${projectName})` : ''}`);
     for (const svc of health.services) {
       info(`  ${svc.name}: ${svc.running ? 'running' : 'stopped'}`);
     }
-    info(`Endpoints: logs=${DEFAULT_ENDPOINTS.logs} metrics=${DEFAULT_ENDPOINTS.metrics} traces=${DEFAULT_ENDPOINTS.traces}`);
+    info(`Endpoints: logs=${ep.logs} metrics=${ep.metrics} traces=${ep.traces}`);
   } else {
-    fail(`VictoriaMetrics stack: not running${projectName ? ` (project: ${projectName})` : ''}`);
+    fail(`${stackLabel}: not running${projectName ? ` (project: ${projectName})` : ''}`);
     for (const svc of health.services) {
       if (!svc.running) {
         info(`  ${svc.name}: down`);

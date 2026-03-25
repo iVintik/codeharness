@@ -17,6 +17,7 @@ interface CommandInitOptions {
   database: boolean;
   api: boolean;
   observability: boolean;
+  observabilityBackend?: string;
   otelEndpoint?: string;
   opensearchUrl?: string;
   logsUrl?: string;
@@ -32,6 +33,7 @@ export function registerInitCommand(program: Command): void {
     .option('--no-database', 'Disable database enforcement')
     .option('--no-api', 'Disable API enforcement')
     .option('--no-observability', 'Skip OTLP package installation')
+    .option('--observability-backend <type>', 'Observability backend: victoria, elk, or none (default: victoria)')
     .option('--otel-endpoint <url>', 'Remote OTLP endpoint (skips local Docker stack)')
     .option('--opensearch-url <url>', 'Remote OpenSearch URL (skips local Docker stack)')
     .option('--logs-url <url>', 'Remote VictoriaLogs URL')
@@ -47,6 +49,7 @@ export function registerInitCommand(program: Command): void {
         database: options.database,
         api: options.api,
         observability: options.observability,
+        observabilityBackend: options.observabilityBackend as 'victoria' | 'elk' | 'none' | undefined,
         otelEndpoint: options.otelEndpoint,
         opensearchUrl: options.opensearchUrl,
         logsUrl: options.logsUrl,

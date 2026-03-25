@@ -3,6 +3,8 @@ import {
   buildScopedEndpoints,
   resolveEndpoints,
   DEFAULT_ENDPOINTS,
+  ELK_ENDPOINTS,
+  getDefaultEndpointsForBackend,
 } from '../endpoints.js';
 import type { EndpointUrls, ScopedEndpointUrls } from '../endpoints.js';
 import type { HarnessState } from '../../../lib/state.js';
@@ -221,5 +223,55 @@ describe('resolveEndpoints', () => {
     expect(endpoints.logs).toBe(DEFAULT_ENDPOINTS.logs);
     expect(endpoints.metrics).toBe(DEFAULT_ENDPOINTS.metrics);
     expect(endpoints.traces).toBe(DEFAULT_ENDPOINTS.traces);
+  });
+
+  it('returns ELK_ENDPOINTS for local-shared mode with elk backend', () => {
+    const state = makeState({
+      otlp: {
+        enabled: true,
+        endpoint: 'http://localhost:4318',
+        service_name: 'my-app',
+        mode: 'local-shared',
+        backend: 'elk',
+      },
+    });
+    const endpoints = resolveEndpoints(state);
+    expect(endpoints.logs).toBe('http://localhost:9200');
+    expect(endpoints.metrics).toBe('http://localhost:9200');
+    expect(endpoints.traces).toBe('http://localhost:9200');
+  });
+
+  it('returns DEFAULT_ENDPOINTS for local-shared mode with victoria backend', () => {
+    const state = makeState({
+      otlp: {
+        enabled: true,
+        endpoint: 'http://localhost:4318',
+        service_name: 'my-app',
+        mode: 'local-shared',
+        backend: 'victoria',
+      },
+    });
+    const endpoints = resolveEndpoints(state);
+    expect(endpoints).toEqual(DEFAULT_ENDPOINTS);
+  });
+});
+
+// ─── getDefaultEndpointsForBackend ──────────────────────────────────────────
+
+describe('getDefaultEndpointsForBackend', () => {
+  it('returns ELK_ENDPOINTS for elk', () => {
+    expect(getDefaultEndpointsForBackend('elk')).toEqual(ELK_ENDPOINTS);
+  });
+
+  it('returns DEFAULT_ENDPOINTS for victoria', () => {
+    expect(getDefaultEndpointsForBackend('victoria')).toEqual(DEFAULT_ENDPOINTS);
+  });
+
+  it('returns DEFAULT_ENDPOINTS for undefined', () => {
+    expect(getDefaultEndpointsForBackend(undefined)).toEqual(DEFAULT_ENDPOINTS);
+  });
+
+  it('returns DEFAULT_ENDPOINTS for none', () => {
+    expect(getDefaultEndpointsForBackend('none')).toEqual(DEFAULT_ENDPOINTS);
   });
 });

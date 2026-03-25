@@ -3,7 +3,7 @@
  * and environment checks for black-box verification.
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, cpSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, cpSync, rmSync, statSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { info } from '../../lib/output.js';
@@ -11,6 +11,7 @@ import { detectStacks } from '../../lib/stacks/index.js';
 import { readStateWithBody, writeState } from '../../lib/state.js';
 import { isDockerAvailable } from '../../lib/docker/index.js';
 import type { BuildOptions, BuildResult, CheckResult, ProjectType } from './types.js';
+import { generateVerifyDockerfile } from './dockerfile-generator.js';
 
 const IMAGE_TAG = 'codeharness-verify';
 const STORY_DIR = '_bmad-output/implementation-artifacts';
@@ -112,9 +113,9 @@ export function buildVerifyImage(options: BuildOptions = {}): BuildResult {
   const imageBuilders: Record<ProjectType, () => void> = {
     nodejs: () => buildNodeImage(projectDir),
     python: () => buildPythonImage(projectDir),
-    rust: () => buildSimpleImage(projectDir, 'rust', 300_000),
+    rust: () => buildSimpleImage(projectDir, 300_000),
     plugin: () => buildPluginImage(projectDir),
-    generic: () => buildSimpleImage(projectDir, 'generic'),
+    generic: () => buildSimpleImage(projectDir),
   };
   imageBuilders[projectType]();
   if (currentHash) { storeDistHash(projectDir, currentHash); }
@@ -133,7 +134,9 @@ function buildNodeImage(projectDir: string): void {
   mkdirSync(buildContext, { recursive: true });
   try {
     cpSync(tarballPath, join(buildContext, tarballName));
-    cpSync(resolveDockerfileTemplate(projectDir), join(buildContext, 'Dockerfile'));
+    const dockerfile = generateVerifyDockerfile(projectDir)
+      + `\n# Install project from tarball\nARG TARBALL=package.tgz\nCOPY \${TARBALL} /tmp/\${TARBALL}\nRUN npm install -g /tmp/\${TARBALL} && rm /tmp/\${TARBALL}\n`;
+    writeFileSync(join(buildContext, 'Dockerfile'), dockerfile);
     execFileSync('docker', ['build', '-t', IMAGE_TAG, '--build-arg', `TARBALL=${tarballName}`, '.'], {
       cwd: buildContext, stdio: 'pipe', timeout: 120_000,
     });
@@ -154,8 +157,10 @@ function buildPythonImage(projectDir: string): void {
   mkdirSync(buildContext, { recursive: true });
   try {
     cpSync(join(distDir, distFile), join(buildContext, distFile));
-    cpSync(resolveDockerfileTemplate(projectDir), join(buildContext, 'Dockerfile'));
-    execFileSync('docker', ['build', '-t', IMAGE_TAG, '--build-arg', `TARBALL=${distFile}`, '.'], {
+    const dockerfile = generateVerifyDockerfile(projectDir)
+      + `\n# Install project from distribution\nCOPY ${distFile} /tmp/${distFile}\nRUN pip install --break-system-packages /tmp/${distFile} && rm /tmp/${distFile}\n`;
+    writeFileSync(join(buildContext, 'Dockerfile'), dockerfile);
+    execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], {
       cwd: buildContext, stdio: 'pipe', timeout: 120_000,
     });
   } finally {
@@ -254,7 +259,7 @@ function buildPluginImage(projectDir: string): void {
         cpSync(src, join(buildContext, dir), { recursive: true });
       }
     }
-    cpSync(resolveDockerfileTemplate(projectDir, 'generic'), join(buildContext, 'Dockerfile'));
+    writeFileSync(join(buildContext, 'Dockerfile'), generateVerifyDockerfile(projectDir));
     execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], {
       cwd: buildContext, stdio: 'pipe', timeout: 120_000,
     });
@@ -263,11 +268,11 @@ function buildPluginImage(projectDir: string): void {
   }
 }
 
-function buildSimpleImage(projectDir: string, variant: string, timeout = 120_000): void {
+function buildSimpleImage(projectDir: string, timeout = 120_000): void {
   const buildContext = join('/tmp', `codeharness-verify-build-${Date.now()}`);
   mkdirSync(buildContext, { recursive: true });
   try {
-    cpSync(resolveDockerfileTemplate(projectDir, variant), join(buildContext, 'Dockerfile'));
+    writeFileSync(join(buildContext, 'Dockerfile'), generateVerifyDockerfile(projectDir));
     execFileSync('docker', ['build', '-t', IMAGE_TAG, '.'], {
       cwd: buildContext, stdio: 'pipe', timeout,
     });
@@ -276,20 +281,6 @@ function buildSimpleImage(projectDir: string, variant: string, timeout = 120_000
   }
 }
 
-const DOCKERFILE_VARIANTS: Record<string, string> = {
-  generic: 'Dockerfile.verify.generic',
-  rust: 'Dockerfile.verify.rust',
-};
-
-function resolveDockerfileTemplate(projectDir: string, variant?: string): string {
-  const filename = (variant && DOCKERFILE_VARIANTS[variant]) ?? 'Dockerfile.verify';
-  const local = join(projectDir, 'templates', filename);
-  if (existsSync(local)) return local;
-  const pkgDir = new URL('../../', import.meta.url).pathname;
-  const pkg = join(pkgDir, 'templates', filename);
-  if (existsSync(pkg)) return pkg;
-  throw new Error(`${filename} not found. Ensure templates/${filename} exists.`);
-}
 
 function dockerImageExists(tag: string): boolean {
   try {

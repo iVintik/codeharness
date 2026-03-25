@@ -1,5 +1,5 @@
 # codeharness Sprint Status (auto-generated from sprint-state.json)
-# generated: 2026-03-24
+# generated: 2026-03-25
 # This file is a derived view — do NOT edit manually.
 # Source of truth: sprint-state.json
 
@@ -105,11 +105,11 @@ development_status:
   epic-14: backlog
   14-1-retro-to-sprint-pipeline-epic-td: done
   14-2-tech-debt-gate-story-selection: done
-  14-3-docker-precheck-orphan-cleanup: verifying
-  14-4-observability-backend-choice: backlog
-  14-5-stack-aware-verify-dockerfile: backlog
-  14-6-subagent-status-ownership-time-budget: backlog
-  14-7-fix-beads-flags-ralph-tracking-proof-docs: backlog
+  14-3-docker-precheck-orphan-cleanup: done
+  14-4-observability-backend-choice: verifying
+  14-5-stack-aware-verify-dockerfile: verifying
+  14-6-subagent-status-ownership-time-budget: verifying
+  14-7-fix-beads-flags-ralph-tracking-proof-docs: done
 
   # Epic 15
   epic-15: backlog

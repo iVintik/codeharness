@@ -16,6 +16,7 @@ vi.mock('../docs-scaffold.js', async (importOriginal) => {
 
 vi.mock('../../../lib/stack-path.js', () => ({
   getComposeFilePath: vi.fn(() => '/mock/.codeharness/stack/docker-compose.harness.yml'),
+  getElkComposeFilePath: vi.fn(() => '/mock/.codeharness/stack/docker-compose.elk.yml'),
   ensureStackDir: vi.fn(),
 }));
 
@@ -362,6 +363,101 @@ describe('initProject — observability modes', () => {
     if (result.success) {
       expect(result.data.otlp!.status).toBe('skipped');
       expect(result.data.docker).toBeNull();
+    }
+  });
+});
+
+describe('initProject — observability backend choice', () => {
+  it('stores otlp.backend: victoria when --observability-backend victoria', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: true,
+      observabilityBackend: 'victoria',
+    });
+    const state = readState(testDir);
+    expect(state.otlp?.backend).toBe('victoria');
+  });
+
+  it('stores otlp.backend: elk when --observability-backend elk', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: true,
+      observabilityBackend: 'elk',
+    });
+    const state = readState(testDir);
+    expect(state.otlp?.backend).toBe('elk');
+  });
+
+  it('stores otlp.backend: none and skips Docker when --observability-backend none', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: true,
+      observabilityBackend: 'none',
+    });
+    const state = readState(testDir);
+    expect(state.otlp?.backend).toBe('none');
+    expect(state.otlp?.enabled).toBe(false);
+    if (result.success) {
+      expect(result.data.otlp?.status).toBe('skipped');
+    }
+  });
+
+  it('remote endpoint with elk backend stores both mode and backend', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: true,
+      observabilityBackend: 'elk',
+      otelEndpoint: 'http://remote:4318',
+    });
+    const state = readState(testDir);
+    expect(state.otlp?.backend).toBe('elk');
+    expect(state.otlp?.mode).toBe('remote-direct');
+  });
+
+  it('defaults to victoria when no --observability-backend flag', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: true,
+    });
+    const state = readState(testDir);
+    expect(state.otlp?.backend).toBe('victoria');
+  });
+
+  it('rejects invalid --observability-backend value', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: true,
+      observabilityBackend: 'foobar' as 'victoria',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.status).toBe('fail');
+      expect(result.data.error).toContain('Invalid --observability-backend');
+      expect(result.data.error).toContain('foobar');
     }
   });
 });

@@ -93,4 +93,7 @@ export interface StackProvider {
 
   /** Extract the project name from the project directory, or null if undetermined. */
   getProjectName(dir: string): string | null;
+
+  /** Return Dockerfile snippet for verification environment tooling. */
+  getVerifyDockerfileSection(projectDir: string): string;
 }

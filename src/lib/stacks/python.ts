@@ -249,6 +249,18 @@ RUN pip install --target=/build/dist .
 
   // ── Task 16: getProjectName ───────────────────────────────────────────
 
+  // ── getVerifyDockerfileSection ──────────────────────────────────────
+
+  getVerifyDockerfileSection(_projectDir: string): string {
+    return [
+      '# --- Python tooling ---',
+      'RUN apt-get update && apt-get install -y --no-install-recommends \\',
+      '    python3-pip python3-venv \\',
+      '    && rm -rf /var/lib/apt/lists/*',
+      'RUN pip install --break-system-packages coverage pytest',
+    ].join('\n');
+  }
+
   getProjectName(dir: string): string | null {
     // Try pyproject.toml first
     const pyprojectContent = readTextSafe(join(dir, 'pyproject.toml'));

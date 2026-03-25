@@ -60,6 +60,13 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   const rerunResult = handleRerun(opts, result);
   if (rerunResult !== null) return rerunResult;
 
+  // --- Observability backend validation ---
+  const validBackends = ['victoria', 'elk', 'none'] as const;
+  if (opts.observabilityBackend !== undefined && !validBackends.includes(opts.observabilityBackend)) {
+    const msg = `Invalid --observability-backend '${opts.observabilityBackend}'. Must be one of: ${validBackends.join(', ')}`;
+    emitError(msg, isJson); return ok(failResult(opts, msg));
+  }
+
   // --- Remote endpoint URL validation ---
   const urlError = validateRemoteUrls(opts);
   if (urlError !== null) { emitError(urlError, isJson); return ok(failResult(opts, urlError)); }
@@ -143,6 +150,25 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   const docsResult = await scaffoldDocs({ projectDir, stack, stacks: allStacks, isJson });
   if (isOk(docsResult)) result.documentation = docsResult.data;
 
+  // --- Store observability backend choice ---
+  const obsBackend = opts.observabilityBackend ?? 'victoria';
+  if (obsBackend === 'none') {
+    // 'none' backend: disable OTLP and skip Docker, similar to --no-observability but persisted
+    state.otlp = { enabled: false, endpoint: '', service_name: basename(projectDir), mode: 'local-shared', backend: 'none' };
+    writeState(state, projectDir);
+    result.otlp = { status: 'skipped', packages_installed: false, start_script_patched: false, env_vars_configured: false };
+    if (!isJson) info('Observability: disabled (--observability-backend none)');
+    // Skip enforcement summary for 'none' — jump to end
+    if (!isJson) {
+      const e = state.enforcement;
+      const fmt = (v: boolean): string => v ? 'ON' : 'OFF';
+      okOutput(`Enforcement: frontend:${fmt(e.frontend)} database:${fmt(e.database)} api:${fmt(e.api)} observability:OFF`);
+      info('Harness initialized. Run: codeharness bridge --epics <path>');
+    }
+    if (isJson) jsonOutput(result as unknown as Record<string, unknown>);
+    return ok(result);
+  }
+
   // --- OTLP instrumentation ---
   if (!opts.observability) {
     result.otlp = { status: 'skipped', packages_installed: false, start_script_patched: false, env_vars_configured: false };
@@ -168,6 +194,8 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   if (!state.otlp) {
     state.otlp = { enabled: true, endpoint: 'http://localhost:4318', service_name: basename(projectDir), mode: 'local-shared' };
   }
+  state.otlp.backend = obsBackend;
+  writeState(state, projectDir);
 
   // --- Docker stack setup ---
   const dockerSetup = setupDocker({

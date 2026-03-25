@@ -18,17 +18,13 @@ vi.mock('../../modules/audit/index.js', () => ({
   runAudit: vi.fn(),
   generateFixStories: vi.fn(),
   addFixStoriesToState: vi.fn(),
-}));
-
-vi.mock('../../modules/audit/report.js', () => ({
   formatAuditHuman: vi.fn(),
   formatAuditJson: vi.fn(),
 }));
 
 import { ok as okOutput, fail as failOutput, info, jsonOutput } from '../../lib/output.js';
 import { runPreconditions } from '../../lib/onboard-checks.js';
-import { runAudit, generateFixStories, addFixStoriesToState } from '../../modules/audit/index.js';
-import { formatAuditHuman, formatAuditJson } from '../../modules/audit/report.js';
+import { runAudit, generateFixStories, addFixStoriesToState, formatAuditHuman, formatAuditJson } from '../../modules/audit/index.js';
 import { registerAuditCommand } from '../audit.js';
 
 const mockRunPreconditions = vi.mocked(runPreconditions);

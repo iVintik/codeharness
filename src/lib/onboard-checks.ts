@@ -152,7 +152,7 @@ export function findObservabilityGaps(dir?: string): OnboardingStory[] {
   try {
     state = readState(dir);
   } catch {
-    // State file missing — fail open
+    // IGNORE: state file missing, fail open
     return [];
   }
 
@@ -215,6 +215,7 @@ export function getOnboardingProgress(
   try {
     issues = beadsFns.listIssues();
   } catch {
+    // IGNORE: beads unavailable, cannot count gap progress
     return null;
   }
 
@@ -268,7 +269,7 @@ export function filterTrackedGaps(
   try {
     existingIssues = beadsFns.listIssues();
   } catch {
-    // Fail open — beads unavailable, return all as untracked
+    // IGNORE: beads unavailable, return all as untracked
     return { untracked: [...stories], trackedCount: 0 };
   }
 

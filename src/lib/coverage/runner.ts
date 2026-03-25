@@ -42,6 +42,7 @@ function detectRustCoverageTool(dir: string): CoverageToolInfo {
   try {
     execSync('cargo tarpaulin --version', { stdio: 'pipe', timeout: 10_000 });
   } catch {
+    // IGNORE: cargo-tarpaulin not installed
     warn('cargo-tarpaulin not installed — coverage detection unavailable');
     return { tool: 'unknown', runCommand: '', reportFormat: '' };
   }
@@ -52,7 +53,7 @@ function detectRustCoverageTool(dir: string): CoverageToolInfo {
   try {
     const cargoContent = readFileSync(cargoPath, 'utf-8');
     isWorkspace = /^\[workspace\]/m.test(cargoContent);
-  } catch { /* ignore */ }
+  } catch { /* IGNORE: Cargo.toml may not exist */ }
   const wsFlag = isWorkspace ? ' --workspace' : '';
   return {
     tool: 'cargo-tarpaulin',
@@ -66,6 +67,7 @@ function getStateToolHint(dir: string): string | null {
     const { state } = readStateWithBody(dir);
     return state.coverage.tool || null;
   } catch {
+    // IGNORE: state file may not exist
     return null;
   }
 }
@@ -95,7 +97,7 @@ function detectNodeCoverageTool(dir: string, stateHint: string | null): Coverage
       hasJest = 'jest' in allDeps;
       pkgScripts = pkg.scripts ?? {};
     } catch {
-      // Malformed package.json — continue with defaults
+      // IGNORE: malformed package.json, continue with defaults
     }
   }
 
@@ -160,7 +162,7 @@ function detectPythonCoverageTool(dir: string): CoverageToolInfo {
         };
       }
     } catch {
-      // Continue checking
+      // IGNORE: requirements.txt may be unreadable
     }
   }
 
@@ -176,7 +178,7 @@ function detectPythonCoverageTool(dir: string): CoverageToolInfo {
         };
       }
     } catch {
-      // Continue checking
+      // IGNORE: pyproject.toml may be unreadable
     }
   }
 
@@ -270,7 +272,7 @@ export function checkOnlyCoverage(dir?: string): CoverageResult {
     const { state } = readStateWithBody(baseDir);
     testsPassed = state.session_flags.tests_passed;
   } catch {
-    // No state file — default to true (optimistic for first-run check-only)
+    // IGNORE: no state file, default to true for first-run check-only
   }
 
   return {

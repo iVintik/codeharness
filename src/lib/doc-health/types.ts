@@ -43,6 +43,7 @@ export function getNewestSourceMtime(dir: string): Date | null {
     try {
       entries = readdirSync(current);
     } catch {
+      // IGNORE: directory may not be readable
       return;
     }
 
@@ -55,6 +56,7 @@ export function getNewestSourceMtime(dir: string): Date | null {
       try {
         stat = statSync(fullPath);
       } catch {
+        // IGNORE: file stat may fail, skip entry
         continue;
       }
 

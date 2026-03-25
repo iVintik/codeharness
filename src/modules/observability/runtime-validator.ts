@@ -107,6 +107,7 @@ export async function checkBackendHealth(queryEndpoint: string): Promise<boolean
     });
     return response.ok;
   } catch {
+    // IGNORE: health check endpoint may be unreachable
     return false;
   }
 }
@@ -121,6 +122,7 @@ export async function queryTelemetryEvents(
   try {
     url = new URL('/select/logsql/query', queryEndpoint);
   } catch {
+    // IGNORE: malformed URL, return error
     return fail(`Invalid queryEndpoint URL: ${queryEndpoint}`);
   }
   url.searchParams.set('query', '*');
@@ -183,10 +185,12 @@ function discoverModules(projectDir: string): string[] {
       try {
         return statSync(join(srcDir, name)).isDirectory();
       } catch {
+        // IGNORE: stat may fail on individual entry
         return false;
       }
     });
   } catch {
+    // IGNORE: src/ directory may not exist
     return [];
   }
 }
@@ -205,7 +209,7 @@ function parseLogEvents(text: string): TelemetryEvent[] {
         source: String(raw.source ?? raw._source ?? raw.service ?? ''),
       });
     } catch {
-      // skip malformed lines
+      // IGNORE: skip malformed log lines
     }
   }
   return events;

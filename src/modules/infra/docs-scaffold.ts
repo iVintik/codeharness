@@ -27,7 +27,7 @@ export function getProjectName(projectDir: string): string {
       }
     }
   } catch {
-    // Fall through to Cargo.toml check
+    // IGNORE: package.json may not exist or be malformed
   }
 
   // Cargo.toml fallback for Rust projects
@@ -44,7 +44,7 @@ export function getProjectName(projectDir: string): string {
       }
     }
   } catch {
-    // Fall through to basename
+    // IGNORE: Cargo.toml may not exist or be malformed
   }
 
   return basename(projectDir);
@@ -268,6 +268,7 @@ export async function scaffoldDocs(opts: ScaffoldDocsOptions): Promise<Result<In
           timeout: 10_000,
         }).toString();
       } catch {
+        // IGNORE: CLI help may not be available during init
         cliHelpOutput = 'Run: codeharness --help';
       }
 

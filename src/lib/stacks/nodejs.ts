@@ -191,6 +191,7 @@ export class NodejsProvider implements StackProvider {
       raw = readFileSync(pkgPath, 'utf-8');
       pkg = JSON.parse(raw) as Record<string, unknown>;
     } catch {
+      // IGNORE: package.json may not exist or be malformed
       return false;
     }
 
@@ -330,6 +331,7 @@ COPY . .
       };
       return report.total?.statements?.pct ?? 0;
     } catch {
+      // IGNORE: coverage report may be malformed
       return 0;
     }
   }

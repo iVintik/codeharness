@@ -18,7 +18,7 @@ export function evaluateCoverage(result: CoverageResult, dir?: string): Coverage
     target = state.coverage.target ?? 90;
     baseline = state.coverage.baseline;
   } catch {
-    // No state file — use defaults
+    // IGNORE: no state file, use default coverage targets
   }
 
   const actual = result.coveragePercent;
@@ -75,6 +75,7 @@ export function checkPerFileCoverage(floor: number, dir?: string): PerFileCovera
   try {
     report = JSON.parse(readFileSync(reportPath, 'utf-8')) as typeof report;
   } catch {
+    // IGNORE: coverage-summary.json may be malformed
     warn('Failed to parse coverage-summary.json');
     return { floor, violations: [], totalFiles: 0 };
   }

@@ -96,6 +96,7 @@ function countSourceFiles(dir: string): number {
     try {
       entries = readdirSync(current);
     } catch {
+      // IGNORE: directory may not be readable
       return;
     }
 
@@ -108,6 +109,7 @@ function countSourceFiles(dir: string): number {
       try {
         stat = statSync(fullPath);
       } catch {
+        // IGNORE: file stat may fail, skip entry
         continue;
       }
 
@@ -148,6 +150,7 @@ function countModuleFiles(
     try {
       entries = readdirSync(current);
     } catch {
+      // IGNORE: directory may not be readable
       return;
     }
 
@@ -159,6 +162,7 @@ function countModuleFiles(
       try {
         stat = statSync(fullPath);
       } catch {
+        // IGNORE: file stat may fail, skip entry
         continue;
       }
 
@@ -348,6 +352,7 @@ function readVitestPerFileCoverage(dir: string): Map<string, number> | null {
     }
     return result;
   } catch {
+    // IGNORE: coverage report may not exist or be malformed
     return null;
   }
 }
@@ -369,6 +374,7 @@ function readPythonPerFileCoverage(dir: string): Map<string, number> | null {
     }
     return result;
   } catch {
+    // IGNORE: Python coverage report may not exist or be malformed
     return null;
   }
 }
@@ -415,6 +421,7 @@ export function auditDocumentation(dir?: string): DocAuditResult {
         documents.push({ name: 'docs/', grade: 'present', path: 'docs/' });
       }
     } catch {
+      // IGNORE: docs/ directory stat failed, treat as missing
       documents.push({ name: 'docs/', grade: 'missing', path: null });
     }
   } else {

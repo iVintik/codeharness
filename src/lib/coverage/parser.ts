@@ -85,6 +85,7 @@ function parseVitestCoverage(dir: string): number {
     };
     return report.total?.statements?.pct ?? 0;
   } catch {
+    // IGNORE: coverage report may be malformed
     warn('Failed to parse coverage report');
     return 0;
   }
@@ -103,6 +104,7 @@ function parsePythonCoverage(dir: string): number {
     };
     return report.totals?.percent_covered ?? 0;
   } catch {
+    // IGNORE: Python coverage report may be malformed
     warn('Failed to parse coverage report');
     return 0;
   }
@@ -118,6 +120,7 @@ function parseTarpaulinCoverage(dir: string): number {
     const report = JSON.parse(readFileSync(reportPath, 'utf-8')) as { coverage?: number };
     return report.coverage ?? 0;
   } catch {
+    // IGNORE: tarpaulin coverage report may be malformed
     warn('Failed to parse tarpaulin coverage report');
     return 0;
   }

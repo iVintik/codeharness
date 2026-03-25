@@ -73,6 +73,7 @@ export function parseStreamLine(line: string): StreamEvent | null {
   try {
     parsed = JSON.parse(trimmed) as Record<string, unknown>;
   } catch {
+    // IGNORE: malformed JSON in stream output, skip line
     return null;
   }
 

@@ -211,6 +211,7 @@ RUN cargo build --release
       const report = JSON.parse(readFileSync(reportPath, 'utf-8')) as { coverage?: number };
       return report.coverage ?? 0;
     } catch {
+      // IGNORE: tarpaulin report may be malformed
       return 0;
     }
   }

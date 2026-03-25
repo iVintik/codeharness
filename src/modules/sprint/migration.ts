@@ -25,7 +25,7 @@ function resolve(relative: string): string {
 function readIfExists(relative: string): string | null {
   const p = resolve(relative);
   if (!existsSync(p)) return null;
-  try { return readFileSync(p, 'utf-8'); } catch { return null; }
+  try { return readFileSync(p, 'utf-8'); } catch { return null; } // IGNORE: file may be unreadable
 }
 
 /** Return a fresh empty StoryState */
@@ -144,7 +144,7 @@ function parseRalphStatus(content: string): SprintState['run'] | null {
       iteration: data.loop_count ?? 0, cost: 0, completed: [], failed: [],
       currentStory: null, currentPhase: null, lastAction: null, acProgress: null,
     };
-  } catch { return null; }
+  } catch { return null; } // IGNORE: malformed status JSON
 }
 
 /** Parse ralph/status.json into SessionState for v2 */
@@ -157,7 +157,7 @@ function parseRalphStatusToSession(content: string): SessionState | null {
       iteration: data.loop_count ?? 0,
       elapsedSeconds: data.elapsed_seconds ?? 0,
     };
-  } catch { return null; }
+  } catch { return null; } // IGNORE: malformed ralph status JSON
 }
 
 /** Parse .session-issues.md for action items (best effort) */

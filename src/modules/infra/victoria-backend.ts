@@ -185,7 +185,7 @@ function parseLogEntries(text: string): LogEntry[] {
         labels: extractLabels(raw),
       });
     } catch {
-      // skip malformed lines
+      // IGNORE: skip malformed log lines
     }
   }
   return entries;

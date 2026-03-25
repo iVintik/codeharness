@@ -87,6 +87,7 @@ export function checkInstalled(spec: DependencySpec): { installed: boolean; vers
     const version = parseVersion(output);
     return { installed: true, version };
   } catch {
+    // IGNORE: dependency check command failed, not installed
     return { installed: false, version: null };
   }
 }
@@ -124,7 +125,7 @@ export function installDependency(spec: DependencySpec): DependencyResult {
         };
       }
     } catch {
-      // Try next fallback
+      // IGNORE: install command failed, try next fallback
       continue;
     }
   }

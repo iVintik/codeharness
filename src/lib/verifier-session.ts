@@ -100,6 +100,7 @@ function savePartialProof(
     writeFileSync(proofPath, report, 'utf-8');
     return true;
   } catch {
+    // IGNORE: proof file write failed, non-fatal
     return false;
   }
 }
@@ -234,7 +235,7 @@ export function spawnVerifierSession(
             ? 0
             : (gapResult.coveredCount / gapResult.totalACs) * 100;
       } catch {
-        // Proof file may not be parseable — proceed with defaults
+        // IGNORE: proof file may not be parseable, proceed with defaults
       }
     }
 

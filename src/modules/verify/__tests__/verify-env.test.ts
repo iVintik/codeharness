@@ -246,7 +246,7 @@ describe('buildVerifyImage', () => {
     expect(result.buildTimeMs).toBeGreaterThanOrEqual(0);
 
     // Cleanup
-    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch { /* IGNORE: cleanup — file may not exist */ }
   });
 
   it('returns cached result regardless of caller context', () => {
@@ -329,7 +329,7 @@ describe('buildVerifyImage', () => {
 
     const result = buildVerifyImage({ projectDir: testDir });
     expect(result.cached).toBe(false);
-    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch { /* IGNORE: cleanup — file may not exist */ }
   });
 
   it('handles state write failure gracefully when storing dist hash', () => {
@@ -360,7 +360,7 @@ describe('buildVerifyImage', () => {
     // Should not throw even though state write fails
     const result = buildVerifyImage({ projectDir: testDir });
     expect(result.cached).toBe(false);
-    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch { /* IGNORE: cleanup — file may not exist */ }
   });
 
   it('throws when npm pack produces empty output', () => {
@@ -808,7 +808,7 @@ describe('buildVerifyImage — size formatting', () => {
 
     const result = buildVerifyImage({ projectDir: testDir });
     expect(result.imageSize).toBe('2.5GB');
-    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch { /* IGNORE: cleanup — file may not exist */ }
   });
 
   it('formats KB-range sizes', () => {
@@ -829,7 +829,7 @@ describe('buildVerifyImage — size formatting', () => {
 
     const result = buildVerifyImage({ projectDir: testDir });
     expect(result.imageSize).toBe('5.0KB');
-    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch { /* IGNORE: cleanup — file may not exist */ }
   });
 
   it('formats B-range sizes', () => {
@@ -850,7 +850,7 @@ describe('buildVerifyImage — size formatting', () => {
 
     const result = buildVerifyImage({ projectDir: testDir });
     expect(result.imageSize).toBe('500B');
-    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch { /* IGNORE: cleanup — file may not exist */ }
   });
 
   it('returns NaN output as-is', () => {
@@ -871,7 +871,7 @@ describe('buildVerifyImage — size formatting', () => {
 
     const result = buildVerifyImage({ projectDir: testDir });
     expect(result.imageSize).toBe('not-a-number');
-    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch { /* IGNORE: cleanup — file may not exist */ }
   });
 
   it('returns unknown when docker inspect fails', () => {
@@ -900,7 +900,7 @@ describe('buildVerifyImage — size formatting', () => {
 
     const result = buildVerifyImage({ projectDir: testDir });
     expect(result.imageSize).toBe('unknown');
-    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch {}
+    try { rmSync('/tmp/codeharness-0.13.2.tgz', { force: true }); } catch { /* IGNORE: cleanup — file may not exist */ }
   });
 });
 

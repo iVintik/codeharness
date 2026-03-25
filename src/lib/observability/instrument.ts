@@ -77,6 +77,7 @@ export function patchNodeStartScript(projectDir: string): boolean {
     raw = readFileSync(pkgPath, 'utf-8');
     pkg = JSON.parse(raw) as Record<string, unknown>;
   } catch {
+    // IGNORE: package.json may not exist or be malformed
     return false;
   }
   const scripts = pkg['scripts'] as Record<string, string> | undefined;
@@ -119,6 +120,7 @@ export function installPythonOtlp(projectDir: string): OtlpResult {
         env_vars_configured: false,
       };
     } catch {
+      // IGNORE: install chain failed, try next method
       continue;
     }
   }

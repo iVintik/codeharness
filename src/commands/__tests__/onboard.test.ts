@@ -7,15 +7,12 @@ vi.mock('../../lib/output.js', () => ({
 vi.mock('../../lib/onboard-checks.js', () => ({ runPreconditions: vi.fn() }));
 vi.mock('../../modules/audit/index.js', () => ({
   runAudit: vi.fn(), generateFixStories: vi.fn(), addFixStoriesToState: vi.fn(),
-}));
-vi.mock('../../modules/audit/report.js', () => ({
   formatAuditHuman: vi.fn(), formatAuditJson: vi.fn(),
 }));
 
 import { fail as failOutput, warn as warnOutput, jsonOutput } from '../../lib/output.js';
 import { runPreconditions } from '../../lib/onboard-checks.js';
-import { runAudit, generateFixStories, addFixStoriesToState } from '../../modules/audit/index.js';
-import { formatAuditHuman, formatAuditJson } from '../../modules/audit/report.js';
+import { runAudit, generateFixStories, addFixStoriesToState, formatAuditHuman, formatAuditJson } from '../../modules/audit/index.js';
 import { registerOnboardCommand } from '../onboard.js';
 import { registerAuditCommand } from '../audit.js';
 

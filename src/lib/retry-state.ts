@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { getSprintState, writeStateAtomic } from '../modules/sprint/state.js';
+import { getSprintState, writeStateAtomic } from '../modules/sprint/index.js';
 import type { SprintState } from '../types/state.js';
 
 const RETRIES_FILE = '.story_retries';

@@ -34,6 +34,7 @@ export function findModules(dir: string, threshold?: number): string[] {
     try {
       entries = readdirSync(current);
     } catch {
+      // IGNORE: directory may not be readable
       return;
     }
 
@@ -57,6 +58,7 @@ export function findModules(dir: string, threshold?: number): string[] {
       try {
         stat = statSync(fullPath);
       } catch {
+        // IGNORE: file stat may fail, skip entry
         continue;
       }
 
@@ -216,6 +218,7 @@ export function scanDocHealth(dir?: string): DocHealthReport {
       try {
         stat = statSync(filePath);
       } catch {
+        // IGNORE: file stat may fail, skip entry
         continue;
       }
       if (!stat.isFile()) continue;
@@ -266,6 +269,6 @@ function checkAgentsMdLineCount(
       });
     }
   } catch {
-    // Ignore read errors
+    // IGNORE: AGENTS.md file may not be readable
   }
 }

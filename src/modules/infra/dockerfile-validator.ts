@@ -171,6 +171,7 @@ export function validateDockerfile(projectDir: string): Result<DockerfileValidat
   try {
     content = readFileSync(dfPath, 'utf-8');
   } catch {
+    // IGNORE: Dockerfile read failed
     return fail('Dockerfile exists but could not be read');
   }
 

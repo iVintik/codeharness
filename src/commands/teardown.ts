@@ -117,6 +117,7 @@ export function registerTeardownCommand(program: Command): void {
         try {
           stackRunning = isStackRunning(composeFile);
         } catch {
+          // IGNORE: docker check may fail if not available
           stackRunning = false;
         }
 
@@ -173,7 +174,7 @@ export function registerTeardownCommand(program: Command): void {
             patchesRemoved++;
           }
         } catch {
-          // Skip silently on error
+          // IGNORE: patch removal failure is non-fatal
         }
       }
       result.patches_removed = patchesRemoved;
@@ -224,6 +225,7 @@ export function registerTeardownCommand(program: Command): void {
               }
             }
           } catch {
+            // IGNORE: OTLP teardown failure is non-fatal
             if (!isJson) {
               info('OTLP: no instrumented scripts found');
             }

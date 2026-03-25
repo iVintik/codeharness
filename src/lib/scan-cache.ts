@@ -38,8 +38,7 @@ export function saveScanCache(entry: ScanCacheEntry, dir?: string): void {
     const cachePath = join(cacheDir, CACHE_FILE);
     writeFileSync(cachePath, JSON.stringify(entry, null, 2), 'utf-8');
   } catch {
-    // Cache write is best-effort — fail silently rather than crashing
-    // the command after a successful scan.
+    // IGNORE: cache write is best-effort — fail silently rather than crashing
   }
 }
 
@@ -57,6 +56,7 @@ export function loadScanCache(dir?: string): ScanCacheEntry | null {
     const raw = readFileSync(cachePath, 'utf-8');
     return JSON.parse(raw) as ScanCacheEntry;
   } catch {
+    // IGNORE: cache file may be corrupted, return null
     return null;
   }
 }

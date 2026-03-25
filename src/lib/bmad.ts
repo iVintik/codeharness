@@ -68,7 +68,7 @@ export function detectBmadVersion(dir?: string): string | null {
         return versionMatch[1];
       }
     } catch {
-      // Fall through to other methods
+      // IGNORE: file read may fail, fall through to other methods
     }
   }
 
@@ -78,7 +78,7 @@ export function detectBmadVersion(dir?: string): string | null {
     try {
       return readFileSync(versionFilePath, 'utf-8').trim() || null;
     } catch {
-      // Fall through
+      // IGNORE: VERSION file may be unreadable, fall through
     }
   }
 
@@ -89,7 +89,7 @@ export function detectBmadVersion(dir?: string): string | null {
       const pkg = JSON.parse(readFileSync(packageJsonPath, 'utf-8')) as { version?: string };
       return pkg.version ?? null;
     } catch {
-      // Fall through
+      // IGNORE: package.json may be malformed, fall through
     }
   }
 
@@ -439,7 +439,7 @@ export function importStoriesToBeads(
   try {
     existingIssues = beadsFns.listIssues();
   } catch {
-    // If listIssues fails, proceed without dedup — createIssue will still work
+    // IGNORE: listIssues may fail, proceed without dedup — createIssue will still work
   }
 
   // Track beads IDs per epic for dependency chaining

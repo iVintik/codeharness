@@ -32,7 +32,7 @@ export function registerStackCommand(program: Command): void {
         mode = state.otlp?.mode;
         remoteEndpoints = state.docker?.remote_endpoints;
       } catch {
-        // No state — default to local-shared
+        // IGNORE: no state file, default to local-shared
       }
 
       if (mode === 'remote-direct') {
@@ -133,7 +133,7 @@ export function registerStackCommand(program: Command): void {
         const state = readState();
         mode = state.otlp?.mode;
       } catch {
-        // No state — default to local-shared
+        // IGNORE: no state file, default to local-shared
       }
 
       if (mode === 'remote-direct') {
@@ -205,7 +205,7 @@ export function registerStackCommand(program: Command): void {
         remoteEndpoints = state.docker?.remote_endpoints;
         otlpEndpoint = state.otlp?.endpoint;
       } catch {
-        // No state — default to local-shared
+        // IGNORE: no state file, default to local-shared
       }
 
       if (mode === 'remote-direct') {

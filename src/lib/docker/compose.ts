@@ -22,6 +22,7 @@ export function isStackRunning(composeFile: string): boolean {
     }
     return lines.length > 0;
   } catch {
+    // IGNORE: docker compose check failed, stack not running
     return false;
   }
 }
@@ -43,6 +44,7 @@ export function isSharedStackRunning(): boolean {
     }
     return lines.length > 0;
   } catch {
+    // IGNORE: docker compose check failed, shared stack not running
     return false;
   }
 }
@@ -167,6 +169,7 @@ export function isCollectorRunning(): boolean {
     }
     return lines.length > 0;
   } catch {
+    // IGNORE: collector status check failed, not running
     return false;
   }
 }
@@ -207,6 +210,7 @@ function getRunningServices(composeFile: string, projectName?: string): DockerSe
     }
     return services;
   } catch {
+    // IGNORE: docker compose ps failed, return empty service list
     return [];
   }
 }

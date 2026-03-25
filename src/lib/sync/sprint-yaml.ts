@@ -26,6 +26,7 @@ export function readSprintStatus(dir?: string): Record<string, string> {
     }
     return devStatus as Record<string, string>;
   } catch {
+    // IGNORE: sprint-status.yaml may not exist or be malformed
     return {};
   }
 }

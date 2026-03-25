@@ -51,7 +51,7 @@ export function cleanupContainers(): Result<CleanupResult> {
           .filter(n => n.trim());
         staleNames.push(...names);
       } catch {
-        // docker ps failed for this pattern — skip
+        // IGNORE: docker ps failed for this pattern, skip
       }
     }
 
@@ -69,7 +69,7 @@ export function cleanupContainers(): Result<CleanupResult> {
         });
         removed.push(name);
       } catch {
-        // Individual removal failed — continue with others
+        // IGNORE: individual container removal failed, continue with others
       }
     }
 

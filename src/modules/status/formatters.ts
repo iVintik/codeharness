@@ -242,6 +242,7 @@ export async function handleHealthCheck(isJson: boolean): Promise<void> {
     state = readState();
     checks.push({ name: 'state_file', status: 'ok', detail: 'valid' });
   } catch {
+    // IGNORE: state file may not exist
     checks.push({ name: 'state_file', status: 'fail', detail: 'not found' });
   }
 
@@ -309,6 +310,7 @@ export async function handleHealthCheck(isJson: boolean): Promise<void> {
       checks.push({ name: 'beads', status: 'fail', detail: 'not initialized' });
     }
   } catch {
+    // IGNORE: beads CLI may not be available
     checks.push({ name: 'beads', status: 'fail', detail: 'bd command failed' });
   }
 
@@ -338,7 +340,7 @@ export async function handleDockerCheck(isJson: boolean): Promise<void> {
   try {
     state = readState();
   } catch {
-    // No state file or corrupted
+    // IGNORE: state file may not exist or be corrupted
   }
 
   const backend = state?.otlp?.backend ?? 'victoria';
@@ -555,6 +557,7 @@ function printBeadsSummary(): void {
       `Beads: ${issues.length} issues${typeInfo} | ready:${ready} in-progress:${inProgress} done:${done}`,
     );
   } catch {
+    // IGNORE: beads CLI may not be available
     console.log('Beads: unavailable (bd command failed)');
   }
 }
@@ -600,6 +603,7 @@ function getBeadsData(): Record<string, unknown> {
       issues_by_status: issuesByStatus,
     };
   } catch {
+    // IGNORE: beads CLI may not be available
     return { initialized: true, error: 'bd command failed' };
   }
 }

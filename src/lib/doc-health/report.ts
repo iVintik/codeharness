@@ -143,7 +143,7 @@ export function completeExecPlan(storyId: string, dir?: string): string | null {
   try {
     unlinkSync(activePath);
   } catch {
-    // Best-effort removal
+    // IGNORE: best-effort removal of active exec-plan
   }
 
   return completedPath;

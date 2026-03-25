@@ -489,19 +489,19 @@
       "acResults": null
     },
     "14-7-fix-beads-flags-ralph-tracking-proof-docs": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/14-7-fix-beads-flags-ralph-tracking-proof-docs-proof.md",
       "acResults": null
     },
     "15-1-ci-file-size-gate": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/15-1-ci-file-size-gate-proof.md",
       "acResults": null
     },
     "15-2-eslint-no-empty-catch-boundary-tests": {
@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "15-2-eslint-no-empty-catch-boundary-tests",
+    "currentPhase": "dev",
+    "lastAction": "Starting implementation",
     "acProgress": null
   },
   "actionItems": [

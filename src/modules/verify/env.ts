@@ -53,7 +53,7 @@ function getStoredDistHash(projectDir: string): string | null {
   try {
     const { state } = readStateWithBody(projectDir);
     return ((state as unknown as Record<string, unknown>)[STATE_KEY_DIST_HASH] as string) ?? null;
-  } catch { return null; }
+  } catch { return null; } // IGNORE: state file may not exist
 }
 
 function storeDistHash(projectDir: string, hash: string): void {
@@ -62,6 +62,7 @@ function storeDistHash(projectDir: string, hash: string): void {
     (state as unknown as Record<string, unknown>)[STATE_KEY_DIST_HASH] = hash;
     writeState(state, projectDir, body);
   } catch {
+    // IGNORE: state file may not be initialized yet
     info('Could not persist dist hash to state file — cache will not be available until state is initialized');
   }
 }
@@ -203,14 +204,14 @@ export function checkVerifyEnv(): CheckResult {
       stdio: 'pipe', timeout: 30_000,
     });
     cliWorks = true;
-  } catch { cliWorks = false; }
+  } catch { cliWorks = false; } // IGNORE: CLI check failed in container
   try {
     execFileSync('docker', [
       'run', '--rm', '--add-host=host.docker.internal:host-gateway', IMAGE_TAG,
       'curl', '-sf', '--max-time', '5', 'http://host.docker.internal:4318/v1/status',
     ], { stdio: 'pipe', timeout: 30_000 });
     otelReachable = true;
-  } catch { otelReachable = false; }
+  } catch { otelReachable = false; } // IGNORE: OTEL endpoint unreachable in container
   return { imageExists, cliWorks, otelReachable };
 }
 
@@ -226,9 +227,9 @@ export function cleanupStaleContainers(): void {
     for (const name of containers) {
       try {
         execFileSync('docker', ['rm', '-f', name], { stdio: 'pipe', timeout: 15_000 });
-      } catch { /* container may already be removed */ }
+      } catch { /* IGNORE: container may already be removed */ }
     }
-  } catch { /* docker not available or no containers — ignore */ }
+  } catch { /* IGNORE: docker not available or no containers */ }
 }
 
 /** Removes temp workspace and stops/removes the container. Idempotent. */
@@ -240,9 +241,9 @@ export function cleanupVerifyEnv(storyKey: string): void {
   const containerName = `codeharness-verify-${storyKey}`;
   if (existsSync(workspace)) rmSync(workspace, { recursive: true, force: true });
   try { execFileSync('docker', ['stop', containerName], { stdio: 'pipe', timeout: 15_000 }); }
-  catch { /* container may not exist */ }
+  catch { /* IGNORE: container may not exist */ }
   try { execFileSync('docker', ['rm', '-f', containerName], { stdio: 'pipe', timeout: 15_000 }); }
-  catch { /* container may not exist */ }
+  catch { /* IGNORE: container may not exist */ }
 }
 
 function buildPluginImage(projectDir: string): void {
@@ -286,7 +287,7 @@ function dockerImageExists(tag: string): boolean {
   try {
     execFileSync('docker', ['image', 'inspect', tag], { stdio: 'pipe', timeout: 10_000 });
     return true;
-  } catch { return false; }
+  } catch { return false; } // IGNORE: docker image inspect may fail
 }
 
 function getImageSize(tag: string): string {
@@ -300,5 +301,5 @@ function getImageSize(tag: string): string {
     if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)}MB`;
     if (bytes >= 1_000) return `${(bytes / 1_000).toFixed(1)}KB`;
     return `${bytes}B`;
-  } catch { return 'unknown'; }
+  } catch { return 'unknown'; } // IGNORE: docker inspect may fail
 }

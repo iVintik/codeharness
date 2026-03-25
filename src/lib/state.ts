@@ -177,6 +177,7 @@ export function readState(dir?: string): HarnessState {
     }
     return migrateState(state);
   } catch {
+    // IGNORE: corrupted state file, recover gracefully
     return recoverCorruptedState(baseDir);
   }
 }
@@ -207,6 +208,7 @@ export function readStateWithBody(dir?: string): { state: HarnessState; body: st
     const body = parts.slice(2).join('---');
     return { state: migrateState(state), body: body || DEFAULT_BODY };
   } catch {
+    // IGNORE: corrupted state YAML, recover with defaults
     const state = recoverCorruptedState(baseDir);
     return { state, body: DEFAULT_BODY };
   }

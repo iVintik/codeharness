@@ -12,6 +12,7 @@ export function readJsonSafe(path: string): Record<string, unknown> | null {
     if (!existsSync(path)) return null;
     return JSON.parse(readFileSync(path, 'utf-8')) as Record<string, unknown>;
   } catch {
+    // IGNORE: JSON file may be malformed
     return null;
   }
 }
@@ -22,6 +23,7 @@ export function readTextSafe(path: string): string | null {
     if (!existsSync(path)) return null;
     return readFileSync(path, 'utf-8');
   } catch {
+    // IGNORE: file may be unreadable
     return null;
   }
 }

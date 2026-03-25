@@ -276,7 +276,7 @@ export function registerRunCommand(program: Command): void {
               const storyEntries = mapSprintStatuses(currentStatuses);
               rendererHandle.updateStories(storyEntries);
             } catch {
-              // Ignore read errors during polling
+              // IGNORE: state read errors during polling are non-fatal
             }
           }, 5_000);
         }
@@ -303,7 +303,7 @@ export function registerRunCommand(program: Command): void {
             try {
               statusData = JSON.parse(readFileSync(statusFile, 'utf-8'));
               exitReason = '';
-            } catch { exitReason = 'status_file_unreadable'; }
+            } catch { exitReason = 'status_file_unreadable'; } // IGNORE: status file may be malformed
           }
           const fc = statusData ? countStories(readSprintStatusFromState()) : counts;
           jsonOutput({

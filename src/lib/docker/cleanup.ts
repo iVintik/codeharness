@@ -6,7 +6,7 @@
  * TODO: Consolidate cleanup logic here if container-cleanup.ts is refactored.
  */
 
-import { cleanupContainers } from '../../modules/infra/container-cleanup.js';
+import { cleanupContainers } from '../../modules/infra/index.js';
 
 /**
  * Cleans up orphaned containers left behind by previous codeharness runs.

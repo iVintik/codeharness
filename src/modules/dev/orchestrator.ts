@@ -62,6 +62,7 @@ function captureFilesChanged(): string[] {
     }
     return [...allFiles];
   } catch {
+    // IGNORE: git diff may fail if not in a git repo
     return [];
   }
 }

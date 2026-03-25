@@ -32,7 +32,7 @@ function readPatchFile(role: string, name: string): string | null {
       return readFileSync(patchPath, 'utf-8').trim();
     }
   } catch {
-    // File disappeared or became unreadable between check and read — fall through to null
+    // IGNORE: patch file may have disappeared between check and read
   }
 
   return null;

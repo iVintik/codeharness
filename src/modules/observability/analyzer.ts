@@ -107,6 +107,7 @@ export function checkSemgrepInstalled(): boolean {
     });
     return true;
   } catch {
+    // IGNORE: grep check may fail if tool not available
     return false;
   }
 }

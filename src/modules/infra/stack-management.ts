@@ -107,12 +107,12 @@ export function detectPortConflicts(
               .toString()
               .trim();
           } catch {
-            // ps failed — keep "unknown"
+            // IGNORE: ps lookup failed, keep "unknown" process name
           }
           conflicts.push({ port, pid, processName });
         }
       } catch {
-        // lsof returns non-zero when port is free — this is expected
+        // IGNORE: lsof returns non-zero when port is free, expected behavior
       }
     }
 

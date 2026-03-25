@@ -33,6 +33,7 @@ export function isDockerAvailable(): boolean {
     execFileSync('docker', ['--version'], { stdio: 'pipe', timeout: 10_000 });
     return true;
   } catch {
+    // IGNORE: docker CLI not available
     return false;
   }
 }
@@ -42,6 +43,7 @@ export function isDockerComposeAvailable(): boolean {
     execFileSync('docker', ['compose', 'version'], { stdio: 'pipe', timeout: 10_000 });
     return true;
   } catch {
+    // IGNORE: docker compose not available
     return false;
   }
 }
@@ -87,6 +89,7 @@ export function getStackHealth(composeFile: string, projectName?: string): Docke
       remedy: healthy ? undefined : `Restart: ${remedyCmd}`,
     };
   } catch {
+    // IGNORE: docker compose ps failed, report all services as down
     const remedyCmd = projectName
       ? `docker compose -p ${projectName} -f ${composeFile} up -d`
       : `docker compose -f ${composeFile} up -d`;
@@ -138,6 +141,7 @@ export function getCollectorHealth(composeFile: string): DockerHealthResult {
       remedy: healthy ? undefined : `Restart: docker compose -p codeharness-collector -f ${composeFile} up -d`,
     };
   } catch {
+    // IGNORE: collector health check failed, report as unhealthy
     const services: DockerHealthService[] = expectedServices.map(name => ({
       name,
       running: false,

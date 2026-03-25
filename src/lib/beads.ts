@@ -27,6 +27,7 @@ export function isBeadsCLIInstalled(): boolean {
     execFileSync('which', ['bd'], { stdio: 'pipe', timeout: 5_000 });
     return true;
   } catch {
+    // IGNORE: beads CLI (bd) not installed
     return false;
   }
 }
@@ -73,6 +74,7 @@ export function bdCommand(args: string[]): unknown {
   try {
     return JSON.parse(text) as unknown;
   } catch {
+    // IGNORE: JSON parse failure, rethrow as BeadsError with context
     throw new BeadsError(cmdStr, `Invalid JSON output from bd: ${text}`);
   }
 }
@@ -155,6 +157,7 @@ export function detectBeadsHooks(dir?: string): BeadsHookDetection {
       hookTypes,
     };
   } catch {
+    // IGNORE: hooks directory may not exist
     return { hasHooks: false, hookTypes: [] };
   }
 }

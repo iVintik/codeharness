@@ -40,6 +40,7 @@ export function getSourceFilesInModule(modulePath: string): string[] {
     try {
       entries = readdirSync(current);
     } catch {
+      // IGNORE: directory may not be readable
       return;
     }
 
@@ -59,6 +60,7 @@ export function getSourceFilesInModule(modulePath: string): string[] {
       try {
         stat = statSync(fullPath);
       } catch {
+        // IGNORE: file stat may fail, skip entry
         continue;
       }
 
@@ -170,6 +172,7 @@ export function checkDoNotEditHeaders(docPath: string): boolean {
     if (content.length === 0) return false;
     return content.trimStart().startsWith(DO_NOT_EDIT_HEADER);
   } catch {
+    // IGNORE: doc file may not be readable
     return false;
   }
 }
@@ -257,6 +260,7 @@ function getRecentlyChangedFiles(dir: string): string[] {
       .split('\n')
       .filter(line => line.length > 0);
   } catch {
+    // IGNORE: git log may fail if not in a git repo
     return [];
   }
 }
@@ -279,6 +283,6 @@ function checkAgentsMdLineCountInternal(
       });
     }
   } catch {
-    // Ignore read errors
+    // IGNORE: AGENTS.md file may not be readable
   }
 }

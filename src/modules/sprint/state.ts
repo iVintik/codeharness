@@ -210,7 +210,7 @@ function writeSprintStatusYaml(state: SprintState): void {
     const content = generateSprintStatusYaml(state);
     writeFileSync(yamlPath, content, 'utf-8');
   } catch {
-    // Best-effort: YAML view is not critical
+    // IGNORE: YAML view write is best-effort, not critical
   }
 }
 
@@ -458,8 +458,8 @@ export function reconcileState(): Result<ReconciliationResult> {
         unlinkSync(retriesPath);
         corrections.push('merged .story_retries into sprint-state.json');
       } catch {
-        // Malformed file — delete it and move on
-        try { unlinkSync(retriesPath); } catch { /* ignore */ }
+        // IGNORE: malformed .story_retries file, delete and move on
+        try { unlinkSync(retriesPath); } catch { /* IGNORE: cleanup failure */ }
         corrections.push('removed malformed .story_retries file');
       }
     }
@@ -483,8 +483,8 @@ export function reconcileState(): Result<ReconciliationResult> {
         unlinkSync(flaggedPath);
         corrections.push('merged .flagged_stories into sprint-state.json');
       } catch {
-        // Malformed file — delete it and move on
-        try { unlinkSync(flaggedPath); } catch { /* ignore */ }
+        // IGNORE: malformed .flagged_stories file, delete and move on
+        try { unlinkSync(flaggedPath); } catch { /* IGNORE: cleanup failure */ }
         corrections.push('removed malformed .flagged_stories file');
       }
     }

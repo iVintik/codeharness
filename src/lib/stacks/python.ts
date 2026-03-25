@@ -132,7 +132,7 @@ export class PythonProvider implements StackProvider {
         packagesInstalled: [...PYTHON_OTLP_PACKAGES],
       };
     } catch {
-      // Fallback: pipx install each package individually
+      // IGNORE: pip install failed, fallback to pipx
     }
 
     const installed: string[] = [];
@@ -243,6 +243,7 @@ RUN pip install --target=/build/dist .
       };
       return report.totals?.percent_covered ?? 0;
     } catch {
+      // IGNORE: Python coverage report may be malformed
       return 0;
     }
   }

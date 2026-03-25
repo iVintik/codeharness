@@ -54,7 +54,7 @@ export function checkPreconditions(dir?: string, storyId?: string): Precondition
         }
       }
     } catch {
-      // Doc health check failed — don't block verification
+      // IGNORE: doc health check failed, don't block verification
       warn('Doc health check failed — skipping');
     }
   }

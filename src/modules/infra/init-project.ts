@@ -190,7 +190,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   }
 
   // Re-read state to pick up otlp changes written by instrumentProject
-  try { const u = readState(projectDir); if (u.otlp) state.otlp = u.otlp; } catch { /* ignore */ }
+  try { const u = readState(projectDir); if (u.otlp) state.otlp = u.otlp; } catch { /* IGNORE: state re-read may fail during init */ }
   if (!state.otlp) {
     state.otlp = { enabled: true, endpoint: 'http://localhost:4318', service_name: basename(projectDir), mode: 'local-shared' };
   }
@@ -243,6 +243,7 @@ function handleRerun(opts: InitOptions, result: InitResult): Result<InitResult> 
     else { info('Harness already initialized — verifying configuration'); okOutput('Configuration verified'); }
     return ok(result);
   } catch {
+    // IGNORE: re-init check may fail, non-fatal
     return null;
   }
 }

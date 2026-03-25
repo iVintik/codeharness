@@ -114,7 +114,7 @@ development_status:
   # Epic 15
   epic-15: backlog
   15-1-ci-file-size-gate: done
-  15-2-eslint-no-empty-catch-boundary-tests: backlog
+  15-2-eslint-no-empty-catch-boundary-tests: done
   15-3-template-migration-static-files: backlog
   15-4-fix-ts-compilation-errors: backlog
   15-5-lint-rule-bare-exception-swallowing: backlog

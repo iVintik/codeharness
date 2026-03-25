@@ -41,6 +41,7 @@ export function isGhAvailable(): boolean {
     execFileSync('which', ['gh'], { stdio: 'pipe', timeout: 5_000 });
     return true;
   } catch {
+    // IGNORE: gh CLI not installed
     return false;
   }
 }
@@ -110,7 +111,7 @@ export function findExistingGhIssue(repo: string, gapId: string): GhIssue | unde
     const issues = ghIssueSearch(repo, gapId);
     return issues.find(issue => issue.body?.includes(gapId));
   } catch {
-    // Search failure should not block — treat as "not found"
+    // IGNORE: search failure should not block, treat as "not found"
     return undefined;
   }
 }
@@ -130,6 +131,7 @@ export function getRepoFromRemote(): string | undefined {
     const url = output.toString().trim();
     return parseRepoFromUrl(url);
   } catch {
+    // IGNORE: git remote not available
     return undefined;
   }
 }
@@ -168,7 +170,7 @@ export function ensureLabels(repo: string, labels: string[]): void {
         timeout: 10_000,
       });
     } catch {
-      // Label may already exist — ignore
+      // IGNORE: label may already exist
     }
   }
 }

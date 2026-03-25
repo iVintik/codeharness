@@ -7,8 +7,7 @@
 
 import { ok as okOutput, fail as failOutput, info, jsonOutput } from '../lib/output.js';
 import { runPreconditions } from '../lib/onboard-checks.js';
-import { runAudit, generateFixStories, addFixStoriesToState } from '../modules/audit/index.js';
-import { formatAuditHuman, formatAuditJson } from '../modules/audit/report.js';
+import { runAudit, generateFixStories, addFixStoriesToState, formatAuditHuman, formatAuditJson } from '../modules/audit/index.js';
 import type { Result } from '../types/result.js';
 import type { FixGenerationResult } from '../modules/audit/index.js';
 

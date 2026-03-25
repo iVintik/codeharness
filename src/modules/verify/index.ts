@@ -164,7 +164,7 @@ export function verifyStory(key: string): Result<VerifyResult> {
         saveRuntimeCoverageImpl('.', runtimeResult);
       }
     } catch {
-      // Proof file may not exist yet or may not be readable — proceed with defaults
+      // IGNORE: proof file may not exist yet or be unreadable, proceed with defaults
     }
 
     const result: VerifyResult = {

@@ -87,6 +87,7 @@ export async function checkObservability(projectDir: string): Promise<Result<Dim
         gaps.push(gap('observability', `Runtime validation failed: ${rr.error}`, 'Ensure observability backend is running'));
       }
     } catch {
+      // IGNORE: runtime validation error is non-fatal for audit
       rStatus = 'warn';
       rMetric = 'runtime: skipped (error)';
       gaps.push(gap('observability', 'Runtime validation threw an unexpected error', 'Check observability stack health'));
@@ -188,5 +189,5 @@ export function checkInfrastructure(projectDir: string): Result<DimensionResult>
 
 function readdirSafe(dir: string): string[] {
   try { return readdirSync(dir) as string[]; }
-  catch { return []; }
+  catch { return []; } // IGNORE: directory may not exist
 }

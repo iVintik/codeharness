@@ -236,7 +236,7 @@ function verifyStory(storyId: string, isJson: boolean, root: string): void {
         ? 0
         : (gapResult.coveredCount / gapResult.totalACs) * 100;
   } catch {
-    // Proof file may not be readable — proceed with defaults
+    // IGNORE: proof file may not be readable, proceed with defaults
   }
 
   // 9. Build result
@@ -309,6 +309,7 @@ function extractStoryTitle(filePath: string): string {
     const match = /^#\s+(.+)$/m.exec(content);
     return match ? match[1] : 'Unknown Story';
   } catch {
+    // IGNORE: story file may not be readable
     return 'Unknown Story';
   }
 }

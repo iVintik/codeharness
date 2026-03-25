@@ -114,7 +114,7 @@ export function verifyBmadOnRerun(projectDir: string, isJson: boolean): InitBmad
     }
     return result;
   } catch {
-    // BMAD verification is non-critical during re-run
+    // IGNORE: BMAD verification is non-critical during re-run
     return undefined;
   }
 }

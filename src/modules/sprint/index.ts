@@ -6,7 +6,6 @@ import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
 import type { StoryStatus } from '../../types/state.js';
 import type { SprintState } from '../../types/state.js';
-import { readSprintStatus as readSprintStatusYaml } from '../../lib/sync/index.js';
 import type {
   StorySelection,
   StoryDetail,
@@ -189,15 +188,7 @@ export function readSprintStatusFromState(): Record<string, string> {
   const stateResult = getSprintStateImpl();
   if (!stateResult.success) return {};
   const statuses = getStoryStatusesFromStateImpl(stateResult.data);
-  // If sprint-state.json has stories, use them
-  if (Object.keys(statuses).length > 0) return statuses;
-  // Fallback: read from old sprint-status.yaml for unmigrated projects
-  try {
-    return readSprintStatusYaml(process.cwd());
-  } catch {
-    // IGNORE: YAML may not exist
-    return {};
-  }
+  return statuses;
 }
 
 // ── Budget awareness ────────────────────────────────────────────────────────

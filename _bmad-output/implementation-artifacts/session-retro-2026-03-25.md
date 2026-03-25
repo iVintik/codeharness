@@ -1046,3 +1046,134 @@ Sessions 11-14 show a clear pattern: infrastructure failures (Docker, disk space
 | **15** | **10** | **6** | **3 (verifying)** |
 
 Session 15 had the highest attempt count and completion count in recent sessions. However, the 3 stuck stories are the same 3 from session 14 — they have not moved. The "verifying" bottleneck from sessions 11-14 persists. Until 14-4, 14-5, and 14-6 are resolved or descoped, they will continue consuming retry budget every session.
+
+---
+
+# Session Retrospective — 2026-03-25 (Session 16 / End-of-Day Update)
+
+**Appended:** 2026-03-25T10:30Z
+**Sprint:** Operational Excellence (Epic 14-15 — Tech Debt Pipeline + Code Quality)
+**Session:** 16 (continuation from session 15)
+**Session window:** ~2026-03-25 06:00 UTC to ~2026-03-25 06:30 UTC (~30 minutes)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Commit Time (UTC+4) | Notes |
+|-------|------|---------|---------------------|-------|
+| 15-4-fix-ts-compilation-errors | Epic 15 | done | 10:30 | Was "in review" at session 15 retro; now committed |
+
+**Net progress:** 1 story moved from review to done. Sprint: 62 of 66 stories done (94%). 4 remaining (14-4, 14-5, 14-6 stuck in verifying; 15-5 in backlog).
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation
+
+All issues for 15-4 were already documented in the session 15 retro. No new issues surfaced during the verification-to-commit phase. To recap the key findings from the session issues log:
+
+| Severity | Story | Issue | Status |
+|----------|-------|-------|--------|
+| MEDIUM | 15-4 | `dimensions.ts`: `g.message`/`g.fix` referenced nonexistent properties — runtime bug producing `undefined` | Fixed (changed to `g.description`, removed `g.fix`) |
+| MEDIUM | 15-4 | `run.ts`: `'in-review'` not in `StoryStatus` type — cross-system string mismatch | Fixed in TS; bash/yaml unaudited |
+| MEDIUM | 15-4 | `docker-setup.ts`: `opensearch` not in `HarnessState` — suppressed with cast | Workaround only |
+
+### Workarounds Applied (Tech Debt Introduced)
+
+| Story | Workaround | Debt Level |
+|-------|-----------|------------|
+| 15-4 | `as HarnessState` cast in docker-setup.ts | Medium — interface needs `opensearch` field |
+| 15-4 | Explicit parameter typing for overloaded mock callbacks in deps.test.ts/otlp.test.ts | Low — vitest limitation |
+
+### Verification Gaps
+
+No new gaps. The 3 stuck stories (14-4, 14-5, 14-6) remain unchanged from session 15.
+
+### Scope Estimation
+
+Story 15-4 scoped at ~40 TS errors; actual count was 106 across 20 files (2.65x underestimate). Despite this, dev completed in a single pass with no regressions. Code review found all changes correct.
+
+---
+
+## 3. What Went Well
+
+- **15-4 completed cleanly.** 106 TS compilation errors fixed across 20 files. Zero regressions. Code review passed with no items sent back.
+- **Test coverage at 97.1%**, all 156 files above 80% floor.
+- **Sprint at 94% completion** (62/66 done). Highest completion rate in the project's history.
+- **Session issues log was thorough.** Every subagent (create-story, dev-story, code-review) contributed meaningful observations. The borderline logic changes in dimensions.ts and run.ts were correctly flagged.
+- **7 stories completed across today's sessions** (14-2, 14-3, 14-7, 15-1, 15-2, 15-3, 15-4). Strong daily throughput.
+
+---
+
+## 4. What Went Wrong
+
+- **3 stories remain stuck in "verifying" with no resolution.** 14-4, 14-5, and 14-6 have been stuck for 3+ sessions now. They consumed ~3 hours of compute in session 15's first ralph run with zero output. This is the single largest waste of the sprint.
+- **Cross-system `'in-review'` vs `'review'` inconsistency remains unaudited.** The TS type was fixed but bash/yaml tooling was not checked. This could cause silent failures in ralph's story status tracking.
+- **HarnessState interface is incomplete.** The `opensearch` property exists in runtime code but not in the type definition. The cast workaround hides real type safety.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Bulk TS error fixing works well as a single story.** Even at 106 errors, the work was mechanical and low-risk. Future type-debt cleanup can follow this pattern.
+- **Session issues log as retrospective input** — the create-story/dev/review pipeline producing structured issue reports made this retro straightforward. Every problem was already documented with severity and fix status.
+
+### Patterns to Avoid
+
+- **Do not let stories sit in "verifying" across sessions without human intervention.** 14-4/14-5/14-6 have now consumed 3+ sessions of retry budget. The automated pipeline cannot resolve infrastructure-blocked stories.
+- **Do not trust stale counts from epic definitions.** Always re-audit at story creation time.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| # | Action | Context |
+|---|--------|---------|
+| 1 | **Resolve 14-4, 14-5, 14-6** — manually verify and close, mark as blocked, or descope. They have been stuck 3+ sessions. | 3 stories in "verifying" consuming retry budget |
+| 2 | **Audit `'in-review'` vs `'review'` in bash/yaml** — check ralph scripts, sprint-status.yaml generation, and any shell tooling that emits story status strings. | Cross-system string mismatch from 15-4 |
+
+### Fix Soon (Next Sprint)
+
+| # | Action | Context |
+|---|--------|---------|
+| 3 | **Add `opensearch` to `HarnessState` interface** | docker-setup.ts cast workaround |
+| 4 | **Reduce max_story_retries for verification-phase failures to 3** | Session 15 burned 10 retries on 14-4 |
+| 5 | **Add pre-sprint audit step** — run `tsc --noEmit` to get current error counts before story scoping | Stale epic data caused 2.65x underestimate |
+
+### Backlog (Track but Not Urgent)
+
+| # | Action | Context |
+|---|--------|---------|
+| 6 | Vitest overloaded-function mock typing — monitor for upstream fix | Low-impact test workaround |
+| 7 | Audit test files for phantom property assertions (like `hasBmalph`) | scan-cache.test.ts had ghost fields |
+| 8 | Ralph retry-waste metric — track iterations spent on stuck stories per session | Compute waste observability |
+
+---
+
+### End-of-Day Sprint Summary (2026-03-25)
+
+**Total stories completed today:** 7 (14-2, 14-3, 14-7, 15-1, 15-2, 15-3, 15-4)
+**Sprint completion:** 62/66 (94%)
+**Remaining:** 14-4 (verifying), 14-5 (verifying), 14-6 (verifying), 15-5 (backlog)
+**Sessions today:** 7 (sessions 10-16)
+**Estimated compute hours today:** ~12 hours across all ralph runs
+
+### Session Velocity (Updated)
+
+| Session | Stories Attempted | Stories Completed (done) | Stories Stuck |
+|---------|-------------------|--------------------------|---------------|
+| 10 | 4 | 4 | 0 |
+| 11 | 9 | 6 | 3 (Docker) |
+| 12 | 1 | 0 | 1 (ENOSPC) |
+| 13 | 3 | 0 | 3 (Docker) |
+| 14 | 1 | 1 | 0 (3 skipped) |
+| 15 | 10 | 6 | 3 (verifying) |
+| **16** | **1** | **1** | **0** |
+
+The 3 stuck stories (14-4, 14-5, 14-6) were not attempted in session 16. Until they are manually resolved or descoped, they should be excluded from ralph's story selection to stop wasting retry budget.

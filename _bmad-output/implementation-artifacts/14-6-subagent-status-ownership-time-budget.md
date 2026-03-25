@@ -3,6 +3,7 @@
 Status: verifying
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
+<!-- verification-tier: unit-testable -->
 
 ## Story
 

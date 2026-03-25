@@ -521,7 +521,7 @@
       "acResults": null
     },
     "15-4-fix-ts-compilation-errors": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

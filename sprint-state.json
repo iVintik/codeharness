@@ -561,10 +561,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "currentStory": "14-5-stack-aware-verify-dockerfile",
+    "currentPhase": "verify",
+    "lastAction": "Starting verification",
+    "acProgress": "10/10"
   },
   "actionItems": [
     {

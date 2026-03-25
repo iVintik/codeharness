@@ -72,7 +72,7 @@ describe('sync command', () => {
     await program.parseAsync(['node', 'test', 'sync']);
 
     expect(mockSyncAll).toHaveBeenCalledWith('bidirectional', expect.any(Object));
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[OK] story-1: in-progress -> done'));
     expect(calls).toContainEqual(expect.stringContaining('[INFO] story-2: already in sync'));
     expect(calls).toContainEqual(expect.stringContaining('[OK] Sync: 1 stories synced'));
@@ -117,7 +117,7 @@ describe('sync command', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'test', 'sync', '--direction', 'invalid']);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[FAIL] Invalid direction'));
     expect(process.exitCode).toBe(2);
   });
@@ -133,7 +133,7 @@ describe('sync command', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'test', '--json', 'sync']);
 
-    const jsonCalls = consoleSpy.mock.calls.filter(c => {
+    const jsonCalls = consoleSpy.mock.calls.filter((c: unknown[]) => {
       try {
         const parsed = JSON.parse(c[0] as string) as Record<string, unknown>;
         return 'synced' in parsed && 'already_in_sync' in parsed;
@@ -157,7 +157,7 @@ describe('sync command', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'test', 'sync']);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[FAIL] Sync failed'));
     expect(process.exitCode).toBe(1);
   });
@@ -171,7 +171,7 @@ describe('sync command', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'test', '--json', 'sync']);
 
-    const jsonCalls = consoleSpy.mock.calls.filter(c => {
+    const jsonCalls = consoleSpy.mock.calls.filter((c: unknown[]) => {
       try {
         const parsed = JSON.parse(c[0] as string) as Record<string, unknown>;
         return 'synced' in parsed;
@@ -193,7 +193,7 @@ describe('sync command', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'test', 'sync']);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[FAIL] BEAD-99: no path'));
   });
 
@@ -203,7 +203,7 @@ describe('sync command', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'test', 'sync', '--story', 'nonexistent']);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[FAIL] No beads issue found'));
     expect(process.exitCode).toBe(1);
   });
@@ -214,7 +214,7 @@ describe('sync command', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'test', 'sync']);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[INFO] beads CLI not installed -- skipping'));
     expect(process.exitCode).toBe(0);
     expect(mockSyncAll).not.toHaveBeenCalled();

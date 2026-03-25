@@ -222,8 +222,8 @@ describe('executeValidationAC', () => {
   it('CLI AC with failing command returns fail with captured output', () => {
     const ac = cliAC(2);
     const execError = new Error('Command failed');
-    (execError as Record<string, unknown>).stdout = 'partial output';
-    (execError as Record<string, unknown>).stderr = 'error details';
+    (execError as unknown as Record<string, unknown>).stdout = 'partial output';
+    (execError as unknown as Record<string, unknown>).stderr = 'error details';
     mockExecSync.mockImplementation(() => { throw execError; });
 
     const result = executeValidationAC(ac);
@@ -542,7 +542,7 @@ describe('runValidationCycle', () => {
     // The AC command fails
     mockExecSync.mockImplementation(() => {
       const err = new Error('fail');
-      (err as Record<string, unknown>).stderr = 'error output';
+      (err as unknown as Record<string, unknown>).stderr = 'error output';
       throw err;
     });
 
@@ -683,7 +683,7 @@ describe('runValidationCycle', () => {
     // AC command fails
     mockExecSync.mockImplementation(() => {
       const err = new Error('fail');
-      (err as Record<string, unknown>).stderr = 'error output';
+      (err as unknown as Record<string, unknown>).stderr = 'error output';
       throw err;
     });
     // mkdirSync throws to make createFixStory fail
@@ -709,7 +709,7 @@ describe('runValidationCycle', () => {
     // AC command fails
     mockExecSync.mockImplementation(() => {
       const err = new Error('fail');
-      (err as Record<string, unknown>).stderr = 'error output';
+      (err as unknown as Record<string, unknown>).stderr = 'error output';
       throw err;
     });
     // developStory fails

@@ -336,6 +336,7 @@ describe('teardown command', () => {
           endpoint: 'http://localhost:4318',
           service_name: 'test',
           node_require: '--require @opentelemetry/auto-instrumentations-node/register',
+          mode: 'local-shared' as const,
         },
       });
 
@@ -362,6 +363,7 @@ describe('teardown command', () => {
           endpoint: 'http://localhost:4318',
           service_name: 'test',
           node_require: '--require @opentelemetry/auto-instrumentations-node/register',
+          mode: 'local-shared' as const,
         },
       });
 
@@ -391,6 +393,7 @@ describe('teardown command', () => {
           enabled: true,
           endpoint: 'http://localhost:4318',
           service_name: 'test',
+          mode: 'local-shared' as const,
         },
       });
 
@@ -542,6 +545,7 @@ describe('teardown command', () => {
           enabled: true,
           endpoint: 'http://localhost:4318',
           service_name: 'test',
+          mode: 'local-shared' as const,
         },
       });
 

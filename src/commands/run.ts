@@ -39,7 +39,7 @@ function handleAgentEvent(
       break;
     case 'story-complete': {
       // Status ownership: orchestrator writes status, not the subagent (AC 1)
-      const completeResult = updateStoryStatus(event.key, 'in-review');
+      const completeResult = updateStoryStatus(event.key, 'review');
       if (!completeResult.success) {
         info(`[WARN] Failed to update status for ${event.key}: ${completeResult.error}`);
       }

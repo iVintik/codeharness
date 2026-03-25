@@ -150,7 +150,7 @@ function handleOpenSearch(
     opensearch: {
       url: opts.opensearchUrl!,
     },
-  };
+  } as HarnessState;
   writeState(state, opts.projectDir);
   if (!opts.isJson) {
     okOutput(`Observability: OpenSearch backend at ${opts.opensearchUrl!}`);

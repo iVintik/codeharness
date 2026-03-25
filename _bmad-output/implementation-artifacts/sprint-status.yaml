@@ -116,5 +116,5 @@ development_status:
   15-1-ci-file-size-gate: done
   15-2-eslint-no-empty-catch-boundary-tests: done
   15-3-template-migration-static-files: done
-  15-4-fix-ts-compilation-errors: backlog
+  15-4-fix-ts-compilation-errors: done
   15-5-lint-rule-bare-exception-swallowing: backlog

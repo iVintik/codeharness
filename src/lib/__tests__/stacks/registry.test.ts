@@ -31,6 +31,7 @@ function mockProvider(overrides: Partial<StackProvider> & Pick<StackProvider, 'n
     parseTestOutput: () => ({ passed: 0, failed: 0, skipped: 0, total: 0 }),
     parseCoverageReport: () => 0,
     getProjectName: () => null,
+    getVerifyDockerfileSection: () => '',
     ...overrides,
   };
 }

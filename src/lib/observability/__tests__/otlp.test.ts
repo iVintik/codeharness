@@ -192,8 +192,8 @@ describe('installPythonOtlp', () => {
   });
 
   it('falls back to pipx when pip fails', () => {
-    mockExecFileSync.mockImplementation((cmd) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       if (cmdStr === 'pip') throw new Error('pip not found');
       // pipx calls succeed (one for each package)
       return Buffer.from('');
@@ -511,8 +511,8 @@ describe('configureAgent', () => {
 
   it('falls back to pipx when pip fails for Python agent packages', () => {
     initStateWithOtlp('python');
-    mockExecFileSync.mockImplementation((cmd) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       if (cmdStr === 'pip') throw new Error('pip not found');
       // pipx succeeds
       return Buffer.from('');

@@ -69,6 +69,7 @@ describe('stacks/types — interface shape validation', () => {
       parseTestOutput: () => ({ passed: 0, failed: 0, skipped: 0, total: 0 }),
       parseCoverageReport: () => 0,
       getProjectName: () => null,
+      getVerifyDockerfileSection: () => '',
     };
 
     expect(mock.name).toBe('nodejs');
@@ -108,6 +109,7 @@ describe('stacks/types — interface shape validation', () => {
       parseTestOutput: () => ({ passed: 0, failed: 0, skipped: 0, total: 0 }),
       parseCoverageReport: () => 0,
       getProjectName: () => null,
+      getVerifyDockerfileSection: () => '',
     };
     // patchStartScript not provided — should be undefined
     expect(mock.patchStartScript).toBeUndefined();

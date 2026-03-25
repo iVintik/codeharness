@@ -306,7 +306,7 @@ describe('captureTimeoutReport', () => {
 
   it('creates report directory if it does not exist', () => {
     mockedExecSync.mockReturnValue('');
-    mockedExistsSync.mockImplementation((path: string) => {
+    mockedExistsSync.mockImplementation((path: import('node:fs').PathLike) => {
       if (typeof path === 'string' && path.includes('ralph/logs')) return false;
       return true;
     });

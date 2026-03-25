@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Command } from 'commander';
 import type { StackName } from '../../lib/stacks/index.js';
+import type { HarnessState } from '../../lib/state.js';
 
 // Mock stack-path module
 vi.mock('../../lib/stack-path.js', () => ({
@@ -629,7 +630,7 @@ describe('stack status (remote-direct) JSON', () => {
       session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
       verification_log: [],
       otlp: { enabled: true, service_name: 'test', mode: 'remote-direct' },
-    });
+    } as unknown as HarnessState);
     mockCheckRemoteEndpoint.mockResolvedValue({ reachable: false, error: 'unknown host' });
 
     const { stdout } = await runCli(['stack', 'status']);

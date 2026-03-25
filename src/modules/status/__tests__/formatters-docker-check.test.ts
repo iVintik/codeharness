@@ -8,8 +8,8 @@ vi.mock('../../../lib/state.js', () => ({
 }));
 
 vi.mock('../../../lib/docker/index.js', () => ({
-  getStackHealth: vi.fn(() => ({ healthy: true, services: [], remedy: null })),
-  getCollectorHealth: vi.fn(() => ({ healthy: true, services: [], remedy: null })),
+  getStackHealth: vi.fn(() => ({ healthy: true, services: [], remedy: undefined })),
+  getCollectorHealth: vi.fn(() => ({ healthy: true, services: [], remedy: undefined })),
   checkRemoteEndpoint: vi.fn(async () => ({ reachable: true })),
 }));
 
@@ -112,7 +112,7 @@ describe('handleDockerCheck — backend awareness', () => {
       },
     } as HarnessState);
 
-    mockGetStackHealth.mockReturnValue({ healthy: true, services: [], remedy: null });
+    mockGetStackHealth.mockReturnValue({ healthy: true, services: [], remedy: undefined });
 
     await handleDockerCheck(false);
 
@@ -140,7 +140,7 @@ describe('handleDockerCheck — backend awareness', () => {
       },
     } as HarnessState);
 
-    mockGetStackHealth.mockReturnValue({ healthy: true, services: [], remedy: null });
+    mockGetStackHealth.mockReturnValue({ healthy: true, services: [], remedy: undefined });
 
     await handleDockerCheck(false);
 
@@ -168,7 +168,7 @@ describe('handleDockerCheck — backend awareness', () => {
       },
     } as HarnessState);
 
-    mockGetStackHealth.mockReturnValue({ healthy: true, services: [], remedy: null });
+    mockGetStackHealth.mockReturnValue({ healthy: true, services: [], remedy: undefined });
 
     await handleDockerCheck(false);
 
@@ -197,7 +197,7 @@ describe('handleDockerCheck — backend awareness', () => {
       },
     } as HarnessState);
 
-    mockGetStackHealth.mockReturnValue({ healthy: true, services: [], remedy: null });
+    mockGetStackHealth.mockReturnValue({ healthy: true, services: [], remedy: undefined });
 
     await handleDockerCheck(false);
 

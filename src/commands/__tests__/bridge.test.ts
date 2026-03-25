@@ -88,7 +88,7 @@ describe('bridge command', () => {
 
     await program.parseAsync(['node', 'test', 'bridge', '--epics', SAMPLE_EPICS]);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[OK] Epic 1: Foundation'));
     expect(calls).toContainEqual(expect.stringContaining('[OK] Epic 2: Core Features'));
     expect(calls).toContainEqual(expect.stringContaining('[OK] Epic 3: Polish'));
@@ -102,7 +102,7 @@ describe('bridge command', () => {
     await program.parseAsync(['node', 'test', 'bridge', '--epics', SAMPLE_EPICS, '--dry-run']);
 
     expect(mockCreateIssue).not.toHaveBeenCalled();
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[INFO] Dry run: would import'));
     expect(calls).toContainEqual(expect.stringContaining('dry run, nothing created'));
     expect(process.exitCode).toBe(0);
@@ -114,7 +114,7 @@ describe('bridge command', () => {
     await program.parseAsync(['node', 'test', '--json', 'bridge', '--epics', SAMPLE_EPICS, '--dry-run']);
 
     // Find the JSON output call (the one with the BridgeResult)
-    const jsonCalls = consoleSpy.mock.calls.filter(c => {
+    const jsonCalls = consoleSpy.mock.calls.filter((c: unknown[]) => {
       const msg = c[0] as string;
       try {
         const parsed = JSON.parse(msg) as Record<string, unknown>;
@@ -146,7 +146,7 @@ describe('bridge command', () => {
 
     await program.parseAsync(['node', 'test', 'bridge', '--epics', emptyFile]);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[WARN] No stories found'));
     expect(process.exitCode).toBe(0);
   });
@@ -156,7 +156,7 @@ describe('bridge command', () => {
 
     await program.parseAsync(['node', 'test', 'bridge', '--epics', SAMPLE_EPICS, '--dry-run']);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(
       expect.stringContaining('[WARN] Story Story Without ACs: no acceptance criteria found'),
     );
@@ -175,7 +175,7 @@ describe('bridge command', () => {
     const program = createProgram();
     await program.parseAsync(['node', 'test', 'bridge', '--epics', SAMPLE_EPICS]);
 
-    const calls = consoleSpy.mock.calls.map(c => c[0] as string);
+    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(
       expect.stringContaining('[INFO] Already tracked: Project Setup (BEAD-1)'),
     );
@@ -186,7 +186,7 @@ describe('bridge command', () => {
 
     await program.parseAsync(['node', 'test', '--json', 'bridge']);
 
-    const jsonCalls = consoleSpy.mock.calls.filter(c => {
+    const jsonCalls = consoleSpy.mock.calls.filter((c: unknown[]) => {
       try {
         const parsed = JSON.parse(c[0] as string) as Record<string, unknown>;
         return parsed.status === 'fail';
@@ -205,7 +205,7 @@ describe('bridge command', () => {
 
     await program.parseAsync(['node', 'test', '--json', 'bridge', '--epics', emptyFile]);
 
-    const jsonCalls = consoleSpy.mock.calls.filter(c => {
+    const jsonCalls = consoleSpy.mock.calls.filter((c: unknown[]) => {
       try {
         const parsed = JSON.parse(c[0] as string) as Record<string, unknown>;
         return 'epics_parsed' in parsed;

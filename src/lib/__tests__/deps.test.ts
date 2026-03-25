@@ -100,8 +100,8 @@ describe('installDependency', () => {
 
   it('installs via primary command and returns installed', () => {
     let checkCount = 0;
-    mockExecFileSync.mockImplementation((cmd) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       // Version check: first fails, then succeeds
       if (cmdStr === 'showboat') {
         checkCount++;
@@ -119,8 +119,8 @@ describe('installDependency', () => {
 
   it('falls back to secondary command when primary fails', () => {
     let checkCount = 0;
-    mockExecFileSync.mockImplementation((cmd) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       if (cmdStr === 'showboat') {
         checkCount++;
         if (checkCount === 1) throw new Error('not found');
@@ -150,8 +150,8 @@ describe('installDependency', () => {
   });
 
   it('returns failed when install succeeds but post-check fails', () => {
-    mockExecFileSync.mockImplementation((cmd) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       if (cmdStr === 'showboat') throw new Error('not found');
       // Install commands succeed but version check always fails
       return Buffer.from('');
@@ -174,8 +174,8 @@ describe('installDependency', () => {
 
     it('installs semgrep via pipx (primary) and returns installed', () => {
       let checkCount = 0;
-      mockExecFileSync.mockImplementation((cmd) => {
-        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+      mockExecFileSync.mockImplementation((cmd: string) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
         if (cmdStr === 'semgrep') {
           checkCount++;
           if (checkCount === 1) throw new Error('not found');
@@ -191,8 +191,8 @@ describe('installDependency', () => {
 
     it('falls back to pip when pipx fails', () => {
       let checkCount = 0;
-      mockExecFileSync.mockImplementation((cmd) => {
-        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+      mockExecFileSync.mockImplementation((cmd: string) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
         if (cmdStr === 'semgrep') {
           checkCount++;
           if (checkCount === 1) throw new Error('not found');
@@ -231,8 +231,8 @@ describe('installDependency', () => {
 
     it('installs bats via brew (primary) and returns installed', () => {
       let checkCount = 0;
-      mockExecFileSync.mockImplementation((cmd) => {
-        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+      mockExecFileSync.mockImplementation((cmd: string) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
         if (cmdStr === 'bats') {
           checkCount++;
           if (checkCount === 1) throw new Error('not found');
@@ -248,8 +248,8 @@ describe('installDependency', () => {
 
     it('falls back to npm when brew fails', () => {
       let checkCount = 0;
-      mockExecFileSync.mockImplementation((cmd) => {
-        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+      mockExecFileSync.mockImplementation((cmd: string) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
         if (cmdStr === 'bats') {
           checkCount++;
           if (checkCount === 1) throw new Error('not found');
@@ -288,8 +288,8 @@ describe('installDependency', () => {
 
     it('installs via cargo install cargo-tarpaulin and returns installed', () => {
       let checkCount = 0;
-      mockExecFileSync.mockImplementation((cmd, args) => {
-        const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+      mockExecFileSync.mockImplementation((cmd: string, args?: readonly string[]) => {
+        const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
         const argsArr = Array.isArray(args) ? args.map(String) : [];
         if (cmdStr === 'cargo' && argsArr[0] === 'tarpaulin') {
           checkCount++;
@@ -372,8 +372,8 @@ describe('installAllDependencies', () => {
   });
 
   it('continues when non-critical dep fails', () => {
-    mockExecFileSync.mockImplementation((cmd, args) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string, args?: readonly string[]) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       const argsArr = Array.isArray(args) ? args.map(String) : [];
 
       // showboat check and install both fail
@@ -422,8 +422,8 @@ describe('installAllDependencies', () => {
   it('prints installed (not already-installed) message for freshly installed deps', () => {
     const logSpy = vi.spyOn(console, 'log');
     let showboatCheckCount = 0;
-    mockExecFileSync.mockImplementation((cmd) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       // For showboat: first version check fails, install succeeds, post-check succeeds
       if (cmdStr === 'showboat') {
         showboatCheckCount++;
@@ -459,8 +459,8 @@ describe('installAllDependencies', () => {
   it('prints OK without version when version is null (freshly installed)', () => {
     const logSpy = vi.spyOn(console, 'log');
     let showboatCheckCount = 0;
-    mockExecFileSync.mockImplementation((cmd) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       // showboat: first check fails, install succeeds, post-check returns no-version output
       if (cmdStr === 'showboat') {
         showboatCheckCount++;
@@ -495,8 +495,8 @@ describe('installAllDependencies', () => {
   it('prints FAIL and info messages for non-critical failures', () => {
     const logSpy = vi.spyOn(console, 'log');
 
-    mockExecFileSync.mockImplementation((cmd, args) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : cmd.toString();
+    mockExecFileSync.mockImplementation((cmd: string, args?: readonly string[]) => {
+      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       const argsArr = Array.isArray(args) ? args.map(String) : [];
       // showboat fails
       if (cmdStr === 'showboat') throw new Error('not found');

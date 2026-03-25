@@ -34,7 +34,7 @@ const {
 
   const mockDriverInstance = {
     name: 'ralph',
-    spawn: vi.fn(() => {
+    spawn: vi.fn((): { on: ReturnType<typeof vi.fn>; kill: ReturnType<typeof vi.fn>; stdout: EventEmitter | null; stderr: EventEmitter | null } => {
       stdoutEmitter = new EventEmitter();
       stderrEmitter = new EventEmitter();
       return {
@@ -46,7 +46,7 @@ const {
         stderr: stderrEmitter,
       };
     }),
-    parseOutput: vi.fn(() => null),
+    parseOutput: vi.fn((): Record<string, unknown> | null => null),
     getStatusFile: vi.fn(() => 'ralph/status.json'),
     _getChildOnHandlers: () => childHandlers,
     _getStdoutEmitter: () => stdoutEmitter,
@@ -71,16 +71,16 @@ const {
     rendererCleanupMock,
     rendererUpdateStoriesMock,
     rendererAddMessageMock,
-    getSprintStateMock: vi.fn(() => ({ success: false, error: 'no state' })),
+    getSprintStateMock: vi.fn((): { success: boolean; data?: Record<string, unknown>; error?: string } => ({ success: false, error: 'no state' })),
     reconcileStateMock: vi.fn(() => ({ success: true, data: { corrections: [], stateChanged: false } })),
     isDockerAvailableMock: vi.fn(() => true),
-    cleanupContainersMock: vi.fn(() => ({ success: true, data: { containersRemoved: 0, names: [] } })),
+    cleanupContainersMock: vi.fn((): { success: boolean; data?: { containersRemoved: number; names: string[] }; error?: string } => ({ success: true, data: { containersRemoved: 0, names: [] } })),
     updateStoryStatusMock: vi.fn(() => ({ success: true, data: undefined })),
   };
 });
 
 vi.mock('../../lib/agents/index.js', () => ({
-  getDriver: (...args: unknown[]) => getDriverMock(...args),
+  getDriver: (...args: unknown[]) => getDriverMock(...(args as Parameters<typeof getDriverMock>)),
 }));
 
 vi.mock('node:fs', async (importOriginal) => {
@@ -93,25 +93,25 @@ vi.mock('../../lib/agents/ralph-prompt.js', () => ({
 }));
 
 vi.mock('../../lib/ink-renderer.js', () => ({
-  startRenderer: (...args: unknown[]) => startRendererMock(...args),
+  startRenderer: (...args: unknown[]) => startRendererMock(...(args as Parameters<typeof startRendererMock>)),
 }));
 
 vi.mock('../../modules/sprint/index.js', () => ({
-  getSprintState: (...args: unknown[]) => getSprintStateMock(...args),
-  readSprintStatusFromState: (...args: unknown[]) => readSprintStatusMock(...args),
-  reconcileState: (...args: unknown[]) => reconcileStateMock(...args),
-  updateStoryStatus: (...args: unknown[]) => updateStoryStatusMock(...args),
+  getSprintState: (...args: unknown[]) => getSprintStateMock(...(args as Parameters<typeof getSprintStateMock>)),
+  readSprintStatusFromState: (...args: unknown[]) => readSprintStatusMock(...(args as Parameters<typeof readSprintStatusMock>)),
+  reconcileState: (...args: unknown[]) => reconcileStateMock(...(args as Parameters<typeof reconcileStateMock>)),
+  updateStoryStatus: (...args: unknown[]) => updateStoryStatusMock(...(args as Parameters<typeof updateStoryStatusMock>)),
   shouldDeferPhase: vi.fn(() => false),
   getPhaseEstimate: vi.fn(() => 15),
   computeRemainingMinutes: vi.fn(() => 60),
 }));
 
 vi.mock('../../lib/docker/index.js', () => ({
-  isDockerAvailable: (...args: unknown[]) => isDockerAvailableMock(...args),
+  isDockerAvailable: (...args: unknown[]) => isDockerAvailableMock(...(args as Parameters<typeof isDockerAvailableMock>)),
 }));
 
 vi.mock('../../modules/infra/index.js', () => ({
-  cleanupContainers: (...args: unknown[]) => cleanupContainersMock(...args),
+  cleanupContainers: (...args: unknown[]) => cleanupContainersMock(...(args as Parameters<typeof cleanupContainersMock>)),
 }));
 
 
@@ -471,8 +471,8 @@ describe('run command', () => {
       mockDriverInstance._getChildOnHandlers()['close'](0);
       await p;
 
-      const spawnCall = mockDriverInstance.spawn.mock.calls[0][0];
-      expect(spawnCall.env.CLAUDE_OUTPUT_FORMAT).toBeUndefined();
+      const spawnCall = mockDriverInstance.spawn.mock.calls[0] as unknown as [Record<string, unknown>];
+      expect((spawnCall[0] as { env: Record<string, unknown> }).env.CLAUDE_OUTPUT_FORMAT).toBeUndefined();
     });
 
     it('writes prompt file to ralph directory', async () => {
@@ -623,7 +623,7 @@ describe('run command', () => {
         message: 'DONE — verified',
       });
       // Status ownership: orchestrator must call updateStoryStatus (AC 1)
-      expect(updateStoryStatusMock).toHaveBeenCalledWith('1-1-foo', 'in-review');
+      expect(updateStoryStatusMock).toHaveBeenCalledWith('1-1-foo', 'review');
     });
 
     it('dispatches story-failed events to renderer.addMessage', async () => {

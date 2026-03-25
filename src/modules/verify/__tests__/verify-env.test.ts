@@ -208,7 +208,7 @@ describe('buildVerifyImage', () => {
 
     const hash = computeDistHash(testDir)!;
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: hash } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: hash } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -230,7 +230,7 @@ describe('buildVerifyImage', () => {
 
     // Return a different hash from state
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -256,7 +256,7 @@ describe('buildVerifyImage', () => {
 
     const hash = computeDistHash(testDir)!;
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: hash } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: hash } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -275,7 +275,7 @@ describe('buildVerifyImage', () => {
     mockDetectStack.mockReturnValue('python');
     mockDetectStacks.mockReturnValue([{ stack: 'python', dir: '.' }]);
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -304,7 +304,7 @@ describe('buildVerifyImage', () => {
     mockDetectStack.mockReturnValue('python');
     mockDetectStacks.mockReturnValue([{ stack: 'python', dir: '.' }]);
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -345,7 +345,7 @@ describe('buildVerifyImage', () => {
       readCallCount++;
       if (readCallCount === 1) {
         return {
-          state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+          state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
           body: '',
         };
       }
@@ -369,7 +369,7 @@ describe('buildVerifyImage', () => {
     writeFileSync(join(distDir, 'index.js'), 'content');
 
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -797,7 +797,7 @@ describe('buildVerifyImage — size formatting', () => {
     writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
 
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -818,7 +818,7 @@ describe('buildVerifyImage — size formatting', () => {
     writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
 
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -839,7 +839,7 @@ describe('buildVerifyImage — size formatting', () => {
     writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
 
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -860,7 +860,7 @@ describe('buildVerifyImage — size formatting', () => {
     writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
 
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 
@@ -881,7 +881,7 @@ describe('buildVerifyImage — size formatting', () => {
     writeFileSync('/tmp/codeharness-0.13.2.tgz', 'fake-tarball');
 
     mockReadStateWithBody.mockReturnValue({
-      state: { verify_env_dist_hash: 'oldhash' } as ReturnType<typeof readStateWithBody>['state'],
+      state: { verify_env_dist_hash: 'oldhash' } as unknown as ReturnType<typeof readStateWithBody>['state'],
       body: '',
     });
 

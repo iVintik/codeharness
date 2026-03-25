@@ -27,7 +27,7 @@ function makeCacheEntry(overrides: Partial<ScanCacheEntry> = {}): ScanCacheEntry
     scan: {
       modules: [{ path: 'src/lib', sourceFiles: 5, testFiles: 3 }],
       totalSourceFiles: 10,
-      artifacts: { hasBmad: false, hasBmalph: false, bmadPath: null, bmalpthFiles: [] },
+      artifacts: { hasBmad: false, bmadPath: null },
     },
     coverage: null,
     audit: null,

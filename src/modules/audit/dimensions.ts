@@ -56,7 +56,7 @@ export async function checkObservability(projectDir: string): Promise<Result<Dim
         sMetric = `static: ${n} gap${n !== 1 ? 's' : ''}`;
         if (n > 0) {
           sStatus = 'warn';
-          for (const g of d.gaps) gaps.push(gap('observability', `${g.file}:${g.line} — ${g.message}`, g.fix ?? 'Add observability instrumentation'));
+          for (const g of d.gaps) gaps.push(gap('observability', `${g.file}:${g.line} — ${g.description}`, 'Add observability instrumentation'));
         }
       }
     } else {

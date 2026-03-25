@@ -1333,6 +1333,7 @@ describe('status --story', () => {
           { number: 3, outcome: 'verify failed', failingAc: 'AC2', timestamp: '2026-03-18T03:42:15Z' },
         ],
         proofSummary: { path: 'verification/2-3-proof.md', passCount: 1, failCount: 1, escalateCount: 1, pendingCount: 1 },
+        timeoutSummary: null,
       },
     });
 
@@ -1372,6 +1373,7 @@ describe('status --story', () => {
         acDetails: [{ id: 'AC1', verdict: 'pass' }],
         attemptHistory: [],
         proofSummary: null,
+        timeoutSummary: null,
       },
     });
 
@@ -1436,6 +1438,7 @@ describe('status --story', () => {
         acDetails: [],
         attemptHistory: [],
         proofSummary: null,
+        timeoutSummary: null,
       },
     });
 
@@ -1461,6 +1464,7 @@ describe('status --story', () => {
         acDetails: [],
         attemptHistory: [],
         proofSummary: null,
+        timeoutSummary: null,
       },
     });
 
@@ -1485,6 +1489,7 @@ describe('status --story', () => {
         acDetails: [],
         attemptHistory: [],
         proofSummary: null,
+        timeoutSummary: null,
       },
     });
 

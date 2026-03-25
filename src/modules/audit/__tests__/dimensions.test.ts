@@ -64,7 +64,7 @@ describe('checkObservability', () => {
       data: {
         tool: 'semgrep',
         gaps: [],
-        summary: { totalFiles: 10, filesWithGaps: 0, totalGaps: 0 },
+        summary: { totalFunctions: 10, functionsWithLogs: 10, errorHandlersWithoutLogs: 0, coveragePercent: 100, levelDistribution: {} },
       },
     });
     mockValidateRuntime.mockResolvedValue({
@@ -93,7 +93,7 @@ describe('checkObservability', () => {
       data: {
         tool: 'semgrep',
         gaps: [],
-        summary: { totalFiles: 0, filesWithGaps: 0, totalGaps: 0 },
+        summary: { totalFunctions: 0, functionsWithLogs: 0, errorHandlersWithoutLogs: 0, coveragePercent: 0, levelDistribution: {} },
         skipped: true,
         skipReason: 'Semgrep not installed',
       },
@@ -124,7 +124,7 @@ describe('checkObservability', () => {
       data: {
         tool: 'semgrep',
         gaps: [],
-        summary: { totalFiles: 10, filesWithGaps: 0, totalGaps: 0 },
+        summary: { totalFunctions: 10, functionsWithLogs: 10, errorHandlersWithoutLogs: 0, coveragePercent: 100, levelDistribution: {} },
       },
     });
     mockValidateRuntime.mockResolvedValue({
@@ -177,7 +177,7 @@ describe('checkObservability', () => {
       data: {
         tool: 'semgrep',
         gaps: [],
-        summary: { totalFiles: 10, filesWithGaps: 0, totalGaps: 0 },
+        summary: { totalFunctions: 10, functionsWithLogs: 10, errorHandlersWithoutLogs: 0, coveragePercent: 100, levelDistribution: {} },
       },
     });
     mockValidateRuntime.mockRejectedValue(new Error('Connection refused'));
@@ -195,7 +195,7 @@ describe('checkObservability', () => {
       data: {
         tool: 'semgrep',
         gaps: [],
-        summary: { totalFiles: 10, filesWithGaps: 0, totalGaps: 0 },
+        summary: { totalFunctions: 10, functionsWithLogs: 10, errorHandlersWithoutLogs: 0, coveragePercent: 100, levelDistribution: {} },
       },
     });
     mockValidateRuntime.mockResolvedValue({
@@ -223,7 +223,7 @@ describe('checkObservability', () => {
       data: {
         tool: 'semgrep',
         gaps: [],
-        summary: { totalFiles: 10, filesWithGaps: 0, totalGaps: 0 },
+        summary: { totalFunctions: 10, functionsWithLogs: 10, errorHandlersWithoutLogs: 0, coveragePercent: 100, levelDistribution: {} },
       },
     });
     mockValidateRuntime.mockResolvedValue({
@@ -259,9 +259,9 @@ describe('checkObservability', () => {
       data: {
         tool: 'semgrep',
         gaps: [
-          { file: 'src/app.ts', line: 10, message: 'Missing structured logging', fix: 'Add structured logger', ruleId: 'obs-001', severity: 'warning' as const },
+          { file: 'src/app.ts', line: 10, description: 'Missing structured logging', type: 'obs-001', severity: 'warning' as const },
         ],
-        summary: { totalFiles: 10, filesWithGaps: 1, totalGaps: 1 },
+        summary: { totalFunctions: 10, functionsWithLogs: 9, errorHandlersWithoutLogs: 1, coveragePercent: 90, levelDistribution: {} },
       },
     });
     mockValidateRuntime.mockResolvedValue({
@@ -469,7 +469,7 @@ describe('checkVerification', () => {
     mockReaddirSync.mockReturnValue(['1-1-story-proof.md'] as unknown as ReturnType<typeof readdirSync>);
     mockParseProof.mockReturnValue({
       success: true,
-      data: { verified: 3, pending: 0, escalated: 0, total: 3, passed: true, grepSrcCount: 0, dockerExecCount: 0, observabilityQueryCount: 0 },
+      data: { verified: 3, pending: 0, escalated: 0, total: 3, passed: true, grepSrcCount: 0, dockerExecCount: 0, observabilityCount: 0, otherCount: 0, blackBoxPass: true },
     });
 
     const result = checkVerification('/project');
@@ -490,7 +490,7 @@ describe('checkVerification', () => {
     mockReaddirSync.mockReturnValue(['1-1-story-proof.md'] as unknown as ReturnType<typeof readdirSync>);
     mockParseProof.mockReturnValue({
       success: true,
-      data: { verified: 1, pending: 2, escalated: 0, total: 3, passed: false, grepSrcCount: 0, dockerExecCount: 0, observabilityQueryCount: 0 },
+      data: { verified: 1, pending: 2, escalated: 0, total: 3, passed: false, grepSrcCount: 0, dockerExecCount: 0, observabilityCount: 0, otherCount: 0, blackBoxPass: false },
     });
 
     const result = checkVerification('/project');

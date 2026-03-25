@@ -64,7 +64,7 @@ export interface HarnessState {
 }
 
 function migrateState(state: HarnessState): HarnessState {
-  const raw = state as Record<string, unknown>;
+  const raw = state as unknown as Record<string, unknown>;
 
   // Backfill otlp.backend for states created before backend choice was added
   if (state.otlp && !state.otlp.backend) {

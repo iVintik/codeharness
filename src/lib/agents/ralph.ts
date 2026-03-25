@@ -7,10 +7,10 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import type { AgentDriver, SpawnOpts, AgentProcess, AgentEvent } from './types.js';
 import { parseStreamLine } from './stream-parser.js';
+import { getPackageRoot } from '../templates.js';
 
 // --- Regex constants (migrated from run-helpers.ts) ---
 
@@ -162,14 +162,7 @@ export function buildSpawnArgs(opts: {
 
 /** Resolves the path to ralph/ralph.sh relative to the package root. */
 export function resolveRalphPath(): string {
-  const currentFile = fileURLToPath(import.meta.url);
-  const currentDir = dirname(currentFile);
-  // currentDir is src/lib/agents (or dist/lib/agents)
-  let root = dirname(dirname(currentDir));
-  if (root.endsWith('/src') || root.endsWith('\\src')) {
-    root = dirname(root);
-  }
-  return join(root, 'ralph', 'ralph.sh');
+  return join(getPackageRoot(), 'ralph', 'ralph.sh');
 }
 
 // --- RalphConfig for constructor-time configuration ---

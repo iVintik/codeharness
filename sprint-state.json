@@ -561,9 +561,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "14-6-subagent-status-ownership-time-budget",
-    "currentPhase": "verify",
-    "lastAction": "Starting unit-testable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": [

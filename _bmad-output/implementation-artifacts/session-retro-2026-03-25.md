@@ -1617,3 +1617,119 @@ The orchestrator scanned for actionable stories, found only 14-4, determined it 
 **Sessions today:** 10 (sessions 10-19)
 **Epics fully closed:** 0-15 except Epic 14 (1 story stuck)
 **Recommendation:** Close the sprint. Descope or manually verify 14-4 as a follow-up.
+
+---
+
+# Session Retrospective — 2026-03-25 (Session 8 / Loop 8) — 11:18 UTC
+
+## 1. Session Summary
+
+| Story | Phase | Outcome | Time |
+|-------|-------|---------|------|
+| *(none)* | scan | No actionable stories found | ~1 min |
+
+Session 8 spawned, scanned all 66 stories across 16 epics, and exited immediately. The only non-done story (14-4-observability-backend-choice) is in `verifying` status but retry-exhausted and flagged for skipping. All other 65 stories are done. There was zero work to perform.
+
+## 2. Issues Analysis
+
+### From the Session Issues Log
+
+The session issues log entries for Session 8 consist of a single line: "Starting session. Scanning for actionable stories." No new issues were reported because no work was attempted.
+
+**Carried-forward issues from prior sessions (still unresolved):**
+
+| Category | Issue | Source Session |
+|----------|-------|----------------|
+| Environment blocker | Docker keychain locked in non-interactive ralph sessions — cannot pull images | Sessions 14-18 |
+| Tech debt | HarnessState missing `opensearch` field — suppressed with `as HarnessState` cast | Session 17 |
+| Tech debt | Test files use double-cast (`as unknown as T`) for partial mocks | Session 17 |
+| Status inconsistency | `'in-review'` vs `'review'` across bash/yaml/TypeScript layers | Session 17 |
+| Story spec drift | Story 15-5 listed `src/lib/scanner.ts` but actual code lives in `analyzer.ts` | Session 18 |
+| Stuck story | 14-4-observability-backend-choice retry-exhausted after 8+ sessions | Sessions 11-19 |
+
+### No New Issues
+
+No new bugs, workarounds, code quality concerns, verification gaps, or tooling problems were introduced. The session was a no-op.
+
+## 3. What Went Well
+
+- **Sprint is effectively complete.** 65 of 66 stories done (98.5%). All 16 epics closed except Epic 14 (one stuck story).
+- **Ralph correctly identified no work.** The scan logic properly detected that 14-4 is retry-exhausted and did not waste iterations attempting it again.
+- **Clean exit.** No crashes, no spurious errors, no wasted compute on stuck stories.
+- **Prior sessions were productive.** Sessions 10-18 completed 10 stories including: 106 TypeScript compilation errors fixed (15-4), two Docker-blocked stories unblocked via unit-testable tagging (14-5, 14-6), a new Semgrep lint rule with code-review-caught bugs fixed (15-5).
+
+## 4. What Went Wrong
+
+- **14-4 remains stuck.** The observability backend choice story has been in `verifying` state for 8+ sessions with no automated path to resolution. It requires Docker image pulls that fail due to keychain lock in non-interactive sessions.
+- **No automatic escalation.** Ralph has no mechanism to notify a human that a story is permanently blocked. It just silently skips it every session.
+
+## 5. What Went Poorly
+
+- **Session spawned with nothing to do.** This is wasted compute. Ralph should have a pre-check that avoids spawning a full session when the only remaining stories are retry-exhausted or explicitly flagged for skip.
+- **Session 7 also spawned with nothing to do** (per the issues log). Two consecutive no-op sessions is a clear signal that the sprint should have been marked complete or ralph should have self-terminated.
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Unit-testable tagging for non-Docker stories.** The workaround applied in sessions 17-18 (tagging cli-verifiable stories as `unit-testable`) correctly unblocked two stories that never needed Docker. This pattern should be the default for any story whose ACs are all `cli-verifiable`.
+2. **Code review catching real bugs.** The 15-5 code review found two HIGH-severity bugs (non-functional grep pattern, Semgrep metavariable misuse) that would have shipped broken. The review subagent earned its keep this sprint.
+3. **Clean session exit on no work.** Ralph did the right thing by not retrying a retry-exhausted story.
+
+### Patterns to Avoid
+
+1. **No-op session spawning.** Two sessions in a row with zero work is wasted money and time. Ralph needs a "sprint complete" detection that prevents further session spawning.
+2. **Silent retry exhaustion.** Stories should not silently rot in `verifying` for 8 sessions. After N retries, ralph should set a `needs-human` status and stop scheduling the story entirely.
+3. **No sprint-completion signal.** There is no mechanism for ralph to declare "I'm done, stop calling me." The human has to notice and stop the loop manually.
+
+## 7. Action Items
+
+### Fix Now (Before Next Session)
+
+| # | Action | Owner |
+|---|--------|-------|
+| 1 | Stop spawning ralph sessions — the sprint is done | Human |
+| 2 | Decide fate of 14-4: descope, manually verify, or defer to next sprint | Human |
+
+### Fix Soon (Next Sprint)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 3 | Add sprint-complete detection to ralph — exit with `sprint_complete` reason when all stories are done or retry-exhausted | Prevents wasted no-op sessions |
+| 4 | Add `needs-human` story status with alerting (carry-forward from session 19) | Prevents silent story rot |
+| 5 | Add pre-session check: if no actionable stories exist, skip session spawn entirely | Saves compute |
+
+### Backlog (Track But Not Urgent)
+
+| # | Action | Rationale |
+|---|--------|-----------|
+| 6 | Fix Docker credential store for non-interactive sessions (carry-forward) | Unblocks Docker-dependent verification |
+| 7 | Add HarnessState `opensearch` field (carry-forward) | Type safety |
+| 8 | Audit Semgrep rules for `...` metavariable misuse (carry-forward) | May have false positives |
+| 9 | Add ralph session cost tracking (compute time per session) | Quantify waste from no-op sessions |
+
+---
+
+### Session Velocity (Updated)
+
+| Session | Stories Attempted | Stories Completed (done) | Stories Stuck |
+|---------|-------------------|--------------------------|---------------|
+| 10 | 4 | 4 | 0 |
+| 11 | 9 | 6 | 3 (Docker) |
+| 12 | 1 | 0 | 1 (ENOSPC) |
+| 13 | 3 | 0 | 3 (Docker) |
+| 14 | 1 | 1 | 0 (3 skipped) |
+| 15 | 10 | 6 | 3 (verifying) |
+| 16 | 1 | 1 | 0 |
+| 17 | 2 | 2 | 0 |
+| 18 | 1 | 1 | 0 |
+| 19 | 0 | 0 | 0 (1 skipped) |
+| **8 (loop 8)** | **0** | **0** | **0 (1 skipped: retry-exhausted)** |
+
+### Sprint Status After Session 8
+
+**Total stories completed today:** 10 (no change from session 19)
+**Sprint completion:** 65/66 (98.5%)
+**Remaining:** 14-4 (verifying — retry-exhausted, needs human intervention)
+**No-op sessions:** 2 consecutive (sessions 19 and 8)
+**Verdict:** Sprint is done. Stop spawning sessions. Human decision needed on 14-4 only.

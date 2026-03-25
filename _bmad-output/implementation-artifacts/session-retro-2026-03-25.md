@@ -1302,3 +1302,147 @@ These are not really workarounds. Both stories had ACs that were always unit-tes
 | **17** | **2** | **2** | **0** |
 
 Session 17 had the best efficiency ratio of any session: 2/2 attempted stories completed. The key insight was reclassifying verification tier rather than retrying the same failing approach. Sprint is at 64/66 (97%) with only 14-4 (stuck) and 15-5 (backlog) remaining.
+
+---
+
+# Session Retrospective — 2026-03-25 (Session 18)
+
+**Appended:** 2026-03-25T11:00Z
+**Sprint:** Operational Excellence (Epic 14-15 — Tech Debt Pipeline + Code Quality)
+**Session:** 18 (continuation from session 17)
+**Session window:** ~2026-03-25 06:50 UTC to ~2026-03-25 07:10 UTC (~20 minutes)
+**Ralph run:** 1 (4 iterations, ~20 min)
+
+---
+
+## 1. Session Summary
+
+| Story | Epic | Outcome | Pipeline Stages | Notes |
+|-------|------|---------|-----------------|-------|
+| 15-5-lint-rule-bare-exception-swallowing | Epic 15 | done | create-story, dev-story, code-review, verification | Full pipeline. Code review caught 2 HIGH bugs and fixed them. |
+
+**Net progress:** Epic 15 fully closed (all 5 stories done). Sprint: 65 of 66 stories done (98.5%). Only 14-4-observability-backend-choice remains (stuck in "verifying" since session 11).
+
+This session completed the last backlog story in the sprint. The only remaining item (14-4) is an infrastructure-blocked verification, not a development gap.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Discovered During Implementation
+
+| Severity | Story | Issue | Status |
+|----------|-------|-------|--------|
+| HIGH | 15-5 | Hook grep pattern `except Exception.*pass` never matches multiline Python — AC2 was non-functional | Fixed by code review: replaced with awk-based multiline detection |
+| HIGH | 15-5 | Semgrep `no-bare-except-ellipsis` rule used `...` (Semgrep wildcard) instead of matching Python Ellipsis literal — false positive generator | Fixed by code review: replaced with `pattern-regex` |
+| MEDIUM | 15-5 | Hook only detected `pass` but not Python `...` (Ellipsis) pattern | Fixed |
+| MEDIUM | 15-5 | AGENTS.md stale after `additionalRulesDirs` config addition | Fixed |
+
+The code review subagent caught 2 HIGH-severity bugs that would have shipped broken functionality. Both were in the core deliverable (Semgrep rule and pre-commit hook). The adversarial review process justified its cost this session.
+
+### Workarounds Applied (Tech Debt Introduced)
+
+| Story | Workaround | Debt Level |
+|-------|-----------|------------|
+| 15-5 | Semgrep test fixtures validate file existence/content only (not Semgrep execution) since Semgrep is not installed in test environment | Low — integration testing would require Semgrep in CI |
+
+### Code Quality Concerns
+
+- **Story spec inaccuracy:** Story listed `src/lib/scanner.ts` as a change target, but Semgrep logic actually lives in `src/modules/observability/analyzer.ts`. Dev correctly changed the right file, but the story spec was wrong. This is the second time this sprint a story spec referenced the wrong source file.
+- **Rule naming:** `no-bare-except-ellipsis` name is slightly misleading — it catches all bare exception bodies, not just Ellipsis. Acceptable given the AC wording.
+
+### Verification Gaps
+
+| Story | Gap |
+|-------|-----|
+| 14-4-observability-backend-choice | Still stuck in "verifying". Not attempted this session. This is the sole remaining story in the sprint. |
+
+### Tooling/Infrastructure
+
+No new tooling issues. The session ran cleanly without Docker dependency.
+
+---
+
+## 3. What Went Well
+
+- **Epic 15 fully closed.** All 5 code quality stories done. The sprint's second-to-last epic is complete.
+- **Code review caught critical bugs.** Two HIGH-severity issues (non-functional grep pattern, false-positive Semgrep rule) were caught and fixed before commit. Without the adversarial review stage, AC2 would have shipped broken.
+- **All 3799 tests pass.** Zero regressions across the full test suite. Coverage at 97.11%, all 156 files above 80% floor.
+- **Single-pass completion.** Story went through full pipeline (create, dev, review, verify) in ~20 minutes with no retries.
+- **Sprint at 98.5% completion** (65/66 done).
+
+---
+
+## 4. What Went Wrong
+
+- **Dev shipped 2 HIGH bugs past the dev stage.** The grep pattern and Semgrep rule were both fundamentally broken. The dev subagent did not test the hook against actual multiline Python code or verify the Semgrep rule semantics. The code review stage saved this from being a failed story.
+- **Story spec pointed to wrong file.** `src/lib/scanner.ts` listed in the story but the actual Semgrep integration is in `analyzer.ts`. This is a recurring problem — story specs reference stale file paths from when the codebase had a different structure.
+- **14-4 still unresolved.** It has been stuck since session 11 (8 sessions ago). No one has manually reviewed its ACs to determine if it can be reclassified or must be descoped.
+
+---
+
+## 5. Lessons Learned
+
+### Patterns to Repeat
+
+- **Adversarial code review pays for itself.** This session is a textbook case: 2 HIGH bugs caught that would have made the story's core functionality non-operational. The ~5 minutes spent on code review prevented a retry loop.
+- **Pre-commit hooks need multiline testing.** Any grep-based hook targeting Python syntax must be tested against multiline constructs, not just single-line patterns.
+- **Semgrep `...` is a metavariable, not a literal.** Any rule targeting Python Ellipsis (`...`) must use `pattern-regex` or `metavariable-regex`, not pattern matching.
+
+### Patterns to Avoid
+
+- **Do not ship grep-based linting without testing against realistic input.** The `except Exception.*pass` pattern looked correct but fails on any real Python code where `pass` is on a different line from `except`.
+- **Do not trust story file paths without verification.** Cross-reference story specs against actual codebase structure before starting development.
+
+---
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+
+| # | Action | Context |
+|---|--------|---------|
+| 1 | **Resolve 14-4-observability-backend-choice** — manually review ACs, reclassify as unit-testable if possible, or descope from sprint. This has been an action item for 3 consecutive retros. | Only story blocking sprint closure |
+
+### Fix Soon (Next Sprint)
+
+| # | Action | Context |
+|---|--------|---------|
+| 2 | **Add file-path validation to create-story** — verify referenced source files exist before generating story spec | Story spec pointed to wrong file (15-5, and previously in other stories) |
+| 3 | **Add multiline test cases to hook validation** — any grep-based hook should be tested against multiline input during dev stage | Both grep bugs in 15-5 were multiline failures |
+| 4 | **Install Semgrep in CI** — enable actual rule execution in test suite rather than file-existence-only validation | Test coverage gap for Semgrep rules |
+| 5 | **Carry forward from session 16-17:** audit `'in-review'` vs `'review'` cross-system, add `opensearch` to HarnessState, reduce max_story_retries for verification failures | Still open |
+
+### Backlog (Track but Not Urgent)
+
+| # | Action | Context |
+|---|--------|---------|
+| 6 | Carry forward: vitest overloaded-function mock typing, phantom property assertions audit, ralph retry-waste metric | From sessions 15-17 |
+| 7 | Audit all Semgrep rules for `...` metavariable misuse | Pattern discovered in 15-5 may exist in other rules |
+
+---
+
+### Session Velocity (Updated)
+
+| Session | Stories Attempted | Stories Completed (done) | Stories Stuck |
+|---------|-------------------|--------------------------|---------------|
+| 10 | 4 | 4 | 0 |
+| 11 | 9 | 6 | 3 (Docker) |
+| 12 | 1 | 0 | 1 (ENOSPC) |
+| 13 | 3 | 0 | 3 (Docker) |
+| 14 | 1 | 1 | 0 (3 skipped) |
+| 15 | 10 | 6 | 3 (verifying) |
+| 16 | 1 | 1 | 0 |
+| 17 | 2 | 2 | 0 |
+| **18** | **1** | **1** | **0** |
+
+### End-of-Day Sprint Summary (2026-03-25, Final)
+
+**Total stories completed today:** 10 (14-2, 14-3, 14-5, 14-6, 14-7, 15-1, 15-2, 15-3, 15-4, 15-5)
+**Sprint completion:** 65/66 (98.5%)
+**Remaining:** 14-4 (verifying — stuck since session 11)
+**Sessions today:** 9 (sessions 10-18)
+**Epics closed today:** Epic 13 (AgentDriver), Epic 15 (Code Quality)
+**Epics closed this sprint:** 13, 14 (partially — 14-4 stuck), 15
+
+Sprint is effectively complete. The sole remaining story (14-4) is an infrastructure-blocked verification that has been stuck for 8 sessions. It should be manually resolved or descoped to close the sprint.

@@ -832,7 +832,9 @@ execute_iteration() {
 
         # If harness-run reported NO_WORK, don't count file changes as progress.
         # Writing session-issues.md with "NO_WORK" creates git diffs but is NOT real progress.
-        if grep -qE 'Result: NO_WORK|no actionable stories remain' "$output_file" 2>/dev/null; then
+        # IMPORTANT: Only check non-JSON lines. The prompt text is echoed inside JSON objects
+        # and contains these strings as instructions — those are false positives.
+        if grep -v '^[[:space:]]*{' "$output_file" 2>/dev/null | grep -qE 'Result: NO_WORK'; then
             files_changed=0
             log_status "INFO" "NO_WORK detected — overriding files_changed to 0 for circuit breaker"
         fi

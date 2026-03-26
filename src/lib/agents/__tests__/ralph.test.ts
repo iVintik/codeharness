@@ -298,15 +298,15 @@ describe('RalphDriver', () => {
         expect(event).not.toHaveProperty('args');
       });
 
-      it('returns null for tool-input deltas', () => {
+      it('returns tool-input for input_json_delta', () => {
         const line = JSON.stringify({
           type: 'stream_event',
           event: {
             type: 'content_block_delta',
-            delta: { type: 'input_json_delta', partial_json: '{}' },
+            delta: { type: 'input_json_delta', partial_json: '{"file' },
           },
         });
-        expect(driver.parseOutput(line)).toBeNull();
+        expect(driver.parseOutput(line)).toEqual({ type: 'tool-input', partial: '{"file' });
       });
     });
 

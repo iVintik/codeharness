@@ -30,6 +30,7 @@ function handleAgentEvent(
 ): void {
   switch (event.type) {
     case 'tool-start':
+    case 'tool-input':
     case 'tool-complete':
     case 'text':
     case 'result':

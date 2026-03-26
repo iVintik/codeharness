@@ -266,8 +266,7 @@ export class RalphDriver implements AgentDriver {
         case 'result':
           return { type: 'result', cost: streamEvent.cost, sessionId: streamEvent.sessionId };
         case 'tool-input':
-          // tool-input deltas are not mapped to AgentEvent
-          return null;
+          return { type: 'tool-input', partial: streamEvent.partial };
       }
     }
 

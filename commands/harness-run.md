@@ -96,6 +96,32 @@ Initialize the issues file at the start of the session (Step 1) by writing a hea
 
 Based on the story's current status, determine which workflow(s) to run. Execute them in sequence, verifying status transitions after each.
 
+> **TOKEN OPTIMIZATION — Use Subagents for Heavy Commands**
+>
+> The parent orchestrator's conversation context grows with every tool call. Large outputs (build logs, test results, coverage reports) snowball the context and make every subsequent API call expensive.
+>
+> **Rule: Any command that produces >50 lines of output should run inside a subagent.**
+>
+> The subagent sees the full output, processes it, and returns a ONE-LINE summary to the parent. This keeps the parent context small.
+>
+> Apply this to: `cargo build`, `cargo test`, `cargo clippy`, `cargo tarpaulin`, `npm test`, `npm run build`, `docker build`, `codeharness verify --story`, and any other verbose command.
+>
+> **Pattern:**
+> ```
+> Use the Agent tool with:
+>   prompt: "Run `{command}` in {directory}. Report result as a single line:
+>   PASS — {summary} OR FAIL — {first 5 error lines}"
+>   subagent_type: "general-purpose"
+> ```
+>
+> **Do NOT run these commands directly with Bash from the parent orchestrator.** The subagent absorbs the output; the parent stays lean.
+>
+> **Also avoid redundant calls:**
+> - Read sprint-status.yaml ONCE at session start (Step 1), not per-story
+> - `codeharness progress --clear` ONCE per story, not twice
+> - Timestamps: use the current time from your system prompt, don't shell out to `date`
+> - Don't re-read files that haven't changed since last read
+
 **Live progress updates:** Before executing each sub-step (3a/3b/3c/3d), update sprint-state.json with the current progress:
 
 ```bash
@@ -201,18 +227,36 @@ Read `_bmad-output/implementation-artifacts/{story_key}.md`. Search for `<!-- ve
 
 **Unit-testable verification (when tagged):**
 
-1. Run `npm run build` — if build fails, fix and retry
-2. Run `npm test` — all tests must pass
-3. For each AC in the story file, verify it directly:
-   - File existence: `ls path/to/file`
-   - Exports: `grep 'export' path/to/file`
-   - Line counts: `wc -l path/to/file`
-   - Function existence: `grep 'function name' path/to/file`
-   - Test passing: check vitest output
-4. Generate proof at `verification/{story_key}-proof.md` with evidence from each AC check
-5. Run `codeharness verify --story {story_key}` to validate the proof
-6. If proof passes → mark story `done`
-7. **No Docker involved at any point.** Skip steps 3d-i through 3d-viii entirely.
+Use a **single subagent** for the entire verification. This keeps build/test output out of the parent context (saves ~80% of verification tokens).
+
+```
+Use the Agent tool with:
+  prompt: "Verify story {story_key} using local CLI checks (unit-testable tier).
+
+Story file: _bmad-output/implementation-artifacts/{story_key}.md
+
+Execute these steps and report results:
+1. Run the project build command (npm run build, cargo build, etc). Report: PASS or FAIL + first 10 error lines.
+2. Run tests (npm test, cargo test, etc). Report: PASS (N passed) or FAIL (N failed: list names).
+3. Run linter if configured (cargo clippy, eslint, etc). Report: PASS or FAIL + warning count.
+4. Run coverage if configured (cargo tarpaulin, vitest --coverage, etc). Report: coverage percentage.
+5. For each AC in the story file, verify it:
+   - File existence: ls path/to/file
+   - Exports: grep 'export' path/to/file
+   - Function existence: grep 'function name' path/to/file
+   - Test output: check relevant test names in output
+   Report each AC as PASS or FAIL with one-line evidence.
+6. Generate proof document at verification/{story_key}-proof.md with evidence from each check.
+7. Run codeharness verify --story {story_key} to validate the proof format.
+8. Report final result: ALL_PASS (N/N ACs) or PARTIAL (M/N ACs, list failures).
+
+Do NOT ask the user any questions. Do NOT run git commands. Do NOT modify sprint-status.yaml."
+  subagent_type: "general-purpose"
+```
+
+After the subagent returns:
+1. Parse the result: ALL_PASS → mark story `done`. PARTIAL → treat as failure (Step 3d-vii Path A).
+2. **No Docker involved at any point.** Skip steps 3d-i through 3d-viii entirely.
 
 **Black-box verification (default, no tag):** Full Docker container with no source code access.
 

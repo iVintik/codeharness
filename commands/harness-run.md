@@ -68,16 +68,35 @@ Scan ALL stories across ALL epics to find the highest-priority actionable story.
    [INFO] Stories in epic: {done_count}/{total_count} done
    ```
 
-## Subagent Issues Tracking
+## Subagent Mandatory Report Sections
 
-Every subagent (create-story, dev-story, code-review, verifier, retrospective) MUST end its response with a `## Session Issues` section. This section reports problems, workarounds, suboptimal outcomes, and observations — not just success/failure status.
+Every subagent (create-story, dev-story, code-review, verifier, retrospective) MUST end its response with TWO sections:
 
-**After each subagent returns**, extract the `## Session Issues` section from its response and append it to the session issues log file at `_bmad-output/implementation-artifacts/.session-issues.md`. Use the following format:
+### 1. Session Issues
+
+A `## Session Issues` section reporting problems, workarounds, suboptimal outcomes, and observations — not just success/failure status.
+
+### 2. Token Usage Report
+
+A `## Token Report` section with tool call breakdown for cost analysis:
+
+```markdown
+## Token Report
+- Total tool calls: N
+- By tool: Bash: X, Read: Y, Edit: Z, Grep: W, Write: V, Glob: U, Agent: T
+- Largest Bash outputs: "{command}" (~N lines), "{command}" (~N lines)
+- Files read: N unique files, M total read calls (list files read 3+ times)
+- Redundant operations: {describe any repeated reads, duplicate commands, or unnecessary calls}
+```
+
+**After each subagent returns**, extract BOTH sections and append to the session issues log file at `_bmad-output/implementation-artifacts/.session-issues.md`. Use the following format:
 
 ```markdown
 ### {story_key} — {step name} ({timestamp})
 
 {extracted issues from subagent response}
+
+{extracted token report from subagent response}
 ```
 
 If the subagent didn't include a Session Issues section, append:
@@ -143,7 +162,14 @@ MANDATORY — End your response with a `## Session Issues` section listing:
 - Workarounds applied (anything you did that felt hacky or suboptimal)
 - Risks identified (ACs that seem untestable, unclear requirements, missing dependencies)
 - Observations (anything surprising or noteworthy about this story)
-If nothing to report, write `## Session Issues\n\nNone.`"
+If nothing to report, write `## Session Issues\n\nNone.`
+
+MANDATORY — Also end your response with a `## Token Report` section:
+- Total tool calls: N
+- By tool: Bash: X, Read: Y, Edit: Z, Grep: W, Write: V, other: N
+- Largest Bash outputs (top 3 by line count): command (~N lines each)
+- Files read: N unique, M total reads (list any file read 3+ times)
+- Redundant operations: describe any repeated reads, duplicate commands, or wasted calls"
   subagent_type: "general-purpose"
 ```
 
@@ -177,7 +203,14 @@ MANDATORY — End your response with a `## Session Issues` section listing:
 - Workarounds applied (anything hacky, copied patterns that felt wrong, TODOs left behind)
 - Code quality concerns (areas that need refactoring, edge cases not handled, tech debt added)
 - Observations (unexpected complexity, architectural mismatches, dependency issues)
-If nothing to report, write `## Session Issues\n\nNone.`"
+If nothing to report, write `## Session Issues\n\nNone.`
+
+MANDATORY — Also end your response with a `## Token Report` section:
+- Total tool calls: N
+- By tool: Bash: X, Read: Y, Edit: Z, Grep: W, Write: V, other: N
+- Largest Bash outputs (top 3 by line count): command (~N lines each)
+- Files read: N unique, M total reads (list any file read 3+ times)
+- Redundant operations: describe any repeated reads, duplicate commands, or wasted calls"
   subagent_type: "general-purpose"
 ```
 
@@ -203,7 +236,14 @@ MANDATORY — End your response with a `## Session Issues` section listing:
 - Coverage gaps (files below floor, untested edge cases, areas needing integration tests)
 - Architecture concerns (patterns that don't fit, coupling issues, missing abstractions)
 - Items sent back for re-development (what failed and why)
-If nothing to report, write `## Session Issues\n\nNone.`"
+If nothing to report, write `## Session Issues\n\nNone.`
+
+MANDATORY — Also end your response with a `## Token Report` section:
+- Total tool calls: N
+- By tool: Bash: X, Read: Y, Edit: Z, Grep: W, Write: V, other: N
+- Largest Bash outputs (top 3 by line count): command (~N lines each)
+- Files read: N unique, M total reads (list any file read 3+ times)
+- Redundant operations: describe any repeated reads, duplicate commands, or wasted calls"
   subagent_type: "general-purpose"
 ```
 
@@ -250,12 +290,20 @@ Execute these steps and report results:
 7. Run codeharness verify --story {story_key} to validate the proof format.
 8. Report final result: ALL_PASS (N/N ACs) or PARTIAL (M/N ACs, list failures).
 
-Do NOT ask the user any questions. Do NOT run git commands. Do NOT modify sprint-status.yaml."
+Do NOT ask the user any questions. Do NOT run git commands. Do NOT modify sprint-status.yaml.
+
+MANDATORY — End your response with a `## Token Report` section:
+- Total tool calls: N
+- By tool: Bash: X, Read: Y, Edit: Z, Grep: W, Write: V, other: N
+- Largest Bash outputs (top 3 by line count): command (~N lines each)
+- Files read: N unique, M total reads (list any file read 3+ times)
+- Redundant operations: describe any repeated reads, duplicate commands, or wasted calls"
   subagent_type: "general-purpose"
 ```
 
 After the subagent returns:
-1. Parse the result: ALL_PASS → mark story `done`. PARTIAL → treat as failure (Step 3d-vii Path A).
+1. Extract the `## Token Report` section and append to `.session-issues.md`
+2. Parse the result: ALL_PASS → mark story `done`. PARTIAL → treat as failure (Step 3d-vii Path A).
 2. **No Docker involved at any point.** Skip steps 3d-i through 3d-viii entirely.
 
 **Black-box verification (default, no tag):** Full Docker container with no source code access.
@@ -536,7 +584,14 @@ MANDATORY — End your response with a `## Session Issues` section listing:
 - Stories that were harder than expected and why
 - Action items that need immediate attention vs. backlog
 - Process improvements that should be encoded in tooling/config, not just documented
-If nothing to report, write `## Session Issues\n\nNone.`"
+If nothing to report, write `## Session Issues\n\nNone.`
+
+MANDATORY — Also end your response with a `## Token Report` section:
+- Total tool calls: N
+- By tool: Bash: X, Read: Y, Edit: Z, Grep: W, Write: V, other: N
+- Largest Bash outputs (top 3 by line count): command (~N lines each)
+- Files read: N unique, M total reads (list any file read 3+ times)
+- Redundant operations: describe any repeated reads, duplicate commands, or wasted calls"
        subagent_type: "general-purpose"
      ```
    - After retrospective completes:
@@ -645,6 +700,13 @@ Cost report: Run `codeharness stats --json` to get token consumption data.
 CRITICAL: Read the session issues log FIRST. This file contains real problems, workarounds, bugs, and observations reported by every subagent that ran this session. These are the raw materials for your retrospective — do not ignore them.
 
 CRITICAL: Run `codeharness stats --save` to generate the cost report. Read `_bmad-output/implementation-artifacts/cost-report.md` and include cost analysis in the retrospective.
+
+CRITICAL: The session issues log contains `## Token Report` sections from each subagent. Aggregate these to understand WHERE tokens were spent inside subagents (not just the parent). Look for:
+- Which subagent phases had the most tool calls?
+- Which subagents read the same files repeatedly?
+- Which Bash commands produced the largest outputs?
+- What redundant operations were reported?
+Include this subagent-level breakdown in the cost analysis section.
 
 Produce a retrospective that covers:
 1. **Session summary** — which stories were attempted, their outcomes, time spent

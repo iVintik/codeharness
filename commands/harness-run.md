@@ -596,8 +596,11 @@ Use the Agent tool with:
 
 Sprint status: _bmad-output/implementation-artifacts/sprint-status.yaml
 Session issues log: _bmad-output/implementation-artifacts/.session-issues.md
+Cost report: Run `codeharness stats --json` to get token consumption data.
 
 CRITICAL: Read the session issues log FIRST. This file contains real problems, workarounds, bugs, and observations reported by every subagent that ran this session. These are the raw materials for your retrospective — do not ignore them.
+
+CRITICAL: Run `codeharness stats --save` to generate the cost report. Read `_bmad-output/implementation-artifacts/cost-report.md` and include cost analysis in the retrospective.
 
 Produce a retrospective that covers:
 1. **Session summary** — which stories were attempted, their outcomes, time spent
@@ -607,13 +610,24 @@ Produce a retrospective that covers:
    - Code quality concerns raised by reviewers
    - Verification gaps (escalated ACs, weak evidence)
    - Tooling/infrastructure problems (sandbox, permissions, CLI issues)
-3. **What went well** — stories completed, bugs fixed, process improvements
-4. **What went wrong** — failures, blockers, stuck stories, wasted iterations
-5. **Lessons learned** — patterns to repeat or avoid
-6. **Action items** — concrete next steps, split into:
+3. **Cost analysis** — from the cost report:
+   - Total API-equivalent cost this sprint
+   - Cost per phase (which phases are most expensive?)
+   - Cost per story (which stories cost the most and why?)
+   - Wasted spend (no-op sessions, failed verifications, retries)
+   - Cost optimization opportunities:
+     * Stories that should use unit-testable verification instead of Docker
+     * Phases that could be cheaper (e.g., lighter retros for no-op sessions)
+     * Subagent prompts that could be trimmed to reduce cache writes
+     * Average cost per story vs target (flag if trending up)
+4. **What went well** — stories completed, bugs fixed, process improvements
+5. **What went wrong** — failures, blockers, stuck stories, wasted iterations
+6. **Lessons learned** — patterns to repeat or avoid
+7. **Action items** — concrete next steps, split into:
    - Fix now (before next session)
    - Fix soon (next sprint)
    - Backlog (track but not urgent)
+   - Cost optimization (specific actions to reduce token consumption)
 
 Write the retrospective to _bmad-output/implementation-artifacts/session-retro-{date}.md where {date} is today's date in YYYY-MM-DD format.
 

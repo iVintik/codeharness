@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { parseStoryACs, classifyAC, classifyVerifiability, classifyStrategy, parseVerificationTag, INTEGRATION_KEYWORDS } from '../parser.js';
+import { parseStoryACs, classifyAC, classifyVerifiability, classifyStrategy, classifyTier, parseVerificationTag, INTEGRATION_KEYWORDS } from '../parser.js';
 
 // Mock output.ts to suppress warnings during tests
 vi.mock('../../../lib/output.js', () => ({
@@ -210,7 +210,7 @@ As a developer...
     expect(acs[0].verifiability).toBe('cli-verifiable');
   });
 
-  it('reads verification tag from AC line and sets verifiability accordingly', () => {
+  it('reads verification tag from AC line and sets tier accordingly', () => {
     const filePath = writeStoryFile('story.md', `# Story 12.3: Tags
 
 ## Acceptance Criteria
@@ -224,13 +224,15 @@ As a developer...
 
     const acs = parseStoryACs(filePath);
     expect(acs).toHaveLength(2);
+    // Tag cli-verifiable maps to test-provable; verifiability is computed independently
     expect(acs[0].verifiability).toBe('cli-verifiable');
     expect(acs[0].tier).toBe('test-provable');
-    expect(acs[1].verifiability).toBe('integration-required');
+    // Tag integration-required maps to environment-provable; verifiability is now independent
+    expect(acs[1].verifiability).toBe('cli-verifiable');
     expect(acs[1].tier).toBe('environment-provable');
   });
 
-  it('falls back to heuristic classification when no verification tag is present', () => {
+  it('falls back to classifyTier when no verification tag is present', () => {
     const filePath = writeStoryFile('story.md', `# Story 12.3: Heuristic
 
 ## Acceptance Criteria
@@ -246,15 +248,18 @@ As a developer...
 
     const acs = parseStoryACs(filePath);
     expect(acs).toHaveLength(3);
+    // "cli command" matches RUNTIME_PROVABLE_KEYWORDS
     expect(acs[0].verifiability).toBe('cli-verifiable');
-    expect(acs[0].tier).toBe('test-provable');
+    expect(acs[0].tier).toBe('runtime-provable');
+    // "external system" matches INTEGRATION_KEYWORDS (verifiability) but no tier keywords -> test-provable
     expect(acs[1].verifiability).toBe('integration-required');
-    expect(acs[1].tier).toBe('environment-provable');
+    expect(acs[1].tier).toBe('test-provable');
+    // "manual verification" matches INTEGRATION_KEYWORDS (verifiability) but no tier keywords -> test-provable
     expect(acs[2].verifiability).toBe('integration-required');
-    expect(acs[2].tier).toBe('environment-provable');
+    expect(acs[2].tier).toBe('test-provable');
   });
 
-  it('verification tag overrides heuristic classification', () => {
+  it('verification tag overrides heuristic tier classification', () => {
     const filePath = writeStoryFile('story.md', `# Story 12.3: Override
 
 ## Acceptance Criteria
@@ -266,13 +271,14 @@ As a developer...
 
     const acs = parseStoryACs(filePath);
     expect(acs).toHaveLength(1);
-    // "external system" would heuristically classify as integration-required,
-    // but the explicit tag overrides it to cli-verifiable
-    expect(acs[0].verifiability).toBe('cli-verifiable');
+    // "external system" would heuristically classify tier as test-provable (default),
+    // but the explicit tag (cli-verifiable -> test-provable via LEGACY_TIER_MAP) sets tier.
+    // verifiability is now computed independently by classifyVerifiability
+    expect(acs[0].verifiability).toBe('integration-required');
     expect(acs[0].tier).toBe('test-provable');
   });
 
-  it('populates tier field correctly for integration-required ACs', () => {
+  it('tier is derived from classifyTier independently of verifiability', () => {
     const filePath = writeStoryFile('story.md', `# Story 16.1: Tier test
 
 ## Acceptance Criteria
@@ -284,8 +290,10 @@ As a developer...
 
     const acs = parseStoryACs(filePath);
     expect(acs).toHaveLength(1);
+    // verifiability matches "external system" -> integration-required
     expect(acs[0].verifiability).toBe('integration-required');
-    expect(acs[0].tier).toBe('environment-provable');
+    // tier uses classifyTier: no tier keywords match -> test-provable (default)
+    expect(acs[0].tier).toBe('test-provable');
   });
 
   it('defaults tier to test-provable for cli-verifiable ACs', () => {
@@ -302,6 +310,30 @@ As a developer...
     expect(acs).toHaveLength(1);
     expect(acs[0].verifiability).toBe('cli-verifiable');
     expect(acs[0].tier).toBe('test-provable');
+  });
+
+  it('derives tier from classifyTier fallback when no tag present (AC11)', () => {
+    const filePath = writeStoryFile('story.md', `# Story 16.2: Tier fallback
+
+## Acceptance Criteria
+
+1. **Given** function X exists, **When** called, **Then** returns Z.
+
+2. **Given** the CLI outputs JSON, **Then** it is valid.
+
+3. **Given** Docker container starts, **Then** services are healthy.
+
+4. **Given** physical display renders correctly, **Then** fps is 60.
+
+## Tasks
+`);
+
+    const acs = parseStoryACs(filePath);
+    expect(acs).toHaveLength(4);
+    expect(acs[0].tier).toBe('test-provable');
+    expect(acs[1].tier).toBe('runtime-provable');
+    expect(acs[2].tier).toBe('environment-provable');
+    expect(acs[3].tier).toBe('escalate');
   });
 
   it('parses new verification tier tags from story AC lines', () => {
@@ -363,12 +395,12 @@ describe('classifyVerifiability', () => {
 // ─── parseVerificationTag ────────────────────────────────────────────────────
 
 describe('parseVerificationTag', () => {
-  it('parses cli-verifiable tag', () => {
-    expect(parseVerificationTag('some text <!-- verification: cli-verifiable -->')).toBe('cli-verifiable');
+  it('maps legacy cli-verifiable tag to test-provable (AC9)', () => {
+    expect(parseVerificationTag('some text <!-- verification: cli-verifiable -->')).toBe('test-provable');
   });
 
-  it('parses integration-required tag', () => {
-    expect(parseVerificationTag('some text <!-- verification: integration-required -->')).toBe('integration-required');
+  it('maps legacy integration-required tag to environment-provable (AC10)', () => {
+    expect(parseVerificationTag('some text <!-- verification: integration-required -->')).toBe('environment-provable');
   });
 
   it('returns null when no tag is present', () => {
@@ -376,10 +408,10 @@ describe('parseVerificationTag', () => {
   });
 
   it('handles extra whitespace in tag', () => {
-    expect(parseVerificationTag('text <!--  verification:  cli-verifiable  -->')).toBe('cli-verifiable');
+    expect(parseVerificationTag('text <!--  verification:  cli-verifiable  -->')).toBe('test-provable');
   });
 
-  it('parses new tier values: test-provable', () => {
+  it('parses new tier values: test-provable (AC8)', () => {
     expect(parseVerificationTag('text <!-- verification: test-provable -->')).toBe('test-provable');
   });
 
@@ -393,6 +425,101 @@ describe('parseVerificationTag', () => {
 
   it('parses new tier values: escalate', () => {
     expect(parseVerificationTag('text <!-- verification: escalate -->')).toBe('escalate');
+  });
+
+  it('returns VerificationTier type (not legacy Verifiability)', () => {
+    const result = parseVerificationTag('text <!-- verification: test-provable -->');
+    expect(['test-provable', 'runtime-provable', 'environment-provable', 'escalate']).toContain(result);
+  });
+
+  it('maps legacy unit-testable tag to test-provable', () => {
+    expect(parseVerificationTag('text <!-- verification: unit-testable -->')).toBe('test-provable');
+  });
+
+  it('returns null for unknown/invalid tag values', () => {
+    expect(parseVerificationTag('text <!-- verification: unknown-value -->')).toBeNull();
+    expect(parseVerificationTag('text <!-- verification: auto -->')).toBeNull();
+  });
+});
+
+// ─── classifyTier ───────────────────────────────────────────────────────────
+
+describe('classifyTier', () => {
+  // AC1: test-provable for function/returns keywords
+  it('returns test-provable for function descriptions (AC1)', () => {
+    expect(classifyTier('Given function X exists, when called with Y, then returns Z')).toBe('test-provable');
+  });
+
+  // AC2: runtime-provable for CLI output keywords
+  it('returns runtime-provable for CLI output descriptions (AC2)', () => {
+    expect(classifyTier('Given the CLI outputs JSON when --format json is passed')).toBe('runtime-provable');
+  });
+
+  // AC3: environment-provable for VictoriaLogs keywords
+  it('returns environment-provable for observability descriptions (AC3)', () => {
+    expect(classifyTier('Given logs appear in VictoriaLogs after the request')).toBe('environment-provable');
+  });
+
+  // AC4: escalate for physical display keywords
+  it('returns escalate for physical hardware descriptions (AC4)', () => {
+    expect(classifyTier('Given 60fps rendering on a physical display')).toBe('escalate');
+  });
+
+  // AC5: test-provable for type/export keywords
+  it('returns test-provable for type/export descriptions (AC5)', () => {
+    expect(classifyTier('Given the type is exported from types.ts')).toBe('test-provable');
+  });
+
+  // AC6: runtime-provable for API endpoint keywords
+  it('returns runtime-provable for API endpoint descriptions (AC6)', () => {
+    expect(classifyTier('Given the API endpoint returns 200')).toBe('runtime-provable');
+  });
+
+  // AC7: environment-provable for Docker/container keywords
+  it('returns environment-provable for Docker descriptions (AC7)', () => {
+    expect(classifyTier('Given the Docker container starts successfully')).toBe('environment-provable');
+  });
+
+  it('defaults to test-provable when no keywords match', () => {
+    expect(classifyTier('Given a simple check, Then it passes')).toBe('test-provable');
+  });
+
+  it('returns test-provable for empty string', () => {
+    expect(classifyTier('')).toBe('test-provable');
+  });
+
+  it('is case insensitive', () => {
+    expect(classifyTier('Given the DOCKER CONTAINER starts')).toBe('environment-provable');
+    expect(classifyTier('Given HTTP server responds')).toBe('runtime-provable');
+    expect(classifyTier('Given PHYSICAL HARDWARE is needed')).toBe('escalate');
+  });
+
+  it('respects priority order: escalate > environment > runtime > test', () => {
+    // Description with both escalate and environment keywords — escalate wins
+    expect(classifyTier('physical hardware with Docker container')).toBe('escalate');
+    // Description with both environment and runtime keywords — environment wins
+    expect(classifyTier('Docker container with HTTP server')).toBe('environment-provable');
+  });
+
+  it('matches multiple test-provable keywords', () => {
+    expect(classifyTier('Given the interface is exported from config')).toBe('test-provable');
+    expect(classifyTier('Given test passes with full coverage')).toBe('test-provable');
+    expect(classifyTier('Given the refactor is complete and documentation updated')).toBe('test-provable');
+  });
+
+  it('matches multiple runtime-provable keywords', () => {
+    expect(classifyTier('Given the server output shows the exit code')).toBe('runtime-provable');
+    expect(classifyTier('Given the binary runs and produces correct output')).toBe('runtime-provable');
+  });
+
+  it('matches multiple environment-provable keywords', () => {
+    expect(classifyTier('Given telemetry flows to the observability stack')).toBe('environment-provable');
+    expect(classifyTier('Given the distributed queue processes messages end-to-end')).toBe('environment-provable');
+  });
+
+  it('matches multiple escalate keywords', () => {
+    expect(classifyTier('Given GPU rendering with human visual confirmation')).toBe('escalate');
+    expect(classifyTier('Given manual inspection of paid service output')).toBe('escalate');
   });
 });
 

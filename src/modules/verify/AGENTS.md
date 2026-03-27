@@ -9,7 +9,8 @@ and Docker environment management for isolated verification.
 |------|---------|-------------|
 | index.ts | Public interface — delegates to internal files | `verifyStory`, `parseProof`, re-exports all public types/functions |
 | orchestrator.ts | Verification pipeline orchestration | `checkPreconditions`, `createProofDocument`, `runShowboatVerify`, `updateVerificationState`, `closeBeadsIssue` |
-| parser.ts | Story AC extraction and classification | `parseStoryACs`, `classifyAC`, `classifyVerifiability`, `classifyStrategy`, `parseVerificationTag` |
+| parser.ts | Story AC extraction and classification | `parseStoryACs`, `classifyAC`, `classifyTier`, `classifyVerifiability` (deprecated), `classifyStrategy` (deprecated), `parseVerificationTag` |
+| parser-keywords.ts | Keyword arrays for AC classification (extracted from parser.ts for 300-line limit) | `UI_KEYWORDS`, `API_KEYWORDS`, `DB_KEYWORDS`, `INTEGRATION_KEYWORDS`, `ESCALATE_KEYWORDS`, `TEST_PROVABLE_KEYWORDS`, `RUNTIME_PROVABLE_KEYWORDS`, `ENVIRONMENT_PROVABLE_KEYWORDS`, `ESCALATE_TIER_KEYWORDS` |
 | proof.ts | Proof quality validation + black-box enforcement | `validateProofQuality`, `proofHasContent`, `classifyEvidenceCommands`, `checkBlackBoxEnforcement` |
 | dockerfile-generator.ts | Dynamic Dockerfile generation from stack providers (Architecture Decision 10). Assembles base image + common tools + per-stack sections + OTLP env vars. | `generateVerifyDockerfile` |
 | env.ts | Docker image lifecycle + clean workspace + stale container cleanup. Supports nodejs, python, rust, plugin, and generic project types. Uses `generateVerifyDockerfile()` instead of static templates. | `buildVerifyImage`, `prepareVerifyWorkspace`, `checkVerifyEnv`, `cleanupVerifyEnv`, `cleanupStaleContainers`, `isValidStoryKey`, `computeDistHash`, `detectProjectType` |

@@ -7,52 +7,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { warn } from '../../lib/output.js';
 import type { ParsedAC, Verifiability, VerificationStrategy, VerificationTier, ObservabilityGapResult, ObservabilityGapEntry } from './types.js';
 import { LEGACY_TIER_MAP, TIER_HIERARCHY } from './types.js';
+import {
+  UI_KEYWORDS, API_KEYWORDS, DB_KEYWORDS,
+  INTEGRATION_KEYWORDS, ESCALATE_KEYWORDS,
+  TEST_PROVABLE_KEYWORDS, RUNTIME_PROVABLE_KEYWORDS,
+  ENVIRONMENT_PROVABLE_KEYWORDS, ESCALATE_TIER_KEYWORDS,
+} from './parser-keywords.js';
 
-// ─── Keywords for Classification ────────────────────────────────────────────
-
-const UI_KEYWORDS = [
-  'agent-browser',
-  'screenshot',
-  'navigate',
-  'click',
-  'form',
-  'ui verification',
-  'ui acceptance',
-];
-
-const API_KEYWORDS = [
-  'http',
-  'api',
-  'endpoint',
-  'curl',
-  'rest',
-  'response bod',
-];
-
-const DB_KEYWORDS = [
-  'database',
-  'db state',
-  'db mcp',
-  'query',
-  'sql',
-  'table',
-];
-
-// ─── Integration Keywords ───────────────────────────────────────────────────
-
-export const INTEGRATION_KEYWORDS = [
-  'external system',
-  'real infrastructure',
-  'manual verification',
-];
-
-// Keywords that indicate true escalation (cannot be automated at all)
-const ESCALATE_KEYWORDS = [
-  'physical hardware',
-  'manual human',
-  'visual inspection by human',
-  'paid external service',
-];
+// Re-export for backward compat (INTEGRATION_KEYWORDS was previously exported from parser.ts)
+export { INTEGRATION_KEYWORDS } from './parser-keywords.js';
 
 // ─── Verifiability Classification ───────────────────────────────────────────
 
@@ -60,6 +23,8 @@ const ESCALATE_KEYWORDS = [
  * Classifies whether an AC can be verified in a CLI subprocess or requires
  * integration testing. Checks description against integration keywords
  * (case-insensitive). Falls back to 'cli-verifiable'.
+ *
+ * @deprecated Use `classifyTier()` instead. Will be removed in a future release.
  */
 export function classifyVerifiability(description: string): Verifiability {
   const lower = description.toLowerCase();
@@ -81,6 +46,8 @@ export function classifyVerifiability(description: string): Verifiability {
  *
  * cli-direct is the fallback when Docker is unavailable (checked at runtime).
  * escalate is the last resort for things that truly can't be automated.
+ *
+ * @deprecated Use `classifyTier()` instead. Will be removed in a future release.
  */
 export function classifyStrategy(description: string): VerificationStrategy {
   const lower = description.toLowerCase();
@@ -94,19 +61,47 @@ export function classifyStrategy(description: string): VerificationStrategy {
   return 'docker';
 }
 
+// ─── Tier Classification ─────────────────────────────────────────────────────
+
+/**
+ * Classifies an AC description into a VerificationTier based on keyword matching.
+ * Priority: escalate > environment-provable > runtime-provable > test-provable (default).
+ */
+export function classifyTier(description: string): VerificationTier {
+  const lower = description.toLowerCase();
+  // Check highest priority first
+  for (const kw of ESCALATE_TIER_KEYWORDS) {
+    if (lower.includes(kw)) return 'escalate';
+  }
+  for (const kw of ENVIRONMENT_PROVABLE_KEYWORDS) {
+    if (lower.includes(kw)) return 'environment-provable';
+  }
+  for (const kw of RUNTIME_PROVABLE_KEYWORDS) {
+    if (lower.includes(kw)) return 'runtime-provable';
+  }
+  // Default: test-provable
+  return 'test-provable';
+}
+
 // ─── Verification Tag Parsing ───────────────────────────────────────────────
 
-const VERIFICATION_TAG_PATTERN = /<!--\s*verification:\s*(cli-verifiable|integration-required|test-provable|runtime-provable|environment-provable|escalate)\s*-->/;
+const VERIFICATION_TAG_PATTERN = /<!--\s*verification:\s*(cli-verifiable|integration-required|unit-testable|test-provable|runtime-provable|environment-provable|escalate)\s*-->/;
 
 /**
  * Parses a `<!-- verification: ... -->` HTML comment tag from a string.
  * Accepts both legacy values (cli-verifiable, integration-required) and
  * new VerificationTier values (test-provable, runtime-provable, etc.).
- * Returns the tag value if found, or null.
+ * Legacy values are mapped to VerificationTier via LEGACY_TIER_MAP.
+ * Returns a VerificationTier if found, or null.
  */
-export function parseVerificationTag(text: string): Verifiability | VerificationTier | null {
+export function parseVerificationTag(text: string): VerificationTier | null {
   const match = VERIFICATION_TAG_PATTERN.exec(text);
-  return match ? (match[1] as Verifiability | VerificationTier) : null;
+  if (!match) return null;
+  const raw = match[1];
+  // Map legacy values to new tiers; validate result is a known tier
+  const mapped = LEGACY_TIER_MAP[raw] ?? raw;
+  if (!TIER_HIERARCHY.includes(mapped as VerificationTier)) return null;
+  return mapped as VerificationTier;
 }
 
 // ─── Classification ─────────────────────────────────────────────────────────
@@ -188,12 +183,9 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
       const description = currentDesc.join(' ').trim();
       if (description) {
         const tag = parseVerificationTag(description);
-        const isNewTier = tag !== null && (TIER_HIERARCHY as readonly string[]).includes(tag);
-        const verifiability = isNewTier ? classifyVerifiability(description) : (tag ?? classifyVerifiability(description)) as Verifiability;
-        const strategy = classifyStrategy(description);
-        const tier: VerificationTier = isNewTier
-          ? tag as VerificationTier
-          : (LEGACY_TIER_MAP[verifiability] ?? 'test-provable');
+        const tier: VerificationTier = tag ?? classifyTier(description);
+        const verifiability = classifyVerifiability(description); // deprecated, kept for compat
+        const strategy = classifyStrategy(description); // deprecated, kept for compat
         acs.push({
           id: currentId,
           description,

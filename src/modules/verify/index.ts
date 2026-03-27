@@ -61,6 +61,7 @@ export {
   classifyAC,
   classifyVerifiability,
   classifyStrategy,
+  classifyTier,
   parseVerificationTag,
   parseObservabilityGaps,
   INTEGRATION_KEYWORDS,

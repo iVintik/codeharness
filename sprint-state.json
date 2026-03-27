@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 67,
+    "done": 64,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -545,7 +545,7 @@
       "acResults": null
     },
     "16-2-rewrite-parser-tier-classification": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -709,9 +709,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "16-1-verification-tier-type-and-utilities",
-    "currentPhase": "review",
-    "lastAction": "Starting code review",
+    "currentStory": "16-2-rewrite-parser-tier-classification",
+    "currentPhase": "verify",
+    "lastAction": "Starting unit-testable verification",
     "acProgress": null
   },
   "actionItems": [

@@ -3,7 +3,15 @@
  * Shared across all AC data files.
  */
 
-/** Verification method classification */
+import type { VerificationTier } from './types.js';
+
+/**
+ * Verification method classification.
+ *
+ * Correspondence to {@link VerificationTier} (from `types.ts`):
+ * - `'cli'` maps to the `test-provable` tier — verifiable via CLI commands.
+ * - `'integration'` maps to the `environment-provable` tier — requires a running integration environment.
+ */
 export type VerificationMethod = 'cli' | 'integration';
 
 /** AC category for grouping */

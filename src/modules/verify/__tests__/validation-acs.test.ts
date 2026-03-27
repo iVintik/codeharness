@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   VALIDATION_ACS,
   getACsByCategory,
+  getTestProvableACs,
+  getEnvironmentProvableACs,
   getCliVerifiableACs,
   getIntegrationRequiredACs,
   getACById,
@@ -44,10 +46,10 @@ describe('Validation AC Registry', () => {
 
   // ─── Task 6: CLI-verifiable ACs have a command ─────────────────────────────
 
-  it('every cli-verifiable AC has a command', () => {
+  it('every test-provable (cli) AC has a command', () => {
     const cliACs = VALIDATION_ACS.filter(ac => ac.verificationMethod === 'cli');
     for (const ac of cliACs) {
-      expect(ac.command, `AC ${ac.id} (${ac.frRef}) is cli-verifiable but has no command`).toBeDefined();
+      expect(ac.command, `AC ${ac.id} (${ac.frRef}) is test-provable (cli) but has no command`).toBeDefined();
       expect(ac.command!.length).toBeGreaterThan(0);
     }
   });
@@ -147,8 +149,43 @@ describe('getACsByCategory', () => {
   });
 });
 
-describe('getCliVerifiableACs', () => {
-  it('returns 55 cli-verifiable ACs', () => {
+describe('getTestProvableACs', () => {
+  it('returns 55 test-provable ACs (verificationMethod === cli)', () => {
+    const acs = getTestProvableACs();
+    expect(acs).toHaveLength(55);
+    expect(acs.every(ac => ac.verificationMethod === 'cli')).toBe(true);
+  });
+
+  it('every returned AC has a command', () => {
+    const acs = getTestProvableACs();
+    for (const ac of acs) {
+      expect(ac.command).toBeDefined();
+    }
+  });
+
+  it('returns same data as deprecated getCliVerifiableACs()', () => {
+    const newResult = getTestProvableACs();
+    const oldResult = getCliVerifiableACs();
+    expect(newResult).toEqual(oldResult);
+  });
+});
+
+describe('getEnvironmentProvableACs', () => {
+  it('returns 24 environment-provable ACs (verificationMethod === integration)', () => {
+    const acs = getEnvironmentProvableACs();
+    expect(acs).toHaveLength(24);
+    expect(acs.every(ac => ac.verificationMethod === 'integration')).toBe(true);
+  });
+
+  it('returns same data as deprecated getIntegrationRequiredACs()', () => {
+    const newResult = getEnvironmentProvableACs();
+    const oldResult = getIntegrationRequiredACs();
+    expect(newResult).toEqual(oldResult);
+  });
+});
+
+describe('getCliVerifiableACs (deprecated alias)', () => {
+  it('returns 55 test-provable (cli) ACs', () => {
     const cliACs = getCliVerifiableACs();
     expect(cliACs).toHaveLength(55);
     expect(cliACs.every(ac => ac.verificationMethod === 'cli')).toBe(true);
@@ -162,8 +199,8 @@ describe('getCliVerifiableACs', () => {
   });
 });
 
-describe('getIntegrationRequiredACs', () => {
-  it('returns 24 integration-required ACs', () => {
+describe('getIntegrationRequiredACs (deprecated alias)', () => {
+  it('returns 24 environment-provable (integration) ACs', () => {
     const intACs = getIntegrationRequiredACs();
     expect(intACs).toHaveLength(24);
     expect(intACs.every(ac => ac.verificationMethod === 'integration')).toBe(true);
@@ -195,7 +232,7 @@ describe('getACById', () => {
 // ─── Integration prerequisite tags (Task 3) ──────────────────────────────────
 
 describe('Integration AC prerequisites', () => {
-  it('Docker-dependent ACs are integration-required', () => {
+  it('Docker-dependent ACs are environment-provable (integration)', () => {
     const dockerACs = [2, 5, 6, 13, 14, 63];
     for (const id of dockerACs) {
       const ac = getACById(id);
@@ -204,7 +241,7 @@ describe('Integration AC prerequisites', () => {
     }
   });
 
-  it('Shared stack ACs are integration-required', () => {
+  it('Shared stack ACs are environment-provable (integration)', () => {
     const stackACs = [2, 66];
     for (const id of stackACs) {
       const ac = getACById(id);
@@ -213,7 +250,7 @@ describe('Integration AC prerequisites', () => {
     }
   });
 
-  it('OpenSearch ACs are integration-required', () => {
+  it('OpenSearch ACs are environment-provable (integration)', () => {
     const osACs = [3, 32, 69];
     for (const id of osACs) {
       const ac = getACById(id);
@@ -222,7 +259,7 @@ describe('Integration AC prerequisites', () => {
     }
   });
 
-  it('Agent-browser ACs are integration-required', () => {
+  it('Agent-browser ACs are environment-provable (integration)', () => {
     const browserACs = [16, 70];
     for (const id of browserACs) {
       const ac = getACById(id);
@@ -231,7 +268,7 @@ describe('Integration AC prerequisites', () => {
     }
   });
 
-  it('Ralph session ACs are integration-required', () => {
+  it('Ralph session ACs are environment-provable (integration)', () => {
     const ralphACs = [9, 42];
     for (const id of ralphACs) {
       const ac = getACById(id);
@@ -276,7 +313,7 @@ describe('Action item ACs map to session retros', () => {
     }
   });
 
-  it('all action item ACs are cli-verifiable', () => {
+  it('all action item ACs are test-provable (cli)', () => {
     const actionACs = getACsByCategory('ActionItem');
     expect(actionACs.every(ac => ac.verificationMethod === 'cli')).toBe(true);
   });

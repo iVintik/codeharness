@@ -84,6 +84,8 @@ export {
   REGRESSION_ACS,
   ACTION_ITEM_ACS,
   getACsByCategory,
+  getTestProvableACs,
+  getEnvironmentProvableACs,
   getCliVerifiableACs,
   getIntegrationRequiredACs,
   getACById,

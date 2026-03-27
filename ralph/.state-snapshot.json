@@ -473,7 +473,7 @@
       "acResults": null
     },
     "14-5-stack-aware-verify-dockerfile": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -481,7 +481,7 @@
       "acResults": null
     },
     "14-6-subagent-status-ownership-time-budget": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -537,7 +537,7 @@
       "acResults": null
     },
     "16-1-verification-tier-type-and-utilities": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -545,7 +545,7 @@
       "acResults": null
     },
     "16-2-rewrite-parser-tier-classification": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -553,7 +553,7 @@
       "acResults": null
     },
     "16-3-update-proof-validation-for-tiers": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

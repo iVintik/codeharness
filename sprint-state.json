@@ -561,7 +561,7 @@
       "acResults": null
     },
     "16-4-update-validation-acs-and-runner": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -709,9 +709,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "16-4-update-validation-acs-and-runner",
+    "currentPhase": "verify",
+    "lastAction": "Starting unit-testable verification",
     "acProgress": null
   },
   "actionItems": [

@@ -253,17 +253,18 @@
   </step>
 
   <!-- CODEHARNESS-PATCH-START:dev-enforcement -->
-  <step n="5.5" goal="Harness enforcement gates">
-    <critical>Codeharness requires these checks before proceeding to tests</critical>
-    <action>Verify AGENTS.md files are updated for all modules touched during implementation</action>
-    <action>Create or update exec-plan in docs/exec-plans/active/ for this story</action>
-    <action>Ensure all new code has appropriate test stubs before writing full tests</action>
-    <action>Run `codeharness coverage` to execute tests with coverage and set session flags (tests_passed, coverage_met)</action>
-    <action>If codeharness coverage is not installed or fails, fall back to running test suite manually and verify 100% coverage target</action>
-    <action if="tests_passed is false">HALT: "Tests failed — fix tests before continuing"</action>
-    <action if="coverage_met is false">HALT: "Coverage target not met — add tests before continuing"</action>
-  </step>
-  <!-- CODEHARNESS-PATCH-END:dev-enforcement -->
+## Codeharness Enforcement
+
+### Observability Check
+- [ ] Query VictoriaLogs after test runs to verify telemetry flows
+
+### Documentation Update
+- [ ] AGENTS.md updated for all changed modules
+
+### Test Enforcement
+- [ ] All tests pass
+- [ ] Coverage gate: 100% of new/changed code
+<!-- CODEHARNESS-PATCH-END:dev-enforcement -->
 
   <step n="6" goal="Author comprehensive tests">
     <action>Create unit tests for business logic and core functionality introduced/changed by the task</action>

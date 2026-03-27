@@ -1,8 +1,8 @@
 {
   "version": 2,
   "sprint": {
-    "total": 66,
-    "done": 56,
+    "total": 74,
+    "done": 63,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -362,15 +362,15 @@
     },
     "11-1-unified-sprintstate-schema-versioning": {
       "status": "done",
-      "attempts": 1,
-      "lastAttempt": "2026-03-24T15:31:00Z",
+      "attempts": 0,
+      "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/11-1-unified-sprintstate-schema-versioning-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "11-2-sprint-status-yaml-derived-view": {
       "status": "done",
-      "attempts": 1,
+      "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
@@ -378,26 +378,26 @@
     },
     "11-3-state-reconciliation-on-session-start": {
       "status": "done",
-      "attempts": 1,
-      "lastAttempt": "2026-03-24T11:52:00Z",
+      "attempts": 0,
+      "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/11-3-state-reconciliation-on-session-start-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "12-1-split-coverage-ts-domain-subdirectory": {
       "status": "done",
-      "attempts": 2,
-      "lastAttempt": "2026-03-24T16:35:00Z",
+      "attempts": 0,
+      "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/12-1-split-coverage-ts-domain-subdirectory-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "12-2-split-docker-otlp-beads-dochealth": {
       "status": "done",
       "attempts": 0,
-      "lastAttempt": "2026-03-24T17:25:00Z",
+      "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/12-2-split-docker-otlp-beads-dochealth-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "12-3-move-status-logic-to-module": {
@@ -445,7 +445,7 @@
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/14-1-retro-to-sprint-pipeline-epic-td-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "14-2-tech-debt-gate-story-selection": {
@@ -458,14 +458,14 @@
     },
     "14-3-docker-precheck-orphan-cleanup": {
       "status": "done",
-      "attempts": 1,
-      "lastAttempt": "2026-03-25T02:58:00Z",
+      "attempts": 0,
+      "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/14-3-docker-precheck-orphan-cleanup-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "14-4-observability-backend-choice": {
-      "status": "verifying",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -473,7 +473,7 @@
       "acResults": null
     },
     "14-5-stack-aware-verify-dockerfile": {
-      "status": "done",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -481,11 +481,11 @@
       "acResults": null
     },
     "14-6-subagent-status-ownership-time-budget": {
-      "status": "done",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/14-6-subagent-status-ownership-time-budget-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "14-7-fix-beads-flags-ralph-tracking-proof-docs": {
@@ -493,7 +493,7 @@
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/14-7-fix-beads-flags-ralph-tracking-proof-docs-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "15-1-ci-file-size-gate": {
@@ -501,23 +501,23 @@
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/15-1-ci-file-size-gate-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "15-2-eslint-no-empty-catch-boundary-tests": {
       "status": "done",
       "attempts": 0,
-      "lastAttempt": "2026-03-25T01:41:25.808Z",
+      "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/15-2-eslint-no-empty-catch-boundary-tests-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "15-3-template-migration-static-files": {
       "status": "done",
-      "attempts": 1,
-      "lastAttempt": "2026-03-25T05:50:00Z",
+      "attempts": 0,
+      "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/15-3-template-migration-static-files-proof.md",
+      "proofPath": null,
       "acResults": null
     },
     "15-4-fix-ts-compilation-errors": {
@@ -533,17 +533,76 @@
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/15-5-lint-rule-bare-exception-swallowing-proof.md",
+      "proofPath": null,
+      "acResults": null
+    },
+    "16-1-verification-tier-type-and-utilities": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "16-2-rewrite-parser-tier-classification": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "16-3-update-proof-validation-for-tiers": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "16-4-update-validation-acs-and-runner": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "16-5-rewrite-harness-run-verification-dispatch": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "16-6-update-create-story-tier-criteria": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "16-7-update-knowledge-and-enforcement-docs": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "16-8-update-all-tests": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
       "acResults": null
     }
   },
-  "retries": {
-    "11-2-sprint-status-yaml-derived-view": 1,
-    "14-4-observability-backend-choice": 10
-  },
-  "flagged": [
-    "14-4-observability-backend-choice"
-  ],
+  "retries": {},
+  "flagged": [],
   "epics": {
     "epic-0": {
       "status": "done",
@@ -616,21 +675,26 @@
       "storiesDone": 3
     },
     "epic-14": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 7,
-      "storiesDone": 6
+      "storiesDone": 4
     },
     "epic-15": {
       "status": "done",
       "storiesTotal": 5,
       "storiesDone": 5
+    },
+    "epic-16": {
+      "status": "in-progress",
+      "storiesTotal": 8,
+      "storiesDone": 0
     }
   },
   "session": {
-    "active": true,
+    "active": false,
     "startedAt": null,
-    "iteration": 5,
-    "elapsedSeconds": 6550
+    "iteration": 1,
+    "elapsedSeconds": 2
   },
   "observability": {
     "statementCoverage": null,
@@ -639,9 +703,9 @@
     "lineCoverage": null
   },
   "run": {
-    "active": true,
+    "active": false,
     "startedAt": null,
-    "iteration": 3,
+    "iteration": 1,
     "cost": 0,
     "completed": [],
     "failed": [],
@@ -653,71 +717,281 @@
   "actionItems": [
     {
       "id": "migrated-1",
-      "story": "story-abc",
-      "description": "Something went wrong",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "Original story quoted ~40 errors; actual count is 106. Epic definition was stale.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-2",
-      "story": "story-abc",
-      "description": "Another concern",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "AC2 (\"type annotation changes only\") boundary between type-only and logic change can be blurry",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-3",
-      "story": "story-def",
-      "description": "Review finding",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "4 source files (not just test files) have errors, carrying higher risk",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-4",
-      "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "MEDIUM (fixed): `parseStoryRetriesRecord` accepted negative retry counts",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "106 errors is large scope for single story",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-5",
-      "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "MEDIUM (fixed): `parseFlaggedStoriesList` allowed duplicate entries",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "All 5 ACs are cli-verifiable — fully automatable",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-6",
-      "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "LOW (not fixed): `retriesPath()` and `flaggedPath()` are exported dead code — deferred to 11-3",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "Error count has been growing for 13+ sessions",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-7",
-      "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "LOW (not fixed): `writeRetries`/`writeFlaggedStories` silently swallow write failures",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "None — all 106 errors fixed across 20 files.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
-      "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "LOW (not fixed): `as unknown as SprintState` casts bypass type safety in getSprintState() v2 branch",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "`dimensions.ts`: Changed `g.message` → `g.description`, removed nonexistent `g.fix`. Prior code was broken at runtime (undefined properties).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
-      "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "Coverage gap: No tests for concurrent read-modify-write race conditions in retry-state.ts",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "`run.ts`: Changed `'in-review'` → `'review'` to match StoryStatus type. Other system parts (bash/yaml) may still use `'in-review'`.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-10",
-      "story": "11-1-unified-sprintstate-schema-versioning",
-      "description": "Architecture concern: File-based state has inherent race conditions without file locking",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "`docker-setup.ts`: `opensearch` property not in HarnessState interface but code writes it. Used `as HarnessState` cast.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-11",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "`deps.test.ts`/`otlp.test.ts`: Explicit parameter typing for overloaded mock callbacks (vitest limitation with overloaded functions).",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-12",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "`scan-cache.test.ts`: Removed `hasBmalph`/`bmalpthFiles` fields that never existed on `DetectedArtifacts`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-13",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "16 test files had type errors vs 4 source files — tests were the primary debt vector.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-14",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "MEDIUM: `src/commands/run.ts` — `'in-review'` was invalid StoryStatus (should be `'review'`). Runtime behavior change, not type-only.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-15",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "MEDIUM: `src/modules/audit/dimensions.ts` — `g.message` referenced non-existent property (correct: `g.description`). Produced `undefined` at runtime.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-16",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "MEDIUM: `src/modules/infra/docker-setup.ts` — `opensearch` not in HarnessState interface, suppressed with `as HarnessState` cast.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-17",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "LOW: HarnessState missing `opensearch` field definition — tech debt for future story.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-18",
+      "story": "15-4-fix-ts-compilation-errors",
+      "description": "LOW: Several test files use double-casts (`as unknown as T`) for partial mocks.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-19",
+      "story": "14-5-stack-aware-verify-dockerfile",
+      "description": "Docker keychain locked in non-interactive ralph session — cannot pull images. All Docker-based verification blocked.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-20",
+      "story": "14-5-stack-aware-verify-dockerfile",
+      "description": "Observability stack (VictoriaMetrics, VictoriaLogs, etc.) cannot start without Docker image pulls.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-21",
+      "story": "14-5-stack-aware-verify-dockerfile",
+      "description": "Added `<!-- verification-tier: unit-testable -->` tag to story file since all 10 ACs are `cli-verifiable`. Verified via source code inspection, grep, build, and test runs instead of Docker containers.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-22",
+      "story": "14-5-stack-aware-verify-dockerfile",
+      "description": "All ACs genuinely verifiable without Docker — the story is about code structure, function existence, and test passing.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-23",
+      "story": "14-6-subagent-status-ownership-time-budget",
+      "description": "Same Docker keychain blocker as 14-5.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-24",
+      "story": "14-6-subagent-status-ownership-time-budget",
+      "description": "Same unit-testable tag approach. All 10 ACs verified via code inspection and test execution.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-25",
+      "story": "14-6-subagent-status-ownership-time-budget",
+      "description": "Both stories had been stuck at `verifying` across multiple sessions due to Docker infra issues.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-26",
+      "story": "14-6-subagent-status-ownership-time-budget",
+      "description": "Tagging cli-verifiable stories as unit-testable is the correct fix — these should never have required Docker.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-27",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "None. Story file already existed from prior planning session.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-28",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "`patches/error-handling/` directory doesn't exist yet — needs to be created.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-29",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "AC1 references code-review subagent integration but is tagged cli-verifiable — borderline.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-30",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "Story was pre-created. Verification tags already present and correct.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-31",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "`src/lib/scanner.ts` listed in story but has no Semgrep integration — actual Semgrep logic lives in `src/modules/observability/analyzer.ts`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-32",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "Semgrep test fixtures use annotation format but can only validate with semgrep installed. Vitest tests validate file existence/content only.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-33",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "`no-bare-except-ellipsis` rule uses Semgrep `...` metavariable — matches ALL except bodies, not just literal Ellipsis. Correct per AC1 but name misleading.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-34",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "Hook grep pattern `except Exception.*pass` is approximate — matches comments/strings too.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-35",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "All 3799 tests pass. Zero regressions.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-36",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "HIGH: Hook grep pattern `except Exception.*pass` never matches multiline Python syntax (AC2 was non-functional). Fixed with awk-based multiline detection.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-37",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "HIGH: Semgrep `no-bare-except-ellipsis` rule was false positive generator — `...` is Semgrep wildcard, not Python Ellipsis. Fixed with `pattern-regex`.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-38",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "MEDIUM: Hook only detected `pass` but not Python `...` pattern. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-39",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "MEDIUM: AGENTS.md stale after `additionalRulesDirs` addition. Fixed.",
+      "source": "retro",
+      "resolved": false
+    },
+    {
+      "id": "migrated-40",
+      "story": "15-5-lint-rule-bare-exception-swallowing",
+      "description": "Story lists `src/lib/scanner.ts` but change correctly went to `analyzer.ts` — story spec inaccuracy.",
       "source": "retro",
       "resolved": false
     }

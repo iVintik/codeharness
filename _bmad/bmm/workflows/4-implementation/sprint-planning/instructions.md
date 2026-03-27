@@ -248,3 +248,11 @@ Before starting the sprint, verify:
 - [ ] Hooks registered and active
 
 <!-- CODEHARNESS-PATCH-END:sprint-planning-harness -->
+
+<!-- CODEHARNESS-PATCH-START:sprint-retro -->
+## Codeharness Sprint Planning
+
+- [ ] Review unresolved retrospective action items
+- [ ] Import from all backlog sources before triage
+- [ ] Verify story ACs are testable via CLI + Docker
+<!-- CODEHARNESS-PATCH-END:sprint-retro -->

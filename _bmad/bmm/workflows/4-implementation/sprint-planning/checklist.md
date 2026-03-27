@@ -31,3 +31,11 @@ Epic Files Contains:                Sprint Status Contains:
 - [ ] Total count of epics matches
 - [ ] Total count of stories matches
 - [ ] All items are in the expected order (epic, stories, retrospective)
+
+<!-- CODEHARNESS-PATCH-START:sprint-beads -->
+## Codeharness Sprint Planning
+
+- [ ] Review unresolved retrospective action items
+- [ ] Import from all backlog sources before triage
+- [ ] Verify story ACs are testable via CLI + Docker
+<!-- CODEHARNESS-PATCH-END:sprint-beads -->

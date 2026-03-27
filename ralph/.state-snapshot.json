@@ -545,7 +545,7 @@
       "acResults": null
     },
     "16-2-rewrite-parser-tier-classification": {
-      "status": "backlog",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

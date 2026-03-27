@@ -1,6 +1,7 @@
 /** Proof quality validation and black-box enforcement. */
 import { existsSync, readFileSync } from 'node:fs';
-import type { ProofQuality, ClassifiedCommand, EvidenceCommandType, BlackBoxEnforcementResult } from './types.js';
+import type { ProofQuality, ClassifiedCommand, EvidenceCommandType, BlackBoxEnforcementResult, VerificationTier } from './types.js';
+import { TIER_HIERARCHY, LEGACY_TIER_MAP } from './types.js';
 
 /** Extracts commands from ```bash/```shell blocks and classifies each. */
 export function classifyEvidenceCommands(proofContent: string): ClassifiedCommand[] {
@@ -112,12 +113,23 @@ export function validateProofQuality(proofPath: string): ProofQuality {
   const content = readFileSync(proofPath, 'utf-8');
 
   // Compute black-box enforcement metrics once
-  // Skip enforcement for unit-testable proofs — they use vitest/node, not docker exec
-  const bbTierMatch = /\*\*Tier:\*\*\s*(unit-testable|black-box)/i.exec(content);
-  const bbIsUnitTestable = bbTierMatch ? bbTierMatch[1].toLowerCase() === 'unit-testable' : false;
-  const bbEnforcement = bbIsUnitTestable
-    ? { blackBoxPass: true, grepSrcCount: 0, dockerExecCount: 0, observabilityCount: 0, otherCount: 0, grepRatio: 0, acsMissingDockerExec: [] as number[] }
-    : checkBlackBoxEnforcement(content);
+  // Build tier regex dynamically from canonical TIER_HIERARCHY + legacy names
+  const allTierNames = [...TIER_HIERARCHY, ...Object.keys(LEGACY_TIER_MAP)];
+  const uniqueTierNames = [...new Set(allTierNames)];
+  const tierPattern = new RegExp(`\\*\\*Tier:\\*\\*\\s*(${uniqueTierNames.join('|')})`, 'i');
+  const bbTierMatch = tierPattern.exec(content);
+  const rawTierValue = bbTierMatch ? bbTierMatch[1].toLowerCase() : null;
+  // Normalize legacy tier names to canonical VerificationTier values
+  const normalizedTier: VerificationTier | null = rawTierValue
+    ? (LEGACY_TIER_MAP[rawTierValue] as VerificationTier | undefined) ?? (TIER_HIERARCHY.includes(rawTierValue as VerificationTier) ? rawTierValue as VerificationTier : null)
+    : null;
+  // Only environment-provable requires Docker evidence; all others skip
+  const skipDockerEnforcement = normalizedTier !== null && normalizedTier !== 'environment-provable';
+  // Always compute metrics for diagnostics; override blackBoxPass when skipping
+  const bbRawEnforcement = checkBlackBoxEnforcement(content);
+  const bbEnforcement = skipDockerEnforcement
+    ? { ...bbRawEnforcement, blackBoxPass: true }
+    : bbRawEnforcement;
 
   /** Helper: merge base counts with black-box metrics */
   function buildResult(base: {

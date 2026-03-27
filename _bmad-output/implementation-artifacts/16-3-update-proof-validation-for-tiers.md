@@ -1,7 +1,7 @@
 # Story 16-3: Update Proof Validation for New Tiers
 <!-- verification-tier: test-provable -->
 
-## Status: backlog
+## Status: verifying
 
 ## Story
 
@@ -11,12 +11,12 @@ So that `test-provable` and `runtime-provable` stories skip Docker enforcement w
 
 ## Acceptance Criteria
 
-- [ ] AC1: Given a proof with `**Tier:** test-provable`, when `validateProofQuality()` runs, then `blackBoxPass` is `true` (Docker enforcement skipped) <!-- verification: test-provable -->
-- [ ] AC2: Given a proof with `**Tier:** runtime-provable`, when `validateProofQuality()` runs, then `blackBoxPass` is `true` (Docker enforcement skipped) <!-- verification: test-provable -->
-- [ ] AC3: Given a proof with `**Tier:** environment-provable`, when `validateProofQuality()` runs, then Docker enforcement runs normally (requires `docker exec` evidence per AC) <!-- verification: test-provable -->
-- [ ] AC4: Given a proof with `**Tier:** escalate`, when `validateProofQuality()` runs, then `blackBoxPass` is `true` (enforcement skipped — human judgment needed) <!-- verification: test-provable -->
-- [ ] AC5: Given a proof with the old `**Tier:** unit-testable`, when `validateProofQuality()` runs, then it still skips Docker enforcement (backward compat) <!-- verification: test-provable -->
-- [ ] AC6: Given a proof with `**Tier:** black-box`, when `validateProofQuality()` runs, then Docker enforcement runs (backward compat for old default) <!-- verification: test-provable -->
+- [x] AC1: Given a proof with `**Tier:** test-provable`, when `validateProofQuality()` runs, then `blackBoxPass` is `true` (Docker enforcement skipped) <!-- verification: cli-verifiable -->
+- [x] AC2: Given a proof with `**Tier:** runtime-provable`, when `validateProofQuality()` runs, then `blackBoxPass` is `true` (Docker enforcement skipped) <!-- verification: cli-verifiable -->
+- [x] AC3: Given a proof with `**Tier:** environment-provable`, when `validateProofQuality()` runs, then Docker enforcement runs normally (requires `docker exec` evidence per AC) <!-- verification: cli-verifiable -->
+- [x] AC4: Given a proof with `**Tier:** escalate`, when `validateProofQuality()` runs, then `blackBoxPass` is `true` (enforcement skipped — human judgment needed) <!-- verification: cli-verifiable -->
+- [x] AC5: Given a proof with the old `**Tier:** unit-testable`, when `validateProofQuality()` runs, then it still skips Docker enforcement (backward compat) <!-- verification: cli-verifiable -->
+- [x] AC6: Given a proof with `**Tier:** black-box`, when `validateProofQuality()` runs, then Docker enforcement runs (backward compat for old default) <!-- verification: cli-verifiable -->
 
 ## Technical Notes
 

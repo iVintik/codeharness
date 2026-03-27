@@ -34,6 +34,7 @@ export const LEGACY_TIER_MAP: Record<string, VerificationTier> = {
   'cli-verifiable': 'test-provable',
   'integration-required': 'environment-provable',
   'unit-testable': 'test-provable',
+  'black-box': 'environment-provable',
 };
 
 /**

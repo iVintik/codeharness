@@ -96,8 +96,12 @@ describe('LEGACY_TIER_MAP', () => {
     expect(LEGACY_TIER_MAP['unit-testable']).toBe('test-provable');
   });
 
-  it('has exactly 3 entries', () => {
-    expect(Object.keys(LEGACY_TIER_MAP)).toHaveLength(3);
+  it('has exactly 4 entries', () => {
+    expect(Object.keys(LEGACY_TIER_MAP)).toHaveLength(4);
+  });
+
+  it('maps black-box to environment-provable', () => {
+    expect(LEGACY_TIER_MAP['black-box']).toBe('environment-provable');
   });
 
   it('returns undefined for unknown keys', () => {

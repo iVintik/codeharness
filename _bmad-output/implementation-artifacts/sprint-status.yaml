@@ -120,10 +120,10 @@ development_status:
   15-5-lint-rule-bare-exception-swallowing: done
 
   # Epic 16
-  epic-16: in-progress
+  epic-16: backlog
   16-1-verification-tier-type-and-utilities: done
   16-2-rewrite-parser-tier-classification: done
-  16-3-update-proof-validation-for-tiers: backlog
+  16-3-update-proof-validation-for-tiers: done
   16-4-update-validation-acs-and-runner: backlog
   16-5-rewrite-harness-run-verification-dispatch: backlog
   16-6-update-create-story-tier-criteria: backlog

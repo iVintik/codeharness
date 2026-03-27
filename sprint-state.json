@@ -553,7 +553,7 @@
       "acResults": null
     },
     "16-3-update-proof-validation-for-tiers": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -709,9 +709,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "16-2-rewrite-parser-tier-classification",
-    "currentPhase": "verify",
-    "lastAction": "Starting unit-testable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": [

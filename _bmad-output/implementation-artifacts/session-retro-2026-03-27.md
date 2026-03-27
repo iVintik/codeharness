@@ -348,3 +348,141 @@ Story 14-5 is the 3rd most expensive story in the project ($20.64). This is just
 - [ ] **Create tech-debt story for env.ts refactor.** At 304 lines, it exceeds the 300-line NFR1 limit. Needs extraction of a helper or splitting into sub-modules.
 - [ ] **Retroactively update proof `Tier:` fields** — carried from session 2
 - [ ] **Track per-session cost deltas automatically** — carried from session 2
+
+---
+
+# Session Retrospective — 2026-03-27 (Session 4)
+
+**Sprint:** Story 16-2 code review + verification + state cleanup
+**Timestamp:** 2026-03-27T10:31Z (Loop #8)
+**Duration:** ~30-minute budget
+**Stories completed:** 16-2-rewrite-parser-tier-classification (ready-for-dev → done)
+**Epic status:** Epic 16 — 2/8 done (16-1, 16-2). 6 stories remain in backlog.
+
+---
+
+## 1. Session Summary
+
+| Story | Entry State | Phases Run | Exit State | Notes |
+|-------|-------------|------------|------------|-------|
+| 16-2-rewrite-parser-tier-classification | ready-for-dev | create-story, code-review, verify | done | Code was already developed in a prior session. This session did story creation, review, and verification only. |
+
+Additionally, stale `sprint-state.json` entries were fixed: stories 14-5, 14-6, and 16-1 were stuck at "review" in the state file despite being committed as done. These were corrected to "done" status.
+
+Story 16-2 introduced `classifyTier()` with keyword-based four-tier classification, updated `parseVerificationTag()` for new tier types with legacy backward compatibility, and extracted keyword lists to a new `parser-keywords.ts` module. The code review found 2 HIGH bugs (broken regex, unsafe type cast) and 1 MEDIUM (missing test coverage), all fixed before verification. Verification passed 12/12 ACs with 62 parser tests and 100% coverage on parser-keywords.ts.
+
+## 2. Issues Analysis
+
+### Category: Code review findings (16-2)
+
+- **HIGH: `VERIFICATION_TAG_PATTERN` regex did not include `unit-testable`.** Backward compatibility silently broken — any story with `<!-- verification: unit-testable -->` would fail to parse. Fixed by updating the regex.
+- **HIGH: `parseVerificationTag` used unsafe `as VerificationTier` cast.** No runtime validation — any string would be accepted as a valid tier. Fixed with a guard check.
+- **MEDIUM: Missing test coverage for edge cases.** Empty string, unknown tags, and `unit-testable` backward compat had no test coverage. 3 new tests added.
+- **LOW (not fixed): Broad keywords risk false-positive classification.** Keywords like "function", "type", "export" could match non-AC text. Deferred — acceptable for current use cases.
+- **LOW (not fixed): Keyword overlap between dimensions.** Some keywords could plausibly match multiple tiers. Priority ordering (escalate > environment > runtime > test) mitigates this, but it is a known imprecision.
+
+### Category: Structural/process
+
+- **Epic 16 has no standard epics file.** Story definitions come from `tech-spec-verification-tier-rework.md` instead of the usual epics document. The create-story subagent had to use the tech spec as authoritative source. This is a one-off deviation, but it means the standard story-creation workflow had to adapt.
+
+### Category: State management (recurring)
+
+- **3 stories stuck at "review" despite being done.** Stories 14-5, 14-6, and 16-1 had their git commits (marked done) but `sprint-state.json` was not updated. This is the same state sync issue flagged in sessions 1-3 — the state file drifts from reality when transitions happen outside the normal orchestrator flow.
+
+### Category: Redundant operations
+
+- **`npm test` run 3 times during verify phase.** The verify subagent ran the test suite three times when once with output capture (`tee`) would have sufficed. Wasted 2 Bash calls.
+- **5 pre-existing test failures in unrelated modules.** The verify subagent had to reason about whether these were pre-existing or regressions. They were pre-existing, but diagnosing this cost tool calls.
+
+## 3. Cost Analysis
+
+### Session 4 delta (since Session 3 retro)
+
+| Metric | Session 3 (cumulative) | Session 4 (cumulative) | Delta |
+|--------|------------------------|------------------------|-------|
+| Total cost | $572.74 | $582.73 | **$9.99** |
+| Total calls | 4,239 | 4,314 | **75** |
+| Stories completed | 142 | 144 | **+2 (16-2 + state fixes count as work)** |
+
+Session 4 cost $9.99 across 75 API calls. The session handled story creation, code review, verification, and state cleanup for one story. At ~$10 for a full create-review-verify cycle, this is consistent with Session 3's $10.55 for a review-verify cycle.
+
+### Subagent-level token analysis (from session issues log)
+
+| Subagent Phase | Tool Calls | Breakdown | Files Read (unique/total) | Redundant Ops |
+|----------------|-----------|-----------|--------------------------|---------------|
+| create-story | 16 | Read:9, Grep:2, Glob:3, Bash:1, Write:1 | 10/10 | None |
+| code-review | 18 | Bash:6, Read:9, Edit:6, Grep:2, Glob:4, Skill:1 | 9/10 | None |
+| verify | 14 | Bash:8, Read:4, Grep:1, Write:1 | 5/5 | npm test x3 (2 redundant) |
+
+**Key observations:**
+
+- **create-story was Read-heavy (9/16 calls).** Expected — it needs to read the tech spec, existing parser code, and story templates. Zero redundant reads (10 unique out of 10 total).
+- **code-review had balanced tool usage.** 6 Edits for 2 HIGH and 1 MEDIUM fix plus 3 new tests. No wasted calls. 9 unique files read out of 10 total (only 1 re-read).
+- **verify had the only waste: triple test run.** 8 Bash calls, 3 of which were `npm test`. One run would have sufficed with output capture. This matches the duplicate-coverage-run pattern seen in Session 3.
+- **Total redundant operations: 2 of 48 subagent calls (~4%).** Consistent with the ~5% waste rate observed in Session 2 and ~2% in Session 3.
+- **No cross-phase file re-reading detected.** create-story, code-review, and verify each read their own set of files with minimal overlap. Good phase isolation.
+
+### Cumulative project costs
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $582.73 |
+| Total API calls | 4,314 |
+| Average cost per story | $3.30 (144 stories) |
+
+### Cost by phase (cumulative, all-time)
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 2,622 | $332.57 | 57.1% |
+| orchestrator | 486 | $104.60 | 18.0% |
+| retro | 403 | $57.28 | 9.8% |
+| code-review | 274 | $30.93 | 5.3% |
+| create-story | 290 | $30.86 | 5.3% |
+| dev-story | 239 | $26.48 | 4.5% |
+
+Verification remains the dominant cost at 57%. The verify phase's reliance on running full test suites (Bash-heavy) drives this. Story 14-5 ($22.27) and 14-4 ($22.13) remain the top individual story costs.
+
+## 4. What Went Well
+
+- **Story 16-2 completed in a single session** — create-story, code-review, verify all passed without rework loops.
+- **Code review caught 2 HIGH bugs.** The broken regex would have silently dropped backward compatibility for `unit-testable` tags. The unsafe type cast would have accepted any string as a valid tier. Both were real bugs that would have caused production issues.
+- **100% coverage on new parser-keywords.ts module.** The new keyword extraction module shipped with full test coverage from day one.
+- **Stale state entries fixed.** Three stories stuck at "review" were corrected to "done", bringing sprint-state.json back in sync with reality.
+- **Low waste rate (~4%).** Only 2 redundant operations out of 48 subagent calls.
+
+## 5. What Went Wrong
+
+- **Triple test run in verify phase.** `npm test` was run 3 times when once would have sufficed. This is the same anti-pattern as Session 3's duplicate coverage run — verify subagents do not cache or reuse test output.
+- **State drift recurred again.** Three stories were stuck at "review" despite being committed as done. This is the 4th consecutive session flagging the state sync issue. The root cause (transitions outside the orchestrator flow not updating state) has not been addressed.
+- **5 pre-existing test failures confused the verify subagent.** The subagent had to spend tool calls determining whether failures were pre-existing or regressions. Pre-existing failures should be documented or excluded from the verify scope.
+- **No standard epics file for Epic 16.** The create-story subagent had to improvise, using a tech spec instead of the standard epics document. This works but breaks the expected workflow.
+
+## 6. Lessons Learned
+
+1. **Verify subagents must run the test suite exactly once.** This is the 2nd consecutive session where test runs were duplicated. The verify prompt should explicitly say: "Run `npm test` once, capture the output, and reference it for all subsequent checks."
+2. **State drift is systemic, not incidental.** Four sessions in a row have flagged stale state entries. The current architecture — where state is only updated by the orchestrator — cannot handle transitions that happen in subagent sessions, manual commits, or prior sessions that crash before updating state. This needs a reconciliation step at session start.
+3. **Pre-existing test failures should be baselined.** The verify subagent should receive a list of known pre-existing failures so it does not waste time diagnosing them. Alternatively, the test suite should be clean (zero failures) at all times.
+4. **Tech specs can serve as epic definitions in a pinch.** When a dedicated epics file does not exist, the tech spec is an acceptable substitute. But this should be the exception, not the pattern.
+
+## 7. Action Items
+
+### Carried forward (still open from sessions 1-3)
+
+- [ ] **`state set` should trigger YAML regeneration** — flagged sessions 1, 2, 3
+- [ ] **Auto-verify stories with passing proofs** — flagged session 1
+- [ ] **Provide proof format template to verify subagent** — flagged session 2
+- [ ] **Constrain subagent grep scope** — flagged session 2
+- [ ] **Eliminate duplicate coverage/test runs in verify** — flagged session 3, recurred session 4
+- [ ] **Create tech-debt story for stale `mockDetectStack` cleanup** — flagged session 3
+
+### New from session 4
+
+#### Fix soon
+- [ ] **Add state reconciliation at session start.** Compare `sprint-state.json` against git log to detect stories that were committed as done but still show as in-progress. Auto-fix or flag for manual review. This would have prevented the 14-5, 14-6, 16-1 state drift.
+- [ ] **Baseline pre-existing test failures for verify subagent.** Provide the verify prompt with a list of known failing tests so the subagent does not waste calls diagnosing them.
+
+#### Backlog
+- [ ] **Create standard epics file for Epic 16.** Currently using tech spec as source. Should have a proper epics document for consistency.
+- [ ] **Retroactively update proof `Tier:` fields** — carried from session 2
+- [ ] **Track per-session cost deltas automatically** — carried from session 2

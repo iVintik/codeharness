@@ -474,3 +474,239 @@ describe('validateProofQuality — black-box enforcement', () => {
     expect(result.passed).toBe(true);
   });
 });
+
+// ─── validateProofQuality — tier-based Docker enforcement ─────────────────────
+
+describe('validateProofQuality — tier-based Docker enforcement', () => {
+  it('AC1: test-provable tier skips Docker enforcement (blackBoxPass=true)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** test-provable',
+      '',
+      '## AC 1: Unit tests pass',
+      '',
+      '```bash',
+      'npx vitest run --reporter=verbose',
+      '```',
+      '',
+      '```output',
+      'Tests: 12 passed',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result.blackBoxPass).toBe(true);
+    expect(result.passed).toBe(true);
+  });
+
+  it('AC2: runtime-provable tier skips Docker enforcement (blackBoxPass=true)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** runtime-provable',
+      '',
+      '## AC 1: Server starts correctly',
+      '',
+      '```bash',
+      'node dist/server.js &',
+      '```',
+      '',
+      '```output',
+      'Listening on port 3000',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result.blackBoxPass).toBe(true);
+    expect(result.passed).toBe(true);
+  });
+
+  it('AC3: environment-provable tier runs Docker enforcement normally', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** environment-provable',
+      '',
+      '## AC 1: Container check',
+      '',
+      '```bash',
+      'cat README.md',
+      '```',
+      '',
+      '```output',
+      '# Codeharness',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    // Docker enforcement runs — AC1 has no docker exec, so it fails
+    expect(result.blackBoxPass).toBe(false);
+    expect(result.passed).toBe(false);
+  });
+
+  it('AC3: environment-provable passes when docker exec evidence is present', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** environment-provable',
+      '',
+      '## AC 1: Container check',
+      '',
+      '```bash',
+      'docker exec codeharness-verify codeharness --version',
+      '```',
+      '',
+      '```output',
+      '0.13.2',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result.blackBoxPass).toBe(true);
+    expect(result.passed).toBe(true);
+  });
+
+  it('AC4: escalate tier skips Docker enforcement (blackBoxPass=true)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** escalate',
+      '',
+      '## AC 1: Manual verification needed',
+      '',
+      '```bash',
+      'echo "Human judgment required"',
+      '```',
+      '',
+      '```output',
+      'Human judgment required',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result.blackBoxPass).toBe(true);
+    expect(result.passed).toBe(true);
+  });
+
+  it('AC5: legacy unit-testable tier still skips Docker enforcement (backward compat)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** unit-testable',
+      '',
+      '## AC 1: Tests pass',
+      '',
+      '```bash',
+      'npx vitest run',
+      '```',
+      '',
+      '```output',
+      'Tests: 5 passed',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result.blackBoxPass).toBe(true);
+    expect(result.passed).toBe(true);
+  });
+
+  it('AC6: legacy black-box tier runs Docker enforcement (backward compat)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** black-box',
+      '',
+      '## AC 1: Container check',
+      '',
+      '```bash',
+      'cat README.md',
+      '```',
+      '',
+      '```output',
+      '# Codeharness',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    // Docker enforcement runs — AC1 has no docker exec, so it fails
+    expect(result.blackBoxPass).toBe(false);
+    expect(result.passed).toBe(false);
+  });
+
+  it('tier matching is case-insensitive', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** Test-Provable',
+      '',
+      '## AC 1: Tests pass',
+      '',
+      '```bash',
+      'npx vitest run',
+      '```',
+      '',
+      '```output',
+      'Tests: 5 passed',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result.blackBoxPass).toBe(true);
+    expect(result.passed).toBe(true);
+  });
+
+  it('no tier header defaults to running Docker enforcement', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '## AC 1: Container check',
+      '',
+      '```bash',
+      'cat README.md',
+      '```',
+      '',
+      '```output',
+      '# Codeharness',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    // No tier → skipDockerEnforcement is false → enforcement runs → fails (no docker exec)
+    expect(result.blackBoxPass).toBe(false);
+  });
+
+  it('unrecognized tier value defaults to running Docker enforcement', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** unknown-tier-value',
+      '',
+      '## AC 1: Container check',
+      '',
+      '```bash',
+      'cat README.md',
+      '```',
+      '',
+      '```output',
+      '# Codeharness',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    // Unknown tier → regex won't match → enforcement runs → fails (no docker exec)
+    expect(result.blackBoxPass).toBe(false);
+  });
+
+  it('skipped tiers still report command metrics (not zeroed)', () => {
+    const path = join(testDir, 'proof.md');
+    writeFileSync(path, [
+      '**Tier:** test-provable',
+      '',
+      '## AC 1: Tests pass',
+      '',
+      '```bash',
+      'npx vitest run',
+      '```',
+      '',
+      '```output',
+      'Tests: 5 passed',
+      '```',
+    ].join('\n'));
+
+    const result = validateProofQuality(path);
+    expect(result.blackBoxPass).toBe(true);
+    // Metrics should still be computed even when Docker enforcement is skipped
+    expect(result.otherCount).toBe(1); // npx vitest is classified as 'other'
+  });
+});

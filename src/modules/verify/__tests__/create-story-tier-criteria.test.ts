@@ -65,7 +65,9 @@ beforeAll(() => {
 
 describe('AC1: Step 5 verification tier tagging instruction', () => {
   it('contains a VERIFICATION TIER TAGGING section in Step 5', () => {
-    expect(instructions).toContain('VERIFICATION TIER TAGGING');
+    // Verify the section is within <step n="5">, not just anywhere in the file
+    const step5 = extractSection(instructions, '<step n="5"', '</step>');
+    expect(step5).toContain('VERIFICATION TIER TAGGING');
   });
 
   it('lists all four tier names', () => {
@@ -91,6 +93,13 @@ describe('AC2: decision tree with criteria and examples', () => {
     expect(section).toContain('verification: runtime-provable');
     expect(section).toContain('verification: environment-provable');
     expect(section).toContain('verification: escalate');
+  });
+
+  it('includes default-to-test-provable instruction in instructions.xml', () => {
+    const section = tierSection();
+    expect(section).toContain('Default to');
+    expect(section).toContain('test-provable');
+    expect(section).toContain('when unsure');
   });
 });
 
@@ -175,6 +184,7 @@ describe('AC8: environment-provable criteria in decision tree', () => {
     'databases',
     'observability stack',
     'multiple services',
+    'distributed system',
   ])('includes "%s" as a criterion', (criterion) => {
     expect(tierSection()).toContain(criterion);
   });

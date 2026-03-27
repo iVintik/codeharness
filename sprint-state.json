@@ -709,10 +709,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "16-5-rewrite-harness-run-verification-dispatch",
+    "currentStory": "16-6-update-create-story-tier-criteria",
     "currentPhase": "verify",
     "lastAction": "Starting test-provable verification",
-    "acProgress": "7/7"
+    "acProgress": "10/10"
   },
   "actionItems": [
     {

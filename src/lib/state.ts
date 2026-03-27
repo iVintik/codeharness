@@ -65,8 +65,7 @@ export interface HarnessState {
 
 function migrateState(state: HarnessState): HarnessState {
   const raw = state as unknown as Record<string, unknown>;
-
-  // Backfill otlp.backend for states created before backend choice was added
+  // Backfill otlp.backend for pre-backend-choice states
   if (state.otlp && !state.otlp.backend) {
     state.otlp.backend = 'victoria';
   }
@@ -295,7 +294,6 @@ export function parseValue(raw: string): unknown {
   if (raw === 'true') return true;
   if (raw === 'false') return false;
   if (raw === 'null') return null;
-  const num = Number(raw);
-  if (!Number.isNaN(num) && raw.trim() !== '') return num;
-  return raw;
+  const n = Number(raw);
+  return !Number.isNaN(n) && raw.trim() !== '' ? n : raw;
 }

@@ -111,7 +111,7 @@ export function handleFullStatus(isJson: boolean): void {
   const serviceName = state.otlp?.service_name;
   if (serviceName) {
     const endpoints = resolveEndpoints(state);
-    const scoped = buildScopedEndpoints(endpoints, serviceName);
+    const scoped = buildScopedEndpoints(endpoints, serviceName, state.otlp?.backend);
     console.log(`  Scoped: logs=${scoped.logs} metrics=${scoped.metrics} traces=${scoped.traces}`);
   }
 
@@ -197,7 +197,7 @@ function handleFullStatusJson(state: HarnessState): void {
 
   // Scoped endpoints
   const serviceName = state.otlp?.service_name;
-  const scoped_endpoints = serviceName ? buildScopedEndpoints(endpoints, serviceName) : undefined;
+  const scoped_endpoints = serviceName ? buildScopedEndpoints(endpoints, serviceName, state.otlp?.backend) : undefined;
 
   // Beads
   const beads = getBeadsData();

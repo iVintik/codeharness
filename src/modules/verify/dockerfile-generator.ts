@@ -5,8 +5,9 @@
  * Architecture Decision 10: Stack-Aware Provisioning.
  */
 
+import { join } from 'node:path';
+
 import { detectStacks, getStackProvider } from '../../lib/stacks/index.js';
-import type { StackName } from '../../lib/stacks/index.js';
 
 /**
  * Generate a complete verification Dockerfile for the given project directory.
@@ -21,6 +22,7 @@ export function generateVerifyDockerfile(projectDir: string): string {
 
   // Base image
   sections.push('FROM ubuntu:22.04');
+  sections.push('ENV DEBIAN_FRONTEND=noninteractive');
   sections.push('');
 
   // Common tools
@@ -39,9 +41,10 @@ export function generateVerifyDockerfile(projectDir: string): string {
 
   // Per-stack sections
   for (const detection of detections) {
-    const provider = getStackProvider(detection.stack as StackName);
+    const provider = getStackProvider(detection.stack);
     if (!provider) continue;
-    const section = provider.getVerifyDockerfileSection(projectDir);
+    const resolvedDir = detection.dir === '.' ? projectDir : join(projectDir, detection.dir);
+    const section = provider.getVerifyDockerfileSection(resolvedDir);
     if (section) {
       sections.push(section);
       sections.push('');

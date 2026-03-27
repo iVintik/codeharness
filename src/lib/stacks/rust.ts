@@ -198,27 +198,32 @@ RUN cargo build --release
   // ── getVerifyDockerfileSection ──────────────────────────────────────
 
   getVerifyDockerfileSection(projectDir: string): string {
+    // Detect Bevy dependency for system libs (must decide before building the apt-get line)
+    let needsBevy = false;
+    const cargoContent = readTextSafe(join(projectDir, 'Cargo.toml'));
+    if (cargoContent) {
+      const depsSection = getCargoDepsSection(cargoContent);
+      needsBevy = hasCargoDep(depsSection, 'bevy');
+    }
+
+    const aptPackages = ['build-essential', 'pkg-config', 'libssl-dev'];
+    if (needsBevy) {
+      aptPackages.push(
+        'libudev-dev', 'libasound2-dev', 'libwayland-dev',
+        'libxkbcommon-dev', 'libfontconfig1-dev', 'libx11-dev',
+      );
+    }
+
     const lines: string[] = [
       '# --- Rust tooling ---',
+      'RUN apt-get update && apt-get install -y --no-install-recommends \\',
+      `    ${aptPackages.join(' ')} \\`,
+      '    && rm -rf /var/lib/apt/lists/*',
       'RUN curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable',
       'ENV PATH="/root/.cargo/bin:$PATH"',
       'RUN rustup component add clippy',
       'RUN cargo install cargo-tarpaulin',
     ];
-
-    // Detect Bevy dependency for system libs
-    const cargoContent = readTextSafe(join(projectDir, 'Cargo.toml'));
-    if (cargoContent) {
-      const depsSection = getCargoDepsSection(cargoContent);
-      if (hasCargoDep(depsSection, 'bevy')) {
-        lines.push(
-          'RUN apt-get update && apt-get install -y --no-install-recommends \\',
-          '    libudev-dev libasound2-dev libwayland-dev libxkbcommon-dev \\',
-          '    libfontconfig1-dev libx11-dev \\',
-          '    && rm -rf /var/lib/apt/lists/*',
-        );
-      }
-    }
 
     return lines.join('\n');
   }

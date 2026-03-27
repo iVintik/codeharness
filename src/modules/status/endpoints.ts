@@ -40,9 +40,17 @@ export function getDefaultEndpointsForBackend(backend?: string): EndpointUrls {
 /**
  * Build service-scoped endpoint URLs for observability dashboards.
  * Produces URLs filtered by service_name for logs, metrics, and traces.
+ * When backend is 'elk', uses OpenSearch query syntax instead of Victoria.
  */
-export function buildScopedEndpoints(endpoints: EndpointUrls, serviceName: string): ScopedEndpointUrls {
+export function buildScopedEndpoints(endpoints: EndpointUrls, serviceName: string, backend?: string): ScopedEndpointUrls {
   const encoded = encodeURIComponent(serviceName);
+  if (backend === 'elk') {
+    return {
+      logs: `${endpoints.logs}/_search?q=${encodeURIComponent(`service_name:${serviceName}`)}&size=100`,
+      metrics: `${endpoints.metrics}/_search?q=${encodeURIComponent(`service_name:${serviceName}`)}&size=100`,
+      traces: `${endpoints.traces}/_search?q=${encodeURIComponent(`trace_id:* AND service_name:${serviceName}`)}&size=20`,
+    };
+  }
   return {
     logs: `${endpoints.logs}/select/logsql/query?query=${encodeURIComponent(`service_name:${serviceName}`)}`,
     metrics: `${endpoints.metrics}/api/v1/query?query=${encodeURIComponent(`{service_name="${serviceName}"}`)}`,

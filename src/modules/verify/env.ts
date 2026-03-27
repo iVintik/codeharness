@@ -282,7 +282,6 @@ function buildSimpleImage(projectDir: string, timeout = 120_000): void {
   }
 }
 
-
 function dockerImageExists(tag: string): boolean {
   try {
     execFileSync('docker', ['image', 'inspect', tag], { stdio: 'pipe', timeout: 10_000 });

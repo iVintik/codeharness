@@ -286,9 +286,7 @@ function handleLocalShared(
 
   if (!opts.isJson) {
     failOutput('Observability stack: failed to start');
-    if (startResult.error) {
-      info(`Error: ${startResult.error}`);
-    }
+    if (startResult.error) info(`Error: ${startResult.error}`);
   }
   const docker: InitDockerResult = {
     compose_file: sharedComposeFile,

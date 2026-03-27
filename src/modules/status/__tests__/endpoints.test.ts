@@ -79,6 +79,29 @@ describe('buildScopedEndpoints', () => {
     expect(keys).toEqual(['logs', 'metrics', 'traces']);
   });
 
+  it('uses OpenSearch query syntax when backend is elk', () => {
+    const scoped = buildScopedEndpoints(ELK_ENDPOINTS, 'my-api', 'elk');
+    expect(scoped.logs).toContain('/_search?q=');
+    expect(scoped.logs).toContain('localhost:9200');
+    expect(scoped.logs).not.toContain('/select/logsql');
+    expect(scoped.metrics).toContain('/_search?q=');
+    expect(scoped.metrics).not.toContain('/api/v1/query');
+    expect(scoped.traces).toContain('/_search?q=');
+    expect(scoped.traces).not.toContain('/api/traces');
+  });
+
+  it('uses Victoria query syntax when backend is victoria', () => {
+    const scoped = buildScopedEndpoints(DEFAULT_ENDPOINTS, 'my-api', 'victoria');
+    expect(scoped.logs).toContain('/select/logsql/query');
+    expect(scoped.metrics).toContain('/api/v1/query');
+    expect(scoped.traces).toContain('/api/traces');
+  });
+
+  it('uses Victoria query syntax when backend is undefined (backward compat)', () => {
+    const scoped = buildScopedEndpoints(DEFAULT_ENDPOINTS, 'my-api');
+    expect(scoped.logs).toContain('/select/logsql/query');
+  });
+
   // Comparison test: verify URL generation matches the original implementation
   it('produces identical URLs as the original status.ts implementation', () => {
     // Original implementation from src/commands/status.ts (before refactor):

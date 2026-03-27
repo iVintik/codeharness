@@ -27,10 +27,11 @@ vi.mock('../../../lib/stacks/index.js', async () => {
   };
 });
 
-import { detectStacks } from '../../../lib/stacks/index.js';
+import { detectStacks, getStackProvider } from '../../../lib/stacks/index.js';
 import { generateVerifyDockerfile } from '../dockerfile-generator.js';
 
 const mockDetectStacks = vi.mocked(detectStacks);
+const mockGetStackProvider = vi.mocked(getStackProvider);
 
 let testDir: string;
 
@@ -130,6 +131,26 @@ describe('generateVerifyDockerfile', () => {
     expect(result).toContain('cargo-tarpaulin');
   });
 
+  it('includes DEBIAN_FRONTEND=noninteractive for non-interactive apt installs', () => {
+    mockDetectStacks.mockReturnValue([]);
+    const result = generateVerifyDockerfile(testDir);
+    expect(result).toContain('ENV DEBIAN_FRONTEND=noninteractive');
+  });
+
+  it('resolves subdirectory stack paths for provider (e.g., backend/Cargo.toml)', () => {
+    mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: 'backend' }]);
+    // Create Cargo.toml in subdirectory with bevy dep
+    mkdirSync(join(testDir, 'backend'), { recursive: true });
+    writeFileSync(
+      join(testDir, 'backend', 'Cargo.toml'),
+      '[package]\nname = "game"\nversion = "0.1.0"\n\n[dependencies]\nbevy = "0.12"\n',
+    );
+    const result = generateVerifyDockerfile(testDir);
+    // Bevy should be detected because provider receives resolved subdirectory path
+    expect(result).toContain('libudev-dev');
+    expect(result).toContain('rustup');
+  });
+
   it('produces only base + common tools for generic/plugin project (no stacks)', () => {
     mockDetectStacks.mockReturnValue([]);
     const result = generateVerifyDockerfile(testDir);
@@ -139,5 +160,23 @@ describe('generateVerifyDockerfile', () => {
     expect(result).not.toContain('nodesource');
     expect(result).not.toContain('rustup');
     expect(result).not.toContain('python3-pip');
+  });
+
+  it('skips stack section when provider is not registered (unknown stack)', () => {
+    mockDetectStacks.mockReturnValue([{ stack: 'rust', dir: '.' }]);
+    mockGetStackProvider.mockReturnValueOnce(undefined as never);
+    const result = generateVerifyDockerfile(testDir);
+    // Should still have base sections but no rust-specific content
+    expect(result).toContain('FROM ubuntu:22.04');
+    expect(result).not.toContain('rustup');
+  });
+
+  it('skips stack section when provider returns empty string', () => {
+    mockDetectStacks.mockReturnValue([{ stack: 'nodejs', dir: '.' }]);
+    const fakeProvider = { getVerifyDockerfileSection: () => '' };
+    mockGetStackProvider.mockReturnValueOnce(fakeProvider as never);
+    const result = generateVerifyDockerfile(testDir);
+    expect(result).toContain('FROM ubuntu:22.04');
+    expect(result).not.toContain('nodesource');
   });
 });

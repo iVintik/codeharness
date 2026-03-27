@@ -545,7 +545,7 @@ A proof document exists and `codeharness verify` reported `pending > 0`. This me
 
    _Last updated: {timestamp}_
 
-   The following ACs failed black-box verification:
+   The following ACs failed verification:
 
    ### AC {N}: {description}
    **Verdict:** FAIL
@@ -815,7 +815,7 @@ Produce a retrospective that covers:
    - Cost per story (which stories cost the most and why?)
    - Wasted spend (no-op sessions, failed verifications, retries)
    - Cost optimization opportunities:
-     * Stories that should use unit-testable verification instead of Docker
+     * Stories that should use test-provable verification instead of Docker
      * Phases that could be cheaper (e.g., lighter retros for no-op sessions)
      * Subagent prompts that could be trimmed to reduce cache writes
      * Average cost per story vs target (flag if trending up)

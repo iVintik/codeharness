@@ -436,6 +436,10 @@ describe('parseVerificationTag', () => {
     expect(parseVerificationTag('text <!-- verification: unit-testable -->')).toBe('test-provable');
   });
 
+  it('maps legacy black-box tag to environment-provable', () => {
+    expect(parseVerificationTag('text <!-- verification: black-box -->')).toBe('environment-provable');
+  });
+
   it('returns null for unknown/invalid tag values', () => {
     expect(parseVerificationTag('text <!-- verification: unknown-value -->')).toBeNull();
     expect(parseVerificationTag('text <!-- verification: auto -->')).toBeNull();

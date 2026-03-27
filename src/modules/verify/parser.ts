@@ -85,7 +85,7 @@ export function classifyTier(description: string): VerificationTier {
 
 // ─── Verification Tag Parsing ───────────────────────────────────────────────
 
-const VERIFICATION_TAG_PATTERN = /<!--\s*verification:\s*(cli-verifiable|integration-required|unit-testable|test-provable|runtime-provable|environment-provable|escalate)\s*-->/;
+const VERIFICATION_TAG_PATTERN = /<!--\s*verification:\s*(cli-verifiable|integration-required|unit-testable|black-box|test-provable|runtime-provable|environment-provable|escalate)\s*-->/;
 
 /**
  * Parses a `<!-- verification: ... -->` HTML comment tag from a string.

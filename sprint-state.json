@@ -577,7 +577,7 @@
       "acResults": null
     },
     "16-6-update-create-story-tier-criteria": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -709,9 +709,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "16-5-rewrite-harness-run-verification-dispatch",
-    "currentPhase": "verify",
-    "lastAction": "Validating existing proof document",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": [

@@ -297,6 +297,43 @@
       4. Can each AC be verified by running the system and observing output (not just reading source code)?
     </action>
 
+    <!-- VERIFICATION TIER TAGGING — every AC must get a tier tag -->
+    <critical>🏷️ VERIFICATION TIER TAGGING — Append a tier tag to every AC</critical>
+    <action>For each AC in the story file, append a verification tier tag using the format:
+      `&lt;!-- verification: {tier} --&gt;`
+      where {tier} is one of: `test-provable`, `runtime-provable`, `environment-provable`, `escalate`.
+
+      **Tier Decision Tree — assign the LOWEST tier that can verify the AC:**
+
+      - `test-provable` — AC can be verified by building the project and running tests, linters, type checks, or grep.
+        No running application needed. Criteria: code structure, types, file existence, test passing,
+        documentation changes, config changes, refactoring, module exports, file line counts.
+      - `runtime-provable` — AC requires running the built application and checking its behavior.
+        No Docker stack needed. Criteria: CLI output, API endpoint behavior, exit codes, HTTP responses,
+        process lifecycle, server startup, command-line flags.
+      - `environment-provable` — AC requires a full environment (Docker stack, database, observability, multi-service).
+        Criteria: Docker containers, databases, observability stack (logs/metrics/traces), multiple services
+        communicating, distributed system behavior.
+      - `escalate` — AC genuinely cannot be automated. This is rare.
+        Criteria: physical hardware, human visual judgment, paid external services, GPU-dependent rendering.
+
+      **Concrete Examples (one per tier):**
+
+      - `test-provable`: Given the VerificationTier type in types.ts, when inspected, then it includes all four tier names
+        `&lt;!-- verification: test-provable --&gt;`
+      - `runtime-provable`: Given the CLI is invoked with `--help`, when the process runs, then it prints usage information and exits 0
+        `&lt;!-- verification: runtime-provable --&gt;`
+      - `environment-provable`: Given a request is sent to the API, when the observability stack is running, then the request appears in VictoriaLogs
+        `&lt;!-- verification: environment-provable --&gt;`
+      - `escalate`: Given the dashboard is rendered on a mobile device, when a human reviews it, then the layout is visually correct
+        `&lt;!-- verification: escalate --&gt;`
+
+      **Default to `test-provable` when unsure.**
+
+      Do NOT use legacy tier names (`cli-verifiable`, `integration-required`, `unit-testable`, `black-box`).
+      Only the four tiers above are valid for new stories.
+    </action>
+
     <!-- Developer context section - MOST IMPORTANT PART -->
     <template-output file="{default_output_file}">
     developer_context_section</template-output> **DEV AGENT GUARDRAILS:** <template-output file="{default_output_file}">

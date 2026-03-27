@@ -790,3 +790,145 @@ $10.56 / 2 stories completed = **$5.28/story** — above the project average of 
 - [ ] **Retroactively update proof `Tier:` fields** — carried from session 2
 - [ ] **Track per-session cost deltas automatically** — carried from session 2
 - [ ] **Create tech-debt story for env.ts refactor** — carried from session 3
+
+---
+
+# Session Retrospective — 2026-03-27 Session 7
+
+**Sprint:** Epic 16 — Verification Tier Rework (stories 16-5, 16-6)
+**Duration:** ~20 minutes
+**Stories completed:** 16-5 (rewrite-harness-run-verification-dispatch), 16-6 (update-create-story-tier-criteria)
+**Timestamp:** 2026-03-27T16:55Z
+
+## 1. Session Summary
+
+| Story | Start Status | End Status | Phases Run | ACs | Outcome |
+|-------|-------------|------------|------------|-----|---------|
+| 16-5-rewrite-harness-run-verification-dispatch | review | done | code-review x2, verify | 7/7 PASS | Clean completion after 2nd code review |
+| 16-6-update-create-story-tier-criteria | review | done | code-review, verify | 10/10 PASS | Clean completion |
+
+Both stories were test-provable tier (no Docker required). Total 17 ACs verified across both stories. Build passing, 3961 tests, 96.86% coverage at session end.
+
+## 2. Issues Analysis
+
+### Bugs Found and Fixed This Session
+
+**Story 16-5 (code-review round 1):**
+- HIGH: test-provable subagent prompt missing mandatory `## Session Issues` section
+- HIGH: runtime-provable subagent prompt missing mandatory `## Session Issues` section
+- MEDIUM: Escalate dispatch missing Docker cleanup guidance for environment-provable
+
+**Story 16-5 (code-review round 2):**
+- MEDIUM: Stale "black-box verification" text in failure template
+- MEDIUM: Stale "unit-testable verification" text in retrospective prompt
+- MEDIUM: `VERIFICATION_TAG_PATTERN` regex missing `black-box` value
+
+**Story 16-6 (code-review):**
+- HIGH: AC8 test missing `distributed system` criterion
+- MEDIUM: AC1 test used global search instead of scoping to Step 5
+- MEDIUM: "Default to test-provable when unsure" instruction had no test coverage
+
+**Total: 3 HIGH, 6 MEDIUM bugs caught and fixed by code review.**
+
+### Architecture Concerns Logged
+
+1. LEGACY_TIER_MAP in types.ts and VERIFICATION_TAG_PATTERN regex in parser.ts must stay in sync manually — no compile-time enforcement.
+2. Escalate flow ambiguity — unclear if orchestrator runs separate subagents per tier group or one combined subagent.
+
+### LOW Items Deferred (not fixed)
+
+- Section ordering mismatch in harness-run.md routing table vs actual sections
+- 34 dispatch tests are string-matching against markdown (brittle)
+- Escalate section uses inline instructions (no subagent wrapper)
+- AC6-AC9 tests use broader scope than necessary
+- Hardcoded relative paths in test file
+
+## 3. Cost Analysis
+
+### Project Lifetime Totals (from cost report)
+
+| Metric | Value |
+|--------|-------|
+| Total cost | $606.30 |
+| Total API calls | 4,506 |
+| Avg cost/story | $3.28 (151 stories) |
+
+### Cost by Phase (project lifetime)
+
+| Phase | Cost | % |
+|-------|------|---|
+| verify | $342.64 | 56.5% |
+| orchestrator | $108.36 | 17.9% |
+| retro | $58.98 | 9.7% |
+| create-story | $35.25 | 5.8% |
+| code-review | $32.88 | 5.4% |
+| dev-story | $28.20 | 4.7% |
+
+**Key observation:** Verify phase consumes 56.5% of all cost. This is the dominant spend area.
+
+### Token Type Breakdown
+
+Cache reads dominate at 62% ($376.61) — healthy, means prompt caching is working. Output tokens are 15% ($93.48). Cache writes at 22% ($136.04) indicate significant new context being loaded each session.
+
+### Subagent Token Report — This Session
+
+Aggregated from session issues log tool-call counts for stories 16-5 and 16-6:
+
+| Subagent Phase | Tool Calls | Top Tools |
+|----------------|------------|-----------|
+| 16-5 create-story | 14 | Read: 7, Grep: 5, Bash: 2 |
+| 16-5 dev | 19 | Read: 8, Edit: 8, Bash: 4 |
+| 16-5 code-review (round 1) | 22 | Read: 10, Bash: 6, Edit: 4 |
+| 16-5 code-review (round 2) | 24 | Read: 11, Bash: 7, Edit: 4 |
+| 16-5 verify | 12 | Read: 6, Bash: 5, Grep: 1 |
+| 16-6 code-review | 18 | Bash: 7, Read: 5, Edit: 3 |
+| 16-6 verify | 22 | Bash: 16, Read: 4, Grep: 1 |
+| **Total** | **131** | |
+
+**Hotspots:**
+- 16-5 code-review needed 2 rounds (46 tool calls total) — the most expensive phase for this session. Round 1 found 3 bugs, round 2 found 3 more stale-vocabulary bugs that should have been caught in round 1.
+- 16-6 verify had 16 Bash calls — higher than typical. Likely redundant test/coverage runs.
+- harness-run.md was read 5 times across offsets in 16-5 code-review round 1, and 4 times in dev. Large file requiring repeated partial reads is a cost driver.
+
+**Redundant operations identified:**
+- `commands/harness-run.md` read repeatedly across phases (at least 9+ reads across 16-5 subagents) due to file size requiring offset-based reading
+- No redundant npm test runs reported this session (improvement over earlier sessions)
+
+## 4. What Went Well
+
+- **Clean verifications:** Both stories passed all ACs on first verify attempt (17/17 total)
+- **Code review catching real bugs:** 9 bugs found and fixed across the two stories before verification. The two-round code review on 16-5 caught stale vocabulary that would have caused verify failures.
+- **Fast session:** ~20 minutes for 2 stories review-to-done is efficient
+- **Test suite stability:** 3961 tests passing, 96.86% coverage maintained — no regressions introduced
+- **No Docker needed:** Both stories correctly classified as test-provable, avoiding container overhead
+- **Session issues log is working:** Every subagent faithfully reported tool call counts and issues — provides excellent raw data for retros
+
+## 5. What Went Wrong
+
+- **Story 16-5 needed 2 code review rounds:** The first review missed 3 stale-vocabulary instances that the second review caught. This doubled the code-review cost for that story.
+- **Sprint status shows 16-5 and 16-6 still as "review":** The sprint-status.yaml was not updated to "done" despite commits confirming completion. This is a recurring state-sync issue (same pattern as the state corruption fix noted earlier in the session).
+- **Architecture sync debt:** LEGACY_TIER_MAP and VERIFICATION_TAG_PATTERN must be kept in sync manually. The `black-box` regex omission in 16-5 round 2 is a direct consequence. No compile-time or test-time enforcement exists.
+- **Brittle test pattern:** 34 dispatch tests in 16-5 are string-matching against markdown content. Any markdown rewording will break them.
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+1. **Two-story review-to-done batches** work well for test-provable tier — fast, focused, low overhead
+2. **Session issues log** as retro input is highly effective — subagent token reports give granular cost visibility
+3. **Test-provable classification** is saving significant time by avoiding Docker for stories that don't need it
+
+### Patterns to Avoid
+1. **Stale vocabulary scanning** should be a checklist item in code review, not something caught only on re-review. When renaming concepts (e.g., tier names), a project-wide grep for old names should be mandatory in round 1.
+2. **Large markdown files** (harness-run.md) cause repeated partial reads. Consider sharding or adding section markers that allow targeted reads.
+3. **Manual sync between types.ts and parser.ts** is error-prone. Need either a single source of truth or a test that validates consistency.
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Add a unit test that validates LEGACY_TIER_MAP keys match VERIFICATION_TAG_PATTERN regex alternatives | HIGH | Next sprint |
+| 2 | Add "stale vocabulary grep" step to code-review workflow (grep old tier names after any rename story) | MEDIUM | Process improvement |
+| 3 | Consider sharding harness-run.md into smaller section files to reduce repeated partial reads | MEDIUM | Tech debt backlog |
+| 4 | Update sprint-status.yaml sync — stories 16-5 and 16-6 should reflect done status | HIGH | Orchestrator fix |
+| 5 | Replace string-matching dispatch tests with structured assertion (parse sections, check keys) | LOW | Tech debt backlog |
+| 6 | Complete Epic 16 remaining stories: 16-7 (knowledge/enforcement docs) and 16-8 (update all tests) | HIGH | Next session |

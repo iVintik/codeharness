@@ -225,3 +225,126 @@ Session 2 cost $6.13 across 55 API calls for 4 stories (3 verification-only + 1 
 #### Backlog
 - [ ] **Retroactively update proof `Tier:` fields** once 16-2 to 16-4 ship and the new tier names are enforced by proof.ts.
 - [ ] **Track per-session cost deltas automatically.** Currently requires manual subtraction from the previous retro. The cost report should include a session-scoped view.
+
+---
+
+# Session Retrospective — 2026-03-27 (Session 3)
+
+**Sprint:** Story 14-5 second code review + verification
+**Timestamp:** 2026-03-27T14:00Z
+**Duration:** ~30 minutes (budget) — actual wall time ~25 minutes
+**Stories completed:** 14-5-stack-aware-verify-dockerfile (review → done)
+**Epic status:** Epic 14 — 6/7 done (14-6 still in review)
+
+---
+
+## 1. Session Summary
+
+| Story | Entry State | Phases Run | Exit State | Notes |
+|-------|-------------|------------|------------|-------|
+| 14-5-stack-aware-verify-dockerfile | review | code-review-2, verify | done | Second review pass found no new bugs. Verification ALL_PASS (10/10 ACs). 3856 tests passing, 97.45% coverage. |
+
+This was a single-story session focused on completing the final review/verify cycle for story 14-5. The story had already been through one code review round in a previous session (Session 2) which found and fixed 2 HIGH and 3 MEDIUM bugs. This session's second code review confirmed all fixes were solid and found no new issues above LOW severity. The verify phase then ran a unit-testable tier validation — ALL_PASS on all 10 acceptance criteria.
+
+## 2. Issues Analysis
+
+### Category: Code quality (LOW, deferred)
+
+Three LOW items were identified during the second code review but intentionally not fixed:
+
+1. **Fragile push() pattern in generator.** The Dockerfile generator builds output by pushing strings to an array. This is functional but brittle — a missed push silently drops lines. Not blocking; a refactor candidate for a future tech-debt story.
+2. **No Docker syntax validation test.** The generated Dockerfiles are tested for content but not validated against Docker's parser. A malformed Dockerfile would pass all tests but fail at build time. Mitigated by the fact that verification includes an actual Docker build for runtime-provable tiers.
+3. **Long line in env.ts.** A single line exceeds the style guide's recommended length. Cosmetic.
+
+### Category: Redundant operations
+
+- **Second coverage run in verify phase could have reused first output.** The verify subagent ran `npx vitest run --coverage` twice — once to check tests pass, once to check coverage thresholds. The first run already produced coverage output. This wasted one Bash call and its associated context tokens.
+
+### Category: Stale mocks (carried forward)
+
+- **14 stale `mockDetectStack` call sites in `verify-env.test.ts`.** Reported in Session 2's first review. Still not cleaned up. These mock a function (`detectStack`) that was removed during the provider migration (Epic 10). The mocks are dead code — they do not affect test correctness but add noise and confusion.
+
+## 3. Cost Analysis
+
+### Session 3 delta (since Session 2 retro)
+
+| Metric | Session 2 (cumulative) | Session 3 (cumulative) | Delta |
+|--------|------------------------|------------------------|-------|
+| Total cost | $562.19 | $572.74 | **$10.55** |
+| Total calls | 4,153 | 4,239 | **86** |
+| Stories completed | 141 | 142 | **+1** |
+
+Session 3 cost $10.55 across 86 API calls for 1 story. This is higher than the Session 2 average ($1.53/story) because this story required a full code-review + verify cycle rather than just a quick proof validation.
+
+### Cost breakdown by phase (session 3 deltas)
+
+| Phase | Calls delta | Cost delta |
+|-------|-------------|------------|
+| verify | +54 | ~$5.19 |
+| code-review | +19 | ~$1.94 |
+| orchestrator | +11 | ~$3.15 |
+| retro | +2 | ~$0.27 |
+
+### Subagent-level token analysis (from session issues log)
+
+| Subagent Phase | Tool Calls | Breakdown | Redundant Ops |
+|----------------|-----------|-----------|---------------|
+| code-review-2 | 22 | Bash:9, Read:8, Grep:4, Glob:1 | None |
+| verify | 24 | Bash:15, Read:5, Grep:4, Write:2 | Second coverage run (1 Bash call wasted) |
+
+**Observations:**
+
+- **code-review-2 was lean.** 22 tool calls, zero redundant operations, zero Edits (no bugs to fix). Read 12 unique files, 13 total reads — minimal re-reading. This is the ideal profile for a clean second review pass.
+- **verify was Bash-heavy.** 15 of 24 calls were Bash (build, test suite, coverage, proof validation). This is expected for unit-testable tier verification which must actually run the test suite.
+- **The duplicate coverage run is the only waste.** 1 of 46 total subagent calls (~2%) was redundant. Acceptable.
+- **No files were read repeatedly across phases.** code-review-2 read 12 files; verify read 5 files with only 2 overlapping (the main source files under review). Good phase isolation.
+
+### Cumulative project costs
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $572.74 |
+| Total API calls | 4,239 |
+| Average cost per story | $3.30 (142 stories) |
+| 14-5 total cost (all sessions) | $20.64 (162 calls) |
+
+Story 14-5 is the 3rd most expensive story in the project ($20.64). This is justified: it went through dev, two code reviews, and verification — the code review rounds found and fixed 5 real bugs (2 HIGH, 3 MEDIUM).
+
+## 4. What Went Well
+
+- **Clean second review.** Zero new bugs found above LOW. All previous fixes held. This confirms the first code review was thorough and the fixes were correct.
+- **Verification passed on first attempt.** ALL_PASS, 10/10 ACs, 97.45% coverage, 3856 tests. No rework needed.
+- **Session stayed within time budget.** 30-minute budget, ~25 minutes actual. No scope creep.
+- **Subagent efficiency was high.** 2% waste rate (1 redundant call out of 46). Both subagents completed their phases without retries or errors.
+- **Story 14-5 is genuinely done.** Two review rounds caught 5 real bugs. The code quality is materially better than after the first dev pass.
+
+## 5. What Went Wrong
+
+- **Duplicate coverage run in verify.** The verify subagent ran `npx vitest run --coverage` twice when once would have sufficed. Minor waste ($0.50-1.00 in context tokens) but a recurring anti-pattern across verify subagents.
+- **Stale mocks still not cleaned up.** The 14 dead `mockDetectStack` sites in `verify-env.test.ts` have been flagged in two consecutive sessions and still not addressed. They are LOW priority but are accumulating session-over-session as a known gap.
+- **env.ts still over 300-line NFR limit.** At 304 lines after fixes, it technically violates the NFR1 300-line file size limit. The code-review-2 noted this but did not fix it (correctly — it is cosmetic and out of scope for a review-only pass). It remains unfixed.
+
+## 6. Lessons Learned
+
+1. **Second code review passes are cheap when the first was thorough.** code-review-2 cost ~$1.94 and 22 tool calls with zero Edits. When the first review catches real bugs and the fixes are solid, the second pass is essentially a confirmation pass. This supports running two review rounds for HIGH-complexity stories — the marginal cost is low and the confidence gain is high.
+2. **Verify subagents should cache test/coverage output.** Running the test suite once and parsing its output for both pass/fail and coverage would eliminate the duplicate run. This could be enforced in the verify subagent prompt: "Run the test suite exactly once with --coverage and use the single output for all checks."
+3. **LOW items accumulate if not triaged.** The stale mocks, env.ts line count, and fragile push pattern have been noted across 3 subagent runs now. They need to be either (a) logged as tech-debt stories in the backlog or (b) explicitly dismissed. Letting them recur in every review wastes reviewer attention.
+
+## 7. Action Items
+
+### Carried forward (still open from sessions 1-2)
+- [ ] **`state set` should trigger YAML regeneration** — flagged in sessions 1 and 2
+- [ ] **Auto-verify stories with passing proofs** — flagged in session 1
+- [ ] **Provide proof format template to verify subagent** — flagged in session 2
+- [ ] **Constrain subagent grep scope** — flagged in session 2
+
+### New from session 3
+
+#### Fix soon
+- [ ] **Eliminate duplicate coverage runs in verify.** Update the verify subagent prompt to run `npx vitest run --coverage` exactly once and reuse the output for both pass/fail and coverage threshold checks.
+- [ ] **Create tech-debt story for stale `mockDetectStack` cleanup.** 14 dead mock call sites in `verify-env.test.ts`. Has been flagged in 3 consecutive subagent runs. Should be a small story in a future tech-debt epic.
+
+#### Backlog
+- [ ] **Create tech-debt story for env.ts refactor.** At 304 lines, it exceeds the 300-line NFR1 limit. Needs extraction of a helper or splitting into sub-modules.
+- [ ] **Retroactively update proof `Tier:` fields** — carried from session 2
+- [ ] **Track per-session cost deltas automatically** — carried from session 2

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 64,
+    "done": 65,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -709,9 +709,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "14-5-stack-aware-verify-dockerfile",
+    "currentPhase": "review",
+    "lastAction": "Starting code review",
     "acProgress": null
   },
   "actionItems": [

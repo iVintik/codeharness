@@ -2842,3 +2842,157 @@ Bash dominates because test runs, builds, and verification commands all go throu
 | 7 | **Convert action items 3-5 to sprint 2 stories** | HIGH | PM | OPEN — carried from session 13 |
 | 8 | **Reduce "unknown" story cost bucket** — $136.52 (20.6%) unattributed | LOW | Tooling | OPEN — carried |
 | 9 | **Add integration test for ralph with stream-json output containing story patterns** | MEDIUM | QA | **NEW** |
+
+---
+
+# Session 29 Retrospective — 2026-03-27T19:22Z
+
+**Sprint:** All epics complete — state corruption root cause commit
+**Session focus:** Commit the root cause fix from session 22 that was never persisted
+**Stories attempted:** 0 new stories (all 74/74 done)
+**Outcome:** Root cause fix committed, state corruption loop broken
+
+---
+
+## 1. Session Summary
+
+No new stories were implemented. All 74 stories across 16 epics were already DONE. This session's sole purpose was to finally commit the root cause fix for the state corruption bug that had been plaguing sessions 17-28 (13 occurrences).
+
+**Work performed:**
+- Restored stories 16-5, 16-6, 16-7, 16-8 from `review` back to `done` (13th time)
+- Removed phantom story `1-1-foo` (again)
+- Fixed sprint counts from 75/70 to 74/74
+- **Committed the code fixes** to `ralph.ts` and `state.ts` that existed only in the working tree since session 22
+- Verified: 152 test suites (4018 tests) pass, build clean
+
+**Key insight:** The root cause fix from session 22 was applied to source files but never committed or built. Since ralph runs from built/committed code, the fix was never active — causing 7 additional sessions (22-28) to hit the same corruption bug.
+
+## 2. Issues Analysis
+
+### Category: Process failure — uncommitted fix (CRITICAL)
+
+The most significant issue across the entire sprint. Session 22 correctly identified and coded the root cause fix for state corruption:
+1. `parseRalphMessage()` guard: skip JSON lines starting with `{`
+2. `updateStoryStatus()` defense: reject unknown story keys instead of auto-creating them
+3. New `registerStory()` function for explicit story creation
+
+These changes existed in the working tree but were **never committed**. Ralph runs from the built project, so the fix was effectively invisible. This caused sessions 22-28 (7 sessions) to waste time on the same corruption fix that session 22 had already solved at the code level.
+
+### Category: State corruption — 13th occurrence
+
+Same pattern as sessions 17-28:
+- Stories 16-5, 16-6, 16-7, 16-8 reset from `done` to `review`
+- Phantom `1-1-foo` re-created
+- Sprint total inflated from 74 to 75, done count dropped from 74 to 70
+
+Root cause: `parseRalphMessage()` matched `[SUCCESS] Story 1-1-foo: DONE` pattern inside JSON-wrapped stream output (specifically from test files and source code). `updateStoryStatus()` then created/reset story entries via `defaultStoryState()`.
+
+### Category: Residual phantom in sprint-status.yaml
+
+The phantom `1-1-foo` still appears in `sprint-status.yaml` (line 21, status: `review`). Epic-1 shows `backlog` due to this phantom. This derived file needs regeneration from the corrected sprint-state.json.
+
+## 3. Cost Analysis
+
+### Cumulative Project Costs
+
+| Metric | Value | Delta from Session 17 |
+|--------|-------|-----------------------|
+| Total API-equivalent cost | $667.12 | +$27.34 |
+| Total API calls | 4,931 | +189 |
+| Average cost per story | $3.42 (155 stories*) | +$0.17 |
+
+*155 includes phantom stories tracked by the system; real stories = 74.
+
+### Token Breakdown
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 274M | $411.04 | 62% |
+| Cache writes | 8.1M | $152.38 | 23% |
+| Output | 1.4M | $103.52 | 16% |
+| Input | 12K | $0.18 | 0% |
+
+### Phase Cost Distribution
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 2,907 | $367.27 | 55.1% |
+| orchestrator | 619 | $129.87 | 19.5% |
+| retro | 469 | $66.83 | 10.0% |
+| create-story | 344 | $36.58 | 5.5% |
+| code-review | 321 | $36.49 | 5.5% |
+| dev-story | 271 | $30.07 | 4.5% |
+
+### State Corruption Waste
+
+The phantom story `1-1-foo` is the 5th most expensive "story" at **$13.79 (2.1%)** — all of it wasted on a story that never existed.
+
+Estimated total waste from the 13 state corruption sessions (17-29):
+- ~13 sessions x ~15 tool calls each = ~195 wasted tool calls
+- ~$25-35 in direct API costs for fix-revert cycles
+- ~$13.79 attributed to phantom story `1-1-foo`
+- **Total estimated waste: $38-49** (5.7-7.3% of project budget)
+
+### Subagent-Level Token Analysis
+
+From the session issues log token reports across sessions 17-29:
+
+| Session | Tool Calls | Heaviest Tools | Key Waste |
+|---------|-----------|----------------|-----------|
+| 29 | ~18 | Edit: 7, Read: 6 | 1 re-read of sprint-status.yaml |
+| 22 | ~30 | Edit: 15, Read: 10 | sprint-state.json read 3x, state.ts read 2x |
+| 21 | ~25 | Read: 8, Edit: 6, Grep: 6 | sprint-state.json read 4+ times (external modification) |
+| 20 | ~12 | Edit: 6, Read: 4 | Entire session redundant |
+| 19 | ~12 | Read: 6, Edit: 3 | Entire session redundant |
+| 18 | ~8 | Read: 4, Bash: 2 | Retro-only session |
+| 17 | ~12 | Edit: 6, Read: 5 | Entire session redundant |
+| 16 | ~12 | Edit: 5, Read: 4 | Entire session redundant |
+
+**Patterns identified:**
+- `sprint-state.json` was the most re-read file, averaging 3-4 reads per session due to external modification between reads
+- Sessions 16, 17, 19, 20 were entirely wasted — identical state corruption fix applied each time
+- Session 22 was productive (root cause found + fixed) but the fix was never committed, nullifying the value
+- Edit tool dominated (making state corrections), followed by Read (diagnosing corruption)
+
+## 4. What Went Well
+
+- **Root cause correctly identified in session 21** — the regex-in-JSON-lines theory was confirmed with specific evidence (phantom `1-1-foo` traced to test file `ralph.test.ts`)
+- **Fix correctly implemented in session 22** — both `parseRalphMessage()` guard and `updateStoryStatus()` defense were coded, tested (4018 tests pass), and validated
+- **Session 29 finally committed the fix** — the working-tree-only changes are now part of the git history and will survive across sessions
+- **All 74 stories complete** — the sprint is done, every epic is finished
+- **Test coverage is solid** — 152 test suites, 4018 tests, all passing
+
+## 5. What Went Wrong
+
+- **The root cause fix from session 22 was never committed** — this is the critical failure. The fix existed in the working tree for 7 sessions but was never `git add`ed and committed. Since ralph runs from built code, the fix was effectively dead code.
+- **13 sessions wasted on the same bug** — sessions 17-29 all encountered identical state corruption. Only sessions 21 (diagnosis), 22 (fix), and 29 (commit) were productive. Sessions 16-20 and 23-28 were pure waste.
+- **No process to verify uncommitted changes are committed** — there was no checkpoint, no pre-flight check, no "did we actually commit the fix?" step
+- **Phantom `1-1-foo` still in sprint-status.yaml** — the derived YAML file was not regenerated, leaving a visible artifact of the corruption
+- **$38-49 wasted** on repeated manual state fixes that the code fix should have prevented
+
+## 6. Lessons Learned
+
+| Lesson | Detail |
+|--------|--------|
+| **Always commit fixes immediately.** | Session 22 wrote the fix, ran the tests, confirmed it worked — then stopped without committing. The fix sat in the working tree for 7 sessions while the bug kept recurring. Code that isn't committed doesn't exist for production purposes. |
+| **Uncommitted code is invisible code.** | Ralph runs from built artifacts, not the working tree. A fix that isn't committed and rebuilt is no fix at all. This is the fundamental reason the bug persisted for 7 extra sessions. |
+| **Subagents need a "commit the fix" checkpoint.** | After applying a code fix, there should be an explicit step: "git add, git commit, npm run build." This should be enforced at the workflow level, not left to agent discretion. |
+| **Repeated identical failures should trigger escalation.** | After the 3rd or 4th identical state corruption, the system should have escalated rather than applying the same manual fix. A circuit breaker pattern was proposed in session 15 but never implemented. |
+| **Verify the fix is deployed, not just written.** | Session 22 verified tests pass but never verified that the fix would actually be active in production (built code). "Tests pass" != "fix is deployed." |
+| **Track working-tree changes across sessions.** | A pre-session check like `git diff --stat` would have immediately revealed uncommitted changes to ralph.ts and state.ts, prompting a commit before running ralph. |
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | ~~Fix `parseRalphMessage()` to skip JSON lines~~ | CRITICAL | Dev | **DONE — session 22, committed session 29** |
+| 2 | ~~Make `updateStoryStatus()` defensive~~ | CRITICAL | Dev | **DONE — session 22, committed session 29** |
+| 3 | **Add circuit breaker for repeated identical state fixes** | HIGH | Dev | OPEN — carried from session 15 |
+| 4 | **Add ralph sprint-complete termination** | HIGH | Dev | OPEN — carried from session 9 |
+| 5 | **Regenerate sprint-status.yaml to remove phantom `1-1-foo`** | HIGH | Dev | **NEW** |
+| 6 | **Clean up cost data** — remove phantom story entries from tracking | MEDIUM | Tooling | OPEN — carried |
+| 7 | **Convert action items 3-4 to sprint 2 stories** | HIGH | PM | OPEN — carried from session 13 |
+| 8 | **Reduce "unknown" story cost bucket** — $137.59 (20.6%) unattributed | LOW | Tooling | OPEN — carried |
+| 9 | **Add pre-session `git diff --stat` check** — flag uncommitted code changes before running ralph | HIGH | Tooling | **NEW** |
+| 10 | **Add post-fix commit enforcement** — after subagent applies a code fix, require explicit commit step | HIGH | Process | **NEW** |
+| 11 | **Add integration test for ralph with stream-json output containing story patterns** | MEDIUM | QA | OPEN — carried from session 22 |

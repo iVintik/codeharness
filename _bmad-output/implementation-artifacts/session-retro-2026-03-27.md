@@ -1087,3 +1087,174 @@ Story 16-7 is not in the top 10 most expensive stories — it was a documentatio
 | 4 | Update CODEHARNESS-PATCH template to be tier-aware (remove Docker language for test-provable stories) | MEDIUM | Story 16-8 or tech debt |
 | 5 | Complete Epic 16: story 16-8-update-all-tests is the only remaining story | HIGH | Next session |
 | 6 | Address `allFiles()` recreating array per call (LOW from code review) | LOW | Tech debt backlog |
+
+---
+
+# Session Retrospective — 2026-03-27 Session 9
+
+**Timestamp:** 2026-03-27T18:00Z
+**Sprint:** Epic 16 — Verification Tier Rework (final session)
+**Stories attempted:** 16-8-update-all-tests
+**Stories completed:** 16-8-update-all-tests (verified and done)
+**Epic status:** Epic 16 — DONE (all 8 stories complete)
+
+---
+
+## 1. Session Summary
+
+One story was completed this session, closing out Epic 16:
+
+- **16-8-update-all-tests** — Audit and update all tests to align with the new verification tier system. The dev agent confirmed zero code changes were needed — stories 16-1 through 16-7 had already achieved complete test coverage. The story passed through all four phases (create-story, dev, code-review, verify) and was verified with 12/12 ACs passing. Build clean, 4015 tests passing, 96.86% coverage.
+
+After 16-8 was committed, the epic was marked complete with a dedicated commit.
+
+### Phase timeline
+
+| Phase | Tool Calls | Outcome |
+|-------|-----------|---------|
+| create-story | 17 | Story file generated from tech spec. ACs derived from testing strategy. |
+| dev | 16 | Zero code changes — audit confirmed full coverage already exists. |
+| code-review | 15 | 3 LOW findings (barrel re-export test gap, line number drift, missing priority test). None blocking. |
+| verify | 17 | ALL_PASS (12/12 ACs). Test-provable tier. |
+
+---
+
+## 2. Issues Analysis
+
+### Category: Ambiguous story definition
+
+- **Epic 16 Task 8 was terse ("Update all tests") with no specific ACs.** The create-story subagent had to derive ACs from the tech spec's testing strategy section. This worked, but only because the tech spec was detailed enough. A vague task in a vague spec would have produced a vague story.
+
+### Category: Pre-existing test failures (recurring)
+
+- **6 BATS integration tests still failing.** Ralph loop tests (`all_tasks_complete`, `get_current_task`) continue to fail. Flagged in sessions 1, 2, 3, 4, 5, 6, 7, 8, and now 9. Still unfixed.
+
+### Category: Code review findings (deferred, not blocking)
+
+- **LOW-1: `classifyTier` barrel re-export not tested through `index.ts`.** The function is tested directly but not through the package barrel. Minor gap.
+- **LOW-2: Line number references in Dev Agent Record will drift.** The dev record references specific line numbers in source files. These will become stale as the code evolves. Acceptable for a point-in-time record.
+- **LOW-3: No explicit test for runtime > test priority in `classifyTier`.** The priority ordering is implicit in the implementation but not directly asserted in a test.
+
+### Category: Redundant verification operations
+
+- **Proof written twice (format fix).** The verify subagent wrote the proof document, then had to rewrite it to fix formatting. 1 wasted Write call.
+- **Separate vitest runs for pass count vs coverage.** Two `npm test` invocations when one with `--reporter=verbose --coverage` would have captured both. 1 wasted Bash call.
+
+### Category: State management (recurring)
+
+- **Stories 16-5, 16-6, 16-7 were at `review` despite committed proof.** Same root cause as every previous session — ralph state reconciliation overwrites committed `done` status. Fixed manually at session start.
+
+---
+
+## 3. Cost Analysis
+
+### Session 9 delta (since Session 8 retro)
+
+| Metric | Session 8 (cumulative) | Session 9 (cumulative) | Delta |
+|--------|------------------------|------------------------|-------|
+| Total cost | $614.74 | $620.25 | **$5.51** |
+| Total calls | 4,563 | 4,605 | **42** |
+| Stories completed | 152 | 152 | **0 new** (16-8 was already tracked) |
+
+**Session 9 estimated spend: ~$5.51** across 42 API calls. This is the cheapest session of the day — expected since 16-8 required zero code changes.
+
+### Cost per phase (this session, estimated from subagent token reports)
+
+| Phase | Tool Calls | Estimated Cost | Notes |
+|-------|-----------|---------------|-------|
+| create-story | 17 | ~$1.40 | 7 Read, 7 Grep — research-heavy |
+| dev | 16 | ~$1.20 | 9 Read, 6 Bash — audit with no changes |
+| code-review | 15 | ~$1.50 | 9 Read, 2 Edit, 3 Bash — reviewed + minor edits |
+| verify | 17 | ~$1.41 | 9 Bash, 8 Grep — build/test/coverage |
+
+### Subagent-level token analysis (from session issues log)
+
+| Subagent Phase | Tool Calls | Breakdown | Files Read (unique/total) | Redundant Ops |
+|----------------|-----------|-----------|--------------------------|---------------|
+| create-story | 17 | Read:7, Grep:7, Glob:3, Write:1 | 9/10 | None |
+| dev | 16 | Bash:6, Read:9, Write:1, Glob:1, Skill:1 | 9/9 | None |
+| code-review | 15 | Bash:3, Read:9, Edit:2, Grep:3, Glob:1, Skill:1 | 12/12 | None |
+| verify | 17 | Bash:9, Read:3, Grep:8, Write:2 | 3/3 | Proof rewrite (1), double test run (1) |
+
+**Key observations:**
+
+- **Total subagent tool calls: 65.** Lean session — no wasted orchestration overhead.
+- **Redundant operations: 2 of 65 calls (~3%).** Consistent with the 2-5% waste band observed across all sessions.
+- **No cross-phase file re-reading.** Each phase read its own slice. create-story focused on tech spec + parser code, dev on source files for audit, code-review on test files, verify on build output.
+- **Verify phase most Bash-heavy (9 calls).** Expected for test-provable tier — needs build, vitest, coverage, grep through output.
+- **create-story and code-review most Read-heavy (7-12 files).** Expected — research and review phases need broad context.
+
+### Cumulative project costs (all epics, all time)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $620.25 |
+| Total API calls | 4,605 |
+| Average cost per story | $3.33 |
+| Stories tracked | 152 |
+
+### Cost distribution (cumulative)
+
+| Phase | Cost | % |
+|-------|------|---|
+| verify | $348.74 | 56.2% |
+| orchestrator | $110.15 | 17.8% |
+| retro | $60.00 | 9.7% |
+| create-story | $36.58 | 5.9% |
+| code-review | $34.70 | 5.6% |
+| dev-story | $30.07 | 4.8% |
+
+Verification remains the dominant cost center at 56.2%. This is structural — verify phases run builds, test suites, and coverage checks which produce large Bash outputs that inflate cache read costs. No cost anomalies this session.
+
+### Wasted spend
+
+- **~$0.30 on redundant verify operations** (proof rewrite + double test run). Negligible.
+- **"unknown" story bucket remains at $114.07 (18.4% of total).** This is cumulative unattributed cost — orchestrator overhead, retros, and sessions where story context was not tracked. Not actionable per-session, but indicates ~18% of all spend is overhead.
+
+---
+
+## 4. What Went Well
+
+1. **Epic 16 completed.** All 8 stories verified and done. The verification tier rework is fully shipped.
+2. **Zero-code story handled efficiently.** The dev agent correctly identified that no changes were needed and produced an audit record instead of making unnecessary edits. 16 tool calls for a no-op is lean.
+3. **Cheapest session of the day at $5.51.** The pipeline correctly minimized work when there was nothing to build.
+4. **Code review found only LOW issues.** The codebase was already clean from 7 prior stories of incremental work.
+5. **4015 tests passing, 96.86% coverage.** Build health maintained throughout the entire epic.
+6. **Session 8 action item #5 (complete 16-8) resolved.** The only remaining story from the previous retro is now done.
+
+---
+
+## 5. What Went Wrong
+
+1. **State corruption happened again.** 3 stories needed manual state fixes at session start. This is the 9th consecutive session reporting this issue. The ralph state reconciliation bug remains unfixed.
+2. **Pre-existing BATS failures still unfixed.** 6 tests failing for 9 sessions straight. Nobody has prioritized this.
+3. **Proof format still not stable.** The verify subagent had to rewrite the proof once (format fix). Proof format issues have been flagged in sessions 2, 3, 5, 6, and now 9.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **"No changes needed" is a valid dev outcome.** When prior stories have already covered the work, the dev agent should audit and confirm rather than force unnecessary changes. Story 16-8 handled this correctly.
+2. **Deriving ACs from tech specs works** when the spec is detailed. The create-story subagent produced 12 clear ACs from the testing strategy section despite the terse task description.
+3. **Closing out an epic with a final audit story** is a good practice. It forces verification that nothing was missed across the epic.
+
+### Patterns to Avoid
+
+1. **Ignoring recurring infrastructure bugs.** The state corruption issue has been flagged for 9 sessions without a fix. It costs 5-10 minutes of manual cleanup per session. Over 9 sessions, that is 45-90 minutes of wasted human time plus the tool calls to diagnose and fix.
+2. **Leaving pre-existing test failures unfixed across sprints.** The BATS failures add noise to every dev and verify output, forcing subagents to spend calls determining if failures are regressions or pre-existing.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | Fix ralph state reconciliation to not overwrite `done` stories back to `review` | HIGH | Infrastructure | OPEN (flagged sessions 1-9) |
+| 2 | Fix 6 pre-existing BATS test failures (`all_tasks_complete`, `get_current_task`) | MEDIUM | Tech debt | OPEN (flagged sessions 1-9) |
+| 3 | Standardize proof document format and provide template to verify subagents | MEDIUM | Process | OPEN (flagged sessions 2, 3, 5, 6, 9) |
+| 4 | Update CODEHARNESS-PATCH template to be tier-aware | MEDIUM | Tech debt | OPEN (from session 8) |
+| 5 | Address `allFiles()` recreating array per call | LOW | Tech debt backlog | OPEN (from session 8) |
+| 6 | Reduce "unknown" story cost bucket (18.4% unattributed spend) | LOW | Tooling | NEW |
+| 7 | Plan next epic / sprint — Epic 16 is done, all 16 epics complete | HIGH | PM | NEW |

@@ -103,10 +103,12 @@ As a developer...
     expect(acs[0].description).toContain('developer runs the command');
     expect(acs[0].type).toBe('general');
     expect(acs[0].verifiability).toBe('cli-verifiable');
+    expect(acs[0].tier).toBe('test-provable');
     expect(acs[1].id).toBe('2');
     expect(acs[1].description).toContain('click submit');
     expect(acs[1].type).toBe('ui');
     expect(acs[1].verifiability).toBe('cli-verifiable');
+    expect(acs[1].tier).toBe('test-provable');
   });
 
   it('handles multi-line ACs', () => {
@@ -223,7 +225,9 @@ As a developer...
     const acs = parseStoryACs(filePath);
     expect(acs).toHaveLength(2);
     expect(acs[0].verifiability).toBe('cli-verifiable');
+    expect(acs[0].tier).toBe('test-provable');
     expect(acs[1].verifiability).toBe('integration-required');
+    expect(acs[1].tier).toBe('environment-provable');
   });
 
   it('falls back to heuristic classification when no verification tag is present', () => {
@@ -243,8 +247,11 @@ As a developer...
     const acs = parseStoryACs(filePath);
     expect(acs).toHaveLength(3);
     expect(acs[0].verifiability).toBe('cli-verifiable');
+    expect(acs[0].tier).toBe('test-provable');
     expect(acs[1].verifiability).toBe('integration-required');
+    expect(acs[1].tier).toBe('environment-provable');
     expect(acs[2].verifiability).toBe('integration-required');
+    expect(acs[2].tier).toBe('environment-provable');
   });
 
   it('verification tag overrides heuristic classification', () => {
@@ -262,6 +269,63 @@ As a developer...
     // "external system" would heuristically classify as integration-required,
     // but the explicit tag overrides it to cli-verifiable
     expect(acs[0].verifiability).toBe('cli-verifiable');
+    expect(acs[0].tier).toBe('test-provable');
+  });
+
+  it('populates tier field correctly for integration-required ACs', () => {
+    const filePath = writeStoryFile('story.md', `# Story 16.1: Tier test
+
+## Acceptance Criteria
+
+1. **Given** an external system is used, **Then** it is verified.
+
+## Tasks
+`);
+
+    const acs = parseStoryACs(filePath);
+    expect(acs).toHaveLength(1);
+    expect(acs[0].verifiability).toBe('integration-required');
+    expect(acs[0].tier).toBe('environment-provable');
+  });
+
+  it('defaults tier to test-provable for cli-verifiable ACs', () => {
+    const filePath = writeStoryFile('story.md', `# Story 16.1: Default tier
+
+## Acceptance Criteria
+
+1. **Given** a simple check, **Then** it passes.
+
+## Tasks
+`);
+
+    const acs = parseStoryACs(filePath);
+    expect(acs).toHaveLength(1);
+    expect(acs[0].verifiability).toBe('cli-verifiable');
+    expect(acs[0].tier).toBe('test-provable');
+  });
+
+  it('parses new verification tier tags from story AC lines', () => {
+    const filePath = writeStoryFile('story.md', `# Story 16.1: New tags
+
+## Acceptance Criteria
+
+1. **Given** a test-provable AC, **Then** it works. <!-- verification: test-provable -->
+
+2. **Given** a runtime-provable AC, **Then** it works. <!-- verification: runtime-provable -->
+
+3. **Given** an environment-provable AC, **Then** it works. <!-- verification: environment-provable -->
+
+4. **Given** an escalate AC, **Then** it works. <!-- verification: escalate -->
+
+## Tasks
+`);
+
+    const acs = parseStoryACs(filePath);
+    expect(acs).toHaveLength(4);
+    expect(acs[0].tier).toBe('test-provable');
+    expect(acs[1].tier).toBe('runtime-provable');
+    expect(acs[2].tier).toBe('environment-provable');
+    expect(acs[3].tier).toBe('escalate');
   });
 });
 
@@ -313,6 +377,22 @@ describe('parseVerificationTag', () => {
 
   it('handles extra whitespace in tag', () => {
     expect(parseVerificationTag('text <!--  verification:  cli-verifiable  -->')).toBe('cli-verifiable');
+  });
+
+  it('parses new tier values: test-provable', () => {
+    expect(parseVerificationTag('text <!-- verification: test-provable -->')).toBe('test-provable');
+  });
+
+  it('parses new tier values: runtime-provable', () => {
+    expect(parseVerificationTag('text <!-- verification: runtime-provable -->')).toBe('runtime-provable');
+  });
+
+  it('parses new tier values: environment-provable', () => {
+    expect(parseVerificationTag('text <!-- verification: environment-provable -->')).toBe('environment-provable');
+  });
+
+  it('parses new tier values: escalate', () => {
+    expect(parseVerificationTag('text <!-- verification: escalate -->')).toBe('escalate');
   });
 });
 

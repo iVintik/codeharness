@@ -26,6 +26,7 @@ export type {
   ObservabilityGapEntry,
   ParsedAC,
   Verifiability,
+  VerificationTier,
   VerificationStrategy,
   ProjectType,
   PreconditionResult,
@@ -39,6 +40,8 @@ export type {
   BuildResult,
   CheckResult,
 } from './types.js';
+
+export { TIER_HIERARCHY, maxTier, LEGACY_TIER_MAP } from './types.js';
 
 // Re-export browser verifier
 export { BrowserVerifier } from './browser.js';

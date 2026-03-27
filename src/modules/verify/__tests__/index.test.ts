@@ -85,7 +85,7 @@ describe('verifyStory', () => {
   it('returns ok with VerifyResult on success', () => {
     vi.mocked(checkPreconditions).mockReturnValue({ passed: true, failures: [] });
     vi.mocked(parseStoryACs).mockReturnValue([
-      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable', strategy: 'docker' },
+      { id: '1', description: 'Test AC', type: 'general', verifiability: 'cli-verifiable', strategy: 'docker', tier: 'test-provable' },
     ]);
     vi.mocked(validateProofQuality).mockReturnValue({
       verified: 1, pending: 0, escalated: 0, total: 1, passed: true,

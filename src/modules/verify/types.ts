@@ -7,10 +7,39 @@ import type { AcResult } from '../../types/state.js';
 
 // ─── Parser Types ────────────────────────────────────────────────────────────
 
+/** @deprecated Use `VerificationTier` instead. Will be removed in a future release. */
 export type Verifiability = 'cli-verifiable' | 'integration-required';
+
+/** The four verification tiers — what evidence is needed to prove ACs work. */
+export type VerificationTier = 'test-provable' | 'runtime-provable' | 'environment-provable' | 'escalate';
+
+/** Tier ordering from lowest to highest. Index = priority. */
+export const TIER_HIERARCHY: readonly VerificationTier[] = [
+  'test-provable',
+  'runtime-provable',
+  'environment-provable',
+  'escalate',
+] as const;
+
+/** Returns the highest tier from an array of tiers. Empty array -> 'test-provable'. */
+export function maxTier(tiers: VerificationTier[]): VerificationTier {
+  if (tiers.length === 0) return 'test-provable';
+  return tiers.reduce((max, t) =>
+    TIER_HIERARCHY.indexOf(t) > TIER_HIERARCHY.indexOf(max) ? t : max
+  );
+}
+
+/** Maps old tag values to new VerificationTier values for backward compat. */
+export const LEGACY_TIER_MAP: Record<string, VerificationTier> = {
+  'cli-verifiable': 'test-provable',
+  'integration-required': 'environment-provable',
+  'unit-testable': 'test-provable',
+};
 
 /**
  * Verification strategy — how the verifier should approach proving an AC.
+ *
+ * @deprecated Use `VerificationTier` instead. Will be removed in a future release.
  *
  * - docker:    Run in a Docker container (default, safest)
  * - cli-direct: Run CLI commands in the current subprocess (fallback)
@@ -23,8 +52,12 @@ export interface ParsedAC {
   readonly id: string;
   readonly description: string;
   readonly type: 'ui' | 'api' | 'db' | 'general';
+  /** @deprecated Use `tier` instead. */
   readonly verifiability: Verifiability;
+  /** @deprecated Use `tier` instead. */
   readonly strategy: VerificationStrategy;
+  /** The verification tier for this AC. */
+  readonly tier: VerificationTier;
 }
 
 // ─── Proof Quality Types ─────────────────────────────────────────────────────

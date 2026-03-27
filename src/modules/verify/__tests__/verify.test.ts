@@ -193,7 +193,7 @@ describe('checkPreconditions', () => {
 describe('createProofDocument', () => {
   it('creates directories and writes proof file', () => {
     const proofPath = createProofDocument('4-1-test', 'Story 4.1: Test', [
-      { id: '1', description: 'First AC', type: 'general', verifiability: 'cli-verifiable', strategy: 'docker' },
+      { id: '1', description: 'First AC', type: 'general', verifiability: 'cli-verifiable', strategy: 'docker', tier: 'test-provable' },
     ], testDir);
 
     expect(existsSync(proofPath)).toBe(true);

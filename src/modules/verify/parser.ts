@@ -5,7 +5,8 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { warn } from '../../lib/output.js';
-import type { ParsedAC, Verifiability, VerificationStrategy, ObservabilityGapResult, ObservabilityGapEntry } from './types.js';
+import type { ParsedAC, Verifiability, VerificationStrategy, VerificationTier, ObservabilityGapResult, ObservabilityGapEntry } from './types.js';
+import { LEGACY_TIER_MAP, TIER_HIERARCHY } from './types.js';
 
 // ─── Keywords for Classification ────────────────────────────────────────────
 
@@ -95,15 +96,17 @@ export function classifyStrategy(description: string): VerificationStrategy {
 
 // ─── Verification Tag Parsing ───────────────────────────────────────────────
 
-const VERIFICATION_TAG_PATTERN = /<!--\s*verification:\s*(cli-verifiable|integration-required)\s*-->/;
+const VERIFICATION_TAG_PATTERN = /<!--\s*verification:\s*(cli-verifiable|integration-required|test-provable|runtime-provable|environment-provable|escalate)\s*-->/;
 
 /**
- * Parses a `<!-- verification: cli-verifiable|integration-required -->` HTML
- * comment tag from a string. Returns the tag value if found, or null.
+ * Parses a `<!-- verification: ... -->` HTML comment tag from a string.
+ * Accepts both legacy values (cli-verifiable, integration-required) and
+ * new VerificationTier values (test-provable, runtime-provable, etc.).
+ * Returns the tag value if found, or null.
  */
-export function parseVerificationTag(text: string): Verifiability | null {
+export function parseVerificationTag(text: string): Verifiability | VerificationTier | null {
   const match = VERIFICATION_TAG_PATTERN.exec(text);
-  return match ? (match[1] as Verifiability) : null;
+  return match ? (match[1] as Verifiability | VerificationTier) : null;
 }
 
 // ─── Classification ─────────────────────────────────────────────────────────
@@ -185,14 +188,19 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
       const description = currentDesc.join(' ').trim();
       if (description) {
         const tag = parseVerificationTag(description);
-        const verifiability = tag ?? classifyVerifiability(description);
+        const isNewTier = tag !== null && (TIER_HIERARCHY as readonly string[]).includes(tag);
+        const verifiability = isNewTier ? classifyVerifiability(description) : (tag ?? classifyVerifiability(description)) as Verifiability;
         const strategy = classifyStrategy(description);
+        const tier: VerificationTier = isNewTier
+          ? tag as VerificationTier
+          : (LEGACY_TIER_MAP[verifiability] ?? 'test-provable');
         acs.push({
           id: currentId,
           description,
           type: classifyAC(description),
           verifiability,
           strategy,
+          tier,
         });
       } else {
         warn(`Skipping malformed AC #${currentId}: empty description`);

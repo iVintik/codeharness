@@ -1,35 +1,49 @@
 ## WHY
 
 Stories were marked "done" with no proof artifact, or with proofs that only
-grepped source code instead of exercising the feature from the user's
-perspective. This patch mandates black-box proof documents, docker exec evidence,
+grepped source code instead of exercising the feature at the appropriate
+verification tier. This patch mandates tier-appropriate proof documents,
 verification tags per AC, and test coverage targets — preventing regressions
-from being hidden behind source-level assertions.
+from being hidden behind inadequate evidence.
 (FR33, FR36, NFR20)
 
 ## Verification Requirements
 
-Every story must produce a **black-box proof** — evidence that the feature works from the user's perspective, NOT from reading source code.
+Every story must produce a **proof document** with evidence appropriate to its verification tier.
 
 ### Proof Standard
 
 - Proof document at `verification/<story-key>-proof.md`
-- Each AC gets a `## AC N:` section with `docker exec` commands and captured output
-- Evidence must come from running the installed CLI/tool, not from grepping source
+- Each AC gets a `## AC N:` section with tier-appropriate evidence and captured output
 - `[FAIL]` = AC failed with evidence showing what went wrong
 - `[ESCALATE]` = AC genuinely cannot be automated (last resort — try everything first)
 
+**Tier-dependent evidence rules:**
+
+- **`test-provable`** — Evidence comes from build + test output + grep/read of code or artifacts. Run `npm test` or `npm run build`, capture results. Source-level assertions are the primary verification method. No running app or Docker required.
+- **`runtime-provable`** — Evidence comes from running the actual binary/server and interacting with it. Start the process, make requests or run commands, capture stdout/stderr/exit codes. No Docker stack required.
+- **`environment-provable`** — Evidence comes from `docker exec` commands and observability queries. Full Docker verification environment required. Each AC section needs at least one `docker exec`, `docker ps/logs`, or observability query. Evidence must come from running the installed CLI/tool in Docker, not from grepping source.
+- **`escalate`** — Human judgment required. Document why automation is not possible. `[ESCALATE]` verdict is expected.
+
 ### Verification Tags
 
-For each AC, append a tag indicating verification approach:
-- `<!-- verification: cli-verifiable -->` — default. Can be verified via CLI commands in a Docker container.
-- `<!-- verification: integration-required -->` — requires external systems not available in the test environment (e.g., paid third-party APIs, physical hardware). This is rare — most things including workflows, agent sessions, and multi-step processes CAN be verified in Docker.
+For each AC, append a tag indicating its verification tier:
+- `<!-- verification: test-provable -->` — Can be verified by building and running tests. Evidence: build output, test results, grep/read of code. No running app needed.
+- `<!-- verification: runtime-provable -->` — Requires running the actual binary/CLI/server. Evidence: process output, HTTP responses, exit codes. No Docker stack needed.
+- `<!-- verification: environment-provable -->` — Requires full Docker environment with observability. Evidence: `docker exec` commands, VictoriaLogs queries, multi-service interaction.
+- `<!-- verification: escalate -->` — Cannot be automated. Requires human judgment, physical hardware, or paid external services.
 
-**Do not over-tag.** Workflows, sprint planning, user sessions, slash commands, and agent behavior are all verifiable via `docker exec ... claude --print`. Only tag `integration-required` when there is genuinely no automated path.
+**Decision criteria:**
+1. Can you prove it with `npm test` or `npm run build` alone? → `test-provable`
+2. Do you need to run the actual binary/server locally? → `runtime-provable`
+3. Do you need Docker, external services, or observability? → `environment-provable`
+4. Have you exhausted all automated approaches? → `escalate`
+
+**Do not over-tag.** Most stories are `test-provable` or `runtime-provable`. Only use `environment-provable` when Docker infrastructure is genuinely needed. Only use `escalate` as a last resort.
 
 ### Observability Evidence
 
-After each `docker exec` command, query the observability backend for log events from the last 30 seconds.
+After each `docker exec` command (applicable to `environment-provable` stories), query the observability backend for log events from the last 30 seconds.
 Use the configured VictoriaLogs endpoint (default: `http://localhost:9428`):
 
 ```bash

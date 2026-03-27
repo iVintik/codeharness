@@ -155,7 +155,15 @@ Invoke the create-story workflow via Agent tool to generate the story file:
 
 ```
 Use the Agent tool with:
-  prompt: "Run /create-story for story {story_key}. The sprint-status.yaml is at _bmad-output/implementation-artifacts/sprint-status.yaml. Auto-discover the next backlog story and create it. For each AC, append `<!-- verification: cli-verifiable -->` or `<!-- verification: integration-required -->` based on whether the AC can be verified by running CLI commands in a subprocess. ACs referencing workflows, sprint planning, user sessions, or external system interactions should be tagged as integration-required. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
+  prompt: "Run /create-story for story {story_key}. The sprint-status.yaml is at _bmad-output/implementation-artifacts/sprint-status.yaml. Auto-discover the next backlog story and create it. For each AC, append a verification tier tag using this decision tree:
+
+**Tier Decision Tree (append one `<!-- verification: {tier} -->` tag per AC):**
+- `test-provable` — AC can be verified by building the project and running tests/linters/grep. No running app needed. Examples: 'function X exists', 'type Y is exported', 'test Z passes', 'file has <300 lines'.
+- `runtime-provable` — AC requires running the app locally and checking its behavior (CLI output, HTTP response, process lifecycle). No Docker stack needed. Examples: 'CLI prints usage when invoked with --help', 'server responds 200 on /health', 'process exits 0 on valid input'.
+- `environment-provable` — AC requires a full environment (Docker stack, database, observability, multi-service interaction). Examples: 'logs appear in VictoriaLogs', 'metrics are emitted to VictoriaMetrics', 'container communicates with service X'.
+- `escalate` — AC genuinely cannot be automated (requires physical hardware, paid external service, human visual judgment). This is rare. Examples: 'UI looks correct on mobile', 'payment processes successfully in production'.
+
+Default to `test-provable` when unsure. Do NOT ask the user any questions — proceed autonomously. Do NOT run git commit. Do NOT run git add. Do NOT modify sprint-status.yaml.
 
 MANDATORY — End your response with a `## Session Issues` section listing:
 - Problems encountered (errors, ambiguities in epic definition, missing context)
@@ -256,22 +264,31 @@ After the Agent completes:
 
 ### 3d: If status is `verifying` — Run Verification
 
-> **CRITICAL — CHECK VERIFICATION TIER FIRST. DO NOT SKIP THIS CHECK.**
+> **CRITICAL — DERIVE VERIFICATION TIER BEFORE DISPATCHING. DO NOT SKIP THIS STEP.**
 
-**Step 3d-0: Read the story file and check for verification tier tag.**
+**Step 3d-0: Read the story file and derive the verification tier from AC-level tags.**
 
-Read `_bmad-output/implementation-artifacts/{story_key}.md`. Search for `<!-- verification-tier: unit-testable -->` anywhere in the file.
+Read `_bmad-output/implementation-artifacts/{story_key}.md`.
 
-- **If the tag `<!-- verification-tier: unit-testable -->` IS found:** Use **unit-testable verification** (below). Do NOT use Docker. Do NOT run `codeharness stack start`. Do NOT build Docker images. Do NOT start containers. Go directly to the unit-testable verification flow.
-- **If the tag is NOT found:** Use **black-box verification** (default, with Docker).
+**Ignore the story-level `<!-- verification-tier: ... -->` tag** (if present). It is NOT used for dispatch. AC-level tags are the sole source of truth.
 
-**Unit-testable verification (when tagged):**
+Parse ALL lines in the Acceptance Criteria section. For each AC, extract its `<!-- verification: {tier} -->` tag (if present). Map any legacy tag values via `LEGACY_TIER_MAP`: `cli-verifiable` → `test-provable`, `integration-required` → `environment-provable`, `unit-testable` → `test-provable`, `black-box` → `environment-provable`. Collect all parsed tiers into an array.
+
+Compute the story's derived tier: `maxTier(collectedTiers)`. If no AC-level tags are found at all, default to `test-provable`.
+
+Dispatch based on the derived tier:
+- **`test-provable`** → Use **test-provable verification** (below). No Docker, no running the app.
+- **`runtime-provable`** → Use **runtime-provable verification** (below). Build and run the app locally — no Docker stack.
+- **`environment-provable`** → Use **environment-provable verification** (below). Full Docker flow.
+- **`escalate`** → Use **escalate verification** (below). Mixed-tier dispatch per AC.
+
+**test-provable verification (derived tier = test-provable):**
 
 Use a **single subagent** for the entire verification. This keeps build/test output out of the parent context (saves ~80% of verification tokens).
 
 ```
 Use the Agent tool with:
-  prompt: "Verify story {story_key} using local CLI checks (unit-testable tier).
+  prompt: "Verify story {story_key} using local CLI checks (test-provable tier).
 
 Story file: _bmad-output/implementation-artifacts/{story_key}.md
 
@@ -292,7 +309,14 @@ Execute these steps and report results:
 
 Do NOT ask the user any questions. Do NOT run git commands. Do NOT modify sprint-status.yaml.
 
-MANDATORY — End your response with a `## Token Report` section:
+MANDATORY — End your response with a `## Session Issues` section listing:
+- Problems encountered (build failures, test failures, missing files, unexpected behavior)
+- Workarounds applied (anything hacky or suboptimal)
+- Verification gaps (ACs that were hard to verify, weak evidence)
+- Observations (anything surprising or noteworthy)
+If nothing to report, write `## Session Issues\n\nNone.`
+
+MANDATORY — Also end your response with a `## Token Report` section:
 - Total tool calls: N
 - By tool: Bash: X, Read: Y, Edit: Z, Grep: W, Write: V, other: N
 - Largest Bash outputs (top 3 by line count): command (~N lines each)
@@ -302,11 +326,80 @@ MANDATORY — End your response with a `## Token Report` section:
 ```
 
 After the subagent returns:
-1. Extract the `## Token Report` section and append to `.session-issues.md`
+1. Extract both `## Session Issues` and `## Token Report` sections and append to `.session-issues.md`
 2. Parse the result: ALL_PASS → mark story `done`. PARTIAL → treat as failure (Step 3d-vii Path A).
-2. **No Docker involved at any point.** Skip steps 3d-i through 3d-viii entirely.
+3. **No Docker involved at any point.** Skip steps 3d-i through 3d-viii entirely.
 
-**Black-box verification (default, no tag):** Full Docker container with no source code access.
+**runtime-provable verification (derived tier = runtime-provable):**
+
+Use a **single subagent** for the entire verification. Build the project, then run it locally — no Docker stack needed.
+
+```
+Use the Agent tool with:
+  prompt: "Verify story {story_key} using local runtime checks (runtime-provable tier).
+
+Story file: _bmad-output/implementation-artifacts/{story_key}.md
+
+Execute these steps and report results:
+1. Run the project build command (npm run build, cargo build, etc). Report: PASS or FAIL + first 10 error lines.
+2. Run tests (npm test, cargo test, etc). Report: PASS (N passed) or FAIL (N failed: list names).
+3. Detect the project stack and determine the run command:
+   - Node.js: npm start, or node dist/index.js, or npx ts-node src/index.ts
+   - Rust: cargo run
+   - Python: python -m app, or python main.py
+   Check package.json scripts, Cargo.toml, or setup.py for clues.
+4. Start the application in the background. Wait up to 10 seconds for it to be ready.
+5. For each AC in the story file, verify it by interacting with the running app:
+   - CLI apps: run with flags/args, check stdout/stderr/exit code
+   - HTTP apps: curl localhost:{port}/endpoint, check response status and body
+   - Check process behavior: signals, graceful shutdown, file output
+   Report each AC as PASS or FAIL with one-line evidence.
+6. Kill the running application process (kill PID or ctrl-C equivalent).
+7. Generate proof document at verification/{story_key}-proof.md with evidence from each check.
+8. Run codeharness verify --story {story_key} to validate the proof format.
+9. Report final result: ALL_PASS (N/N ACs) or PARTIAL (M/N ACs, list failures).
+
+Do NOT use Docker. Do NOT run codeharness stack start. Do NOT start Docker containers.
+Do NOT ask the user any questions. Do NOT run git commands. Do NOT modify sprint-status.yaml.
+
+MANDATORY — End your response with a `## Session Issues` section listing:
+- Problems encountered (build failures, app startup failures, port conflicts, timeouts)
+- Workarounds applied (alternative run commands, fallback ports, manual process cleanup)
+- Verification gaps (ACs that were hard to verify via runtime interaction, weak evidence)
+- Observations (anything surprising about app behavior, startup time, resource usage)
+If nothing to report, write `## Session Issues\n\nNone.`
+
+MANDATORY — Also end your response with a `## Token Report` section:
+- Total tool calls: N
+- By tool: Bash: X, Read: Y, Edit: Z, Grep: W, Write: V, other: N
+- Largest Bash outputs (top 3 by line count): command (~N lines each)
+- Files read: N unique, M total reads (list any file read 3+ times)
+- Redundant operations: describe any repeated reads, duplicate commands, or wasted calls"
+  subagent_type: "general-purpose"
+```
+
+After the subagent returns:
+1. Extract both `## Session Issues` and `## Token Report` sections and append to `.session-issues.md`
+2. Parse the result: ALL_PASS → mark story `done`. PARTIAL → treat as failure (Step 3d-vii Path A).
+3. **No Docker involved at any point.** Skip steps 3d-i through 3d-viii entirely.
+
+**escalate verification (derived tier = escalate):**
+
+When the derived tier is `escalate`, at least one AC requires human judgment or external services. Use mixed-tier dispatch:
+
+1. Re-read the story file. For each AC, extract its individual `<!-- verification: {tier} -->` tag (with legacy mapping as in Step 3d-0).
+2. Group ACs by their individual tier:
+   - `escalate`-tier ACs: mark each as `[ESCALATE]` in the proof document with the reason "Requires human judgment or external service — cannot be automated."
+   - All other ACs: dispatch verification at their individual tier level. Use the corresponding subagent prompt (test-provable, runtime-provable, or environment-provable) to verify those ACs specifically.
+3. Generate proof document at `verification/{story_key}-proof.md`. Include:
+   - PASS/FAIL verdict for each non-escalated AC (with evidence)
+   - `[ESCALATE]` verdict for each escalated AC (with reason)
+4. Run `codeharness verify --story {story_key}` to validate the proof format.
+5. If all non-escalated ACs pass: mark story `done` with escalation notes. Print: `[WARN] Story {story_key} has {N} escalated ACs — marking done with known limitations`.
+6. If any non-escalated AC fails: treat as failure (Step 3d-vii Path A).
+7. If any non-escalated ACs were dispatched via the environment-provable path, run cleanup (step 3d-viii) to remove Docker containers and temp workspaces.
+
+**environment-provable verification (derived tier = environment-provable):** Full Docker container with no source code access.
 
 **No internal timeout.** Verification takes as long as it takes. Ralph's iteration timeout is the safety net.
 

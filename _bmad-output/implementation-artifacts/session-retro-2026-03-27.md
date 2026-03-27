@@ -486,3 +486,163 @@ Verification remains the dominant cost at 57%. The verify phase's reliance on ru
 - [ ] **Create standard epics file for Epic 16.** Currently using tech spec as source. Should have a proper epics document for consistency.
 - [ ] **Retroactively update proof `Tier:` fields** — carried from session 2
 - [ ] **Track per-session cost deltas automatically** — carried from session 2
+
+---
+
+# Session Retrospective — 2026-03-27 (Session 5)
+
+**Sprint:** Story 16-4 full lifecycle
+**Timestamp:** 2026-03-27T15:50Z
+**Duration:** ~17 minutes
+**Stories completed:** 16-4-update-validation-acs-and-runner (backlog → done)
+**Epic status:** Epic 16 — 4/8 done (16-1 through 16-4). 4 stories remain in backlog.
+
+---
+
+## 1. Session Summary
+
+| Story | Entry State | Phases Run | Exit State | Notes |
+|-------|-------------|------------|------------|-------|
+| 16-4-update-validation-acs-and-runner | backlog | create-story, dev, code-review, verify | done | Full lifecycle in ~17 minutes. Two code review rounds (second was a re-run catching same vocabulary issues). 3892 tests passing, 97.45% coverage. |
+
+Story 16-4 updated the validation AC types and runner to use the new verification tier vocabulary introduced in Epic 16. The dev phase updated `validation-ac-types.ts` and `validation-runner.ts` with new tier-aware helper functions (`getTestProvableACs`, `getEnvironmentProvableACs`) while maintaining backward-compatible deprecated aliases (`getCliVerifiableACs`, `getIntegrationRequiredACs`). Code review found 3 MEDIUM issues — a broken JSDoc link, stale vocabulary in function docs, and old vocabulary in 10 test descriptions — all fixed. Verification passed 5/5 ACs.
+
+## 2. Issues Analysis
+
+### Category: Code review findings (16-4)
+
+- **MEDIUM: Broken `{@link VerificationTier}` JSDoc link.** The `validation-ac-types.ts` file referenced `VerificationTier` in a JSDoc `@link` but did not import the type. The link would be unresolvable by any IDE or documentation generator. Fixed with a type import.
+- **MEDIUM: Old vocabulary in `validation-runner.ts` JSDoc.** Function documentation still used "CLI-verifiable" and "Integration-required" instead of the new "test-provable" and "environment-provable" terms. Fixed.
+- **MEDIUM: Old vocabulary in 10 test description strings.** Test names in `validation-acs.test.ts` used the old tier terminology. Fixed to match new vocabulary.
+- **LOW (not fixed): No caching on `getTestProvableACs`/`getEnvironmentProvableACs`.** These functions filter ACs on every call. Caching would help for repeated calls but is not needed at current scale.
+- **LOW (not fixed): Mild test bloat from deprecated alias tests.** Tests for backward-compatible aliases add coverage but are redundant once the aliases are eventually removed.
+
+### Category: Duplicate code review
+
+The session issues log shows two code-review entries for 16-4:
+1. First at 11:40Z (26 tool calls) — found and fixed the 3 MEDIUM issues.
+2. Second at 15:42Z (implicit from log) — found the exact same 3 MEDIUM issues again and fixed them again.
+
+This indicates the second code review either ran against un-committed code from a different session context or the state was not properly advanced after the first review. The duplicate review wasted ~26 tool calls and ~$3-4 in tokens.
+
+### Category: Structural/process (recurring)
+
+- **Epic 16 still has no standard epics file.** Same observation as Session 4 — the create-story subagent had to use the tech spec as authoritative source.
+
+### Category: Vocabulary mismatch
+
+- **AC tags use old vocabulary (`cli-verifiable`) per instruction, while story header uses new (`test-provable`).** The create-story subagent flagged this tension. The story spec deliberately uses old tags in ACs (since the runner still processes them) but new vocabulary in the header. This is intentional during the migration but creates confusion.
+
+## 3. Cost Analysis
+
+### Session 5 delta (since Session 4 retro)
+
+| Metric | Session 4 (cumulative) | Session 5 (cumulative) | Delta |
+|--------|------------------------|------------------------|-------|
+| Total cost | $582.73 | $591.72 | **$8.99** |
+| Total calls | 4,314 | 4,390 | **76** |
+| Stories completed | 144 | 147 | **+3** |
+
+The +3 stories delta includes 16-3 and its phases from prior session work that was not yet counted, plus 16-4 from this session. The $8.99 cost covers all subagent work since Session 4.
+
+### Subagent-level token analysis (from session issues log)
+
+| Subagent Phase | Tool Calls | Breakdown | Files Read (unique/total) | Redundant Ops |
+|----------------|-----------|-----------|--------------------------|---------------|
+| 16-4 create-story | 18 | Bash:1, Read:9, Grep:7, Write:1, Glob:2, Skill:1 | 11/12 | None |
+| 16-4 dev | 17 | Read:8, Edit:10, Bash:2, Glob:1, Skill:1 | 10/10 | None |
+| 16-4 code-review | 26 | Bash:7, Read:9, Edit:13, Grep:4, Glob:1, Skill:1 | 10/11 | None individually, but entire phase was duplicated |
+| 16-4 verify | 16 | Bash:9, Read:6, Grep:1, Write:1 | 6/7 | None |
+
+**Also in this session's issues log (16-3 subagents):**
+
+| Subagent Phase | Tool Calls | Breakdown | Files Read (unique/total) | Redundant Ops |
+|----------------|-----------|-----------|--------------------------|---------------|
+| 16-3 create-story | 10 | Bash:2, Read:5, Edit:1, Glob:3 | 5/5 | None |
+| 16-3 dev | 12 | Read:4, Edit:5, Glob:2, Grep:1, Bash:2 | 5/6 | None |
+| 16-3 code-review | 21 | Bash:7, Read:6, Edit:5, Grep:5, Glob:4, Skill:1 | — | None |
+| 16-3 verify | 13 | Bash:8, Read:3, Grep:2, Write:1 | 5/5 | None |
+
+**Key observations:**
+
+- **16-4 code-review was the heaviest phase** at 26 tool calls, with 13 Edits. The high Edit count is because it fixed vocabulary across multiple files and 10 test description strings. This was legitimate work, not waste.
+- **16-4 dev was Edit-heavy (10/17 calls).** 10 Edits for a story that updated types, functions, and tests across 2 source files and 1 test file. Efficient — no redundant operations.
+- **The duplicate code review is the major waste.** If the second review at 15:42Z re-did all work from the first at 11:40Z, that is ~26 wasted calls (~$3-4). This is the largest single waste event in the session.
+- **16-3 subagents were lean.** All four phases completed with zero redundant operations. The code review found 4 real bugs (2 HIGH, 2 MEDIUM) and fixed them all — a high-value pass.
+- **Verify phases continue to be Bash-heavy.** Both 16-3 verify (8/13 Bash) and 16-4 verify (9/16 Bash) are dominated by test suite and build runs. This is structural — unit-testable tier verification requires actually running tests.
+
+### Cumulative project costs
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $591.72 |
+| Total API calls | 4,390 |
+| Average cost per story | $3.29 (147 stories) |
+
+### Cost by phase (cumulative)
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 2,656 | $336.48 | 56.9% |
+| orchestrator | 490 | $105.66 | 17.9% |
+| retro | 407 | $57.83 | 9.8% |
+| create-story | 311 | $32.99 | 5.6% |
+| code-review | 282 | $31.76 | 5.4% |
+| dev-story | 244 | $27.00 | 4.6% |
+
+### Cost by tool (cumulative)
+
+| Tool | Calls | Cost | % |
+|------|-------|------|---|
+| Bash | 1,915 | $236.49 | 40.0% |
+| Read | 838 | $109.28 | 18.5% |
+| Edit | 544 | $69.57 | 11.8% |
+
+Bash remains the dominant tool cost (40%) driven by test suite runs in verify phases.
+
+## 4. What Went Well
+
+- **Story 16-4 completed full lifecycle in ~17 minutes.** backlog → create-story → dev → code-review → verify → done, with zero failures or rework loops.
+- **Code review caught vocabulary drift.** The old "CLI-verifiable" / "Integration-required" terminology was still present in JSDoc and test descriptions. Without review, this vocabulary inconsistency would have shipped and created confusion.
+- **16-3 code review found 4 real bugs (2 HIGH, 2 MEDIUM).** Metrics zeroed when Docker enforcement skipped, `black-box` missing from tier map, hardcoded tier names in regex, and no test for unrecognized tiers. All fixed.
+- **Zero redundant operations in dev phases.** Both 16-3 dev (12 calls) and 16-4 dev (17 calls) had no wasted work. The dev subagents are efficient.
+- **Coverage held at 97.45%.** No regressions despite adding new code.
+- **3892 tests passing.** Net increase of 36 tests since Session 3 (3856 → 3892).
+
+## 5. What Went Wrong
+
+- **Duplicate code review for 16-4.** Two code-review entries in the session issues log (11:40Z and 15:42Z) both found and fixed the same 3 MEDIUM issues. The second review was likely triggered by a state management issue or session boundary problem. ~26 wasted tool calls.
+- **Epic 16 epics file still missing.** Flagged in Session 4. Still using tech spec as source. Not blocking but adds friction to every create-story call.
+- **Vocabulary mismatch between AC tags and story headers.** The create-story subagent had to navigate the tension between old vocabulary in AC tags and new vocabulary in headers. This is an intentional migration choice but should be documented to avoid subagent confusion.
+
+## 6. Lessons Learned
+
+1. **State management between code review rounds needs guardrails.** The duplicate code review happened because the state transition after the first review was not properly persisted or recognized. The orchestrator should check whether a code review has already been completed before dispatching another one.
+2. **Vocabulary migration creates a transitional confusion period.** During Epic 16's tier vocabulary migration, AC tags, JSDoc, test descriptions, and story headers all use different terms depending on when they were written. A migration guide or mapping table in the story spec would help subagents navigate this without wasting time.
+3. **Dev subagents are the most efficient phase.** Across sessions 4-5, dev subagents consistently have zero redundant operations and the lowest waste rate. This suggests the dev prompt and workflow are well-tuned.
+4. **Code review continues to justify its cost.** 16-3 review found 4 bugs (2 HIGH), 16-4 review found 3 bugs (all MEDIUM). The cost of these reviews (~26 calls each) is small compared to the cost of shipping these bugs and fixing them later.
+
+## 7. Action Items
+
+### Carried forward (still open from sessions 1-4)
+
+- [ ] **`state set` should trigger YAML regeneration** — flagged sessions 1-3
+- [ ] **Auto-verify stories with passing proofs** — flagged session 1
+- [ ] **Provide proof format template to verify subagent** — flagged session 2
+- [ ] **Constrain subagent grep scope** — flagged session 2
+- [ ] **Eliminate duplicate coverage/test runs in verify** — flagged sessions 3-4
+- [ ] **Create tech-debt story for stale `mockDetectStack` cleanup** — flagged session 3
+- [ ] **Add state reconciliation at session start** — flagged session 4
+- [ ] **Baseline pre-existing test failures for verify subagent** — flagged session 4
+
+### New from session 5
+
+#### Fix soon
+- [ ] **Prevent duplicate code review dispatches.** The orchestrator should check whether a code review has already been completed (and its fixes committed) before dispatching another review for the same story. This would have prevented the ~26 wasted calls in this session.
+- [ ] **Create standard epics file for Epic 16.** Carried from Session 4. Two sessions now have flagged this. The create-story subagents are improvising with the tech spec — a proper epics file would eliminate this friction.
+
+#### Backlog
+- [ ] **Document vocabulary migration mapping for Epic 16.** Create a reference table (old term → new term) that subagents can use during the migration period. Include which files/tags still use old vocabulary and which have been updated.
+- [ ] **Retroactively update proof `Tier:` fields** — carried from session 2
+- [ ] **Track per-session cost deltas automatically** — carried from session 2
+- [ ] **Create tech-debt story for env.ts refactor (304 lines, over 300-line limit)** — carried from session 3

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 64,
+    "done": 70,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -569,7 +569,7 @@
       "acResults": null
     },
     "16-5-rewrite-harness-run-verification-dispatch": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -709,9 +709,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "16-4-update-validation-acs-and-runner",
+    "currentStory": "16-5-rewrite-harness-run-verification-dispatch",
     "currentPhase": "verify",
-    "lastAction": "Starting unit-testable verification",
+    "lastAction": "Validating existing proof document",
     "acProgress": null
   },
   "actionItems": [

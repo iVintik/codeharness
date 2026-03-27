@@ -102,13 +102,13 @@ development_status:
   13-3-migrate-run-ts-to-agentdriver: done
 
   # Epic 14
-  epic-14: backlog
+  epic-14: done
   14-1-retro-to-sprint-pipeline-epic-td: done
   14-2-tech-debt-gate-story-selection: done
   14-3-docker-precheck-orphan-cleanup: done
   14-4-observability-backend-choice: done
   14-5-stack-aware-verify-dockerfile: done
-  14-6-subagent-status-ownership-time-budget: review
+  14-6-subagent-status-ownership-time-budget: done
   14-7-fix-beads-flags-ralph-tracking-proof-docs: done
 
   # Epic 15

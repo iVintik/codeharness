@@ -16,9 +16,8 @@ development_status:
   0-5-4-run-command-integration: done
 
   # Epic 1
-  epic-1: backlog
+  epic-1: done
   1-1-semgrep-rules-for-observability: done
-  1-1-foo: review
   1-2-analyzer-module-interface: done
   1-3-observability-coverage-state-tracking: done
 

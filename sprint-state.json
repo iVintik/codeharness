@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 73,
+    "done": 70,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -593,7 +593,7 @@
       "acResults": null
     },
     "16-8-update-all-tests": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

@@ -571,25 +571,25 @@
     "16-5-rewrite-harness-run-verification-dispatch": {
       "status": "review",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-03-27T13:02:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/16-5-rewrite-harness-run-verification-dispatch-proof.md",
       "acResults": null
     },
     "16-6-update-create-story-tier-criteria": {
       "status": "review",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-03-27T13:10:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/16-6-update-create-story-tier-criteria-proof.md",
       "acResults": null
     },
     "16-7-update-knowledge-and-enforcement-docs": {
-      "status": "backlog",
+      "status": "review",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-03-27T13:42:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/16-7-update-knowledge-and-enforcement-docs-proof.md",
       "acResults": null
     },
     "16-8-update-all-tests": {
@@ -687,7 +687,7 @@
     "epic-16": {
       "status": "in-progress",
       "storiesTotal": 8,
-      "storiesDone": 0
+      "storiesDone": 7
     }
   },
   "session": {

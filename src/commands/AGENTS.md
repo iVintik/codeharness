@@ -121,6 +121,11 @@ Thin CLI wrapper that registers the `audit` command and delegates to the shared 
 - **Key deps:** `audit-action` (executeAudit)
 - **Subcommands:** none; supports `--json`, `--fix`
 
+### stats.ts
+Analyzes token consumption and cost from ralph session logs. Parses JSONL log files for streaming API events, aggregates by phase (create-story, dev-story, code-review, verify, retro), story, tool, and date. Computes API-equivalent cost using Opus 4.6 pricing. Formats human-readable markdown report.
+- **Key deps:** `lib/output` (info, ok, fail, jsonOutput), node:fs, commander
+- **Subcommands:** none; supports `--save` (write report to cost-report.md), `--json`
+
 ### verify-env.ts
 Manages the verification environment for black-box story verification. Builds a Docker image from project artifacts (no source code), prepares clean temp workspaces with only story docs, validates the environment, and cleans up.
 - **Key deps:** `modules/verify` (buildVerifyImage, prepareVerifyWorkspace, checkVerifyEnv, cleanupVerifyEnv), `lib/output`

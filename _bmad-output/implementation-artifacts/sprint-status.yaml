@@ -1,5 +1,5 @@
 # codeharness Sprint Status (auto-generated from sprint-state.json)
-# generated: 2026-03-25
+# generated: 2026-03-27
 # This file is a derived view — do NOT edit manually.
 # Source of truth: sprint-state.json
 
@@ -102,11 +102,11 @@ development_status:
   13-3-migrate-run-ts-to-agentdriver: done
 
   # Epic 14
-  epic-14: backlog
+  epic-14: done
   14-1-retro-to-sprint-pipeline-epic-td: done
   14-2-tech-debt-gate-story-selection: done
   14-3-docker-precheck-orphan-cleanup: done
-  14-4-observability-backend-choice: verifying
+  14-4-observability-backend-choice: done
   14-5-stack-aware-verify-dockerfile: done
   14-6-subagent-status-ownership-time-budget: done
   14-7-fix-beads-flags-ralph-tracking-proof-docs: done
@@ -118,3 +118,14 @@ development_status:
   15-3-template-migration-static-files: done
   15-4-fix-ts-compilation-errors: done
   15-5-lint-rule-bare-exception-swallowing: done
+
+  # Epic 16
+  epic-16: backlog
+  16-1-verification-tier-type-and-utilities: backlog
+  16-2-rewrite-parser-tier-classification: backlog
+  16-3-update-proof-validation-for-tiers: backlog
+  16-4-update-validation-acs-and-runner: backlog
+  16-5-rewrite-harness-run-verification-dispatch: backlog
+  16-6-update-create-story-tier-criteria: backlog
+  16-7-update-knowledge-and-enforcement-docs: backlog
+  16-8-update-all-tests: backlog

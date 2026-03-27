@@ -932,3 +932,158 @@ Aggregated from session issues log tool-call counts for stories 16-5 and 16-6:
 | 4 | Update sprint-status.yaml sync — stories 16-5 and 16-6 should reflect done status | HIGH | Orchestrator fix |
 | 5 | Replace string-matching dispatch tests with structured assertion (parse sections, check keys) | LOW | Tech debt backlog |
 | 6 | Complete Epic 16 remaining stories: 16-7 (knowledge/enforcement docs) and 16-8 (update all tests) | HIGH | Next session |
+
+---
+
+# Session Retrospective — 2026-03-27 Session 8
+
+**Sprint:** Epic 16 — Verification Tier Rework (continued)
+**Stories completed this session:** 16-7-update-knowledge-and-enforcement-docs (backlog -> done, full pipeline)
+**State fixes:** 16-5 and 16-6 restored to `done` (both had ALL_PASS proofs but sprint-state.json showed `review`)
+
+---
+
+## 1. Session Summary
+
+One story was executed end-to-end through all four pipeline phases (create-story, dev, code-review, verify) and one state corruption fix was applied.
+
+| Story | Outcome | ACs | Pipeline Phases |
+|-------|---------|-----|-----------------|
+| 16-7-update-knowledge-and-enforcement-docs | ALL_PASS 12/12 | 12 | create -> dev -> review -> verify |
+| 16-5 state fix | Restored to `done` | n/a | Manual state correction |
+| 16-6 state fix | Restored to `done` | n/a | Manual state correction |
+
+**Epic 16 status:** 7 of 8 stories done. Only 16-8-update-all-tests remains in backlog.
+
+---
+
+## 2. Issues Analysis
+
+### Category: State Corruption (RECURRING)
+
+Stories 16-5 and 16-6 were verified ALL_PASS in earlier sessions (sessions 6-7) with commits confirming completion, but sprint-state.json reverted them to `review`. This is the same root cause identified in the session 1 retro: ralph state reconciliation overwrites committed state between sessions. This has now happened twice in one day across different session boundaries.
+
+**Impact:** Wasted orchestrator time detecting and fixing state drift. No code lost, but incorrect sprint status creates confusion and blocks downstream planning.
+
+### Category: Template/Enforcement Mismatch
+
+- **CODEHARNESS-PATCH in story files says "verified with real-world evidence via docker exec" even for test-provable stories.** The harness template is not tier-aware — it stamps the same Docker-oriented proof language regardless of verification tier. Found during code review of 16-7.
+- **`patches/review/enforcement.md` mandates `docker exec` for ALL proofs.** This directly contradicts the tier system introduced in Epic 16. Story 16-7 updated these docs, but the template itself still needs fixing.
+
+### Category: Pre-existing Test Failures
+
+- **6 BATS tests fail independently of story changes** (`all_tasks_complete`, `get_current_task`). Reported during 16-7 dev phase. These have been pre-existing across multiple sessions and are not caused by any Epic 16 work.
+
+### Category: Naming Ambiguity
+
+- **`unit-testable` as prose vs. tier name.** The phrase "functions are unit-testable" appeared in enforcement docs after rewrite, creating ambiguity with the `unit-testable` tier name. Dev agent caught and fixed this by rewording to "functions have test coverage."
+
+### Category: Missing Epic File
+
+- **No dedicated epics file for Epic 16.** All story creation phases had to use the tech spec as the authoritative source. This is a process gap — every other epic had a proper epics file. Reported consistently across 16-2 through 16-7.
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative Project Costs (all epics, all time)
+
+| Metric | Value | Delta from Session 7 |
+|--------|-------|---------------------|
+| Total API-equivalent cost | $614.74 | +$58.68 |
+| Total API calls | 4,563 | +465 |
+| Average cost per story | $3.30 | +$0.05 |
+| Stories tracked | 152 | +12 |
+
+**Session 8 estimated spend: ~$58.68** across 465 API calls.
+
+### Token Breakdown (cumulative)
+
+| Type | Cost | % |
+|------|------|---|
+| Cache reads | $382.26 | 62% |
+| Cache writes | $137.70 | 22% |
+| Output | $94.61 | 15% |
+| Input | $0.17 | 0% |
+
+Cache reads remain the dominant cost driver. The ratio is stable across sessions.
+
+### Phase Breakdown (cumulative)
+
+| Phase | Cost | % |
+|-------|------|---|
+| verify | $346.27 | 56.3% |
+| orchestrator | $109.39 | 17.8% |
+| retro | $59.31 | 9.6% |
+| create-story | $36.01 | 5.9% |
+| code-review | $34.00 | 5.5% |
+| dev-story | $29.76 | 4.8% |
+
+Verification phase continues to dominate at 56% of total spend. This session's story (16-7) was test-provable tier, so verification was cheaper than environment-provable stories.
+
+### Subagent-Level Token Breakdown (Story 16-7 only)
+
+| Phase | Tool Calls | Dominant Tools | Redundant Operations |
+|-------|-----------|----------------|---------------------|
+| create-story | 12 | Read: 8, Bash: 3 | None |
+| dev | 22 | Grep: 10, Read: 8 | 1 redundant grep on patches/dev/enforcement.md |
+| code-review | 24 | Read: 8, Bash: 7, Grep: 9 | None |
+| verify | 25 | Grep: 13, Bash: 7 | 1 re-grep + 1 re-run of verify after proof format fix |
+| **Total** | **83** | | **3 redundant operations** |
+
+**Observations:**
+- **Grep-heavy verify phase** (13 of 25 calls). All 12 ACs were file-content checks, so grep was appropriate. No wasted large Bash outputs.
+- **Dev phase largest Bash outputs:** `npm test | tail -80` (~80 lines), `npx vitest run | tail -30` (~30 lines). Both appropriately bounded with `tail`.
+- **No repeated file reads across phases.** Each phase read different files (create-story: 8, dev: 10, review: 9, verify: 4 unique files).
+- **Clean pipeline:** Only 83 total tool calls for a 12-AC story through all 4 phases. This is efficient compared to 14-5 which used 190 calls for a 10-AC story.
+
+### Most Expensive Story This Session
+
+Story 16-7 is not in the top 10 most expensive stories — it was a documentation-focused story with no TypeScript code changes, making it one of the cheapest full-pipeline executions.
+
+---
+
+## 4. What Went Well
+
+1. **Clean 4-phase pipeline execution.** 16-7 went from backlog to done in a single pass: create -> dev -> review -> verify. No rework loops, no stuck phases.
+2. **Code review caught real bugs.** Three MEDIUM issues found and fixed: AC8 scoping, AC3 missing tier in test, missing file-existence guards. All fixed before verify.
+3. **Efficient tool usage.** 83 total tool calls for 12 ACs through 4 phases with only 3 redundant operations.
+4. **State corruption detected and fixed.** 16-5 and 16-6 were restored to correct `done` status, unblocking accurate sprint tracking.
+5. **Dev agent self-corrected naming ambiguity.** Caught "unit-testable" prose vs. tier name collision and fixed proactively without needing review feedback.
+6. **All 4015 tests passing, 0 regressions.** Build remained clean throughout.
+
+---
+
+## 5. What Went Wrong
+
+1. **State corruption recurrence.** sprint-state.json reverted 16-5 and 16-6 from `done` to `review` between sessions. Same root cause as session 1. Not yet fixed at the infrastructure level.
+2. **No Epic 16 epics file.** Every create-story phase wasted reads looking for a standard epics document before falling back to the tech spec. This has been flagged in 6 consecutive stories (16-2 through 16-7) without being addressed.
+3. **Pre-existing BATS failures still unfixed.** 6 BATS tests continue to fail across all sessions. These create noise in every dev and verify phase output.
+4. **Architecture concern left unresolved:** CODEHARNESS-PATCH template stamps Docker-oriented proof language on test-provable stories. The tier system is now in place but the templates have not been updated to reflect it.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+1. **Documentation-only stories are cheap and fast.** 16-7 was 83 tool calls for 12 ACs — roughly 40% of the cost of a typical code story. Batching doc updates into dedicated stories is efficient.
+2. **File-content ACs with grep verification** is a proven pattern for documentation stories. All 12 ACs verified via grep without needing build/test cycles.
+3. **Tail-bounded Bash outputs** (dev agent used `tail -80`, `tail -30`) prevent context blowup from test output.
+
+### Patterns to Avoid
+1. **Ignoring recurring state corruption.** Two incidents in one day. The ralph state reconciliation logic needs a fix, not just manual corrections.
+2. **Missing standard artifacts** (no epics file for Epic 16) creates repeated friction across every story in the epic. Better to create the artifact once upfront.
+3. **Leaving pre-existing test failures unfixed** adds noise to every session's dev and verify output.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Fix ralph state reconciliation to not overwrite `done` stories back to `review` | HIGH | Infrastructure |
+| 2 | Create Epic 16 epics file from tech spec to stop fallback behavior in create-story | MEDIUM | Process |
+| 3 | Fix 6 pre-existing BATS test failures (`all_tasks_complete`, `get_current_task`) | MEDIUM | Tech debt |
+| 4 | Update CODEHARNESS-PATCH template to be tier-aware (remove Docker language for test-provable stories) | MEDIUM | Story 16-8 or tech debt |
+| 5 | Complete Epic 16: story 16-8-update-all-tests is the only remaining story | HIGH | Next session |
+| 6 | Address `allFiles()` recreating array per call (LOW from code review) | LOW | Tech debt backlog |

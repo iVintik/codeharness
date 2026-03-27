@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 66,
+    "done": 67,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -537,7 +537,7 @@
       "acResults": null
     },
     "16-1-verification-tier-type-and-utilities": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -709,7 +709,7 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "14-6-subagent-status-ownership-time-budget",
+    "currentStory": "16-1-verification-tier-type-and-utilities",
     "currentPhase": "review",
     "lastAction": "Starting code review",
     "acProgress": null

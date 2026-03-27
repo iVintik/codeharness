@@ -121,7 +121,7 @@ development_status:
 
   # Epic 16
   epic-16: backlog
-  16-1-verification-tier-type-and-utilities: review
+  16-1-verification-tier-type-and-utilities: done
   16-2-rewrite-parser-tier-classification: backlog
   16-3-update-proof-validation-for-tiers: backlog
   16-4-update-validation-acs-and-runner: backlog

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 63,
+    "done": 64,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -467,13 +467,13 @@
     "14-4-observability-backend-choice": {
       "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-03-27T08:20:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/14-4-observability-backend-choice-proof.md",
       "acResults": null
     },
     "14-5-stack-aware-verify-dockerfile": {
-      "status": "done",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -481,7 +481,7 @@
       "acResults": null
     },
     "14-6-subagent-status-ownership-time-budget": {
-      "status": "done",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -537,7 +537,7 @@
       "acResults": null
     },
     "16-1-verification-tier-type-and-utilities": {
-      "status": "done",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

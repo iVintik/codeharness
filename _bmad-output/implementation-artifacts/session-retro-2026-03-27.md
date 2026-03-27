@@ -646,3 +646,147 @@ Bash remains the dominant tool cost (40%) driven by test suite runs in verify ph
 - [ ] **Retroactively update proof `Tier:` fields** — carried from session 2
 - [ ] **Track per-session cost deltas automatically** — carried from session 2
 - [ ] **Create tech-debt story for env.ts refactor (304 lines, over 300-line limit)** — carried from session 3
+
+---
+
+# Session Retrospective — 2026-03-27 (Session 6)
+
+**Sprint:** Epic 16 — stories 16-5 and 16-6
+**Timestamp:** 2026-03-27T16:30Z
+**Duration:** ~24 minutes
+**Stories completed:** 16-5-rewrite-harness-run-verification-dispatch, 16-6-update-create-story-tier-criteria
+**Epic status:** Epic 16 — 6/8 done (16-1 through 16-6). 2 stories remain: 16-7 (knowledge/docs), 16-8 (update all tests).
+
+---
+
+## 1. Session Summary
+
+| Story | Entry State | Phases Run | Exit State | Notes |
+|-------|-------------|------------|------------|-------|
+| 16-5-rewrite-harness-run-verification-dispatch | verifying (proof existed) | verify (proof format fix) | done | Proof existed but had format issues (### vs ## headers, missing showboat markers). Fixed format, validation passed. |
+| 16-6-update-create-story-tier-criteria | backlog | create-story, dev, code-review, verify | done | Full lifecycle. Updated BMAD create-story workflow with four-tier verification criteria. |
+
+Story 16-5 was already at `verifying` with a proof document on disk, but the proof format did not match the parser expectations — section headers used `###` instead of `##`, and showboat markers were missing. After fixing the proof format, validation passed and the story was marked done. No code changes were needed; this was purely a proof-document formatting issue.
+
+Story 16-6 went through the complete lifecycle in a single session. It updated the BMAD create-story workflow (`_bmad/bmm/tasks/create-story-workflow.md` or equivalent) to include four-tier verification criteria guidance, ensuring new stories are created with the correct tier classification from the start.
+
+## 2. Issues Analysis
+
+### Category: Proof format mismatch (16-5)
+
+- **Proof document used wrong header levels.** The proof for 16-5 used `###` headers instead of `##`, which the proof parser expects. This is the same class of issue flagged in Session 2 (proof format discovery waste) — but here the proof already existed and just had the wrong format.
+- **Missing showboat markers.** The proof lacked the expected showboat section markers that the validation pipeline looks for. This prevented automated validation from passing.
+- **Root cause:** The dev/verify subagent that originally generated the proof was not aware of the current proof format requirements. This validates the Session 2 action item to provide a proof format template to verify subagents.
+
+### Category: Code review findings (16-5)
+
+From earlier session work (logged in session issues):
+- **HIGH: test-provable subagent prompt missing mandatory `## Session Issues` section.** Fixed.
+- **HIGH: runtime-provable subagent prompt missing mandatory `## Session Issues` section.** Fixed.
+- **MEDIUM: escalate dispatch missing Docker cleanup guidance for environment-provable sub-verification.** Fixed.
+- **LOW (not fixed): Escalate section uses inline instructions (no subagent wrapper).** Deferred.
+- **LOW (not fixed): Tests are string-containment — brittle to rewording.** Accepted risk.
+
+### Category: Code review findings (16-6)
+
+No issues logged in the session issues file for 16-6, indicating a clean review pass.
+
+### Category: Process
+
+- **No failures or skips this session.** Both stories completed on first attempt.
+- **Proof format issues are a recurring theme.** Sessions 2, 4, and now 6 have all encountered proof format problems. The proof template action item remains the highest-leverage fix.
+
+## 3. Cost Analysis
+
+### Session 6 delta (since Session 5 retro)
+
+| Metric | Session 5 (cumulative) | Session 6 (cumulative) | Delta |
+|--------|------------------------|------------------------|-------|
+| Total cost | $591.72 | $602.28 | **$10.56** |
+| Total calls | 4,390 | 4,480 | **90** |
+| Stories completed | 147 | 150 | **+3** |
+
+The +3 stories delta includes 16-5, 16-6, and likely 16-3 verification work that was counted in this window. Session 6 cost $10.56 across 90 API calls — consistent with Sessions 3-5 ($9-11 per session).
+
+### Cumulative project costs
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $602.28 |
+| Total API calls | 4,480 |
+| Average cost per story | $3.28 (150 stories) |
+
+### Token breakdown (cumulative)
+
+| Type | Cost | % |
+|------|------|---|
+| Cache reads | $374.81 | 62% |
+| Cache writes | $134.46 | 22% |
+| Output | $92.85 | 15% |
+| Input | $0.17 | 0% |
+
+### Phase breakdown (cumulative)
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 2,702 | $341.30 | 56.7% |
+| orchestrator | 494 | $107.17 | 17.8% |
+| retro | 411 | $58.34 | 9.7% |
+| create-story | 330 | $34.93 | 5.8% |
+| code-review | 287 | $32.34 | 5.4% |
+| dev-story | 256 | $28.20 | 4.7% |
+
+Verification remains the dominant cost at 56.7%. No significant shift in cost distribution since Session 5.
+
+### Cost per story this session
+
+$10.56 / 2 stories completed = **$5.28/story** — above the project average of $3.28/story. This is because 16-6 was a full-lifecycle story (create through verify) and 16-5 required proof format debugging rather than a simple pass.
+
+## 4. What Went Well
+
+- **2 stories completed, 0 failures, 0 skips.** Clean session with no rework loops.
+- **16-6 full lifecycle in a single session.** backlog to done with no issues — the BMAD workflow update was straightforward.
+- **Epic 16 at 75% completion (6/8).** Steady progress; only docs (16-7) and test updates (16-8) remain.
+- **16-5 proof format fix was quick.** Once the format issues were identified, the fix was mechanical — no code changes needed, just proof document reformatting.
+- **Session stayed within time budget.** ~24 minutes for 2 stories.
+- **Code review for 16-5 found 2 HIGH bugs** (missing Session Issues sections in subagent prompts). These would have caused subagent failures in production use.
+
+## 5. What Went Wrong
+
+- **16-5 proof format mismatch blocked automated validation.** The proof existed but was unusable due to wrong header levels and missing showboat markers. This is the 3rd session where proof format issues have caused friction. The proof template action item (Session 2) would have prevented this.
+- **Architecture concern in 16-5 escalate flow remains unresolved.** The code review flagged ambiguity in whether the escalate dispatch runs separate subagents per tier group or one combined subagent. This was noted but not resolved — it is a design decision that will surface when the escalate path is actually exercised.
+- **Brittle string-containment tests in 16-5.** The test suite for harness-run dispatch uses string-containment checks that will break on any rewording. Accepted as LOW risk but adds maintenance burden.
+
+## 6. Lessons Learned
+
+1. **Proof format enforcement is overdue.** Three sessions (2, 4, 6) have now hit proof format issues. The fix is straightforward: provide a proof template to the verify subagent prompt with exact header levels and required sections. This is the single highest-leverage improvement for verification efficiency.
+2. **Stories that modify markdown commands (not TypeScript) have a different verification profile.** Story 16-5 changed `commands/harness-run.md`, not TypeScript code. The standard unit-test/coverage verification is not directly applicable. The test file (`harness-run-dispatch.test.ts`) validates the command content via string checks — a different verification pattern that should be documented.
+3. **Full-lifecycle stories cost ~$5/story; verification-only stories cost ~$1-2/story.** The cost split is consistent across Sessions 2-6. This supports batching dev+review work in one session and verification in a follow-up session when cost efficiency matters.
+4. **Remaining Epic 16 stories (16-7, 16-8) are documentation and test updates.** These are typically lower-risk, lower-cost stories. Epic 16 should close out in 1-2 more sessions.
+
+## 7. Action Items
+
+### Carried forward (still open from sessions 1-5)
+
+- [ ] **`state set` should trigger YAML regeneration** — flagged sessions 1-3
+- [ ] **Auto-verify stories with passing proofs** — flagged session 1
+- [ ] **Provide proof format template to verify subagent** — flagged session 2, recurred sessions 4 and 6. Priority: HIGH.
+- [ ] **Constrain subagent grep scope** — flagged session 2
+- [ ] **Eliminate duplicate coverage/test runs in verify** — flagged sessions 3-4
+- [ ] **Create tech-debt story for stale `mockDetectStack` cleanup** — flagged session 3
+- [ ] **Add state reconciliation at session start** — flagged session 4
+- [ ] **Baseline pre-existing test failures for verify subagent** — flagged session 4
+- [ ] **Prevent duplicate code review dispatches** — flagged session 5
+
+### New from session 6
+
+#### Fix soon
+- [ ] **Document markdown-command verification pattern.** Stories that modify `.md` command files (not TypeScript) need a different verification approach — string-containment tests on the command content rather than unit tests. Document this as a recognized verification pattern so subagents and story creators handle it correctly.
+
+#### Backlog
+- [ ] **Resolve escalate dispatch ambiguity in harness-run.** The 16-5 code review flagged that the escalate flow is unclear about whether it runs separate subagents per tier group or one combined subagent. This needs a design decision before the escalate path is used in production.
+- [ ] **Create standard epics file for Epic 16** — carried from sessions 4-5
+- [ ] **Document vocabulary migration mapping for Epic 16** — carried from session 5
+- [ ] **Retroactively update proof `Tier:` fields** — carried from session 2
+- [ ] **Track per-session cost deltas automatically** — carried from session 2
+- [ ] **Create tech-debt story for env.ts refactor** — carried from session 3

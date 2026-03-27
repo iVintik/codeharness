@@ -1,55 +1,55 @@
 # Harness Cost Report
 
-Total API-equivalent cost: $591.72
-Total API calls: 4390
-Average cost per story: $3.29 (147 stories)
+Total API-equivalent cost: $602.28
+Total API calls: 4480
+Average cost per story: $3.28 (150 stories)
 
 ## Cost by Token Type
 
 | Type | Tokens | Rate | Cost | % |
 |------|--------|------|------|---|
-| Cache reads | 245,448,320 | $1.50/MTok | $368.17 | 62% |
-| Cache writes | 7,048,969 | $18.75/MTok | $132.17 | 22% |
-| Output | 1,216,123 | $75/MTok | $91.21 | 15% |
-| Input | 11,166 | $15/MTok | $0.17 | 0% |
+| Cache reads | 249,871,253 | $1.50/MTok | $374.81 | 62% |
+| Cache writes | 7,171,331 | $18.75/MTok | $134.46 | 22% |
+| Output | 1,237,945 | $75/MTok | $92.85 | 15% |
+| Input | 11,264 | $15/MTok | $0.17 | 0% |
 
 ## Cost by Phase
 
 | Phase | Calls | Cost | % |
 |-------|-------|------|---|
-| verify | 2656 | $336.48 | 56.9% |
-| orchestrator | 490 | $105.66 | 17.9% |
-| retro | 407 | $57.83 | 9.8% |
-| create-story | 311 | $32.99 | 5.6% |
-| code-review | 282 | $31.76 | 5.4% |
-| dev-story | 244 | $27.00 | 4.6% |
+| verify | 2702 | $341.30 | 56.7% |
+| orchestrator | 494 | $107.17 | 17.8% |
+| retro | 411 | $58.34 | 9.7% |
+| create-story | 330 | $34.93 | 5.8% |
+| code-review | 287 | $32.34 | 5.4% |
+| dev-story | 256 | $28.20 | 4.7% |
 
 ## Cost by Tool
 
 | Tool | Calls | Cost | % |
 |------|-------|------|---|
-| Bash | 1915 | $236.49 | 40.0% |
-| Read | 838 | $109.28 | 18.5% |
-| Edit | 544 | $69.57 | 11.8% |
-| Agent | 382 | $50.19 | 8.5% |
-| Skill | 114 | $42.06 | 7.1% |
-| Grep | 256 | $29.97 | 5.1% |
-| Write | 130 | $24.31 | 4.1% |
+| Bash | 1948 | $239.91 | 39.8% |
+| Read | 857 | $111.81 | 18.6% |
+| Edit | 559 | $70.99 | 11.8% |
+| Agent | 394 | $51.67 | 8.6% |
+| Skill | 116 | $42.83 | 7.1% |
+| Grep | 264 | $30.75 | 5.1% |
+| Write | 131 | $24.47 | 4.1% |
 | TodoWrite | 105 | $14.40 | 2.4% |
-| Glob | 76 | $12.13 | 2.1% |
+| Glob | 76 | $12.13 | 2.0% |
 | ToolSearch | 26 | $2.90 | 0.5% |
 
 ## Top 10 Most Expensive Stories
 
 | Story | Calls | Cost | % |
 |-------|-------|------|---|
-| unknown | 505 | $108.02 | 18.3% |
-| 14-5-stack-aware-verify-dockerfile | 190 | $23.63 | 4.0% |
+| unknown | 512 | $109.89 | 18.2% |
+| 14-5-stack-aware-verify-dockerfile | 190 | $23.63 | 3.9% |
 | 14-4-observability-backend-choice | 192 | $22.13 | 3.7% |
-| 8-9-semgrep-rules-rust-observability | 121 | $17.10 | 2.9% |
+| 8-9-semgrep-rules-rust-observability | 121 | $17.10 | 2.8% |
 | 8-2-expand-state-types-for-rust | 84 | $12.67 | 2.1% |
-| 9-5-multi-stack-docs-remaining-consumers | 84 | $11.07 | 1.9% |
+| 9-5-multi-stack-docs-remaining-consumers | 84 | $11.07 | 1.8% |
 | 11-2-sprint-status-yaml-derived-view | 74 | $10.80 | 1.8% |
 | 11-1-unified-sprintstate-schema-versioning | 75 | $10.27 | 1.7% |
 | 12-4-shared-test-utilities-fixtures | 85 | $9.98 | 1.7% |
-| 8-6-rust-verification-dockerfile | 73 | $9.86 | 1.7% |
+| 8-6-rust-verification-dockerfile | 73 | $9.86 | 1.6% |

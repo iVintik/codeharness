@@ -32,6 +32,7 @@ import {
   generateSprintStatusYaml as generateSprintStatusYamlImpl,
   getStoryStatusesFromState as getStoryStatusesFromStateImpl,
   reconcileState as reconcileStateImpl,
+  registerStory as registerStoryImpl,
 } from './state.js';
 import type { ReconciliationResult } from './state.js';
 import { selectNextStory } from './selector.js';
@@ -93,6 +94,10 @@ export function updateStoryStatus(
   detail?: StoryDetail,
 ): Result<void> {
   return updateStoryStatusImpl(key, status, detail);
+}
+
+export function registerStory(key: string): Result<void> {
+  return registerStoryImpl(key);
 }
 
 export function getSprintState(): Result<SprintState> {

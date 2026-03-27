@@ -30,7 +30,7 @@ vi.mock('../migration.js', () => ({
 }));
 
 // Import after mock setup
-const { getSprintState, updateStoryStatus, writeStateAtomic, defaultState, statePath } =
+const { getSprintState, updateStoryStatus, registerStory, writeStateAtomic, defaultState, statePath } =
   await import('../state.js');
 
 // Use tmpdir isolation to prevent writeStateAtomic from corrupting real sprint-status.yaml
@@ -182,7 +182,8 @@ describe('getSprintState', () => {
 });
 
 describe('updateStoryStatus', () => {
-  it('creates file if missing and updates story', () => {
+  it('updates a registered story', () => {
+    registerStory('story-1');
     const result = updateStoryStatus('story-1', 'in-progress');
     expect(result.success).toBe(true);
     expect(existsSync(stateFile())).toBe(true);
@@ -193,7 +194,18 @@ describe('updateStoryStatus', () => {
     expect(state.sprint.inProgress).toBe('story-1');
   });
 
+  it('rejects updates to unregistered stories (phantom prevention)', () => {
+    const result = updateStoryStatus('phantom-story', 'in-progress');
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain('does not exist');
+      expect(result.error).toContain('phantom');
+    }
+  });
+
   it('updates existing story preserving other stories', () => {
+    registerStory('story-1');
+    registerStory('story-2');
     updateStoryStatus('story-1', 'in-progress');
     updateStoryStatus('story-2', 'done');
 
@@ -205,6 +217,7 @@ describe('updateStoryStatus', () => {
   });
 
   it('attaches error detail when provided', () => {
+    registerStory('story-1');
     updateStoryStatus('story-1', 'failed', { error: 'build broke' });
 
     const state = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
@@ -214,6 +227,7 @@ describe('updateStoryStatus', () => {
   });
 
   it('attaches proofPath when provided', () => {
+    registerStory('story-1');
     updateStoryStatus('story-1', 'done', {
       proofPath: 'docs/proof.md',
     });
@@ -223,6 +237,7 @@ describe('updateStoryStatus', () => {
   });
 
   it('increments attempts only on in-progress transition', () => {
+    registerStory('story-1');
     updateStoryStatus('story-1', 'in-progress');
     updateStoryStatus('story-1', 'failed', { error: 'oops' });
     updateStoryStatus('story-1', 'in-progress');
@@ -232,12 +247,14 @@ describe('updateStoryStatus', () => {
   });
 
   it('uses atomic write (tmp then rename)', () => {
+    registerStory('story-1');
     updateStoryStatus('story-1', 'done');
     expect(existsSync(tmpFile())).toBe(false);
     expect(existsSync(stateFile())).toBe(true);
   });
 
   it('round-trips state correctly (write then read)', () => {
+    registerStory('roundtrip');
     updateStoryStatus('roundtrip', 'verifying');
 
     const result = getSprintState();
@@ -250,6 +267,7 @@ describe('updateStoryStatus', () => {
 
 describe('lastAttempt semantics and error paths', () => {
   it('sets lastAttempt only on in-progress transitions', () => {
+    registerStory('story-1');
     updateStoryStatus('story-1', 'in-progress');
     const state1 = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     const firstAttemptTime = state1.stories['story-1'].lastAttempt;
@@ -281,6 +299,8 @@ describe('lastAttempt semantics and error paths', () => {
 
 describe('concurrent writes', () => {
   it('both writes produce valid JSON', () => {
+    registerStory('concurrent-1');
+    registerStory('concurrent-2');
     updateStoryStatus('concurrent-1', 'in-progress');
     updateStoryStatus('concurrent-2', 'done');
 

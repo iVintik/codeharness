@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 70,
+    "done": 74,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -595,9 +595,9 @@
     "16-8-update-all-tests": {
       "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-03-27T14:05:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/16-8-update-all-tests-proof.md",
       "acResults": null
     }
   },
@@ -677,7 +677,7 @@
     "epic-14": {
       "status": "done",
       "storiesTotal": 7,
-      "storiesDone": 4
+      "storiesDone": 7
     },
     "epic-15": {
       "status": "done",
@@ -685,9 +685,9 @@
       "storiesDone": 5
     },
     "epic-16": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 8,
-      "storiesDone": 7
+      "storiesDone": 8
     }
   },
   "session": {

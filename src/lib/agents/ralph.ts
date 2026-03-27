@@ -54,6 +54,11 @@ export function parseRalphMessage(rawLine: string): StoryMessage | null {
   const clean = rawLine.replace(ANSI_ESCAPE, '').replace(TIMESTAMP_PREFIX, '').trim();
   if (clean.length === 0) return null;
 
+  // Skip JSON lines (stream-json NDJSON) — ralph patterns inside JSON envelopes
+  // are NOT real ralph messages. This prevents phantom story creation from test
+  // output or source code that contains ralph-like patterns.
+  if (clean.startsWith('{')) return null;
+
   // [SUCCESS] Story {key}: DONE ...
   const success = SUCCESS_STORY.exec(clean);
   if (success) {

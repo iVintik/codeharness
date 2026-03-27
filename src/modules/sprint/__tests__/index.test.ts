@@ -23,6 +23,7 @@ vi.mock('../migration.js', () => ({
 const {
   getNextStory,
   updateStoryStatus,
+  registerStory,
   getSprintState,
   generateReport,
   getStoryDrillDown,
@@ -175,11 +176,13 @@ describe('sprint module', () => {
   });
 
   it('updateStoryStatus writes state successfully', () => {
+    registerStory('1.1');
     const result = updateStoryStatus('1.1', 'in-progress');
     expect(result.success).toBe(true);
   });
 
   it('updateStoryStatus with detail writes state successfully', () => {
+    registerStory('1.1');
     const result = updateStoryStatus('1.1', 'failed', { error: 'boom' });
     expect(result.success).toBe(true);
   });

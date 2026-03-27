@@ -344,7 +344,10 @@ export function updateStoryStatus(
   }
 
   const current = stateResult.data;
-  const existingStory = current.stories[key] ?? defaultStoryState();
+  const existingStory = current.stories[key];
+  if (!existingStory) {
+    return fail(`Story '${key}' does not exist in sprint state — refusing to create phantom entry`);
+  }
 
   const isNewAttempt = status === 'in-progress';
 
@@ -365,6 +368,33 @@ export function updateStoryStatus(
   const updatedStories = { ...current.stories, [key]: updatedStory };
   const updatedSprint = computeSprintCounts(updatedStories);
 
+  const updatedState: SprintState = {
+    ...current,
+    sprint: updatedSprint,
+    stories: updatedStories,
+  };
+
+  return writeStateAtomic(updatedState);
+}
+
+/**
+ * Register a new story in sprint-state.json with default (backlog) state.
+ * Use this during sprint initialization to add stories. updateStoryStatus()
+ * will refuse to operate on stories that haven't been registered.
+ */
+export function registerStory(key: string): Result<void> {
+  const stateResult = getSprintState();
+  if (!stateResult.success) {
+    return fail(stateResult.error);
+  }
+
+  const current = stateResult.data;
+  if (current.stories[key]) {
+    return ok(undefined); // already registered
+  }
+
+  const updatedStories = { ...current.stories, [key]: defaultStoryState() };
+  const updatedSprint = computeSprintCounts(updatedStories);
   const updatedState: SprintState = {
     ...current,
     sprint: updatedSprint,

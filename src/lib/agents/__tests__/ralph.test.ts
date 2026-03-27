@@ -368,6 +368,18 @@ describe('parseRalphMessage (migrated)', () => {
     expect(parseRalphMessage('   ')).toBeNull();
     expect(parseRalphMessage('[INFO] Starting iteration 5')).toBeNull();
   });
+
+  it('returns null for JSON lines containing ralph-like patterns (phantom prevention)', () => {
+    const jsonLine = JSON.stringify({
+      type: 'stream_event',
+      text: '[SUCCESS] Story 1-1-foo: DONE — verified',
+    });
+    expect(parseRalphMessage(jsonLine)).toBeNull();
+  });
+
+  it('returns null for JSON lines starting with {', () => {
+    expect(parseRalphMessage('{"type":"result","cost_usd":4.2}')).toBeNull();
+  });
 });
 
 describe('parseIterationMessage (migrated)', () => {

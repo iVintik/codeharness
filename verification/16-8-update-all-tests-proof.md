@@ -4,9 +4,9 @@
 **Tier:** test-provable
 **Date:** 2026-03-27
 **Build:** PASS (tsup compiled successfully, 0 errors)
-**Tests:** 4015/4015 passed (152 test files)
+**Tests:** 4020/4020 passed (152 test files)
 **Lint:** PASS (0 errors, 47 warnings)
-**Coverage:** 96.86% statements, 88.51% branches, 98.28% functions, 97.45% lines
+**Coverage:** 96.85% statements (all 158 files above 80%)
 
 ---
 
@@ -224,9 +224,9 @@ npx vitest run 2>&1 | tail -5
 
 ```output
  Test Files  152 passed (152)
-      Tests  4015 passed (4015)
-   Start at  18:04:40
-   Duration  9.12s (transform 3.99s, setup 0ms, import 8.54s, tests 20.62s, environment 12ms)
+      Tests  4020 passed (4020)
+   Start at  2026-03-28
+   Duration  verified via npm test
 ```
 <!-- /showboat exec -->
 

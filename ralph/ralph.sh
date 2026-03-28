@@ -279,13 +279,10 @@ check_sprint_complete() {
     local done_count=0
     local flagged_count=0
 
-    # Load flagged stories for comparison
-    local -A flagged_map
+    # Load flagged stories into a newline-separated string for lookup
+    local flagged_list=""
     if [[ -f "$FLAGGED_STORIES_FILE" ]]; then
-        while IFS= read -r flagged_key; do
-            flagged_key=$(echo "$flagged_key" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            [[ -n "$flagged_key" ]] && flagged_map["$flagged_key"]=1
-        done < "$FLAGGED_STORIES_FILE"
+        flagged_list=$(sed 's/^[[:space:]]*//;s/[[:space:]]*$//' "$FLAGGED_STORIES_FILE" | grep -v '^$')
     fi
 
     while IFS=: read -r key value; do
@@ -301,7 +298,7 @@ check_sprint_complete() {
             total=$((total + 1))
             if [[ "$value" == "done" ]]; then
                 done_count=$((done_count + 1))
-            elif [[ -n "${flagged_map[$key]+x}" ]]; then
+            elif [[ -n "$flagged_list" ]] && echo "$flagged_list" | grep -qxF "$key"; then
                 # Retry-exhausted/flagged stories count as "effectively done"
                 # — no autonomous work can be done on them
                 flagged_count=$((flagged_count + 1))

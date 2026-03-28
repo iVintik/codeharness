@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 70,
+    "done": 72,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -586,16 +586,16 @@
     },
     "16-7-update-knowledge-and-enforcement-docs": {
       "status": "review",
-      "attempts": 0,
-      "lastAttempt": "2026-03-27T13:42:00Z",
+      "attempts": 1,
+      "lastAttempt": "2026-03-28T16:22:43Z",
       "lastError": null,
       "proofPath": "verification/16-7-update-knowledge-and-enforcement-docs-proof.md",
       "acResults": null
     },
     "16-8-update-all-tests": {
       "status": "review",
-      "attempts": 0,
-      "lastAttempt": "2026-03-27T14:05:00Z",
+      "attempts": 1,
+      "lastAttempt": "2026-03-28T16:22:43Z",
       "lastError": null,
       "proofPath": "verification/16-8-update-all-tests-proof.md",
       "acResults": null

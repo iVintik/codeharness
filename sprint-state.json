@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 74,
+    "done": 72,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -593,7 +593,7 @@
       "acResults": null
     },
     "16-8-update-all-tests": {
-      "status": "done",
+      "status": "review",
       "attempts": 1,
       "lastAttempt": "2026-03-28T16:22:43Z",
       "lastError": null,

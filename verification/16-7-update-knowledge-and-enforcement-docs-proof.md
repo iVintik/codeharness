@@ -2,9 +2,9 @@
 
 **Story:** 16-7 — Update Knowledge and Enforcement Docs for Verification Tiers
 **Tier:** test-provable
-**Date:** 2026-03-27
+**Date:** 2026-03-28 (re-verified)
 **Build:** PASS (tsup compiled successfully, 0 errors)
-**Tests:** 4015/4015 passed (152 test files)
+**Tests:** 321/321 BATS passed (0 failures)
 **Lint:** PASS (0 errors, 47 warnings)
 
 ---

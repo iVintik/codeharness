@@ -190,6 +190,9 @@ verification_log:
   - "16-8-update-all-tests: pass at 2026-03-27T14:08:18.146Z"
   - "16-5-rewrite-harness-run-verification-dispatch: pass at
     2026-03-28T11:08:05.682Z"
+  - "16-6-update-create-story-tier-criteria: pass at 2026-03-28T11:21:32.246Z"
+  - "16-7-update-knowledge-and-enforcement-docs: pass at
+    2026-03-28T11:33:09.171Z"
 verify_env_dist_hash: 903f1c537bf105c882bb19e04428cfaf362d837fb003c550a7b2ac84f311d430
 tests_passed: true
 coverage_met: true
@@ -207,6 +210,41 @@ stories:
 14-5-stack-aware-verify-dockerfile: done
 14-6-subagent-status-ownership-time-budget: done
 ---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -4,6 +4,21 @@ import { resolve } from 'node:path';
 
 const ROOT = resolve(__dirname, '..', '..', '..', '..');
 
+/**
+ * Extract a section from markdown content between a start heading and the next heading at or above
+ * the given delimiter level. Throws if the start heading is not found, preventing silent empty-string
+ * fallbacks that make assertions vacuous.
+ */
+function extractSection(content: string, startHeading: string, nextHeadingPrefix: string): string {
+  const parts = content.split(startHeading);
+  if (parts.length < 2) {
+    throw new Error(`Section heading "${startHeading}" not found in content`);
+  }
+  const afterHeading = parts[1];
+  const nextIdx = afterHeading.indexOf(nextHeadingPrefix);
+  return nextIdx === -1 ? afterHeading : afterHeading.slice(0, nextIdx);
+}
+
 const FOUR_TIERS = ['test-provable', 'runtime-provable', 'environment-provable', 'escalate'] as const;
 const LEGACY_TERMS = ['cli-verifiable', 'integration-required', 'unit-testable', 'black-box'] as const;
 
@@ -103,25 +118,23 @@ describe('patches/review/enforcement.md — four-tier vocabulary (AC5)', () => {
 
 describe('patches/review/enforcement.md — tier-appropriate evidence (AC6)', () => {
   it('test-provable stories do NOT require docker exec evidence', () => {
-    // Extract the test-provable section
-    const testProvableSection = reviewEnforcement
-      .split('#### `test-provable`')[1]
-      ?.split('####')[0] ?? '';
+    const testProvableSection = extractSection(reviewEnforcement, '#### `test-provable`', '####');
     expect(testProvableSection).toContain('`docker exec` evidence is NOT required');
   });
 
   it('runtime-provable stories do NOT require docker exec evidence', () => {
-    const runtimeSection = reviewEnforcement
-      .split('#### `runtime-provable`')[1]
-      ?.split('####')[0] ?? '';
+    const runtimeSection = extractSection(reviewEnforcement, '#### `runtime-provable`', '####');
     expect(runtimeSection).toContain('`docker exec` evidence is NOT required');
   });
 
   it('environment-provable stories require docker exec evidence', () => {
-    const envSection = reviewEnforcement
-      .split('#### `environment-provable`')[1]
-      ?.split('####')[0] ?? '';
+    const envSection = extractSection(reviewEnforcement, '#### `environment-provable`', '####');
     expect(envSection).toContain('docker exec');
+  });
+
+  it('escalate stories require human judgment', () => {
+    const escalateSection = extractSection(reviewEnforcement, '#### `escalate`', '###');
+    expect(escalateSection).toContain('Human judgment');
   });
 });
 
@@ -148,15 +161,13 @@ describe('patches/verify/story-verification.md — Verification Tags (AC7)', () 
 // ─── AC8: patches/verify/story-verification.md — tier-dependent evidence ────
 
 describe('patches/verify/story-verification.md — Proof Standard (AC8)', () => {
-  // Extract the Proof Standard section to ensure assertions are scoped
   const getProofStandard = () =>
-    storyVerification.split('### Proof Standard')[1]?.split('###')[0] ?? '';
+    extractSection(storyVerification, '### Proof Standard', '###');
 
   it('test-provable evidence rule: build+test+grep', () => {
     const section = getProofStandard();
     expect(section).toContain('`test-provable`');
-    expect(section).toContain('build');
-    expect(section).toContain('test output');
+    expect(section).toContain('build + test output');
   });
 
   it('runtime-provable evidence rule: run binary and check output', () => {

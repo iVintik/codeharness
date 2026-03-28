@@ -1,7 +1,7 @@
 # Story 16-6: Update create-story Workflow with Tier Criteria
 <!-- verification-tier: test-provable -->
 
-## Status: done
+## Status: verifying
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

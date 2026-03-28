@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 74,
-    "done": 70,
+    "done": 71,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -577,7 +577,7 @@
       "acResults": null
     },
     "16-6-update-create-story-tier-criteria": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": "2026-03-27T13:10:00Z",
       "lastError": null,
@@ -585,9 +585,9 @@
       "acResults": null
     },
     "16-7-update-knowledge-and-enforcement-docs": {
-      "status": "review",
-      "attempts": 0,
-      "lastAttempt": "2026-03-27T13:42:00Z",
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-03-28T11:32:00Z",
       "lastError": null,
       "proofPath": "verification/16-7-update-knowledge-and-enforcement-docs-proof.md",
       "acResults": null

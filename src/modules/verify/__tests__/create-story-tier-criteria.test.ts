@@ -95,6 +95,17 @@ describe('AC2: decision tree with criteria and examples', () => {
     expect(section).toContain('verification: escalate');
   });
 
+  it('examples use Given/When/Then format', () => {
+    const section = extractSection(instructions, 'Concrete Examples', 'Default to');
+    // Each example should contain Given/When/Then narrative markers
+    expect(section).toContain('Given');
+    expect(section).toContain('when');
+    expect(section).toContain('then');
+    // Verify there are exactly 4 distinct examples (one per tier, each on a line starting with "- `")
+    const exampleLines = section.split('\n').filter((l) => l.trim().startsWith('- `'));
+    expect(exampleLines.length).toBe(4);
+  });
+
   it('includes default-to-test-provable instruction in instructions.xml', () => {
     const section = tierSection();
     expect(section).toContain('Default to');

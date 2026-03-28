@@ -126,6 +126,6 @@ development_status:
   16-3-update-proof-validation-for-tiers: done
   16-4-update-validation-acs-and-runner: done
   16-5-rewrite-harness-run-verification-dispatch: done
-  16-6-update-create-story-tier-criteria: review
-  16-7-update-knowledge-and-enforcement-docs: review
+  16-6-update-create-story-tier-criteria: done
+  16-7-update-knowledge-and-enforcement-docs: done
   16-8-update-all-tests: review

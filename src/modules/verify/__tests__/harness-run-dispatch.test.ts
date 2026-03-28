@@ -11,6 +11,18 @@ import { describe, it, expect, beforeAll } from 'vitest';
 const HARNESS_RUN_PATH = resolve(__dirname, '../../../../commands/harness-run.md');
 let content: string;
 
+/**
+ * Extracts the text between two section headers in the harness-run.md file.
+ * Throws if either header is not found, preventing silent false-positive tests.
+ */
+function extractSection(startHeader: string, endHeader: string): string {
+  const startIdx = content.indexOf(startHeader);
+  if (startIdx === -1) throw new Error(`Section start header not found: "${startHeader}"`);
+  const endIdx = content.indexOf(endHeader, startIdx + startHeader.length);
+  if (endIdx === -1) throw new Error(`Section end header not found: "${endHeader}"`);
+  return content.slice(startIdx, endIdx);
+}
+
 beforeAll(() => {
   content = readFileSync(HARNESS_RUN_PATH, 'utf-8');
 });
@@ -47,10 +59,10 @@ describe('AC2: test-provable verification dispatch', () => {
   });
 
   it('does NOT instruct to use Docker in the test-provable subagent prompt', () => {
-    // Extract just the subagent prompt within the test-provable section
-    const sectionStart = content.indexOf('**test-provable verification (derived tier = test-provable):**');
-    const sectionEnd = content.indexOf('**runtime-provable verification (derived tier = runtime-provable):**');
-    const section = content.slice(sectionStart, sectionEnd);
+    const section = extractSection(
+      '**test-provable verification (derived tier = test-provable):**',
+      '**runtime-provable verification (derived tier = runtime-provable):**',
+    );
     // The subagent prompt itself should not reference Docker or codeharness stack start
     expect(section).not.toContain('codeharness stack start');
     expect(section).not.toContain('docker run');
@@ -63,30 +75,28 @@ describe('AC2: test-provable verification dispatch', () => {
 // ─── AC3: runtime-provable dispatch — build, run locally, interact ──────────
 
 describe('AC3: runtime-provable verification dispatch', () => {
+  const runtimeSection = () => extractSection(
+    '**runtime-provable verification (derived tier = runtime-provable):**',
+    '**escalate verification (derived tier = escalate):**',
+  );
+
   it('has a runtime-provable verification section', () => {
     expect(content).toContain('**runtime-provable verification (derived tier = runtime-provable):**');
   });
 
   it('instructs to build and run the app locally', () => {
-    const start = content.indexOf('**runtime-provable verification (derived tier = runtime-provable):**');
-    const end = content.indexOf('**escalate verification (derived tier = escalate):**');
-    const section = content.slice(start, end);
+    const section = runtimeSection();
     expect(section).toContain('npm start');
     expect(section).toContain('cargo run');
     expect(section).toContain('python');
   });
 
   it('instructs to kill the running process after verification', () => {
-    const start = content.indexOf('**runtime-provable verification (derived tier = runtime-provable):**');
-    const end = content.indexOf('**escalate verification (derived tier = escalate):**');
-    const section = content.slice(start, end);
-    expect(section).toContain('Kill the running application process');
+    expect(runtimeSection()).toContain('Kill the running application process');
   });
 
   it('explicitly forbids Docker in runtime-provable section', () => {
-    const start = content.indexOf('**runtime-provable verification (derived tier = runtime-provable):**');
-    const end = content.indexOf('**escalate verification (derived tier = escalate):**');
-    const section = content.slice(start, end);
+    const section = runtimeSection();
     expect(section).toContain('Do NOT use Docker');
     expect(section).toContain('Do NOT run codeharness stack start');
   });
@@ -108,29 +118,25 @@ describe('AC4: environment-provable verification dispatch', () => {
 // ─── AC5: escalate dispatch — mixed-tier per-AC routing ─────────────────────
 
 describe('AC5: escalate verification dispatch', () => {
+  const escalateSection = () => extractSection(
+    '**escalate verification (derived tier = escalate):**',
+    '**environment-provable verification (derived tier = environment-provable):**',
+  );
+
   it('has an escalate verification section', () => {
     expect(content).toContain('**escalate verification (derived tier = escalate):**');
   });
 
   it('instructs to mark escalate-tier ACs as [ESCALATE]', () => {
-    const start = content.indexOf('**escalate verification (derived tier = escalate):**');
-    const end = content.indexOf('**environment-provable verification (derived tier = environment-provable):**');
-    const section = content.slice(start, end);
-    expect(section).toContain('[ESCALATE]');
+    expect(escalateSection()).toContain('[ESCALATE]');
   });
 
   it('instructs to dispatch non-escalated ACs at their individual tier', () => {
-    const start = content.indexOf('**escalate verification (derived tier = escalate):**');
-    const end = content.indexOf('**environment-provable verification (derived tier = environment-provable):**');
-    const section = content.slice(start, end);
-    expect(section).toContain('dispatch verification at their individual tier level');
+    expect(escalateSection()).toContain('dispatch verification at their individual tier level');
   });
 
   it('marks story done with escalation notes when non-escalated ACs pass', () => {
-    const start = content.indexOf('**escalate verification (derived tier = escalate):**');
-    const end = content.indexOf('**environment-provable verification (derived tier = environment-provable):**');
-    const section = content.slice(start, end);
-    expect(section).toContain('escalated ACs — marking done with known limitations');
+    expect(escalateSection()).toContain('escalated ACs — marking done with known limitations');
   });
 });
 
@@ -181,9 +187,7 @@ describe('Step 3a: create-story prompt uses four tiers', () => {
   });
 
   it('lists all four tiers in the decision tree', () => {
-    const start = content.indexOf('**Tier Decision Tree');
-    const end = content.indexOf('Default to `test-provable` when unsure');
-    const section = content.slice(start, end);
+    const section = extractSection('**Tier Decision Tree', 'Default to `test-provable` when unsure');
     expect(section).toContain('`test-provable`');
     expect(section).toContain('`runtime-provable`');
     expect(section).toContain('`environment-provable`');
@@ -191,10 +195,7 @@ describe('Step 3a: create-story prompt uses four tiers', () => {
   });
 
   it('does NOT reference old cli-verifiable/integration-required in Step 3a', () => {
-    // Find Step 3a section
-    const start = content.indexOf('### 3a: If status is `backlog`');
-    const end = content.indexOf('### 3b: If status is');
-    const section = content.slice(start, end);
+    const section = extractSection('### 3a: If status is `backlog`', '### 3b: If status is');
     expect(section).not.toContain('cli-verifiable');
     expect(section).not.toContain('integration-required');
   });

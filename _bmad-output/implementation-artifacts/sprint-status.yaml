@@ -1,5 +1,5 @@
 # codeharness Sprint Status (auto-generated from sprint-state.json)
-# generated: 2026-03-27
+# generated: 2026-03-28
 # This file is a derived view — do NOT edit manually.
 # Source of truth: sprint-state.json
 
@@ -120,12 +120,12 @@ development_status:
   15-5-lint-rule-bare-exception-swallowing: done
 
   # Epic 16
-  epic-16: done
+  epic-16: backlog
   16-1-verification-tier-type-and-utilities: done
   16-2-rewrite-parser-tier-classification: done
   16-3-update-proof-validation-for-tiers: done
   16-4-update-validation-acs-and-runner: done
   16-5-rewrite-harness-run-verification-dispatch: done
-  16-6-update-create-story-tier-criteria: done
-  16-7-update-knowledge-and-enforcement-docs: done
-  16-8-update-all-tests: done
+  16-6-update-create-story-tier-criteria: review
+  16-7-update-knowledge-and-enforcement-docs: review
+  16-8-update-all-tests: review

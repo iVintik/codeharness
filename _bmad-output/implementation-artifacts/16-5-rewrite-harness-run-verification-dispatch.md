@@ -1,7 +1,7 @@
 # Story 16.5: Rewrite harness-run Verification Dispatch
 <!-- verification-tier: test-provable -->
 
-Status: done
+Status: verifying
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 

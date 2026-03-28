@@ -1,40 +1,40 @@
 # Harness Cost Report
 
-Total API-equivalent cost: $838.48
-Total API calls: 6084
-Average cost per story: $3.93 (158 stories)
+Total API-equivalent cost: $849.31
+Total API calls: 6177
+Average cost per story: $3.99 (158 stories)
 
 ## Cost by Token Type
 
 | Type | Tokens | Rate | Cost | % |
 |------|--------|------|------|---|
-| Cache reads | 325,398,746 | $1.50/MTok | $488.10 | 58% |
-| Cache writes | 11,698,110 | $18.75/MTok | $219.34 | 26% |
-| Output | 1,744,315 | $75/MTok | $130.82 | 16% |
-| Input | 14,450 | $15/MTok | $0.22 | 0% |
+| Cache reads | 330,133,812 | $1.50/MTok | $495.20 | 58% |
+| Cache writes | 11,803,572 | $18.75/MTok | $221.32 | 26% |
+| Output | 1,767,606 | $75/MTok | $132.57 | 16% |
+| Input | 14,553 | $15/MTok | $0.22 | 0% |
 
 ## Cost by Phase
 
 | Phase | Calls | Cost | % |
 |-------|-------|------|---|
-| verify | 3546 | $445.37 | 53.1% |
-| orchestrator | 852 | $187.44 | 22.4% |
-| retro | 726 | $99.49 | 11.9% |
-| code-review | 345 | $39.52 | 4.7% |
-| create-story | 344 | $36.58 | 4.4% |
-| dev-story | 271 | $30.07 | 3.6% |
+| verify | 3614 | $452.59 | 53.3% |
+| orchestrator | 856 | $188.56 | 22.2% |
+| retro | 730 | $100.02 | 11.8% |
+| code-review | 358 | $41.02 | 4.8% |
+| create-story | 348 | $37.05 | 4.4% |
+| dev-story | 271 | $30.07 | 3.5% |
 
 ## Cost by Tool
 
 | Tool | Calls | Cost | % |
 |------|-------|------|---|
-| Bash | 2253 | $277.21 | 33.1% |
-| Read | 1285 | $178.73 | 21.3% |
-| Edit | 950 | $123.37 | 14.7% |
-| Agent | 577 | $75.51 | 9.0% |
-| Skill | 208 | $71.95 | 8.6% |
-| Grep | 407 | $46.65 | 5.6% |
-| Write | 154 | $27.49 | 3.3% |
+| Bash | 2282 | $280.53 | 33.0% |
+| Read | 1304 | $180.80 | 21.3% |
+| Edit | 972 | $125.81 | 14.8% |
+| Agent | 587 | $76.80 | 9.0% |
+| Skill | 210 | $72.54 | 8.5% |
+| Grep | 418 | $47.76 | 5.6% |
+| Write | 154 | $27.49 | 3.2% |
 | Glob | 107 | $18.82 | 2.2% |
 | TodoWrite | 111 | $15.24 | 1.8% |
 | ToolSearch | 28 | $3.10 | 0.4% |
@@ -43,8 +43,8 @@ Average cost per story: $3.93 (158 stories)
 
 | Story | Calls | Cost | % |
 |-------|-------|------|---|
-| unknown | 1089 | $218.32 | 26.0% |
-| 16-5-rewrite-harness-run-verification-dispatch | 619 | $75.87 | 9.0% |
+| unknown | 1094 | $219.56 | 25.9% |
+| 16-5-rewrite-harness-run-verification-dispatch | 648 | $78.78 | 9.3% |
 | 1-1-foo | 198 | $24.35 | 2.9% |
 | 14-5-stack-aware-verify-dockerfile | 190 | $23.63 | 2.8% |
 | 14-4-observability-backend-choice | 192 | $22.13 | 2.6% |

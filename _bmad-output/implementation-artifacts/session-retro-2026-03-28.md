@@ -3650,3 +3650,163 @@ The "unknown" story bucket ($218.32, 26% of spend) captures orchestrator and ret
 ### 8. Final Note
 
 This retrospective is itself part of the waste cycle. Generating it cost ~$2-4 in API calls to document, for the 87th time, the same bug with the same root cause and the same action items. The only action that matters now is stopping Ralph.
+
+---
+
+# Session Retrospective — 2026-03-28 Session 32 (Final Sprint Session)
+
+**Timestamp:** 2026-03-28T15:30
+**Stories attempted:** 16-7-update-knowledge-and-enforcement-docs, 16-8-update-all-tests
+**Stories completed:** 2/2 (both passed verification)
+**Sprint completion:** Epic 16 finished. All 74 stories across 17 epics DONE. Sprint complete.
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | ACs | Result |
+|-------|-----------|-----|--------|
+| 16-7-update-knowledge-and-enforcement-docs | code-review, verification | 12/12 | ALL_PASS |
+| 16-8-update-all-tests | code-review, verification | 12/12 | ALL_PASS |
+
+Both stories were already implemented by prior sessions. This session ran code review and verification only. No re-development was needed for either story — all code review findings were MEDIUM or LOW severity and were either fixed in-review or deferred as out-of-scope.
+
+This session also completed the overall sprint: 74/74 stories done, 0 failed, 0 blocked.
+
+## 2. Issues Analysis
+
+### Bugs Found in Code Review
+
+| Story | HIGH | MEDIUM | LOW | Items Sent Back |
+|-------|------|--------|-----|-----------------|
+| 16-7 | 0 | 4 (all fixed) | 2 (not fixed, out of scope) | None |
+| 16-8 | 0 | 0 | 3 (not fixed, low risk) | None |
+
+**16-7 MEDIUM bugs fixed:**
+- Missing escalate tier test
+- Weak AC8 assertions
+- Silent empty-string fallback in section extraction (x2)
+
+**16-7 LOW bugs deferred (out of scope):**
+- Legacy terms in patches/AGENTS.md, patches/retro/enforcement.md, src/templates/verify-prompt.ts
+
+**16-8 LOW items noted:**
+- classifyTier barrel re-export not tested through index.ts
+- Story line references will drift
+- No explicit runtime>test priority test in classifyTier
+
+### Pre-existing Issues
+
+- 5 pre-existing BATS failures in `all_tasks_complete` suite (reported in 16-6 verification, unrelated to this session's work)
+
+## 3. Cost Analysis
+
+### Sprint-Wide Totals
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $849.31 |
+| Total API calls | 6,177 |
+| Total stories | 158 (74 sprint + test/setup stories) |
+| Average cost per story | $3.99 |
+
+### Cost by Phase (Sprint-Wide)
+
+| Phase | Cost | % | Observation |
+|-------|------|---|-------------|
+| verify | $452.59 | 53.3% | Dominant cost — verification is the most expensive phase |
+| orchestrator | $188.56 | 22.2% | Ralph coordination overhead |
+| retro | $100.02 | 11.8% | Retrospective generation |
+| code-review | $41.02 | 4.8% | Relatively cheap |
+| create-story | $37.05 | 4.4% | Story creation |
+| dev-story | $30.07 | 3.5% | Actual development is the cheapest phase |
+
+**Key insight:** Verification costs 15x more than development. This is expected for a harness that prioritizes correctness, but the ratio suggests verification prompts could be optimized.
+
+### Cost by Tool (Sprint-Wide)
+
+| Tool | Calls | Cost | % |
+|------|-------|------|---|
+| Bash | 2,282 | $280.53 | 33.0% |
+| Read | 1,304 | $180.80 | 21.3% |
+| Edit | 972 | $125.81 | 14.8% |
+| Agent | 587 | $76.80 | 9.0% |
+| Skill | 210 | $72.54 | 8.5% |
+
+### "Unknown" Cost Bucket
+
+$219.56 (25.9% of total) attributed to "unknown" story — this is Ralph orchestration, session setup, retros, and any calls not tagged to a specific story. This is the largest single cost item and remains unattributed.
+
+### Subagent Token Analysis (This Session)
+
+Aggregated from session issues log token reports:
+
+| Subagent | Tool Calls | Top Tools | Redundancies |
+|----------|-----------|-----------|--------------|
+| 16-7 code-review | 22 | Read: 9, Grep: 8, Bash: 7 | 1 redundant story file read, 2 grep passes could merge |
+| 16-7 verification | 16 | Grep: 10, Bash: 7, Read: 2 | npm test run twice |
+| 16-8 code-review | 18 | Read: 11, Glob: 4, Bash: 3 | None |
+| 16-8 verification | 14 | Bash: 7, Read: 6, Edit: 3 | npm test run twice |
+| **Session total** | **70** | | |
+
+**Patterns observed:**
+- `npm test` run twice in 3 of 4 verification subagents (once full, once filtered) — could be a single run with output capture
+- harness-run.md read 5 times in earlier 16-5 code review — file re-reads are the most common redundancy
+- Grep is heavily used in verification (10 calls in 16-7 verify) — expected for evidence gathering
+
+### Most Expensive Story
+
+16-5-rewrite-harness-run-verification-dispatch at $78.78 (9.3%) — this was a complex rewrite story with multiple subagent phases. The 648 API calls suggest it went through full dev + code-review + verification pipeline, possibly with re-work.
+
+## 4. What Went Well
+
+- **Sprint completed.** All 74 stories across 17 epics finished. Zero failures, zero blocked.
+- **Clean code reviews.** Both stories in this session had zero HIGH bugs. All MEDIUM bugs were fixed in-review without sending back for re-development.
+- **100% verification pass rate this session.** 24/24 ACs passed (12+12) with no retries.
+- **Coverage maintained.** 96.85% overall, all 158 files above 80% floor throughout.
+- **Test count grew.** 4015 to 4020 tests — net positive even in a documentation/cleanup epic.
+- **No story required re-development.** Code review fixed issues in-place rather than bouncing stories back, saving full iteration cycles.
+
+## 5. What Went Wrong
+
+- **Ralph continued running after sprint completion.** Previous retros documented the same bug: Ralph has no "sprint complete" exit condition and keeps spawning no-op sessions. This session's predecessor retro explicitly called this out. The bug persists.
+- **$219.56 in unattributed costs.** The "unknown" bucket is 25.9% of total spend. Without proper attribution, cost optimization is guesswork.
+- **Verification is 53% of total cost.** While correctness is the point, verify phase costs 15x dev phase — the prompts and evidence-gathering are expensive.
+- **Redundant npm test runs.** At least 3 subagents ran `npm test` twice when once with proper output capture would suffice.
+- **5 pre-existing BATS failures.** The `all_tasks_complete` test suite has been broken and unreported/unfixed across multiple sessions.
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+- **Fix bugs in code review, not re-dev.** This session's code reviewers fixed all MEDIUM issues directly via Edit, avoiding costly re-development cycles. This is the right approach for non-architectural issues.
+- **Minimal subagent tool calls.** Both stories averaged 17.5 tool calls per subagent — lean and efficient.
+- **Deferring out-of-scope LOW items.** Reviewers correctly identified legacy term cleanup as out-of-scope rather than scope-creeping.
+
+### Patterns to Avoid
+- **Running npm test twice.** Subagents should capture full test output in one run, then filter/grep the captured output.
+- **Re-reading the same file at different offsets.** harness-run.md was read 5 times in one subagent. A single full read (or two reads: top half + bottom half) would suffice.
+- **Not killing Ralph when sprint is done.** Every no-op session after completion wastes $2-10 in orchestrator + retro costs.
+
+## 7. Action Items
+
+| Priority | Action | Owner |
+|----------|--------|-------|
+| **P0 — DONE** | Sprint is complete. Stop Ralph. | Human operator |
+| **P1 — CARRY FORWARD** | Add "sprint complete" exit condition to Ralph's main loop. | Developer (next sprint) |
+| **P1 — CARRY FORWARD** | Attribute the "unknown" cost bucket — tag orchestrator/retro calls to session IDs. | Developer (next sprint) |
+| **P2** | Optimize verification prompts to reduce the 53% verify cost share. | Developer (next sprint) |
+| **P2** | Fix 5 pre-existing BATS failures in `all_tasks_complete` suite. | Developer (next sprint) |
+| **P2** | Add subagent guideline: run `npm test` once, capture output, grep from capture. | Developer (next sprint) |
+| **P3** | Clean up legacy terms (black.box references) in patches/ and templates/. | Developer (next sprint) |
+
+## 8. Sprint Completion Summary
+
+The codeharness sprint is **fully complete**.
+
+- **17 epics**, **74 stories**, **0 failures**
+- **Total cost:** $849.31 across 6,177 API calls
+- **Average cost per story:** $3.99
+- **Test coverage:** 96.85% (4,020 tests)
+- **Duration:** Multiple sessions across multiple days
+
+The project delivered: stack detection (Node.js, Python, Rust), multi-stack support, observability enforcement, Docker integration, verification tiers, autonomous execution via Ralph, and comprehensive documentation — all verified to acceptance criteria.

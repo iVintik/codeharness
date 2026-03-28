@@ -5524,3 +5524,201 @@ This session was minimal — parent orchestrator detected sprint complete, ran s
 | 6 | Clean up `1-1-foo` phantom story ($24.35 in cost tracking) | state management |
 | 7 | Fix 5 pre-existing BATS failures in `all_tasks_complete` suite | tests |
 | 8 | Address LOW-priority code review items deferred from epic 16 | tech debt |
+
+---
+
+# Session Retrospective — 2026-03-28 (Session 52, Re-Verification)
+
+**Timestamp:** 2026-03-28T17:30
+**Session:** 52
+**Sprint status:** ALL_DONE — 74/74 stories, 17/17 epics (0-16)
+**Stories attempted:** 16-7, 16-8 (re-verification only)
+**Outcome:** Both passed ALL_PASS again. Epic 16 marked complete. Sprint closed.
+
+---
+
+## 1. Session Summary
+
+| Story | Phase | Outcome | Subagent Calls |
+|-------|-------|---------|----------------|
+| 16-7-update-knowledge-and-enforcement-docs | code-review | 0 issues, 12/12 ACs, 96.85% coverage | 15 |
+| 16-7-update-knowledge-and-enforcement-docs | verification | ALL_PASS (12/12 ACs) | 22 |
+| 16-8-update-all-tests | code-review | 0 issues, 12/12 ACs, 96.85% coverage | 16 |
+| 16-8-update-all-tests | verification | ALL_PASS (12/12 ACs) | 16 |
+
+**Why this session happened:** Stories 16-7 and 16-8 had previously passed ALL_PASS but Ralph's stale in-memory state reverted them to `review`. This session re-ran code-review and verification for both. Both passed on first attempt with zero issues. Epic 16 was then marked complete, closing the entire sprint.
+
+**Time span:** ~15:23 to ~17:22 (approx 2 hours wall-clock, most of which was Ralph loop iterations doing state fixes)
+
+---
+
+## 2. Issues Analysis
+
+### Issues Found This Session
+
+**Zero new issues.** Both stories passed clean on re-verification. The session issues log reports:
+
+- 16-7 code review: "None. Re-review confirmed 0 issues, 12/12 ACs validated, 96.85% coverage."
+- 16-7 verification: "No issues reported. ALL_PASS (12/12 ACs)."
+- 16-8 code review: "None. Re-review confirmed 0 issues, 12/12 ACs, 96.85% coverage. 3 LOW items remain as tech debt."
+- 16-8 verification: "No issues reported. ALL_PASS (12/12 ACs)."
+
+### Categorization of Prior Session Issues (for reference)
+
+From earlier iterations of 16-7 and 16-8 in the same day:
+
+| Category | Count | Severity |
+|----------|-------|----------|
+| False-pass risk in tests | 1 | HIGH (fixed) |
+| Weak assertions | 2 | MEDIUM (fixed) |
+| Silent empty-string fallback | 2 | MEDIUM (fixed) |
+| Missing tier test | 1 | MEDIUM (fixed) |
+| Legacy terms in out-of-scope files | 2 | LOW (deferred) |
+| Barrel re-export not tested | 1 | LOW (deferred) |
+| Story line reference drift | 1 | LOW (deferred) |
+
+All HIGH and MEDIUM issues were fixed before the re-verification that this session performed. The 4 LOW items remain as tech debt.
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative Sprint Cost (all sessions)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $894.62 |
+| Total API calls | 6,524 |
+| Average cost per story | $4.17 (158 tracked entries) |
+| Total tokens consumed | ~361.4M |
+
+### Cost Delta Since Last Retro
+
+| Metric | Previous (Session 51) | Current (Session 52) | Delta |
+|--------|----------------------|---------------------|-------|
+| Total cost | $716.85 | $894.62 | +$177.77 |
+| Total calls | 5,268 | 6,524 | +1,256 |
+
+The +$177.77 delta covers all activity between sessions 51 and 52. Most of this is from the full epic 16 pipeline (stories 16-5 through 16-8 across development, code-review, verification, and re-verification).
+
+### Cost by Phase (cumulative)
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 3,828 | $475.74 | 53.2% |
+| orchestrator | 908 | $200.21 | 22.4% |
+| retro | 769 | $105.21 | 11.8% |
+| code-review | 400 | $46.34 | 5.2% |
+| create-story | 348 | $37.05 | 4.1% |
+| dev-story | 271 | $30.07 | 3.4% |
+
+Verification remains the dominant cost center at 53.2%. The orchestrator (Ralph loop iterations, state management) is the second largest at 22.4%.
+
+### Token Type Distribution
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 347.0M | $520.53 | 58% |
+| Cache writes | 12.5M | $233.99 | 26% |
+| Output | 1.9M | $139.87 | 16% |
+| Input | 15.2K | $0.23 | 0% |
+
+Cache reads dominate token volume (96% of tokens) but cost is spread more evenly due to rate differences. Cache write cost ($233.99 at $18.75/MTok) is significant — each new subagent spin-up writes context to cache.
+
+### Subagent-Level Token Breakdown (This Session)
+
+Aggregated from session issues log token reports for the re-verification of 16-7 and 16-8:
+
+| Subagent | Tool Calls | Top Tools | Redundant Operations |
+|----------|-----------|-----------|---------------------|
+| 16-7 code-review (re) | 15 | Read: 7, Grep: 4, Bash: 4 | None |
+| 16-7 verification (re) | 22 | Grep: 9, Bash: 10, Read: 2 | npm test run 4 times |
+| 16-8 code-review (re) | 16 | Read: 5, Grep: 7, Bash: 3 | Story file read twice |
+| 16-8 verification (re) | 16 | Grep: 8, Bash: 6, Read: 2 | vitest run twice (test + coverage) |
+| **Total** | **69** | | |
+
+#### Waste Patterns Identified
+
+1. **npm test multi-run:** The 16-7 verification subagent ran `npm test` 4 times. A single run with captured output would suffice. Estimated waste: ~30 tool calls across the sprint for this pattern.
+2. **vitest double-run:** Verification subagents run `vitest` once for tests and again with `--coverage`. These can be combined with `vitest --coverage` which runs tests AND reports coverage.
+3. **Story file re-reads:** Code review subagents read the story file twice (once for status check, once for AC extraction). Could be done in one read.
+
+### Most Expensive Stories (Epic 16)
+
+| Story | Calls | Cost | % of Total |
+|-------|-------|------|-----------|
+| 16-5-rewrite-harness-run-verification-dispatch | 648 | $78.78 | 8.8% |
+| 16-7-update-knowledge-and-enforcement-docs | 216 | $25.55 | 2.9% |
+| 16-8-update-all-tests | 166 | $19.93 | 2.2% |
+| 16-6-update-create-story-tier-criteria | 63 | est. ~$8 | ~0.9% |
+
+Story 16-5 is the outlier at $78.78 — 3x the cost of the next most expensive story. This was due to multiple verification failures and retries during its initial development, plus Ralph loop re-processing.
+
+---
+
+## 4. What Went Well
+
+1. **Clean re-verification.** Both 16-7 and 16-8 passed on first attempt with zero issues. No regressions found.
+2. **Sprint completion.** All 74 stories across 17 epics (0-16) are done. The sprint is fully closed.
+3. **Code quality held.** 96.85% test coverage maintained throughout. All 158 files above 80% floor.
+4. **Prior code review fixes were durable.** The HIGH and MEDIUM issues fixed in earlier iterations did not resurface.
+5. **Session issues logging worked.** Every subagent reported token usage and redundancies, giving visibility into cost drivers.
+
+---
+
+## 5. What Went Wrong
+
+1. **State reversion caused unnecessary re-work.** Stories 16-7 and 16-8 had already passed ALL_PASS in an earlier session. Ralph's stale in-memory state reverted them to `review`, triggering a full re-verification cycle. This wasted ~69 tool calls and an estimated $10-15 in API costs for zero new information.
+
+2. **Ralph loop churn.** Between the productive subagent calls, Ralph ran 14 loop iterations (visible from the 14 log files between 15:23 and 17:22). Most of these were state-fix-and-exit cycles. At roughly $5-10 per loop iteration for orchestrator overhead, this adds up.
+
+3. **Retro file size.** The session retro file hit 285KB+ (5526 lines), exceeding the 256KB read limit. Tools cannot read it in full. Each session appends more, making it progressively worse.
+
+4. **`unknown` story bucket.** $235.79 (26.4% of total cost) is attributed to "unknown" — meaning 1,190 API calls were not tagged to any story. This is primarily orchestrator/ralph overhead and retro processing, but the lack of attribution makes cost analysis imprecise.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Session issues log with token reports** — The subagent-level token reporting made waste patterns visible. Continue requiring this in all subagent prompts.
+2. **Re-verification as validation** — Running re-verification after state corruption confirms nothing was lost. The cost is acceptable as a one-time integrity check.
+3. **Code review before verification** — The two-phase pipeline (review then verify) caught real bugs (1 HIGH, 8 MEDIUM across epic 16) that would have been missed by verification alone.
+
+### Patterns to Avoid
+
+1. **Never trust Ralph's in-memory state for status decisions.** Always read `sprint-state.json` from disk before making status transitions. The monotonic guard (proposed in session 51 retro) is still not implemented.
+2. **Do not re-verify stories that already have proof documents.** If a story has an ALL_PASS proof doc and its code hasn't changed (check git log), skip it. This would have saved this entire session.
+3. **Do not let retro files grow unbounded.** Archive after each sprint or enforce a size cap.
+4. **Combine test and coverage runs.** `vitest --coverage` does both. Never run them separately.
+
+---
+
+## 7. Action Items
+
+### Carry-Forward from Session 51 (still not done)
+
+| # | Action | Owner | Status |
+|---|--------|-------|--------|
+| 1 | Add monotonic status guard to Ralph: never revert `done` to earlier status | ralph/ | OPEN |
+| 2 | Add sprint-complete early exit: if `done === total`, skip all subagent spawning | ralph/ | OPEN |
+| 3 | Rotate retro files — archive this file and start fresh | harness tooling | OPEN |
+| 4 | Add per-session cost delta tracking to `codeharness stats` | codeharness CLI | OPEN |
+| 5 | Fix `npm test` double-run pattern in verification prompts | verification prompts | OPEN |
+| 6 | Clean up `1-1-foo` phantom story ($24.35 in cost tracking) | state management | OPEN |
+
+### New from Session 52
+
+| # | Action | Owner |
+|---|--------|-------|
+| 7 | Add proof-document-exists check before re-verification: if ALL_PASS proof exists and no code changes since, skip | orchestrator logic |
+| 8 | Tag API calls with story context in orchestrator phase to reduce "unknown" bucket | codeharness stats |
+| 9 | Combine `vitest` and `vitest --coverage` into single command in verification prompts | verification prompts |
+| 10 | Start next sprint planning — all epics 0-16 complete, project ready for next phase | user/PM |
+
+---
+
+## Sprint Final Summary
+
+The codeharness sprint is **complete**. 74 stories across 17 epics, delivered over 52 sessions at a cumulative API cost of $894.62. The average cost per story was $4.17. Verification was the dominant cost at 53.2%, driven by the thoroughness of the multi-phase pipeline (code-review + verification + proof generation). The main systemic issue — Ralph's stale state causing re-work — persisted throughout but did not prevent completion. The action items above should be addressed before the next sprint begins.

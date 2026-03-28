@@ -587,7 +587,7 @@
     "16-7-update-knowledge-and-enforcement-docs": {
       "status": "done",
       "attempts": 1,
-      "lastAttempt": "2026-03-28T11:32:00Z",
+      "lastAttempt": "2026-03-28T16:22:43Z",
       "lastError": null,
       "proofPath": "verification/16-7-update-knowledge-and-enforcement-docs-proof.md",
       "acResults": null
@@ -595,7 +595,7 @@
     "16-8-update-all-tests": {
       "status": "done",
       "attempts": 1,
-      "lastAttempt": "2026-03-28T11:43:00Z",
+      "lastAttempt": "2026-03-28T16:22:43Z",
       "lastError": null,
       "proofPath": "verification/16-8-update-all-tests-proof.md",
       "acResults": null

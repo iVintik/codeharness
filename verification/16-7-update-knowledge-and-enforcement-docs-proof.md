@@ -2,10 +2,12 @@
 
 **Story:** 16-7 — Update Knowledge and Enforcement Docs for Verification Tiers
 **Tier:** test-provable
-**Date:** 2026-03-28 (re-verified)
+**Date:** 2026-03-28 (re-verified via local CLI checks)
 **Build:** PASS (tsup compiled successfully, 0 errors)
-**Tests:** 321/321 BATS passed (0 failures)
+**Tests:** 321/321 BATS passed (0 failures); 56/56 Vitest tier-docs tests passed
 **Lint:** PASS (0 errors, 47 warnings)
+**Coverage:** 96.85% statements, 88.48% branch, 98.28% functions, 97.43% lines
+**Verify CLI:** `npx codeharness verify --story 16-7-update-knowledge-and-enforcement-docs` → OK
 
 ---
 

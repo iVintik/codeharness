@@ -8,15 +8,19 @@ const ROOT = resolve(__dirname, '..', '..', '..', '..');
  * Extract a section from markdown content between a start heading and the next heading at or above
  * the given delimiter level. Throws if the start heading is not found, preventing silent empty-string
  * fallbacks that make assertions vacuous.
+ *
+ * Uses line-anchored matching so headings in prose don't cause false splits.
  */
 function extractSection(content: string, startHeading: string, nextHeadingPrefix: string): string {
-  const parts = content.split(startHeading);
-  if (parts.length < 2) {
+  const lines = content.split('\n');
+  const startIdx = lines.findIndex((line) => line.trimEnd().startsWith(startHeading));
+  if (startIdx === -1) {
     throw new Error(`Section heading "${startHeading}" not found in content`);
   }
-  const afterHeading = parts[1];
-  const nextIdx = afterHeading.indexOf(nextHeadingPrefix);
-  return nextIdx === -1 ? afterHeading : afterHeading.slice(0, nextIdx);
+  const remaining = lines.slice(startIdx + 1);
+  const endIdx = remaining.findIndex((line) => line.startsWith(nextHeadingPrefix));
+  const sectionLines = endIdx === -1 ? remaining : remaining.slice(0, endIdx);
+  return sectionLines.join('\n');
 }
 
 const FOUR_TIERS = ['test-provable', 'runtime-provable', 'environment-provable', 'escalate'] as const;
@@ -243,6 +247,11 @@ describe('Non-tier content preserved', () => {
 
   it('story verification still has Observability Evidence section', () => {
     expect(storyVerification).toContain('### Observability Evidence');
+  });
+
+  it('Observability Evidence section clarifies it applies to environment-provable stories', () => {
+    const section = extractSection(storyVerification, '### Observability Evidence', '###');
+    expect(section).toContain('`environment-provable`');
   });
 
   it('story verification still has Testing Requirements section', () => {

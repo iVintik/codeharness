@@ -4,7 +4,7 @@
 **Tier:** test-provable
 **Date:** 2026-03-28 (re-verified)
 **Build:** PASS (tsup compiled successfully, 0 errors)
-**Tests:** 4020/4020 passed (152 test files)
+**Tests:** 4021/4021 passed (152 test files)
 **Lint:** PASS (0 errors, 47 warnings)
 **Coverage:** 96.85% statements (all 158 files above 80%)
 
@@ -224,7 +224,7 @@ npx vitest run 2>&1 | tail -5
 
 ```output
  Test Files  152 passed (152)
-      Tests  4020 passed (4020)
+      Tests  4021 passed (4021)
    Start at  2026-03-28
    Duration  verified via npm test
 ```

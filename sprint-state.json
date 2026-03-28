@@ -756,7 +756,7 @@
     {
       "id": "migrated-5",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "All 5 ACs are cli-verifiable \u2014 fully automatable",
+      "description": "All 5 ACs are cli-verifiable — fully automatable",
       "source": "retro",
       "resolved": false
     },
@@ -770,21 +770,21 @@
     {
       "id": "migrated-7",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "None \u2014 all 106 errors fixed across 20 files.",
+      "description": "None — all 106 errors fixed across 20 files.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-8",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "`dimensions.ts`: Changed `g.message` \u2192 `g.description`, removed nonexistent `g.fix`. Prior code was broken at runtime (undefined properties).",
+      "description": "`dimensions.ts`: Changed `g.message` → `g.description`, removed nonexistent `g.fix`. Prior code was broken at runtime (undefined properties).",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-9",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "`run.ts`: Changed `'in-review'` \u2192 `'review'` to match StoryStatus type. Other system parts (bash/yaml) may still use `'in-review'`.",
+      "description": "`run.ts`: Changed `'in-review'` → `'review'` to match StoryStatus type. Other system parts (bash/yaml) may still use `'in-review'`.",
       "source": "retro",
       "resolved": false
     },
@@ -812,35 +812,35 @@
     {
       "id": "migrated-13",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "16 test files had type errors vs 4 source files \u2014 tests were the primary debt vector.",
+      "description": "16 test files had type errors vs 4 source files — tests were the primary debt vector.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-14",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "MEDIUM: `src/commands/run.ts` \u2014 `'in-review'` was invalid StoryStatus (should be `'review'`). Runtime behavior change, not type-only.",
+      "description": "MEDIUM: `src/commands/run.ts` — `'in-review'` was invalid StoryStatus (should be `'review'`). Runtime behavior change, not type-only.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-15",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "MEDIUM: `src/modules/audit/dimensions.ts` \u2014 `g.message` referenced non-existent property (correct: `g.description`). Produced `undefined` at runtime.",
+      "description": "MEDIUM: `src/modules/audit/dimensions.ts` — `g.message` referenced non-existent property (correct: `g.description`). Produced `undefined` at runtime.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-16",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "MEDIUM: `src/modules/infra/docker-setup.ts` \u2014 `opensearch` not in HarnessState interface, suppressed with `as HarnessState` cast.",
+      "description": "MEDIUM: `src/modules/infra/docker-setup.ts` — `opensearch` not in HarnessState interface, suppressed with `as HarnessState` cast.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-17",
       "story": "15-4-fix-ts-compilation-errors",
-      "description": "LOW: HarnessState missing `opensearch` field definition \u2014 tech debt for future story.",
+      "description": "LOW: HarnessState missing `opensearch` field definition — tech debt for future story.",
       "source": "retro",
       "resolved": false
     },
@@ -854,7 +854,7 @@
     {
       "id": "migrated-19",
       "story": "14-5-stack-aware-verify-dockerfile",
-      "description": "Docker keychain locked in non-interactive ralph session \u2014 cannot pull images. All Docker-based verification blocked.",
+      "description": "Docker keychain locked in non-interactive ralph session — cannot pull images. All Docker-based verification blocked.",
       "source": "retro",
       "resolved": false
     },
@@ -875,7 +875,7 @@
     {
       "id": "migrated-22",
       "story": "14-5-stack-aware-verify-dockerfile",
-      "description": "All ACs genuinely verifiable without Docker \u2014 the story is about code structure, function existence, and test passing.",
+      "description": "All ACs genuinely verifiable without Docker — the story is about code structure, function existence, and test passing.",
       "source": "retro",
       "resolved": false
     },
@@ -903,7 +903,7 @@
     {
       "id": "migrated-26",
       "story": "14-6-subagent-status-ownership-time-budget",
-      "description": "Tagging cli-verifiable stories as unit-testable is the correct fix \u2014 these should never have required Docker.",
+      "description": "Tagging cli-verifiable stories as unit-testable is the correct fix — these should never have required Docker.",
       "source": "retro",
       "resolved": false
     },
@@ -917,14 +917,14 @@
     {
       "id": "migrated-28",
       "story": "15-5-lint-rule-bare-exception-swallowing",
-      "description": "`patches/error-handling/` directory doesn't exist yet \u2014 needs to be created.",
+      "description": "`patches/error-handling/` directory doesn't exist yet — needs to be created.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-29",
       "story": "15-5-lint-rule-bare-exception-swallowing",
-      "description": "AC1 references code-review subagent integration but is tagged cli-verifiable \u2014 borderline.",
+      "description": "AC1 references code-review subagent integration but is tagged cli-verifiable — borderline.",
       "source": "retro",
       "resolved": false
     },
@@ -938,7 +938,7 @@
     {
       "id": "migrated-31",
       "story": "15-5-lint-rule-bare-exception-swallowing",
-      "description": "`src/lib/scanner.ts` listed in story but has no Semgrep integration \u2014 actual Semgrep logic lives in `src/modules/observability/analyzer.ts`.",
+      "description": "`src/lib/scanner.ts` listed in story but has no Semgrep integration — actual Semgrep logic lives in `src/modules/observability/analyzer.ts`.",
       "source": "retro",
       "resolved": false
     },
@@ -952,14 +952,14 @@
     {
       "id": "migrated-33",
       "story": "15-5-lint-rule-bare-exception-swallowing",
-      "description": "`no-bare-except-ellipsis` rule uses Semgrep `...` metavariable \u2014 matches ALL except bodies, not just literal Ellipsis. Correct per AC1 but name misleading.",
+      "description": "`no-bare-except-ellipsis` rule uses Semgrep `...` metavariable — matches ALL except bodies, not just literal Ellipsis. Correct per AC1 but name misleading.",
       "source": "retro",
       "resolved": false
     },
     {
       "id": "migrated-34",
       "story": "15-5-lint-rule-bare-exception-swallowing",
-      "description": "Hook grep pattern `except Exception.*pass` is approximate \u2014 matches comments/strings too.",
+      "description": "Hook grep pattern `except Exception.*pass` is approximate — matches comments/strings too.",
       "source": "retro",
       "resolved": false
     },
@@ -980,7 +980,7 @@
     {
       "id": "migrated-37",
       "story": "15-5-lint-rule-bare-exception-swallowing",
-      "description": "HIGH: Semgrep `no-bare-except-ellipsis` rule was false positive generator \u2014 `...` is Semgrep wildcard, not Python Ellipsis. Fixed with `pattern-regex`.",
+      "description": "HIGH: Semgrep `no-bare-except-ellipsis` rule was false positive generator — `...` is Semgrep wildcard, not Python Ellipsis. Fixed with `pattern-regex`.",
       "source": "retro",
       "resolved": false
     },
@@ -1001,7 +1001,7 @@
     {
       "id": "migrated-40",
       "story": "15-5-lint-rule-bare-exception-swallowing",
-      "description": "Story lists `src/lib/scanner.ts` but change correctly went to `analyzer.ts` \u2014 story spec inaccuracy.",
+      "description": "Story lists `src/lib/scanner.ts` but change correctly went to `analyzer.ts` — story spec inaccuracy.",
       "source": "retro",
       "resolved": false
     }

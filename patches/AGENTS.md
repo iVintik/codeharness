@@ -12,7 +12,7 @@ prevent recurrence of observed failures.
 patches/
   dev/enforcement.md        — Dev agent guardrails
   review/enforcement.md     — Review gates (proof quality, coverage)
-  verify/story-verification.md — Black-box proof requirements
+  verify/story-verification.md — Tier-appropriate proof requirements
   sprint/planning.md        — Sprint planning pre-checks
   retro/enforcement.md      — Retrospective quality metrics
 ```

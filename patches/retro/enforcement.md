@@ -11,7 +11,7 @@ quality trends, and mandatory concrete action items with owners.
 
 ### Verification Effectiveness
 
-- How many ACs were caught by black-box verification vs slipped through?
+- How many ACs were caught by tier-appropriate verification vs slipped through?
 - Were there false positives (proof said PASS but feature was broken)?
 - Were there false negatives (proof said FAIL but feature actually works)?
 - Time spent on verification — is it proportional to value?
@@ -20,7 +20,7 @@ quality trends, and mandatory concrete action items with owners.
 
 - Did the verifier hang on permissions? (check for `--allowedTools` issues)
 - Did stories get stuck in verify→dev loops? (check `attempts` counter)
-- Were stories incorrectly flagged as `integration-required`?
+- Were stories assigned the wrong verification tier?
 - Did the verify parser correctly detect `[FAIL]` verdicts?
 
 ### Documentation Health

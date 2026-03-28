@@ -135,6 +135,7 @@ Claude Opus 4.6 (1M context)
 ### Change Log
 
 - 2026-03-27: Implemented story 16-7 — updated all four knowledge/enforcement/verification docs to use four-tier verification vocabulary consistently.
+- 2026-03-28: Code review fixes — removed legacy terms from patches/retro/enforcement.md and patches/AGENTS.md; hardened extractSection helper in test file; added missing Observability Evidence tier-awareness test.
 
 ### File List
 
@@ -142,5 +143,7 @@ Claude Opus 4.6 (1M context)
 - patches/dev/enforcement.md (modified)
 - patches/review/enforcement.md (modified)
 - patches/verify/story-verification.md (modified)
-- src/modules/verify/__tests__/verification-tier-docs.test.ts (new)
+- patches/retro/enforcement.md (modified — review fix: removed legacy terms)
+- patches/AGENTS.md (modified — review fix: updated stale description)
+- src/modules/verify/__tests__/verification-tier-docs.test.ts (new, review-hardened)
 - _bmad-output/implementation-artifacts/16-7-update-knowledge-and-enforcement-docs.md (modified)

@@ -2,7 +2,7 @@
 
 **Story:** 16-8 — Update All Tests for Verification Tier Rework
 **Tier:** test-provable
-**Date:** 2026-03-27
+**Date:** 2026-03-28 (re-verified)
 **Build:** PASS (tsup compiled successfully, 0 errors)
 **Tests:** 4020/4020 passed (152 test files)
 **Lint:** PASS (0 errors, 47 warnings)

@@ -622,8 +622,10 @@ describe('run command', () => {
         key: '1-1-foo',
         message: 'DONE — verified',
       });
-      // Status ownership: orchestrator must call updateStoryStatus (AC 1)
-      expect(updateStoryStatusMock).toHaveBeenCalledWith('1-1-foo', 'review');
+      // The orchestrator no longer overrides subagent status — the subagent manages
+      // the full lifecycle and writes status as it goes. Overriding caused infinite
+      // review loops (story-complete set to 'review' instead of letting 'done' stand).
+      expect(updateStoryStatusMock).not.toHaveBeenCalled();
     });
 
     it('dispatches story-failed events to renderer.addMessage', async () => {

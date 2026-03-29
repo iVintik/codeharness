@@ -771,9 +771,16 @@ If no actionable work remains:
 No actionable stories remain. Skipped stories need manual intervention. Review the skipped list above, then re-run /harness-run after resolving blockers.
 ```
 
-## Step 8: Session Retrospective (Mandatory)
+## Step 8: Session Retrospective (Conditional)
 
-**This step runs at the end of EVERY session — regardless of whether work succeeded, failed, or stalled.** After printing the summary in Step 7, ALWAYS run the retrospective before the session ends.
+**Skip the retro if this session did NO work.** If the result from Step 7 was `NO_WORK` AND `stories_completed == 0` AND `stories_failed == 0`, then there is nothing new to retrospect. Print:
+```
+[INFO] No-op session — skipping retrospective (no stories attempted)
+Result: NO_WORK
+```
+Then END the session immediately. Do NOT invoke the retrospective subagent. A no-op retro costs ~$0.50 and produces duplicate observations.
+
+**Otherwise, this step runs at the end of EVERY session that attempted work — regardless of whether work succeeded, failed, or stalled.** After printing the summary in Step 7, ALWAYS run the retrospective before the session ends.
 
 **Time awareness:** Ralph passes your time budget and start time in the system prompt (e.g. "Time budget: 30 minutes, started: 2026-03-16T08:00:00Z"). Use this to manage your time:
 - **Before starting a new story or verification step**, check elapsed time. If less than 10 minutes remain, skip to Step 7 → Step 8.

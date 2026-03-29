@@ -338,7 +338,7 @@ get_task_counts() {
 
         if [[ "$key" =~ ^[0-9]+-[0-9]+- ]]; then
             total=$((total + 1))
-            if [[ "$value" == "done" ]]; then
+            if [[ "$value" == "done" || "$value" == "failed" ]]; then
                 completed=$((completed + 1))
             fi
         fi
@@ -438,6 +438,14 @@ flag_story() {
 
     if ! is_story_flagged "$story_key"; then
         echo "$story_key" >> "$FLAGGED_STORIES_FILE"
+    fi
+
+    # Also update sprint-status.yaml to 'failed' so reconciliation picks it up
+    # and sprint-state.json stays consistent (prevents flagged stories stuck at 'review')
+    local sprint_yaml="${SPRINT_STATUS_FILE:-}"
+    if [[ -n "$sprint_yaml" && -f "$sprint_yaml" ]]; then
+        sed -i.bak "s/^  ${story_key}: .*/  ${story_key}: failed/" "$sprint_yaml" 2>/dev/null
+        rm -f "${sprint_yaml}.bak" 2>/dev/null
     fi
 }
 

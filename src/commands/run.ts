@@ -39,11 +39,10 @@ function handleAgentEvent(
       rendererHandle.update(event as Parameters<RendererHandle['update']>[0]);
       break;
     case 'story-complete': {
-      // Status ownership: orchestrator writes status, not the subagent (AC 1)
-      const completeResult = updateStoryStatus(event.key, 'review');
-      if (!completeResult.success) {
-        info(`[WARN] Failed to update status for ${event.key}: ${completeResult.error}`);
-      }
+      // The harness-run subagent manages the full story lifecycle (create → dev → review → verify → done)
+      // and writes status as it goes. Don't override — the subagent's status is authoritative.
+      // Previous bug: setting to 'review' here reverted stories that the subagent had marked 'done',
+      // causing infinite review loops until retry exhaustion.
       rendererHandle.addMessage({ type: 'ok', key: event.key, message: event.details });
       break;
     }

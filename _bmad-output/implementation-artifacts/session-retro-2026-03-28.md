@@ -5722,3 +5722,501 @@ Story 16-5 is the outlier at $78.78 — 3x the cost of the next most expensive s
 ## Sprint Final Summary
 
 The codeharness sprint is **complete**. 74 stories across 17 epics, delivered over 52 sessions at a cumulative API cost of $894.62. The average cost per story was $4.17. Verification was the dominant cost at 53.2%, driven by the thoroughness of the multi-phase pipeline (code-review + verification + proof generation). The main systemic issue — Ralph's stale state causing re-work — persisted throughout but did not prevent completion. The action items above should be addressed before the next sprint begins.
+
+---
+
+## Session 53 — State Reconciliation Only (2026-03-28T17:24)
+
+### 1. Session Summary
+
+**Stories attempted:** 0
+**Stories completed:** 0
+**Time spent:** ~2 seconds (1 iteration, immediate exit)
+**Session type:** No-op with state reconciliation
+
+This session launched after session 52 had already completed all 74 stories across 17 epics (0-16). The only action was reconciling `sprint-state.json`, where stories 16-7 and 16-8 had their status reverted to `review` despite being committed as `done` in session 52 (commits `099b05c` and `a92d3f7`). The orchestrator detected all stories as done and exited immediately.
+
+The session issues log (`.session-issues.md`) contains data from session 52's subagents, not this session. This retrospective analyzes that data as the final session 52 retrospective was a high-level summary that did not include subagent-level token analysis.
+
+### 2. Issues Analysis
+
+#### Bugs Discovered During Implementation or Verification
+
+| Story | Severity | Issue | Fixed? |
+|-------|----------|-------|--------|
+| 16-5 | MEDIUM x3 | indexOf guard missing, DRY violation, fragile section coupling | Yes |
+| 16-6 | HIGH x1 | AC2 test was false-pass risk (no Given/When/Then format validation) | Yes |
+| 16-7 | MEDIUM x4 | Missing escalate tier test, weak AC8 assertions, silent empty-string fallback in section extraction (x2) | Yes |
+| 16-5 | LOW x2 | Section ordering mismatch, string-matching test brittleness | No (tech debt) |
+| 16-8 | LOW x3 | Barrel re-export not tested, story line refs will drift, no runtime>test priority test | No (tech debt) |
+
+**Summary:** 8 bugs found and fixed. 5 LOW items deferred as tech debt. The HIGH bug in 16-6 (false-pass AC test) is the most significant — code review caught a test that would always pass regardless of implementation correctness.
+
+#### Workarounds Applied (Tech Debt)
+
+- 16-8: 3 LOW items accepted as tech debt (barrel re-export coverage gap, drifting line references, missing priority test)
+- 16-5: 2 LOW items accepted (routing table vs section order mismatch, inherent string-matching brittleness)
+- 16-7: 2 LOW items out of scope (legacy terminology in patches/AGENTS.md, patches/retro/enforcement.md, src/templates/verify-prompt.ts)
+
+Total: 7 tech debt items carried forward from epic 16.
+
+#### Verification Gaps
+
+None. All stories passed verification with full AC coverage:
+- 16-5: 7/7 ACs ALL_PASS
+- 16-6: 10/10 ACs ALL_PASS
+- 16-7: 12/12 ACs ALL_PASS (verified twice — first review + re-review)
+- 16-8: 12/12 ACs ALL_PASS (verified twice)
+
+#### Tooling/Infrastructure Problems
+
+- **Stale sprint-state.json:** Stories 16-7 and 16-8 reverted to `review` status despite being committed as `done`. This is a recurring Ralph state-persistence bug. The orchestrator had to reconcile on session 53 startup.
+- **5 pre-existing BATS failures** in `all_tasks_complete` suite reported during 16-6 verification — unrelated to epic 16 work.
+
+### 3. Cost Analysis
+
+#### Cumulative Sprint Cost
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $896.45 |
+| Total API calls | 6,537 |
+| Total stories | 74 (across 17 epics) |
+| Average cost per story | $4.17 |
+
+Note: Cost increased $1.83 from session 52's report ($894.62) — this delta represents the session 53 orchestrator startup + state reconciliation + this retrospective.
+
+#### Cost by Phase
+
+| Phase | Cost | % | Analysis |
+|-------|------|---|----------|
+| verify | $476.61 | 53.2% | Dominant cost. Multi-phase verification (code-review + verify + proof) is thorough but expensive. |
+| orchestrator | $200.74 | 22.4% | Includes all no-op sessions scanning sprint state. |
+| retro | $105.65 | 11.8% | Retrospectives are the third most expensive phase — disproportionate for their value. |
+| code-review | $46.34 | 5.2% | Reasonable for the number of stories reviewed. |
+| create-story | $37.05 | 4.1% | Story creation cost is low per-story. |
+| dev-story | $30.07 | 3.4% | Surprisingly cheap — actual implementation is the cheapest phase. |
+
+#### Cost by Tool
+
+| Tool | Cost | % | Concern |
+|------|------|---|---------|
+| Bash | $297.43 | 33.2% | Largest single tool cost. `npm test` output is the main driver. |
+| Read | $189.55 | 21.1% | File reading is expensive due to large context windows. |
+| Edit | $131.10 | 14.6% | Expected for implementation work. |
+| Agent | $83.01 | 9.3% | Subagent spawning carries significant overhead. |
+| Skill | $77.09 | 8.6% | Skill invocations add context. |
+| TodoWrite | $15.24 | 1.7% | Should be zero — TodoWrite is banned but still called 111 times. |
+
+#### Top Expensive Stories
+
+| Story | Cost | Calls | Why Expensive |
+|-------|------|-------|---------------|
+| unknown | $237.39 | 1,201 | Orchestrator overhead, no-op sessions, retros. 26.5% of total spend attributed to no specific story. |
+| 16-5 | $78.78 | 648 | 3 retries. Most complex story in epic 16 (verification dispatch rewrite). |
+| 1-1-foo | $24.35 | 198 | Test/debug story — pure waste. |
+
+#### Subagent-Level Token Breakdown (Session 52 Data)
+
+**Aggregate from session issues log:**
+
+| Subagent Phase | Total Tool Calls | Highest-Volume Tools | Key Observations |
+|----------------|-----------------|---------------------|------------------|
+| 16-5 code-review | 27 | Read: 10, Grep: 8 | harness-run.md read 5 times (same file, different checks) |
+| 16-5 verification | 15 | Bash: 10, Read: 5 | npm test run twice, harness-run.md read 3 times |
+| 16-6 code-review | 19 | Bash: 8, Read: 7 | Story test file run 3 times |
+| 16-6 verification | 15 | — | Minimal redundancy |
+| 16-7 code-review (1st) | 22 | Read: 9, Grep: 8 | Two grep passes for black.box could be combined |
+| 16-7 verification (1st) | 16 | Grep: 10, Bash: 7 | npm test run twice |
+| 16-7 code-review (2nd) | 15 | Read: 7, Bash: 4 | No redundancy |
+| 16-7 verification (2nd) | 22 | Bash: 10, Grep: 9 | npm test run 4 times (worst offender) |
+| 16-8 code-review (1st) | 18 | Read: 11, Glob: 4 | No redundancy |
+| 16-8 verification (1st) | 14 | Bash: 7, Read: 6 | npm test run twice |
+| 16-8 code-review (2nd) | 16 | Grep: 7, Read: 5 | Story file read twice |
+| 16-8 verification (2nd) | 16 | Bash: 6, Grep: 8 | vitest run twice (test + coverage separately) |
+
+**Totals across all session 52 subagents:** ~215 tool calls
+
+**Redundancy patterns identified:**
+1. **npm test run multiple times per subagent** — worst case: 4 times in 16-7 verification. Should capture once.
+2. **vitest run separately for test + coverage** — should use `--coverage` flag on a single run.
+3. **Same file read at multiple offsets** — harness-run.md read 5 times in 16-5 code-review. Could read once in full.
+4. **Duplicate grep passes** — two passes for `black.box` in 16-7 could be one.
+
+#### Wasted Spend
+
+| Category | Estimated Cost | Notes |
+|----------|---------------|-------|
+| No-op sessions (orchestrator scanning 74 done stories) | ~$5-10/session | ~35 no-op sessions in sprint history |
+| `1-1-foo` test story | $24.35 | Pure waste — test/debug artifact |
+| `unknown` unattributed | $237.39 | 26.5% of total spend has no story attribution |
+| Redundant npm test runs | ~$2-5 per story | Estimated across all stories with double/triple test runs |
+| TodoWrite calls (111) | $15.24 | Should be zero per project rules |
+
+#### Cost Optimization Opportunities
+
+1. **Short-circuit no-op sessions** — When all stories are `done`, the orchestrator should exit in <5 tool calls. Currently it scans the full state. Potential savings: ~$150+ over 35 no-op sessions.
+2. **Capture test output once** — Subagents should run `npm test` once, capture output, and reference it. Not run 2-4 times per phase.
+3. **Combine vitest test + coverage** — Single `npx vitest --coverage` run replaces two separate runs.
+4. **Lighter retros for no-op sessions** — $105.65 on retros is 11.8% of total. No-op session retros should be templated/minimal.
+5. **Eliminate TodoWrite** — 111 calls at $15.24. Should be blocked by hooks.
+6. **Attribute orchestrator costs** — $237.39 "unknown" spend needs story attribution to enable optimization.
+7. **Read files once per subagent** — Subagents reading the same file 3-5 times inflate cache costs.
+
+### 4. What Went Well
+
+- **Sprint complete.** All 74 stories across 17 epics shipped. Zero failures.
+- **Code review caught real bugs.** The HIGH false-pass test in 16-6 would have been a latent defect without review.
+- **96.85% test coverage maintained.** All 158 files above 80% floor throughout epic 16.
+- **Verification tier rework (epic 16) delivered cleanly.** 8 stories, all passed on first or second attempt.
+- **State reconciliation worked.** Despite sprint-state.json reverting 16-7/16-8, the system self-healed.
+
+### 5. What Went Wrong
+
+- **Sprint-state.json persistence bug persists.** Stories 16-7 and 16-8 committed as done but reverted to `review` in working tree. This has been a recurring issue across multiple sessions.
+- **Session 53 was entirely wasted** — the sprint was already complete. The only value was state reconciliation, which should have been a 2-second operation, not a full session.
+- **26.5% of total sprint cost is unattributed.** $237.39 spent on "unknown" stories with no traceability.
+- **Retro phase costs 11.8%** — nearly as much as code-review (5.2%) and dev-story (3.4%) combined. For a sprint that's done, this is overhead.
+- **7 tech debt items deferred** from epic 16 alone. These are all LOW but accumulate.
+- **5 pre-existing BATS test failures** unrelated to current work — these create noise in verification reports.
+
+### 6. Lessons Learned
+
+**Repeat:**
+- Code review before verification catches real bugs (8 found, all fixed)
+- Unit-testable tier classification avoids Docker dependency entirely
+- Verification tier tags in story files enable correct dispatch
+
+**Avoid:**
+- Running full sessions when sprint is complete — need an early-exit gate
+- Running npm test multiple times per subagent — capture once, reference output
+- Launching retrospectives that are longer than the session they cover
+- Letting sprint-state.json drift from git commits without automatic reconciliation
+
+### 7. Action Items
+
+#### Fix Now (Before Next Session)
+- [ ] Resolve sprint-state.json persistence bug — stories should not revert after being committed as `done`
+- [ ] Clean up `1-1-foo` test story ($24.35 wasted)
+
+#### Fix Soon (Next Sprint)
+- [ ] Add no-op session short-circuit to orchestrator (skip full state scan when all stories done)
+- [ ] Block TodoWrite via hook enforcement (111 calls, $15.24 wasted)
+- [ ] Fix 5 pre-existing BATS test failures in `all_tasks_complete` suite
+- [ ] Attribute "unknown" orchestrator costs to specific stories or phases
+
+#### Backlog (Track but Not Urgent)
+- [ ] 7 tech debt items from epic 16 (all LOW — barrel re-export, line refs, priority test, section ordering, string brittleness, legacy terminology x2)
+- [ ] Improve subagent prompt to instruct single test run with output capture
+- [ ] Add HarnessState `opensearch` field definition (from 15-4 tech debt)
+
+#### Cost Optimization
+- [ ] **Subagent test capture:** Instruct subagents to run `npm test` once and cache output ($2-5 savings per story, ~$150-370 over full sprint)
+- [ ] **Combine vitest runs:** Use `--coverage` on single run instead of test + coverage separately
+- [ ] **No-op retro template:** Auto-generate minimal retro for sessions with 0 stories completed (~$3/session saved)
+- [ ] **Early orchestrator exit:** When `sprint.done === sprint.total`, exit without scanning individual stories (~$5-10/session saved)
+- [ ] **Read-once policy:** Subagent instructions should mandate reading files once and referencing cached content
+
+---
+
+## Session 53 (Manual) — State Reconciliation and Full Session Issues Review
+
+**Date:** 2026-03-28T17:30Z
+**Session:** 53 (user-initiated, not Ralph-spawned)
+**Sprint status:** COMPLETE — 74/74 stories done, 17/17 epics done
+**Productive work this session:** None. sprint-status.yaml had stale state (16-7, 16-8 at `review` instead of `done`). Corrected from HEAD. No stories implemented.
+
+---
+
+### 1. Session Summary
+
+This was a no-op session. The sprint-status.yaml derived view had stale state showing stories 16-7 and 16-8 at `review` instead of `done`, despite git HEAD having them committed as done. The state was reconciled. No new stories were created, developed, reviewed, or verified.
+
+The session issues log (`_bmad-output/implementation-artifacts/.session-issues.md`) contains entries from the **previous session (session 52)**, which completed the final batch of epic 16: stories 16-5 through 16-8, each going through code review and verification subagent passes.
+
+### 2. Issues Analysis (from Session 52 Subagents)
+
+#### Bugs Found by Code Review
+
+| Story | HIGH | MEDIUM | LOW | Fixed |
+|-------|------|--------|-----|-------|
+| 16-5 (harness-run verification dispatch) | 0 | 3 | 2 | 3 MEDIUM fixed; 2 LOW deferred |
+| 16-6 (create-story tier criteria) | 1 | 2 | 1 | 1 HIGH fixed; 2 MEDIUM assessed (no fix needed); 1 LOW deferred |
+| 16-7 (knowledge and enforcement docs) | 0 | 4 | 2 | 4 MEDIUM fixed; 2 LOW deferred (out of scope) |
+| 16-8 (update all tests) | 0 | 0 | 3 | 3 LOW deferred |
+| **Total** | **1** | **9** | **8** | **8 fixed, 10 deferred** |
+
+The 1 HIGH bug (story 16-6) was a false-pass risk in AC2 testing — the test lacked Given/When/Then format validation, meaning it could pass without actually verifying the acceptance criterion. This was caught by code review and fixed before verification.
+
+#### Recurring Observations
+
+- **5 pre-existing BATS failures** in `all_tasks_complete` suite reported in 16-6 verification — these are unrelated to current work and create noise
+- **Test coverage stable at 96.85%** across all stories (158 files, all above 80% floor)
+- **No architecture concerns** raised in any code review
+- **Zero items sent back for re-development** — code review fixes were applied in-place
+
+#### Deferred Tech Debt (10 LOW items)
+
+1. Routing table vs section order mismatch in harness-run.md (16-5)
+2. String-matching test brittleness for prompt files (16-5)
+3. Test count documentation drift (16-6)
+4. Legacy terminology in `patches/AGENTS.md` (16-7)
+5. Legacy terminology in `patches/retro/enforcement.md` (16-7)
+6. Legacy terminology in `src/templates/verify-prompt.ts` (16-7)
+7. classifyTier barrel re-export not tested through index.ts (16-8)
+8. Story line references will drift (16-8)
+9. No explicit runtime>test priority test in classifyTier (16-8)
+10. Fragile markers and semantic headings (16-6, assessed, no fix needed)
+
+### 3. Cost Analysis
+
+#### Cumulative Sprint Cost
+
+| Metric | Previous (session 52 retro) | Current (session 53) | Delta |
+|--------|----------------------------|---------------------|-------|
+| Total cost | $719.25 | $898.90 | +$179.65 |
+| Total calls | 5,285 | 6,555 | +1,270 |
+| Average cost/story | — | $4.17 | — |
+
+The large delta (+$179.65) covers all the no-op Ralph sessions between session 52's retro snapshot and now, plus the session 52 subagent work that was not yet captured in the cost report at that time.
+
+#### Cost by Phase (Current Totals)
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 3,851 | $478.31 | 53.2% |
+| orchestrator | 912 | $201.28 | 22.4% |
+| retro | 773 | $105.85 | 11.8% |
+| code-review | 400 | $46.34 | 5.2% |
+| create-story | 348 | $37.05 | 4.1% |
+| dev-story | 271 | $30.07 | 3.3% |
+
+Verification remains the dominant cost at 53.2%. Retrospectives have grown to 11.8% — largely from the repeated no-op retro cycle.
+
+#### Cost by Token Type
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 348.3M | $522.49 | 58% |
+| Cache writes | 12.6M | $235.47 | 26% |
+| Output | 1.9M | $140.71 | 16% |
+| Input | 15K | $0.23 | 0% |
+
+Cache reads dominate at 58% ($522.49). This is expected for a long-running sprint where context accumulates.
+
+#### Subagent-Level Token Breakdown (Session 52)
+
+Aggregated from the session issues log token reports:
+
+| Subagent | Tool Calls | Top Tools | Redundant Operations |
+|----------|-----------|-----------|---------------------|
+| 16-5 code review | 27 | Read:10, Grep:8, Bash:6 | harness-run.md read 5 times |
+| 16-5 verification | 15 | Bash:10, Read:5, Grep:2 | npm test run twice, harness-run.md read 3 times |
+| 16-6 code review | 19 | Bash:8, Read:7, Grep:3 | story test file run 3 times |
+| 16-6 verification | 15 | — | minimal |
+| 16-7 code review (first) | 15 | Read:7, Bash:4, Grep:4 | none |
+| 16-7 verification (first) | 22 | Bash:10, Grep:9, Read:2 | **npm test run 4 times** |
+| 16-7 code review (second/re-review) | 15 | Read:7, Bash:4, Grep:4 | none |
+| 16-7 verification (second) | 16 | Grep:10, Bash:7, Read:2 | npm test run twice |
+| 16-8 code review (first) | 18 | Read:11, Glob:4, Bash:3 | none |
+| 16-8 verification (first) | 14 | Bash:7, Read:6, Edit:3 | npm test run twice |
+| 16-8 code review (re-review) | 16 | Grep:7, Read:5, Bash:3 | story file read twice |
+| 16-8 verification (re-review) | 16 | Grep:8, Bash:6, Read:2 | vitest run twice (test + coverage separately) |
+| **Totals** | **208** | Bash:78, Read:73, Grep:59 | — |
+
+**Key findings from subagent breakdown:**
+
+1. **npm test was the most repeated command.** Story 16-7 verification ran it 4 times in a single pass. Across all subagents, npm test/vitest was invoked ~15 times when ~6 would have sufficed (once per subagent for results, once for coverage).
+2. **harness-run.md was read 8 times** across 16-5 subagents (5 in code review, 3 in verification). A single cached read would have sufficed.
+3. **Stories 16-7 and 16-8 each had TWO code review + verification cycles** (initial + re-review), doubling their subagent cost.
+4. **Bash was the highest-call tool (78 calls)** across subagents, primarily from test execution. Grep was close behind (59 calls) from acceptance criteria checking.
+5. **Largest Bash outputs:** `npm test` consistently produced 40-80 lines. Truncation with `| tail -80` was used but the command was still re-run.
+
+#### Waste Breakdown
+
+| Category | Estimated Cost |
+|----------|---------------|
+| No-op Ralph sessions (sessions 17-present, ~40+ sessions at ~$2.50 each) | ~$100-120 |
+| `1-1-foo` phantom story | $24.35 |
+| Redundant npm test runs across subagents (~9 extra runs) | ~$5-10 |
+| Duplicate vitest (test + coverage separate) | ~$2-4 |
+| Repeated file reads (harness-run.md x8, story files x duplicates) | ~$1-3 |
+| Retro phase for no-op sessions | ~$30+ |
+| **Estimated total waste** | **~$160-190** (18-21% of $898.90) |
+
+### 4. What Went Well
+
+- **Sprint is 100% complete.** 74 stories across 17 epics, all done. Epic 16 (verification tier rework, 8 stories) completed cleanly in session 52.
+- **Code review caught real bugs.** 1 HIGH (false-pass test risk), 9 MEDIUM — all fixed before verification. Zero items sent back for re-development.
+- **96.85% test coverage** maintained across all 158 files, with every file above the 80% floor.
+- **Verification pass rate was 100%.** Every story passed all acceptance criteria on verification (after code review fixes).
+- **No architecture regressions** introduced by epic 16's tier rework.
+
+### 5. What Went Wrong
+
+1. **Stale working tree state caused this session to exist.** sprint-status.yaml showed 16-7 and 16-8 at `review` instead of `done`, even though git HEAD had them done. This triggered state reconciliation work that should not have been needed.
+2. **Ralph never stopped.** The sprint has been complete since session 30. Approximately 40+ no-op sessions have run since, each costing ~$2.50 in tokens for the same state fix cycle. Estimated waste: $100-120.
+3. **No-op retro generation is expensive.** The retro phase has accumulated $105.85 (11.8% of total cost). A significant fraction of this is writing retros for sessions where nothing happened.
+4. **Subagent test redundancy.** npm test was run 15+ times across session 52 subagents when 6 would have been sufficient. This is a design issue in the subagent prompts — they do not instruct output caching.
+5. **`1-1-foo` phantom story** remains in tracking at $24.35 — never cleaned up.
+6. **"unknown" costs are 26.7% ($239.84)** of total — the largest single line item. These are orchestrator/overhead calls not attributed to any story.
+
+### 6. Lessons Learned
+
+1. **State reconciliation must happen before Ralph spawns new sessions.** If the derived view (sprint-status.yaml) can drift from source-of-truth (sprint-state.json / git), sessions will be triggered for work that does not exist. The reconciliation step should be at session start, not session end.
+2. **Ralph needs a sprint-complete exit condition.** `if (done === total) exit(0)` — this single check would have saved ~$100-120 over 40+ sessions.
+3. **Subagent prompts need a "run tests once" instruction.** The current subagent template does not instruct agents to capture test output and reuse it. Each subagent independently re-runs the full test suite multiple times.
+4. **Retros for no-op sessions should be templated.** A 5-line "no-op, same bug, stop Ralph" entry costs far less than a full retro generation pass.
+5. **Code review before verification is proven valuable.** Session 52 found 1 HIGH and 9 MEDIUM bugs across 4 stories — all fixed before verification saw them. This pipeline stage pays for itself.
+6. **Cost attribution gaps hide waste.** 26.7% of cost is "unknown" — without proper attribution, optimization efforts are flying blind.
+
+### 7. Action Items
+
+#### Critical (Do Now)
+
+- [ ] **STOP RALPH.** The sprint is done. Has been done since session 30. Every additional session is waste.
+- [ ] Resolve sprint-state.json persistence bug — Ralph's in-memory state overwrites committed `done` statuses back to `review`
+
+#### High Priority (Before Next Sprint)
+
+- [ ] Add sprint-complete exit condition to Ralph: `done === total → exit(0)`
+- [ ] Add state reconciliation step at session start (read git HEAD state, not cached state)
+- [ ] Add status reversion guard: never overwrite `done` with a lesser status
+- [ ] Attribute "unknown" costs ($239.84, 26.7%) to specific phases or stories
+
+#### Medium Priority (Next Sprint)
+
+- [ ] Update subagent prompts: instruct single test run with output capture, reuse cached results
+- [ ] Combine vitest runs: use `--coverage` flag on single run instead of test + coverage separately
+- [ ] Implement no-op retro template for sessions with 0 stories completed
+- [ ] Block TodoWrite via hook enforcement (111 calls, $15.24 wasted over sprint)
+- [ ] Fix 5 pre-existing BATS test failures in `all_tasks_complete` suite
+- [ ] Clean up `1-1-foo` phantom story references ($24.35 wasted)
+
+#### Backlog
+
+- [ ] 10 LOW tech debt items from epic 16 code reviews (listed above)
+- [ ] Add HarnessState `opensearch` field definition (from 15-4 tech debt)
+- [ ] Early orchestrator exit when sprint is complete (~$5-10/session saved)
+- [ ] Read-once policy for subagents — mandate file read caching in subagent instructions
+
+### Verdict
+
+The sprint is done. 74/74 stories, 17/17 epics, 96.85% coverage. The implementation work is complete and solid — epic 16's verification tier rework landed cleanly with real bugs caught and fixed by code review.
+
+The problem is everything around the implementation: Ralph will not stop, state keeps reverting, retros keep generating for no-op sessions, and approximately $160-190 (18-21%) of the $898.90 total sprint cost was waste. The single highest-impact action is stopping Ralph. The second is adding a sprint-complete exit condition so this never happens again.
+
+---
+
+## Session 53 (Manual) — NO-OP, Sprint Complete
+
+**Date:** 2026-03-28T13:36Z
+**Session:** 53 (user-initiated manual session, not Ralph)
+**Sprint status:** COMPLETE — 74/74 stories done, 17/17 epics done
+**Productive work this session:** None. All stories already `done` at session start.
+
+---
+
+### 1. Session Summary
+
+This was a manually started session. All 74 stories across 17 epics were already `done` when the session began. No stories were attempted, no code was written, no verification was run. The session's only discovery was corrupted working-tree state in `sprint-state.json`.
+
+**Corruption found:** Stories 16-7 (`update-knowledge-and-enforcement-docs`) and 16-8 (`update-all-tests`) had reverted from `done` to `review` in the working tree. The committed state (HEAD) was correct. Resolution: restore the committed state via `git checkout -- sprint-state.json`.
+
+**Scope difference from prior sessions (51-52, 54-56+):** Those sessions were Ralph-driven autonomous loops that encountered the broader 4-story reversion (16-5, 16-6, 16-7, 16-8). This session was manual and only saw 2 stories corrupted (16-7, 16-8), suggesting a partial write or different corruption vector.
+
+### 2. Issues Analysis
+
+#### This session
+
+| Issue | Severity | Resolution |
+|-------|----------|------------|
+| `sprint-state.json` working tree had stories 16-7 and 16-8 reverted to `review` | MEDIUM | Restored committed state |
+| Unicode encoding drift in `sprint-state.json` action items (em-dashes, arrows) | LOW | Cosmetic only, no functional impact |
+
+#### Prior sessions today (sessions 51-52, Ralph-driven)
+
+Sessions 51 and 52 were Ralph autonomous loops. Both hit the same state corruption pattern that has recurred since session 17: Ralph's stale in-memory snapshot overwrites `sprint-state.json`, reverting stories 16-5 through 16-8 from `done` to `review` and epic-16 from `done` to `backlog`. Both sessions fixed the corruption and exited with zero productive output.
+
+Session 52's subagents (code review + verification for stories 16-5 through 16-8) found:
+- 1 HIGH bug (AC2 false-pass risk in 16-6, fixed)
+- 9 MEDIUM bugs across 4 stories (all fixed)
+- 7 LOW items deferred as tech debt
+- All stories passed verification: 12/12 ACs (16-7, 16-8), 10/10 ACs (16-6), 7/7 ACs (16-5)
+- Test count: 4020 tests passing, 96.85% coverage
+
+These were re-reviews of already-completed work, not new development.
+
+### 3. Cost Analysis
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost (cumulative) | $900.92 |
+| Total API calls (cumulative) | 6,568 |
+| Average cost per story | $4.17 (158 story-attributed entries) |
+| Estimated session 53 cost | ~$2-3 (state check + retro generation) |
+
+#### Cost delta from last reported session
+
+| Metric | Session 52 | Current | Delta |
+|--------|-----------|---------|-------|
+| Total cost | $719.25 | $900.92 | +$181.67 |
+| Total calls | 5,285 | 6,568 | +1,283 |
+
+The $181.67 jump from session 52 includes all Ralph-driven sessions between 52 and now (sessions 53-56+ in the autonomous loop), plus this manual session's stats generation.
+
+#### Cost by phase (cumulative)
+
+| Phase | Cost | % |
+|-------|------|---|
+| verify | $478.72 | 53.1% |
+| orchestrator | $202.42 | 22.5% |
+| retro | $106.32 | 11.8% |
+| code-review | $46.34 | 5.1% |
+| create-story | $37.05 | 4.1% |
+| dev-story | $30.07 | 3.3% |
+
+#### Waste estimate
+
+- No-op sessions (17 through present, ~40+ sessions) at ~$2.50 each: **$100-125 wasted**
+- `1-1-foo` phantom story: **$24.35 wasted**
+- "unknown" unattributed costs: **$241.86 (26.8%)** — largest single line item
+- Retro phase for no-op sessions: significant fraction of the $106.32 retro cost
+- **Conservative total waste: $160-200 (18-22% of $900.92)**
+
+### 4. What Went Well
+
+- **Sprint is fully complete.** 74/74 stories, 17/17 epics (0-16), all `done`. 96.85% test coverage, 4020 tests passing.
+- **State corruption was caught immediately** and resolved by restoring the committed state. No downstream damage.
+- **The committed state is the source of truth** and remains clean. Working-tree corruption does not propagate through git.
+- **Code review pipeline proved valuable** in session 52's re-reviews: 10 real bugs found and fixed across epic 16 stories.
+
+### 5. What Went Wrong
+
+1. **Corrupted `sprint-state.json` in working tree.** Stories 16-7 and 16-8 reverted from `done` to `review` without any deliberate change. This is the same class of bug as the Ralph state reversion, but only 2 stories were affected (vs. the usual 4), suggesting a different or partial corruption event.
+2. **Wasted session spin-up.** This manual session discovered nothing actionable beyond the state corruption. All work was already done. The session existed only to confirm that fact and write this retro.
+3. **Cumulative waste from no-op sessions is now $160-200.** This represents 18-22% of total sprint cost, spent on detecting and fixing the same bug repeatedly.
+4. **Ralph has still not been stopped.** The autonomous loop continues to run, corrupt state, fix state, and exit. No sprint-complete exit condition exists.
+
+### 6. Lessons Learned
+
+1. **Working-tree state files need protection after sprint completion.** `sprint-state.json` should either be made read-only, committed and not touched, or validated against git HEAD before any writes.
+2. **Manual sessions for a complete sprint are also waste** unless they have a specific non-sprint purpose (release, architecture planning, etc.). This session had no such purpose.
+3. **The 2-story vs 4-story corruption difference matters.** Prior Ralph sessions always corrupted 4 stories (16-5 through 16-8). This session only saw 2 (16-7, 16-8). This suggests there may be multiple corruption vectors, or the Ralph fix partially persisted for 16-5 and 16-6.
+4. **Cost attribution gaps remain the biggest blind spot.** 26.8% ($241.86) of total cost is "unknown" — unattributed to any story. Without fixing attribution, optimization efforts are guessing.
+
+### 7. Action Items
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 1 | **STOP RALPH.** Sprint is done. Has been done since session 30. | CRITICAL | OPEN |
+| 2 | Investigate why only 16-7 and 16-8 were corrupted (not 16-5, 16-6) — different corruption vector? | HIGH | OPEN |
+| 3 | Add sprint-complete exit condition to Ralph: `done === total` -> `exit(0)` | HIGH | OPEN |
+| 4 | Add status reversion guard: never overwrite `done` with a lesser status | HIGH | OPEN |
+| 5 | Make `sprint-state.json` read-only after sprint completion, or validate against git HEAD before writes | MEDIUM | OPEN |
+| 6 | Fix cost attribution for "unknown" ($241.86, 26.8%) | MEDIUM | OPEN |
+| 7 | Clean up `1-1-foo` phantom story references ($24.35 wasted) | LOW | OPEN |
+
+### Verdict
+
+NO-OP session. The sprint has been complete since session 30. This manual session confirmed that fact, fixed a 2-story state corruption in the working tree, and generated this retro. Total cumulative cost is now $900.92, of which $160-200 is estimated waste from 40+ no-op sessions. The single most impactful action remains: stop Ralph.

@@ -561,18 +561,35 @@ export function reconcileState(): Result<ReconciliationResult> {
 
     const updatedEpics: Record<string, import('../../types/state.js').EpicState> = { ...state.epics };
     for (const [epicKey, storyKeys] of epicStories) {
+      const total = storyKeys.length;
+      const doneCount = storyKeys.filter(k => state.stories[k].status === 'done').length;
+      const failedCount = storyKeys.filter(k => state.stories[k].status === 'failed').length;
+      const computedStatus = doneCount === total ? 'done'
+        : (doneCount + failedCount === total) ? 'done' // all resolved (done or failed)
+        : 'in-progress';
+
       if (!(epicKey in updatedEpics)) {
-        // Compute epic status from its stories
-        const total = storyKeys.length;
-        const doneCount = storyKeys.filter(k => state.stories[k].status === 'done').length;
-        const epicStatus = doneCount === total ? 'done' : 'in-progress';
+        // Create missing epic entry
         updatedEpics[epicKey] = {
-          status: epicStatus,
+          status: computedStatus,
           storiesTotal: total,
           storiesDone: doneCount,
         };
         changed = true;
         corrections.push(`created missing epic entry: ${epicKey}`);
+      } else {
+        // Fix existing epic if counts are stale or status is inconsistent
+        const existing = updatedEpics[epicKey];
+        if (existing.storiesTotal !== total || existing.storiesDone !== doneCount || existing.status !== computedStatus) {
+          updatedEpics[epicKey] = {
+            ...existing,
+            status: computedStatus,
+            storiesTotal: total,
+            storiesDone: doneCount,
+          };
+          changed = true;
+          corrections.push(`fixed epic ${epicKey}: ${existing.status}→${computedStatus} (${doneCount}/${total} done, ${failedCount} failed)`);
+        }
       }
     }
     (state as { epics: Record<string, import('../../types/state.js').EpicState> }).epics = updatedEpics;

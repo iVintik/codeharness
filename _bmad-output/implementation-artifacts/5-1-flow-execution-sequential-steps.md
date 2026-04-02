@@ -1,6 +1,6 @@
 # Story 5.1: Flow Execution — Sequential Steps
 
-Status: review
+Status: verifying
 
 ## Story
 
@@ -359,6 +359,7 @@ N/A
 ### Change Log
 
 - 2026-04-03: Story 5-1 implemented — workflow engine sequential execution
+- 2026-04-03: Code review fixes — RATE_LIMIT halt propagation across flow steps, error checkpoint recording (AC #13), 8 new tests, coverage 99.2%/87%/100%/100%
 
 ### File List
 

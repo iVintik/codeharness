@@ -301,7 +301,10 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   const workItems = loadWorkItems(config.sprintStatusPath, config.issuesPath);
 
   // 3. Iterate through flow steps
+  let halted = false;
   for (const step of config.workflow.flow) {
+    if (halted) break;
+
     // Skip loop blocks (story 5-2)
     if (isLoopBlock(step)) {
       warn('workflow-engine: loop blocks are not yet implemented (story 5-2), skipping');
@@ -333,16 +336,13 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
         const engineError = handleDispatchError(err, taskName, PER_RUN_SENTINEL);
         errors.push(engineError);
 
-        // Record error in state
-        state = {
-          ...state,
-          phase: 'error',
-        };
+        // Record error checkpoint in state (AC #13)
+        state = recordErrorInState(state, taskName, PER_RUN_SENTINEL, engineError);
         writeWorkflowState(state, projectDir);
 
         // Halt on critical errors
         if (err instanceof DispatchError && HALT_ERROR_CODES.has(err.code)) {
-          break;
+          halted = true;
         }
       }
     } else {
@@ -356,15 +356,13 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
           const engineError = handleDispatchError(err, taskName, item.key);
           errors.push(engineError);
 
-          // Record error in state
-          state = {
-            ...state,
-            phase: 'error',
-          };
+          // Record error checkpoint in state (AC #13)
+          state = recordErrorInState(state, taskName, item.key, engineError);
           writeWorkflowState(state, projectDir);
 
           // Halt on critical errors, continue on UNKNOWN
           if (err instanceof DispatchError && HALT_ERROR_CODES.has(err.code)) {
+            halted = true;
             break;
           }
           // UNKNOWN errors: record and continue to next story
@@ -391,6 +389,28 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
 }
 
 // --- Error Handling ---
+
+/**
+ * Record a dispatch error in workflow state: set phase to "error" and append
+ * a TaskCheckpoint with the error details (AC #13).
+ */
+function recordErrorInState(
+  state: WorkflowState,
+  taskName: string,
+  storyKey: string,
+  error: EngineError,
+): WorkflowState {
+  const errorCheckpoint: TaskCheckpoint = {
+    task_name: taskName,
+    story_key: storyKey,
+    completed_at: new Date().toISOString(),
+  };
+  return {
+    ...state,
+    phase: 'error',
+    tasks_completed: [...state.tasks_completed, errorCheckpoint],
+  };
+}
 
 function handleDispatchError(err: unknown, taskName: string, storyKey: string): EngineError {
   if (err instanceof DispatchError) {

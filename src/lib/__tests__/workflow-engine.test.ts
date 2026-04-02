@@ -263,7 +263,6 @@ describe('loadWorkItems', () => {
   });
 
   it('loads both stories and issues when issues.yaml exists (AC #5)', () => {
-    let callCount = 0;
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('yaml');
     mockParse
@@ -297,6 +296,59 @@ describe('loadWorkItems', () => {
     const items = loadWorkItems('/path/sprint-status.yaml');
     expect(items).toEqual([]);
     expect(mockWarn).toHaveBeenCalled();
+  });
+
+  it('handles unreadable sprint-status.yaml file gracefully', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockImplementation(() => {
+      throw new Error('EACCES: permission denied');
+    });
+
+    const items = loadWorkItems('/path/sprint-status.yaml');
+    expect(items).toEqual([]);
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('could not read sprint-status.yaml'),
+    );
+  });
+
+  it('handles unreadable issues.yaml file gracefully', () => {
+    // sprint-status.yaml is fine
+    mockExistsSync.mockReturnValue(true);
+    let readCount = 0;
+    mockReadFileSync.mockImplementation(() => {
+      readCount++;
+      if (readCount === 1) return 'sprint yaml';
+      throw new Error('EACCES: permission denied');
+    });
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const items = loadWorkItems('/path/sprint-status.yaml', '/path/issues.yaml');
+    // Should still have the sprint story
+    expect(items).toEqual([{ key: '3-1-foo', source: 'sprint' }]);
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('could not read issues.yaml'),
+    );
+  });
+
+  it('handles invalid YAML in issues.yaml gracefully', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue('yaml');
+    let parseCount = 0;
+    mockParse.mockImplementation(() => {
+      parseCount++;
+      if (parseCount === 1) {
+        return { development_status: { '3-1-foo': 'ready-for-dev' } };
+      }
+      throw new Error('bad issues yaml');
+    });
+
+    const items = loadWorkItems('/path/sprint-status.yaml', '/path/issues.yaml');
+    expect(items).toEqual([{ key: '3-1-foo', source: 'sprint' }]);
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('invalid YAML in issues.yaml'),
+    );
   });
 });
 
@@ -430,6 +482,30 @@ describe('dispatchTask', () => {
       'sess-abc-123',
       expect.any(Object),
     );
+  });
+
+  it('appends checkpoint manually when dispatch returns no sessionId', async () => {
+    mockDispatchAgent.mockResolvedValue({
+      sessionId: '',
+      success: true,
+      durationMs: 100,
+      output: 'ok',
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    const result = await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    // recordSessionId should NOT be called (empty string is falsy)
+    expect(mockRecordSessionId).not.toHaveBeenCalled();
+    // State should have a manually-created checkpoint
+    const writtenState = mockWriteWorkflowState.mock.calls[0][0] as WorkflowState;
+    expect(writtenState.tasks_completed).toHaveLength(1);
+    expect(writtenState.tasks_completed[0].task_name).toBe('implement');
+    expect(writtenState.tasks_completed[0].story_key).toBe('5-1-foo');
   });
 
   it('cleans up workspace on dispatch error when source_access is false', async () => {
@@ -856,6 +932,110 @@ describe('executeWorkflow', () => {
     expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('agent'));
     expect(result.success).toBe(true);
     expect(result.tasksCompleted).toBe(0);
+  });
+
+  it('records error checkpoint in state on dispatch failure (AC #13)', async () => {
+    const { DispatchError } = await import('../agent-dispatch.js');
+    mockDispatchAgent.mockRejectedValue(
+      new DispatchError('fail', 'UNKNOWN', 'dev', new Error('inner')),
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Find the write call with the error checkpoint
+    const errorWrite = mockWriteWorkflowState.mock.calls.find(
+      (call: unknown[]) => {
+        const st = call[0] as WorkflowState;
+        return st.phase === 'error' && st.tasks_completed.length > 0;
+      },
+    );
+    expect(errorWrite).toBeDefined();
+    const errorState = errorWrite![0] as WorkflowState;
+    expect(errorState.tasks_completed[0].task_name).toBe('implement');
+    expect(errorState.tasks_completed[0].story_key).toBe('3-1-foo');
+  });
+
+  it('halts per-story RATE_LIMIT errors across flow steps (not just inner loop)', async () => {
+    const { DispatchError } = await import('../agent-dispatch.js');
+    mockDispatchAgent.mockRejectedValue(
+      new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner')),
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          implement: makeTask(),
+          verify: makeTask({ scope: 'per-run' }),
+        },
+        flow: ['implement', 'verify'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(false);
+    // Should halt after implement fails — verify should NOT run
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].taskName).toBe('implement');
+  });
+
+  it('handles non-DispatchError exceptions in dispatch', async () => {
+    mockDispatchAgent.mockRejectedValue('string error');
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(false);
+    expect(result.errors[0].code).toBe('UNKNOWN');
+    expect(result.errors[0].message).toBe('string error');
+  });
+
+  it('skips tasks not found in workflow tasks definition', async () => {
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['nonexistent-task', 'implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('task "nonexistent-task" not found'),
+    );
+    // implement should still run
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(result.success).toBe(true);
   });
 
   it('halts on NETWORK dispatch errors for per-run tasks', async () => {

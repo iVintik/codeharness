@@ -34,7 +34,7 @@ development_status:
 
   # Epic 5
   epic-5: backlog
-  5-1-flow-execution-sequential-steps: review
+  5-1-flow-execution-sequential-steps: done
   5-2-flow-execution-loop-blocks: backlog
   5-3-crash-recovery-resume: backlog
   5-4-run-status-commands: backlog

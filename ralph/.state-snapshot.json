@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 11,
+    "done": 12,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -165,15 +165,19 @@
       "acResults": null
     },
     "4-4-source-isolation-enforcement": {
-      "status": "verifying",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T01:30:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/4-4-source-isolation-enforcement-proof.md",
+      "acResults": {
+        "passed": 9,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "5-1-flow-execution-sequential-steps": {
-      "status": "backlog",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -305,9 +309,9 @@
       "storiesDone": 3
     },
     "epic-4": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 4,
-      "storiesDone": 0
+      "storiesDone": 4
     },
     "epic-5": {
       "status": "in-progress",
@@ -354,9 +358,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "4-4-source-isolation-enforcement",
-    "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

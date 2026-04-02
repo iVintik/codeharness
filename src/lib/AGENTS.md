@@ -62,7 +62,14 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agent-dispatch.ts | SDK-based agent dispatching with retries, timeout, rate-limit handling | `dispatchAgent`, `DispatchOptions`, `DispatchResult`, `DispatchError`, `DispatchErrorCode` |
 | agent-resolver.ts | Agent config resolution — loads embedded templates, applies patch chain, compiles subagent definitions | `resolveAgent`, `loadEmbeddedAgent`, `loadPatch`, `mergePatch`, `compileSubagentDefinition`, `ResolvedAgent`, `SubagentDefinition`, `AgentPatch`, `AgentResolveError` |
 | session-manager.ts | Session boundary management — fresh/continue resolution, session ID recording and lookup | `resolveSessionId`, `recordSessionId`, `getLastSessionId`, `SessionBoundary`, `SessionLookupKey` |
+| source-isolation.ts | Source isolation for black-box verification — creates isolated workspaces with dist artifacts only, no source code | `createIsolatedWorkspace`, `IsolatedWorkspace`, `IsolationOptions` |
 | trace-id.ts | Trace ID generation per iteration, prompt injection formatting, state recording | `generateTraceId`, `formatTracePrompt`, `recordTraceId`, `sanitizeSegment` |
+
+## Workflow Execution (Epic 5)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| workflow-engine.ts | Sequential flow execution orchestrator — composes all Epic 1-4 modules to execute workflow steps in order, dispatching agents per-story or per-run | `executeWorkflow`, `dispatchTask`, `loadWorkItems`, `EngineConfig`, `EngineResult`, `EngineError`, `WorkItem` |
 
 ## Coverage & Testing
 
@@ -183,4 +190,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/ralph-prompt.ts | Ralph system prompt generator — builds the prompt template for ralph sessions | `generateRalphPrompt`, `RalphPromptConfig` |
 | agents/index.ts | Barrel re-exports for agents subsystem — RalphDriver, stream parser, ralph prompt | all public API from ralph.ts, stream-parser.ts, ralph-prompt.ts, types.ts |
 
-**Total: 59 library files + 4 shared test utility files across 23 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**
+**Total: 61 library files + 4 shared test utility files across 25 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**

@@ -20,6 +20,7 @@ export interface InitOptions {
   readonly logsUrl?: string;
   readonly metricsUrl?: string;
   readonly tracesUrl?: string;
+  readonly force?: boolean;
   readonly json?: boolean;
 }
 
@@ -77,6 +78,7 @@ export interface InitResult {
   beads?: InitBeadsResult;
   bmad?: InitBmadResult;
   otlp?: OtlpResult;
+  workflow?: { status: 'created' | 'exists' | 'overwritten'; path: string };
   dockerfile?: { generated: boolean; stack: string; stacks: string[] };
   docker?: InitDockerResult | null;
   error?: string;

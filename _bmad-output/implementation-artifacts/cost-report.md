@@ -1,55 +1,46 @@
 # Harness Cost Report
 
-Total API-equivalent cost: $900.92
-Total API calls: 6568
-Average cost per story: $4.17 (158 stories)
+Total API-equivalent cost: $15.37
+Total API calls: 119
+Average cost per story: $6.91 (2 stories)
 
 ## Cost by Token Type
 
 | Type | Tokens | Rate | Cost | % |
 |------|--------|------|------|---|
-| Cache reads | 348,823,063 | $1.50/MTok | $523.23 | 58% |
-| Cache writes | 12,608,817 | $18.75/MTok | $236.42 | 26% |
-| Output | 1,880,527 | $75/MTok | $141.04 | 16% |
-| Input | 15,265 | $15/MTok | $0.23 | 0% |
+| Cache reads | 6,796,708 | $1.50/MTok | $10.20 | 66% |
+| Cache writes | 160,732 | $18.75/MTok | $3.01 | 20% |
+| Output | 28,821 | $75/MTok | $2.16 | 14% |
+| Input | 127 | $15/MTok | $0.00 | 0% |
 
 ## Cost by Phase
 
 | Phase | Calls | Cost | % |
 |-------|-------|------|---|
-| verify | 3855 | $478.72 | 53.1% |
-| orchestrator | 917 | $202.42 | 22.5% |
-| retro | 777 | $106.32 | 11.8% |
-| code-review | 400 | $46.34 | 5.1% |
-| create-story | 348 | $37.05 | 4.1% |
-| dev-story | 271 | $30.07 | 3.3% |
+| verify | 67 | $8.31 | 54.1% |
+| orchestrator | 11 | $2.28 | 14.8% |
+| create-story | 17 | $1.77 | 11.5% |
+| dev-story | 10 | $1.19 | 7.8% |
+| code-review | 9 | $1.04 | 6.8% |
+| retro | 5 | $0.78 | 5.0% |
 
 ## Cost by Tool
 
 | Tool | Calls | Cost | % |
 |------|-------|------|---|
-| Bash | 2445 | $300.32 | 33.3% |
-| Read | 1365 | $189.63 | 21.0% |
-| Edit | 1019 | $131.23 | 14.6% |
-| Agent | 639 | $83.61 | 9.3% |
-| Skill | 226 | $77.64 | 8.6% |
-| Grep | 458 | $51.84 | 5.8% |
-| Write | 162 | $28.62 | 3.2% |
-| Glob | 111 | $19.26 | 2.1% |
-| TodoWrite | 111 | $15.24 | 1.7% |
-| ToolSearch | 28 | $3.10 | 0.3% |
+| Bash | 34 | $3.91 | 25.4% |
+| Read | 30 | $3.57 | 23.2% |
+| Edit | 25 | $3.11 | 20.3% |
+| Agent | 14 | $2.12 | 13.8% |
+| Grep | 9 | $1.03 | 6.7% |
+| Skill | 2 | $0.75 | 4.9% |
+| Glob | 3 | $0.67 | 4.4% |
+| Write | 2 | $0.21 | 1.4% |
 
 ## Top 10 Most Expensive Stories
 
 | Story | Calls | Cost | % |
 |-------|-------|------|---|
-| unknown | 1232 | $241.86 | 26.8% |
-| 16-5-rewrite-harness-run-verification-dispatch | 648 | $78.78 | 8.7% |
-| 16-7-update-knowledge-and-enforcement-docs | 216 | $25.55 | 2.8% |
-| 1-1-foo | 198 | $24.35 | 2.7% |
-| 14-5-stack-aware-verify-dockerfile | 190 | $23.63 | 2.6% |
-| 14-4-observability-backend-choice | 192 | $22.13 | 2.5% |
-| 16-8-update-all-tests | 168 | $20.17 | 2.2% |
-| 8-9-semgrep-rules-rust-observability | 121 | $17.10 | 1.9% |
-| 8-2-expand-state-types-for-rust | 84 | $12.67 | 1.4% |
-| 9-5-multi-stack-docs-remaining-consumers | 84 | $11.07 | 1.2% |
+| 2-1-workflow-yaml-json-schema | 68 | $8.34 | 54.2% |
+| 1-3-workflow-state-module | 47 | $5.48 | 35.6% |
+| unknown | 4 | $1.56 | 10.1% |

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 6,
+    "done": 7,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -81,12 +81,16 @@
       }
     },
     "2-4-init-command-workflow-generation": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/2-4-init-command-workflow-generation-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "2-5-validate-command": {
       "status": "backlog",
@@ -330,7 +334,7 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "2-3-default-embedded-workflow",
+    "currentStory": "2-4-init-command-workflow-generation",
     "currentPhase": "verify",
     "lastAction": "Starting test-provable verification",
     "acProgress": null

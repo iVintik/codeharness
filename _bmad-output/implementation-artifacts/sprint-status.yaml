@@ -16,7 +16,7 @@ development_status:
   2-1-workflow-yaml-json-schema: done
   2-2-workflow-parser-module: done
   2-3-default-embedded-workflow: done
-  2-4-init-command-workflow-generation: backlog
+  2-4-init-command-workflow-generation: done
   2-5-validate-command: backlog
 
   # Epic 3

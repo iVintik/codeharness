@@ -3,8 +3,8 @@
  * Composes sub-steps: stack detection, deps, Docker, BMAD, beads, state, docs, OTLP.
  */
 
-import { existsSync } from 'node:fs';
-import { basename, join } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
 import { ok as okOutput, fail as failOutput, info, warn, jsonOutput } from '../../lib/output.js';
 import { detectStacks, detectAppType } from '../../lib/stacks/index.js';
 import { readState, writeState, getDefaultState, getStatePath } from '../../lib/state.js';
@@ -18,6 +18,7 @@ import { installDeps, verifyDeps } from './deps-install.js';
 import { setupBmad, verifyBmadOnRerun } from './bmad-setup.js';
 import { scaffoldDocs, getCoverageTool, getStackLabel } from './docs-scaffold.js';
 import { generateDockerfileTemplate } from './dockerfile-template.js';
+import { getPackageRoot } from '../../lib/templates.js';
 
 declare const __PKG_VERSION__: string;
 const HARNESS_VERSION = typeof __PKG_VERSION__ !== 'undefined' ? __PKG_VERSION__ : '0.0.0-dev';
@@ -87,6 +88,21 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
       info(`Stack detected: ${getStackLabel(stack)}`);
     }
     info(`App type: ${appType}`);
+  }
+
+  // --- Workflow generation ---
+  const workflowSrc = join(getPackageRoot(), 'templates/workflows/default.yaml');
+  const workflowDest = join(projectDir, '.codeharness/workflows/default.yaml');
+  const workflowRelPath = '.codeharness/workflows/default.yaml';
+  if (existsSync(workflowDest) && !opts.force) {
+    result.workflow = { status: 'exists', path: workflowRelPath };
+    if (!isJson) info(`Workflow: ${workflowRelPath} already exists`);
+  } else {
+    const overwriting = existsSync(workflowDest);
+    mkdirSync(dirname(workflowDest), { recursive: true });
+    copyFileSync(workflowSrc, workflowDest);
+    result.workflow = { status: overwriting ? 'overwritten' : 'created', path: workflowRelPath };
+    if (!isJson) okOutput(`Workflow: ${workflowRelPath} ${overwriting ? 'overwritten' : 'created'}`);
   }
 
   // --- Dockerfile template generation ---
@@ -233,6 +249,25 @@ function handleRerun(opts: InitOptions, result: InitResult): Result<InitResult> 
     result.stacks = existingState.stacks ?? [];
     result.enforcement = existingState.enforcement;
     result.documentation = { agents_md: 'exists', docs_scaffold: 'exists', readme: 'exists' };
+    // Check workflow file status on re-run (respect --force)
+    const workflowRelPath = '.codeharness/workflows/default.yaml';
+    const workflowPath = join(projectDir, workflowRelPath);
+    if (existsSync(workflowPath) && !opts.force) {
+      result.workflow = { status: 'exists', path: workflowRelPath };
+    } else if (existsSync(workflowPath) && opts.force) {
+      const workflowSrc = join(getPackageRoot(), 'templates/workflows/default.yaml');
+      mkdirSync(dirname(workflowPath), { recursive: true });
+      copyFileSync(workflowSrc, workflowPath);
+      result.workflow = { status: 'overwritten', path: workflowRelPath };
+      if (!isJson) okOutput(`Workflow: ${workflowRelPath} overwritten`);
+    } else {
+      // Workflow file missing on re-run — create it
+      const workflowSrc = join(getPackageRoot(), 'templates/workflows/default.yaml');
+      mkdirSync(dirname(workflowPath), { recursive: true });
+      copyFileSync(workflowSrc, workflowPath);
+      result.workflow = { status: 'created', path: workflowRelPath };
+      if (!isJson) okOutput(`Workflow: ${workflowRelPath} created`);
+    }
     result.dependencies = verifyDeps(isJson);
     result.docker = existingState.docker
       ? { compose_file: existingState.docker.compose_file, stack_running: existingState.docker.stack_running, services: [], ports: existingState.docker.ports }

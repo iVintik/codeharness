@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 2,
+    "done": 6,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -33,36 +33,52 @@
       }
     },
     "1-3-workflow-state-module": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T11:05:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/1-3-workflow-state-module-proof.md",
+      "acResults": {
+        "passed": 7,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "2-1-workflow-yaml-json-schema": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T11:25:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/2-1-workflow-yaml-json-schema-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "2-2-workflow-parser-module": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T11:45:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/2-2-workflow-parser-module-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "2-3-default-embedded-workflow": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T14:30:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/2-3-default-embedded-workflow-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "2-4-init-command-workflow-generation": {
       "status": "backlog",
@@ -242,19 +258,22 @@
     }
   },
   "retries": {
-    "1-2-delete-ralph-loop-legacy-verification": 2
+    "1-2-delete-ralph-loop-legacy-verification": 2,
+    "2-1-workflow-yaml-json-schema": 1,
+    "2-2-workflow-parser-module": 1,
+    "2-3-default-embedded-workflow": 1
   },
   "flagged": [],
   "epics": {
     "epic-1": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 2
+      "storiesDone": 3
     },
     "epic-2": {
       "status": "in-progress",
       "storiesTotal": 5,
-      "storiesDone": 0
+      "storiesDone": 2
     },
     "epic-3": {
       "status": "in-progress",

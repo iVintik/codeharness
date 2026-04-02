@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -236,6 +236,104 @@ describe('initProject — idempotent re-run', () => {
     if (result.success) {
       expect(result.data.documentation.agents_md).toBe('exists');
     }
+  });
+
+  it('overwrites workflow file on re-run with --force', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    // First init creates workflow
+    await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    // Modify workflow file to custom content
+    const workflowPath = join(testDir, '.codeharness/workflows/default.yaml');
+    writeFileSync(workflowPath, 'custom-content');
+    // Re-run with --force
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+      force: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.workflow).toEqual({
+        status: 'overwritten',
+        path: '.codeharness/workflows/default.yaml',
+      });
+    }
+    // Verify file was overwritten (no longer custom content)
+    const content = readFileSync(workflowPath, 'utf-8');
+    expect(content).not.toBe('custom-content');
+  });
+
+  it('creates workflow file on re-run when missing', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    // First init creates workflow
+    await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    // Delete workflow file
+    const workflowPath = join(testDir, '.codeharness/workflows/default.yaml');
+    rmSync(workflowPath);
+    // Re-run (should recreate)
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.workflow).toEqual({
+        status: 'created',
+        path: '.codeharness/workflows/default.yaml',
+      });
+    }
+    expect(existsSync(workflowPath)).toBe(true);
+  });
+
+  it('preserves workflow file on re-run without --force', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    // First init creates workflow
+    await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    // Modify workflow file
+    const workflowPath = join(testDir, '.codeharness/workflows/default.yaml');
+    writeFileSync(workflowPath, 'custom-content');
+    // Re-run without --force
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.workflow).toEqual({
+        status: 'exists',
+        path: '.codeharness/workflows/default.yaml',
+      });
+    }
+    // File should NOT be overwritten
+    const content = readFileSync(workflowPath, 'utf-8');
+    expect(content).toBe('custom-content');
   });
 });
 
@@ -599,6 +697,129 @@ describe('initProject — multi-stack orchestration', () => {
     if (result.success) {
       // result.otlp should be from the root detection (dir === '.'), not the subdirectory
       expect(result.data.otlp).toEqual(rootOtlp);
+    }
+  });
+});
+
+describe('initProject — workflow generation', () => {
+  it('creates .codeharness/workflows/default.yaml on fresh init', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.workflow).toEqual({
+        status: 'created',
+        path: '.codeharness/workflows/default.yaml',
+      });
+    }
+    // Verify the file was actually created on disk
+    const dest = join(testDir, '.codeharness/workflows/default.yaml');
+    expect(existsSync(dest)).toBe(true);
+    // Verify content matches the embedded template
+    const { getPackageRoot } = await import('../../../lib/templates.js');
+    const srcContent = readFileSync(join(getPackageRoot(), 'templates/workflows/default.yaml'), 'utf-8');
+    const destContent = readFileSync(dest, 'utf-8');
+    expect(destContent).toBe(srcContent);
+  });
+
+  it('preserves existing workflow file without --force', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    // Pre-create the workflow file with custom content
+    const workflowDir = join(testDir, '.codeharness/workflows');
+    mkdirSync(workflowDir, { recursive: true });
+    writeFileSync(join(workflowDir, 'default.yaml'), 'custom-content');
+
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.workflow).toEqual({
+        status: 'exists',
+        path: '.codeharness/workflows/default.yaml',
+      });
+    }
+    // Verify file was NOT overwritten
+    const content = readFileSync(join(workflowDir, 'default.yaml'), 'utf-8');
+    expect(content).toBe('custom-content');
+  });
+
+  it('overwrites existing workflow file with --force', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    // Pre-create the workflow file with custom content
+    const workflowDir = join(testDir, '.codeharness/workflows');
+    mkdirSync(workflowDir, { recursive: true });
+    writeFileSync(join(workflowDir, 'default.yaml'), 'custom-content');
+
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+      force: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.workflow).toEqual({
+        status: 'overwritten',
+        path: '.codeharness/workflows/default.yaml',
+      });
+    }
+    // Verify file WAS overwritten with template content
+    const content = readFileSync(join(workflowDir, 'default.yaml'), 'utf-8');
+    expect(content).not.toBe('custom-content');
+    // Should match the embedded template
+    const { getPackageRoot } = await import('../../../lib/templates.js');
+    const srcContent = readFileSync(join(getPackageRoot(), 'templates/workflows/default.yaml'), 'utf-8');
+    expect(content).toBe(srcContent);
+  });
+
+  it('includes workflow field in --json output', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+      json: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.workflow).toBeDefined();
+      expect(result.data.workflow!.status).toBe('created');
+      expect(result.data.workflow!.path).toBe('.codeharness/workflows/default.yaml');
+    }
+  });
+
+  it('stack detection still works with workflow generation', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    const result = await initProject({
+      projectDir: testDir,
+      frontend: true,
+      database: true,
+      api: true,
+      observability: false,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      // Verify stack detection is not regressed
+      expect(result.data.stack).toBe('nodejs');
+      expect(result.data.stacks).toContain('nodejs');
+      expect(result.data.app_type).toBeDefined();
+      // And workflow was created
+      expect(result.data.workflow).toBeDefined();
     }
   });
 });

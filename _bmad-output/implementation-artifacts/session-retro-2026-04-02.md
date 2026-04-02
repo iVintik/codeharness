@@ -1272,3 +1272,322 @@ Efficiency is stabilizing around 17-20 calls/phase for greenfield stories. The o
 ### Velocity Projection
 
 At 7 stories/day, the remaining 21 stories could be completed in ~3 days. However, later epics (agent dispatch, flow execution, evaluator, circuit breaker) are more complex than Epic 1-2 foundation stories. Realistic projection: **5-7 more days to complete the sprint**, assuming similar daily time budgets and no major blockers.
+
+---
+
+# Session Retrospective — 2026-04-02 (Session 7: Story 2-5 + Epic 2 Complete + Full-Day Final)
+
+**Generated:** 2026-04-02T19:00 UTC
+
+## 1. Session Summary
+
+**Date:** 2026-04-02
+**Stories attempted this session:** 1
+**Stories completed this session:** 1
+**Full-day stories completed:** 8 (1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 2-4, 2-5)
+**Epics completed today:** 2 (Epic 1 + Epic 2)
+
+| Story | Phases Run | Outcome | Commit |
+|-------|-----------|---------|--------|
+| 2-5-validate-command | create-story, dev-story, code-review, verification | done | `58b1c55` |
+
+This session completed the final story in Epic 2 — the `validate` command that ties together the JSON Schema (2-1), parser (2-2), embedded template (2-3), and init command (2-4) into a user-facing CLI command. The existing `validate.ts` (self-validation/release gate from story 10-3) was renamed to `validate-self.ts`, and the new `validate-schema.ts` implements workflow YAML schema validation via `codeharness validate`. Epic 2 is now fully complete.
+
+**Sprint progress after session:** Epic 1 done (3/3). Epic 2 done (5/5). 8/28 total stories done (29%). Next: Epic 3 (agent config schema + templates + resolver).
+
+---
+
+## 2. Issues Analysis
+
+### Categorized Issues from Session Log
+
+**Naming Collision (1 — addressed)**
+- Existing `validate.ts` command (story 10-3, self-validation/release gate) conflicted with Epic 2's `validate` command (schema validation). AC #6 explicitly addressed this — dev renamed the old command to `validate-self.ts` and the new one is `validate-schema.ts`. Clean resolution.
+
+**Bugs Found by Code Review (2 — fixed)**
+- **HIGH:** DRY violation — copy-paste of rendering logic between `validate.ts` and `validate-schema.ts`. Extracted to shared function.
+- **MEDIUM:** Missing test for non-`WorkflowParseError` exception path. Test added.
+
+**Code Quality Issues (2 — LOW, not fixed)**
+- `process.chdir()` in tests mutates global state; could use `vi.spyOn` instead.
+- No `--dir` option for programmatic use from different working directories.
+
+**Verification Notes (2)**
+- `AGENTS.md` stale — missing entries for `validate-schema.ts` and `validate-self.ts`. `codeharness verify` precondition failed. Documentation housekeeping, not an AC failure.
+- `validate-schema.ts` 75% branch coverage — uncovered lines 36, 38 are edge-case branches in imported module. Not blocking.
+
+**Process Observations (2)**
+- `catch {}` initially tripped the project's boundary test enforcement requiring `// IGNORE:` comment, rethrow, or `Result.fail()`. Fixed immediately.
+- Pre-existing `tsc --noEmit` errors (~80 lines output) — project uses custom build pipeline, not strict tsc. Known issue, not related to this story.
+
+**Pre-existing Failures (2)**
+- BATS integration tests (onboard, ralph, verify_gates, validate_epic_docs) fail with code 127.
+- 48 lint warnings — all pre-existing unused-var/regex issues.
+
+### Severity Distribution
+
+| Severity | Count | Fixed? |
+|----------|-------|--------|
+| HIGH | 1 | Yes (DRY violation) |
+| MEDIUM | 1 | Yes (missing test) |
+| LOW | 2 | Deferred |
+| Pre-existing | 2 | Not addressed |
+
+---
+
+## 3. Cost Analysis
+
+### Actual Cost Data (from `codeharness stats --save`)
+
+`codeharness stats` is now functional again. Full cost report available.
+
+**Total session cost: $37.08** across 288 API calls (covers the full day's tracked sessions).
+
+**Cost by Phase:**
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 136 | $16.24 | 43.8% |
+| orchestrator | 37 | $7.44 | 20.1% |
+| create-story | 38 | $4.15 | 11.2% |
+| dev-story | 34 | $3.84 | 10.3% |
+| code-review | 28 | $3.23 | 8.7% |
+| retro | 15 | $2.18 | 5.9% |
+
+**Cost by Token Type:**
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 15,081,851 | $22.62 | 61% |
+| Cache writes | 458,293 | $8.59 | 23% |
+| Output | 78,162 | $5.86 | 16% |
+| Input | 374 | $0.01 | 0% |
+
+**Cost by Story:**
+
+| Story | Calls | Cost | % |
+|-------|-------|------|---|
+| 2-1-workflow-yaml-json-schema | 69 | $8.51 | 22.9% |
+| unknown (orchestrator overhead) | 23 | $5.93 | 16.0% |
+| 1-3-workflow-state-module | 47 | $5.48 | 14.8% |
+| 2-2-workflow-parser-module | 39 | $4.34 | 11.7% |
+| 2-5-validate-command | 34 | $4.21 | 11.4% |
+| 2-4-init-command-workflow-generation | 35 | $3.84 | 10.4% |
+| 2-3-default-embedded-workflow | 30 | $3.48 | 9.4% |
+| 2-3-default-embedded | 11 | $1.29 | 3.5% |
+
+**Cost by Tool:**
+
+| Tool | Calls | Cost | % |
+|------|-------|------|---|
+| Read | 77 | $9.80 | 26.4% |
+| Edit | 63 | $7.84 | 21.1% |
+| Bash | 70 | $7.76 | 20.9% |
+| Agent | 37 | $5.19 | 14.0% |
+| Skill | 7 | $2.51 | 6.8% |
+| Grep | 14 | $1.51 | 4.1% |
+| Glob | 7 | $1.10 | 3.0% |
+| Write | 7 | $0.71 | 1.9% |
+| TodoWrite | 5 | $0.60 | 1.6% |
+
+### Subagent-Level Breakdown (Story 2-5)
+
+From token reports in `.session-issues.md`:
+
+| Phase | Tool Calls | Heaviest Tools | Redundancy |
+|-------|-----------|----------------|------------|
+| create-story | 18 | Read: 10, Glob: 5, Bash: 3 | None |
+| dev-story | 18 | Read: 8, Bash: 5, Edit: 4, Write: 4 | None |
+| code-review | 21 | Read: 12, Bash: 8, Edit: 6 | 1 re-read of validate-schema.test.ts (justified offset read) |
+| verification | 14 | Bash: 9, Grep: 2, Write: 1 | Ran vitest coverage twice |
+| **Total** | **71** | | |
+
+### Key Cost Observations
+
+1. **Verification is still the #1 cost center at 43.8% ($16.24).** Down from 54.1% in Session 3 but still disproportionate. The 136 verify calls across the day — nearly half of all 288 calls — are driven by proof format rewrites, coverage re-runs, and npm test re-runs.
+
+2. **Cache reads dominate at 61% ($22.62).** 15M tokens of cache reads means the context window is being re-read heavily across subagent dispatches. Each Agent call re-reads the full accumulated context.
+
+3. **Orchestrator overhead at 20.1% ($7.44).** The orchestrator's 37 calls represent coordination tax — dispatching subagents, checking status, managing flow. This is structural and hard to reduce without architectural changes.
+
+4. **Story 2-1 was the most expensive at $8.51 (22.9%).** It was the first Epic 2 story, involving more exploration (schema design, ajv integration). Subsequent stories were cheaper as patterns were established.
+
+5. **Story 2-5 cost $4.21 — close to the day's average of $4.45/story.** Efficient despite being a more complex story (command restructuring, DRY extraction).
+
+### Subagent Token Waste Analysis (Aggregated from All Session Issues)
+
+**Total subagent tool calls reported across all stories (from `.session-issues.md`):**
+
+| Story | create-story | dev-story | code-review | verification | Total |
+|-------|-------------|-----------|-------------|--------------|-------|
+| 2-3 | 18 | (prior session) | 21 | 18 | 57 |
+| 2-4 | 24 | 18 | 18 | 16 | 76 |
+| 2-5 | 18 | 18 | 21 | 14 | 71 |
+| **Session Total** | **60** | **36** | **60** | **48** | **204** |
+
+**Patterns of waste across subagents:**
+
+1. **ANSI color code grep failures:** 5 empty grep attempts in 2-3 code-review. This is the same issue in every session since Session 2. Cumulative today: ~20-25 wasted calls.
+2. **Proof format rewrites:** Stories 2-3, 2-4 each needed 1 rewrite. Story 2-5 verification was lean (14 calls) — improving trend.
+3. **npm test run twice in verification phases:** 2-3 and 2-4 both ran npm test twice. Story 2-5 did not — improvement.
+4. **3 Glob attempts in 2-4 create-story** to find workflow directory — `_bmad/bmm/config.yaml` path confusion.
+5. **Coverage commands run 2x in 2-5 verification** — once combined, once isolated.
+
+**Which subagent phases had the most tool calls?**
+- create-story and code-review tied at 60 calls each (29% each)
+- verification at 48 calls (24%)
+- dev-story was leanest at 36 calls (18%)
+
+**Which subagents read the same files repeatedly?**
+- `validate-schema.test.ts` read twice in 2-5 code-review (justified — different offsets for a large file)
+- No egregious duplicate reads reported in this session's stories
+
+**Which Bash commands produced the largest outputs?**
+- `npm test` at ~170 lines (2-5 code-review)
+- `tsc --noEmit` at ~80 lines (2-5 dev-story)
+- `npx vitest --coverage` at ~60 lines (2-4, 2-5 code-review and verification)
+- `npm test` at ~80 lines (2-3, 2-4 verification)
+
+**Redundant operations reported:**
+- 5 ANSI grep failures (2-3 code-review)
+- npm test run twice (2-3, 2-4 verification — 2 occurrences)
+- Coverage run twice (2-3, 2-5 verification — 2 occurrences)
+- 3 Glob attempts for config path (2-4 create-story)
+
+---
+
+## 4. What Went Well
+
+1. **Epic 2 fully complete.** All 5 stories done in a single day. The entire workflow YAML infrastructure — schema, parser, embedded template, init command integration, and validate command — is now in place.
+2. **Two epics completed in one day.** Epic 1 (3 stories) + Epic 2 (5 stories) = 8 stories. This is the highest single-day throughput recorded.
+3. **Code review caught a HIGH-severity DRY violation.** Copy-paste rendering logic between validate.ts and validate-schema.ts would have created a maintenance problem. Extracted to shared function.
+4. **Naming collision handled cleanly.** The pre-existing validate.ts was renamed to validate-self.ts. AC #6 anticipated this and provided clear guidance.
+5. **Test coverage held at 96.65%.** validate-schema.ts at 100%, validate-self.ts at 98.07%. All 150+ files above 80% floor.
+6. **Story 2-5 verification was the leanest of the day (14 calls).** The verification skill is improving — fewer format issues, more focused evidence.
+7. **0% story failure rate across the day.** All 8 stories completed on first attempt through the pipeline.
+8. **`codeharness stats` is working again.** Actual cost data available for the first time since Session 1.
+
+---
+
+## 5. What Went Wrong
+
+1. **Verification still consumes 43.8% of total cost.** 136 of 288 calls. Proof format rewrites, multiple npm test runs, and coverage re-runs in verification phases are the drivers. The format fix has been carried as CRITICAL since Session 1 and was never implemented.
+2. **ANSI color code grep failures occurred again (Session 6).** The `--no-color` fix has been carried since Session 2. ~25 wasted calls across the full day.
+3. **`_bmad/config.yaml` path confusion — sixth occurrence today.** Create-story agents consistently look for `_bmad/bmm/config.yaml`. Wastes 2-3 Glob calls per occurrence.
+4. **AGENTS.md stale entries caused codeharness verify precondition failure.** Missing entries for validate-schema.ts and validate-self.ts. This is a documentation housekeeping gap.
+5. **Pre-existing BATS test failures and 48 lint warnings produce noise in every test run.** Reported in every session, never addressed.
+6. **Orchestrator overhead at 20.1% ($7.44).** This is structural — each subagent dispatch adds context window tax. Not easily reducible without architectural changes to how subagents are invoked.
+7. **Cache reads at 61% of total cost ($22.62).** 15M tokens of cache reads across 288 calls = ~52K tokens/call average context. The accumulated v2 artifacts are inflating context windows.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Full-epic completion in a single day is achievable.** Epic 2 (5 greenfield stories) completed in ~4 sessions. The pipeline handles well-scoped stories efficiently.
+- **Code review as a separate phase catches DRY violations.** The copy-paste between validate.ts and validate-schema.ts would have shipped without it. Code review found real bugs in 6 of 8 stories today.
+- **Naming collision resolution via explicit ACs works.** Story 2-5 AC #6 anticipated the validate.ts collision and provided clear guidance. The dev followed it without ambiguity.
+- **Static asset stories (2-3) are inherently clean.** Zero bugs found in code review. Bundle similar low-risk stories together.
+- **Story 2-5 verification at 14 calls shows the skill is learning.** Down from 18-30 calls in earlier stories.
+
+### Patterns to Avoid
+
+- **Carrying CRITICAL action items across 7 sessions without fixing them.** The proof format fix, ANSI `--no-color` flag, and stats command fix have been carried since Sessions 1-2. Combined waste: ~$10-14 today (17-24% of total spend). These should be fixed between sprints or at the start of a new day.
+- **Not updating AGENTS.md when adding/renaming files.** The verify precondition failure for story 2-5 was avoidable.
+- **Running `tsc --noEmit` when it's known to produce many errors.** The project uses a custom build pipeline. Running tsc adds ~80 lines of noise per invocation with no actionable signal.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 1 | **FIX: Add proof format specification to verification skill prompt** — `## AC N: Title` headers + `bash`/`output` evidence blocks | CRITICAL | Carried x6 — caused rewrites in 5/7 stories today |
+| 2 | **FIX: Add `--no-color` to vitest invocations in subagent prompts** | HIGH | Carried x5 — ~25 wasted calls today |
+| 3 | **FIX: `codeharness stats` to handle missing session-logs gracefully** | HIGH | Carried x5 — now working but fragile |
+| 4 | Fix `package.json` `files` array — remove stale `ralph/**/*.sh` and `ralph/AGENTS.md` | HIGH | Carried x5 |
+| 5 | Update AGENTS.md with validate-schema.ts and validate-self.ts entries | MEDIUM | New |
+| 6 | Fix pre-existing query metrics test failures (6 tests) | MEDIUM | Carried x2 |
+| 7 | Remove or fix BATS integration tests referencing deleted shell scripts | MEDIUM | Carried x2 |
+| 8 | Extract `.codeharness/workflows/default.yaml` path as a constant | LOW | Carried x1 |
+| 9 | Document `_bmad/config.yaml` actual location (not `_bmad/bmm/config.yaml`) | LOW | Carried x2 |
+| 10 | Begin Epic 3 (agent config schema + templates + resolver) | HIGH | Next sprint session |
+
+---
+
+## Full-Day Final Summary (2026-04-02, Session 7 — True End of Day)
+
+### Stories Completed
+
+| # | Story | Epic | Type | Phases | Tool Calls | Key Review Findings |
+|---|-------|------|------|--------|-----------|-------------------|
+| 1 | 1-1-delete-beads-integration | 1 | Deletion | 4 | ~119 | Dead type members, stale JSDoc |
+| 2 | 1-2-delete-ralph-loop-legacy-verification | 1 | Deletion | 4 | ~114 | Incomplete ralph/ deletion, broken stats.ts |
+| 3 | 1-3-workflow-state-module | 1 | Greenfield | 4 | 74 | Naming collision, validation gaps |
+| 4 | 2-1-workflow-yaml-json-schema | 2 | Greenfield | 4 | ~86 | Branch coverage gap, ESM require |
+| 5 | 2-2-workflow-parser-module | 2 | Greenfield | 4 | 63 | Error handling catch-all, missing edge cases |
+| 6 | 2-3-default-embedded-workflow | 2 | Static asset | 3+2 | ~96 | None (clean pass) |
+| 7 | 2-4-init-command-workflow-generation | 2 | Greenfield | 4 | 76 | --force flag bug, undefined result.workflow |
+| 8 | 2-5-validate-command | 2 | Greenfield | 4 | 71 | DRY violation, missing exception test |
+|   | **Total** | | | **33** | **~699** | 19 issues found by code review |
+
+### Sprint Progress
+
+- **Epic 1:** DONE (3/3)
+- **Epic 2:** DONE (5/5)
+- **Epics 3-9:** Backlog
+- **Overall:** 8/28 stories done (29%)
+
+### Day-Level Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 8 |
+| Epics completed | 2 |
+| Total API calls (tracked) | 288 |
+| Total cost (tracked) | $37.08 |
+| Average cost per story | $4.45 (tracked) |
+| Issues found by code review | 19 |
+| Issues fixed by code review | 15 |
+| Issues deferred | 4 (all LOW) |
+| Final test coverage | 96.65% |
+| Files above 80% floor | 150+ |
+| Story failure rate | 0% (8/8 first-attempt success) |
+| Verification proof format failures | 5/8 stories needed rewrite |
+
+### Cost Breakdown
+
+| Category | Cost | % |
+|----------|------|---|
+| Verification phases | $16.24 | 43.8% |
+| Orchestrator overhead | $7.44 | 20.1% |
+| Story creation | $4.15 | 11.2% |
+| Development | $3.84 | 10.3% |
+| Code review | $3.23 | 8.7% |
+| Retrospectives | $2.18 | 5.9% |
+
+### Token Economics
+
+- 15.1M cache read tokens ($22.62) — 61% of cost
+- 458K cache write tokens ($8.59) — 23% of cost
+- 78K output tokens ($5.86) — 16% of cost
+- Average context per call: ~52K tokens
+
+### Recurring Issues (Unresolved After 7 Sessions)
+
+| Issue | Sessions Carried | Estimated Waste Today | Fix Effort |
+|-------|-----------------|----------------------|------------|
+| Verification proof format failures | 5 of 7 sessions | ~$5-8 | Low (prompt update) |
+| ANSI color code grep failures | 5 of 7 sessions | ~$3 (25 calls) | Low (one flag) |
+| `codeharness stats` fragility | 6 sessions | Manual work most sessions | Medium |
+| `package.json` stale entries | 5+ sessions | Tech debt | Low |
+| `_bmad/config.yaml` path confusion | 5+ sessions | ~$1 (8-10 calls) | Low |
+| **Total estimated waste** | | **~$9-12 (24-32% of spend)** | |
+
+### Velocity Projection
+
+At 8 stories/day with 2 epics completed, the remaining 20 stories across Epics 3-9 could theoretically be completed in ~2.5 days. However, Epics 3-7 involve more complex integration work (agent dispatch, flow execution, evaluator, circuit breaker). Realistic projection: **4-6 more days to complete the sprint**, assuming:
+- Fix the recurring waste issues (saves 24-32% per day)
+- Later epics average 1.5x the cost of Epic 1-2 stories
+- No major architectural blockers in Epic 4 (agent dispatch) or Epic 5 (flow execution)

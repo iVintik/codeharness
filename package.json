@@ -18,7 +18,8 @@
     "templates/prompts/",
     "templates/docs/",
     "templates/otlp/",
-    "templates/workflows/"
+    "templates/workflows/",
+    "templates/agents/"
   ],
   "repository": {
     "type": "git",

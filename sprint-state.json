@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 8,
+    "done": 10,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -105,20 +105,28 @@
       }
     },
     "3-1-agent-config-json-schema": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 2,
+      "lastAttempt": "2026-04-02T15:40:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/3-1-agent-config-json-schema-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "3-2-embedded-agent-templates": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T15:50:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/3-2-embedded-agent-templates-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "3-3-agent-resolver-module": {
       "status": "backlog",
@@ -279,14 +287,14 @@
       "storiesDone": 3
     },
     "epic-2": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 5,
-      "storiesDone": 2
+      "storiesDone": 5
     },
     "epic-3": {
       "status": "in-progress",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 2
     },
     "epic-4": {
       "status": "in-progress",
@@ -338,9 +346,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "3-2-embedded-agent-templates",
+    "currentPhase": "verify",
+    "lastAction": "Starting test-provable verification",
     "acProgress": null
   },
   "actionItems": []

@@ -87,9 +87,19 @@ Manages retry state for stories. Shows retry counts and flagged-story status, re
 - **Subcommands:** none; supports `--reset`, `--story <key>`, `--status`, `--json`
 
 ### validate.ts
-Runs the self-validation cycle and produces a release gate report. Initializes a validation sprint, loops through `runValidationCycle()` until no actionable ACs remain, then outputs a summary with total/passed/failed/blocked counts and adaptation cycles. Outputs "RELEASE GATE: PASS -- v1.0 ready" when all non-blocked ACs pass.
+Parent command for the `codeharness validate` group. Registers subcommands `schema` (from `validate-schema.ts`) and `self` (from `validate-self.ts`).
+- **Key deps:** `validate-schema` (registerValidateSchemaCommand), `validate-self` (registerValidateSelfCommand)
+- **Subcommands:** `schema` (validate YAML against JSON schemas), `self` (self-validation cycle)
+
+### validate-schema.ts
+CLI subcommand: `codeharness validate schema`. Validates workflow YAML files against JSON schemas using `parseWorkflow()`. Accepts a path or directory, validates each `.yaml`/`.yml` file, and reports results.
+- **Key deps:** `lib/workflow-parser` (parseWorkflow, WorkflowParseError), `lib/output`
+- **Exports:** `registerValidateSchemaCommand(parent)`
+
+### validate-self.ts
+CLI subcommand: `codeharness validate self`. Runs self-validation cycle and produces a release gate report. Initializes a validation sprint, loops through `runValidationCycle()` until no actionable ACs remain, then outputs a summary. Outputs "RELEASE GATE: PASS -- v1.0 ready" when all non-blocked ACs pass.
 - **Key deps:** `modules/verify` (createValidationSprint, runValidationCycle, getValidationProgress, getACById), `lib/output`
-- **Subcommands:** none; supports `--ci` (exit code mode), `--json`
+- **Exports:** `registerValidateSelfCommand(parent)`
 
 ### validate-state.ts
 Validates sprint-state.json consistency against sprint-status.yaml. Thin CLI wrapper that delegates to the sprint module's `validateStateConsistency`.

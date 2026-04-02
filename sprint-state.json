@@ -366,10 +366,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "5-4-run-status-commands",
-    "currentPhase": "verify",
-    "lastAction": "Starting runtime-provable verification",
-    "acProgress": "10/10"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": []
 }

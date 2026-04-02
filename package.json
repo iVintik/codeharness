@@ -38,6 +38,7 @@
     "lint:sizes": "bash scripts/check-file-sizes.sh"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.90",
     "@inkjs/ui": "^2.0.0",
     "ajv": "^8.18.0",
     "commander": "^14.0.3",

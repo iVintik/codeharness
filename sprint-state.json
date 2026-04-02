@@ -141,11 +141,11 @@
       }
     },
     "4-1-agent-dispatch-module-sdk-integration": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/4-1-agent-dispatch-module-sdk-integration-proof.md",
       "acResults": null
     },
     "4-2-session-boundary-management": {
@@ -354,9 +354,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "3-3-agent-resolver-module",
-    "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

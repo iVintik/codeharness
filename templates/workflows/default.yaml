@@ -1,0 +1,23 @@
+tasks:
+  implement:
+    agent: dev
+    scope: per-story
+    session: fresh
+    source_access: true
+  verify:
+    agent: evaluator
+    scope: per-run
+    session: fresh
+    source_access: false
+  retry:
+    agent: dev
+    scope: per-story
+    session: fresh
+    source_access: true
+
+flow:
+  - implement
+  - verify
+  - loop:
+      - retry
+      - verify

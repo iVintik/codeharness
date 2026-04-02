@@ -17,7 +17,8 @@
     "templates/compose/",
     "templates/prompts/",
     "templates/docs/",
-    "templates/otlp/"
+    "templates/otlp/",
+    "templates/workflows/"
   ],
   "repository": {
     "type": "git",

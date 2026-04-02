@@ -1,7 +1,11 @@
 import { readFileSync, existsSync } from 'node:fs';
-import { resolve, join } from 'node:path';
+import { resolve, join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { parse } from 'yaml';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 import { validateAgentSchema } from './schema-validate.js';
 
 // --- Interfaces ---

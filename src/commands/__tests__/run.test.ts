@@ -12,6 +12,9 @@ const {
   realExistsSync, startRendererMock, rendererCleanupMock,
   getSprintStateMock, reconcileStateMock,
   isDockerAvailableMock, cleanupContainersMock,
+  parseWorkflowMock, resolveAgentMock, compileSubagentMock,
+  executeWorkflowMock,
+  readWorkflowStateMock, writeWorkflowStateMock,
 } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('node:fs');
@@ -36,6 +39,42 @@ const {
     reconcileStateMock: vi.fn(() => ({ success: true, data: { corrections: [], stateChanged: false } })),
     isDockerAvailableMock: vi.fn(() => true),
     cleanupContainersMock: vi.fn((): { success: boolean; data?: { containersRemoved: number; names: string[] }; error?: string } => ({ success: true, data: { containersRemoved: 0, names: [] } })),
+    parseWorkflowMock: vi.fn(() => ({
+      tasks: {
+        implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
+      },
+      flow: ['implement'],
+    })),
+    resolveAgentMock: vi.fn(() => ({
+      name: 'dev',
+      role: { title: 'Developer', purpose: 'Implement code' },
+      persona: { identity: 'A developer', communication_style: 'direct', principles: [] },
+    })),
+    compileSubagentMock: vi.fn(() => ({
+      name: 'dev',
+      model: 'claude-sonnet-4-20250514',
+      instructions: 'You are a developer',
+      disallowedTools: [],
+      bare: true,
+    })),
+    executeWorkflowMock: vi.fn(async () => ({
+      success: true,
+      tasksCompleted: 3,
+      storiesProcessed: 1,
+      errors: [],
+      durationMs: 60000,
+    })),
+    readWorkflowStateMock: vi.fn(() => ({
+      workflow_name: '',
+      started: '',
+      iteration: 0,
+      phase: 'idle',
+      tasks_completed: [],
+      evaluator_scores: [],
+      circuit_breaker: { triggered: false, reason: null, score_history: [] },
+      trace_ids: [],
+    })),
+    writeWorkflowStateMock: vi.fn(),
   };
 });
 
@@ -70,6 +109,24 @@ vi.mock('../../modules/infra/index.js', () => ({
   cleanupContainers: (...args: unknown[]) => cleanupContainersMock(...(args as Parameters<typeof cleanupContainersMock>)),
 }));
 
+vi.mock('../../lib/workflow-parser.js', () => ({
+  parseWorkflow: (...args: unknown[]) => parseWorkflowMock(...(args as Parameters<typeof parseWorkflowMock>)),
+}));
+
+vi.mock('../../lib/agent-resolver.js', () => ({
+  resolveAgent: (...args: unknown[]) => resolveAgentMock(...(args as Parameters<typeof resolveAgentMock>)),
+  compileSubagentDefinition: (...args: unknown[]) => compileSubagentMock(...(args as Parameters<typeof compileSubagentMock>)),
+}));
+
+vi.mock('../../lib/workflow-engine.js', () => ({
+  executeWorkflow: (...args: unknown[]) => executeWorkflowMock(...(args as Parameters<typeof executeWorkflowMock>)),
+}));
+
+vi.mock('../../lib/workflow-state.js', () => ({
+  readWorkflowState: (...args: unknown[]) => readWorkflowStateMock(...(args as Parameters<typeof readWorkflowStateMock>)),
+  writeWorkflowState: (...args: unknown[]) => writeWorkflowStateMock(...(args as Parameters<typeof writeWorkflowStateMock>)),
+}));
+
 
 describe('run command', () => {
   let tmpDir: string;
@@ -91,6 +148,47 @@ describe('run command', () => {
     isDockerAvailableMock.mockReturnValue(true);
     cleanupContainersMock.mockClear();
     cleanupContainersMock.mockReturnValue({ success: true, data: { containersRemoved: 0, names: [] } });
+    parseWorkflowMock.mockReset();
+    parseWorkflowMock.mockReturnValue({
+      tasks: {
+        implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
+      },
+      flow: ['implement'],
+    });
+    resolveAgentMock.mockReset();
+    resolveAgentMock.mockReturnValue({
+      name: 'dev',
+      role: { title: 'Developer', purpose: 'Implement code' },
+      persona: { identity: 'A developer', communication_style: 'direct', principles: [] },
+    });
+    compileSubagentMock.mockReset();
+    compileSubagentMock.mockReturnValue({
+      name: 'dev',
+      model: 'claude-sonnet-4-20250514',
+      instructions: 'You are a developer',
+      disallowedTools: [],
+      bare: true,
+    });
+    executeWorkflowMock.mockReset();
+    executeWorkflowMock.mockResolvedValue({
+      success: true,
+      tasksCompleted: 3,
+      storiesProcessed: 1,
+      errors: [],
+      durationMs: 60000,
+    });
+    readWorkflowStateMock.mockReset();
+    readWorkflowStateMock.mockReturnValue({
+      workflow_name: '',
+      started: '',
+      iteration: 0,
+      phase: 'idle',
+      tasks_completed: [],
+      evaluator_scores: [],
+      circuit_breaker: { triggered: false, reason: null, score_history: [] },
+      trace_ids: [],
+    });
+    writeWorkflowStateMock.mockReset();
     process.exitCode = undefined;
   });
 
@@ -144,20 +242,6 @@ describe('run command', () => {
       expect(process.exitCode).toBe(1);
     });
 
-    // Run command now exits early with "temporarily unavailable" since Ralph was removed (Story 1.2).
-    // All tests that depend on driver spawn are removed — they'll return when Epic 5 rebuilds the command.
-
-    it('exits with temporarily unavailable message (Ralph removed)', async () => {
-      mockPaths({ '.claude': true });
-      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
-      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-      await runCommand();
-
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('temporarily unavailable'));
-      expect(process.exitCode).toBe(1);
-    });
-
     it('fails when Docker is unavailable', async () => {
       mockPaths({ '.claude': true });
       isDockerAvailableMock.mockReturnValue(false);
@@ -177,6 +261,102 @@ describe('run command', () => {
       await runCommand();
 
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No stories found'));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('fails when no stories are ready for execution (AC #9)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'done', '1-2-story': 'done' });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No stories ready for execution'));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('calls executeWorkflow on success path (AC #1, #2)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(parseWorkflowMock).toHaveBeenCalled();
+      expect(resolveAgentMock).toHaveBeenCalled();
+      expect(executeWorkflowMock).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Workflow completed'));
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('constructs EngineConfig correctly from CLI options (AC #4)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--max-iterations', '10']);
+
+      expect(executeWorkflowMock).toHaveBeenCalled();
+      const config = executeWorkflowMock.mock.calls[0][0];
+      expect(config.maxIterations).toBe(10);
+      expect(config.runId).toMatch(/^run-\d+$/);
+      expect(config.workflow).toBeDefined();
+      expect(config.agents).toBeDefined();
+      expect(config.sprintStatusPath).toContain('sprint-status.yaml');
+    });
+
+    it('exits 1 on workflow failure (AC #2)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      executeWorkflowMock.mockResolvedValue({
+        success: false,
+        tasksCompleted: 1,
+        storiesProcessed: 1,
+        errors: [{ taskName: 'implement', storyKey: '1-1-story', code: 'UNKNOWN', message: 'dispatch failed' }],
+        durationMs: 5000,
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Workflow failed'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('dispatch failed'));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('exits 1 when executeWorkflow throws', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      executeWorkflowMock.mockRejectedValue(new Error('engine crashed'));
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Workflow engine error'));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('exits 1 when workflow parsing fails', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      parseWorkflowMock.mockImplementation(() => { throw new Error('bad YAML'); });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to parse workflow'));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('exits 1 when agent resolution fails', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      resolveAgentMock.mockImplementation(() => { throw new Error('agent not found'); });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to resolve agents'));
       expect(process.exitCode).toBe(1);
     });
 
@@ -240,6 +420,52 @@ describe('run command', () => {
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid numeric option'));
       expect(process.exitCode).toBe(1);
     });
+
+    it('--resume resets completed phase to idle before executing (AC #3)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      readWorkflowStateMock.mockReturnValue({
+        workflow_name: 'implement -> verify',
+        started: new Date().toISOString(),
+        iteration: 3,
+        phase: 'completed',
+        tasks_completed: [],
+        evaluator_scores: [],
+        circuit_breaker: { triggered: false, reason: null, score_history: [] },
+        trace_ids: [],
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--resume']);
+
+      expect(writeWorkflowStateMock).toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'idle' }),
+        expect.any(String),
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Resuming from completed state'));
+      expect(executeWorkflowMock).toHaveBeenCalled();
+    });
+
+    it('--resume does nothing when phase is not completed', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      readWorkflowStateMock.mockReturnValue({
+        workflow_name: '',
+        started: '',
+        iteration: 0,
+        phase: 'idle',
+        tasks_completed: [],
+        evaluator_scores: [],
+        circuit_breaker: { triggered: false, reason: null, score_history: [] },
+        trace_ids: [],
+      });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--resume']);
+
+      expect(writeWorkflowStateMock).not.toHaveBeenCalled();
+      expect(executeWorkflowMock).toHaveBeenCalled();
+    });
   });
 
   describe('run command registration', () => {
@@ -258,6 +484,7 @@ describe('run command', () => {
       expect(optionNames).toContain('--timeout');
       expect(optionNames).toContain('--quiet');
       expect(optionNames).toContain('--max-story-retries');
+      expect(optionNames).toContain('--resume');
     });
 
     it('--max-story-retries defaults to 10', async () => {
@@ -320,6 +547,16 @@ describe('run command', () => {
         'utf-8',
       );
       expect(runSource).not.toContain('generateRalphPrompt');
+    });
+
+    it('run.ts imports workflow-engine, workflow-parser, and agent-resolver', () => {
+      const runSource = origReadFileSync(
+        join(process.cwd(), 'src', 'commands', 'run.ts'),
+        'utf-8',
+      );
+      expect(runSource).toContain('workflow-engine');
+      expect(runSource).toContain('workflow-parser');
+      expect(runSource).toContain('agent-resolver');
     });
   });
 });

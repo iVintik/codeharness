@@ -209,7 +209,7 @@
       }
     },
     "5-4-run-status-commands": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -366,10 +366,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "currentStory": "5-4-run-status-commands",
+    "currentPhase": "verify",
+    "lastAction": "Starting runtime-provable verification",
+    "acProgress": "10/10"
   },
   "actionItems": []
 }

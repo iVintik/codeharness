@@ -1,11 +1,17 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { fail, info } from '../lib/output.js';
+import { fail, info, ok } from '../lib/output.js';
 import { isDockerAvailable } from '../lib/docker/index.js';
 import { cleanupContainers } from '../modules/infra/index.js';
 import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
-import { countStories } from '../lib/run-helpers.js';
+import { countStories, formatElapsed } from '../lib/run-helpers.js';
+import { parseWorkflow } from '../lib/workflow-parser.js';
+import { resolveAgent, compileSubagentDefinition } from '../lib/agent-resolver.js';
+import { executeWorkflow } from '../lib/workflow-engine.js';
+import { readWorkflowState, writeWorkflowState } from '../lib/workflow-state.js';
+import type { EngineConfig } from '../lib/workflow-engine.js';
+import type { SubagentDefinition } from '../lib/agent-resolver.js';
 
 /** Resolves the plugin directory path (.claude/ in project root). */
 export function resolvePluginDir(): string {
@@ -26,6 +32,7 @@ export function registerRunCommand(program: Command): void {
     .option('--calls <n>', 'Max API calls per hour', '100')
     .option('--max-story-retries <n>', 'Max retries per story before flagging', '10')
     .option('--reset', 'Clear retry counters, flagged stories, and circuit breaker before starting', false)
+    .option('--resume', 'Resume from last checkpoint (engine resumes by default)', false)
     .action(async (options, cmd) => {
       const globalOpts = cmd.optsWithGlobals();
       const isJson = !!globalOpts.json;
@@ -72,6 +79,12 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
+      if (counts.ready === 0) {
+        fail('No stories ready for execution', outputOpts);
+        process.exitCode = 1;
+        return;
+      }
+
       info(`Starting autonomous execution — ${counts.ready} ready, ${counts.inProgress} in progress, ${counts.verified} verified, ${counts.done}/${counts.total} done`, outputOpts);
       // 3. Parse and validate numeric options
       const maxIterations = parseInt(options.maxIterations, 10);
@@ -85,9 +98,74 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      // TODO: v2 workflow-engine (Epic 5) — rebuild run command to use workflow engine
-      // Ralph prompt generation and driver spawn removed in Story 1.2.
-      fail('The run command is temporarily unavailable — Ralph loop removed, workflow engine pending (Epic 5)', outputOpts);
-      process.exitCode = 1;
+      // 4. Parse workflow YAML
+      const projectDir = process.cwd();
+      const projectWorkflowPath = join(projectDir, '.codeharness', 'workflows', 'default.yaml');
+      const templateWorkflowPath = join(projectDir, 'templates', 'workflows', 'default.yaml');
+      const workflowPath = existsSync(projectWorkflowPath) ? projectWorkflowPath : templateWorkflowPath;
+
+      let parsedWorkflow;
+      try {
+        parsedWorkflow = parseWorkflow(workflowPath);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        fail(`Failed to parse workflow: ${msg}`, outputOpts);
+        process.exitCode = 1;
+        return;
+      }
+
+      // 5. Resolve agents referenced in workflow
+      const agents: Record<string, SubagentDefinition> = {};
+      try {
+        for (const [, task] of Object.entries(parsedWorkflow.tasks)) {
+          if (!agents[task.agent]) {
+            const resolved = resolveAgent(task.agent, { cwd: projectDir });
+            agents[task.agent] = compileSubagentDefinition(resolved);
+          }
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        fail(`Failed to resolve agents: ${msg}`, outputOpts);
+        process.exitCode = 1;
+        return;
+      }
+
+      // 6. Handle --resume: reset completed state so the engine re-enters execution
+      if (options.resume) {
+        const currentState = readWorkflowState(projectDir);
+        if (currentState.phase === 'completed') {
+          writeWorkflowState({ ...currentState, phase: 'idle' }, projectDir);
+          info('Resuming from completed state — phase reset to idle', outputOpts);
+        }
+      }
+
+      // 7. Build EngineConfig and execute
+      const config: EngineConfig = {
+        workflow: parsedWorkflow,
+        agents,
+        sprintStatusPath: join(projectDir, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml'),
+        issuesPath: join(projectDir, '.codeharness', 'issues.yaml'),
+        runId: `run-${Date.now()}`,
+        projectDir,
+        maxIterations,
+      };
+
+      try {
+        const result = await executeWorkflow(config);
+
+        if (result.success) {
+          ok(`Workflow completed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed in ${formatElapsed(result.durationMs)}`, outputOpts);
+        } else {
+          fail(`Workflow failed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, ${result.errors.length} error(s) in ${formatElapsed(result.durationMs)}`, outputOpts);
+          for (const err of result.errors) {
+            info(`  ${err.taskName}/${err.storyKey}: [${err.code}] ${err.message}`, outputOpts);
+          }
+          process.exitCode = 1;
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        fail(`Workflow engine error: ${msg}`, outputOpts);
+        process.exitCode = 1;
+      }
     });
 }

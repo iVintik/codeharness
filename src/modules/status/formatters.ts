@@ -10,6 +10,8 @@ import { getOnboardingProgress } from '../../lib/onboard-checks.js';
 import { getStackDir, getComposeFilePath, getElkComposeFilePath } from '../../lib/stack-path.js';
 import { generateReport } from '../sprint/index.js';
 import { getValidationProgress } from '../verify/index.js';
+import { readWorkflowState } from '../../lib/workflow-state.js';
+import type { WorkflowState } from '../../lib/workflow-state.js';
 import { DEFAULT_ENDPOINTS, buildScopedEndpoints, resolveEndpoints, getDefaultEndpointsForBackend } from './endpoints.js';
 import type { HarnessState } from '../../lib/state.js';
 import type { StatusReport } from '../sprint/index.js';
@@ -42,6 +44,9 @@ export function handleFullStatus(isJson: boolean): void {
     handleFullStatusJson(state);
     return;
   }
+
+  // Workflow engine state
+  printWorkflowState();
 
   // Sprint state sections (Project State, Run, Action Items)
   printSprintState();
@@ -208,12 +213,16 @@ function handleFullStatusJson(state: HarnessState): void {
   const validation = validationResult.success && validationResult.data.total > 0
     ? validationResult.data : undefined;
 
+  // Workflow engine state
+  const workflowState = getWorkflowStateData();
+
   jsonOutput({
     version: state.harness_version,
     stack: state.stack,
     ...(state.app_type ? { app_type: state.app_type } : {}),
     ...(sprint ? { sprint } : {}),
     ...(validation ? { validation } : {}),
+    ...(workflowState ? { workflow: workflowState } : {}),
     enforcement: state.enforcement,
     docker,
     endpoints,
@@ -447,6 +456,72 @@ export async function handleDockerCheck(isJson: boolean): Promise<void> {
       info(`-> ${health.remedy}`);
     }
   }
+}
+
+// ─── Workflow State Helpers ──────────────────────────────────────────────────
+
+/**
+ * Format elapsed milliseconds as human-readable duration.
+ */
+export function formatElapsed(ms: number): string {
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h${m}m`;
+  if (m > 0) return `${m}m${s % 60}s`;
+  return `${s}s`;
+}
+
+function printWorkflowState(): void {
+  const state = readWorkflowState();
+
+  if (state.phase === 'idle' && state.started === '') {
+    console.log('Workflow Engine: No active workflow run');
+    return;
+  }
+
+  console.log('── Workflow Engine ──────────────────────────────────────────────');
+  console.log(`  Phase: ${state.phase}`);
+  console.log(`  Iteration: ${state.iteration}`);
+  console.log(`  Tasks completed: ${state.tasks_completed.length}`);
+
+  if (state.phase === 'executing' && state.started) {
+    const elapsed = Date.now() - Date.parse(state.started);
+    console.log(`  Elapsed: ${formatElapsed(elapsed)}`);
+  }
+
+  if (state.evaluator_scores.length > 0) {
+    const latest = state.evaluator_scores[state.evaluator_scores.length - 1];
+    console.log(`  Evaluator: ${latest.passed}/${latest.total} passed, ${latest.failed} failed, ${latest.unknown} unknown`);
+  }
+
+  console.log(`  Circuit breaker: ${state.circuit_breaker.triggered ? 'TRIGGERED' : 'no'}${state.circuit_breaker.triggered && state.circuit_breaker.reason ? ` — ${state.circuit_breaker.reason}` : ''}`);
+  console.log('');
+}
+
+function getWorkflowStateData(): Record<string, unknown> | null {
+  const state = readWorkflowState();
+
+  if (state.phase === 'idle' && state.started === '') {
+    return null;
+  }
+
+  const data: Record<string, unknown> = {
+    workflow_name: state.workflow_name,
+    phase: state.phase,
+    iteration: state.iteration,
+    started: state.started,
+    tasks_completed: state.tasks_completed.length,
+    evaluator_scores: state.evaluator_scores,
+    circuit_breaker: state.circuit_breaker,
+  };
+
+  if (state.phase === 'executing' && state.started) {
+    data.elapsed_ms = Date.now() - Date.parse(state.started);
+    data.elapsed = formatElapsed(data.elapsed_ms as number);
+  }
+
+  return data;
 }
 
 // ─── Sprint State Helpers ────────────────────────────────────────────────────

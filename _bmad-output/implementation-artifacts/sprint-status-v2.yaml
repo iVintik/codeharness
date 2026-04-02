@@ -1,0 +1,94 @@
+# generated: 2026-04-02
+# project: codeharness v2
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+
+generated: 2026-04-02
+project: codeharness v2
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Legacy Cleanup & Foundation
+  epic-1: backlog
+  1-1-delete-beads-integration: backlog
+  1-2-delete-ralph-loop-legacy-verification: backlog
+  1-3-workflow-state-module: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Workflow Definition & Validation
+  epic-2: backlog
+  2-1-workflow-yaml-json-schema: backlog
+  2-2-workflow-parser-module: backlog
+  2-3-default-embedded-workflow: backlog
+  2-4-init-command-workflow-generation: backlog
+  2-5-validate-command: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Agent Configuration System
+  epic-3: backlog
+  3-1-agent-config-json-schema: backlog
+  3-2-embedded-agent-templates: backlog
+  3-3-agent-resolver-module: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Agent Dispatch & Session Management
+  epic-4: backlog
+  4-1-agent-dispatch-module-sdk-integration: backlog
+  4-2-session-boundary-management: backlog
+  4-3-trace-id-generation-injection: backlog
+  4-4-source-isolation-enforcement: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: Workflow Execution Engine
+  epic-5: backlog
+  5-1-flow-execution-sequential-steps: backlog
+  5-2-flow-execution-loop-blocks: backlog
+  5-3-crash-recovery-resume: backlog
+  5-4-run-status-commands: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Blind Evaluator & Verification
+  epic-6: backlog
+  6-1-evaluator-module-workspace-spawn: backlog
+  6-2-evaluator-verdict-json-schema-parsing: backlog
+  6-3-evaluator-prompt-template: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Circuit Breaker & Progress Detection
+  epic-7: backlog
+  7-1-score-based-circuit-breaker-module: backlog
+  7-2-resume-after-circuit-breaker: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Issue Tracking & Retro Integration
+  epic-8: backlog
+  8-1-issue-tracker-module-cli: backlog
+  8-2-retro-finding-auto-import: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: Workflow Configuration & Patching
+  epic-9: backlog
+  9-1-workflow-patch-resolution: backlog
+  9-2-custom-workflow-creation: backlog
+  epic-9-retrospective: optional

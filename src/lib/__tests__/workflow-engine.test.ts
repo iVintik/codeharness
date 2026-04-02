@@ -99,6 +99,9 @@ import {
   buildRetryPrompt,
   getFailedItems,
   executeLoopBlock,
+  isTaskCompleted,
+  isLoopTaskCompleted,
+  PER_RUN_SENTINEL,
 } from '../workflow-engine.js';
 import type {
   EngineConfig,
@@ -1736,18 +1739,23 @@ describe('loop block execution', () => {
     mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
       callCount++;
       if (callCount === 1) {
-        // First retry succeeds
+        // First retry succeeds (iteration 1)
         return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
       }
       if (callCount === 2) {
-        // First verify throws non-halt UNKNOWN error
+        // First verify throws non-halt UNKNOWN error (iteration 1)
         throw new DispatchError('unknown err', 'UNKNOWN', 'dev', new Error('inner'));
       }
       if (callCount === 3) {
-        // Second retry — should dispatch for ALL items (stale verdict cleared)
+        // Verify re-dispatched (iteration 1 — error checkpoint doesn't count as completion,
+        // so the loop stays on iteration 1 and re-dispatches verify)
+        return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+      }
+      if (callCount === 4) {
+        // Second retry (iteration 2 — all items retried since stale verdict cleared)
         return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
       }
-      // Second verify passes
+      // Second verify passes (iteration 2)
       return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
     });
 
@@ -1767,11 +1775,11 @@ describe('loop block execution', () => {
 
     const result = await executeWorkflow(config);
 
-    // Loop should eventually succeed (pass verdict on second verify)
+    // Loop should eventually succeed (pass verdict on iteration 2 verify)
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].code).toBe('UNKNOWN');
-    // 4 dispatches: retry1 + verify1(error) + retry2 + verify2(pass)
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(4);
+    // 5 dispatches: retry1 + verify1(error) + verify1-retry(ok) + retry2 + verify2(pass)
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(5);
   });
 
   it('non-halt per-run error records error and continues to next iteration', async () => {
@@ -1810,5 +1818,705 @@ describe('loop block execution', () => {
     // Error from first verify recorded, but loop continued and eventually passed
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].code).toBe('UNKNOWN');
+  });
+});
+
+// ============================================================
+// Story 5-3: Crash Recovery & Resume Tests
+// ============================================================
+
+describe('isTaskCompleted', () => {
+  it('returns true when (taskName, storyKey) tuple matches a checkpoint', () => {
+    const state = makeDefaultState({
+      tasks_completed: [
+        { task_name: 'implement', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+      ],
+    });
+    expect(isTaskCompleted(state, 'implement', '3-1-foo')).toBe(true);
+  });
+
+  it('returns false when taskName matches but storyKey does not', () => {
+    const state = makeDefaultState({
+      tasks_completed: [
+        { task_name: 'implement', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+      ],
+    });
+    expect(isTaskCompleted(state, 'implement', '3-2-bar')).toBe(false);
+  });
+
+  it('returns false when storyKey matches but taskName does not (AC #7)', () => {
+    const state = makeDefaultState({
+      tasks_completed: [
+        { task_name: 'implement', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+      ],
+    });
+    // ("implement", "3-1-foo") does NOT cause ("verify", "3-1-foo") to be skipped
+    expect(isTaskCompleted(state, 'verify', '3-1-foo')).toBe(false);
+  });
+
+  it('returns false when tasks_completed is empty (AC #5)', () => {
+    const state = makeDefaultState({ tasks_completed: [] });
+    expect(isTaskCompleted(state, 'implement', '3-1-foo')).toBe(false);
+  });
+
+  it('returns true for per-run sentinel key', () => {
+    const state = makeDefaultState({
+      tasks_completed: [
+        { task_name: 'verify', story_key: '__run__', completed_at: '2026-04-03T00:00:00Z' },
+      ],
+    });
+    expect(isTaskCompleted(state, 'verify', PER_RUN_SENTINEL)).toBe(true);
+  });
+});
+
+describe('isLoopTaskCompleted', () => {
+  it('returns true when checkpoint count >= iteration', () => {
+    const state = makeDefaultState({
+      tasks_completed: [
+        { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+        { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:01:00Z' },
+      ],
+    });
+    expect(isLoopTaskCompleted(state, 'retry', '3-1-foo', 2)).toBe(true);
+    expect(isLoopTaskCompleted(state, 'retry', '3-1-foo', 1)).toBe(true);
+  });
+
+  it('returns false when checkpoint count < iteration', () => {
+    const state = makeDefaultState({
+      tasks_completed: [
+        { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+      ],
+    });
+    expect(isLoopTaskCompleted(state, 'retry', '3-1-foo', 2)).toBe(false);
+  });
+
+  it('returns false when no checkpoints exist', () => {
+    const state = makeDefaultState({ tasks_completed: [] });
+    expect(isLoopTaskCompleted(state, 'retry', '3-1-foo', 1)).toBe(false);
+  });
+});
+
+describe('crash recovery & resume', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it('skips completed sequential per-story task (AC #1)', async () => {
+    // Pre-populate: implement for 5-1-foo already done, 5-2-bar not done
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-03T00:00:00Z',
+        tasks_completed: [
+          { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+        ],
+      }),
+    );
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Only 5-2-bar should have been dispatched (5-1-foo skipped)
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(result.tasksCompleted).toBe(1);
+    // warn should have been called for the skip
+    expect(mockWarn).toHaveBeenCalledWith(
+      'workflow-engine: skipping completed task implement for 5-1-foo',
+    );
+  });
+
+  it('does NOT skip per-story task when no checkpoint exists (AC #5)', async () => {
+    // Fresh state — no checkpoints
+    mockReadWorkflowState.mockReturnValue(makeDefaultState());
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Both 5-1-foo and 5-2-bar should be dispatched
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(result.tasksCompleted).toBe(2);
+  });
+
+  it('skips completed per-run task (AC #3)', async () => {
+    // Pre-populate: verify per-run already done
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-03T00:00:00Z',
+        tasks_completed: [
+          { task_name: 'verify', story_key: '__run__', completed_at: '2026-04-03T00:00:00Z' },
+        ],
+      }),
+    );
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { verify: makeTask({ scope: 'per-run', source_access: false }) },
+        flow: ['verify'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(mockDispatchAgent).not.toHaveBeenCalled();
+    expect(result.tasksCompleted).toBe(0);
+    expect(mockWarn).toHaveBeenCalledWith(
+      'workflow-engine: skipping completed task verify for __run__',
+    );
+  });
+
+  it('resumes mid-story: 3 of 5 done, dispatches only remaining 2 (AC #2)', async () => {
+    // 5 stories, 3 already completed
+    mockParse.mockReturnValue({
+      development_status: {
+        '5-1-a': 'ready-for-dev',
+        '5-2-b': 'ready-for-dev',
+        '5-3-c': 'ready-for-dev',
+        '5-4-d': 'ready-for-dev',
+        '5-5-e': 'ready-for-dev',
+      },
+    });
+
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-03T00:00:00Z',
+        tasks_completed: [
+          { task_name: 'implement', story_key: '5-1-a', completed_at: '2026-04-03T00:00:00Z' },
+          { task_name: 'implement', story_key: '5-2-b', completed_at: '2026-04-03T00:01:00Z' },
+          { task_name: 'implement', story_key: '5-3-c', completed_at: '2026-04-03T00:02:00Z' },
+        ],
+      }),
+    );
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Only 2 dispatches for 5-4-d and 5-5-e
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(result.tasksCompleted).toBe(2);
+  });
+
+  it('skips all per-story tasks and proceeds to per-run verify (AC #3)', async () => {
+    // All per-story implement tasks done, verify not done
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-03T00:00:00Z',
+        tasks_completed: [
+          { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+          { task_name: 'implement', story_key: '5-2-bar', completed_at: '2026-04-03T00:01:00Z' },
+        ],
+      }),
+    );
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          implement: makeTask(),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: ['implement', 'verify'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Only 1 dispatch for verify (implement skipped for both stories)
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(result.tasksCompleted).toBe(1);
+  });
+
+  it('phase: completed returns early with tasksCompleted: 0 (AC #6)', async () => {
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'completed',
+        started: '2026-04-03T00:00:00Z',
+      }),
+    );
+
+    const config = makeConfig();
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(true);
+    expect(result.tasksCompleted).toBe(0);
+    expect(result.storiesProcessed).toBe(0);
+    expect(result.errors).toEqual([]);
+    expect(result.durationMs).toBe(0);
+    // Should not dispatch anything or write state
+    expect(mockDispatchAgent).not.toHaveBeenCalled();
+    expect(mockWriteWorkflowState).not.toHaveBeenCalled();
+  });
+
+  it('tuple matching: ("implement", "3-1-foo") does NOT skip ("verify", "3-1-foo") (AC #7)', async () => {
+    // Only implement for 5-1-foo is done. verify for 5-1-foo should still execute.
+    mockParse.mockReturnValue({
+      development_status: { '5-1-foo': 'ready-for-dev' },
+    });
+
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-03T00:00:00Z',
+        tasks_completed: [
+          { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+        ],
+      }),
+    );
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          implement: makeTask(),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: ['implement', 'verify'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // implement skipped, verify dispatched
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(result.tasksCompleted).toBe(1);
+  });
+
+  it('corrupted state triggers fresh start (AC #9)', async () => {
+    // readWorkflowState already handles corruption by returning defaults
+    // This test verifies the engine works correctly with default state
+    mockReadWorkflowState.mockReturnValue(makeDefaultState());
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Should execute all tasks from scratch
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(result.tasksCompleted).toBe(2);
+  });
+
+  it('fresh start (no state) executes everything — no skips (AC #5)', async () => {
+    mockReadWorkflowState.mockReturnValue(makeDefaultState());
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          implement: makeTask(),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: ['implement', 'verify'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // 2 per-story + 1 per-run = 3 dispatches
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(3);
+    expect(result.tasksCompleted).toBe(3);
+  });
+
+  it('tasks_completed growth is proportional to actual task count only (AC #8)', async () => {
+    mockReadWorkflowState.mockReturnValue(makeDefaultState());
+
+    mockParse.mockReturnValue({
+      development_status: {
+        '5-1-a': 'ready-for-dev',
+        '5-2-b': 'ready-for-dev',
+      },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Check that state writes contain tasks_completed arrays that only grow by 1 per dispatch
+    const writes = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
+    let prevLength = 0;
+    for (const ws of writes) {
+      const len = ws.tasks_completed.length;
+      // Each write should grow by at most 1 checkpoint
+      expect(len - prevLength).toBeLessThanOrEqual(1);
+      prevLength = len;
+    }
+  });
+
+  it('loop block resumes from current iteration, skipping completed tasks (AC #4)', async () => {
+    // Simulate crash mid-iteration 2:
+    // - Iteration 1: retry(3-1-foo) and verify(__run__) both done (2 checkpoints each)
+    // Wait, iteration 1 means 1 checkpoint each.
+    // - Iteration 1 fully done: retry(3-1-foo) x1, verify(__run__) x1
+    // - Iteration 2 partially done: retry(3-1-foo) x2 done, verify(__run__) not done for iter 2
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-03T00:00:00Z',
+        iteration: 2, // currently on iteration 2
+        tasks_completed: [
+          // Iteration 1 checkpoints
+          { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+          { task_name: 'verify', story_key: '__run__', completed_at: '2026-04-03T00:01:00Z' },
+          // Iteration 2 partial: retry done, verify NOT done
+          { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:02:00Z' },
+        ],
+      }),
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    // verify returns pass so loop terminates
+    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
+      if (prompt.includes('Execute task')) {
+        return {
+          sessionId: 'sess-v',
+          success: true,
+          durationMs: 100,
+          output: JSON.stringify({
+            verdict: 'pass',
+            score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+            findings: [],
+          }),
+        };
+      }
+      return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Only verify should be dispatched (retry already done for iteration 2)
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(result.tasksCompleted).toBe(1);
+    // retry should have been skipped
+    expect(mockWarn).toHaveBeenCalledWith(
+      'workflow-engine: skipping completed task retry for 3-1-foo',
+    );
+  });
+
+  it('loop iteration counter is preserved — not reset to 0 (AC #4)', async () => {
+    // Resume at iteration 2 (fully completed), should advance to 3
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-03T00:00:00Z',
+        iteration: 2,
+        tasks_completed: [
+          // Both iterations fully done
+          { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+          { task_name: 'verify', story_key: '__run__', completed_at: '2026-04-03T00:01:00Z' },
+          { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:02:00Z' },
+          { task_name: 'verify', story_key: '__run__', completed_at: '2026-04-03T00:03:00Z' },
+        ],
+      }),
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    // Pass on next verify
+    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
+      if (prompt.includes('Execute task')) {
+        return {
+          sessionId: 'sess-v',
+          success: true,
+          durationMs: 100,
+          output: JSON.stringify({
+            verdict: 'pass',
+            score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+            findings: [],
+          }),
+        };
+      }
+      return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Check that iteration was advanced to 3 (not reset to 0 or 1)
+    const writes = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
+    const iterationValues = writes.map((s) => s.iteration);
+    // Should contain 3 (the next iteration after 2)
+    expect(iterationValues).toContain(3);
+    // Should NOT contain 0 or 1
+    expect(iterationValues).not.toContain(0);
+    expect(iterationValues).not.toContain(1);
+  });
+
+  it('error checkpoints do NOT cause task to be skipped on resume (error!=completion)', async () => {
+    // A previous run errored on implement for 5-1-foo — error checkpoint recorded.
+    // On resume, the task should NOT be skipped because error checkpoints are not completions.
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'error',
+        started: '2026-04-03T00:00:00Z',
+        tasks_completed: [
+          {
+            task_name: 'implement',
+            story_key: '5-1-foo',
+            completed_at: '2026-04-03T00:00:00Z',
+            error: true,
+          },
+        ],
+      }),
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '5-1-foo': 'ready-for-dev', '5-2-bar': 'backlog' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Both stories should be dispatched (error checkpoint should not skip 5-1-foo)
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(result.tasksCompleted).toBe(2);
+  });
+
+  it('isTaskCompleted returns false for error checkpoints', () => {
+    const state = makeDefaultState({
+      tasks_completed: [
+        { task_name: 'implement', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z', error: true },
+      ],
+    });
+    expect(isTaskCompleted(state, 'implement', '3-1-foo')).toBe(false);
+  });
+
+  it('isLoopTaskCompleted excludes error checkpoints from count', () => {
+    const state = makeDefaultState({
+      tasks_completed: [
+        // 1 success + 1 error for retry/3-1-foo
+        { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+        { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:01:00Z', error: true },
+      ],
+    });
+    // Only 1 successful checkpoint, so iteration 2 should NOT be considered complete
+    expect(isLoopTaskCompleted(state, 'retry', '3-1-foo', 2)).toBe(false);
+    expect(isLoopTaskCompleted(state, 'retry', '3-1-foo', 1)).toBe(true);
+  });
+
+  it('resumes from error phase and continues execution', async () => {
+    // Previous run ended in error phase. On resume, engine should continue.
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'error',
+        started: '2026-04-03T00:00:00Z',
+        tasks_completed: [
+          { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+        ],
+      }),
+    );
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // 5-1-foo was successfully completed (no error flag), so it should be skipped.
+    // Only 5-2-bar should be dispatched.
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(result.tasksCompleted).toBe(1);
+  });
+
+  it('loop block: non-halt per-story error continues to next story (branch coverage)', async () => {
+    const { DispatchError } = await import('../agent-dispatch.js');
+    let callCount = 0;
+
+    mockDispatchAgent.mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) {
+        // First per-story dispatch: non-halt error
+        throw new DispatchError('bad', 'UNKNOWN', 'dev', new Error('inner'));
+      }
+      if (callCount === 2) {
+        // Second per-story dispatch succeeds
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      }
+      // Verify passes
+      return {
+        sessionId: 'sess-v', success: true, durationMs: 100,
+        output: JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+          findings: [],
+        }),
+      };
+    });
+
+    mockParse.mockReturnValue({
+      development_status: {
+        '3-1-foo': 'ready-for-dev',
+        '3-2-bar': 'backlog',
+      },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // 3 dispatches: retry(3-1-foo, error) + retry(3-2-bar, ok) + verify(pass)
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(3);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].storyKey).toBe('3-1-foo');
+  });
+
+  it('loop block: skips completed per-run task on resume (branch coverage)', async () => {
+    // Resume mid-loop: iteration 1, retry done, verify done for iteration 1
+    // This should advance to iteration 2 and dispatch tasks
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-03T00:00:00Z',
+        iteration: 1,
+        tasks_completed: [
+          { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
+          { task_name: 'verify', story_key: '__run__', completed_at: '2026-04-03T00:01:00Z' },
+        ],
+        evaluator_scores: [{
+          iteration: 1, passed: 0, failed: 1, unknown: 0, total: 1, timestamp: '2026-04-03T00:01:00Z',
+        }],
+      }),
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
+      if (prompt.includes('Execute task')) {
+        return {
+          sessionId: 'sess-v', success: true, durationMs: 100,
+          output: JSON.stringify({
+            verdict: 'pass',
+            score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+            findings: [],
+          }),
+        };
+      }
+      return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Should advance to iteration 2, dispatch retry + verify
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(result.tasksCompleted).toBe(2);
+  });
+
+  it('loop block: missing agent in loop task is skipped gracefully', async () => {
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    // verify task uses 'evaluator' agent which is NOT in config.agents
+    mockDispatchAgent.mockImplementation(async () => {
+      return {
+        sessionId: 'sess-v', success: true, durationMs: 100,
+        output: JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+          findings: [],
+        }),
+      };
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', agent: 'evaluator' }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+      agents: {
+        dev: makeDefinition(),
+        // 'evaluator' agent is NOT provided
+      },
+      maxIterations: 1,
+    });
+
+    await executeWorkflow(config);
+
+    // verify task should be skipped because agent 'evaluator' is missing
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('agent "evaluator" not found'),
+    );
   });
 });

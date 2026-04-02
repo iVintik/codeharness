@@ -10,6 +10,8 @@ export interface TaskCheckpoint {
   story_key: string;
   completed_at: string;
   session_id?: string;
+  /** When present, indicates this checkpoint records a failed dispatch (not a success). */
+  error?: boolean;
 }
 
 export interface EvaluatorScore {
@@ -132,6 +134,7 @@ function isValidWorkflowState(value: unknown): value is WorkflowState {
     if (typeof tc.story_key !== 'string') return false;
     if (typeof tc.completed_at !== 'string') return false;
     if (tc.session_id !== undefined && typeof tc.session_id !== 'string') return false;
+    if (tc.error !== undefined && typeof tc.error !== 'boolean') return false;
   }
 
   // Validate evaluator_scores element shapes

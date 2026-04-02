@@ -100,13 +100,53 @@ export interface WorkItem {
 // --- Constants ---
 
 /** Sentinel story key for per-run tasks. */
-const PER_RUN_SENTINEL = '__run__';
+export const PER_RUN_SENTINEL = '__run__';
 
 /** DispatchError codes that should halt execution immediately. */
 const HALT_ERROR_CODES = new Set(['RATE_LIMIT', 'NETWORK', 'SDK_INIT']);
 
 /** Default maximum loop iterations before termination. */
 const DEFAULT_MAX_ITERATIONS = 5;
+
+// --- Crash Recovery: Task Completion Check ---
+
+/**
+ * Check whether a (taskName, storyKey) combination is already recorded
+ * in the workflow state's tasks_completed array.
+ *
+ * Both fields must match for the task to be considered completed.
+ * Used by the resume logic to skip already-completed dispatches.
+ */
+export function isTaskCompleted(
+  state: WorkflowState,
+  taskName: string,
+  storyKey: string,
+): boolean {
+  return state.tasks_completed.some(
+    (cp) => cp.task_name === taskName && cp.story_key === storyKey && !cp.error,
+  );
+}
+
+/**
+ * Check whether a (taskName, storyKey) combination has been completed
+ * enough times to cover the current iteration in a loop block.
+ *
+ * Loop tasks execute the same (taskName, storyKey) pair each iteration,
+ * recording a new checkpoint each time. To determine if a task is done
+ * for the current iteration, we count how many matching checkpoints exist
+ * and compare to the current iteration number.
+ */
+export function isLoopTaskCompleted(
+  state: WorkflowState,
+  taskName: string,
+  storyKey: string,
+  iteration: number,
+): boolean {
+  const count = state.tasks_completed.filter(
+    (cp) => cp.task_name === taskName && cp.story_key === storyKey && !cp.error,
+  ).length;
+  return count >= iteration;
+}
 
 // --- Work Item Loading ---
 
@@ -440,12 +480,29 @@ export async function executeLoopBlock(
   }
 
   while (true) {
-    // 1. Increment iteration
-    currentState = {
-      ...currentState,
-      iteration: currentState.iteration + 1,
-    };
-    writeWorkflowState(currentState, projectDir);
+    // 1. Determine whether to increment iteration or resume a partial one.
+    //    On fresh start (iteration === 0), always increment.
+    //    On resume (iteration > 0), check if the current iteration is fully done.
+    const nextIteration = currentState.iteration + 1;
+    const allCurrentIterationDone = currentState.iteration > 0 && loopBlock.loop.every((tn) => {
+      const t = config.workflow.tasks[tn];
+      if (!t) return true; // missing task = skip = "done"
+      if (t.scope === 'per-story') {
+        return workItems.every((item) =>
+          isLoopTaskCompleted(currentState, tn, item.key, currentState.iteration));
+      }
+      return isLoopTaskCompleted(currentState, tn, PER_RUN_SENTINEL, currentState.iteration);
+    });
+
+    if (currentState.iteration === 0 || allCurrentIterationDone) {
+      // Fresh start or current iteration fully done — advance
+      currentState = {
+        ...currentState,
+        iteration: nextIteration,
+      };
+      writeWorkflowState(currentState, projectDir);
+    }
+    // else: resuming a partially completed iteration — keep current iteration
 
     let haltedInLoop = false;
 
@@ -468,6 +525,12 @@ export async function executeLoopBlock(
         const itemsToRetry = lastVerdict ? getFailedItems(lastVerdict, workItems) : workItems;
 
         for (const item of itemsToRetry) {
+          // Skip if already completed for this iteration (crash recovery — AC #4)
+          if (isLoopTaskCompleted(currentState, taskName, item.key, currentState.iteration)) {
+            warn(`workflow-engine: skipping completed task ${taskName} for ${item.key}`);
+            continue;
+          }
+
           // Build prompt: inject findings if we have a previous verdict
           const prompt = lastVerdict
             ? buildRetryPrompt(item.key, lastVerdict.findings)
@@ -495,6 +558,12 @@ export async function executeLoopBlock(
         if (haltedInLoop) break;
       } else {
         // per-run task (e.g., verify)
+        // Skip if already completed for this iteration (crash recovery — AC #4)
+        if (isLoopTaskCompleted(currentState, taskName, PER_RUN_SENTINEL, currentState.iteration)) {
+          warn(`workflow-engine: skipping completed task ${taskName} for ${PER_RUN_SENTINEL}`);
+          continue;
+        }
+
         try {
           // We need the dispatch result output to parse verdict
           // dispatchTask doesn't return the DispatchResult directly, so we
@@ -602,6 +671,18 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
 
   // 1. Read or initialize workflow state
   let state = readWorkflowState(projectDir);
+
+  // Early exit: workflow already completed (AC #6)
+  if (state.phase === 'completed') {
+    return {
+      success: true,
+      tasksCompleted: 0,
+      storiesProcessed: 0,
+      errors: [],
+      durationMs: 0,
+    };
+  }
+
   state = {
     ...state,
     phase: 'executing',
@@ -658,6 +739,12 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
     }
 
     if (task.scope === 'per-run') {
+      // Skip if already completed (crash recovery — AC #3)
+      if (isTaskCompleted(state, taskName, PER_RUN_SENTINEL)) {
+        warn(`workflow-engine: skipping completed task ${taskName} for ${PER_RUN_SENTINEL}`);
+        continue;
+      }
+
       // Per-run: dispatch once with sentinel key
       try {
         state = await dispatchTask(task, taskName, PER_RUN_SENTINEL, definition, state, config);
@@ -679,6 +766,13 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
       // Per-story: dispatch once per work item
       for (const item of workItems) {
         processedStories.add(item.key);
+
+        // Skip if already completed (crash recovery — AC #1, #2, #7)
+        if (isTaskCompleted(state, taskName, item.key)) {
+          warn(`workflow-engine: skipping completed task ${taskName} for ${item.key}`);
+          continue;
+        }
+
         try {
           state = await dispatchTask(task, taskName, item.key, definition, state, config);
           tasksCompleted++;
@@ -735,6 +829,7 @@ function recordErrorInState(
     task_name: taskName,
     story_key: storyKey,
     completed_at: new Date().toISOString(),
+    error: true,
   };
   return {
     ...state,

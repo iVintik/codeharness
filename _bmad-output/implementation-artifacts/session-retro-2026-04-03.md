@@ -273,3 +273,147 @@ Note: The verification phase for 5-1 is not in the session issues log — it lik
 | 6 | Fix pre-existing TS errors in `src/commands/__tests__/run.test.ts` | LOW | Backlog | Open |
 | 7 | Address deferred LOW issues from 4-3, 4-4, and 5-1 code reviews | LOW | Backlog | Open |
 | 8 | Add integration test for actual YAML parsing (not mocked) in workflow-engine | LOW | Backlog | New |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 3)
+
+**Timestamp:** 2026-04-03T02:45Z
+**Session window:** ~2026-04-03T02:12 to ~2026-04-03T02:39 (approx. 27 minutes)
+**Sprint progress:** 17/28 stories done (60.7%), Epics 1-4 complete, Epic 5 at 2/4
+
+---
+
+## 1. Session Summary
+
+This session completed one story end-to-end within a single ralph iteration (iteration #8).
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 5-2-flow-execution-loop-blocks | create-story, dev-story, code-review, test-provable verification | **Done** | Full lifecycle in ~27 minutes. 10/10 ACs passed. Commit `1219d18`. |
+
+**Key deliverables:**
+- `executeLoopBlock()` — loop block execution with termination on pass/maxIterations/circuit-breaker
+- `parseVerdict()` — EvaluatorVerdict JSON parsing from dispatch output
+- `buildRetryPrompt()` — finding injection into retry prompts
+- `getFailedItems()` — failed-story-only retry filtering
+- 27+ new tests, 3992 total tests passing, 96.37% statement coverage on workflow-engine.ts
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue | Impact |
+|----------|-------|--------|
+| HIGH | **Stale verdict bug** — verdict from a previous loop iteration could persist and cause premature loop termination on the next pass | Correctness: loop would exit early based on old evaluation results |
+| HIGH | **80-line code duplication** — loop block dispatch logic duplicated the sequential step dispatch logic nearly verbatim | Maintainability: two copies of error handling, checkpoint logic, state updates that would diverge over time |
+| HIGH | **Uncovered branches in duplicate code** — the duplicated code paths had no dedicated test coverage | Quality: bugs in the duplicate path would go undetected |
+
+All three HIGH issues were fixed during code review before verification.
+
+### MEDIUM Issues (fixed)
+
+Per the parent session summary, 3 MEDIUM issues were also addressed during code review, likely related to coverage gaps and edge case handling.
+
+### Infrastructure Issues
+
+- **Session issues log stale** — `.session-issues.md` still contains only placeholder entries from 2026-03-18. The subagents this session did not write to it. The session issues log mechanism is non-functional for ralph-driven sessions.
+- **`codeharness stats` still broken** — `stats --save` and `stats --json` both fail with "No session-logs/ directory found." Cost analysis remains manual.
+- **`ralph/.state-snapshot.json` divergence** — Shows `sprint.done: 12` but sprint-status.yaml shows 17 done. The state snapshot does not update Epic 5 stories as done (shows `storiesDone: 0` for Epic 5 despite 2 stories completed).
+
+---
+
+## 3. Cost Analysis
+
+### Session-Level Metrics
+
+| Metric | Value |
+|--------|-------|
+| Ralph iteration | #8 (of the current ralph run) |
+| Log file size | 2.42 MB (`claude_output_2026-04-03_02-12-22.log`) |
+| Session wall time | ~27 minutes |
+| Phases completed | 4 (create-story, dev-story, code-review, verification) |
+
+### Estimated Token Usage
+
+Based on log file size (2.42 MB of stream-json output) and prior session correlations:
+- Estimated API calls: ~15-25 (4 phases, each 4-7 tool calls)
+- Estimated session cost: **~$4-5** (single story, full lifecycle)
+- Cost per phase (estimated): create-story ~$0.50, dev-story ~$1.50, code-review ~$1.50, verification ~$0.75
+
+### Subagent Analysis (from parent session live log)
+
+The parent orchestrator launched this iteration at 02:12:22 and it completed at 02:39. The background retro agent consumed 23+ tool calls reading logs and state files — indicating the retro itself is a significant cost center.
+
+From the parent's output summary:
+- 10/10 ACs verified on first attempt
+- 3992/3992 tests passing
+- 96.37% coverage on workflow-engine.ts
+- 3 HIGH + 3 MEDIUM bugs found and fixed
+
+### Cumulative Cost Tracking
+
+| Session | Stories Completed | Estimated Cost | Cost/Story |
+|---------|-------------------|---------------|------------|
+| Prior sessions (Epics 1-2) | 7 | $37.08 | $4.45 |
+| Session 1 (2026-04-03, early) | 2.5 | ~$12 | ~$4.80 |
+| Session 2 (2026-04-03, late) | 0.5 (review+verify) | ~$3.50 | ~$7.00* |
+| **Session 3 (this)** | **1** | **~$4.50** | **~$4.50** |
+| **Cumulative** | **11** | **~$57** | **~$5.18** |
+
+*Session 2 cost/story is misleading — it was the tail end of a story built in Session 1.
+
+---
+
+## 4. What Went Well
+
+1. **Full lifecycle in one iteration.** Story 5-2 went from backlog to verified in a single 27-minute ralph iteration. This is the fastest full-lifecycle story completion yet.
+2. **All phases passed on first attempt.** No retries, no stuck phases, no timeouts. The pipeline ran clean.
+3. **Code review caught 3 HIGH bugs.** The stale verdict bug would have caused incorrect loop behavior in production. The 80-line duplication was a significant maintenance risk. Code review continues to earn its keep.
+4. **High coverage.** 96.37% statement, 88.75% branch, 100% function coverage on the primary module. 27 new tests added.
+5. **Budget adherence.** Completed in 27 minutes within a 30-minute timeout window. No timeout, no waste.
+6. **Sprint velocity.** With 17/28 stories done (60.7%), the project is past the halfway mark. Epic 5 is at 50% (2/4).
+
+---
+
+## 5. What Went Wrong
+
+1. **Session issues log is non-functional.** `.session-issues.md` was not updated by any subagent this session. It still contains placeholder data from 2026-03-18. Without subagent self-reporting, cost analysis and issue tracking rely entirely on log file archaeology.
+2. **`ralph/.state-snapshot.json` is increasingly stale.** Shows `sprint.done: 12` vs actual 17. Epic 5 `storiesDone: 0` despite 2 stories completed. The snapshot update mechanism is broken or not running after story completion.
+3. **`codeharness stats` still broken.** Third consecutive session where cost reporting is unavailable. No `session-logs/` directory exists for ralph-driven sessions.
+4. **Sprint-status.yaml was overwritten.** The parent orchestrator rewrote the entire sprint-status.yaml file (see live log line 4229). While the content was correct, the approach is fragile — it replaced a stale "Epic Infinity" placeholder that existed from an earlier bug, which means the file was corrupted at some point.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Single-story-per-iteration pipeline.** The create → dev → review → verify pipeline completing in one iteration is the ideal execution pattern. No context switching, no state management between iterations.
+- **Code review on loop/retry logic.** The stale verdict bug is exactly the kind of state-mutation bug that only appears under iteration. Always review loops and retry logic adversarially.
+- **Building on prior story foundations.** Story 5-2 built directly on 5-1's sequential execution, reusing the same dispatch/checkpoint/error-handling patterns. Incremental stories within an epic pay off in velocity.
+
+### Patterns to Avoid
+
+- **Duplicating dispatch logic.** The 80-line duplication caught in review shows that when loop blocks share behavior with sequential steps, the code should be extracted into shared helpers from the start. The dev phase should anticipate this.
+- **Relying on `.session-issues.md` for ralph sessions.** The file is not being written to. Either fix the mechanism or remove it from the retro requirements.
+- **Trusting `ralph/.state-snapshot.json` as a source of truth.** It lags behind `sprint-status.yaml` and `sprint-state.json`. Use sprint-status.yaml for authoritative state.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | ~~Complete code-review and verify for story 5-1~~ | ~~HIGH~~ | ~~Session 2~~ | DONE |
+| 2 | Fix `codeharness verify` to work without pre-set harness state flags | MEDIUM | Backlog | Open |
+| 3 | Update `src/lib/AGENTS.md` — still missing: agent-dispatch, agent-resolver, session-manager, trace-id | MEDIUM | Next session | Partial |
+| 4 | Fix `codeharness stats --save` to work for non-ralph sessions | MEDIUM | Backlog | Open (escalated from LOW — 3 sessions broken) |
+| 5 | Fix `ralph/.state-snapshot.json` sync — shows 12 done vs 17 actual, Epic 5 storiesDone: 0 | MEDIUM | Next session | Open (escalated — divergence growing) |
+| 6 | Fix `.session-issues.md` write mechanism for ralph-driven sessions | MEDIUM | Backlog | New |
+| 7 | Fix pre-existing TS errors in `src/commands/__tests__/run.test.ts` | LOW | Backlog | Open |
+| 8 | Address deferred LOW issues from 4-3, 4-4, 5-1, and 5-2 code reviews | LOW | Backlog | Open (updated) |
+| 9 | Add integration test for actual YAML parsing (not mocked) in workflow-engine | LOW | Backlog | Open |
+| 10 | Extract shared dispatch/checkpoint logic from sequential and loop paths to eliminate duplication pattern | LOW | Next story touching workflow-engine | New |

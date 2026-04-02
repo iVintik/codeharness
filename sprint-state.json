@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 12,
+    "done": 13,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -197,12 +197,16 @@
       }
     },
     "5-3-crash-recovery-resume": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T22:58:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/5-3-crash-recovery-resume-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "5-4-run-status-commands": {
       "status": "backlog",

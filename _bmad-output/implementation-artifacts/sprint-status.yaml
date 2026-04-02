@@ -26,11 +26,11 @@ development_status:
   3-3-agent-resolver-module: done
 
   # Epic 4
-  epic-4: backlog
+  epic-4: done
   4-1-agent-dispatch-module-sdk-integration: done
   4-2-session-boundary-management: done
   4-3-trace-id-generation-injection: done
-  4-4-source-isolation-enforcement: backlog
+  4-4-source-isolation-enforcement: done
 
   # Epic 5
   epic-5: backlog

@@ -16,6 +16,12 @@ vi.mock('../../modules/verify/index.js', () => ({
   getACById: (...args: unknown[]) => mockGetACById(...args),
 }));
 
+// Mock validate-schema to isolate self-validation tests
+vi.mock('../validate-schema.js', () => ({
+  registerValidateSchemaCommand: vi.fn(),
+  runSchemaValidation: vi.fn(() => ({ status: 'pass', files: [] })),
+}));
+
 import { registerValidateCommand } from '../validate.js';
 
 beforeEach(() => {
@@ -92,10 +98,10 @@ function setupWithFailures() {
   });
 }
 
-describe('validate command', () => {
+describe('validate self subcommand', () => {
   it('produces report with correct counts (AC 1)', async () => {
     setupAllPass(10, 3);
-    const { stdout } = await runCli(['validate']);
+    const { stdout } = await runCli(['validate', 'self']);
     expect(stdout).toContain('Total: 10');
     expect(stdout).toContain('Passed: 7');
     expect(stdout).toContain('Failed: 0');
@@ -105,14 +111,14 @@ describe('validate command', () => {
 
   it('outputs RELEASE GATE: PASS on all-pass scenario (AC 2)', async () => {
     setupAllPass(5, 2);
-    const { stdout } = await runCli(['validate']);
+    const { stdout } = await runCli(['validate', 'self']);
     expect(stdout).toContain('RELEASE GATE: PASS -- v1.0 ready');
     expect(process.exitCode).toBe(0);
   });
 
   it('includes per-failure detail on failure scenario (AC 3)', async () => {
     setupWithFailures();
-    const { stdout } = await runCli(['validate']);
+    const { stdout } = await runCli(['validate', 'self']);
     expect(stdout).toContain('RELEASE GATE: FAIL');
     expect(stdout).toContain('AC 2');
     expect(stdout).toContain('Test AC 2');
@@ -125,21 +131,21 @@ describe('validate command', () => {
 
   it('--ci sets exit code 0 on pass (AC 5)', async () => {
     setupAllPass();
-    const { stdout } = await runCli(['validate', '--ci']);
+    const { stdout } = await runCli(['validate', 'self', '--ci']);
     expect(stdout).toContain('RELEASE GATE: PASS -- v1.0 ready');
     expect(process.exitCode).toBe(0);
   });
 
   it('--ci sets exit code 1 on fail (AC 5)', async () => {
     setupWithFailures();
-    const { stdout } = await runCli(['validate', '--ci']);
+    const { stdout } = await runCli(['validate', 'self', '--ci']);
     expect(stdout).toContain('RELEASE GATE: FAIL');
     expect(process.exitCode).toBe(1);
   });
 
   it('--json outputs machine-readable JSON', async () => {
     setupAllPass(5, 2);
-    const { stdout } = await runCli(['--json', 'validate']);
+    const { stdout } = await runCli(['--json', 'validate', 'self']);
     const parsed = JSON.parse(stdout);
     expect(parsed.status).toBe('pass');
     expect(parsed.total).toBe(5);
@@ -152,7 +158,7 @@ describe('validate command', () => {
 
   it('--json includes failure details', async () => {
     setupWithFailures();
-    const { stdout } = await runCli(['--json', 'validate']);
+    const { stdout } = await runCli(['--json', 'validate', 'self']);
     const parsed = JSON.parse(stdout);
     expect(parsed.status).toBe('fail');
     expect(parsed.gate).toBe('RELEASE GATE: FAIL');
@@ -166,7 +172,7 @@ describe('validate command', () => {
 
   it('reports error when createValidationSprint fails', async () => {
     mockCreateValidationSprint.mockReturnValue({ success: false, error: 'state not found' });
-    const { stdout } = await runCli(['validate']);
+    const { stdout } = await runCli(['validate', 'self']);
     expect(stdout).toContain('state not found');
     expect(process.exitCode).toBe(1);
   });
@@ -174,7 +180,7 @@ describe('validate command', () => {
   it('reports error when runValidationCycle fails', async () => {
     mockCreateValidationSprint.mockReturnValue({ success: true, data: { acsAdded: 1, existingPreserved: 0 } });
     mockRunValidationCycle.mockReturnValue({ success: false, error: 'cycle error' });
-    const { stdout } = await runCli(['validate']);
+    const { stdout } = await runCli(['validate', 'self']);
     expect(stdout).toContain('cycle error');
     expect(process.exitCode).toBe(1);
   });
@@ -183,14 +189,14 @@ describe('validate command', () => {
     mockCreateValidationSprint.mockReturnValue({ success: true, data: { acsAdded: 1, existingPreserved: 0 } });
     mockRunValidationCycle.mockReturnValue({ success: true, data: { acId: 0, action: 'no-actionable-ac' } });
     mockGetValidationProgress.mockReturnValue({ success: false, error: 'progress error' });
-    const { stdout } = await runCli(['validate']);
+    const { stdout } = await runCli(['validate', 'self']);
     expect(stdout).toContain('progress error');
     expect(process.exitCode).toBe(1);
   });
 
-  it('command file is under 100 lines (FR40)', () => {
+  it('validate-self.ts is under 100 lines (FR40)', () => {
     const source = readFileSync(
-      new URL('../validate.ts', import.meta.url).pathname,
+      new URL('../validate-self.ts', import.meta.url).pathname,
       'utf-8',
     );
     const lineCount = source.split('\n').length;

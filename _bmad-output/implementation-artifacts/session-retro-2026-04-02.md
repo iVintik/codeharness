@@ -1004,3 +1004,271 @@ Session 5 (2-3): 19.5 calls/phase (review-only, inflated by ANSI retries)
 ```
 
 Excluding ANSI retry waste (~5 calls), Session 5 would have been ~17 calls/phase — in line with the improving trend. The subagent pattern is maturing and cost per story is stabilizing.
+
+---
+
+# Session Retrospective — 2026-04-02 (Session 6: Stories 2-3 + 2-4 Final Rollup)
+
+**Generated:** 2026-04-02T18:45 UTC
+
+## 1. Session Summary
+
+**Date:** 2026-04-02
+**Stories attempted this session:** 2
+**Stories completed this session:** 2
+**Full-day stories completed:** 7 (1-1, 1-2, 1-3, 2-1, 2-2, 2-3, 2-4)
+
+| Story | Phases Run | Outcome | Commit |
+|-------|-----------|---------|--------|
+| 2-3-default-embedded-workflow | create-story, code-review, verification | done | `5070259` |
+| 2-4-init-command-workflow-generation | create-story, dev-story, code-review, verification | done | `5a17066` |
+
+This session completed the remaining two stories from the day's autonomous run. Story 2-3 embeds the default workflow YAML template. Story 2-4 adds workflow generation to the `codeharness init` command — when a user runs `init`, it now copies the default workflow to `.codeharness/workflows/default.yaml`. Epic 2 is now 80% complete (4/5) with only story 2-5 (validate command) remaining.
+
+**Sprint progress after session:** Epic 1 done (3/3). Epic 2 at 80% (4/5). 7/28 total stories done (25%).
+
+---
+
+## 2. Issues Analysis
+
+### Categorized Issues from Session Log
+
+**Bugs Found by Code Review (3 — all fixed)**
+- **MEDIUM:** `handleRerun()` ignored `--force` flag for workflow generation — re-run with `--force` did not regenerate the workflow file.
+- **MEDIUM:** `handleRerun()` left `result.workflow` undefined when workflow file was missing — downstream consumers would get undefined instead of a clear state.
+- **MEDIUM:** No test coverage for re-run+force code path — 3 tests added to cover the gap.
+
+**Code Quality Issues (2 — LOW, not fixed)**
+- Template source file missing produces generic error instead of descriptive "template not found" message.
+- `.codeharness/workflows/default.yaml` path hardcoded in 7+ locations — should be a constant.
+
+**Spec/Config Gaps (4)**
+- `workflow.md` vs `workflow.yaml` extension mismatch in skill trigger configuration.
+- `_bmad/bmm/config.yaml` referenced in workflow.yaml but actual path is `_bmad/config.yaml` — fifth time this session the path was wrong.
+- No `project-context.md` exists in this project.
+- Story key `2-4-init-command-workflow-generation` not found verbatim in epics file (uses "Story 2.4" format).
+
+**Verification Format Issues (2)**
+- Story 2-3: Initial proof failed (0/8 ACs) — validator requires `bash` blocks followed by `output` blocks. Rewrote in expected format.
+- Story 2-4: Same format issue — first proof didn't match parser's expected `## AC N:` top-level format. Rewrote.
+
+**Pre-existing Failures (2)**
+- BATS integration tests (onboard, ralph, verify_gates, validate_epic_docs) fail with code 127 — shell scripts deleted in story 1-2.
+- 48 lint warnings — all pre-existing unused-var/regex issues in other modules.
+
+### Severity Distribution
+
+| Severity | Count | Fixed? |
+|----------|-------|--------|
+| MEDIUM | 3 | All 3 fixed (code review) |
+| LOW | 2 | Deferred |
+| Pre-existing | 2 | Not addressed |
+
+---
+
+## 3. Cost Analysis
+
+### Session Cost
+
+`codeharness stats --save` failed — session-logs directory still missing. Cost reconstructed from subagent token reports.
+
+**Story 2-3 (create-story + code-review + verification):**
+
+| Tool | create-story | code-review | verification | Total |
+|------|-------------|-------------|--------------|-------|
+| Bash | 2 | 11 | 12 | **25** |
+| Read | 11 | 6 | 4 | **21** |
+| Edit | 0 | 1 | 0 | **1** |
+| Write | 1 | 1 | 1 | **3** |
+| Grep | 2 | 0 | 1 | **3** |
+| Glob | 5 | 1 | 0 | **6** |
+| Skill | 1 | 1 | 0 | **2** |
+| **Total** | **18** | **21** | **18** | **57** |
+
+**Story 2-4 (create-story + dev-story + code-review + verification):**
+
+| Tool | create-story | dev-story | code-review | verification | Total |
+|------|-------------|-----------|-------------|--------------|-------|
+| Bash | 5 | 4 | 7 | 10 | **26** |
+| Read | 10 | 8 | 8 | 2 | **28** |
+| Edit | 0 | 10 | 3 | 0 | **13** |
+| Write | 1 | 0 | 0 | 1 | **2** |
+| Grep | 7 | 0 | 0 | 5 | **12** |
+| Glob | 8 | 1 | 1 | 0 | **10** |
+| Skill | 1 | 1 | 1 | 0 | **3** |
+| **Total** | **24** | **18** | **18** | **16** | **76** |
+
+**Session Total: 133 tool calls (57 for 2-3, 76 for 2-4)**
+
+### Subagent-Level Breakdown
+
+**Story 2-3 create-story (18 calls):** Read-heavy (11 calls). All artifacts located and readable. No problems, no redundancy.
+
+**Story 2-3 code-review (21 calls):** Bash-heavy (11 calls). Found no bugs — implementation was correct. 5 grep attempts on ANSI coverage output returned empty (same recurring issue). One Edit for a minor fix. Clean pass.
+
+**Story 2-3 verification (18 calls):** Ran npm test twice, multiple coverage commands with different grep patterns due to filename truncation. Proof format required one rewrite.
+
+**Story 2-4 create-story (24 calls):** Most tool-intensive create-story of the day. 8 Glob attempts and 7 Grep calls to locate files — the `_bmad/bmm/config.yaml` path confusion and story key format mismatch added 3 wasted Glob attempts.
+
+**Story 2-4 dev-story (18 calls):** Edit-heavy (10 edits). Clean implementation — 30/30 tests pass, build succeeds. No redundancy.
+
+**Story 2-4 code-review (18 calls):** Found and fixed 3 MEDIUM bugs. Efficient — no wasted calls. All findings were legitimate.
+
+**Story 2-4 verification (16 calls):** Leanest verification of the day. Proof format required one rewrite but otherwise efficient. AC 4 (--force flag) verified via source code grep rather than --help invocation — weaker but acceptable for test-provable tier.
+
+### Token Waste Hotspots
+
+1. **5 ANSI grep failures in 2-3 code-review** — same issue, 6th session.
+2. **3 Glob attempts in 2-4 create-story** to find workflow directory structure — path confusion.
+3. **npm test run twice in 2-3 verification** — confirmation run was unnecessary.
+4. **Coverage commands with multiple grep patterns in 2-3 verification** — truncated filenames.
+5. **Proof format rewrite in both stories** — 2 rewrites total, down from 3+1 in Sessions 3-5.
+
+### Estimated Session Cost
+
+Using $0.13/call rate: 133 calls x $0.13 = **~$17.29**
+
+### Full-Day Cost Summary (Final)
+
+| Session | Story(ies) | Tool Calls | Estimated Cost |
+|---------|-----------|-----------|----------------|
+| 1 | 1-1, 1-2 | ~233 | ~$10 |
+| 2 | 1-3 | 74 | ~$5.48 |
+| 3 | 2-1 | ~86 | ~$8.34 |
+| 4 | 2-2 | 63 | ~$8.19 |
+| 5 | 2-3 (review+verify) | 39 | ~$5.07 |
+| 6 | 2-3 (create) + 2-4 (full) | 133 | ~$17.29 |
+| Orchestrator overhead | — | ~25 | ~$5 |
+| **Full Day Total** | **7 stories** | **~653** | **~$59** |
+
+### Cumulative Sprint Cost
+
+- Historical cumulative: $900.92 (158 stories prior)
+- Today: ~$59
+- **Running total: ~$960**
+- **Average cost per story today: ~$8.43/story** (7 stories at ~$59)
+
+The per-story cost is higher than the historical average ($4.17) due to Opus 4 pricing and larger context windows from accumulated v2 architecture artifacts.
+
+---
+
+## 4. What Went Well
+
+1. **Seven stories completed in a single day.** Epic 1 fully done (3/3), Epic 2 at 80% (4/5). This is the highest single-day story throughput recorded.
+2. **All stories passed on first attempt.** Zero story failures, zero retries at the story level. Every story was completed in a single pass through the pipeline.
+3. **Code review caught 3 real bugs in story 2-4.** The `handleRerun()` --force flag bug and undefined `result.workflow` would have been user-facing issues. Code review continues to justify its cost.
+4. **Story 2-4 verification was the leanest of the day (16 calls).** The verification skill is improving — fewer retries, more focused evidence gathering.
+5. **Overall test coverage held at 96.64%** with all files above 80% floor. Coverage stayed stable across all 7 stories.
+6. **Story 2-3 was the cleanest implementation.** Zero bugs found in code review. Static asset stories are inherently low-risk.
+7. **Sprint is 25% complete (7/28 stories).** At this velocity (~7 stories/day), the full sprint could be completed in ~3 more days.
+
+---
+
+## 5. What Went Wrong
+
+1. **`codeharness stats` still broken.** Sixth session. No automated cost tracking. All cost data is manual reconstruction from token reports — this takes ~5 minutes per session and is error-prone.
+2. **Verification proof format still required rewrites.** Both stories needed proof rewrites. Five of 6 sessions today hit this issue. The action item to fix the verification prompt has been carried since Session 1 and has never been implemented.
+3. **ANSI color code grep failures continue.** 5 wasted calls in this session alone. Estimated ~20-25 wasted calls across the full day. The `--no-color` fix has been carried since Session 2.
+4. **`_bmad/bmm/config.yaml` path confusion — fifth occurrence.** Create-story agents keep looking for `_bmad/bmm/config.yaml` but the actual path is `_bmad/config.yaml`. This wastes 2-3 Glob calls per occurrence.
+5. **48 pre-existing lint warnings ignored.** These are noise in every lint run. None are related to today's work but they obscure real issues.
+6. **BATS integration tests still failing.** Shell scripts deleted in story 1-2 but BATS tests still reference them. Code 127 errors in every test run.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **7 stories/day is achievable with greenfield work.** The pipeline (create-story -> dev-story -> code-review -> verification) handles greenfield modules efficiently. Deletion stories are slower (~29 calls/phase vs ~17 calls/phase for greenfield).
+- **Code review as a separate phase remains essential.** 3 MEDIUM bugs caught in story 2-4 that dev phase missed. The --force flag bug would have been a user-reported issue.
+- **Static asset stories are fast and clean.** Story 2-3 (embed default workflow) had zero review findings. Consider batching similar template/asset stories.
+- **Splitting dev and review across sessions works.** Story 2-3 dev was done in a prior session; review+verification in this session. This pattern is efficient when time budgets are tight.
+
+### Patterns to Avoid
+
+- **Carrying action items indefinitely.** Five action items have been carried across 4-6 sessions without being fixed. The cumulative waste from ANSI retries alone is ~20-25 tool calls today (~$3). Fix recurring issues between sprints, not during sprints.
+- **Hardcoding paths in 7+ locations.** Story 2-4 has `.codeharness/workflows/default.yaml` hardcoded in 7+ places. This should be a constant. The code review noted it but deferred as LOW.
+- **Not running `codeharness stats --save` before deleting session-logs.** This was the root cause of all cost tracking issues today. The lesson was identified in Session 1 but never applied retroactively.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 1 | **FIX: Add proof format specification to verification skill prompt** — `## AC N: Title` headers + `bash`/`output` evidence blocks | CRITICAL | Carried x5 — still causing rewrites in 5/6 sessions |
+| 2 | **FIX: Add `--no-color` to vitest invocations in subagent prompts** | HIGH | Carried x4 — ~25 wasted calls today |
+| 3 | **FIX: `codeharness stats` to handle missing session-logs directory** | HIGH | Carried x5 |
+| 4 | Fix `package.json` `files` array — remove stale `ralph/**/*.sh` and `ralph/AGENTS.md` | HIGH | Carried x5 |
+| 5 | Fix pre-existing query metrics test failures (6 tests) | MEDIUM | Carried x2 |
+| 6 | Remove or fix BATS integration tests referencing deleted shell scripts | MEDIUM | Carried x2 |
+| 7 | Extract `.codeharness/workflows/default.yaml` path as a constant | LOW | New |
+| 8 | Document `_bmad/config.yaml` actual location (not `_bmad/bmm/config.yaml`) | LOW | Carried x2 |
+| 9 | Begin story 2-5-validate-command to complete Epic 2 | HIGH | Next session |
+
+---
+
+## Full-Day Final Summary (2026-04-02, Session 6 — True End of Day)
+
+### Stories Completed
+
+| # | Story | Epic | Type | Phases | Tool Calls | Key Review Findings |
+|---|-------|------|------|--------|-----------|-------------------|
+| 1 | 1-1-delete-beads-integration | 1 | Deletion | 4 | ~119 | Dead type members, stale JSDoc |
+| 2 | 1-2-delete-ralph-loop-legacy-verification | 1 | Deletion | 4 | ~114 | Incomplete ralph/ deletion, broken stats.ts |
+| 3 | 1-3-workflow-state-module | 1 | Greenfield | 4 | 74 | Naming collision, validation gaps |
+| 4 | 2-1-workflow-yaml-json-schema | 2 | Greenfield | 4 | ~86 | Branch coverage gap, ESM require |
+| 5 | 2-2-workflow-parser-module | 2 | Greenfield | 4 | 63 | Error handling catch-all, missing edge cases |
+| 6 | 2-3-default-embedded-workflow | 2 | Static asset | 3+2 | ~96 | None (clean pass) |
+| 7 | 2-4-init-command-workflow-generation | 2 | Greenfield | 4 | 76 | --force flag bug, undefined result.workflow, missing test coverage |
+|   | **Total** | | | **29** | **~653** | 17 issues found by code review |
+
+### Sprint Progress
+
+- **Epic 1:** DONE (3/3)
+- **Epic 2:** 80% (4/5) — stories 2-1 through 2-4 done; 2-5 in backlog
+- **Epics 3-9:** Backlog
+- **Overall:** 7/28 stories done (25%)
+
+### Day-Level Metrics
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 7 |
+| Total tool calls | ~653 |
+| Estimated total cost | ~$59 |
+| Average cost per story | ~$8.43 |
+| Issues found by code review | 17 |
+| Issues fixed by code review | 13 |
+| Issues deferred | 4 (all LOW) |
+| Final test coverage | 96.64% |
+| Files above 80% floor | 150/150 |
+| Story failure rate | 0% (7/7 first-attempt success) |
+| Verification proof format failures | 5/7 stories needed rewrite |
+
+### Recurring Issues (Unresolved After 6 Sessions)
+
+| Issue | Sessions Carried | Estimated Waste Today | Fix Effort |
+|-------|-----------------|----------------------|------------|
+| Verification proof format failures | 5 of 6 sessions | ~$6-10 | Low (prompt update) |
+| ANSI color code grep failures | 5 of 6 sessions | ~$3 (25 calls) | Low (one flag) |
+| `codeharness stats` broken | 6 sessions | Manual work every session | Medium |
+| `package.json` stale entries | 5 sessions | Tech debt | Low |
+| `_bmad/config.yaml` path confusion | 5 sessions | ~$1 (8-10 calls) | Low |
+
+**Total estimated waste from unfixed recurring issues: ~$10-14 today (17-24% of total spend).**
+
+### Efficiency Trend (Greenfield Stories)
+
+```
+Session 2 (1-3): 18.5 calls/phase
+Session 3 (2-1): 21.5 calls/phase
+Session 4 (2-2): 15.75 calls/phase (best full-lifecycle)
+Session 6 (2-4): 19.0 calls/phase
+```
+
+Efficiency is stabilizing around 17-20 calls/phase for greenfield stories. The outlier is Session 3 (2-1) which was the first schema story and involved more exploration. The pipeline has matured to a predictable cost profile.
+
+### Velocity Projection
+
+At 7 stories/day, the remaining 21 stories could be completed in ~3 days. However, later epics (agent dispatch, flow execution, evaluator, circuit breaker) are more complex than Epic 1-2 foundation stories. Realistic projection: **5-7 more days to complete the sprint**, assuming similar daily time budgets and no major blockers.

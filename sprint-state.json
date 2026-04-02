@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 7,
+    "done": 8,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -93,12 +93,16 @@
       }
     },
     "2-5-validate-command": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T15:10:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/2-5-validate-command-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "3-1-agent-config-json-schema": {
       "status": "backlog",
@@ -334,7 +338,7 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "2-4-init-command-workflow-generation",
+    "currentStory": "2-5-validate-command",
     "currentPhase": "verify",
     "lastAction": "Starting test-provable verification",
     "acProgress": null

@@ -6,10 +6,10 @@
 development_status:
 
   # Epic 1
-  epic-1: backlog
+  epic-1: done
   1-1-delete-beads-integration: done
   1-2-delete-ralph-loop-legacy-verification: done
-  1-3-workflow-state-module: backlog
+  1-3-workflow-state-module: done
 
   # Epic 2
   epic-2: backlog

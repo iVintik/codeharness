@@ -7,6 +7,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | state.ts | YAML front-matter state persistence in `.claude/codeharness.local.md` | `readState`, `writeState`, `readStateWithBody`, `getStatePath`, `HarnessState` |
+| workflow-state.ts | Workflow execution state persistence in `.codeharness/workflow-state.yaml` — tracks task checkpoints, evaluator scores, circuit breaker | `readWorkflowState`, `writeWorkflowState`, `getDefaultWorkflowState`, `WorkflowState`, `TaskCheckpoint`, `EvaluatorScore`, `CircuitBreakerState` |
 | output.ts | Structured `[OK]/[FAIL]/[WARN]/[INFO]` CLI output with JSON mode | `ok`, `fail`, `warn`, `info`, `jsonOutput` |
 
 ## Stack Provider System

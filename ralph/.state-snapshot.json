@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 3,
+    "done": 2,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -33,16 +33,12 @@
       }
     },
     "1-3-workflow-state-module": {
-      "status": "done",
-      "attempts": 1,
-      "lastAttempt": "2026-04-02T11:05:00Z",
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
       "lastError": null,
-      "proofPath": "verification/1-3-workflow-state-module-proof.md",
-      "acResults": {
-        "passed": 7,
-        "failed": 0,
-        "escalated": 0
-      }
+      "proofPath": null,
+      "acResults": null
     },
     "2-1-workflow-yaml-json-schema": {
       "status": "backlog",

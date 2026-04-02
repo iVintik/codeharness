@@ -42,9 +42,9 @@ Shared audit action handler used by both `audit.ts` and `onboard.ts`. Contains t
 - **Exports:** `executeAudit(opts: { isJson: boolean; isFix: boolean })`
 
 ### teardown.ts
-Removes the harness from a project. Stops Docker containers (mode-aware), removes BMAD patches, cleans OTLP instrumented scripts from package.json, deletes state file and .harness/ cache. Preserves .beads/, _bmad/, and docs/ by default.
-- **Key deps:** `lib/state`, `lib/bmad` (PATCH_TARGETS), `lib/patch-engine`, `lib/otlp`, `lib/docker`, `lib/stack-path`
-- **Subcommands:** none; supports `--keep-docker`, `--keep-beads`
+Removes the harness from a project. Stops Docker containers (mode-aware), cleans OTLP instrumented scripts from package.json, deletes state file and .harness/ cache. Preserves _bmad/ and docs/ by default.
+- **Key deps:** `lib/state`, `lib/observability`, `lib/docker`, `lib/stack-path`
+- **Subcommands:** none; supports `--keep-docker`
 
 ### state.ts
 Manages harness state via subcommands. Provides read/write access to the YAML frontmatter state file using dot-notation keys.

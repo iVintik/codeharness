@@ -17,9 +17,7 @@
     "templates/compose/",
     "templates/prompts/",
     "templates/docs/",
-    "templates/otlp/",
-    "ralph/**/*.sh",
-    "ralph/AGENTS.md"
+    "templates/otlp/"
   ],
   "repository": {
     "type": "git",

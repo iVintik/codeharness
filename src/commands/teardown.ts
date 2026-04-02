@@ -34,8 +34,7 @@ export function registerTeardownCommand(program: Command): void {
     .command('teardown')
     .description('Remove harness from a project')
     .option('--keep-docker', 'Leave Docker stack running and preserve compose files')
-    .option('--keep-beads', 'Preserve beads data (this is the default)')
-    .action(async (options: { keepDocker?: boolean; keepBeads?: boolean }, cmd: Command) => {
+    .action(async (options: { keepDocker?: boolean }, cmd: Command) => {
       const globalOpts = cmd.optsWithGlobals() as { json?: boolean };
       const isJson = globalOpts.json === true;
       const projectDir = process.cwd();
@@ -244,7 +243,6 @@ export function registerTeardownCommand(program: Command): void {
       }
 
       // --- Task 6: Summary ---
-      result.preserved.push('.beads/ (task history)');
       result.preserved.push('_bmad/ (BMAD artifacts, patches removed)');
       result.preserved.push('docs/ (documentation)');
 
@@ -252,7 +250,6 @@ export function registerTeardownCommand(program: Command): void {
         jsonOutput(result as unknown as Record<string, unknown>);
       } else {
         ok('Harness teardown complete');
-        info('Preserved: .beads/ (task history)');
         info('Preserved: _bmad/ (BMAD artifacts, patches removed)');
         info('Preserved: docs/ (documentation)');
       }

@@ -116,7 +116,6 @@ describe('teardown command', () => {
 
       const { stdout } = await runCli(['teardown']);
 
-      expect(stdout).toContain('[INFO] Preserved: .beads/ (task history)');
       expect(stdout).toContain('[INFO] Preserved: _bmad/ (BMAD artifacts, patches removed)');
       expect(stdout).toContain('[INFO] Preserved: docs/ (documentation)');
     });
@@ -264,17 +263,6 @@ describe('teardown command', () => {
     });
   });
 
-  describe('--keep-beads flag', () => {
-    it('is accepted without error (no-op, beads preserved by default)', async () => {
-      createInitializedProject();
-
-      const { stdout, exitCode } = await runCli(['teardown', '--keep-beads']);
-
-      expect(stdout).toContain('[OK] Harness teardown complete');
-      expect(exitCode).toBeUndefined();
-    });
-  });
-
   describe('BMAD patches', () => {
     it('reports no patches found (patch engine removed)', async () => {
       createInitializedProject();
@@ -418,20 +406,6 @@ describe('teardown command', () => {
     });
   });
 
-  describe('beads preservation', () => {
-    it('never touches .beads/ directory during teardown', async () => {
-      createInitializedProject();
-      const beadsDir = join(testDir, '.beads');
-      mkdirSync(beadsDir, { recursive: true });
-      writeFileSync(join(beadsDir, 'issues.json'), '[]', 'utf-8');
-
-      await runCli(['teardown']);
-
-      expect(existsSync(beadsDir)).toBe(true);
-      expect(existsSync(join(beadsDir, 'issues.json'))).toBe(true);
-    });
-  });
-
   describe('JSON output', () => {
     it('produces correct JSON structure on success', async () => {
       createInitializedProject();
@@ -441,7 +415,6 @@ describe('teardown command', () => {
       const parsed = JSON.parse(stdout);
       expect(parsed.status).toBe('ok');
       expect(parsed.removed).toContain('.claude/codeharness.local.md');
-      expect(parsed.preserved).toContain('.beads/ (task history)');
       expect(parsed.preserved).toContain('_bmad/ (BMAD artifacts, patches removed)');
       expect(parsed.preserved).toContain('docs/ (documentation)');
       expect(typeof parsed.patches_removed).toBe('number');

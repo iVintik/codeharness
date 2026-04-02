@@ -85,32 +85,4 @@ describe('patches/error-handling/no-bare-except.yaml — file exists', () => {
   });
 });
 
-describe('hooks/post-write-check.sh — Python bare-except detection', () => {
-  let hookContent: string;
-
-  beforeAll(() => {
-    hookContent = readFileSync(
-      resolve(ROOT, 'hooks/post-write-check.sh'),
-      'utf-8',
-    );
-  });
-
-  it('checks for .py file extension', () => {
-    expect(hookContent).toContain('*.py');
-  });
-
-  it('uses awk to detect except Exception followed by pass or ellipsis on next line', () => {
-    expect(hookContent).toContain('except');
-    expect(hookContent).toContain('Exception');
-    expect(hookContent).toContain('pass');
-    expect(hookContent).toContain('\\.\\.\\.');
-  });
-
-  it('emits WARN message for bare except detection', () => {
-    expect(hookContent).toContain("[WARN] Bare 'except Exception: pass/...' detected");
-  });
-
-  it('suggests handling the error or adding IGNORE comment', () => {
-    expect(hookContent).toContain('Handle the error or add a # IGNORE: comment');
-  });
-});
+// hooks/post-write-check.sh tests removed — hooks/ directory deleted (Story 1.2)

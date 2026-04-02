@@ -1,7 +1,10 @@
 /**
  * codeharness stats — Token consumption and cost analysis.
- * Parses ralph session logs to compute API-equivalent costs by phase, story, tool, and token type.
+ * Parses session logs to compute API-equivalent costs by phase, story, tool, and token type.
  * Outputs human-readable report and optionally writes JSON for retro consumption.
+ *
+ * Ralph-specific log paths removed in Story 1.2 — now reads from session-logs/ directory.
+ * TODO: v2 workflow-engine (Epic 5) — session log format may change with workflow engine.
  */
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -133,12 +136,12 @@ function parseLogFile(filePath: string, report: {
   }
 }
 
-function generateReport(projectDir: string): StatsReport {
-  const logsDir = join(projectDir, 'ralph', 'logs');
-  const logFiles = readdirSync(logsDir)
-    .filter(f => f.startsWith('claude_output_') && f.endsWith('.log'))
+function generateReport(projectDir: string, logsDir?: string): StatsReport {
+  const resolvedLogsDir = logsDir ?? join(projectDir, 'session-logs');
+  const logFiles = readdirSync(resolvedLogsDir)
+    .filter(f => f.endsWith('.log'))
     .sort()
-    .map(f => join(logsDir, f));
+    .map(f => join(resolvedLogsDir, f));
 
   const report = {
     byPhase: new Map<string, TokenBucket>(),
@@ -255,21 +258,22 @@ function formatReport(report: StatsReport): string {
 export function registerStatsCommand(program: Command): void {
   program
     .command('stats')
-    .description('Analyze token consumption and cost from ralph session logs')
+    .description('Analyze token consumption and cost from session logs')
     .option('--save', 'Save report to _bmad-output/implementation-artifacts/cost-report.md')
+    .option('--logs-dir <path>', 'Path to session logs directory', 'session-logs')
     .action((options, cmd) => {
       const globalOpts = cmd.optsWithGlobals();
       const isJson = !!globalOpts.json;
       const projectDir = process.cwd();
-      const logsDir = join(projectDir, 'ralph', 'logs');
+      const logsDir = join(projectDir, options.logsDir as string);
 
       if (!existsSync(logsDir)) {
-        fail('No ralph/logs/ directory found — run codeharness run first');
+        fail(`No ${options.logsDir as string}/ directory found — run codeharness run first`);
         process.exitCode = 1;
         return;
       }
 
-      const report = generateReport(projectDir);
+      const report = generateReport(projectDir, logsDir);
 
       if (isJson) {
         jsonOutput(report as unknown as Record<string, unknown>);

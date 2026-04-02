@@ -15,7 +15,6 @@ import { registerQueryCommand } from './commands/query.js';
 import { registerRetroImportCommand } from './commands/retro-import.js';
 import { registerGithubImportCommand } from './commands/github-import.js';
 import { registerVerifyEnvCommand } from './commands/verify-env.js';
-import { registerRetryCommand } from './commands/retry.js';
 import { registerTimeoutReportCommand } from './commands/timeout-report.js';
 import { registerValidateStateCommand } from './commands/validate-state.js';
 import { registerValidateCommand } from './commands/validate.js';
@@ -56,7 +55,7 @@ export function createProgram(): Command {
   registerRetroImportCommand(program);
   registerGithubImportCommand(program);
   registerVerifyEnvCommand(program);
-  registerRetryCommand(program);
+  // registerRetryCommand removed (Story 1.2) — retry merged into workflow-state (Epic 5)
   registerTimeoutReportCommand(program);
   registerValidateStateCommand(program);
   registerValidateCommand(program);

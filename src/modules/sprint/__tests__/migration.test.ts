@@ -4,6 +4,8 @@ import {
   writeFileSync,
   unlinkSync,
   existsSync,
+  mkdirSync,
+  rmSync,
 } from 'node:fs';
 import { join } from 'node:path';
 import { migrateFromOldFormat, migrateV1ToV2 } from '../migration.js';
@@ -27,6 +29,7 @@ const REAL_YAML = join(BMAD_DIR, 'sprint-status.yaml');
 const REAL_ISSUES = join(BMAD_DIR, '.session-issues.md');
 
 // Store original contents for restoration
+let ralphDirExisted = false;
 let originalRetries: string | null = null;
 let originalFlagged: string | null = null;
 let originalStatus: string | null = null;
@@ -39,6 +42,7 @@ function readSafe(path: string): string | null {
 }
 
 function saveOriginals(): void {
+  ralphDirExisted = existsSync(RALPH_DIR);
   originalRetries = readSafe(REAL_RETRIES);
   originalFlagged = readSafe(REAL_FLAGGED);
   originalStatus = readSafe(REAL_STATUS);
@@ -62,8 +66,14 @@ function restoreOriginals(): void {
   if (originalFlagged !== null) writeFileSync(REAL_FLAGGED, originalFlagged, 'utf-8');
   else if (existsSync(REAL_FLAGGED)) unlinkSync(REAL_FLAGGED);
   if (originalStatus !== null) writeFileSync(REAL_STATUS, originalStatus, 'utf-8');
+  else if (existsSync(REAL_STATUS)) unlinkSync(REAL_STATUS);
   if (originalYaml !== null) writeFileSync(REAL_YAML, originalYaml, 'utf-8');
   if (originalIssues !== null) writeFileSync(REAL_ISSUES, originalIssues, 'utf-8');
+
+  // If ralph/ didn't exist before tests, clean it up (Story 1.2 — ralph/ deleted)
+  if (!ralphDirExisted && existsSync(RALPH_DIR)) {
+    rmSync(RALPH_DIR, { recursive: true, force: true });
+  }
 }
 
 function removeOldFiles(): void {
@@ -76,6 +86,8 @@ describe('migrateFromOldFormat', () => {
   beforeEach(() => {
     saveOriginals();
     if (existsSync(STATE_FILE)) unlinkSync(STATE_FILE);
+    // ralph/ may not exist after Story 1.2 deletion — create it for migration tests
+    mkdirSync(RALPH_DIR, { recursive: true });
     removeOldFiles();
   });
 
@@ -346,6 +358,8 @@ describe('migrateFromOldFormat', () => {
 describe('migrateV1ToV2', () => {
   beforeEach(() => {
     saveOriginals();
+    // ralph/ may not exist after Story 1.2 deletion — create it for migration tests
+    mkdirSync(RALPH_DIR, { recursive: true });
     removeOldFiles();
   });
 

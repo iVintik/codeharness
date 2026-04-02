@@ -279,7 +279,7 @@ export function getSprintState(): Result<SprintState> {
           retries: (parsed.retries as Record<string, number>) ?? {},
           flagged: (parsed.flagged as string[]) ?? [],
           epics: (parsed.epics as Record<string, import('../../types/state.js').EpicState>) ?? {},
-          actionItems: (parsed.actionItems as string[]) ?? [],
+          actionItems: (parsed.actionItems as import('../../types/state.js').ActionItem[]) ?? [],
         };
         return ok(state);
       }

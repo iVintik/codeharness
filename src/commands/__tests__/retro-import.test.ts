@@ -206,7 +206,7 @@ describe('retro-import command', () => {
       } as any);
       mockIsGhAvailable.mockReturnValue(true);
       mockGetRepoFromRemote.mockReturnValue('owner/repo');
-      mockFindExistingGhIssue.mockReturnValue({ number: 42, url: 'https://github.com/owner/repo/issues/42' });
+      mockFindExistingGhIssue.mockReturnValue({ number: 42, title: 'existing issue', body: '', url: 'https://github.com/owner/repo/issues/42' });
 
       await runRetroImport(['--epic', '9']);
 

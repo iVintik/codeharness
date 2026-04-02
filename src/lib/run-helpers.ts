@@ -5,14 +5,12 @@
  * Contains: elapsed time formatting, sprint status -> story status mapping,
  * and line processing utilities.
  *
- * Ralph-specific functions (parseRalphMessage, parseIterationMessage, buildSpawnArgs)
- * have been migrated to src/lib/agents/ralph.ts (story 13-2).
+ * Ralph-specific functions removed in Story 1.2 — workflow engine pending (Epic 5).
  */
 
 import { StringDecoder } from 'node:string_decoder';
 import { parseStreamLine } from './agents/stream-parser.js';
 import type { StreamEvent } from './agents/stream-parser.js';
-import { parseRalphMessage, parseIterationMessage } from './agents/ralph.js';
 import type { StoryStatusEntry, StoryStatusValue, StoryMessage } from './ink-components.js';
 
 // --- Story Counting ---
@@ -124,14 +122,12 @@ export interface LineProcessorCallbacks {
 /**
  * Creates a Buffer-to-lines processor that splits on newlines, handles
  * partial-line buffering across chunk boundaries, and feeds complete
- * lines through the stream parser and optional ralph message parser.
+ * lines through the stream parser.
  *
- * This is the exact logic used in run.ts's makeLineHandler, extracted
- * so integration tests can exercise the real production code path.
+ * Ralph message parsing removed in Story 1.2 — workflow engine pending (Epic 5).
  */
 export function createLineProcessor(
   callbacks: LineProcessorCallbacks,
-  opts?: { parseRalph?: boolean },
 ): (data: Buffer) => void {
   let partial = '';
   const decoder = new StringDecoder('utf8');
@@ -144,16 +140,6 @@ export function createLineProcessor(
       const event = parseStreamLine(line);
       if (event) {
         callbacks.onEvent(event);
-      }
-      if (opts?.parseRalph) {
-        const msg = parseRalphMessage(line);
-        if (msg && callbacks.onMessage) {
-          callbacks.onMessage(msg);
-        }
-        const iteration = parseIterationMessage(line);
-        if (iteration !== null && callbacks.onIteration) {
-          callbacks.onIteration(iteration);
-        }
       }
     }
   };

@@ -19,7 +19,6 @@ import { join, dirname } from 'node:path';
 import { parseStreamLine } from '../lib/agents/stream-parser.js';
 import type { StreamEvent } from '../lib/agents/stream-parser.js';
 import { createLineProcessor } from '../lib/run-helpers.js';
-import type { StoryMessage } from '../lib/ink-components.js';
 
 // --- Resolve fixture path (project root / tests / fixtures) ---
 
@@ -36,21 +35,15 @@ function readFixture(name: string): string {
 
 interface CollectedState {
   events: StreamEvent[];
-  messages: StoryMessage[];
-  iterationCount: number;
 }
 
 function makeTestProcessor(
   state: CollectedState,
-  opts?: { parseRalph?: boolean },
 ): (data: Buffer) => void {
   return createLineProcessor(
     {
       onEvent: (event) => state.events.push(event),
-      onMessage: (msg) => state.messages.push(msg),
-      onIteration: (iteration) => { state.iterationCount = iteration; },
     },
-    opts,
   );
 }
 
@@ -60,7 +53,7 @@ describe('AC1: Full pipeline — fixture through createLineProcessor → parseSt
   let state: CollectedState;
 
   beforeEach(() => {
-    state = { events: [], messages: [], iterationCount: 0 };
+    state = { events: [] };
   });
 
   it('pipes the full sample-stream.ndjson fixture through the pipeline', () => {
@@ -104,7 +97,7 @@ describe('AC1: Full pipeline — fixture through createLineProcessor → parseSt
     handler(Buffer.from('\n'));
 
     // Must produce the same events regardless of chunk boundaries
-    const singleChunkState: CollectedState = { events: [], messages: [], iterationCount: 0 };
+    const singleChunkState: CollectedState = { events: [] };
     const singleHandler = makeTestProcessor(singleChunkState);
     singleHandler(Buffer.from(fixture));
     singleHandler(Buffer.from('\n'));
@@ -117,7 +110,7 @@ describe('AC1: Full pipeline — fixture through createLineProcessor → parseSt
 
 describe('AC2: Event ordering — tool-start, tool-input, tool-complete, text arrive in order', () => {
   it('events arrive in the correct sequence from the fixture', () => {
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
+    const state: CollectedState = { events: [] };
     const handler = makeTestProcessor(state);
     const fixture = readFixture('sample-stream.ndjson');
     handler(Buffer.from(fixture));
@@ -168,7 +161,7 @@ describe('AC2: Event ordering — tool-start, tool-input, tool-complete, text ar
   });
 
   it('tool-start events contain correct tool names and IDs', () => {
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
+    const state: CollectedState = { events: [] };
     const handler = makeTestProcessor(state);
     handler(Buffer.from(readFixture('sample-stream.ndjson')));
     handler(Buffer.from('\n'));
@@ -182,7 +175,7 @@ describe('AC2: Event ordering — tool-start, tool-input, tool-complete, text ar
   });
 
   it('tool-input events contain correct partial JSON', () => {
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
+    const state: CollectedState = { events: [] };
     const handler = makeTestProcessor(state);
     handler(Buffer.from(readFixture('sample-stream.ndjson')));
     handler(Buffer.from('\n'));
@@ -201,7 +194,7 @@ describe('AC2: Event ordering — tool-start, tool-input, tool-complete, text ar
   });
 
   it('text events contain correct text content', () => {
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
+    const state: CollectedState = { events: [] };
     const handler = makeTestProcessor(state);
     handler(Buffer.from(readFixture('sample-stream.ndjson')));
     handler(Buffer.from('\n'));
@@ -215,7 +208,7 @@ describe('AC2: Event ordering — tool-start, tool-input, tool-complete, text ar
   });
 
   it('result event contains cost and session ID', () => {
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
+    const state: CollectedState = { events: [] };
     const handler = makeTestProcessor(state);
     handler(Buffer.from(readFixture('sample-stream.ndjson')));
     handler(Buffer.from('\n'));
@@ -291,7 +284,7 @@ describe('AC3: Silently ignored events — thinking_delta, hook_started, hook_re
   });
 
   it('the full fixture produces zero errors despite containing ignored events', () => {
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
+    const state: CollectedState = { events: [] };
     const handler = makeTestProcessor(state);
     handler(Buffer.from(readFixture('sample-stream.ndjson')));
     handler(Buffer.from('\n'));
@@ -308,103 +301,14 @@ describe('AC3: Silently ignored events — thinking_delta, hook_started, hook_re
   });
 });
 
-// --- AC4: Ralph stderr messages parsed into StoryMessage objects ---
-
-describe('AC4: Ralph stderr — [SUCCESS], [WARN], [LOOP] parsed into StoryMessage objects', () => {
-  it('[SUCCESS] Story key: DONE is parsed into an OK message', () => {
-    const line = '[2026-03-16 10:23:42] [SUCCESS] Story 3-2-stream-parser: DONE — 12/12 ACs verified (18m, $4.20)';
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
-    const handler = makeTestProcessor(state, { parseRalph: true });
-    handler(Buffer.from(line + '\n'));
-
-    expect(state.messages).toHaveLength(1);
-    expect(state.messages[0].type).toBe('ok');
-    expect(state.messages[0].key).toBe('3-2-stream-parser');
-    expect(state.messages[0].message).toContain('DONE');
-  });
-
-  it('[WARN] Story key exceeded retry limit is parsed into a FAIL message', () => {
-    const line = '[2026-03-16 11:00:00] [WARN] Story 4-1-broken-feature exceeded retry limit';
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
-    const handler = makeTestProcessor(state, { parseRalph: true });
-    handler(Buffer.from(line + '\n'));
-
-    expect(state.messages).toHaveLength(1);
-    expect(state.messages[0].type).toBe('fail');
-    expect(state.messages[0].key).toBe('4-1-broken-feature');
-    expect(state.messages[0].message).toContain('exceeded retry limit');
-  });
-
-  it('[WARN] Story key retry N/M is parsed into a WARN message', () => {
-    const line = '[2026-03-16 11:00:00] [WARN] Story 4-1-broken — retry 3/10';
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
-    const handler = makeTestProcessor(state, { parseRalph: true });
-    handler(Buffer.from(line + '\n'));
-
-    expect(state.messages).toHaveLength(1);
-    expect(state.messages[0].type).toBe('warn');
-    expect(state.messages[0].key).toBe('4-1-broken');
-    expect(state.messages[0].message).toBe('retry 3/10');
-  });
-
-  it('[LOOP] iteration N is parsed into an iteration count', () => {
-    const line = '[2026-03-16 11:00:00] [LOOP] iteration 7';
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
-    const handler = makeTestProcessor(state, { parseRalph: true });
-    handler(Buffer.from(line + '\n'));
-
-    expect(state.iterationCount).toBe(7);
-    expect(state.messages).toHaveLength(0); // LOOP is not a StoryMessage
-  });
-
-  it('ralph messages with ANSI color codes are cleaned before parsing', () => {
-    const line = '\x1b[32m[2026-03-16 10:23:42] [SUCCESS] Story 3-2-parser: DONE\x1b[0m';
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
-    const handler = makeTestProcessor(state, { parseRalph: true });
-    handler(Buffer.from(line + '\n'));
-
-    expect(state.messages).toHaveLength(1);
-    expect(state.messages[0].type).toBe('ok');
-    expect(state.messages[0].key).toBe('3-2-parser');
-  });
-
-  it('non-ralph lines produce no messages', () => {
-    const line = 'Just some random output that is not a ralph message';
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
-    const handler = makeTestProcessor(state, { parseRalph: true });
-    handler(Buffer.from(line + '\n'));
-
-    expect(state.messages).toHaveLength(0);
-  });
-
-  it('stderr handler parses both NDJSON events AND ralph messages', () => {
-    // Stderr can contain both NDJSON (from tee) and ralph's own log lines
-    const ndjsonLine = JSON.stringify({
-      type: 'stream_event',
-      event: { type: 'content_block_stop' },
-    });
-    const ralphLine = '[2026-03-16 10:23:42] [SUCCESS] Story 5-1-feature: DONE';
-    const combined = ndjsonLine + '\n' + ralphLine + '\n';
-
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
-    const handler = makeTestProcessor(state, { parseRalph: true });
-    handler(Buffer.from(combined));
-
-    // NDJSON line produces a stream event
-    expect(state.events).toHaveLength(1);
-    expect(state.events[0].type).toBe('tool-complete');
-
-    // Ralph line produces a story message
-    expect(state.messages).toHaveLength(1);
-    expect(state.messages[0].key).toBe('5-1-feature');
-  });
-});
+// AC4 (Ralph stderr parsing) removed — Story 1.2 deleted Ralph agent module.
+// Workflow engine (Epic 5) will provide new message parsing.
 
 // --- Renderer state accumulation integration ---
 
 describe('Renderer state accumulation — full pipeline to RendererHandle-compatible state', () => {
   it('accumulates state matching what RendererHandle.update() would produce', () => {
-    const state: CollectedState = { events: [], messages: [], iterationCount: 0 };
+    const state: CollectedState = { events: [] };
     const handler = makeTestProcessor(state);
     handler(Buffer.from(readFixture('sample-stream.ndjson')));
     handler(Buffer.from('\n'));

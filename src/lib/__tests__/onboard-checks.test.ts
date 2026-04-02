@@ -109,9 +109,8 @@ describe('checkBmadInstalled', () => {
 // ─── checkHooksRegistered ───────────────────────────────────────────────────
 
 describe('checkHooksRegistered', () => {
-  it('returns ok: true when hooks.json exists in package hooks dir', () => {
-    // This test checks the actual package hooks directory.
-    // Since we're running from within the codeharness project, hooks/hooks.json exists.
+  it('returns ok: true (hooks deleted, always passes)', () => {
+    // hooks/ directory removed (Story 1.2) — checkHooksRegistered is a no-op
     const result = checkHooksRegistered();
     expect(result).toEqual({ ok: true });
   });

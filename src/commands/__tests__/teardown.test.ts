@@ -19,21 +19,13 @@ vi.mock('../../lib/docker/index.js', () => ({
   stopCollectorOnly: vi.fn(),
 }));
 
-// Mock patch-engine module
-vi.mock('../../lib/patch-engine.js', () => ({
-  removePatch: vi.fn(() => false),
-}));
-
 import { registerTeardownCommand } from '../teardown.js';
 import { writeState, getDefaultState } from '../../lib/state.js';
 import { isStackRunning, stopStack, stopCollectorOnly } from '../../lib/docker/index.js';
-import { removePatch } from '../../lib/patch-engine.js';
-import { PATCH_TARGETS } from '../../lib/bmad.js';
 
 const mockIsStackRunning = vi.mocked(isStackRunning);
 const mockStopStack = vi.mocked(stopStack);
 const mockStopCollectorOnly = vi.mocked(stopCollectorOnly);
-const mockRemovePatch = vi.mocked(removePatch);
 
 let testDir: string;
 let originalCwd: string;
@@ -72,8 +64,6 @@ beforeEach(() => {
   mockIsStackRunning.mockReturnValue(false);
   mockStopStack.mockReset();
   mockStopCollectorOnly.mockReset();
-  mockRemovePatch.mockReset();
-  mockRemovePatch.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -286,44 +276,12 @@ describe('teardown command', () => {
   });
 
   describe('BMAD patches', () => {
-    it('removes patches from existing files', async () => {
-      createInitializedProject();
-      for (const [, relativePath] of Object.entries(PATCH_TARGETS)) {
-        const filePath = join(testDir, '_bmad', relativePath);
-        mkdirSync(join(filePath, '..'), { recursive: true });
-        writeFileSync(filePath, '# some content', 'utf-8');
-      }
-      mockRemovePatch.mockReturnValue(true);
-
-      const { stdout } = await runCli(['teardown']);
-
-      const patchCount = Object.keys(PATCH_TARGETS).length;
-      expect(mockRemovePatch).toHaveBeenCalledTimes(patchCount);
-      expect(stdout).toContain(`[OK] BMAD patches: removed ${patchCount} patches`);
-    });
-
-    it('skips missing files silently', async () => {
+    it('reports no patches found (patch engine removed)', async () => {
       createInitializedProject();
 
       const { stdout } = await runCli(['teardown']);
 
-      expect(mockRemovePatch).not.toHaveBeenCalled();
       expect(stdout).toContain('[INFO] BMAD patches: none found');
-    });
-
-    it('handles mix of present and missing patch targets', async () => {
-      createInitializedProject();
-      const entries = Object.entries(PATCH_TARGETS);
-      const [, firstPath] = entries[0];
-      const filePath = join(testDir, '_bmad', firstPath);
-      mkdirSync(join(filePath, '..'), { recursive: true });
-      writeFileSync(filePath, '# content', 'utf-8');
-      mockRemovePatch.mockReturnValue(true);
-
-      const { stdout } = await runCli(['teardown']);
-
-      expect(mockRemovePatch).toHaveBeenCalledTimes(1);
-      expect(stdout).toContain('[OK] BMAD patches: removed 1 patches');
     });
   });
 
@@ -523,19 +481,13 @@ describe('teardown command', () => {
       expect(parsed.docker.stopped).toBe(false);
     });
 
-    it('includes patches_removed count', async () => {
+    it('includes patches_removed count (always 0 — patch engine removed)', async () => {
       createInitializedProject();
-      for (const [, relativePath] of Object.entries(PATCH_TARGETS)) {
-        const filePath = join(testDir, '_bmad', relativePath);
-        mkdirSync(join(filePath, '..'), { recursive: true });
-        writeFileSync(filePath, '# content', 'utf-8');
-      }
-      mockRemovePatch.mockReturnValue(true);
 
       const { stdout } = await runCli(['--json', 'teardown']);
 
       const parsed = JSON.parse(stdout);
-      expect(parsed.patches_removed).toBe(Object.keys(PATCH_TARGETS).length);
+      expect(parsed.patches_removed).toBe(0);
     });
 
     it('includes otlp_cleaned flag', async () => {

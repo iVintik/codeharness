@@ -26,11 +26,10 @@ export function checkBmadInstalled(dir?: string): { ok: boolean } {
   return { ok: isBmadInstalled(dir) };
 }
 
-export function checkHooksRegistered(dir?: string): { ok: boolean } {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
-  const hooksPath = join(__dirname, '..', '..', 'hooks', 'hooks.json');
-  return { ok: existsSync(hooksPath) };
+// hooks/ directory removed (Story 1.2) — this check is a no-op until replaced
+// by workflow engine hooks in Epic 5.
+export function checkHooksRegistered(_dir?: string): { ok: boolean } {
+  return { ok: true }; // Always pass — legacy hooks deleted, not a blocking check
 }
 
 export interface PreconditionResult {

@@ -1,18 +1,11 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, dirname } from 'node:path';
-import { StringDecoder } from 'node:string_decoder';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { Command } from 'commander';
-import { fail, info, warn, jsonOutput } from '../lib/output.js';
+import { fail, info } from '../lib/output.js';
 import { isDockerAvailable } from '../lib/docker/index.js';
 import { cleanupContainers } from '../modules/infra/index.js';
-import { readSprintStatusFromState, reconcileState, updateStoryStatus, shouldDeferPhase, getPhaseEstimate, computeRemainingMinutes } from '../modules/sprint/index.js';
-import { generateRalphPrompt } from '../lib/agents/ralph-prompt.js';
-import { startRenderer, type SprintInfo } from '../lib/ink-renderer.js';
-import { getSprintState } from '../modules/sprint/index.js';
-import { formatElapsed, mapSprintStatuses, countStories } from '../lib/run-helpers.js';
-import { getDriver } from '../lib/agents/index.js';
-import type { AgentDriver, AgentEvent } from '../lib/agents/types.js';
-import type { RendererHandle } from '../lib/ink-renderer.js';
+import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
+import { countStories } from '../lib/run-helpers.js';
 
 /** Resolves the plugin directory path (.claude/ in project root). */
 export function resolvePluginDir(): string {
@@ -21,67 +14,6 @@ export function resolvePluginDir(): string {
 
 // Re-export helpers that tests import from run.ts
 export { countStories } from '../lib/run-helpers.js';
-
-/** Dispatches an AgentEvent to the appropriate renderer method. */
-function handleAgentEvent(
-  event: AgentEvent,
-  rendererHandle: RendererHandle,
-  state: { currentIterationCount: number },
-): void {
-  switch (event.type) {
-    case 'tool-start':
-    case 'tool-input':
-    case 'tool-complete':
-    case 'text':
-    case 'result':
-    case 'retry':
-      // These AgentEvent types match StreamEvent shapes — pass through to renderer
-      rendererHandle.update(event as Parameters<RendererHandle['update']>[0]);
-      break;
-    case 'story-complete': {
-      // The harness-run subagent manages the full story lifecycle (create → dev → review → verify → done)
-      // and writes status as it goes. Don't override — the subagent's status is authoritative.
-      // Previous bug: setting to 'review' here reverted stories that the subagent had marked 'done',
-      // causing infinite review loops until retry exhaustion.
-      rendererHandle.addMessage({ type: 'ok', key: event.key, message: event.details });
-      break;
-    }
-    case 'story-failed': {
-      // Status ownership: orchestrator writes status, not the subagent (AC 2)
-      const failResult = updateStoryStatus(event.key, 'failed');
-      if (!failResult.success) {
-        info(`[WARN] Failed to update status for ${event.key}: ${failResult.error}`);
-      }
-      rendererHandle.addMessage({ type: 'fail', key: event.key, message: event.reason });
-      break;
-    }
-    case 'iteration':
-      state.currentIterationCount = event.count;
-      break;
-  }
-}
-
-/** Line splitter: buffers partial lines, calls driver.parseOutput(), dispatches via handleAgentEvent(). */
-function createDriverLineHandler(
-  driver: AgentDriver,
-  rendererHandle: RendererHandle,
-  state: { currentIterationCount: number },
-): (data: Buffer) => void {
-  let partial = '';
-  const decoder = new StringDecoder('utf8');
-  return (data: Buffer): void => {
-    const text = partial + decoder.write(data);
-    const parts = text.split('\n');
-    partial = parts.pop() ?? '';
-    for (const line of parts) {
-      if (line.trim().length === 0) continue;
-      const event = driver.parseOutput(line);
-      if (event) {
-        handleAgentEvent(event, rendererHandle, state);
-      }
-    }
-  };
-}
 
 export function registerRunCommand(program: Command): void {
   program
@@ -131,8 +63,6 @@ export function registerRunCommand(program: Command): void {
         info(`[WARN] Container cleanup failed: ${cleanup.error}`, outputOpts);
       }
       // 2. Read sprint status for story count (from sprint-state.json)
-      const projectDir = process.cwd();
-      const sprintStatusPath = join(projectDir, '_bmad-output', 'implementation-artifacts', 'sprint-status.yaml');
       const statuses = readSprintStatusFromState();
       const counts = countStories(statuses);
 
@@ -155,176 +85,9 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      // 4. Generate prompt file (with flagged stories context if available)
-      const promptFile = join(projectDir, 'ralph', '.harness-prompt.md');
-      let flaggedStories: string[] | undefined;
-      const flaggedState = getSprintState();
-      if (flaggedState.success && flaggedState.data.flagged?.length > 0) {
-        flaggedStories = flaggedState.data.flagged;
-      }
-      const promptContent = generateRalphPrompt({
-        projectDir,
-        sprintStatusPath,
-        flaggedStories,
-      });
-      try {
-        mkdirSync(dirname(promptFile), { recursive: true });
-        writeFileSync(promptFile, promptContent, 'utf-8');
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        fail(`Failed to write prompt file: ${message}`, outputOpts);
-        process.exitCode = 1;
-        return;
-      }
-
-      // 5. Create driver with ralph-specific configuration
-      const quiet = options.quiet;
-      const driver = getDriver('ralph', {
-        pluginDir,
-        maxIterations,
-        iterationTimeout,
-        calls,
-        quiet,
-        maxStoryRetries,
-        reset: options.reset,
-      });
-
-      // 6. Set environment — stream-json is always the output format
-      const env: Record<string, string> = {};
-      if (isJson) {
-        env.CLAUDE_OUTPUT_FORMAT = 'stream-json';
-      }
-
-      // 7. Spawn agent — pipe stdout/stderr through driver.parseOutput() → Ink renderer
-      const rendererHandle = startRenderer({ quiet });
-      let sprintStateInterval: ReturnType<typeof setInterval> | null = null;
-      const sessionStartTime = Date.now();
-      const totalBudgetMinutes = timeout / 60;
-      const eventState = { currentIterationCount: 0 };
-
-      try {
-        // Read initial sprint state for the renderer header
-        const initialState = getSprintState();
-        if (initialState.success) {
-          const s = initialState.data;
-          const sprintInfo: SprintInfo = {
-            storyKey: s.run.currentStory ?? '',
-            phase: s.run.currentPhase ?? '',
-            done: s.sprint.done,
-            total: s.sprint.total,
-            elapsed: formatElapsed(Date.now() - sessionStartTime),
-            iterationCount: eventState.currentIterationCount,
-          };
-          rendererHandle.updateSprintState(sprintInfo);
-        }
-
-        // Feed initial per-story statuses to the renderer
-        const initialStatuses = readSprintStatusFromState();
-        const initialStories = mapSprintStatuses(initialStatuses);
-        if (initialStories.length > 0) {
-          rendererHandle.updateStories(initialStories);
-        }
-
-        const child = driver.spawn({
-          storyKey: '',
-          prompt: promptFile,
-          workDir: projectDir,
-          timeout,
-          env,
-        });
-
-        if (!quiet && child.stdout && child.stderr) {
-          const lineHandler = createDriverLineHandler(driver, rendererHandle, eventState);
-          child.stdout.on('data', lineHandler);
-          child.stderr.on('data', lineHandler);
-
-          // Periodically refresh sprint state for the header display
-          sprintStateInterval = setInterval(() => {
-            try {
-              const stateResult = getSprintState();
-              if (stateResult.success) {
-                const s = stateResult.data;
-                const sprintInfo: SprintInfo = {
-                  storyKey: s.run.currentStory ?? '',
-                  phase: s.run.currentPhase ?? '',
-                  done: s.sprint.done,
-                  total: s.sprint.total,
-                  elapsed: formatElapsed(Date.now() - sessionStartTime),
-                  iterationCount: eventState.currentIterationCount,
-                };
-                rendererHandle.updateSprintState(sprintInfo);
-
-                // Time budget awareness: check if the current phase should be deferred (AC 5, AC 8)
-                const currentPhase = s.run.currentPhase;
-                if (currentPhase) {
-                  const remaining = computeRemainingMinutes(sessionStartTime, totalBudgetMinutes);
-                  const estimate = getPhaseEstimate(currentPhase);
-                  if (shouldDeferPhase(currentPhase, remaining)) {
-                    info(`[INFO] deferring ${currentPhase} to next session (${remaining}min remaining, ${estimate}min needed)`, outputOpts);
-                    // Actually defer: kill the child process so the session ends gracefully
-                    child.kill('SIGTERM');
-                    if (sprintStateInterval) {
-                      clearInterval(sprintStateInterval);
-                      sprintStateInterval = null;
-                    }
-                    return; // Stop polling after deferral
-                  }
-                }
-              }
-              // Refresh per-story statuses
-              const currentStatuses = readSprintStatusFromState();
-              const storyEntries = mapSprintStatuses(currentStatuses);
-              rendererHandle.updateStories(storyEntries);
-            } catch {
-              // IGNORE: state read errors during polling are non-fatal
-            }
-          }, 5_000);
-        }
-
-        const exitCode = await new Promise<number>((resolve, reject) => {
-          child.on('error', (err) => {
-            if (sprintStateInterval) clearInterval(sprintStateInterval);
-            rendererHandle.cleanup();
-            reject(err);
-          });
-          child.on('close', (code) => {
-            if (sprintStateInterval) clearInterval(sprintStateInterval);
-            rendererHandle.cleanup();
-            resolve(code ?? 1);
-          });
-        });
-
-        // 8. Handle JSON output on exit
-        if (isJson) {
-          const statusFile = join(projectDir, driver.getStatusFile());
-          let statusData: Record<string, unknown> | null = null;
-          let exitReason = 'status_file_missing';
-          if (existsSync(statusFile)) {
-            try {
-              statusData = JSON.parse(readFileSync(statusFile, 'utf-8'));
-              exitReason = '';
-            } catch { exitReason = 'status_file_unreadable'; } // IGNORE: status file may be malformed
-          }
-          const fc = statusData ? countStories(readSprintStatusFromState()) : counts;
-          jsonOutput({
-            status: statusData?.status ?? (exitCode === 0 ? 'completed' : 'stopped'),
-            iterations: (statusData?.loop_count as number) ?? 0,
-            storiesCompleted: statusData ? fc.done : 0,
-            storiesTotal: fc.total,
-            storiesRemaining: statusData ? fc.total - fc.done : fc.total,
-            elapsedSeconds: (statusData?.elapsed_seconds as number) ?? 0,
-            flaggedStories: (statusData?.flagged_stories as string[]) ?? [],
-            exitReason: (statusData?.exit_reason as string) ?? exitReason,
-          });
-        }
-
-        process.exitCode = exitCode;
-      } catch (err) {
-        if (sprintStateInterval) clearInterval(sprintStateInterval);
-        rendererHandle.cleanup();
-        const message = err instanceof Error ? err.message : String(err);
-        fail(`Failed to start agent: ${message}`, outputOpts);
-        process.exitCode = 1;
-      }
+      // TODO: v2 workflow-engine (Epic 5) — rebuild run command to use workflow engine
+      // Ralph prompt generation and driver spawn removed in Story 1.2.
+      fail('The run command is temporarily unavailable — Ralph loop removed, workflow engine pending (Epic 5)', outputOpts);
+      process.exitCode = 1;
     });
 }

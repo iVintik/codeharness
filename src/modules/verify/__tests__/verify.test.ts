@@ -185,12 +185,10 @@ describe('createProofDocument', () => {
 
     expect(existsSync(proofPath)).toBe(true);
     expect(existsSync(join(testDir, 'verification'))).toBe(true);
-    expect(existsSync(join(testDir, 'verification', 'screenshots'))).toBe(true);
 
     const content = readFileSync(proofPath, 'utf-8');
-    expect(content).toContain('# Proof: 4-1-test');
-    expect(content).toContain('**Story:** Story 4.1: Test');
-    expect(content).toContain('## AC 1:');
+    // Showboat template removed (Story 1.2) — now writes a stub
+    expect(content).toContain('4-1-test');
   });
 
   it('returns the proof file path', () => {
@@ -201,7 +199,8 @@ describe('createProofDocument', () => {
   it('handles empty ACs', () => {
     const proofPath = createProofDocument('empty', 'Empty', [], testDir);
     const content = readFileSync(proofPath, 'utf-8');
-    expect(content).toContain('Total ACs | 0');
+    // Showboat template removed — stub file just has story ID
+    expect(content).toContain('empty');
   });
 });
 

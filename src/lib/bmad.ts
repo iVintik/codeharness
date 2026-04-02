@@ -1,7 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { applyPatch } from './patch-engine.js';
 import { PATCH_TEMPLATES } from '../templates/bmad-patches.js';
 import { warn } from './output.js';
 
@@ -174,13 +173,15 @@ export function applyAllPatches(dir?: string, options?: { silent?: boolean }): P
     }
 
     try {
-      const patchContent = templateFn();
-      const patchResult = applyPatch(targetFile, patchName, patchContent);
+      // TODO: v2 workflow-engine (Epic 5) — patch engine removed, applyPatch no longer available
+      // For now, patches are not applied. The patch engine will be rebuilt in the v2 architecture.
+      const _patchContent = templateFn();
       results.push({
         patchName,
         targetFile,
-        applied: patchResult.applied,
-        updated: patchResult.updated,
+        applied: false,
+        updated: false,
+        error: 'Patch engine removed (Story 1.2) — pending v2 rebuild',
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

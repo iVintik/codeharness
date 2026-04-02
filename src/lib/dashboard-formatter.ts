@@ -202,7 +202,7 @@ export class DashboardFormatter {
     }
 
     // Fallback: pass line through unchanged (backward compatible)
-    // But suppress lines that are clearly just noise (e.g., ✓/✕ completion icons from ralph summary)
+    // But suppress lines that are clearly just noise (e.g., ✓/✕ completion icons from session summary)
     if (clean.startsWith('[')) {
       // Unrecognized bracketed level — pass through
       return clean;

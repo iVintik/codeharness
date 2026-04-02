@@ -4,8 +4,7 @@ import { join } from 'node:path';
 import { ok, fail, info, warn, jsonOutput } from '../lib/output.js';
 import { readState, getStatePath, StateFileNotFoundError } from '../lib/state.js';
 import { getStackDir } from '../lib/stack-path.js';
-import { PATCH_TARGETS } from '../lib/bmad.js';
-import { removePatch } from '../lib/patch-engine.js';
+// PATCH_TARGETS and removePatch removed (Story 1.2) — patch engine deleted
 import { NODE_REQUIRE_FLAG } from '../lib/observability/index.js';
 import type { HarnessState } from '../lib/state.js';
 
@@ -162,21 +161,8 @@ export function registerTeardownCommand(program: Command): void {
       }
 
       // --- Task 3: Remove BMAD patches ---
-      let patchesRemoved = 0;
-      for (const [patchName, relativePath] of Object.entries(PATCH_TARGETS)) {
-        const filePath = join(projectDir, '_bmad', relativePath);
-        if (!existsSync(filePath)) {
-          continue;
-        }
-        try {
-          const removed = removePatch(filePath, patchName);
-          if (removed) {
-            patchesRemoved++;
-          }
-        } catch {
-          // IGNORE: patch removal failure is non-fatal
-        }
-      }
+      // TODO: v2 workflow-engine (Epic 5) — patch engine removed, patch removal is a no-op
+      const patchesRemoved = 0;
       result.patches_removed = patchesRemoved;
 
       if (!isJson) {

@@ -5,11 +5,6 @@ import {
   mapSprintStatuses,
   countStories,
 } from '../run-helpers.js';
-import {
-  parseRalphMessage,
-  parseIterationMessage,
-  buildSpawnArgs,
-} from '../agents/ralph.js';
 
 describe('formatElapsed', () => {
   it('formats 0ms as "0m"', () => {
@@ -137,90 +132,6 @@ describe('mapSprintStatuses', () => {
   });
 });
 
-describe('parseRalphMessage', () => {
-  it('parses [SUCCESS] Story completion', () => {
-    const msg = parseRalphMessage('[SUCCESS] Story 1-1-foo: DONE — title here');
-    expect(msg).toEqual({
-      type: 'ok',
-      key: '1-1-foo',
-      message: 'DONE — title here',
-    });
-  });
-
-  it('parses [SUCCESS] Story completion without details', () => {
-    const msg = parseRalphMessage('[SUCCESS] Story 2-3-bar: DONE');
-    expect(msg).toEqual({
-      type: 'ok',
-      key: '2-3-bar',
-      message: 'DONE',
-    });
-  });
-
-  it('parses [SUCCESS] with timestamp prefix', () => {
-    const msg = parseRalphMessage('[2025-01-15 10:30:45] [SUCCESS] Story 1-1-foo: DONE — verified');
-    expect(msg).toEqual({
-      type: 'ok',
-      key: '1-1-foo',
-      message: 'DONE — verified',
-    });
-  });
-
-  it('parses [WARN] retry exceeded', () => {
-    const msg = parseRalphMessage('[WARN] Story 3-2-baz exceeded retry limit');
-    expect(msg).toEqual({
-      type: 'fail',
-      key: '3-2-baz',
-      message: 'exceeded retry limit',
-    });
-  });
-
-  it('parses [WARN] retry N/M', () => {
-    const msg = parseRalphMessage('[WARN] Story 1-1-foo — retry 2/5');
-    expect(msg).toEqual({
-      type: 'warn',
-      key: '1-1-foo',
-      message: 'retry 2/5',
-    });
-  });
-
-  it('parses [ERROR] with story key', () => {
-    const msg = parseRalphMessage('[ERROR] Story 1-1-foo failed to verify');
-    expect(msg).toEqual({
-      type: 'fail',
-      key: '1-1-foo',
-      message: 'Story 1-1-foo failed to verify',
-    });
-  });
-
-  it('returns null for [ERROR] without story key', () => {
-    const msg = parseRalphMessage('[ERROR] Connection timeout');
-    expect(msg).toBeNull();
-  });
-
-  it('returns null for unrecognized lines', () => {
-    expect(parseRalphMessage('[INFO] Starting iteration 5')).toBeNull();
-    expect(parseRalphMessage('[DEBUG] some debug info')).toBeNull();
-    expect(parseRalphMessage('')).toBeNull();
-    expect(parseRalphMessage('   ')).toBeNull();
-  });
-
-  it('strips ANSI color codes', () => {
-    const msg = parseRalphMessage('\x1b[32m[SUCCESS] Story 1-1-foo: DONE\x1b[0m');
-    expect(msg).toEqual({
-      type: 'ok',
-      key: '1-1-foo',
-      message: 'DONE',
-    });
-  });
-
-  it('handles retry exceeded before retry N/M (order matters)', () => {
-    // "exceeded retry limit" should match retry exceeded, not retry N/M
-    const msg = parseRalphMessage('[WARN] Story 1-1-foo exceeded retry limit...flagging');
-    expect(msg?.type).toBe('fail');
-    expect(msg?.message).toBe('exceeded retry limit');
-  });
-});
-
 describe('countStories', () => {
   it('counts stories by status correctly', () => {
     const counts = countStories({
@@ -261,78 +172,5 @@ describe('countStories', () => {
   });
 });
 
-describe('buildSpawnArgs', () => {
-  const baseOpts = {
-    ralphPath: '/path/to/ralph.sh',
-    pluginDir: '/path/to/.claude',
-    promptFile: '/path/to/prompt.md',
-    maxIterations: 50,
-    timeout: 14400,
-    iterationTimeout: 15,
-    calls: 100,
-    quiet: false,
-  };
-
-  it('builds basic argument array', () => {
-    const args = buildSpawnArgs(baseOpts);
-    expect(args).toContain('/path/to/ralph.sh');
-    expect(args).toContain('--plugin-dir');
-    expect(args).toContain('50');
-  });
-
-  it('includes --live flag when not quiet', () => {
-    expect(buildSpawnArgs(baseOpts)).toContain('--live');
-  });
-
-  it('does not include --live flag when quiet', () => {
-    expect(buildSpawnArgs({ ...baseOpts, quiet: true })).not.toContain('--live');
-  });
-
-  it('includes --max-story-retries when provided', () => {
-    const args = buildSpawnArgs({ ...baseOpts, maxStoryRetries: 5 });
-    expect(args).toContain('--max-story-retries');
-    expect(args).toContain('5');
-  });
-
-  it('does not include --max-story-retries when undefined', () => {
-    expect(buildSpawnArgs(baseOpts)).not.toContain('--max-story-retries');
-  });
-
-  it('includes --reset when provided', () => {
-    const args = buildSpawnArgs({ ...baseOpts, reset: true });
-    expect(args).toContain('--reset');
-  });
-
-  it('does not include --reset when false', () => {
-    expect(buildSpawnArgs({ ...baseOpts, reset: false })).not.toContain('--reset');
-  });
-});
-
-describe('parseIterationMessage', () => {
-  it('parses [LOOP] iteration N', () => {
-    expect(parseIterationMessage('[LOOP] iteration 3')).toBe(3);
-  });
-
-  it('parses [LOOP] iteration 1', () => {
-    expect(parseIterationMessage('[LOOP] iteration 1')).toBe(1);
-  });
-
-  it('parses with timestamp prefix', () => {
-    expect(parseIterationMessage('[2025-01-15 10:30:45] [LOOP] iteration 5')).toBe(5);
-  });
-
-  it('strips ANSI color codes', () => {
-    expect(parseIterationMessage('\x1b[33m[LOOP] iteration 7\x1b[0m')).toBe(7);
-  });
-
-  it('returns null for non-LOOP lines', () => {
-    expect(parseIterationMessage('[SUCCESS] Story 1-1-foo: DONE')).toBeNull();
-    expect(parseIterationMessage('[INFO] Starting loop')).toBeNull();
-    expect(parseIterationMessage('')).toBeNull();
-    expect(parseIterationMessage('   ')).toBeNull();
-  });
-
-  it('returns null for LOOP without iteration number', () => {
-    expect(parseIterationMessage('[LOOP] starting')).toBeNull();
-  });
-});
+// parseRalphMessage, buildSpawnArgs, parseIterationMessage tests removed (Story 1.2)
+// Ralph agent module deleted — workflow engine pending (Epic 5)

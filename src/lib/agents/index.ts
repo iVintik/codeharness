@@ -1,13 +1,14 @@
 /**
  * Public API for the agents subsystem.
  *
- * Re-exports types (story 13-1), RalphDriver implementation (story 13-2),
- * stream parser functions/types, ralph prompt functions/types,
+ * Re-exports types (story 13-1), stream parser functions/types,
  * and the getDriver() factory (story 13-3).
+ *
+ * Ralph driver and prompt removed in Story 1.2 — will be replaced
+ * by workflow engine in Epic 5.
  */
 
 import type { AgentDriver } from './types.js';
-import { RalphDriver, type RalphConfig } from './ralph.js';
 
 // Types
 export type {
@@ -16,11 +17,6 @@ export type {
   AgentEvent,
   AgentDriver,
 } from './types.js';
-
-// RalphDriver
-export { RalphDriver } from './ralph.js';
-export type { RalphConfig } from './ralph.js';
-export { buildSpawnArgs, resolveRalphPath, parseRalphMessage, parseIterationMessage } from './ralph.js';
 
 // Stream parser
 export { parseStreamLine } from './stream-parser.js';
@@ -34,22 +30,14 @@ export type {
   ResultEvent,
 } from './stream-parser.js';
 
-// Ralph prompt
-export { generateRalphPrompt } from './ralph-prompt.js';
-export type { RalphPromptConfig } from './ralph-prompt.js';
-
 // --- Driver Factory ---
 
+// TODO: v2 workflow-engine (Epic 5) — rebuild getDriver with workflow-based driver
 /**
  * Returns an AgentDriver instance by name.
- * Defaults to 'ralph'. Throws for unknown driver names.
+ * Throws for all driver names — Ralph removed, workflow engine pending (Epic 5).
  */
-export function getDriver(name?: string, config?: RalphConfig): AgentDriver {
-  const driverName = name ?? 'ralph';
-  switch (driverName) {
-    case 'ralph':
-      return new RalphDriver(config);
-    default:
-      throw new Error(`Unknown agent driver: ${driverName}`);
-  }
+export function getDriver(name?: string, _config?: unknown): AgentDriver {
+  const driverName = name ?? 'default';
+  throw new Error(`No agent drivers available (requested: ${driverName}). Workflow engine pending (Epic 5).`);
 }

@@ -241,47 +241,17 @@ describe('applyAllPatches', () => {
     }
   }
 
-  it('applies all 6 patches to workflow files', () => {
+  // Patch engine removed (Story 1.2) — applyAllPatches now returns applied:false for all patches.
+  // These tests verify the no-op behavior.
+
+  it('returns applied:false with removal message for all patches (patch engine removed)', () => {
     createBmadWorkflowFiles(testDir);
 
     const results = applyAllPatches(testDir);
     expect(results).toHaveLength(6);
     for (const r of results) {
-      expect(r.applied).toBe(true);
-      expect(r.updated).toBe(false);
-    }
-  });
-
-  it('updates patches on second application (idempotent)', () => {
-    createBmadWorkflowFiles(testDir);
-
-    applyAllPatches(testDir);
-    const results = applyAllPatches(testDir);
-
-    expect(results).toHaveLength(6);
-    for (const r of results) {
-      expect(r.applied).toBe(true);
-      expect(r.updated).toBe(true);
-    }
-  });
-
-  it('produces identical output when applied twice', () => {
-    createBmadWorkflowFiles(testDir);
-
-    applyAllPatches(testDir);
-    const after1: Record<string, string> = {};
-    for (const relativePath of Object.values(PATCH_TARGETS)) {
-      const fullPath = join(testDir, '_bmad', relativePath);
-      const { readFileSync } = require('node:fs') as typeof import('node:fs');
-      after1[relativePath] = readFileSync(fullPath, 'utf-8');
-    }
-
-    applyAllPatches(testDir);
-    for (const relativePath of Object.values(PATCH_TARGETS)) {
-      const fullPath = join(testDir, '_bmad', relativePath);
-      const { readFileSync } = require('node:fs') as typeof import('node:fs');
-      const after2 = readFileSync(fullPath, 'utf-8');
-      expect(after2).toBe(after1[relativePath]);
+      expect(r.applied).toBe(false);
+      expect(r.error).toContain('Patch engine removed');
     }
   });
 
@@ -300,25 +270,6 @@ describe('applyAllPatches', () => {
     }
   });
 
-  it('continues applying other patches when one target is missing', () => {
-    createBmadWorkflowFiles(testDir);
-    // Remove one file
-    const { rmSync } = require('node:fs') as typeof import('node:fs');
-    rmSync(join(testDir, '_bmad', PATCH_TARGETS['story-verification']), { force: true });
-
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const results = applyAllPatches(testDir);
-    consoleSpy.mockRestore();
-
-    const storyResult = results.find(r => r.patchName === 'story-verification');
-    expect(storyResult?.applied).toBe(false);
-
-    const otherResults = results.filter(r => r.patchName !== 'story-verification');
-    for (const r of otherResults) {
-      expect(r.applied).toBe(true);
-    }
-  });
-
   it('returns correct patchName and targetFile for each result', () => {
     createBmadWorkflowFiles(testDir);
 
@@ -326,29 +277,6 @@ describe('applyAllPatches', () => {
     for (const r of results) {
       expect(PATCH_TARGETS).toHaveProperty(r.patchName);
       expect(r.targetFile).toContain(PATCH_TARGETS[r.patchName]);
-    }
-  });
-
-  it('catches errors when applyPatch throws on a target file', () => {
-    createBmadWorkflowFiles(testDir);
-    // Make one file a directory to cause readFileSync to fail
-    const { rmSync: rm, mkdirSync: mkDir } = require('node:fs') as typeof import('node:fs');
-    const storyTarget = join(testDir, '_bmad', PATCH_TARGETS['story-verification']);
-    rm(storyTarget, { force: true });
-    mkDir(storyTarget, { recursive: true }); // Now it's a directory, readFileSync will throw
-
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-    const results = applyAllPatches(testDir);
-    consoleSpy.mockRestore();
-
-    const storyResult = results.find(r => r.patchName === 'story-verification');
-    expect(storyResult?.applied).toBe(false);
-    expect(storyResult?.error).toBeDefined();
-
-    // Other patches should still succeed
-    const otherResults = results.filter(r => r.patchName !== 'story-verification');
-    for (const r of otherResults) {
-      expect(r.applied).toBe(true);
     }
   });
 

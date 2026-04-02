@@ -44,7 +44,7 @@ async function runCli(args: string[]): Promise<{ stdout: string; exitCode: numbe
 }
 
 function createLogDir(): string {
-  const logsDir = join(testDir, 'ralph', 'logs');
+  const logsDir = join(testDir, 'session-logs');
   mkdirSync(logsDir, { recursive: true });
   return logsDir;
 }
@@ -122,10 +122,10 @@ function buildLogContent(opts: {
 }
 
 describe('codeharness stats', () => {
-  it('fails when ralph/logs/ does not exist', async () => {
+  it('fails when session-logs/ does not exist', async () => {
     const { stdout, exitCode } = await runCli(['stats']);
     expect(exitCode).toBe(1);
-    expect(stdout).toContain('No ralph/logs/ directory found');
+    expect(stdout).toContain('No session-logs/ directory found');
   });
 
   it('produces a report with valid log data', async () => {
@@ -367,7 +367,7 @@ describe('codeharness stats', () => {
   it('ignores non-log files in the logs directory', async () => {
     const logsDir = createLogDir();
     writeFileSync(join(logsDir, 'random.txt'), 'not a log file');
-    writeFileSync(join(logsDir, 'ralph.log'), 'also not a claude output log');
+    writeFileSync(join(logsDir, 'notes.md'), 'also not a log file');
     writeFileSync(
       join(logsDir, 'claude_output_2026-03-27_10-00-00.log'),
       buildLogContent({ storyText: '1-1-filter-test' }),

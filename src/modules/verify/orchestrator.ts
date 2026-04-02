@@ -12,8 +12,6 @@ import { join } from 'node:path';
 import { warn } from '../../lib/output.js';
 import { readState, readStateWithBody, writeState } from '../../lib/state.js';
 import { checkStoryDocFreshness } from '../../lib/doc-health/index.js';
-import { showboatProofTemplate } from '../../templates/showboat-template.js';
-import type { AcceptanceCriterion } from '../../templates/showboat-template.js';
 import type {
   ParsedAC,
   VerifyResult,
@@ -70,34 +68,20 @@ export function checkPreconditions(dir?: string, storyId?: string): Precondition
  * Creates verification/ and verification/screenshots/ directories if needed.
  * Returns the proof file path.
  */
+// TODO: v2 blind evaluator (Epic 6) — proof document creation removed with showboat template.
+// createProofDocument will be replaced by JSON verdict generation in Epic 6.
 export function createProofDocument(
   storyId: string,
-  storyTitle: string,
-  acs: ParsedAC[],
+  _storyTitle: string,
+  _acs: ParsedAC[],
   dir?: string,
 ): string {
   const root = dir ?? process.cwd();
   const verificationDir = join(root, 'verification');
-  const screenshotsDir = join(verificationDir, 'screenshots');
-
   mkdirSync(verificationDir, { recursive: true });
-  mkdirSync(screenshotsDir, { recursive: true });
-
-  const criteria: AcceptanceCriterion[] = acs.map(ac => ({
-    id: ac.id,
-    description: ac.description,
-    verified: false,
-    evidence: [],
-  }));
-
-  const content = showboatProofTemplate({
-    storyId,
-    storyTitle,
-    acceptanceCriteria: criteria,
-  });
 
   const proofPath = join(verificationDir, `${storyId}-proof.md`);
-  writeFileSync(proofPath, content, 'utf-8');
+  writeFileSync(proofPath, `# ${storyId} — Proof\n\nPending: blind evaluator (Epic 6)\n`, 'utf-8');
 
   return proofPath;
 }

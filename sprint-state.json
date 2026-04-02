@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 10,
+    "done": 11,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -129,12 +129,16 @@
       }
     },
     "3-3-agent-resolver-module": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T23:30:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/3-3-agent-resolver-module-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "4-1-agent-dispatch-module-sdk-integration": {
       "status": "backlog",
@@ -277,7 +281,11 @@
     "1-2-delete-ralph-loop-legacy-verification": 2,
     "2-1-workflow-yaml-json-schema": 1,
     "2-2-workflow-parser-module": 1,
-    "2-3-default-embedded-workflow": 1
+    "2-3-default-embedded-workflow": 1,
+    "2-4-init-command-workflow-generation": 1,
+    "2-5-validate-command": 1,
+    "3-1-agent-config-json-schema": 2,
+    "3-3-agent-resolver-module": 4
   },
   "flagged": [],
   "epics": {
@@ -292,9 +300,9 @@
       "storiesDone": 5
     },
     "epic-3": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 2
+      "storiesDone": 3
     },
     "epic-4": {
       "status": "in-progress",
@@ -346,7 +354,7 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "3-2-embedded-agent-templates",
+    "currentStory": "3-3-agent-resolver-module",
     "currentPhase": "verify",
     "lastAction": "Starting test-provable verification",
     "acProgress": null

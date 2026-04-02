@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://codeharness.dev/schemas/workflow.schema.json",
+  "title": "Codeharness Workflow",
+  "description": "Schema for codeharness workflow YAML files",
+  "type": "object",
+  "required": ["tasks", "flow"],
+  "properties": {
+    "tasks": {
+      "type": "object",
+      "description": "Named task definitions",
+      "additionalProperties": {
+        "$ref": "#/definitions/task"
+      }
+    },
+    "flow": {
+      "type": "array",
+      "description": "Ordered execution steps — task references or loop blocks",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string",
+            "description": "Task reference by name"
+          },
+          {
+            "type": "object",
+            "required": ["loop"],
+            "properties": {
+              "loop": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1,
+                "description": "Task names to repeat in a loop"
+              }
+            },
+            "additionalProperties": false,
+            "description": "Loop block containing task references"
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "task": {
+      "type": "object",
+      "required": ["agent"],
+      "properties": {
+        "agent": {
+          "type": "string",
+          "description": "Agent identifier for this task"
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["per-story", "per-run"],
+          "default": "per-story",
+          "description": "Execution scope — per-story or per-run"
+        },
+        "session": {
+          "type": "string",
+          "enum": ["fresh", "continue"],
+          "default": "fresh",
+          "description": "Session strategy — fresh or continue"
+        },
+        "source_access": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether the agent has source code access"
+        },
+        "prompt_template": {
+          "type": "string",
+          "description": "Prompt template with {{variable}} placeholders"
+        },
+        "input_contract": {
+          "type": "object",
+          "description": "Input contract schema for this task"
+        },
+        "output_contract": {
+          "type": "object",
+          "description": "Output contract schema for this task"
+        },
+        "max_budget_usd": {
+          "type": "number",
+          "description": "Maximum budget in USD for this task execution"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

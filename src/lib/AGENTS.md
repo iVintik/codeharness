@@ -48,6 +48,12 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | observability/config.ts | OTLP env var configuration for CLI/web/agent modes | `configureOtlpEnvVars`, `ensureServiceNameEnvVar`, `ensureEndpointEnvVar`, `configureCli`, `configureWeb`, `configureAgent` |
 | observability/backends.ts | Observability backend interface with Victoria and ELK implementations | `ObservabilityBackend`, `VictoriaBackend`, `ElkBackend` |
 
+## Schema Validation
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| schema-validate.ts | JSON Schema validation using ajv — workflow YAML structure validation with typed error reporting | `validateWorkflowSchema`, `validateAgainstSchema`, `ValidationResult`, `ValidationError` |
+
 ## Coverage & Testing
 
 | File | Purpose | Key Exports |
@@ -167,4 +173,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/ralph-prompt.ts | Ralph system prompt generator — builds the prompt template for ralph sessions | `generateRalphPrompt`, `RalphPromptConfig` |
 | agents/index.ts | Barrel re-exports for agents subsystem — RalphDriver, stream parser, ralph prompt | all public API from ralph.ts, stream-parser.ts, ralph-prompt.ts, types.ts |
 
-**Total: 54 library files + 4 shared test utility files across 21 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**
+**Total: 55 library files + 4 shared test utility files across 22 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**

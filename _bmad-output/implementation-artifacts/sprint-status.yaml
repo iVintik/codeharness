@@ -13,7 +13,7 @@ development_status:
 
   # Epic 2
   epic-2: backlog
-  2-1-workflow-yaml-json-schema: backlog
+  2-1-workflow-yaml-json-schema: done
   2-2-workflow-parser-module: backlog
   2-3-default-embedded-workflow: backlog
   2-4-init-command-workflow-generation: backlog

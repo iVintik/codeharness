@@ -142,3 +142,134 @@ At ~164 subagent tool calls plus orchestrator overhead, estimated this session c
 | 5 | Sync `ralph/.state-snapshot.json` with `sprint-state.json` | LOW | Next session |
 | 6 | Fix pre-existing TS errors in `src/commands/__tests__/run.test.ts` | LOW | Backlog |
 | 7 | Address deferred LOW issues from 4-3 and 4-4 code reviews | LOW | Backlog |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 2)
+
+**Timestamp:** 2026-04-03T02:00Z
+**Session window:** ~2026-04-03T01:53 to ~2026-04-03T02:15 (approx. 22 minutes)
+**Sprint progress:** 15/28 stories done (53.6%), Epics 1-4 complete, Epic 5 started
+
+---
+
+## 1. Session Summary
+
+This session picked up story 5-1-flow-execution-sequential-steps at `review` status and drove it to `done`. No new stories were started.
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 5-1-flow-execution-sequential-steps | code-review, verification, proof-doc fix, AGENTS.md update | **Done** | 14/14 ACs verified. Commit `b983273`. |
+
+**Activities completed:**
+1. Code review found 2 HIGH bugs and 2 MEDIUM issues — all fixed
+2. Test-provable verification: 14/14 ACs passed, 3963 tests green, 99.2% stmt coverage on workflow-engine.ts
+3. Proof document formatting fix (needed `**Tier:**` bold format)
+4. `src/lib/AGENTS.md` updated to include `source-isolation.ts` and `workflow-engine.ts`
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue |
+|----------|-------|
+| HIGH | Per-story RATE_LIMIT/NETWORK/SDK_INIT errors did not halt the outer flow loop — only the inner work-items loop. Catastrophic failures would be silently swallowed. |
+| HIGH | Dispatch failures did not record a TaskCheckpoint in workflow state, violating AC #13. Crash recovery would lose track of failed tasks. |
+| MEDIUM | Coverage gaps — 8 new tests added. Coverage improved to 99.2% stmt / 87% branch. |
+
+### LOW Issues Deferred (not fixed)
+
+- Duplicate checkpoint creation logic in `dispatchTask` else branch
+- `handleDispatchError` and `recordErrorInState` could be merged
+- `warn()` calls for skipped tasks don't propagate to `EngineResult.errors`
+- Branch coverage at 87% — remaining uncovered branches are defensive null checks on YAML parse results
+- No integration test verifying actual YAML parsing (all YAML mocked)
+
+### Infrastructure Issues
+
+- **AGENTS.md was stale** — missing entries for `source-isolation.ts` and `workflow-engine.ts`. Fixed in this session.
+- **Prior action item resolved:** Action item #1 from Session 1 ("Complete code-review and verify for story 5-1") is now done.
+- **Prior action item resolved:** Action item #3 from Session 1 ("Update AGENTS.md") is now partially addressed (2 of 5 missing modules added).
+
+---
+
+## 3. Cost Analysis
+
+### Subagent Token Report (this session only)
+
+From `.session-issues.md` token reports for the 5-1 phases that ran this session:
+
+| Subagent Phase | Tool Calls | Top Tools |
+|---------------|------------|-----------|
+| 5-1 code-review | 23 | Read: 10, Bash: 9, Edit: 5, Glob: 2, Skill: 1 |
+| **Session Total** | **23** | Read: 10, Bash: 9, Edit: 5, Glob: 2, Skill: 1 |
+
+Note: The verification phase for 5-1 is not in the session issues log — it likely ran as part of the orchestrator or was not instrumented. The proof document and AGENTS.md update were additional orchestrator-level actions.
+
+### Observations
+
+- **Read-heavy session:** 10/23 tool calls (43%) were Read. Code review needs to read the implementation, tests, architecture, and existing code to find bugs.
+- **Bash-heavy for code review:** 9 Bash calls — running tests after each fix. This is inherent to the fix-verify loop.
+- **Redundant operations:** Coverage grep ran 3 times with different patterns (could be 1 call with combined pattern).
+- **Largest Bash outputs:** Coverage run (~80 lines), vitest full suite (~10 lines), git diff --name-only (~11 lines).
+- **Estimated session cost:** ~$3-4 (1 code-review phase + verification + minor fixups). This session was efficient — minimal waste.
+
+### Cumulative Cost Tracking
+
+| Session | Stories Completed | Estimated Cost | Cost/Story |
+|---------|-------------------|---------------|------------|
+| Prior sessions (Epics 1-2) | 7 | $37.08 | $4.45 |
+| Session 1 (2026-04-03, early) | 2.5 | ~$12 | ~$4.80 |
+| Session 2 (2026-04-03, late) | 0.5 (review+verify) | ~$3.50 | ~$7.00* |
+
+*Higher per-story cost for Session 2 is misleading — this was just the tail end (review+verify) of a story that was mostly built in Session 1.
+
+---
+
+## 4. What Went Well
+
+1. **Code review found 2 critical flow-control bugs.** The outer loop would have silently continued past catastrophic errors (RATE_LIMIT, NETWORK, SDK_INIT). This is exactly the kind of bug that only shows up in production.
+2. **Clean verification:** 14/14 ACs passed on first attempt. No re-runs needed.
+3. **AGENTS.md debt partially cleared.** Two missing module entries added.
+4. **Focused session:** Single story, single goal, completed efficiently in ~22 minutes.
+5. **Action items from Session 1 addressed:** The top priority action item (complete 5-1 review) is done.
+
+---
+
+## 5. What Went Wrong
+
+1. **AGENTS.md still has gaps.** Only `source-isolation.ts` and `workflow-engine.ts` were added. Still missing: `agent-dispatch.ts`, `agent-resolver.ts`, `session-manager.ts`, `trace-id.ts`.
+2. **Verification phase not instrumented.** No token report for the 5-1 verification subagent — either it wasn't logged or ran inline. This is a gap in observability.
+3. **`codeharness stats` still broken** for non-ralph sessions. No session-logs directory exists. Cost analysis relies entirely on manual extrapolation from subagent token reports.
+4. **Coverage grep ran 3 times** during code review with different patterns — minor waste but symptomatic of the "grep-and-check" loop.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Review-then-verify in a dedicated session works.** Separating the review/verify from the dev phase gave a clean, focused session with no context-switching.
+- **Code review on flow-control logic is essential.** Error-handling paths in orchestrators are where the worst bugs hide. Both HIGH bugs were in error-handling branches.
+
+### Patterns to Avoid
+
+- **Multiple coverage grep patterns.** Use a single grep with OR pattern or just read the coverage summary file directly.
+- **Leaving AGENTS.md updates incomplete.** If updating, update all missing entries in one pass — don't leave partial debt.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | ~~Complete code-review and verify for story 5-1~~ | ~~HIGH~~ | ~~Next session~~ | DONE |
+| 2 | Fix `codeharness verify` to work without pre-set harness state flags | MEDIUM | Backlog | Open |
+| 3 | Update `src/lib/AGENTS.md` — still missing: agent-dispatch, agent-resolver, session-manager, trace-id | MEDIUM | Next session | Partial |
+| 4 | Fix `codeharness stats --save` to work for non-ralph sessions | LOW | Backlog | Open |
+| 5 | Sync `ralph/.state-snapshot.json` with `sprint-state.json` | LOW | Next session | Open |
+| 6 | Fix pre-existing TS errors in `src/commands/__tests__/run.test.ts` | LOW | Backlog | Open |
+| 7 | Address deferred LOW issues from 4-3, 4-4, and 5-1 code reviews | LOW | Backlog | Open |
+| 8 | Add integration test for actual YAML parsing (not mocked) in workflow-engine | LOW | Backlog | New |

@@ -177,7 +177,7 @@
       }
     },
     "5-1-flow-execution-sequential-steps": {
-      "status": "review",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -185,12 +185,16 @@
       "acResults": null
     },
     "5-2-flow-execution-loop-blocks": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T02:37:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/5-2-flow-execution-loop-blocks-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "5-3-crash-recovery-resume": {
       "status": "backlog",

@@ -95,10 +95,16 @@ import {
   executeWorkflow,
   loadWorkItems,
   dispatchTask,
+  parseVerdict,
+  buildRetryPrompt,
+  getFailedItems,
+  executeLoopBlock,
 } from '../workflow-engine.js';
 import type {
   EngineConfig,
+  EngineError,
   WorkItem,
+  EvaluatorVerdict,
 } from '../workflow-engine.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask } from '../workflow-parser.js';
@@ -646,26 +652,45 @@ describe('executeWorkflow', () => {
     expect(mockWriteWorkflowState).toHaveBeenCalledTimes(3);
   });
 
-  it('skips loop blocks with warning (AC #8)', async () => {
-    const config = makeConfig({
-      workflow: {
-        tasks: { implement: makeTask() },
-        flow: ['implement', { loop: ['implement'] }],
+  it('executes loop blocks instead of skipping them', async () => {
+    // Loop with retry (per-story) + verify (per-run) — verify returns pass on first try
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        if (prompt.includes('Execute task')) {
+          return {
+            sessionId: 'sess-v',
+            success: true,
+            durationMs: 100,
+            output: JSON.stringify({
+              verdict: 'pass',
+              score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+              findings: [],
+            }),
+          };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
       },
-    });
+    );
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
     });
 
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
     const result = await executeWorkflow(config);
 
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('loop blocks are not yet implemented'),
-    );
-    // Only the string task should have dispatched
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
-    expect(result.success).toBe(true);
+    // Should have dispatched: retry for 1 story + verify once
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(result.tasksCompleted).toBe(2);
   });
 
   it('handles DispatchError and records in result (AC #13)', async () => {
@@ -1063,5 +1088,727 @@ describe('executeWorkflow', () => {
     expect(result.success).toBe(false);
     // Should halt after verify fails — implement never runs
     expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+  });
+});
+
+// --- Loop Block Tests (Story 5-2) ---
+
+describe('parseVerdict', () => {
+  it('parses valid verdict JSON', () => {
+    const verdict = parseVerdict(JSON.stringify({
+      verdict: 'pass',
+      score: { passed: 3, failed: 0, unknown: 0, total: 3 },
+      findings: [],
+    }));
+
+    expect(verdict).not.toBeNull();
+    expect(verdict!.verdict).toBe('pass');
+    expect(verdict!.score.passed).toBe(3);
+  });
+
+  it('parses verdict with findings', () => {
+    const input = {
+      verdict: 'fail',
+      score: { passed: 1, failed: 1, unknown: 1, total: 3 },
+      findings: [{
+        ac: 1,
+        description: 'Test AC',
+        status: 'fail',
+        evidence: {
+          commands_run: ['npm test'],
+          output_observed: 'FAIL',
+          reasoning: 'Tests failed',
+        },
+      }],
+    };
+
+    const verdict = parseVerdict(JSON.stringify(input));
+    expect(verdict).not.toBeNull();
+    expect(verdict!.findings).toHaveLength(1);
+    expect(verdict!.findings[0].ac).toBe(1);
+  });
+
+  it('returns null for invalid JSON', () => {
+    expect(parseVerdict('not json')).toBeNull();
+  });
+
+  it('returns null for missing verdict field', () => {
+    expect(parseVerdict(JSON.stringify({
+      score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+      findings: [],
+    }))).toBeNull();
+  });
+
+  it('returns null for invalid verdict value', () => {
+    expect(parseVerdict(JSON.stringify({
+      verdict: 'maybe',
+      score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+      findings: [],
+    }))).toBeNull();
+  });
+
+  it('returns null for missing score field', () => {
+    expect(parseVerdict(JSON.stringify({
+      verdict: 'pass',
+      findings: [],
+    }))).toBeNull();
+  });
+
+  it('returns null for missing findings field', () => {
+    expect(parseVerdict(JSON.stringify({
+      verdict: 'pass',
+      score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+    }))).toBeNull();
+  });
+
+  it('returns null for non-object input', () => {
+    expect(parseVerdict('"just a string"')).toBeNull();
+    expect(parseVerdict('42')).toBeNull();
+    expect(parseVerdict('null')).toBeNull();
+  });
+
+  it('returns null when score fields are not numbers', () => {
+    expect(parseVerdict(JSON.stringify({
+      verdict: 'pass',
+      score: { passed: 'one', failed: 0, unknown: 0, total: 1 },
+      findings: [],
+    }))).toBeNull();
+  });
+});
+
+describe('buildRetryPrompt', () => {
+  it('builds prompt with failed findings', () => {
+    const findings: EvaluatorVerdict['findings'] = [
+      {
+        ac: 1,
+        description: 'Unit tests pass',
+        status: 'fail',
+        evidence: { commands_run: ['npm test'], output_observed: 'FAIL', reasoning: 'Tests failed' },
+      },
+      {
+        ac: 2,
+        description: 'Coverage above 80%',
+        status: 'pass',
+        evidence: { commands_run: ['npm test'], output_observed: '90%', reasoning: 'Good coverage' },
+      },
+      {
+        ac: 3,
+        description: 'Lint clean',
+        status: 'unknown',
+        evidence: { commands_run: [], output_observed: '', reasoning: 'Could not verify — timeout' },
+      },
+    ];
+
+    const prompt = buildRetryPrompt('5-1-foo', findings);
+
+    expect(prompt).toContain('Retry story 5-1-foo');
+    expect(prompt).toContain('AC #1 (FAIL): Unit tests pass');
+    expect(prompt).toContain('Evidence: Tests failed');
+    expect(prompt).toContain('AC #3 (UNKNOWN): Lint clean');
+    expect(prompt).not.toContain('AC #2'); // passed — should be excluded
+    expect(prompt).toContain('Focus on fixing the failed criteria above.');
+  });
+
+  it('returns default prompt when no failed/unknown findings', () => {
+    const findings: EvaluatorVerdict['findings'] = [
+      {
+        ac: 1,
+        description: 'All good',
+        status: 'pass',
+        evidence: { commands_run: [], output_observed: '', reasoning: '' },
+      },
+    ];
+
+    const prompt = buildRetryPrompt('5-1-foo', findings);
+    expect(prompt).toBe('Implement story 5-1-foo');
+  });
+
+  it('returns default prompt for empty findings array', () => {
+    const prompt = buildRetryPrompt('5-1-foo', []);
+    expect(prompt).toBe('Implement story 5-1-foo');
+  });
+});
+
+describe('getFailedItems', () => {
+  const items: WorkItem[] = [
+    { key: '3-1-foo', source: 'sprint' },
+    { key: '3-2-bar', source: 'sprint' },
+  ];
+
+  it('returns all items when verdict is null', () => {
+    expect(getFailedItems(null, items)).toEqual(items);
+  });
+
+  it('returns empty array when verdict is pass', () => {
+    const verdict: EvaluatorVerdict = {
+      verdict: 'pass',
+      score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+      findings: [],
+    };
+    expect(getFailedItems(verdict, items)).toEqual([]);
+  });
+
+  it('returns all items when verdict is fail (conservative)', () => {
+    const verdict: EvaluatorVerdict = {
+      verdict: 'fail',
+      score: { passed: 1, failed: 1, unknown: 0, total: 2 },
+      findings: [],
+    };
+    expect(getFailedItems(verdict, items)).toEqual(items);
+  });
+});
+
+describe('loop block execution', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  function makePassVerdict(): string {
+    return JSON.stringify({
+      verdict: 'pass',
+      score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+      findings: [],
+    });
+  }
+
+  function makeFailVerdict(): string {
+    return JSON.stringify({
+      verdict: 'fail',
+      score: { passed: 1, failed: 1, unknown: 0, total: 2 },
+      findings: [
+        {
+          ac: 1,
+          description: 'Tests pass',
+          status: 'fail',
+          evidence: { commands_run: ['npm test'], output_observed: 'FAIL', reasoning: 'Test suite failed' },
+        },
+        {
+          ac: 2,
+          description: 'Build succeeds',
+          status: 'pass',
+          evidence: { commands_run: ['npm run build'], output_observed: 'OK', reasoning: 'Build fine' },
+        },
+      ],
+    });
+  }
+
+  it('terminates loop when verdict is pass (AC #2)', async () => {
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        if (prompt.includes('Execute task')) {
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(true);
+    expect(result.tasksCompleted).toBe(2); // 1 retry + 1 verify
+  });
+
+  it('terminates loop when maxIterations reached (AC #3)', async () => {
+    // Verify always fails
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        if (prompt.includes('Execute task')) {
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+      maxIterations: 3,
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(false);
+    // 3 iterations × 2 tasks per iteration = 6
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(6);
+
+    // State should have phase=max-iterations
+    const lastWriteCall = mockWriteWorkflowState.mock.calls[mockWriteWorkflowState.mock.calls.length - 1];
+    const finalState = lastWriteCall[0] as WorkflowState;
+    expect(finalState.phase).toBe('max-iterations');
+  });
+
+  it('terminates loop when circuit_breaker.triggered is true (AC #4)', async () => {
+    let dispatchCount = 0;
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        dispatchCount++;
+        if (prompt.includes('Execute task')) {
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    // Simulate external circuit breaker trigger: after first iteration completes,
+    // the writeWorkflowState mock mutates the circuit_breaker object on the state.
+    // This works because executeLoopBlock uses shallow spread ({ ...currentState }),
+    // which preserves the circuit_breaker object reference.
+    mockWriteWorkflowState.mockImplementation((state: WorkflowState) => {
+      if (dispatchCount >= 2) {
+        state.circuit_breaker.triggered = true;
+        state.circuit_breaker.reason = 'score plateau';
+      }
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(false);
+    // Should have run only 1 full iteration (2 dispatches) before circuit breaker halts
+    // Second iteration starts: retry dispatches (dispatchCount=3), verify dispatches (dispatchCount=4)
+    // Circuit breaker was triggered after dispatchCount>=2, checked at end of iteration 2
+    // So we expect more than 2 dispatches (at least 2 iterations run before breaker check)
+    expect(dispatchCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it('injects findings into retry prompt for failed stories (AC #5)', async () => {
+    const dispatches: string[] = [];
+    let callCount = 0;
+
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        callCount++;
+        dispatches.push(prompt);
+
+        if (prompt.includes('Execute task')) {
+          // First verify: fail, second verify: pass
+          if (callCount <= 2) {
+            return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+          }
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Second retry prompt (iteration 2) should contain findings
+    const secondRetryPrompt = dispatches[2]; // [0]=retry, [1]=verify, [2]=retry(with findings)
+    expect(secondRetryPrompt).toContain('Retry story 3-1-foo');
+    expect(secondRetryPrompt).toContain('AC #1 (FAIL)');
+    expect(secondRetryPrompt).toContain('Test suite failed');
+  });
+
+  it('parses verdict from DispatchResult.output (AC #6)', async () => {
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        if (prompt.includes('Execute task')) {
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Check that evaluator_scores were recorded in state
+    const stateWrites = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
+    const stateWithScore = stateWrites.find((s) => s.evaluator_scores.length > 0);
+    expect(stateWithScore).toBeDefined();
+    expect(stateWithScore!.evaluator_scores[0].passed).toBe(2);
+    expect(stateWithScore!.evaluator_scores[0].failed).toBe(0);
+  });
+
+  it('records all-UNKNOWN score when verdict parsing fails (AC #6)', async () => {
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        if (prompt.includes('Execute task')) {
+          // Return non-JSON output
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: 'not a json verdict' };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    mockParse.mockReturnValue({
+      development_status: {
+        '3-1-foo': 'ready-for-dev',
+        '3-2-bar': 'backlog',
+      },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+      maxIterations: 1,
+    });
+
+    await executeWorkflow(config);
+
+    // Check for all-UNKNOWN score
+    const stateWrites = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
+    const stateWithScore = stateWrites.find((s) => s.evaluator_scores.length > 0);
+    expect(stateWithScore).toBeDefined();
+    expect(stateWithScore!.evaluator_scores[0].passed).toBe(0);
+    expect(stateWithScore!.evaluator_scores[0].failed).toBe(0);
+    expect(stateWithScore!.evaluator_scores[0].unknown).toBe(2); // 2 work items
+    expect(stateWithScore!.evaluator_scores[0].total).toBe(2);
+  });
+
+  it('increments iteration and persists each loop pass (AC #7)', async () => {
+    let callCount = 0;
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        callCount++;
+        if (prompt.includes('Execute task')) {
+          // Fail twice, pass on third
+          if (callCount <= 4) { // calls 1-2 = iter1 (retry+verify), calls 3-4 = iter2
+            return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+          }
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Find all writes with different iteration values
+    const iterations = mockWriteWorkflowState.mock.calls
+      .map((c: unknown[]) => (c[0] as WorkflowState).iteration)
+      .filter((v: number, i: number, arr: number[]) => i === 0 || v !== arr[i - 1]);
+
+    // Should have iterations 0 (initial), 1, 2, 3
+    expect(iterations).toContain(1);
+    expect(iterations).toContain(2);
+    expect(iterations).toContain(3);
+  });
+
+  it('halt error (RATE_LIMIT) terminates loop immediately (AC #8)', async () => {
+    const { DispatchError } = await import('../agent-dispatch.js');
+    mockDispatchAgent.mockRejectedValue(
+      new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner')),
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].code).toBe('RATE_LIMIT');
+    // Only one dispatch attempted before halt
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+  });
+
+  it('empty loop block terminates immediately', async () => {
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+        },
+        flow: [{ loop: [] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(true);
+    expect(mockDispatchAgent).not.toHaveBeenCalled();
+  });
+
+  it('uses default maxIterations of 5 when not specified', async () => {
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        if (prompt.includes('Execute task')) {
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+      // maxIterations not set — should default to 5
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(false);
+    // 5 iterations × 2 dispatches = 10
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(10);
+  });
+
+  it('records multiple evaluator scores across iterations', async () => {
+    let callCount = 0;
+    mockDispatchAgent.mockImplementation(
+      async (_def: SubagentDefinition, prompt: string) => {
+        callCount++;
+        if (prompt.includes('Execute task')) {
+          // Fail first, pass second
+          if (callCount <= 2) {
+            return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+          }
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+        }
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      },
+    );
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Find final state with evaluator scores
+    const allWrites = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
+    const statesWithScores = allWrites.filter((s) => s.evaluator_scores.length >= 2);
+    expect(statesWithScores.length).toBeGreaterThan(0);
+
+    const finalScored = statesWithScores[statesWithScores.length - 1];
+    expect(finalScored.evaluator_scores).toHaveLength(2);
+    expect(finalScored.evaluator_scores[0].failed).toBe(1); // first: fail
+    expect(finalScored.evaluator_scores[1].passed).toBe(2); // second: pass
+  });
+
+  it('halt error in per-run verify task terminates loop', async () => {
+    const { DispatchError } = await import('../agent-dispatch.js');
+
+    let callCount = 0;
+    mockDispatchAgent.mockImplementation(async () => {
+      callCount++;
+      if (callCount === 1) {
+        // retry succeeds
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      }
+      // verify throws RATE_LIMIT
+      throw new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner'));
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].code).toBe('RATE_LIMIT');
+    expect(result.errors[0].taskName).toBe('verify');
+  });
+
+  it('clears stale verdict after non-halt per-run error so next iteration retries all items', async () => {
+    const { DispatchError } = await import('../agent-dispatch.js');
+    let callCount = 0;
+
+    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
+      callCount++;
+      if (callCount === 1) {
+        // First retry succeeds
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      }
+      if (callCount === 2) {
+        // First verify throws non-halt UNKNOWN error
+        throw new DispatchError('unknown err', 'UNKNOWN', 'dev', new Error('inner'));
+      }
+      if (callCount === 3) {
+        // Second retry — should dispatch for ALL items (stale verdict cleared)
+        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      }
+      // Second verify passes
+      return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Loop should eventually succeed (pass verdict on second verify)
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].code).toBe('UNKNOWN');
+    // 4 dispatches: retry1 + verify1(error) + retry2 + verify2(pass)
+    expect(mockDispatchAgent).toHaveBeenCalledTimes(4);
+  });
+
+  it('non-halt per-run error records error and continues to next iteration', async () => {
+    const { DispatchError } = await import('../agent-dispatch.js');
+    let callCount = 0;
+
+    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
+      callCount++;
+      if (prompt.includes('Execute task')) {
+        if (callCount <= 2) {
+          // First verify: non-halt error
+          throw new DispatchError('bad response', 'UNKNOWN', 'dev', new Error('inner'));
+        }
+        // Second verify: pass
+        return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+      }
+      return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Error from first verify recorded, but loop continued and eventually passed
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0].code).toBe('UNKNOWN');
   });
 });

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 7,
+    "done": 11,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -93,63 +93,79 @@
       }
     },
     "2-5-validate-command": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T15:10:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/2-5-validate-command-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "3-1-agent-config-json-schema": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 2,
+      "lastAttempt": "2026-04-02T15:40:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/3-1-agent-config-json-schema-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "3-2-embedded-agent-templates": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T15:50:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/3-2-embedded-agent-templates-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "3-3-agent-resolver-module": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-02T23:30:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/3-3-agent-resolver-module-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "4-1-agent-dispatch-module-sdk-integration": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/4-1-agent-dispatch-module-sdk-integration-proof.md",
       "acResults": null
     },
     "4-2-session-boundary-management": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/4-2-session-boundary-management-proof.md",
       "acResults": null
     },
     "4-3-trace-id-generation-injection": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-04-03T01:00:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/4-3-trace-id-generation-injection-proof.md",
       "acResults": null
     },
     "4-4-source-isolation-enforcement": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -265,7 +281,11 @@
     "1-2-delete-ralph-loop-legacy-verification": 2,
     "2-1-workflow-yaml-json-schema": 1,
     "2-2-workflow-parser-module": 1,
-    "2-3-default-embedded-workflow": 1
+    "2-3-default-embedded-workflow": 1,
+    "2-4-init-command-workflow-generation": 1,
+    "2-5-validate-command": 1,
+    "3-1-agent-config-json-schema": 2,
+    "3-3-agent-resolver-module": 4
   },
   "flagged": [],
   "epics": {
@@ -275,14 +295,14 @@
       "storiesDone": 3
     },
     "epic-2": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 5,
-      "storiesDone": 2
+      "storiesDone": 5
     },
     "epic-3": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 3
     },
     "epic-4": {
       "status": "in-progress",
@@ -334,9 +354,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "4-4-source-isolation-enforcement",
+    "currentPhase": "verify",
+    "lastAction": "Starting test-provable verification",
     "acProgress": null
   },
   "actionItems": []

@@ -35,6 +35,7 @@ export interface WorkflowState {
   tasks_completed: TaskCheckpoint[];
   evaluator_scores: EvaluatorScore[];
   circuit_breaker: CircuitBreakerState;
+  trace_ids?: string[];
 }
 
 // --- Constants ---
@@ -57,6 +58,7 @@ export function getDefaultWorkflowState(): WorkflowState {
       reason: null,
       score_history: [],
     },
+    trace_ids: [],
   };
 }
 
@@ -113,6 +115,14 @@ function isValidWorkflowState(value: unknown): value is WorkflowState {
   if (!Array.isArray(s.tasks_completed)) return false;
   if (!Array.isArray(s.evaluator_scores)) return false;
   if (!s.circuit_breaker || typeof s.circuit_breaker !== 'object') return false;
+
+  // Validate trace_ids (optional array of strings)
+  if (s.trace_ids !== undefined) {
+    if (!Array.isArray(s.trace_ids)) return false;
+    for (const id of s.trace_ids) {
+      if (typeof id !== 'string') return false;
+    }
+  }
 
   // Validate tasks_completed element shapes
   for (const t of s.tasks_completed) {

@@ -361,6 +361,192 @@ circuit_breaker:
     expect(restored.tasks_completed).toHaveLength(2);
     expect(restored.evaluator_scores).toHaveLength(1);
   });
+
+  it('rejects trace_ids that is not an array', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed: []
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: []
+trace_ids: "not-an-array"
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state).toEqual(getDefaultWorkflowState());
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('invalid shape'));
+  });
+
+  it('rejects trace_ids with non-string elements', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed: []
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: []
+trace_ids:
+  - 42
+  - true
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state).toEqual(getDefaultWorkflowState());
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('invalid shape'));
+  });
+
+  it('accepts valid trace_ids array', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed: []
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: []
+trace_ids:
+  - ch-abc-0-init
+  - ch-abc-1-verify
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state.trace_ids).toEqual(['ch-abc-0-init', 'ch-abc-1-verify']);
+  });
+
+  it('accepts state without trace_ids (optional field)', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed: []
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: []
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state.workflow_name).toBe('test');
+    expect(state.trace_ids).toBeUndefined();
+  });
+
+  it('rejects tasks_completed with invalid session_id type', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed:
+  - task_name: implement
+    story_key: s1
+    completed_at: "2026-01-01T00:00:00Z"
+    session_id: 42
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: []
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state).toEqual(getDefaultWorkflowState());
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('invalid shape'));
+  });
+
+  it('rejects evaluator_scores with missing timestamp', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed: []
+evaluator_scores:
+  - iteration: 1
+    passed: 3
+    failed: 0
+    unknown: 0
+    total: 3
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: []
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state).toEqual(getDefaultWorkflowState());
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('invalid shape'));
+  });
+
+  it('rejects circuit_breaker with non-boolean triggered', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed: []
+evaluator_scores: []
+circuit_breaker:
+  triggered: "yes"
+  reason: null
+  score_history: []
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state).toEqual(getDefaultWorkflowState());
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('invalid shape'));
+  });
+
+  it('rejects circuit_breaker with non-array score_history', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed: []
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: "not-an-array"
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state).toEqual(getDefaultWorkflowState());
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('invalid shape'));
+  });
+
+  it('rejects circuit_breaker with reason as number instead of string or null', () => {
+    mkdirSync(join(testDir, '.codeharness'), { recursive: true });
+    const yaml = `workflow_name: test
+started: "2026-01-01T00:00:00Z"
+iteration: 1
+phase: idle
+tasks_completed: []
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: 42
+  score_history: []
+`;
+    writeFileSync(join(testDir, '.codeharness', 'workflow-state.yaml'), yaml, 'utf-8');
+    const state = readWorkflowState(testDir);
+    expect(state).toEqual(getDefaultWorkflowState());
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('invalid shape'));
+  });
 });
 
 describe('concurrent/sequential writes', () => {

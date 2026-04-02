@@ -27,9 +27,9 @@ development_status:
 
   # Epic 4
   epic-4: backlog
-  4-1-agent-dispatch-module-sdk-integration: backlog
-  4-2-session-boundary-management: backlog
-  4-3-trace-id-generation-injection: backlog
+  4-1-agent-dispatch-module-sdk-integration: done
+  4-2-session-boundary-management: done
+  4-3-trace-id-generation-injection: done
   4-4-source-isolation-enforcement: backlog
 
   # Epic 5

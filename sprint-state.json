@@ -157,11 +157,11 @@
       "acResults": null
     },
     "4-3-trace-id-generation-injection": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-04-03T01:00:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/4-3-trace-id-generation-injection-proof.md",
       "acResults": null
     },
     "4-4-source-isolation-enforcement": {

@@ -1,5 +1,6 @@
 import Ajv from 'ajv';
 import workflowSchema from '../schemas/workflow.schema.json';
+import agentSchema from '../schemas/agent.schema.json';
 
 // --- Interfaces ---
 
@@ -18,6 +19,7 @@ export interface ValidationResult {
 
 const ajv = new Ajv({ allErrors: true });
 const validateWorkflow = ajv.compile(workflowSchema);
+const validateAgent = ajv.compile(agentSchema);
 
 /**
  * Validate data against a JSON schema.
@@ -48,4 +50,12 @@ export function validateAgainstSchema(
  */
 export function validateWorkflowSchema(data: unknown): ValidationResult {
   return validateAgainstSchema(data, validateWorkflow);
+}
+
+/**
+ * Validate data against the agent configuration schema.
+ * Primary entry point for agent config validation.
+ */
+export function validateAgentSchema(data: unknown): ValidationResult {
+  return validateAgainstSchema(data, validateAgent);
 }

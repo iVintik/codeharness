@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://codeharness.dev/schemas/agent.schema.json",
+  "title": "Codeharness Agent",
+  "description": "Schema for codeharness agent configuration YAML files",
+  "type": "object",
+  "required": ["name", "role", "persona"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Agent identifier"
+    },
+    "role": {
+      "type": "object",
+      "required": ["title", "purpose"],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Agent's role title"
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1,
+          "description": "What this agent does"
+        }
+      },
+      "additionalProperties": false
+    },
+    "persona": {
+      "type": "object",
+      "required": ["identity", "communication_style", "principles"],
+      "properties": {
+        "identity": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Who this agent is"
+        },
+        "communication_style": {
+          "type": "string",
+          "minLength": 1,
+          "description": "How this agent communicates"
+        },
+        "principles": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "description": "Behavioral principles"
+        }
+      },
+      "additionalProperties": false
+    },
+    "personality": {
+      "type": "object",
+      "required": ["traits"],
+      "properties": {
+        "traits": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "description": "PersonaNexus-compatible traits with values constrained to 0-1"
+        }
+      },
+      "additionalProperties": false
+    },
+    "disallowedTools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tools this agent is not allowed to use"
+    }
+  },
+  "additionalProperties": false
+}

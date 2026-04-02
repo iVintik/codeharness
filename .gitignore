@@ -7,3 +7,4 @@ internal-claude-plugins/
 node_modules/
 dist/
 .DS_Store
+.claude/codeharness.local.md

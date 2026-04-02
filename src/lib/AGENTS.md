@@ -48,11 +48,12 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | observability/config.ts | OTLP env var configuration for CLI/web/agent modes | `configureOtlpEnvVars`, `ensureServiceNameEnvVar`, `ensureEndpointEnvVar`, `configureCli`, `configureWeb`, `configureAgent` |
 | observability/backends.ts | Observability backend interface with Victoria and ELK implementations | `ObservabilityBackend`, `VictoriaBackend`, `ElkBackend` |
 
-## Schema Validation
+## Schema Validation & Workflow Parsing
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | schema-validate.ts | JSON Schema validation using ajv — workflow YAML structure validation with typed error reporting | `validateWorkflowSchema`, `validateAgainstSchema`, `ValidationResult`, `ValidationError` |
+| workflow-parser.ts | Workflow YAML parser — reads file, validates against JSON schema, checks referential integrity, applies defaults, returns typed `ResolvedWorkflow` | `parseWorkflow`, `WorkflowParseError`, `ResolvedWorkflow`, `ResolvedTask`, `LoopBlock`, `FlowStep` |
 
 ## Coverage & Testing
 

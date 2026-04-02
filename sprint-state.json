@@ -338,9 +338,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "2-5-validate-command",
-    "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

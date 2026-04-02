@@ -26,7 +26,6 @@ import {
 import { isBmadInstalled } from '../bmad.js';
 import { isStackRunning } from '../docker/index.js';
 import type { OnboardingStory } from '../epic-generator.js';
-import type { BeadsIssue } from '../beads.js';
 import { stringify } from 'yaml';
 
 let testDir: string;
@@ -51,7 +50,16 @@ function makeStory(overrides: Partial<OnboardingStory> = {}): OnboardingStory {
   };
 }
 
-function makeBeadsIssue(overrides: Partial<BeadsIssue> = {}): BeadsIssue {
+interface BeadsIssueLike {
+  id: string;
+  title: string;
+  status: string;
+  type: string;
+  priority: number;
+  description?: string;
+}
+
+function makeBeadsIssue(overrides: Partial<BeadsIssueLike> = {}): BeadsIssueLike {
   return {
     id: 'BEAD-1',
     title: 'Test',
@@ -190,95 +198,14 @@ describe('storyToGapId', () => {
 
 // ─── filterTrackedGaps ──────────────────────────────────────────────────────
 
-describe('filterTrackedGaps', () => {
-  it('returns all stories as untracked when no matching gap-ids exist', () => {
+describe('filterTrackedGaps (stub — beads removed)', () => {
+  it('returns all stories as untracked (beads removed)', () => {
     const stories = [
       makeStory({ key: '0.1', type: 'coverage', module: 'src/lib' }),
       makeStory({ key: '0.2', type: 'architecture' }),
     ];
-    const mockList = vi.fn().mockReturnValue([]);
 
-    const result = filterTrackedGaps(stories, { listIssues: mockList });
-
-    expect(result.untracked).toHaveLength(2);
-    expect(result.trackedCount).toBe(0);
-  });
-
-  it('filters out stories that have matching gap-ids in beads', () => {
-    const stories = [
-      makeStory({ key: '0.1', type: 'coverage', module: 'src/lib' }),
-      makeStory({ key: '0.2', type: 'architecture' }),
-    ];
-    const existingIssues: BeadsIssue[] = [
-      makeBeadsIssue({
-        id: 'BEAD-1',
-        title: 'Add test coverage for src/lib',
-        description: 'some desc\n[gap:coverage:src/lib]',
-        status: 'open',
-      }),
-      makeBeadsIssue({
-        id: 'BEAD-2',
-        title: 'Create ARCHITECTURE.md',
-        description: '[gap:docs:ARCHITECTURE.md]',
-        status: 'open',
-      }),
-    ];
-    const mockList = vi.fn().mockReturnValue(existingIssues);
-
-    const result = filterTrackedGaps(stories, { listIssues: mockList });
-
-    expect(result.untracked).toHaveLength(0);
-    expect(result.trackedCount).toBe(2);
-  });
-
-  it('returns empty untracked list when all stories are tracked', () => {
-    const stories = [
-      makeStory({ key: '0.1', type: 'coverage', module: 'src/lib' }),
-    ];
-    const existingIssues: BeadsIssue[] = [
-      makeBeadsIssue({
-        id: 'BEAD-1',
-        description: '[gap:coverage:src/lib]',
-        status: 'open',
-      }),
-    ];
-    const mockList = vi.fn().mockReturnValue(existingIssues);
-
-    const result = filterTrackedGaps(stories, { listIssues: mockList });
-
-    expect(result.untracked).toHaveLength(0);
-    expect(result.trackedCount).toBe(1);
-  });
-
-  it('does not count done issues as tracked (findExistingByGapId skips done)', () => {
-    const stories = [
-      makeStory({ key: '0.1', type: 'coverage', module: 'src/lib' }),
-    ];
-    const existingIssues: BeadsIssue[] = [
-      makeBeadsIssue({
-        id: 'BEAD-1',
-        description: '[gap:coverage:src/lib]',
-        status: 'done',
-      }),
-    ];
-    const mockList = vi.fn().mockReturnValue(existingIssues);
-
-    const result = filterTrackedGaps(stories, { listIssues: mockList });
-
-    expect(result.untracked).toHaveLength(1);
-    expect(result.trackedCount).toBe(0);
-  });
-
-  it('fails open when listIssues throws — returns all stories as untracked', () => {
-    const stories = [
-      makeStory({ key: '0.1', type: 'coverage', module: 'src/lib' }),
-      makeStory({ key: '0.2', type: 'architecture' }),
-    ];
-    const mockList = vi.fn().mockImplementation(() => {
-      throw new Error('BeadsError: not initialized');
-    });
-
-    const result = filterTrackedGaps(stories, { listIssues: mockList });
+    const result = filterTrackedGaps(stories);
 
     expect(result.untracked).toHaveLength(2);
     expect(result.trackedCount).toBe(0);
@@ -483,74 +410,11 @@ describe('findObservabilityGaps', () => {
   });
 });
 
-// ─── getOnboardingProgress ──────────────────────────────────────────────────
+// ─── getOnboardingProgress (stub — beads removed) ─────────────────────────
 
-describe('getOnboardingProgress', () => {
-  it('returns null when no gap-tagged issues exist', () => {
-    const mockList = vi.fn().mockReturnValue([
-      makeBeadsIssue({ description: 'Regular issue without gap tags' }),
-    ]);
-
-    const result = getOnboardingProgress({ listIssues: mockList });
+describe('getOnboardingProgress (stub — beads removed)', () => {
+  it('always returns null since beads is removed', () => {
+    const result = getOnboardingProgress();
     expect(result).toBeNull();
-  });
-
-  it('returns null when listIssues returns empty array', () => {
-    const mockList = vi.fn().mockReturnValue([]);
-
-    const result = getOnboardingProgress({ listIssues: mockList });
-    expect(result).toBeNull();
-  });
-
-  it('counts only gap-tagged issues (mixed issues)', () => {
-    const mockList = vi.fn().mockReturnValue([
-      makeBeadsIssue({ description: '[gap:coverage:src/lib]', status: 'open' }),
-      makeBeadsIssue({ description: 'No gap tag', status: 'open' }),
-      makeBeadsIssue({ description: '[gap:docs:ARCHITECTURE.md]', status: 'done' }),
-    ]);
-
-    const result = getOnboardingProgress({ listIssues: mockList });
-    expect(result).toEqual({ total: 2, resolved: 1, remaining: 1 });
-  });
-
-  it('returns all resolved when all gap-tagged issues are done', () => {
-    const mockList = vi.fn().mockReturnValue([
-      makeBeadsIssue({ description: '[gap:coverage:src/lib]', status: 'done' }),
-      makeBeadsIssue({ description: '[gap:docs:stale-docs]', status: 'done' }),
-      makeBeadsIssue({ description: '[gap:verification:4-1-test]', status: 'closed' }),
-    ]);
-
-    const result = getOnboardingProgress({ listIssues: mockList });
-    expect(result).toEqual({ total: 3, resolved: 3, remaining: 0 });
-  });
-
-  it('counts done and closed as resolved', () => {
-    const mockList = vi.fn().mockReturnValue([
-      makeBeadsIssue({ description: '[gap:coverage:src/lib]', status: 'done' }),
-      makeBeadsIssue({ description: '[gap:docs:ARCHITECTURE.md]', status: 'closed' }),
-      makeBeadsIssue({ description: '[gap:docs:stale-docs]', status: 'open' }),
-    ]);
-
-    const result = getOnboardingProgress({ listIssues: mockList });
-    expect(result).toEqual({ total: 3, resolved: 2, remaining: 1 });
-  });
-
-  it('returns null when beads is unavailable (listIssues throws)', () => {
-    const mockList = vi.fn().mockImplementation(() => {
-      throw new Error('BeadsError: not initialized');
-    });
-
-    const result = getOnboardingProgress({ listIssues: mockList });
-    expect(result).toBeNull();
-  });
-
-  it('handles issues with no description as non-gap-tagged', () => {
-    const mockList = vi.fn().mockReturnValue([
-      makeBeadsIssue({ description: undefined }),
-      makeBeadsIssue({ description: '[gap:coverage:src/lib]', status: 'open' }),
-    ]);
-
-    const result = getOnboardingProgress({ listIssues: mockList });
-    expect(result).toEqual({ total: 1, resolved: 0, remaining: 1 });
   });
 });

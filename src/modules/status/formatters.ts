@@ -6,7 +6,6 @@
 import { ok, fail, info, jsonOutput } from '../../lib/output.js';
 import { readState, StateFileNotFoundError } from '../../lib/state.js';
 import { getStackHealth, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker/index.js';
-import { listIssues, isBeadsInitialized } from '../../lib/beads.js';
 import { getOnboardingProgress } from '../../lib/onboard-checks.js';
 import { getStackDir, getComposeFilePath, getElkComposeFilePath } from '../../lib/stack-path.js';
 import { generateReport } from '../sprint/index.js';
@@ -115,8 +114,7 @@ export function handleFullStatus(isJson: boolean): void {
     console.log(`  Scoped: logs=${scoped.logs} metrics=${scoped.metrics} traces=${scoped.traces}`);
   }
 
-  // Beads
-  printBeadsSummary();
+  // Beads — removed (Epic 8 replacement pending)
 
   // Onboarding progress
   printOnboardingProgress();
@@ -199,9 +197,6 @@ function handleFullStatusJson(state: HarnessState): void {
   const serviceName = state.otlp?.service_name;
   const scoped_endpoints = serviceName ? buildScopedEndpoints(endpoints, serviceName, state.otlp?.backend) : undefined;
 
-  // Beads
-  const beads = getBeadsData();
-
   // Onboarding progress
   const onboarding = getOnboardingProgressData();
 
@@ -223,7 +218,6 @@ function handleFullStatusJson(state: HarnessState): void {
     docker,
     endpoints,
     ...(scoped_endpoints ? { scoped_endpoints } : {}),
-    beads,
     ...(onboarding ? { onboarding } : {}),
     session_flags: state.session_flags,
     coverage: state.coverage,
@@ -301,18 +295,8 @@ export async function handleHealthCheck(isJson: boolean): Promise<void> {
     checks.push({ name: 'docker', status: 'fail', detail: 'cannot check (no state)' });
   }
 
-  // 3. Beads availability
-  try {
-    if (isBeadsInitialized()) {
-      listIssues();
-      checks.push({ name: 'beads', status: 'ok', detail: 'available' });
-    } else {
-      checks.push({ name: 'beads', status: 'fail', detail: 'not initialized' });
-    }
-  } catch {
-    // IGNORE: beads CLI may not be available
-    checks.push({ name: 'beads', status: 'fail', detail: 'bd command failed' });
-  }
+  // 3. Issue tracker — placeholder for Epic 8
+  // Beads health check removed; Epic 8 will add issue-tracker health check here.
 
   const allPassed = checks.every(c => c.status === 'ok');
 
@@ -527,50 +511,17 @@ function getSprintReportData(): StatusReport | null {
   return reportResult.data;
 }
 
-// ─── Beads Helpers ──────────────────────────────────────────────────────────
-
-function printBeadsSummary(): void {
-  if (!isBeadsInitialized()) {
-    console.log('Beads: not initialized');
-    return;
-  }
-
-  try {
-    const issues = listIssues();
-    const byType = new Map<string, number>();
-    const byStatus = new Map<string, number>();
-
-    for (const issue of issues) {
-      byType.set(issue.type, (byType.get(issue.type) ?? 0) + 1);
-      byStatus.set(issue.status, (byStatus.get(issue.status) ?? 0) + 1);
-    }
-
-    const typeParts = Array.from(byType.entries())
-      .map(([t, n]) => `${t}:${n}`)
-      .join(' ');
-    const ready = byStatus.get('ready') ?? 0;
-    const inProgress = byStatus.get('in_progress') ?? 0;
-    const done = byStatus.get('done') ?? 0;
-
-    const typeInfo = typeParts ? ` (${typeParts})` : '';
-    console.log(
-      `Beads: ${issues.length} issues${typeInfo} | ready:${ready} in-progress:${inProgress} done:${done}`,
-    );
-  } catch {
-    // IGNORE: beads CLI may not be available
-    console.log('Beads: unavailable (bd command failed)');
-  }
-}
+// ─── Beads Helpers (removed — Epic 8 replacement pending) ──────────────────
 
 function printOnboardingProgress(): void {
-  const progress = getOnboardingProgress({ listIssues });
+  const progress = getOnboardingProgress();
   if (progress) {
     console.log(`Onboarding: ${progress.resolved}/${progress.total} gaps resolved (${progress.remaining} remaining)`);
   }
 }
 
 function getOnboardingProgressData(): Record<string, unknown> | null {
-  const progress = getOnboardingProgress({ listIssues });
+  const progress = getOnboardingProgress();
   if (!progress) {
     return null;
   }
@@ -581,29 +532,4 @@ function getOnboardingProgressData(): Record<string, unknown> | null {
   };
 }
 
-function getBeadsData(): Record<string, unknown> {
-  if (!isBeadsInitialized()) {
-    return { initialized: false };
-  }
-
-  try {
-    const issues = listIssues();
-    const issuesByType: Record<string, number> = {};
-    const issuesByStatus: Record<string, number> = {};
-
-    for (const issue of issues) {
-      issuesByType[issue.type] = (issuesByType[issue.type] ?? 0) + 1;
-      issuesByStatus[issue.status] = (issuesByStatus[issue.status] ?? 0) + 1;
-    }
-
-    return {
-      initialized: true,
-      total: issues.length,
-      issues_by_type: issuesByType,
-      issues_by_status: issuesByStatus,
-    };
-  } catch {
-    // IGNORE: beads CLI may not be available
-    return { initialized: true, error: 'bd command failed' };
-  }
-}
+// TODO: v2 issue tracker (Epic 8) — beads data removed, will be replaced by issue tracker

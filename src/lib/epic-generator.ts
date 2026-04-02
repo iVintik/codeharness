@@ -3,16 +3,14 @@
  *
  * Story 6.2: Maps scan results, coverage gaps, and doc audit findings
  * into an onboarding epic with stories, writes markdown, handles approval,
- * and imports into beads.
+ * for the onboarding flow.
  */
 
 import { createInterface } from 'node:readline';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { parseEpicsFile, importStoriesToBeads } from './bmad.js';
-import type { ParsedStory, BridgeImportResult } from './bmad.js';
-import { appendGapId } from './beads.js';
-import type { BeadsIssue } from './beads.js';
+import { parseEpicsFile } from './bmad.js';
+import type { ParsedStory } from './bmad.js';
 import type { ScanResult, CoverageGapReport, DocAuditResult } from './scanner.js';
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -261,119 +259,4 @@ export function promptApproval(): Promise<boolean> {
   });
 }
 
-// ─── Beads Import ───────────────────────────────────────────────────────────
-
-/**
- * Imports the onboarding epic into beads by parsing the markdown file
- * and calling importStoriesToBeads. Sets type='task' and priority by story type.
- */
-export function importOnboardingEpic(
-  epicPath: string,
-  beadsFns: {
-    listIssues: () => BeadsIssue[];
-    createIssue: (title: string, opts?: {
-      type?: string;
-      priority?: number;
-      description?: string;
-      deps?: string[];
-    }) => BeadsIssue;
-  },
-): BridgeImportResult[] {
-  const epics = parseEpicsFile(epicPath);
-
-  // Flatten all stories from all epics
-  const allStories: ParsedStory[] = [];
-  for (const epic of epics) {
-    for (const story of epic.stories) {
-      allStories.push(story);
-    }
-  }
-
-  if (allStories.length === 0) {
-    return [];
-  }
-
-  // Wrap beadsFns to override type='task', set priority by story type pattern,
-  // and append gap-id tags for onboarding deduplication (story 8-2).
-  const wrappedBeadsFns = {
-    listIssues: beadsFns.listIssues,
-    createIssue: (title: string, opts?: {
-      type?: string;
-      priority?: number;
-      description?: string;
-      deps?: string[];
-    }) => {
-      const priority = getPriorityFromTitle(title);
-      const gapId = getGapIdFromTitle(title);
-      const description = gapId
-        ? appendGapId(opts?.description, gapId)
-        : opts?.description;
-      return beadsFns.createIssue(title, {
-        ...opts,
-        type: 'task',
-        priority,
-        description,
-      });
-    },
-  };
-
-  return importStoriesToBeads(allStories, {}, wrappedBeadsFns);
-}
-
-/**
- * Maps story title to priority based on the story type pattern.
- */
-function getPriorityFromTitle(title: string): number {
-  if (title.startsWith('Add test coverage for ')) return PRIORITY_BY_TYPE.coverage;
-  if (title.startsWith('Create ') && title.endsWith('AGENTS.md')) return PRIORITY_BY_TYPE['agents-md'];
-  if (title === 'Create README.md') return PRIORITY_BY_TYPE['doc-freshness'];
-  if (title === 'Create ARCHITECTURE.md') return PRIORITY_BY_TYPE.architecture;
-  if (title === 'Update stale documentation') return PRIORITY_BY_TYPE['doc-freshness'];
-  if (title.startsWith('Create verification proof for ')) return PRIORITY_BY_TYPE.verification;
-  if (title === 'Configure OTLP instrumentation' || title === 'Start Docker observability stack') return PRIORITY_BY_TYPE.observability;
-  return 3; // default
-}
-
-/**
- * Derives a gap-id from an onboarding story title.
- * Returns the gap-id string, or null if the title doesn't match a known pattern.
- * Uses the same mapping as storyToGapId (in onboard-checks.ts) but works from title strings
- * (needed because importOnboardingEpic receives ParsedStory, not OnboardingStory).
- */
-function getGapIdFromTitle(title: string): string | null {
-  // coverage: "Add test coverage for <module>"
-  if (title.startsWith('Add test coverage for ')) {
-    const mod = title.slice('Add test coverage for '.length);
-    return `[gap:coverage:${mod}]`;
-  }
-  // agents-md: "Create <module>/AGENTS.md"
-  if (title.startsWith('Create ') && title.endsWith('/AGENTS.md')) {
-    const mod = title.slice('Create '.length);
-    return `[gap:docs:${mod}]`;
-  }
-  // readme
-  if (title === 'Create README.md') {
-    return '[gap:docs:README.md]';
-  }
-  // architecture
-  if (title === 'Create ARCHITECTURE.md') {
-    return '[gap:docs:ARCHITECTURE.md]';
-  }
-  // doc-freshness
-  if (title === 'Update stale documentation') {
-    return '[gap:docs:stale-docs]';
-  }
-  // verification: "Create verification proof for <key>"
-  if (title.startsWith('Create verification proof for ')) {
-    const key = title.slice('Create verification proof for '.length);
-    return `[gap:verification:${key}]`;
-  }
-  // observability
-  if (title === 'Configure OTLP instrumentation') {
-    return '[gap:observability:otlp-config]';
-  }
-  if (title === 'Start Docker observability stack') {
-    return '[gap:observability:docker-stack]';
-  }
-  return null;
-}
+// TODO: v2 issue tracker (Epic 8) — importOnboardingEpic removed with beads cleanup

@@ -11,8 +11,6 @@ export {
   resolveStoryFilePath,
   readStoryFileStatus,
   updateStoryFileStatus,
-  beadsStatusToStoryStatus,
-  storyStatusToBeadsStatus,
 } from './story-files.js';
 
 // Sprint YAML operations
@@ -22,10 +20,4 @@ export {
   appendOnboardingEpicToSprint,
 } from './sprint-yaml.js';
 
-// Beads sync operations
-export {
-  syncBeadsToStoryFile,
-  syncStoryFileToBeads,
-  syncClose,
-  syncAll,
-} from './beads.js';
+// TODO: v2 issue tracker (Epic 8) — beads sync operations removed

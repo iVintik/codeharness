@@ -31,11 +31,6 @@ vi.mock('../../lib/docker/index.js', () => ({
   checkRemoteEndpoint: vi.fn(() => Promise.resolve({ reachable: true })),
 }));
 
-// Mock the beads module
-vi.mock('../../lib/beads.js', () => ({
-  isBeadsInitialized: vi.fn(() => false),
-  listIssues: vi.fn(() => []),
-}));
 
 // Mock the onboard-checks module
 vi.mock('../../lib/onboard-checks.js', () => ({
@@ -70,7 +65,6 @@ vi.mock('../../modules/sprint/index.js', () => ({
 
 import { registerStatusCommand, DEFAULT_ENDPOINTS, buildScopedEndpoints } from '../status.js';
 import { getStackHealth, getCollectorHealth, checkRemoteEndpoint } from '../../lib/docker/index.js';
-import { isBeadsInitialized, listIssues } from '../../lib/beads.js';
 import { getOnboardingProgress } from '../../lib/onboard-checks.js';
 import { generateReport, getStoryDrillDown } from '../../modules/sprint/index.js';
 import { writeState, getDefaultState } from '../../lib/state.js';
@@ -80,8 +74,6 @@ import type { StatusReport } from '../../modules/sprint/index.js';
 const mockGetStackHealth = vi.mocked(getStackHealth);
 const mockGetCollectorHealth = vi.mocked(getCollectorHealth);
 const mockCheckRemoteEndpoint = vi.mocked(checkRemoteEndpoint);
-const mockIsBeadsInitialized = vi.mocked(isBeadsInitialized);
-const mockListIssues = vi.mocked(listIssues);
 const mockGenerateReport = vi.mocked(generateReport);
 const mockGetStoryDrillDown = vi.mocked(getStoryDrillDown);
 
@@ -101,8 +93,6 @@ beforeEach(() => {
       { name: 'otel-collector', running: true },
     ],
   });
-  mockIsBeadsInitialized.mockReturnValue(false);
-  mockListIssues.mockReturnValue([]);
 });
 
 afterEach(() => {
@@ -406,68 +396,7 @@ describe('status (full display)', () => {
   });
 });
 
-// ─── Beads summary ──────────────────────────────────────────────────────────
-
-describe('status beads summary', () => {
-  it('shows beads not initialized when .beads dir missing', async () => {
-    const state = getDefaultState('nodejs');
-    state.initialized = true;
-
-    writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
-
-    const { stdout } = await runCli(['status']);
-    expect(stdout).toContain('Beads: not initialized');
-  });
-
-  it('shows beads issue counts when initialized', async () => {
-    const state = getDefaultState('nodejs');
-    state.initialized = true;
-
-    writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockReturnValue([
-      { id: '1', title: 'Bug 1', status: 'ready', type: 'bug', priority: 1 },
-      { id: '2', title: 'Bug 2', status: 'done', type: 'bug', priority: 1 },
-      { id: '3', title: 'Task 1', status: 'in_progress', type: 'task', priority: 2 },
-    ]);
-
-    const { stdout } = await runCli(['status']);
-    expect(stdout).toContain('Beads: 3 issues');
-    expect(stdout).toContain('bug:2');
-    expect(stdout).toContain('task:1');
-    expect(stdout).toContain('ready:1');
-    expect(stdout).toContain('in-progress:1');
-    expect(stdout).toContain('done:1');
-  });
-
-  it('shows zero issues without empty parentheses when no issues exist', async () => {
-    const state = getDefaultState('nodejs');
-    state.initialized = true;
-
-    writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockReturnValue([]);
-
-    const { stdout } = await runCli(['status']);
-    expect(stdout).toContain('Beads: 0 issues | ready:0 in-progress:0 done:0');
-    expect(stdout).not.toContain('()');
-  });
-
-  it('handles listIssues failure gracefully', async () => {
-    const state = getDefaultState('nodejs');
-    state.initialized = true;
-
-    writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockImplementation(() => {
-      throw new Error('bd not found');
-    });
-
-    const { stdout } = await runCli(['status']);
-    expect(stdout).toContain('Beads: unavailable (bd command failed)');
-  });
-});
+// ─── Beads summary — removed (Epic 8 replacement pending) ──────────────────
 
 // ─── Verification log ───────────────────────────────────────────────────────
 
@@ -508,8 +437,6 @@ describe('status --check', () => {
     state.initialized = true;
 
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockReturnValue([]);
 
     mockGetStackHealth.mockReturnValue({
       healthy: true,
@@ -524,7 +451,7 @@ describe('status --check', () => {
     const { stdout, exitCode } = await runCli(['status', '--check']);
     expect(stdout).toContain('[OK] State file: valid');
     expect(stdout).toContain('[OK] Docker: all services running');
-    expect(stdout).toContain('[OK] Beads: available');
+    // beads health check removed — Epic 8 replacement pending
     expect(exitCode).toBe(0);
   });
 
@@ -540,8 +467,6 @@ describe('status --check', () => {
     state.initialized = true;
 
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockReturnValue([]);
 
     mockGetStackHealth.mockReturnValue({
       healthy: false,
@@ -559,32 +484,7 @@ describe('status --check', () => {
     expect(exitCode).toBe(1);
   });
 
-  it('reports beads not initialized with exit code 1', async () => {
-    const state = getDefaultState('nodejs');
-    state.initialized = true;
-
-    writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
-
-    const { stdout, exitCode } = await runCli(['status', '--check']);
-    expect(stdout).toContain('[FAIL] Beads: not initialized');
-    expect(exitCode).toBe(1);
-  });
-
-  it('reports beads bd command failure', async () => {
-    const state = getDefaultState('nodejs');
-    state.initialized = true;
-
-    writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockImplementation(() => {
-      throw new Error('bd not found');
-    });
-
-    const { stdout, exitCode } = await runCli(['status', '--check']);
-    expect(stdout).toContain('[FAIL] Beads: bd command failed');
-    expect(exitCode).toBe(1);
-  });
+  // beads health check test removed — Epic 8 replacement pending
 });
 
 // ─── JSON output ────────────────────────────────────────────────────────────
@@ -598,7 +498,6 @@ describe('status --json', () => {
     state.coverage.current = 95;
     state.verification_log = ['4-1-test: pass at 2026-03-10T14:30:00.000Z'];
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
 
     const { stdout } = await runCli(['--json', 'status']);
     const parsed = JSON.parse(stdout);
@@ -610,7 +509,7 @@ describe('status --json', () => {
       api: true,
     });
     expect(parsed.docker).toBeDefined();
-    expect(parsed.beads).toEqual({ initialized: false });
+    // beads removed — Epic 8 replacement pending
     expect(parsed.session_flags).toBeDefined();
     expect(parsed.coverage).toBeDefined();
     expect(parsed.verification_log).toEqual(['4-1-test: pass at 2026-03-10T14:30:00.000Z']);
@@ -621,7 +520,6 @@ describe('status --json', () => {
     state.initialized = true;
 
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
 
     mockGetStackHealth.mockReturnValue({
       healthy: true,
@@ -640,39 +538,20 @@ describe('status --json', () => {
     expect(parsed.docker.endpoints).toEqual(DEFAULT_ENDPOINTS);
   });
 
-  it('outputs JSON with beads data when initialized', async () => {
-    const state = getDefaultState('nodejs');
-    state.initialized = true;
-
-    writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockReturnValue([
-      { id: '1', title: 'Bug', status: 'ready', type: 'bug', priority: 1 },
-      { id: '2', title: 'Task', status: 'done', type: 'task', priority: 2 },
-    ]);
-
-    const { stdout } = await runCli(['--json', 'status']);
-    const parsed = JSON.parse(stdout);
-    expect(parsed.beads.initialized).toBe(true);
-    expect(parsed.beads.total).toBe(2);
-    expect(parsed.beads.issues_by_type).toEqual({ bug: 1, task: 1 });
-    expect(parsed.beads.issues_by_status).toEqual({ ready: 1, done: 1 });
-  });
+  // beads JSON data test removed — beads integration removed (Epic 8)
 
   it('outputs JSON for --check with check results', async () => {
     const state = getDefaultState('nodejs');
     state.initialized = true;
 
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockReturnValue([]);
 
     const { stdout } = await runCli(['--json', 'status', '--check']);
     const parsed = JSON.parse(stdout);
     expect(parsed.status).toBe('ok');
     expect(parsed.checks.state_file.status).toBe('ok');
     expect(parsed.checks.docker.status).toBe('ok');
-    expect(parsed.checks.beads.status).toBe('ok');
+    // beads check removed — Epic 8 replacement pending
   });
 
   it('outputs JSON for --check with failures', async () => {
@@ -688,7 +567,6 @@ describe('status --json', () => {
     state.initialized = true;
     state.app_type = 'cli';
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
 
     const { stdout } = await runCli(['--json', 'status']);
     const parsed = JSON.parse(stdout);
@@ -700,7 +578,6 @@ describe('status --json', () => {
     state.initialized = true;
     // No app_type
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
 
     const { stdout } = await runCli(['--json', 'status']);
     const parsed = JSON.parse(stdout);
@@ -750,7 +627,6 @@ describe('status onboarding progress', () => {
     state.initialized = true;
 
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
     vi.mocked(getOnboardingProgress).mockReturnValue({
       total: 5,
       resolved: 2,
@@ -771,7 +647,6 @@ describe('status onboarding progress', () => {
     state.initialized = true;
 
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
     vi.mocked(getOnboardingProgress).mockReturnValue(null);
 
     const { stdout } = await runCli(['--json', 'status']);
@@ -844,8 +719,6 @@ describe('status remote-direct mode', () => {
       mode: 'remote-direct',
     };
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockReturnValue([]);
     mockCheckRemoteEndpoint.mockResolvedValue({ reachable: true });
 
     const { stdout, exitCode } = await runCli(['status', '--check']);
@@ -864,7 +737,6 @@ describe('status remote-direct mode', () => {
       mode: 'remote-direct',
     };
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
 
     const { stdout } = await runCli(['--json', 'status']);
     const parsed = JSON.parse(stdout);
@@ -924,7 +796,6 @@ describe('status remote-routed mode', () => {
       ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
     };
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
 
     const { stdout } = await runCli(['--json', 'status']);
     const parsed = JSON.parse(stdout);
@@ -1010,8 +881,6 @@ describe('status remote-routed mode', () => {
       ports: { logs: 9428, metrics: 8428, traces: 16686, otel_grpc: 4317, otel_http: 4318 },
     };
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockListIssues.mockReturnValue([]);
     mockGetCollectorHealth.mockReturnValue({
       healthy: true,
       services: [{ name: 'otel-collector', running: true }],
@@ -1063,7 +932,6 @@ describe('scoped endpoints in JSON output', () => {
       mode: 'local-shared',
     };
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
 
     const { stdout } = await runCli(['--json', 'status']);
     const parsed = JSON.parse(stdout);
@@ -1078,7 +946,6 @@ describe('scoped endpoints in JSON output', () => {
     state.initialized = true;
     // No otlp config
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
 
     const { stdout } = await runCli(['--json', 'status']);
     const parsed = JSON.parse(stdout);
@@ -1203,7 +1070,6 @@ describe('status sprint state display', () => {
     const state = getDefaultState('nodejs');
     state.initialized = true;
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
     mockGenerateReport.mockReturnValue({
       success: true,
       data: makeReport({ total: 10, done: 5, epicsTotal: 3, epicsDone: 1, sprintPercent: 50 }),
@@ -1222,7 +1088,6 @@ describe('status sprint state display', () => {
     const state = getDefaultState('nodejs');
     state.initialized = true;
     writeState(state, testDir);
-    mockIsBeadsInitialized.mockReturnValue(false);
     mockGenerateReport.mockReturnValue({
       success: false,
       error: 'broken',

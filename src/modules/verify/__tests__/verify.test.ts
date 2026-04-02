@@ -17,17 +17,6 @@ vi.mock('../../../lib/output.js', () => ({
   jsonOutput: vi.fn(),
 }));
 
-// Mock beads
-vi.mock('../../../lib/beads.js', () => ({
-  isBeadsInitialized: vi.fn(),
-  listIssues: vi.fn(),
-  closeIssue: vi.fn(),
-}));
-
-// Mock beads-sync
-vi.mock('../../../lib/sync/index.js', () => ({
-  syncClose: vi.fn(),
-}));
 
 // Mock doc-health
 vi.mock('../../../lib/doc-health/index.js', () => ({
@@ -36,8 +25,6 @@ vi.mock('../../../lib/doc-health/index.js', () => ({
 
 import { execFileSync } from 'node:child_process';
 import { warn } from '../../../lib/output.js';
-import { isBeadsInitialized, listIssues, closeIssue } from '../../../lib/beads.js';
-import { syncClose } from '../../../lib/sync/index.js';
 import { checkStoryDocFreshness } from '../../../lib/doc-health/index.js';
 import {
   checkPreconditions,
@@ -919,52 +906,12 @@ describe('updateVerificationState', () => {
   });
 });
 
-// ─── closeBeadsIssue ────────────────────────────────────────────────────────
+// ─── closeBeadsIssue (no-op stub) ──────────────────────────────────────────
 
 describe('closeBeadsIssue', () => {
-  it('calls syncClose when beads is initialized and issue exists', () => {
-    vi.mocked(isBeadsInitialized).mockReturnValue(true);
-    vi.mocked(listIssues).mockReturnValue([
-      { id: '42', title: 'Story 4.1', status: 'open', type: 'story', priority: 1, description: '_bmad-output/implementation-artifacts/4-1-test.md' },
-    ]);
-    vi.mocked(syncClose).mockReturnValue({
-      storyKey: '4-1-test',
-      beadsId: '42',
-      previousStatus: 'open',
-      newStatus: 'done',
-      synced: true,
-    });
-
+  it('is a no-op since beads was removed', () => {
+    // closeBeadsIssue is now a no-op — it should not throw
     closeBeadsIssue('4-1-test', testDir);
-
-    expect(syncClose).toHaveBeenCalledWith('42', { closeIssue, listIssues }, testDir);
-  });
-
-  it('warns and skips when beads is not initialized', () => {
-    vi.mocked(isBeadsInitialized).mockReturnValue(false);
-
-    closeBeadsIssue('4-1-test', testDir);
-
-    expect(warn).toHaveBeenCalledWith('Beads not initialized — skipping issue close');
-    expect(syncClose).not.toHaveBeenCalled();
-  });
-
-  it('warns when no matching issue found', () => {
-    vi.mocked(isBeadsInitialized).mockReturnValue(true);
-    vi.mocked(listIssues).mockReturnValue([]);
-
-    closeBeadsIssue('4-1-test', testDir);
-
-    expect(warn).toHaveBeenCalledWith('No beads issue found for story 4-1-test — skipping issue close');
-    expect(syncClose).not.toHaveBeenCalled();
-  });
-
-  it('warns when beads throws an error', () => {
-    vi.mocked(isBeadsInitialized).mockReturnValue(true);
-    vi.mocked(listIssues).mockImplementation(() => { throw new Error('bd not found'); });
-
-    closeBeadsIssue('4-1-test', testDir);
-
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to close beads issue'));
+    // No warnings or errors expected — it's a silent no-op
   });
 });

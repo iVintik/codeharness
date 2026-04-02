@@ -1,41 +1,18 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import type { BeadsIssue } from '../beads.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface SyncResult {
   storyKey: string;
-  beadsId: string;
   previousStatus: string;
   newStatus: string;
   synced: boolean;
   error?: string;
 }
 
-export type SyncDirection = 'beads-to-files' | 'files-to-beads' | 'bidirectional';
+export type SyncDirection = 'bidirectional';
 
-// ─── Status Mapping ─────────────────────────────────────────────────────────
-
-const BEADS_TO_STORY_STATUS: Record<string, string> = {
-  open: 'in-progress',
-  closed: 'done',
-};
-
-const STORY_TO_BEADS_STATUS: Record<string, string> = {
-  backlog: 'open',
-  'ready-for-dev': 'open',
-  'in-progress': 'open',
-  review: 'open',
-  done: 'closed',
-};
-
-export function beadsStatusToStoryStatus(beadsStatus: string): string | null {
-  return BEADS_TO_STORY_STATUS[beadsStatus] ?? null;
-}
-
-export function storyStatusToBeadsStatus(storyStatus: string): string | null {
-  return STORY_TO_BEADS_STATUS[storyStatus] ?? null;
-}
+// TODO: v2 issue tracker (Epic 8) — beads status mappings and resolveStoryFilePath removed with beads cleanup
 
 export function storyKeyFromPath(filePath: string): string {
   const base = filePath.split('/').pop() ?? filePath;
@@ -43,16 +20,14 @@ export function storyKeyFromPath(filePath: string): string {
 }
 
 /**
- * Extracts story file path from beads issue description field.
- * The bridge command sets description = story file path.
- * Returns null if description doesn't contain a valid path.
+ * Resolves a story file path from a description string.
+ * Returns null if description doesn't contain a valid .md path.
  */
-export function resolveStoryFilePath(beadsIssue: BeadsIssue): string | null {
-  const desc = beadsIssue.description;
-  if (!desc || !desc.trim()) {
+export function resolveStoryFilePath(description: string | undefined): string | null {
+  if (!description || !description.trim()) {
     return null;
   }
-  const trimmed = desc.trim();
+  const trimmed = description.trim();
   if (!trimmed.endsWith('.md')) {
     return null;
   }

@@ -1,7 +1,7 @@
 /**
  * Verification orchestrator.
  * Checks preconditions, creates proof documents, runs showboat verify,
- * updates state and beads.
+ * and updates state.
  *
  * Architecture Decision 8: CLI orchestrates verification.
  */
@@ -12,8 +12,6 @@ import { join } from 'node:path';
 import { warn } from '../../lib/output.js';
 import { readState, readStateWithBody, writeState } from '../../lib/state.js';
 import { checkStoryDocFreshness } from '../../lib/doc-health/index.js';
-import { isBeadsInitialized, listIssues, closeIssue } from '../../lib/beads.js';
-import { syncClose } from '../../lib/sync/index.js';
 import { showboatProofTemplate } from '../../templates/showboat-template.js';
 import type { AcceptanceCriterion } from '../../templates/showboat-template.js';
 import type {
@@ -148,35 +146,12 @@ export function updateVerificationState(
   writeState(state, dir, body);
 }
 
-// ─── Beads Close ────────────────────────────────────────────────────────────
+// ─── Beads Close (removed — Epic 8 replacement pending) ────────────────────
 
+// TODO: v2 issue tracker (Epic 8) — closeBeadsIssue removed with beads cleanup
 /**
- * Closes the beads issue for the story via syncClose.
- * Handles beads not initialized gracefully.
+ * Stub: no-op since beads has been removed.
  */
-export function closeBeadsIssue(storyId: string, dir?: string): void {
-  const root = dir ?? process.cwd();
-
-  if (!isBeadsInitialized(root)) {
-    warn('Beads not initialized — skipping issue close');
-    return;
-  }
-
-  try {
-    const issues = listIssues();
-    const issue = issues.find(i => {
-      const desc = i.description ?? '';
-      return desc.includes(storyId);
-    });
-
-    if (!issue) {
-      warn(`No beads issue found for story ${storyId} — skipping issue close`);
-      return;
-    }
-
-    syncClose(issue.id, { closeIssue, listIssues }, root);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    warn(`Failed to close beads issue: ${message}`);
-  }
+export function closeBeadsIssue(_storyId: string, _dir?: string): void {
+  // No-op: beads integration removed. Will be replaced by issue tracker in Epic 8.
 }

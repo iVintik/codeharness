@@ -5,25 +5,6 @@ import { join, resolve } from 'node:path';
 import { Command } from 'commander';
 import { registerBridgeCommand } from '../bridge.js';
 
-// Mock beads module — keep pure functions, mock I/O functions
-vi.mock('../../lib/beads.js', async (importOriginal) => {
-  const actual = await importOriginal() as Record<string, unknown>;
-  return {
-    ...actual,
-    listIssues: vi.fn(() => []),
-    createIssue: vi.fn((title: string) => ({
-      id: `BEAD-${Math.floor(Math.random() * 1000)}`,
-      title,
-      status: 'open',
-      type: 'story',
-      priority: 1,
-    })),
-  };
-});
-
-import { listIssues, createIssue } from '../../lib/beads.js';
-const mockListIssues = vi.mocked(listIssues);
-const mockCreateIssue = vi.mocked(createIssue);
 
 const FIXTURES_DIR = resolve(__dirname, '../../../test/fixtures');
 const SAMPLE_EPICS = join(FIXTURES_DIR, 'sample-epics.md');
@@ -37,14 +18,6 @@ describe('bridge command', () => {
     consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     process.exitCode = undefined;
     testDir = mkdtempSync(join(tmpdir(), 'ch-bridge-cmd-'));
-    mockListIssues.mockReturnValue([]);
-    mockCreateIssue.mockImplementation((title: string) => ({
-      id: `BEAD-${Math.floor(Math.random() * 1000)}`,
-      title,
-      status: 'open',
-      type: 'story',
-      priority: 1,
-    }));
   });
 
   afterEach(() => {
@@ -101,7 +74,6 @@ describe('bridge command', () => {
 
     await program.parseAsync(['node', 'test', 'bridge', '--epics', SAMPLE_EPICS, '--dry-run']);
 
-    expect(mockCreateIssue).not.toHaveBeenCalled();
     const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
     expect(calls).toContainEqual(expect.stringContaining('[INFO] Dry run: would import'));
     expect(calls).toContainEqual(expect.stringContaining('dry run, nothing created'));
@@ -129,8 +101,6 @@ describe('bridge command', () => {
     expect(result.status).toBe('ok');
     expect(result.epics_parsed).toBe(3);
     expect(result.stories_processed).toBe(5);
-    expect(result.stories_created).toBe(0); // dry run
-    expect(result.stories_existing).toBe(0);
     expect(Array.isArray(result.results)).toBe(true);
     const results = result.results as Array<Record<string, unknown>>;
     expect(results.length).toBe(5);
@@ -162,24 +132,7 @@ describe('bridge command', () => {
     );
   });
 
-  it('prints deduplication info for existing stories with issue ID', async () => {
-    mockListIssues.mockReturnValue([{
-      id: 'BEAD-1',
-      title: 'Project Setup',
-      status: 'open',
-      type: 'story',
-      priority: 1,
-      description: '_bmad-output/implementation-artifacts/1-1-project-setup.md\n[gap:bridge:1.1]',
-    }]);
-
-    const program = createProgram();
-    await program.parseAsync(['node', 'test', 'bridge', '--epics', SAMPLE_EPICS]);
-
-    const calls = consoleSpy.mock.calls.map((c: unknown[]) => c[0] as string);
-    expect(calls).toContainEqual(
-      expect.stringContaining('[INFO] Already tracked: Project Setup (BEAD-1)'),
-    );
-  });
+  // Deduplication test removed — beads integration removed (Epic 8 replacement pending)
 
   it('--json with missing --epics outputs JSON error', async () => {
     const program = createProgram();
@@ -216,5 +169,6 @@ describe('bridge command', () => {
     expect(jsonCalls).toHaveLength(1);
     const result = JSON.parse(jsonCalls[0][0] as string) as Record<string, unknown>;
     expect(result.stories_processed).toBe(0);
+    expect(result.results).toEqual([]);
   });
 });

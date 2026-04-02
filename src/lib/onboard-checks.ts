@@ -10,8 +10,6 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getStatePath, readState } from './state.js';
 import { isBmadInstalled } from './bmad.js';
-import { buildGapId, findExistingByGapId } from './beads.js';
-import type { BeadsIssue } from './beads.js';
 import type { OnboardingStory } from './epic-generator.js';
 import { readSprintStatusFromState } from '../modules/sprint/index.js';
 import { checkPerFileCoverage } from './coverage/index.js';
@@ -202,37 +200,15 @@ export function findObservabilityGaps(dir?: string): OnboardingStory[] {
 
 // ─── Onboarding Progress Tracking ────────────────────────────────────────────
 
-const GAP_ID_PATTERN = /\[gap:[a-z-]+:[^\]]+\]/;
-
+// TODO: v2 issue tracker (Epic 8) — getOnboardingProgress removed with beads cleanup
 /**
- * Computes onboarding progress by counting gap-tagged beads issues.
- * Returns null if no gap-tagged issues exist or beads is unavailable.
+ * Stub: returns null since beads has been removed.
+ * Will be replaced by issue-tracker-based progress in Epic 8.
  */
 export function getOnboardingProgress(
-  beadsFns: { listIssues: () => BeadsIssue[] },
+  _beadsFns?: unknown,
 ): { total: number; resolved: number; remaining: number } | null {
-  let issues: BeadsIssue[];
-  try {
-    issues = beadsFns.listIssues();
-  } catch {
-    // IGNORE: beads unavailable, cannot count gap progress
-    return null;
-  }
-
-  const gapIssues = issues.filter(
-    issue => issue.description && GAP_ID_PATTERN.test(issue.description),
-  );
-
-  if (gapIssues.length === 0) {
-    return null;
-  }
-
-  const total = gapIssues.length;
-  const resolved = gapIssues.filter(
-    issue => issue.status === 'done' || issue.status === 'closed',
-  ).length;
-
-  return { total, resolved, remaining: total - resolved };
+  return null;
 }
 
 // ─── Gap Filtering ──────────────────────────────────────────────────────────
@@ -243,48 +219,28 @@ export function getOnboardingProgress(
 export function storyToGapId(story: OnboardingStory): string {
   switch (story.type) {
     case 'coverage':
-      return buildGapId('coverage', story.module!);
+      return `[gap:coverage:${story.module!}]`;
     case 'agents-md':
-      return buildGapId('docs', story.module + '/AGENTS.md');
+      return `[gap:docs:${story.module}/AGENTS.md]`;
     case 'architecture':
-      return buildGapId('docs', 'ARCHITECTURE.md');
+      return `[gap:docs:ARCHITECTURE.md]`;
     case 'doc-freshness':
-      return buildGapId('docs', 'stale-docs');
+      return `[gap:docs:stale-docs]`;
     case 'verification':
-      return buildGapId('verification', story.storyKey!);
+      return `[gap:verification:${story.storyKey!}]`;
     case 'observability':
-      return buildGapId('observability', story.module!);
+      return `[gap:observability:${story.module!}]`;
   }
 }
 
+// TODO: v2 issue tracker (Epic 8) — filterTrackedGaps removed with beads cleanup
 /**
- * Filters onboarding stories to only those not yet tracked in beads.
- * Fails open: if listIssues throws, returns all stories as untracked.
+ * Stub: returns all stories as untracked since beads has been removed.
+ * Will be replaced by issue-tracker-based filtering in Epic 8.
  */
 export function filterTrackedGaps(
   stories: OnboardingStory[],
-  beadsFns: { listIssues: () => BeadsIssue[] },
+  _beadsFns?: unknown,
 ): { untracked: OnboardingStory[]; trackedCount: number } {
-  let existingIssues: BeadsIssue[];
-  try {
-    existingIssues = beadsFns.listIssues();
-  } catch {
-    // IGNORE: beads unavailable, return all as untracked
-    return { untracked: [...stories], trackedCount: 0 };
-  }
-
-  const untracked: OnboardingStory[] = [];
-  let trackedCount = 0;
-
-  for (const story of stories) {
-    const gapId = storyToGapId(story);
-    const existing = findExistingByGapId(gapId, existingIssues);
-    if (existing) {
-      trackedCount++;
-    } else {
-      untracked.push(story);
-    }
-  }
-
-  return { untracked, trackedCount };
+  return { untracked: [...stories], trackedCount: 0 };
 }

@@ -1,6 +1,5 @@
 import { Command } from 'commander';
 import { ok, fail, info, jsonOutput } from '../lib/output.js';
-import { createOrFindIssue, buildGapId } from '../lib/beads.js';
 import { isGhAvailable, ghIssueSearch, getRepoFromRemote } from '../lib/github.js';
 import type { GhIssue } from '../lib/github.js';
 
@@ -16,7 +15,7 @@ interface ImportedIssue {
 }
 
 /**
- * Maps GitHub labels to a beads issue type.
+ * Maps GitHub labels to an issue type string.
  * bug -> bug, enhancement -> story, default -> task.
  */
 function mapLabelsToType(labels: Array<{ name: string }> | undefined): string {
@@ -27,22 +26,11 @@ function mapLabelsToType(labels: Array<{ name: string }> | undefined): string {
   return 'task';
 }
 
-/**
- * Maps GitHub labels to a beads issue priority.
- * priority:high -> 1, priority:low -> 3, default -> 2.
- */
-function mapLabelsToPriority(labels: Array<{ name: string }> | undefined): number {
-  if (!labels) return 2;
-  const names = labels.map(l => l.name);
-  if (names.includes('priority:high')) return 1;
-  if (names.includes('priority:low')) return 3;
-  return 2;
-}
 
 export function registerGithubImportCommand(program: Command): void {
   program
     .command('github-import')
-    .description('Import GitHub issues labeled for sprint planning into beads')
+    .description('Import GitHub issues labeled for sprint planning')
     .option('--repo <owner/repo>', 'GitHub repository (auto-detected from git remote if omitted)')
     .option('--label <label>', 'GitHub label to filter issues by', 'sprint-candidate')
     .action((opts, cmd) => {
@@ -79,15 +67,15 @@ export function registerGithubImportCommand(program: Command): void {
         return;
       }
 
-      let imported = 0;
-      let skipped = 0;
-      let errors = 0;
+      // TODO: v2 issue tracker (Epic 8) — beads import removed, just collect issue info
+      const imported = 0;
+      const skipped = 0;
+      const errors = 0;
       const issues: ImportedIssue[] = [];
 
       for (const ghIssue of ghIssues) {
-        const gapId = buildGapId('source', `github:${repo}#${ghIssue.number}`);
+        const gapId = `[gap:source:github:${repo}#${ghIssue.number}]`;
         const type = mapLabelsToType(ghIssue.labels);
-        const priority = mapLabelsToPriority(ghIssue.labels);
 
         // Truncate title to reasonable length
         const title =
@@ -95,43 +83,19 @@ export function registerGithubImportCommand(program: Command): void {
             ? ghIssue.title.slice(0, MAX_TITLE_LENGTH - 3) + '...'
             : ghIssue.title;
 
-        try {
-          const result = createOrFindIssue(title, gapId, {
-            type,
-            priority,
-            description: ghIssue.body ?? '',
-          });
+        const issueRecord: ImportedIssue = {
+          number: ghIssue.number,
+          title,
+          gapId,
+          type,
+          created: false,
+        };
 
-          const issueRecord: ImportedIssue = {
-            number: ghIssue.number,
-            title,
-            gapId,
-            type,
-            created: result.created,
-          };
+        issues.push(issueRecord);
 
-          issues.push(issueRecord);
-
-          if (result.created) {
-            imported++;
-            if (!isJson) {
-              ok(`Imported: ${repo}#${ghIssue.number} — ${title}`);
-            }
-          } else {
-            skipped++;
-            if (!isJson) {
-              info(`Skipping existing: ${repo}#${ghIssue.number} — ${title}`);
-            }
-          }
-        } catch (err: unknown) {
-          errors++;
-          const message = err instanceof Error ? err.message : String(err);
-          fail(`Failed to import ${repo}#${ghIssue.number}: ${message}`, { json: isJson });
+        if (!isJson) {
+          info(`Parsed: ${repo}#${ghIssue.number} — ${title}`);
         }
-      }
-
-      if (errors > 0) {
-        process.exitCode = 1;
       }
 
       if (isJson) {
@@ -142,7 +106,7 @@ export function registerGithubImportCommand(program: Command): void {
           issues: issues as unknown[] as Record<string, unknown>[],
         });
       } else if (ghIssues.length > 0) {
-        info(`Summary: ${imported} imported, ${skipped} skipped, ${errors} errors`);
+        info(`Summary: ${ghIssues.length} issues found, ${imported} imported (beads removed — Epic 8)`);
       }
     });
 }

@@ -39,9 +39,10 @@ export interface InitDockerResult {
 
 /** Beads result shape within InitResult */
 export interface InitBeadsResult {
-  readonly status: 'initialized' | 'already-initialized' | 'failed';
-  readonly hooks_detected: boolean;
+  readonly status: 'initialized' | 'already-initialized' | 'failed' | 'skipped';
+  readonly hooks_detected?: boolean;
   readonly error?: string;
+  readonly message?: string;
 }
 
 /** BMAD result shape within InitResult */

@@ -52,15 +52,6 @@ vi.mock('../../../lib/deps.js', () => ({
   },
 }));
 
-vi.mock('../../../lib/beads.js', () => ({
-  isBeadsInitialized: vi.fn(() => false),
-  initBeads: vi.fn(),
-  detectBeadsHooks: vi.fn(() => ({ hasHooks: false, hookTypes: [] })),
-  configureHookCoexistence: vi.fn(),
-  BeadsError: class extends Error {
-    constructor(c: string, m: string) { super(`Beads failed: ${m}`); this.name = 'BeadsError'; }
-  },
-}));
 
 vi.mock('../../../lib/bmad.js', () => ({
   isBmadInstalled: vi.fn(() => false),
@@ -109,7 +100,6 @@ vi.mock('../../../templates/readme.js', () => ({
 
 import { isDockerAvailable } from '../../../lib/docker/index.js';
 import { installAllDependencies, CriticalDependencyError } from '../../../lib/deps.js';
-import { isBeadsInitialized, BeadsError } from '../../../lib/beads.js';
 import { readState, writeState, getDefaultState } from '../../../lib/state.js';
 import { detectStacks, detectAppType } from '../../../lib/stacks/index.js';
 import { instrumentProject } from '../../../lib/observability/index.js';
@@ -118,7 +108,6 @@ import { initProject } from '../init-project.js';
 
 const mockIsDockerAvailable = vi.mocked(isDockerAvailable);
 const mockInstallAll = vi.mocked(installAllDependencies);
-const mockIsBeadsInitialized = vi.mocked(isBeadsInitialized);
 const mockDetectStacks = vi.mocked(detectStacks);
 const mockInstrumentProject = vi.mocked(instrumentProject);
 const mockGetCoverageTool = vi.mocked(getCoverageTool);
@@ -137,7 +126,6 @@ beforeEach(() => {
   mockInstallAll.mockReturnValue([
     { name: 'showboat', displayName: 'Showboat', status: 'already-installed', version: '0.6.1' },
   ]);
-  mockIsBeadsInitialized.mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -179,7 +167,7 @@ describe('initProject — fresh init', () => {
     expect(state.stack).toBe('nodejs');
   });
 
-  it('includes beads result', async () => {
+  it('includes beads result (skipped since beads removed)', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     const result = await initProject({
       projectDir: testDir,
@@ -190,7 +178,7 @@ describe('initProject — fresh init', () => {
     });
     if (result.success) {
       expect(result.data.beads).toBeDefined();
-      expect(result.data.beads!.status).toBe('initialized');
+      expect(result.data.beads!.status).toBe('skipped');
     }
   });
 
@@ -290,26 +278,7 @@ describe('initProject — critical failures', () => {
   });
 });
 
-describe('initProject — non-critical failures', () => {
-  it('continues when beads fails', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockImplementation(() => {
-      throw new BeadsError('init', 'network error');
-    });
-    const result = await initProject({
-      projectDir: testDir,
-      frontend: true,
-      database: true,
-      api: true,
-      observability: false,
-    });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.status).toBe('ok');
-      expect(result.data.beads!.status).toBe('failed');
-    }
-  });
-});
+// beads failure test removed — beads integration removed (Epic 8 replacement pending)
 
 describe('initProject — URL validation', () => {
   it('rejects invalid URL', async () => {

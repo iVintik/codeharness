@@ -84,23 +84,6 @@ vi.mock('../../lib/deps.js', () => ({
   },
 }));
 
-// Mock the beads module
-vi.mock('../../lib/beads.js', () => ({
-  isBeadsInitialized: vi.fn(() => false),
-  initBeads: vi.fn(),
-  detectBeadsHooks: vi.fn(() => ({ hasHooks: false, hookTypes: [] })),
-  configureHookCoexistence: vi.fn(),
-  BeadsError: class BeadsError extends Error {
-    command: string;
-    originalMessage: string;
-    constructor(command: string, originalMessage: string) {
-      super(`Beads failed: ${originalMessage}. Command: ${command}`);
-      this.name = 'BeadsError';
-      this.command = command;
-      this.originalMessage = originalMessage;
-    }
-  },
-}));
 
 // Mock the bmad module
 vi.mock('../../lib/bmad.js', () => ({
@@ -145,7 +128,6 @@ vi.mock('../../lib/observability/index.js', () => ({
 import { isDockerAvailable, isSharedStackRunning, startSharedStack, startCollectorOnly } from '../../lib/docker/index.js';
 import { installAllDependencies, CriticalDependencyError, checkInstalled } from '../../lib/deps.js';
 import { instrumentProject } from '../../lib/observability/index.js';
-import { isBeadsInitialized, initBeads, detectBeadsHooks, configureHookCoexistence, BeadsError } from '../../lib/beads.js';
 import { isBmadInstalled, installBmad, applyAllPatches, detectBmadVersion, detectBmalph, BmadError } from '../../lib/bmad.js';
 
 const mockIsBmadInstalled = vi.mocked(isBmadInstalled);
@@ -161,10 +143,6 @@ const mockStartCollectorOnly = vi.mocked(startCollectorOnly);
 const mockInstallAllDependencies = vi.mocked(installAllDependencies);
 const mockCheckInstalled = vi.mocked(checkInstalled);
 const mockInstrumentProject = vi.mocked(instrumentProject);
-const mockIsBeadsInitialized = vi.mocked(isBeadsInitialized);
-const mockInitBeads = vi.mocked(initBeads);
-const mockDetectBeadsHooks = vi.mocked(detectBeadsHooks);
-const mockConfigureHookCoexistence = vi.mocked(configureHookCoexistence);
 
 let testDir: string;
 let originalCwd: string;
@@ -175,10 +153,6 @@ beforeEach(() => {
   process.chdir(testDir);
   mockIsDockerAvailable.mockReturnValue(true);
   mockIsSharedStackRunning.mockReturnValue(false);
-  mockIsBeadsInitialized.mockReturnValue(false);
-  mockInitBeads.mockImplementation(() => {});
-  mockDetectBeadsHooks.mockReturnValue({ hasHooks: false, hookTypes: [] });
-  mockConfigureHookCoexistence.mockImplementation(() => {});
   mockIsBmadInstalled.mockReturnValue(false);
   mockInstallBmad.mockReturnValue({
     status: 'installed',
@@ -1025,128 +999,7 @@ describe('init command — shared Docker stack setup', () => {
 
 });
 
-describe('init command — beads initialization', () => {
-  it('calls initBeads during init when .beads/ does not exist', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(false);
-
-    const { stdout } = await runCli(['init']);
-    expect(mockInitBeads).toHaveBeenCalled();
-    expect(stdout).toContain('[OK] Beads: initialized (.beads/ created)');
-  });
-
-  it('skips initBeads when .beads/ already exists', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockInitBeads.mockClear();
-
-    const { stdout } = await runCli(['init']);
-    expect(mockInitBeads).not.toHaveBeenCalled();
-    expect(stdout).toContain('[INFO] Beads: .beads/ already exists');
-  });
-
-  it('continues init when bd init fails (beads is optional)', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(false);
-    mockInitBeads.mockImplementation(() => {
-      throw new BeadsError('bd init', 'bd not found');
-    });
-
-    const { stdout, exitCode } = await runCli(['init']);
-    // Beads failure is non-fatal — init continues
-    expect(exitCode).toBeUndefined();
-    expect(stdout).toContain('[WARN] Beads init failed');
-    expect(stdout).toContain('Beads is optional');
-    // Should still create documentation
-    expect(stdout).toContain('[OK]');
-  });
-
-  it('JSON output includes beads initialization result', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(false);
-
-    const { stdout } = await runCli(['--json', 'init']);
-    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
-    const parsed = JSON.parse(jsonLine!);
-    expect(parsed.beads).toBeDefined();
-    expect(parsed.beads.status).toBe('initialized');
-    expect(parsed.beads.hooks_detected).toBe(false);
-  });
-
-  it('JSON output shows already-initialized for existing .beads/', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(true);
-
-    const { stdout } = await runCli(['--json', 'init']);
-    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
-    const parsed = JSON.parse(jsonLine!);
-    expect(parsed.beads.status).toBe('already-initialized');
-  });
-
-  it('JSON output shows beads failed but init succeeds when bd init fails', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(false);
-    mockInitBeads.mockImplementation(() => {
-      throw new BeadsError('bd init', 'command not found');
-    });
-
-    const { stdout, exitCode } = await runCli(['--json', 'init']);
-    // Beads failure is non-fatal — init continues successfully
-    expect(exitCode).toBeUndefined();
-    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
-    const parsed = JSON.parse(jsonLine!);
-    expect(parsed.beads.status).toBe('failed');
-    expect(parsed.beads.error).toContain('Beads failed');
-    expect(parsed.status).toBe('ok');
-  });
-
-  it('detects beads hooks and logs coexistence message', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(false);
-    mockDetectBeadsHooks.mockReturnValue({ hasHooks: true, hookTypes: ['prepare-commit-msg', 'post-checkout'] });
-
-    const { stdout } = await runCli(['init']);
-    expect(mockConfigureHookCoexistence).toHaveBeenCalled();
-    expect(stdout).toContain('[INFO] Beads hooks detected — coexistence configured');
-  });
-
-  it('JSON output includes hooks_detected=true when beads hooks found', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(true);
-    mockDetectBeadsHooks.mockReturnValue({ hasHooks: true, hookTypes: ['prepare-commit-msg'] });
-
-    const { stdout } = await runCli(['--json', 'init']);
-    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
-    const parsed = JSON.parse(jsonLine!);
-    expect(parsed.beads.hooks_detected).toBe(true);
-  });
-
-  it('catches non-BeadsError and continues init (never throws)', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(false);
-    mockInitBeads.mockImplementation(() => {
-      throw new TypeError('unexpected error in beads');
-    });
-
-    const { stdout, exitCode } = await runCli(['init']);
-    // Beads is non-critical, init should succeed
-    expect(exitCode).toBeUndefined();
-    expect(stdout).toContain('Beads init failed');
-
-    // Restore mock for subsequent tests
-    mockInitBeads.mockImplementation(() => {});
-  });
-
-  it('does not call configureHookCoexistence when no hooks detected', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    mockIsBeadsInitialized.mockReturnValue(false);
-    mockDetectBeadsHooks.mockReturnValue({ hasHooks: false, hookTypes: [] });
-    mockConfigureHookCoexistence.mockClear();
-
-    await runCli(['init']);
-    expect(mockConfigureHookCoexistence).not.toHaveBeenCalled();
-  });
-});
+// Beads initialization tests removed — beads integration removed (Epic 8 replacement pending)
 
 describe('init command — BMAD installation', () => {
   it('runs installBmad when _bmad/ does not exist', async () => {

@@ -15,11 +15,9 @@ import {
   writeOnboardingEpic,
   formatEpicSummary,
   promptApproval,
-  importOnboardingEpic,
 } from '../epic-generator.js';
 import type { OnboardingEpic, OnboardingStory, EpicSummary } from '../epic-generator.js';
 import type { ScanResult, CoverageGapReport, DocAuditResult } from '../scanner.js';
-import type { BeadsIssue } from '../beads.js';
 
 // ─── Test Helpers ────────────────────────────────────────────────────────────
 
@@ -82,16 +80,6 @@ function makeEpic(overrides: Partial<OnboardingEpic> = {}): OnboardingEpic {
   };
 }
 
-function makeBeadsIssue(overrides: Partial<BeadsIssue> = {}): BeadsIssue {
-  return {
-    id: 'BEAD-1',
-    title: 'Test',
-    status: 'open',
-    type: 'task',
-    priority: 1,
-    ...overrides,
-  };
-}
 
 // ─── generateOnboardingEpic ─────────────────────────────────────────────────
 
@@ -497,9 +485,10 @@ describe('promptApproval', () => {
   });
 });
 
-// ─── importOnboardingEpic ───────────────────────────────────────────────────
+// ─── importOnboardingEpic — removed (beads cleanup) ────────────────────────
+// All importOnboardingEpic tests removed — function removed with beads cleanup
 
-describe('importOnboardingEpic', () => {
+describe.skip('importOnboardingEpic — removed', () => {
   it('parses the epic file and imports stories with type=task', () => {
     // Write a valid onboarding epic markdown
     const epicPath = join(testDir, 'ralph', 'onboarding-epic.md');

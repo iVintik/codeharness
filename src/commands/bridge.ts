@@ -1,25 +1,23 @@
 import { Command } from 'commander';
 import { existsSync } from 'node:fs';
 import { ok, fail, warn, info, jsonOutput } from '../lib/output.js';
-import { parseEpicsFile, importStoriesToBeads } from '../lib/bmad.js';
-import { createIssue, listIssues } from '../lib/beads.js';
-import type { BridgeImportResult } from '../lib/bmad.js';
+import { parseEpicsFile, getStoryFilePath } from '../lib/bmad.js';
 
 export interface BridgeResult {
   status: 'ok' | 'fail';
   epics_parsed: number;
   stories_processed: number;
-  stories_created: number;
-  stories_existing: number;
-  results: BridgeImportResult[];
+  results: Array<{ storyKey: string; title: string; storyFilePath: string }>;
 }
+
+// TODO: v2 issue tracker (Epic 8) — bridge command reimplementation with new issue tracker
 
 export function registerBridgeCommand(program: Command): void {
   program
     .command('bridge')
-    .description('Bridge BMAD epics/stories into beads task store')
+    .description('Bridge BMAD epics/stories into sprint planning')
     .option('--epics <path>', 'Path to BMAD epics markdown file')
-    .option('--dry-run', 'Parse and display without creating beads issues')
+    .option('--dry-run', 'Parse and display without importing')
     .action((opts, cmd) => {
       const globalOpts = cmd.optsWithGlobals() as { json?: boolean };
       const isJson = globalOpts.json ?? false;
@@ -54,8 +52,6 @@ export function registerBridgeCommand(program: Command): void {
             status: 'ok',
             epics_parsed: epics.length,
             stories_processed: 0,
-            stories_created: 0,
-            stories_existing: 0,
             results: [],
           });
         }
@@ -72,27 +68,17 @@ export function registerBridgeCommand(program: Command): void {
         }
       }
 
-      // Import stories into beads
-      const results = importStoriesToBeads(
-        allStories,
-        { dryRun },
-        { listIssues, createIssue },
-      );
-
-      const created = results.filter(r => r.status === 'created').length;
-      const existing = results.filter(r => r.status === 'exists').length;
+      // Build results list (no beads — just parse and report)
+      const results = allStories.map(story => ({
+        storyKey: story.key,
+        title: story.title,
+        storyFilePath: getStoryFilePath(story.key),
+      }));
 
       if (!isJson) {
         // Print per-epic summary
         for (const epic of epics) {
           ok(`Epic ${epic.number}: ${epic.title} — ${epic.stories.length} stories`);
-        }
-
-        // Print deduplication info
-        for (const r of results) {
-          if (r.status === 'exists') {
-            info(`Already tracked: ${r.title} (${r.beadsId})`);
-          }
         }
 
         // Print dry-run details
@@ -106,7 +92,7 @@ export function registerBridgeCommand(program: Command): void {
         if (dryRun) {
           info(`Bridge: ${allStories.length} stories parsed (dry run, nothing created)`);
         } else {
-          ok(`Bridge: ${allStories.length} stories processed (${created} new, ${existing} existing)`);
+          ok(`Bridge: ${allStories.length} stories processed`);
         }
       }
 
@@ -116,8 +102,6 @@ export function registerBridgeCommand(program: Command): void {
           status: 'ok',
           epics_parsed: epics.length,
           stories_processed: allStories.length,
-          stories_created: created,
-          stories_existing: existing,
           results,
         };
         jsonOutput(bridgeResult as unknown as Record<string, unknown>);

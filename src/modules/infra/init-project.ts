@@ -16,7 +16,6 @@ import type { InitOptions, InitResult } from './types.js';
 import { checkDocker, setupDocker } from './docker-setup.js';
 import { installDeps, verifyDeps } from './deps-install.js';
 import { setupBmad, verifyBmadOnRerun } from './bmad-setup.js';
-import { initializeBeads } from './beads-init.js';
 import { scaffoldDocs, getCoverageTool, getStackLabel } from './docs-scaffold.js';
 import { generateDockerfileTemplate } from './dockerfile-template.js';
 
@@ -121,8 +120,9 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   }
   result.dependencies = depResult.data;
 
-  // --- Beads initialization ---
-  result.beads = initializeBeads(projectDir, isJson);
+  // --- Beads initialization — removed (Epic 8 replacement pending) ---
+  // TODO: v2 issue tracker (Epic 8)
+  result.beads = { status: 'skipped' as const, message: 'beads removed' };
 
   // --- BMAD installation ---
   const bmadResult = setupBmad({ projectDir, isJson });

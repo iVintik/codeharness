@@ -149,11 +149,11 @@
       "acResults": null
     },
     "4-2-session-boundary-management": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/4-2-session-boundary-management-proof.md",
       "acResults": null
     },
     "4-3-trace-id-generation-injection": {

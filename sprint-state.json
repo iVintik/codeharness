@@ -217,7 +217,7 @@
       "acResults": null
     },
     "6-1-evaluator-module-workspace-spawn": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -366,10 +366,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "currentStory": "6-1-evaluator-module-workspace-spawn",
+    "currentPhase": "verify",
+    "lastAction": "Starting test-provable verification",
+    "acProgress": "10/10"
   },
   "actionItems": []
 }

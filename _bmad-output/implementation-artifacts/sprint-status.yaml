@@ -41,7 +41,7 @@ development_status:
 
   # Epic 6
   epic-6: backlog
-  6-1-evaluator-module-workspace-spawn: backlog
+  6-1-evaluator-module-workspace-spawn: done
   6-2-evaluator-verdict-json-schema-parsing: backlog
   6-3-evaluator-prompt-template: backlog
 

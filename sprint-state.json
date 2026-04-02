@@ -177,7 +177,7 @@
       }
     },
     "5-1-flow-execution-sequential-steps": {
-      "status": "backlog",
+      "status": "review",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

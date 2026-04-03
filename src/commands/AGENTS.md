@@ -141,6 +141,12 @@ Manages the verification environment for black-box story verification. Builds a 
 - **Key deps:** `modules/verify` (buildVerifyImage, prepareVerifyWorkspace, checkVerifyEnv, cleanupVerifyEnv), `lib/output`
 - **Subcommands:** `build` (build Docker image, supports `--json`), `prepare --story <key>` (create clean workspace), `check` (validate image/CLI/otel), `cleanup --story <key>` (remove workspace and container)
 
+### issue.ts
+Manages lightweight file-based issue tracking via `.codeharness/issues.yaml`. Supports creating, listing, and closing issues with auto-generated sequential IDs (`issue-NNN`).
+- **Key deps:** `lib/issue-tracker` (createIssue, closeIssue, readIssues), `lib/output`
+- **Exports:** `registerIssueCommand(program)`
+- **Subcommands:** `create <title>` (with `--priority`, `--source`), `list` (with `--json`), `close <id>`
+
 ## Adding a New Command
 
 1. Create `src/commands/<name>.ts` exporting `register<Name>Command(program: Command): void`

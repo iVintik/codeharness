@@ -22,6 +22,7 @@ import { registerProgressCommand } from './commands/progress.js';
 import { registerObservabilityGateCommand } from './commands/observability-gate.js';
 import { registerAuditCommand } from './commands/audit.js';
 import { registerStatsCommand } from './commands/stats.js';
+import { registerIssueCommand } from './commands/issue.js';
 
 // Library exports — available to consumers via `import { parseStreamLine } from 'codeharness'`
 export { parseStreamLine } from './lib/agents/stream-parser.js';
@@ -63,6 +64,7 @@ export function createProgram(): Command {
   registerObservabilityGateCommand(program);
   registerAuditCommand(program);
   registerStatsCommand(program);
+  registerIssueCommand(program);
 
   return program;
 }

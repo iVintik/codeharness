@@ -52,7 +52,7 @@ development_status:
 
   # Epic 8
   epic-8: backlog
-  8-1-issue-tracker-module-cli: backlog
+  8-1-issue-tracker-module-cli: done
   8-2-retro-finding-auto-import: backlog
 
   # Epic 9

@@ -374,9 +374,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "8-1-issue-tracker-module-cli",
+    "currentPhase": "verify",
+    "lastAction": "Starting runtime-provable verification",
     "acProgress": null
   },
   "actionItems": []

@@ -173,6 +173,12 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | dashboard-formatter.ts | Parses ralph's structured output lines and reformats them as a clean dashboard with icons and progress tracking | `DashboardFormatter`, `formatDashboardLine` |
 
+## Issue Tracking
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| issue-tracker.ts | File-based issue tracker — CRUD for `.codeharness/issues.yaml` with auto-generated sequential IDs, status/priority validation | `readIssues`, `writeIssues`, `nextIssueId`, `createIssue`, `closeIssue`, `VALID_STATUSES`, `VALID_PRIORITIES`, `Issue`, `IssuesFile` |
+
 ## Dependency Management
 
 | File | Purpose | Key Exports |

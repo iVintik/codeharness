@@ -15,8 +15,8 @@ This is both an **npm CLI** (`codeharness`) and a **Claude Code plugin** (`.clau
 
 ```
 src/                    # TypeScript source → compiled to dist/
-  commands/             # CLI commands (init, run, verify, status, etc.)
-  lib/                  # Shared libraries (state, docker, verify-env, retry-state, etc.)
+  commands/             # CLI commands (init, run, verify, status, issue, etc.)
+  lib/                  # Shared libraries (state, docker, verify-env, retry-state, issue-tracker, etc.)
   templates/            # Embedded string templates (prompts, docker-compose, otel config)
 commands/               # Plugin slash commands (harness-run.md, harness-init.md, etc.)
 hooks/                  # Plugin hooks (session-start, pre-commit, post-write, post-test)

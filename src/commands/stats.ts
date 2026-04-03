@@ -137,7 +137,9 @@ function parseLogFile(filePath: string, report: {
 }
 
 function generateReport(projectDir: string, logsDir?: string): StatsReport {
-  const resolvedLogsDir = logsDir ?? join(projectDir, 'session-logs');
+  const ralphLogs = join(projectDir, 'ralph', 'logs');
+  const sessionLogs = join(projectDir, 'session-logs');
+  const resolvedLogsDir = logsDir ?? (existsSync(ralphLogs) ? ralphLogs : sessionLogs);
   const logFiles = readdirSync(resolvedLogsDir)
     .filter(f => f.endsWith('.log'))
     .sort()
@@ -260,15 +262,23 @@ export function registerStatsCommand(program: Command): void {
     .command('stats')
     .description('Analyze token consumption and cost from session logs')
     .option('--save', 'Save report to _bmad-output/implementation-artifacts/cost-report.md')
-    .option('--logs-dir <path>', 'Path to session logs directory', 'session-logs')
+    .option('--logs-dir <path>', 'Path to session logs directory (auto-detects ralph/logs or session-logs)')
     .action((options, cmd) => {
       const globalOpts = cmd.optsWithGlobals();
       const isJson = !!globalOpts.json;
       const projectDir = process.cwd();
-      const logsDir = join(projectDir, options.logsDir as string);
+      let logsDir: string;
+      if (options.logsDir) {
+        logsDir = join(projectDir, options.logsDir as string);
+      } else {
+        // Auto-detect: prefer ralph/logs (autonomous runs), fall back to session-logs
+        const ralphLogs = join(projectDir, 'ralph', 'logs');
+        const sessionLogs = join(projectDir, 'session-logs');
+        logsDir = existsSync(ralphLogs) ? ralphLogs : sessionLogs;
+      }
 
       if (!existsSync(logsDir)) {
-        fail(`No ${options.logsDir as string}/ directory found — run codeharness run first`);
+        fail('No logs directory found — checked ralph/logs/ and session-logs/. Run codeharness run first or use --logs-dir <path>');
         process.exitCode = 1;
         return;
       }

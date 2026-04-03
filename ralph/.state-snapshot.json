@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 46,
-    "done": 36,
+    "done": 47,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -497,12 +497,16 @@
       "acResults": null
     },
     "15-3-driver-capability-matrix-routing-hints": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T13:40:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/15-3-driver-capability-matrix-routing-hints-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     }
   },
   "retries": {

@@ -15,15 +15,18 @@ This is both an **npm CLI** (`codeharness`) and a **Claude Code plugin** (`.clau
 
 ```
 src/                    # TypeScript source → compiled to dist/
-  commands/             # CLI commands (init, run, verify, status, issue, etc.)
-  lib/                  # Shared libraries (state, docker, verify-env, retry-state, issue-tracker, etc.)
+  commands/             # CLI commands (init, run, verify, status, stats, issue, etc.)
+  lib/                  # Shared libraries (state, docker, verify-env, retry-state, issue-tracker, agents/, stacks/, etc.)
+  modules/              # Domain modules (audit, dev, infra, observability, review, sprint, status, verify)
+  schemas/              # JSON Schemas (workflow, agent, output-contract)
+  types/                # Shared TypeScript type definitions
+  coverage/             # Coverage analysis utilities
   templates/            # Embedded string templates (prompts, docker-compose, otel config)
 commands/               # Plugin slash commands (harness-run.md, harness-init.md, etc.)
-hooks/                  # Plugin hooks (session-start, pre-commit, post-write, post-test)
 skills/                 # Plugin skills
 knowledge/              # Plugin knowledge files
-templates/              # Static templates (Dockerfile.verify)
-ralph/                  # Autonomous loop (ralph.sh + supporting scripts)
+templates/              # Static templates (Dockerfile.verify, agents/, workflows/)
+ralph/                  # Autonomous loop runtime state (logs, status, state snapshots)
 _bmad/                  # BMAD Method workflows and agents
 _bmad-output/           # Sprint artifacts (stories, sprint-status.yaml, retros)
 verification/           # Showboat proof documents

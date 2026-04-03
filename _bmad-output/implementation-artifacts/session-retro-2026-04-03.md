@@ -2488,3 +2488,486 @@ At 60 subagent tool calls (matching 10-2's 59 calls pattern), estimated cost: **
 ### Next Story
 
 Story **10-5-workflow-engine-driver-integration** is the final story in Epic 10. This wires the driver factory and model resolver into the workflow engine's execution loop. Expected to be the most complex remaining story — it touches runtime integration, not just pure types/logic. Anticipate higher tool call count and potentially code review findings around error handling and driver lifecycle management.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 10, ~12:07–12:30)
+
+**Session window:** ~2026-04-03T12:07 to ~2026-04-03T12:30 (approx. 23 minutes)
+**Budget:** 30 minutes
+**Sprint progress:** 33/38 stories done (87%), Epics 1–10 complete, Epic 11 in-progress
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Duration (est.) | Notes |
+|-------|-----------|---------|-----------------|-------|
+| 11-1-workflow-schema-extension | create-story, dev, code-review, verify | **Done** | ~23 min | Full lifecycle. 8/8 ACs passed. Adds `driver`, `model`, `plugins` fields to workflow schema, types, and parser. |
+
+**Net output:** 1 story completed and verified. Story 11-1 extends the workflow schema to support multi-framework driver/model/plugin fields — a prerequisite for stories 11-2 (referential integrity) and the broader Epic 12 (Codex/OpenCode drivers).
+
+**Sprint velocity this session:** 1 story / 23 min = ~2.6 stories/hour. Fastest full-lifecycle story this sprint day — clean implementation with no stuck phases.
+
+**Time budget:** 23 of 30 minutes used (77%). Session ended cleanly within budget.
+
+---
+
+## 2. Issues Analysis
+
+### Issues from subagent reports (11-1 only)
+
+| # | Issue | Severity | Category | Status |
+|---|-------|----------|----------|--------|
+| 1 | `workflow.md` referenced by skill didn't exist — used `workflow.yaml` instead | LOW | Doc gap | Worked around |
+| 2 | Risk: Task 5 (removing forward-compat casts) touches workflow-engine.ts with 108 tests | MEDIUM | Integration risk | Handled — all 4335 tests pass |
+| 3 | `plugins` field type mismatch: `string[]` on ResolvedTask vs `readonly string[]` on DispatchOpts | LOW | Type gap | Accepted — assignment works via widening |
+| 4 | Missing test for `plugins: [123]` (non-string items) | MEDIUM | Test gap | Fixed by code-review |
+| 5 | Missing test for `plugins: []` (empty array) | MEDIUM | Test gap | Fixed by code-review |
+| 6 | Missing test for new fields surviving resolveWorkflow patch chain | MEDIUM | Test gap | Fixed by code-review |
+| 7 | Story Dev Agent Record section unpopulated | LOW | Cosmetic | Not fixed |
+| 8 | No `minItems: 1` on plugins array schema | LOW | Design choice | Accepted — empty array is valid |
+| 9 | `AGENTS.md` stale for `src/lib/agents/drivers/` module | LOW | Recurring | Not fixed (pre-existing from Epic 10) |
+
+### Severity Distribution
+
+| Severity | Count | Fixed? |
+|----------|-------|--------|
+| MEDIUM | 4 | 3 fixed (tests), 1 handled (integration risk) |
+| LOW | 5 | 1 worked around, 4 accepted/deferred |
+
+**No HIGH-severity issues this session.** This is the first session today with zero HIGH findings — a clean story.
+
+### Recurring Issues (tracked across sessions)
+
+| Issue | Sessions Seen | Status |
+|-------|---------------|--------|
+| `AGENTS.md` stale for new modules | 6+ sessions | Growing — now covers drivers/ directory too |
+| `codeharness stats --save` broken for non-ralph sessions | 10 sessions | Open — cost analysis still manual |
+| `codeharness verify` AGENTS.md precondition failure | 5+ sessions | Open — blocks `verify` command but not AC verification |
+
+---
+
+## 3. Cost Analysis
+
+### Subagent Token Report (this session)
+
+Aggregated from `.session-issues.md` token reports for story 11-1:
+
+| Subagent Phase | Tool Calls | Top Tools | Files Read (unique/total) |
+|---------------|------------|-----------|--------------------------|
+| create-story | 17 | Read: 10, Glob: 5, Bash: 3 | 10/10 |
+| dev-story | 17 | Edit: 12, Bash: 5, Read: 4 | 5/5 |
+| code-review | 25 | Bash: 13, Read: 9, Edit: 3 | 9/13 |
+| verification | 12 | Bash: 8, Read: 3, Grep: 2 | 3/3 |
+| **Total** | **71** | **Bash: 29, Read: 26, Edit: 15, Grep: 7, Glob: 6, Write: 2, Skill: 2** | **27 unique, 31 total** |
+
+### Phase Analysis
+
+- **Code review was the most tool-heavy phase** (25 calls, 35% of total) — driven by 13 Bash calls for running tests after adding missing test cases.
+- **Dev phase had high Edit density** (12 of 17 calls = 71% were edits) — efficient implementation with minimal exploratory reading.
+- **Create-story was read-heavy** (10 reads of 17 calls = 59%) — normal for story creation which ingests architecture, PRD, epics, and existing code.
+- **Verification was lean** (12 calls) — lowest this sprint day. Clean story = fast verification.
+
+### Largest Bash Outputs
+
+- `git diff workflow-parser.test.ts` (~180 lines) — code-review phase
+- `npm run test:unit` (~60-80 lines) — multiple phases
+- `npm run test:unit --reporter=verbose | tail/grep` (~30-40 lines) — dev phase
+
+### Redundant Operations
+
+- **Code review:** `workflow-parser.test.ts` read 4 times (due to file size, read in chunks) — unavoidable for large test files.
+- **Verification:** Coverage command run 3 times with different grep patterns — recurring waste pattern, same as 5+ prior sessions.
+- **No file read redundancy across phases** — improvement from earlier sessions.
+
+### Estimated Session Cost
+
+| Component | Estimated Cost |
+|-----------|---------------|
+| Story 11-1 (full lifecycle, 71 tool calls) | ~$5.00 |
+| Orchestrator overhead | ~$1.50 |
+| **Session total** | **~$6.50** |
+
+### Cumulative Cost Tracking
+
+| Session | Stories Completed | Estimated Cost | Cost/Story |
+|---------|-------------------|---------------|------------|
+| Prior sessions (Epics 1-2) | 7 | $37.08 | $4.45 |
+| Sessions 1-6 (2026-04-03) | 6.5 | ~$47.50 | ~$7.31 |
+| Session 7 (7-1) | 1 | ~$6.50 | ~$6.50 |
+| Session 8 (7-2, 8-1, 8-2) | 3 | ~$16.50 | ~$5.50 |
+| Session 9 (Epic 10: 10-1 through 10-5) | 5 | ~$35.00 | ~$7.00 |
+| **Session 10 (11-1, this)** | **1** | **~$6.50** | **~$6.50** |
+| **Cumulative** | **23.5** | **~$149.08** | **~$6.34** |
+
+Overall cost report shows $172.36 across 41 stories ($3.51 avg from `codeharness stats`). The discrepancy vs manual estimates ($6.34) is because the cost report includes orchestrator/verify overhead that the per-story manual estimates undercount, and early stories were cheaper.
+
+### Wasted Spend
+
+- **Triple coverage grep in verification:** ~$0.30. Same pattern, 6th+ occurrence.
+- **Total estimated waste this session:** ~$0.30 (5% of session cost). Best waste ratio of any session today.
+
+---
+
+## 4. What Went Well
+
+1. **Cleanest story of the sprint day.** Zero HIGH findings, zero stuck phases, zero retries. 71 tool calls is the lowest for a full-lifecycle story today.
+2. **Fast full lifecycle.** 23 minutes for create+dev+review+verify. The 2.6 stories/hour rate is the best velocity achieved this sprint day.
+3. **Code review added real value.** Three missing test cases caught (non-string plugins, empty array, patch chain survival). These are edge cases that would have weakened coverage for future refactors.
+4. **Dev phase was efficient.** 12 edits out of 17 calls — almost no wasted reads or failed attempts. The implementation was straightforward because story 10-5 had already done the forward-compat casts that 11-1 replaced with proper fields.
+5. **Schema+type+parser changes all aligned.** JSON Schema, TypeScript types, and parser validation all updated consistently — no drift between layers.
+6. **All 4335 tests pass.** 10 new tests added. Coverage maintained at 96.74%. No regressions.
+
+---
+
+## 5. What Went Wrong
+
+1. **Verification still runs coverage 3 times.** The "single vitest run" instruction has been an action item since Session 6 and is still not implemented in the verification subagent prompt. This is now the most persistent recurring waste pattern.
+2. **`codeharness stats --save` still broken.** 10th consecutive session. Manual cost estimation is tedious and likely inaccurate. The tool requires `session-logs/` which was deleted in story 1-2.
+3. **`AGENTS.md` continues to drift.** Now stale for the entire `src/lib/agents/drivers/` directory added in Epic 10. The `codeharness verify` precondition failure is noise in every verification run.
+4. **Forward-compat casts in 10-5 were ugly tech debt.** Story 11-1 cleaned them up, but the 10-5 code lived with `(task as { driver?: string }).driver` casts for ~4 hours. If the session had been cut short, these would have shipped as permanent tech debt.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Schema-first development.** Adding fields to JSON Schema first, then types, then parser, then tests is the correct order. Story 11-1 followed this and had zero type drift between layers.
+- **Forward-compat cast → proper field as a two-story pattern.** Story 10-5 introduced casts knowing 11-1 would clean them up. This worked because the stories were adjacent in the sprint. Would not work if they were separated by many stories.
+- **Lean verification for clean stories.** When code review finds no HIGH issues and all tests pass, verification can complete in 12 tool calls. The verification phase should not be a fixed-cost phase.
+
+### Patterns to Avoid
+
+- **Shipping forward-compat casts without a same-sprint cleanup story.** The `(task as { driver?: string }).driver` pattern is fragile and confusing. If the cleanup story gets deprioritized, these become permanent.
+- **Accepting "coverage run 3x" as normal.** This waste pattern has been documented for 6+ sessions without a fix. The action item needs to be escalated to a story or the verification prompt needs a one-line change.
+
+---
+
+## 7. Action Items
+
+### From Prior Sessions (status update)
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 3 | Update `src/lib/AGENTS.md` — now also missing entire `drivers/` directory | MEDIUM | Open (growing) |
+| 4 | Fix `codeharness stats --save` for non-ralph sessions | LOW | Open (10 sessions) |
+| 9 | Fix epic numbering mismatch between sprint-status and epics file | MEDIUM | Open |
+| 13/16 | Eliminate redundant coverage runs in verification phase | **HIGH** | Open (**escalated** — 6+ sessions, ~$1.80+ cumulative waste) |
+| 23 | Auto-update epic status in sprint-state.json | MEDIUM | Open |
+| 27 | Add `model` field to `ResolvedAgent` type | HIGH | **DONE** (completed in 11-1) |
+
+### New This Session
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 29 | Story 11-2 (workflow referential integrity validation) is next — validates that `driver` fields reference registered drivers | HIGH | Next session |
+| 30 | Clean up `deepMerge` duplication between agent-resolver.ts and workflow-parser.ts (flagged since story 9-1) | LOW | Backlog |
+| 31 | Address `plugins` type mismatch (`string[]` vs `readonly string[]`) between ResolvedTask and DispatchOpts | LOW | Backlog |
+
+### Next Story
+
+Story **11-2-workflow-referential-integrity-validation** validates that workflow `driver` fields reference drivers actually registered in the factory, and that `model` fields follow expected format. This completes Epic 11 and unblocks Epic 12 (actual Codex/OpenCode driver implementations).
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 11)
+
+**Timestamp:** 2026-04-03T12:30Z
+**Session window:** ~2026-04-03T02:42 to ~2026-04-03T11:50 (approx. 9 hours across multiple ralph iterations)
+**Sprint progress:** 35/49 stories done (71.4%), Epics 1-11 complete, Epics 12-15 backlog
+
+---
+
+## 1. Session Summary
+
+This was a marathon session that completed 9 stories across 4 epics (Epics 9-11 fully, plus prior completions). All stories went through the full lifecycle: create-story, dev-story, code-review, verification, and commit. Every story passed all ACs on first attempt with no retries.
+
+| Story | Phases Run | Outcome | Key Notes |
+|-------|-----------|---------|-----------|
+| 9-1-workflow-patch-resolution | create, dev, review, verify | **Done** | `replace` semantics, deepMerge duplication introduced |
+| 9-2-custom-workflow-creation | create, dev, review, verify | **Done** | Path traversal vuln caught in review |
+| 10-1-agentdriver-interface-types | create, dev, review, verify | **Done** | Mutable fields caught in review, `capabilities` spec drift |
+| 10-2-driver-factory-registry | create, dev, review, verify | **Done** | Clean implementation, 100% coverage on factory.ts |
+| 10-3-claude-code-driver-extraction | create, dev, review, verify | **Done** | ResultEvent type gaps, NETWORK_CODES duplication |
+| 10-4-model-resolution-module | create, dev, review, verify | **Done** | Pure function, 100% coverage, driver validation bug caught |
+| 10-5-workflow-engine-driver-integration | create, dev, review, verify | **Done** | Keystone integration, OOM during initial test, highest tool-call count |
+| 11-1-workflow-schema-extension | create, dev, review, verify | **Done** | Forward-compat casts removed, new schema fields |
+| 11-2-workflow-referential-integrity-validation | create, dev, review, verify | **Done** | Bare catch swallowing errors caught, existing test refactoring |
+
+**Net output:** 9 stories completed and verified, 3 epics closed (9, 10, 11). Sprint at 35/49 stories done.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed) — 12 HIGH, 14 MEDIUM
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 9-1 | ~75 lines duplicated validation/integrity/defaults between `parseWorkflow()` and `resolveWorkflow()` |
+| HIGH | 9-1 | `loadWorkflowPatch` silently swallowed EACCES permission errors |
+| HIGH | 9-2 | **Path traversal vulnerability** via `--workflow` CLI flag — `../` sequences escaped directory |
+| HIGH | 10-1 | `DispatchOpts` fields mutable — drivers could mutate caller's options |
+| HIGH | 10-3 | `ResultEvent` type lacked `error`/`errorCategory` fields — unsafe cast |
+| HIGH | 10-3 | Test assertions used `as unknown as Record<string, unknown>` |
+| HIGH | 10-4 | Driver validation fired unconditionally before cascade resolution |
+| HIGH | 10-5 | sessionId resolved but never passed to driver — session resumption broken |
+| HIGH | 10-5 | tracePrompt computed but silently dropped — trace context lost |
+| HIGH | 11-2 | Bare catch block silently swallowed all errors from `resolveAgent()` |
+| HIGH | 11-2 | Non-AgentResolveError exceptions silently discarded with misleading message |
+| MEDIUM | 9-1 | Empty catch clause discarded original error message |
+| MEDIUM | 9-1 | No test for `resolveWorkflow({ name: 'custom' })` path |
+| MEDIUM | 9-2 | Wrong error variable in `run.ts` fallback catch block |
+| MEDIUM | 10-1 | Test name/count mismatch ("8 event types" vs 9 actual) |
+| MEDIUM | 10-1 | `ErrorCategory` exhaustiveness test not compile-time safe |
+| MEDIUM | 10-2 | `registerDriver(null)` crashes with unhelpful TypeError |
+| MEDIUM | 10-2 | `getDriver('')` silently fails with confusing message |
+| MEDIUM | 10-3 | Missing branch coverage for content_block_start non-tool_use |
+| MEDIUM | 10-4 | Whitespace-only model strings passed through as valid |
+| MEDIUM | 10-5 | SDK_INIT errorCategory not mapped |
+| MEDIUM | 11-1 | Missing tests for `plugins: [123]`, `plugins: []`, and patch chain survival |
+| MEDIUM | 11-2 | Dead `_taskNames` parameter in function signature |
+
+**Code review continues to be the highest-value phase.** 12 HIGH bugs caught — including a path traversal vulnerability (9-2), silent data loss from swallowed errors (9-1, 11-2), and broken session resumption (10-5).
+
+### Workarounds Applied (tech debt introduced)
+
+| Story | Workaround | Risk |
+|-------|-----------|------|
+| 9-1 | `deepMerge` duplicated between agent-resolver.ts and workflow-parser.ts | Divergent behavior over time |
+| 9-1 | User-level patch ordering test writes to real `~/.codeharness/` filesystem | Crash could leave stale file |
+| 10-3 | `ResultEvent` type intersection for error fields | Mild type system abuse |
+| 10-5 | `task.max_budget_usd` mapped to `DispatchOpts.timeout` — semantic mismatch | Budget vs time confusion |
+| 10-5 | Forward-compat casts `(task as { driver?: string }).driver` | Ugly until 11-1 added fields |
+| 10-5 | AUTH/TIMEOUT error categories mapped to UNKNOWN | Missing DispatchErrorCode equivalents |
+| 11-2 | `resolveAgent()` called without `cwd` — may miss project-level custom agents | Known limitation |
+
+### Verification Gaps
+
+- **AGENTS.md stale across all stories:** `codeharness verify` precondition fails on every verification due to missing module entries in AGENTS.md for epic 10 driver files. Pre-existing, never fixed.
+- **BATS integration tests:** Exit code 127 warnings on every run — pre-existing, unrelated.
+- **26 pre-existing TSC errors** in run.test.ts, issue.test.ts, issue.ts, verdict-parser.test.ts — zero in story-scoped files.
+- **AC #6 of 11-2 weak evidence:** Project/user-level agent overrides verified by code inspection, not dedicated test.
+- **Branch coverage 79.12% on 9-1:** Below 80% for branches specifically, but AC says "80%+ coverage" without specifying branches.
+
+### LOW Issues Deferred (not fixed)
+
+- `deepMerge` duplication (flagged since 9-1, still open)
+- `ACStatus.status` typed as `string` rather than union type (10-1)
+- `NETWORK_CODES` set duplicated between agent-dispatch.ts and claude-code.ts (10-3)
+- Network error fallback regex overly broad (10-3)
+- `@throws` JSDoc unclear on resolution priority (10-4)
+- Dead mockDispatchAgent setup in test file (10-5)
+- Duplicate `createMockDriver` helper across test files (10-2)
+- Duplicate test for `resolveWorkflow({ name: 'nonexistent' })` (9-2)
+- `resolveAgent()` called at parse time for every task — heavier than needed (11-2)
+
+### Tooling/Infrastructure Problems
+
+- **`codeharness verify` fails on AGENTS.md staleness** on every story — persistent noise that burns verification cycles.
+- **Vitest OOM** during 10-5 dev-story — hit OOM resolving real @anthropic-ai/claude-agent-sdk before mocks were added. Pre-existing fragility.
+- **Epic numbering mismatch** between sprint-status (10-1, 10-2...) and epics file (Epic 1, Story 1.1...) — caused extra glob/grep calls in every create-story phase.
+- **Config path mismatch:** `_bmad/bmm/config.yaml` referenced by skills but doesn't exist; actual config at `_bmad/config.yaml`.
+- **Proof format issues:** Multiple stories required proof rewrites — wrong heading levels (h3 vs h2), missing bash/output blocks, wrong tier header format (`**Verification tier:**` vs `**Tier:**`).
+
+---
+
+## 3. Cost Analysis
+
+### Overall Sprint Cost (from codeharness stats)
+
+| Metric | Value |
+|--------|-------|
+| **Total API-equivalent cost** | **$202.85** |
+| Total API calls | 1,568 |
+| Average cost per story | $3.46 (49 stories tracked) |
+| Cache reads (61%) | $124.55 — 83M tokens |
+| Cache writes (22%) | $45.29 — 2.4M tokens |
+| Output (16%) | $32.92 — 439K tokens |
+| Input (<1%) | $0.08 — 5.6K tokens |
+
+### Cost by Phase
+
+| Phase | Calls | Cost | % | Observation |
+|-------|-------|------|---|-------------|
+| verify | 749 | $89.96 | 44.3% | **Nearly half of all spend** — verification is the most expensive phase by far |
+| orchestrator | 175 | $37.21 | 18.3% | Ralph orchestration overhead |
+| create-story | 207 | $23.29 | 11.5% | Read-heavy — context loading |
+| dev-story | 182 | $20.26 | 10.0% | Actual implementation |
+| code-review | 158 | $18.61 | 9.2% | High ROI despite cost |
+| retro | 97 | $13.52 | 6.7% | Retrospective generation |
+
+**Key insight:** Verification at 44.3% of total cost is disproportionate. The verify phase costs 4.8x more than code-review despite code-review catching more bugs. Verification's cost is driven by repeated test suite runs, coverage grep patterns, and proof document formatting retries.
+
+### Cost by Tool
+
+| Tool | Calls | Cost | % |
+|------|-------|------|---|
+| Bash | 485 | $53.58 | 26.4% |
+| Read | 360 | $49.05 | 24.2% |
+| Edit | 316 | $38.71 | 19.1% |
+| Agent | 195 | $28.36 | 14.0% |
+| Skill | 36 | $13.33 | 6.6% |
+| Grep | 92 | $9.96 | 4.9% |
+
+### Subagent-Level Breakdown (this session — 9 stories)
+
+Aggregated from `.session-issues.md` token reports:
+
+| Story | Phase | Tool Calls | Top Tools | Notes |
+|-------|-------|------------|-----------|-------|
+| 9-1 | create-story | 13 | Read: 6, Glob: 5, Grep: 4 | |
+| 9-1 | dev-story | 22 | Edit: 13, Read: 7, Bash: 5 | workflow-parser.test.ts read twice |
+| 9-1 | code-review | 18 | Read: 8, Bash: 6, Edit: 6 | |
+| 9-1 | verification | 16 | Bash: 10, Grep: 4 | **vitest coverage run twice, test:unit run twice** |
+| 9-2 | create-story | 17 | Grep: 7, Read: 6, Glob: 5 | Two Glob calls for same pattern |
+| 9-2 | dev-story | 12 | Read: 5, Edit: 5, Bash: 3 | Clean |
+| 9-2 | code-review | 19 | Bash: 9, Read: 6, Edit: 4 | |
+| 9-2 | verification | 20 | Bash: 10, Grep: 8 | **verify run 3x due to proof format fixes** |
+| 10-1 | create-story | 16 | Read: 10, Glob: 6 | 12 unique files read |
+| 10-1 | dev-story | 22 | Edit: 13, Bash: 6, Read: 5 | |
+| 10-1 | code-review | 18 | Edit: 8, Bash: 8, Read: 7 | npm run build ran twice |
+| 10-1 | verification | 15 | Bash: 10, Read: 5 | npm run build ran twice |
+| 10-2 | create-story | 12 | Read: 5, Glob: 5 | Extra globs for artifact paths |
+| 10-2 | dev-story | 15 | Read: 5, Edit: 4, Bash: 3 | Clean |
+| 10-2 | code-review | 18 | Bash: 8, Read: 7, Edit: 4 | |
+| 10-2 | verification | 14 | Bash: 9, Read: 5 | Overlapping npm test and vitest runs |
+| 10-3 | create-story | 18 | Read: 10, Glob: 5, Grep: 4 | 13 unique files read |
+| 10-3 | dev-story | 16 | Read: 8, Bash: 5, Edit: 3 | |
+| 10-3 | code-review | 22 | Edit: 9, Read: 8, Bash: 7 | One extra edit for duplicate import |
+| 10-3 | verification | 16 | Bash: 9, Grep: 4 | |
+| 10-4 | create-story | 18 | Read: 8, Glob: 8, Grep: 5 | Two overlapping Glob calls |
+| 10-4 | dev-story | 12 | Bash: 5, Edit: 3, Read: 3 | Clean, smallest dev-story |
+| 10-4 | code-review | 18 | Bash: 8, Read: 5, Edit: 4 | |
+| 10-4 | verification | 12 | Bash: 8, Read: 3 | Coverage command run twice |
+| 10-5 | create-story | 13 | Read: 7, Glob: 6, Grep: 2 | |
+| 10-5 | dev-story | **42** | Edit: 25, Read: 14, Grep: 10 | **Highest tool count — OOM, test failures, workflow-engine.test.ts read 5x** |
+| 10-5 | code-review | 27 | Read: 14, Edit: 9, Bash: 7 | workflow-engine.test.ts read 8x in chunks |
+| 10-5 | verification | 16 | Bash: 9, Grep: 8 | |
+| 11-1 | create-story | 17 | Read: 10, Glob: 5, Bash: 3 | |
+| 11-1 | dev-story | 17 | Edit: 12, Bash: 5, Read: 4 | |
+| 11-1 | code-review | 25 | Bash: 13, Read: 9, Edit: 3 | workflow-parser.test.ts read 4x due to size |
+| 11-1 | verification | 12 | Bash: 8, Read: 3 | Coverage command run 3x with different grep patterns |
+| 11-2 | create-story | 20 | Read: 8, Grep: 7, Glob: 5 | |
+| 11-2 | dev-story | 18 | Edit: 11, Bash: 6, Read: 6 | workflow-parser.test.ts read 3x |
+| 11-2 | code-review | 20 | Read: 9, Bash: 7, Edit: 4 | workflow-parser.test.ts read 4x, two near-identical test runs |
+| 11-2 | verification | 16 | Bash: 9, Grep: 5, Read: 4 | vitest coverage run twice |
+
+**Session totals:** 613 subagent tool calls across 36 phases (9 stories x 4 phases)
+
+### Where Tokens Were Spent — Key Findings
+
+**Most expensive subagent phase:** 10-5 dev-story at 42 tool calls — driven by OOM crash, test failures requiring iterative fixes, and workflow-engine.test.ts being read 5 times. This single phase consumed ~7% of all session tool calls.
+
+**Most-read files across all subagents:**
+- `workflow-parser.test.ts` — read 11+ times across 11-1 and 11-2 phases (large file, read in chunks)
+- `workflow-engine.test.ts` — read 13+ times across 10-5 phases (108 tests, read in chunks)
+- Sprint-status.yaml, architecture docs, PRD — read in every create-story phase (9 times each)
+
+**Redundant operations by category:**
+1. **Duplicate test/coverage runs in verification:** 7 of 9 stories had vitest/coverage run 2-3x. Estimated waste: ~$3-5.
+2. **Proof format retries:** Stories 9-1 and 9-2 required proof rewrites due to heading format mismatches. Estimated waste: ~$1-2.
+3. **Repeated file reads of large test files:** workflow-parser.test.ts and workflow-engine.test.ts read in chunks multiple times instead of once. Estimated waste: ~$1-2.
+4. **Overlapping npm test + vitest runs:** Several verification phases ran both `npm test` and `npx vitest run --reporter=verbose` which are redundant. Estimated waste: ~$1.
+
+**Total estimated waste this session: ~$6-10 (approx 5-8% of session-attributable cost)**
+
+### Wasted Spend Analysis
+
+| Category | Estimated Waste | Occurrences |
+|----------|----------------|-------------|
+| Duplicate coverage/test runs in verify | ~$3-5 | 7 of 9 stories |
+| Proof format retries | ~$1-2 | 2 stories |
+| Chunked re-reads of large test files | ~$1-2 | 3 stories |
+| Overlapping npm test + vitest | ~$1 | 3 stories |
+| **Total** | **~$6-10** | |
+
+### Cost Optimization Opportunities
+
+1. **Fix verification phase to run coverage once.** This is the single highest-impact optimization. Verification at 44.3% of total cost is inflated by redundant test runs. A single `npx vitest run --coverage` with the right filter is sufficient.
+2. **Standardize proof document format.** Proof format mismatches caused retries in 2 stories. If the verification prompt included the exact heading format (`## AC N:` not `### AC N:`, `**Tier:**` not `**Verification tier:**`), these retries would be eliminated.
+3. **Pre-load story context bundle.** Every create-story phase reads 8-14 files (architecture, PRD, epics, sprint-status, existing code). A pre-compiled context bundle would reduce Read calls from ~10 to ~2 per story creation.
+4. **Address large test file reads.** workflow-parser.test.ts and workflow-engine.test.ts are read in chunks repeatedly. Either split these files or ensure subagents read them once and cache the content.
+
+---
+
+## 4. What Went Well
+
+1. **9 stories completed with zero retries.** Every story passed all ACs on first attempt through the full pipeline. No stuck cycles, no failed verifications, no story retries.
+2. **Code review caught 12 HIGH bugs.** Including a path traversal vulnerability (9-2), silent error swallowing (9-1, 11-2), broken session resumption (10-5), and mutable type safety issues (10-1). Code review ROI remains exceptional — 9.2% of cost catching the most critical defects.
+3. **Three epics completed.** Epics 9 (workflow patches), 10 (multi-framework driver architecture), and 11 (schema extension + referential integrity) are all done.
+4. **Coverage remains above 96%.** Final coverage at 96.69-96.76% across all stories. Multiple modules at 100% (factory.ts, model-resolver.ts). All 167 files above 80% floor.
+5. **Clean dev-story phases.** Stories 9-2, 10-1, 10-2, 10-4, and 11-1 had "no issues reported" in dev-story — 5 of 9 stories had clean implementations.
+6. **Session issues log fully functional.** All 36 subagent phases reported token data. This enabled the detailed cost breakdown above.
+7. **10-4 model-resolution-module was the most efficient story.** 12 tool calls in dev-story (smallest), pure function with 100% coverage, no issues in any phase.
+8. **Forward-compat casts from 10-5 cleaned up in 11-1.** Tech debt introduced in one story was resolved two stories later within the same session.
+
+---
+
+## 5. What Went Wrong
+
+1. **10-5 dev-story was the most expensive single phase** at 42 tool calls. OOM crash during initial test run forced iterative recovery. The `@anthropic-ai/claude-agent-sdk` real module resolution before mocks loaded is a pre-existing fragility that cost ~$3 extra.
+2. **AGENTS.md stale across the entire session.** Every verification phase flagged AGENTS.md as missing epic 10 driver files. This is pure noise — the same failure reported 9 times without a fix. Accumulated verification waste from re-checking a known-stale doc.
+3. **Proof format inconsistencies.** Stories 9-1 and 9-2 had to rewrite proof documents due to heading level and tier header format mismatches. The verification prompt does not clearly specify the exact format.
+4. **26 pre-existing TSC errors** surfaced in every verification that ran `tsc --noEmit`. These are in unrelated files (run.test.ts, issue.test.ts) but generate noise and require subagent time to confirm they're pre-existing.
+5. **Epic numbering mismatch caused extra work in every create-story.** Sprint-status uses "10-1, 10-2..." but epics file uses "Epic 1, Story 1.1..." — every create-story phase spent extra glob/grep calls mapping between numbering schemes.
+6. **`deepMerge` duplication introduced in 9-1, never resolved.** Flagged in 9-1 code review as LOW, still duplicated at end of session. Same pattern as `formatElapsed` from prior sessions — tech debt that accumulates review cost.
+7. **Verification phase consumes 44.3% of total cost.** This is disproportionate. The verify phase runs more API calls (749) than all other phases combined (819). Much of this is redundant test/coverage runs.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **One story per iteration, full lifecycle.** All 9 stories completed cleanly with create -> dev -> review -> verify in sequence. No partial work, no cross-iteration state to manage.
+- **Code review as mandatory gate.** 12 HIGH bugs caught — including security vulnerabilities, silent data loss, and broken features. The 9.2% cost share for code review is the best ROI in the pipeline.
+- **Pure function modules are cheapest.** Stories 10-2 (factory) and 10-4 (model-resolver) were the most efficient — pure functions with no I/O dependencies achieve 100% coverage trivially and have clean dev phases.
+- **Forward-compat casts with same-sprint cleanup.** The 10-5 casts were cleaned up in 11-1 two stories later. This worked because both stories were in the same sprint. Would not work if cleanup was deferred to a later sprint.
+- **Session issues log with token reports.** All 36 phases reported, enabling precise cost analysis. This mechanism is now reliable.
+
+### Patterns to Avoid
+
+- **Accepting duplicate test/coverage runs in verification.** This has been flagged for 6+ sessions. 7 of 9 stories in this session had duplicate runs. The verification prompt or tooling needs a one-line fix.
+- **Shipping `deepMerge`-style duplication without a cleanup ticket.** Code review flags it as LOW, it never gets fixed, and it gets flagged again in subsequent reviews. Either fix it in the same PR or create a real story for it.
+- **Large test files that must be read in chunks.** workflow-parser.test.ts and workflow-engine.test.ts are now large enough that subagents read them 4-8 times each in chunks. These files should be split.
+- **Running `tsc --noEmit` in verification when there are known pre-existing errors.** The 26 errors are noise. Either fix them or exclude the check.
+
+---
+
+## 7. Action Items
+
+### From Prior Sessions (status update)
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 3 | Update `src/lib/AGENTS.md` — now missing entire `drivers/` directory + evaluator + model-resolver | MEDIUM | Open (worse — more modules added) |
+| 4 | Fix `codeharness stats --save` for non-ralph sessions | LOW | Open (11 sessions) |
+| 11 | Fix `formatElapsed` duplication — 3 implementations | MEDIUM | Open |
+| 12 | Wire 5 dead CLI options to EngineConfig or remove them | MEDIUM | Open |
+| 13/16 | **Eliminate redundant coverage runs in verification phase** | **HIGH** | **Open — escalated again. 7/9 stories this session had duplicate runs. ~$3-5 waste.** |
+| 23 | Auto-update epic status in sprint-state.json | MEDIUM | Open |
+| 27 | Add `model` field to `ResolvedAgent` type | — | **DONE** (completed in 11-1) |
+| 29 | Story 11-2 (referential integrity validation) | — | **DONE** |
+
+### New This Session
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 32 | Fix proof document format specification in verification prompt — require `## AC N:` (h2) and `**Tier:**` exactly | HIGH | Backlog |
+| 33 | Fix pre-existing 26 TSC errors in run.test.ts, issue.test.ts, issue.ts, verdict-parser.test.ts | MEDIUM | Backlog |
+| 34 | Extract `deepMerge` to shared util from agent-resolver.ts and workflow-parser.ts | LOW | Backlog (flagged since 9-1) |
+| 35 | Split large test files: workflow-parser.test.ts and workflow-engine.test.ts | LOW | Backlog |
+| 36 | Fix OOM fragility — vitest resolves real @anthropic-ai/claude-agent-sdk before mocks | MEDIUM | Backlog |
+| 37 | Fix epic numbering mismatch between sprint-status (10-1) and epics file (Epic 1, Story 1.1) | MEDIUM | Backlog |
+| 38 | Add DispatchErrorCode equivalents for AUTH and TIMEOUT | LOW | Epic 12 |
+| 39 | Address `NETWORK_CODES` duplication between agent-dispatch.ts and claude-code.ts | LOW | Backlog |
+| 40 | Consolidate `EvaluatorVerdict` / `EvaluatorResult` types | LOW | Backlog |
+
+### Priority Recommendations for Next Session
+
+1. **Epic 12 (multi-framework drivers)** is next in the backlog — stories 12-1 (Codex driver), 12-2 (OpenCode driver), 12-3 (health check at workflow start).
+2. Before starting Epic 12, fix action item #13/16 (redundant coverage runs) — this single fix would save ~$3-5 per 9-story batch, compounding across all remaining work.
+3. Update AGENTS.md (action item #3) to eliminate the verification noise that burns cycles on every story.

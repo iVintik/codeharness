@@ -361,23 +361,27 @@
       }
     },
     "11-1-workflow-schema-extension": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/11-1-workflow-schema-extension-proof.md",
       "acResults": null
     },
     "11-2-workflow-referential-integrity-validation": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T08:48:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/11-2-workflow-referential-integrity-validation-proof.md",
+      "acResults": {
+        "passed": 9,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "12-1-codex-driver-implementation": {
-      "status": "backlog",
+      "status": "ready-for-dev",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

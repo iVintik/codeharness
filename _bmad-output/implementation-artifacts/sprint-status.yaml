@@ -69,13 +69,13 @@ development_status:
   10-5-workflow-engine-driver-integration: done
 
   # Epic 11
-  epic-11: backlog
+  epic-11: done
   11-1-workflow-schema-extension: done
-  11-2-workflow-referential-integrity-validation: backlog
+  11-2-workflow-referential-integrity-validation: done
 
   # Epic 12
   epic-12: backlog
-  12-1-codex-driver-implementation: backlog
+  12-1-codex-driver-implementation: done
   12-2-opencode-driver-implementation: backlog
   12-3-driver-health-check-at-workflow-start: backlog
 

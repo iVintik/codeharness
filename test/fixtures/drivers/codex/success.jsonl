@@ -1,0 +1,9 @@
+{"type":"tool_call","name":"file_read","call_id":"call_001"}
+{"type":"tool_input","call_id":"call_001","input":"{\"path\":\"/src/index.ts\"}"}
+{"type":"tool_result","call_id":"call_001","output":"file contents here"}
+{"type":"message","content":"I've read the file and will now make changes."}
+{"type":"tool_call","name":"file_write","call_id":"call_002"}
+{"type":"tool_input","call_id":"call_002","input":"{\"path\":\"/src/index.ts\",\"content\":\"updated\"}"}
+{"type":"tool_result","call_id":"call_002","output":"File written successfully."}
+{"type":"message","content":"Done. I updated the file."}
+{"type":"result","status":"completed","cost_usd":0.0034,"session_id":"codex-sess-abc123"}

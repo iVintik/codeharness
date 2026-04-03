@@ -381,12 +381,16 @@
       }
     },
     "12-1-codex-driver-implementation": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T13:15:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/12-1-codex-driver-implementation-proof.md",
+      "acResults": {
+        "passed": 11,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "12-2-opencode-driver-implementation": {
       "status": "backlog",

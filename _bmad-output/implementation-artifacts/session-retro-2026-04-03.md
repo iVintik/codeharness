@@ -1123,3 +1123,174 @@ The cost report covers cumulative sprint data (all 7+ stories tracked), not this
 | 8 | Fix `ralph/.state-snapshot.json` stale data (shows 13 done vs 22 actual) | HIGH | Next session | Open (carried — still 9 stories behind) |
 | 9 | Fix `formatElapsed` duplication (3 implementations) | MEDIUM | Next sprint | Open (carried from Session 5) |
 | 10 | Wire 5 dead CLI options to EngineConfig or remove them | MEDIUM | Next sprint | Open (carried from Session 6) |
+
+---
+---
+
+# Session Retrospective — 2026-04-03 (Session 8, appended 2026-04-03T06:00)
+
+**Session window:** ~2026-04-03T01:52 to ~2026-04-03T02:15 (approx. 23 minutes)
+**Story completed:** 8-1-issue-tracker-module-cli (issue tracker module + CLI commands)
+**Sprint progress:** 24/28 stories done (86%), Epics 1-7 complete, Epic 8 in progress
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 8-1-issue-tracker-module-cli | create-story, dev, code-review, verify | **Done** | Full lifecycle. 12/12 ACs passed. 4156 tests, 96.79% coverage. |
+
+**Net output:** 1 story completed end-to-end in ~23 minutes. Clean execution with no retries at the story level.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue | Impact |
+|----------|-------|--------|
+| HIGH | `createIssue` accepted arbitrary priority strings without validation against `VALID_PRIORITIES` | Could persist invalid data to YAML |
+| MEDIUM | `issue list` CLI action lacked error handling — corrupted YAML caused unhandled exception | CLI crash on bad data |
+| MEDIUM | Unnecessary double-cast (`as unknown as Record`) in CLI command | Code smell, type safety erosion |
+
+All HIGH/MEDIUM issues fixed during code review phase before verification.
+
+### Known LOW Issues (deferred — tech debt introduced)
+
+| Issue | Risk |
+|-------|------|
+| `closeIssue` does not guard re-closing already-done issues | Silent no-op on re-close, minor data integrity concern |
+| `VALID_STATUSES` defined but never validated | Dead code — status field accepts any string |
+| `Issue` interface uses `string` not union types for priority/status | No compile-time enforcement of valid values |
+
+### Verification Issues
+
+| Issue | Impact |
+|-------|--------|
+| AGENTS.md staleness — `codeharness verify` failed initially because `src/commands/AGENTS.md` and `src/lib/AGENTS.md` didn't list new files | Required manual fix during verification, wasted 2 of 3 verify attempts |
+| Proof format mismatch — first draft used plain code blocks instead of required ```bash + ```output pairs | Rewrote proof document, cost extra tool calls |
+| Showboat not installed, no exec-plan | Non-blocking warnings, but persistent across all stories |
+
+### Design/Architecture Observations
+
+- **No existing subcommand pattern in CLI.** Story 8-1 introduced Commander `.command()` chaining as the first subcommand-style command. This sets a precedent — future CLI commands should follow this pattern.
+- **`ready-for-dev` vs `ready` ambiguity.** Workflow engine filters on `ready-for-dev` but sprint validator defines `ready` as canonical. Still unresolved.
+- **Retrospective mismatch.** `epic-8-retrospective.md` describes old epic 8 (onboarding hardening), but current sprint uses epics-v2.md which redefines epic 8 as "Issue Tracking & Retro Integration". Could confuse future agents.
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative Sprint Totals (from cost-report.md)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $140.54 |
+| Total API calls | 1,090 |
+| Stories completed | 24 of 28 |
+| Average cost per story | $3.57 |
+
+### Cost by Phase (cumulative)
+
+| Phase | Cost | % | Observation |
+|-------|------|---|-------------|
+| verify | $67.20 | 47.8% | Still the most expensive phase by far |
+| orchestrator | $24.39 | 17.4% | Ralph loop overhead |
+| dev-story | $14.20 | 10.1% | Lean — this is the gold standard |
+| create-story | $13.46 | 9.6% | Reasonable |
+| code-review | $12.61 | 9.0% | Good ROI given bugs caught |
+| retro | $8.68 | 6.2% | Retros are not cheap |
+
+### Subagent-Level Token Breakdown for Story 8-1
+
+Aggregated from session issues log `## Token Report` sections:
+
+| Phase | Tool Calls | Top Tools | Largest Bash Outputs | Redundant Ops |
+|-------|-----------|-----------|---------------------|---------------|
+| create-story | 14 | Read:7, Grep:5, Glob:4 | — | Duplicate Glob for epic 8 files |
+| dev-story | 21 | Edit:9, Read:7, Bash:6 | `npm run test:unit` (~400 lines first run) | None |
+| code-review | 22 | Read:9, Bash:8, Edit:3 | — | 1 wasted read (wrong file extension) |
+| verify | 24 | Bash:14, Read:5, Edit:4 | `npm run test:unit` (~80 lines) | Build ran 2x, coverage ran 2x, verify ran 3x |
+| **Total** | **81** | | | |
+
+**Key findings from subagent token analysis:**
+
+1. **Verification is the most tool-call-heavy phase (24 calls, 30% of story total).** The 3 verify command retries (proof format fixes) are the primary waste source.
+2. **dev-story's first test run produced ~400 lines of output** — the largest single Bash output this session. This happens when running the full test suite rather than targeting new tests.
+3. **code-review was efficient** — 22 calls, found 1 HIGH + 2 MEDIUM bugs, all fixed in-phase.
+4. **create-story had a redundant Glob** (duplicate search for epic 8 files). Minor.
+
+### Cross-Story Comparison (subagent tool calls from session log)
+
+| Story | create | dev | review | verify | Total |
+|-------|--------|-----|--------|--------|-------|
+| 6-3 | 16 | 20 | 18 | 18 | 72 |
+| 7-1 | 19 | 16 | 21 | 19 | 75 |
+| 7-2 | 17 | 10 | 16 | 16 | 59 |
+| 8-1 | 14 | 21 | 22 | 24 | 81 |
+
+Story 8-1 had the highest total tool calls (81), driven by verification retries. Story 7-2 was the leanest (59) — a small story (~10 lines of production code).
+
+### Wasted Spend
+
+| Category | Details |
+|----------|---------|
+| Verification format retries | 3 verify runs for 8-1 due to proof format mismatch. Estimated ~$1-2 wasted. |
+| Redundant test/coverage runs | Coverage ran 2x, build ran 2x in verification phase |
+| AGENTS.md fix during verify | Should have been done in dev phase (carried action item from Session 7) |
+
+### Cost Optimization Opportunities
+
+| # | Opportunity | Estimated Savings |
+|---|-------------|-------------------|
+| 1 | **Fix verification proof format once and for all.** Every story burns 1-2 extra verify runs on format. Over 24 stories, that is $20-40 wasted. | 15-25% of verify cost |
+| 2 | **Run targeted tests in dev-story**, not the full suite first. The 400-line output from `npm run test:unit` is mostly noise. Run `vitest run src/lib/issue-tracker` first. | Reduce dev-story Bash output by ~80% |
+| 3 | **Cache vitest coverage output within a verify run.** Coverage was run 2x in 8-1 verification — once to check, once to grep a different pattern. Run once, save to file. | Save 1 Bash call per verify |
+| 4 | **Add AGENTS.md update to dev-story checklist.** This was an action item from Session 7 but was not applied. Still causing verify failures. | Eliminate 1 verify retry per story |
+
+---
+
+## 4. What Went Well
+
+- **Clean dev implementation.** Story 8-1 dev phase reported zero issues — 4156 tests passed on first try, build clean.
+- **Code review caught real bugs.** The priority validation gap (HIGH) would have allowed invalid data persistence. Good catch.
+- **Story completed end-to-end in ~23 minutes.** Fast lifecycle for a story that introduced a new module + CLI subcommands + 12 ACs.
+- **First CLI subcommand pattern established.** Commander `.command()` chaining is now the precedent for future subcommand-style commands.
+- **Sprint at 86% completion (24/28 stories).** Strong progress.
+
+---
+
+## 5. What Went Wrong
+
+- **Verification still wastes the most tokens.** 47.8% of total sprint cost is verification. The proof format mismatch issue has been flagged in Sessions 6, 7, and now 8 — it remains unfixed.
+- **AGENTS.md staleness is a recurring tax.** Flagged as action item in Session 7, not implemented. Caused verify failure again in 8-1.
+- **`codeharness stats` failed.** No `session-logs/` directory found. The cost report used in this retro is from a previous run, not freshly generated for this session specifically. Cost attribution for story 8-1 alone is estimated, not measured.
+- **Three deferred LOW issues add to tech debt.** `VALID_STATUSES` dead code, no union types for priority/status, and no re-close guard. These are small but accumulate.
+
+---
+
+## 6. Lessons Learned
+
+1. **Action items that are not automated get ignored.** "Add AGENTS.md update to dev-story checklist" was an action item from Session 7. It was not applied because there is no enforcement mechanism — it is just text in a retro doc. Action items need to be wired into prompts or hooks to actually take effect.
+2. **dev-story remains the most efficient phase.** Zero issues, fewest retries, cleanest output. The pattern: read story file, implement, run tests, done. Other phases should aim for this simplicity.
+3. **Proof format is the #1 recurring waste source across the entire sprint.** Three sessions have flagged it. The fix is straightforward (update the verification subagent prompt with explicit format examples). The cost of not fixing it compounds with every story.
+4. **First-of-kind patterns (like CLI subcommands) take slightly more tool calls** — 8-1 had 81 total vs the 59-75 range for stories with established patterns. Expected and acceptable.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Target | Status |
+|---|--------|----------|--------|--------|
+| 1 | **Fix proof document format spec in verification subagent prompt** | CRITICAL | Before next session | Open (carried from Sessions 6, 7 — now 3rd carry) |
+| 2 | **Wire AGENTS.md update into dev-story subagent prompt** (not just a checklist note — add it to the prompt itself) | HIGH | Before next session | Open (carried from Session 7, escalated) |
+| 3 | **Add single vitest coverage run instruction to verification prompt** — run once, save output, grep from file | MEDIUM | Next session | Open (carried from Session 6) |
+| 4 | **Add priority/status union types to Issue interface** (replace `string` with literal union) | LOW | Next sprint | New |
+| 5 | **Add re-close guard to `closeIssue`** | LOW | Backlog | New |
+| 6 | **Remove or use `VALID_STATUSES`** — either wire validation or delete dead code | LOW | Backlog | New |
+| 7 | **Resolve `ready-for-dev` vs `ready` status ambiguity** across workflow engine and sprint validator | MEDIUM | Next sprint | New |
+| 8 | **Fix `epic-8-retrospective.md` to match epics-v2.md** — old content describes different epic 8 | LOW | Backlog | New |
+| 9 | Fix `codeharness stats` — no session-logs/ directory found | MEDIUM | Next session | New |
+| 10 | Fix `ralph/.state-snapshot.json` stale data | HIGH | Next session | Open (carried from Session 7) |

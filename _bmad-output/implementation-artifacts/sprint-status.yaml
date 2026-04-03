@@ -51,9 +51,9 @@ development_status:
   7-2-resume-after-circuit-breaker: done
 
   # Epic 8
-  epic-8: backlog
+  epic-8: done
   8-1-issue-tracker-module-cli: done
-  8-2-retro-finding-auto-import: backlog
+  8-2-retro-finding-auto-import: done
 
   # Epic 9
   epic-9: backlog

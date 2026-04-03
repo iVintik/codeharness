@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 24,
+    "done": 26,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -265,20 +265,28 @@
       }
     },
     "8-1-issue-tracker-module-cli": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T02:10:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/8-1-issue-tracker-module-cli-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "8-2-retro-finding-auto-import": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T02:45:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/8-2-retro-finding-auto-import-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "9-1-workflow-patch-resolution": {
       "status": "backlog",
@@ -374,9 +382,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "8-1-issue-tracker-module-cli",
-    "currentPhase": "verify",
-    "lastAction": "Starting runtime-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

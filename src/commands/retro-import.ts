@@ -2,7 +2,8 @@ import { Command } from 'commander';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ok, fail, info, warn, jsonOutput } from '../lib/output.js';
-import { parseRetroActionItems, classifyFinding } from '../lib/retro-parser.js';
+import { parseRetroActionItems, classifyFinding, parseRetroSections, isDuplicate, derivePriority } from '../lib/retro-parser.js';
+import { createIssue, readIssues } from '../lib/issue-tracker.js';
 import { isGhAvailable, findExistingGhIssue, ghIssueCreate, ensureLabels, getRepoFromRemote } from '../lib/github.js';
 import { readState, StateFileNotFoundError } from '../lib/state.js';
 import type { Classification } from '../lib/retro-parser.js';
@@ -21,6 +22,13 @@ interface ImportedIssue {
   created: boolean;
   status: string;
   notes: string;
+}
+
+interface LocalImportResult {
+  imported: number;
+  skipped: number;
+  duplicates: number;
+  issues: Array<{ id: string; title: string; source: string; priority: string }>;
 }
 
 interface GitHubResult {
@@ -74,21 +82,31 @@ export function registerRetroImportCommand(program: Command): void {
         return;
       }
 
-      // Parse action items
+      // ─── Local issues.yaml import ──────────────────────────────────────
+      let localResult: LocalImportResult;
+      try {
+        localResult = importToIssuesYaml(content, epicNum, root, isJson);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (!isJson) {
+          warn(`Local issues.yaml import failed: ${message}`);
+        }
+        localResult = { imported: 0, skipped: 0, duplicates: 0, issues: [] };
+      }
+
+      // Parse table-based action items for GitHub phase
       const items = parseRetroActionItems(content);
 
-      if (items.length === 0) {
+      // If both parsers found nothing, report and exit
+      if (items.length === 0 && localResult.imported === 0 && localResult.skipped === 0 && localResult.duplicates === 0) {
         if (isJson) {
-          jsonOutput({ imported: 0, skipped: 0, issues: [] });
+          jsonOutput({ imported: 0, skipped: 0, duplicates: 0, issues: [] });
         } else {
           info('No action items found in retro file');
         }
         return;
       }
 
-      // TODO: v2 issue tracker (Epic 8) — beads import removed, items collected for GitHub only
-      const imported = 0;
-      const skipped = 0;
       const issues: ImportedIssue[] = [];
 
       for (const item of items) {
@@ -123,13 +141,107 @@ export function registerRetroImportCommand(program: Command): void {
 
       if (isJson) {
         jsonOutput({
-          imported,
-          skipped,
-          issues: issues as unknown as Record<string, unknown>[],
+          imported: localResult.imported,
+          skipped: localResult.skipped,
+          duplicates: localResult.duplicates,
+          issues: localResult.issues as unknown as Record<string, unknown>[],
           github: githubResult as unknown as Record<string, unknown>,
         });
+      } else if (localResult.imported > 0 || localResult.duplicates > 0 || localResult.skipped > 0) {
+        info(`Summary: ${localResult.imported} imported, ${localResult.skipped} skipped, ${localResult.duplicates} duplicates`);
       }
     });
+}
+
+/**
+ * Import retro action items into `.codeharness/issues.yaml`.
+ * Tries section-based parsing first, falls back to table-based parsing.
+ */
+function importToIssuesYaml(
+  content: string,
+  epicNum: number,
+  dir: string,
+  isJson: boolean,
+): LocalImportResult {
+  const source = `retro-epic-${epicNum}`;
+  const result: LocalImportResult = { imported: 0, skipped: 0, duplicates: 0, issues: [] };
+
+  // Read existing issue titles for dedup
+  const existingIssues = readIssues(dir);
+  const existingTitles = existingIssues.issues.map(i => i.title);
+
+  // Strategy: try section-based first, fall back to table-based
+  const sectionItems = parseRetroSections(content);
+  const actionableSections = sectionItems.filter(i => i.section !== 'backlog');
+  const backlogSections = sectionItems.filter(i => i.section === 'backlog');
+
+  if (actionableSections.length > 0 || backlogSections.length > 0) {
+    // Section-based format found
+    for (const item of backlogSections) {
+      result.skipped++;
+      if (!isJson) {
+        info(`Skipped (backlog — non-actionable): ${item.text}`);
+      }
+    }
+
+    for (const item of actionableSections) {
+      const priority = item.section === 'fix-now' ? 'high' : 'medium';
+
+      // Check for duplicates
+      const dupCheck = isDuplicate(item.text, existingTitles);
+      if (dupCheck.duplicate) {
+        result.duplicates++;
+        if (!isJson) {
+          info(`Skipped (duplicate of "${dupCheck.matchedTitle}"): ${item.text}`);
+        }
+        continue;
+      }
+
+      const issue = createIssue(item.text, { priority, source }, dir);
+      existingTitles.push(issue.title);
+      result.imported++;
+      result.issues.push({ id: issue.id, title: issue.title, source: issue.source, priority: issue.priority });
+
+      if (!isJson) {
+        ok(`Imported [${issue.id}] (${priority}): ${item.text}`);
+      }
+    }
+
+    return result;
+  }
+
+  // Fall back to table-based parsing
+  const tableItems = parseRetroActionItems(content);
+
+  if (tableItems.length === 0) {
+    return result;
+  }
+
+  for (const item of tableItems) {
+    const priorityNum = derivePriority(item);
+    const priority = priorityNum === 1 ? 'high' : 'medium';
+
+    // Check for duplicates
+    const dupCheck = isDuplicate(item.description, existingTitles);
+    if (dupCheck.duplicate) {
+      result.duplicates++;
+      if (!isJson) {
+        info(`Skipped (duplicate of "${dupCheck.matchedTitle}"): ${item.description}`);
+      }
+      continue;
+    }
+
+    const issue = createIssue(item.description, { priority, source }, dir);
+    existingTitles.push(issue.title);
+    result.imported++;
+    result.issues.push({ id: issue.id, title: issue.title, source: issue.source, priority: issue.priority });
+
+    if (!isJson) {
+      ok(`Imported [${issue.id}] (${priority}): ${item.description}`);
+    }
+  }
+
+  return result;
 }
 
 /**

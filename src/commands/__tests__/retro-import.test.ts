@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
+import { parse } from 'yaml';
 
 // Mock output module
 vi.mock('../../lib/output.js', () => ({
@@ -62,6 +63,35 @@ const RETRO_CONTENT = `
 **Summary:** 0 of 3 resolved.
 `;
 
+const SECTION_RETRO_CONTENT = `
+# Epic 10 Retrospective
+
+## 6. Action Items
+
+### Fix Now (Before Next Session)
+- Fix bare catch blocks in registry.ts
+- Resolve flaky test in pipeline
+
+### Fix Soon (Next Sprint)
+1. Add element type checking to isValidState()
+2. Improve error messages in parser
+
+### Backlog (Track But Not Urgent)
+- Remove StackDetection type duplication
+- Consider migrating to new test runner
+`;
+
+const MIXED_RETRO_CONTENT_NO_SECTIONS = `
+# Epic 7 Retrospective
+
+## Action Items
+
+| # | Action | Status | Notes |
+|---|--------|--------|-------|
+| A1 | Fix flaky CI pipeline | Regressed | Urgent fix needed. |
+| A2 | Add integration tests for auth module | Not done | Carry forward. |
+`;
+
 beforeEach(() => {
   vi.clearAllMocks();
   testDir = mkdtempSync(join(tmpdir(), 'ch-retro-import-test-'));
@@ -102,13 +132,19 @@ async function runRetroImport(args: string[]): Promise<void> {
 }
 
 describe('retro-import command', () => {
-  it('parses action items from retro file', async () => {
+  it('parses action items from retro file and imports to issues.yaml', async () => {
     createRetroFile(9);
 
     await runRetroImport(['--epic', '9']);
 
-    // Should parse 3 items and report them
-    expect(vi.mocked(info)).toHaveBeenCalledTimes(4); // 3 items + 1 skip-github message
+    // Should import 3 items to issues.yaml (ok calls) + parse 3 items (info calls) + 1 skip-github message
+    expect(vi.mocked(ok)).toHaveBeenCalledTimes(3);
+    // Verify issues.yaml was created
+    const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+    expect(existsSync(issuesPath)).toBe(true);
+    const data = parse(readFileSync(issuesPath, 'utf-8'));
+    expect(data.issues).toHaveLength(3);
+    expect(data.issues[0].source).toBe('retro-epic-9');
   });
 
   it('fails with invalid epic number', async () => {
@@ -146,8 +182,9 @@ describe('retro-import command', () => {
 
     expect(vi.mocked(jsonOutput)).toHaveBeenCalledTimes(1);
     const jsonCall = vi.mocked(jsonOutput).mock.calls[0][0];
-    expect(jsonCall).toHaveProperty('imported', 0);
+    expect(jsonCall).toHaveProperty('imported', 3);
     expect(jsonCall).toHaveProperty('skipped', 0);
+    expect(jsonCall).toHaveProperty('duplicates', 0);
     expect(jsonCall).toHaveProperty('issues');
     const issues = jsonCall['issues'] as unknown[];
     expect(issues).toHaveLength(3);
@@ -342,6 +379,257 @@ describe('retro-import command', () => {
         // Title should be truncated to MAX_TITLE_LENGTH (120)
         expect(parsedCall.length).toBeLessThanOrEqual(200);
       }
+    });
+  });
+
+  describe('issues.yaml import — section-based', () => {
+    it('imports Fix Now items with priority=high', async () => {
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+      expect(existsSync(issuesPath)).toBe(true);
+      const data = parse(readFileSync(issuesPath, 'utf-8'));
+      const highItems = data.issues.filter((i: any) => i.priority === 'high');
+      expect(highItems).toHaveLength(2);
+      expect(highItems[0].title).toBe('Fix bare catch blocks in registry.ts');
+      expect(highItems[1].title).toBe('Resolve flaky test in pipeline');
+    });
+
+    it('imports Fix Soon items with priority=medium', async () => {
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+      const data = parse(readFileSync(issuesPath, 'utf-8'));
+      const mediumItems = data.issues.filter((i: any) => i.priority === 'medium');
+      expect(mediumItems).toHaveLength(2);
+      expect(mediumItems[0].title).toBe('Add element type checking to isValidState()');
+    });
+
+    it('skips Backlog items (not imported)', async () => {
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+      const data = parse(readFileSync(issuesPath, 'utf-8'));
+      // Only 4 items (2 Fix Now + 2 Fix Soon), no Backlog
+      expect(data.issues).toHaveLength(4);
+      // Verify backlog items were logged as skipped
+      expect(vi.mocked(info)).toHaveBeenCalledWith(
+        expect.stringContaining('Skipped (backlog'),
+      );
+    });
+
+    it('sets source to retro-epic-<n> on all imported issues', async () => {
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+      const data = parse(readFileSync(issuesPath, 'utf-8'));
+      for (const issue of data.issues) {
+        expect(issue.source).toBe('retro-epic-10');
+      }
+    });
+  });
+
+  describe('issues.yaml import — table-based fallback', () => {
+    it('falls back to table parser when no subsections found', async () => {
+      createRetroFile(7, MIXED_RETRO_CONTENT_NO_SECTIONS);
+
+      await runRetroImport(['--epic', '7']);
+
+      const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+      expect(existsSync(issuesPath)).toBe(true);
+      const data = parse(readFileSync(issuesPath, 'utf-8'));
+      expect(data.issues).toHaveLength(2);
+      expect(data.issues[0].source).toBe('retro-epic-7');
+    });
+
+    it('maps derivePriority=1 (regressed) to high', async () => {
+      createRetroFile(7, MIXED_RETRO_CONTENT_NO_SECTIONS);
+
+      await runRetroImport(['--epic', '7']);
+
+      const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+      const data = parse(readFileSync(issuesPath, 'utf-8'));
+      // A1 is Regressed -> derivePriority returns 1 -> high
+      const a1Issue = data.issues.find((i: any) => i.title === 'Fix flaky CI pipeline');
+      expect(a1Issue.priority).toBe('high');
+    });
+
+    it('maps derivePriority=2 (default) to medium', async () => {
+      createRetroFile(7, MIXED_RETRO_CONTENT_NO_SECTIONS);
+
+      await runRetroImport(['--epic', '7']);
+
+      const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+      const data = parse(readFileSync(issuesPath, 'utf-8'));
+      // A2 is Not done, no urgency -> derivePriority returns 2 -> medium
+      const a2Issue = data.issues.find((i: any) => i.title === 'Add integration tests for auth module');
+      expect(a2Issue.priority).toBe('medium');
+    });
+
+    it('skips duplicate items in table-based fallback', async () => {
+      // Pre-populate with an issue matching a table item
+      const codeharnessDir = join(testDir, '.codeharness');
+      mkdirSync(codeharnessDir, { recursive: true });
+      writeFileSync(
+        join(codeharnessDir, 'issues.yaml'),
+        'issues:\n  - id: issue-001\n    title: Fix flaky CI pipeline\n    source: manual\n    priority: medium\n    status: backlog\n    created_at: "2026-01-01T00:00:00.000Z"\n',
+      );
+
+      createRetroFile(7, MIXED_RETRO_CONTENT_NO_SECTIONS);
+
+      await runRetroImport(['--epic', '7']);
+
+      const data = parse(readFileSync(join(codeharnessDir, 'issues.yaml'), 'utf-8'));
+      // 1 existing + 1 new (A2) = 2 total; A1 is duplicate of existing
+      expect(data.issues).toHaveLength(2);
+      expect(vi.mocked(info)).toHaveBeenCalledWith(
+        expect.stringContaining('Skipped (duplicate'),
+      );
+    });
+  });
+
+  describe('issues.yaml import — duplicate detection', () => {
+    it('skips duplicate items based on word overlap', async () => {
+      // Pre-populate issues.yaml with an existing issue
+      const codeharnessDir = join(testDir, '.codeharness');
+      mkdirSync(codeharnessDir, { recursive: true });
+      writeFileSync(
+        join(codeharnessDir, 'issues.yaml'),
+        'issues:\n  - id: issue-001\n    title: Fix bare catch blocks in registry.ts\n    source: manual\n    priority: medium\n    status: backlog\n    created_at: "2026-01-01T00:00:00.000Z"\n',
+      );
+
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      const data = parse(readFileSync(join(codeharnessDir, 'issues.yaml'), 'utf-8'));
+      // One duplicate skipped, so 3 new + 1 existing = 4
+      expect(data.issues).toHaveLength(4);
+      // Verify duplicate message was logged
+      expect(vi.mocked(info)).toHaveBeenCalledWith(
+        expect.stringContaining('Skipped (duplicate'),
+      );
+    });
+
+    it('does not modify existing issues when duplicate found', async () => {
+      const codeharnessDir = join(testDir, '.codeharness');
+      mkdirSync(codeharnessDir, { recursive: true });
+      writeFileSync(
+        join(codeharnessDir, 'issues.yaml'),
+        'issues:\n  - id: issue-001\n    title: Fix bare catch blocks in registry.ts\n    source: manual\n    priority: low\n    status: in-progress\n    created_at: "2026-01-01T00:00:00.000Z"\n',
+      );
+
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      const data = parse(readFileSync(join(codeharnessDir, 'issues.yaml'), 'utf-8'));
+      // The existing issue should retain its original values
+      const existing = data.issues.find((i: any) => i.id === 'issue-001');
+      expect(existing.priority).toBe('low');
+      expect(existing.status).toBe('in-progress');
+    });
+  });
+
+  describe('issues.yaml import — JSON output', () => {
+    it('JSON output includes imported/skipped/duplicates counts and issues array', async () => {
+      // Pre-populate one duplicate
+      const codeharnessDir = join(testDir, '.codeharness');
+      mkdirSync(codeharnessDir, { recursive: true });
+      writeFileSync(
+        join(codeharnessDir, 'issues.yaml'),
+        'issues:\n  - id: issue-001\n    title: Fix bare catch blocks in registry.ts\n    source: manual\n    priority: medium\n    status: backlog\n    created_at: "2026-01-01T00:00:00.000Z"\n',
+      );
+
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10', '--json']);
+
+      expect(vi.mocked(jsonOutput)).toHaveBeenCalledTimes(1);
+      const jsonCall = vi.mocked(jsonOutput).mock.calls[0][0];
+      expect(jsonCall).toHaveProperty('imported', 3);
+      expect(jsonCall).toHaveProperty('skipped', 2); // 2 backlog items
+      expect(jsonCall).toHaveProperty('duplicates', 1);
+      const issues = jsonCall['issues'] as Array<Record<string, unknown>>;
+      expect(issues).toHaveLength(3);
+      // Each issue has id, title, source, priority
+      for (const issue of issues) {
+        expect(issue).toHaveProperty('id');
+        expect(issue).toHaveProperty('title');
+        expect(issue).toHaveProperty('source', 'retro-epic-10');
+        expect(issue).toHaveProperty('priority');
+      }
+    });
+  });
+
+  describe('issues.yaml import — creates file when missing', () => {
+    it('creates issues.yaml when it does not exist', async () => {
+      const issuesPath = join(testDir, '.codeharness', 'issues.yaml');
+      expect(existsSync(issuesPath)).toBe(false);
+
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      expect(existsSync(issuesPath)).toBe(true);
+      const data = parse(readFileSync(issuesPath, 'utf-8'));
+      expect(data.issues).toHaveLength(4);
+    });
+  });
+
+  describe('issues.yaml import — summary output', () => {
+    it('prints summary in non-JSON mode after import', async () => {
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      expect(vi.mocked(info)).toHaveBeenCalledWith(
+        expect.stringContaining('Summary: 4 imported, 2 skipped, 0 duplicates'),
+      );
+    });
+  });
+
+  describe('issues.yaml import — error and edge cases', () => {
+    it('missing retro file exits with code 1', async () => {
+      await runRetroImport(['--epic', '99']);
+
+      expect(vi.mocked(fail)).toHaveBeenCalledWith(
+        expect.stringContaining('Retro file not found'),
+        expect.any(Object),
+      );
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('warns and continues when issues.yaml import fails', async () => {
+      // Create a file at .codeharness to prevent mkdirSync from working
+      writeFileSync(join(testDir, '.codeharness'), 'not-a-directory');
+
+      createRetroFile(10, SECTION_RETRO_CONTENT);
+
+      await runRetroImport(['--epic', '10']);
+
+      expect(vi.mocked(warn)).toHaveBeenCalledWith(
+        expect.stringContaining('Local issues.yaml import failed'),
+      );
+      // Should not crash — GitHub phase still runs (or skips gracefully)
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('empty retro file with no action items exits with code 0', async () => {
+      createRetroFile(5, '# Epic 5 Retrospective\n\nNo action items here.');
+
+      await runRetroImport(['--epic', '5']);
+
+      expect(vi.mocked(info)).toHaveBeenCalledWith('No action items found in retro file');
+      expect(process.exitCode).toBeUndefined();
     });
   });
 });

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 64,
-    "done": 49,
+    "done": 50,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -573,12 +573,16 @@
       "acResults": null
     },
     "17-3-run-command-parallel-integration": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T01:12:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/17-3-run-command-parallel-integration-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "18-1-merge-serialization-execution": {
       "status": "backlog",
@@ -769,7 +773,7 @@
     "epic-17": {
       "status": "in-progress",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 2
     },
     "epic-18": {
       "status": "in-progress",

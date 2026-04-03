@@ -107,10 +107,10 @@ development_status:
   16-6-story-flow-execution: done
 
   # Epic 17
-  epic-17: backlog
+  epic-17: done
   17-1-worktree-manager: done
   17-2-lane-pool: done
-  17-3-run-command-parallel-integration: backlog
+  17-3-run-command-parallel-integration: done
 
   # Epic 18
   epic-18: backlog

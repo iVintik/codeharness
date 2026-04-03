@@ -4,14 +4,18 @@ import { Command } from 'commander';
 import { fail, info, ok } from '../lib/output.js';
 import { isDockerAvailable } from '../lib/docker/index.js';
 import { cleanupContainers } from '../modules/infra/index.js';
-import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
+import { getSprintState, readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
 import { countStories, formatElapsed } from '../lib/run-helpers.js';
 import { parseWorkflow, resolveWorkflow } from '../lib/workflow-parser.js';
 import { resolveAgent, compileSubagentDefinition } from '../lib/agent-resolver.js';
 import { executeWorkflow } from '../lib/workflow-engine.js';
 import { readWorkflowState, writeWorkflowState } from '../lib/workflow-state.js';
+import { WorktreeManager } from '../lib/worktree-manager.js';
+import { LanePool } from '../lib/lane-pool.js';
+import type { EpicDescriptor, ExecuteEpicFn, LaneEvent } from '../lib/lane-pool.js';
 import type { EngineConfig } from '../lib/workflow-engine.js';
 import type { SubagentDefinition } from '../lib/agent-resolver.js';
+import type { SprintState } from '../types/state.js';
 
 /** Resolves the plugin directory path (.claude/ in project root). */
 export function resolvePluginDir(): string {
@@ -20,6 +24,41 @@ export function resolvePluginDir(): string {
 
 // Re-export helpers that tests import from run.ts
 export { countStories } from '../lib/run-helpers.js';
+
+/**
+ * Extract the epic ID from a story key.
+ * Story keys follow the pattern `{epicId}-{storyNum}-{slug}`,
+ * e.g. `17-1-foo` -> epic `17`, `17-2-bar` -> epic `17`.
+ */
+export function extractEpicId(storyKey: string): string {
+  const match = storyKey.match(/^(\d+)-/);
+  return match ? match[1] : storyKey;
+}
+
+/**
+ * Build EpicDescriptor[] from sprint state.
+ * Groups stories by epic ID, filters out epics with status 'done',
+ * and returns descriptors sorted by epic ID.
+ */
+export function buildEpicDescriptors(state: SprintState): EpicDescriptor[] {
+  const epicMap = new Map<string, string[]>();
+  for (const storyKey of Object.keys(state.stories)) {
+    const epicId = extractEpicId(storyKey);
+    if (!epicMap.has(epicId)) epicMap.set(epicId, []);
+    epicMap.get(epicId)!.push(storyKey);
+  }
+
+  return [...epicMap.entries()]
+    .filter(([epicId]) => {
+      const epicState = state.epics[`epic-${epicId}`];
+      return !epicState || epicState.status !== 'done';
+    })
+    .map(([epicId, stories]) => ({
+      id: epicId,
+      slug: `epic-${epicId}`,
+      stories,
+    }));
+}
 
 export function registerRunCommand(program: Command): void {
   program
@@ -182,22 +221,119 @@ export function registerRunCommand(program: Command): void {
         maxIterations,
       };
 
-      try {
-        const result = await executeWorkflow(config);
+      // 8. Branch: parallel vs sequential execution
+      const execution = parsedWorkflow.execution;
+      const isParallel = execution?.epic_strategy === 'parallel';
 
-        if (result.success) {
-          ok(`Workflow completed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed in ${formatElapsed(result.durationMs)}`, outputOpts);
-        } else {
-          fail(`Workflow failed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, ${result.errors.length} error(s) in ${formatElapsed(result.durationMs)}`, outputOpts);
-          for (const err of result.errors) {
-            info(`  ${err.taskName}/${err.storyKey}: [${err.code}] ${err.message}`, outputOpts);
+      if (isParallel) {
+        // --- Parallel execution path (AC #1, #2, #4, #5, #9, #12) ---
+        try {
+          const maxParallel = execution.max_parallel ?? 1;
+
+          // Get sprint state for epic discovery (AC #3)
+          const stateResult = getSprintState();
+          if (!stateResult.success) {
+            fail(`Failed to read sprint state for epic discovery: ${stateResult.error}`, outputOpts);
+            process.exitCode = 1;
+            return;
           }
+
+          const epics = buildEpicDescriptors(stateResult.data);
+          if (epics.length === 0) {
+            info('No pending epics found — nothing to execute in parallel mode', outputOpts);
+            return;
+          }
+
+          // Create worktree manager and lane pool (AC #2, #12)
+          // Parallel mode always uses worktree isolation regardless of execution.isolation
+          const worktreeManager = new WorktreeManager();
+          const pool = new LanePool(worktreeManager, maxParallel);
+
+          // Register lane event logging (AC #10)
+          pool.onEvent((event: LaneEvent) => {
+            switch (event.type) {
+              case 'lane-started':
+                info(`[LANE] Started epic ${event.epicId} in lane ${event.laneIndex}`, outputOpts);
+                break;
+              case 'lane-completed':
+                ok(`[LANE] Epic ${event.epicId} completed in lane ${event.laneIndex}`, outputOpts);
+                break;
+              case 'lane-failed':
+                fail(`[LANE] Epic ${event.epicId} failed in lane ${event.laneIndex}: ${event.error}`, outputOpts);
+                break;
+              case 'epic-queued':
+                info(`[LANE] Epic ${event.epicId} queued for execution`, outputOpts);
+                break;
+            }
+          });
+
+          // Define executeFn: runs engine in worktree (AC #4, #5)
+          const executeFn: ExecuteEpicFn = async (_epicId: string, worktreePath: string) => {
+            const epicConfig: EngineConfig = {
+              ...config,
+              projectDir: worktreePath,
+            };
+            return executeWorkflow(epicConfig);
+          };
+
+          // Start the pool (AC #9: max_parallel=1 still runs through pool)
+          const poolResult = await pool.startPool(epics, executeFn);
+
+          // Safety net: check for remaining worktrees (AC #11)
+          const remainingWorktrees = worktreeManager.listWorktrees();
+          if (remainingWorktrees.length > 0) {
+            info(`[WARN] ${remainingWorktrees.length} worktree(s) still exist after pool completion`, outputOpts);
+            for (const wt of remainingWorktrees) {
+              info(`  - ${wt.path} (epic ${wt.epicId})`, outputOpts);
+            }
+          }
+
+          // Report results (AC #7)
+          let totalStories = 0;
+          for (const [, epicResult] of poolResult.epicResults) {
+            if (epicResult.engineResult) {
+              totalStories += epicResult.engineResult.storiesProcessed;
+            }
+          }
+
+          const succeeded = [...poolResult.epicResults.values()].filter(r => r.status === 'completed').length;
+          const failed = [...poolResult.epicResults.values()].filter(r => r.status === 'failed').length;
+
+          if (poolResult.success) {
+            ok(`Parallel execution completed — ${poolResult.epicsProcessed} epics (${succeeded} succeeded), ${totalStories} stories processed in ${formatElapsed(poolResult.durationMs)}`, outputOpts);
+          } else {
+            fail(`Parallel execution failed — ${poolResult.epicsProcessed} epics (${succeeded} succeeded, ${failed} failed), ${totalStories} stories processed in ${formatElapsed(poolResult.durationMs)}`, outputOpts);
+            for (const [epicId, epicResult] of poolResult.epicResults) {
+              if (epicResult.status === 'failed') {
+                info(`  Epic ${epicId}: ${epicResult.error}`, outputOpts);
+              }
+            }
+            process.exitCode = 1;
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          fail(`Parallel execution error: ${msg}`, outputOpts);
           process.exitCode = 1;
         }
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        fail(`Workflow engine error: ${msg}`, outputOpts);
-        process.exitCode = 1;
+      } else {
+        // --- Sequential execution path (AC #8) — existing single-engine behavior ---
+        try {
+          const result = await executeWorkflow(config);
+
+          if (result.success) {
+            ok(`Workflow completed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed in ${formatElapsed(result.durationMs)}`, outputOpts);
+          } else {
+            fail(`Workflow failed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, ${result.errors.length} error(s) in ${formatElapsed(result.durationMs)}`, outputOpts);
+            for (const err of result.errors) {
+              info(`  ${err.taskName}/${err.storyKey}: [${err.code}] ${err.message}`, outputOpts);
+            }
+            process.exitCode = 1;
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          fail(`Workflow engine error: ${msg}`, outputOpts);
+          process.exitCode = 1;
+        }
       }
     });
 }

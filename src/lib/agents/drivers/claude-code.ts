@@ -177,6 +177,8 @@ export class ClaudeCodeDriver implements AgentDriver {
       cwd: opts.cwd,
       permissionMode: opts.sourceAccess ? 'bypassPermissions' : 'default',
       ...(opts.sourceAccess ? { allowDangerouslySkipPermissions: true } : {}),
+      ...(opts.sessionId ? { resume: opts.sessionId } : {}),
+      ...(opts.appendSystemPrompt ? { appendSystemPrompt: opts.appendSystemPrompt } : {}),
     };
 
     // Plugin pass-through

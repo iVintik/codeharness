@@ -1,8 +1,13 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { parse } from 'yaml';
 import { warn } from './output.js';
-import { dispatchAgent, DispatchError } from './agent-dispatch.js';
-import type { DispatchOptions, DispatchResult } from './agent-dispatch.js';
+import { DispatchError } from './agent-dispatch.js';
+import type { DispatchErrorCode } from './agent-dispatch.js';
+// Note: dispatchAgent is no longer imported — dispatch goes through the driver factory
+import { getDriver } from './agents/drivers/factory.js';
+import { resolveModel } from './agents/model-resolver.js';
+import type { DispatchOpts } from './agents/types.js';
+import type { ResultEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
 import type { ResolvedWorkflow, ResolvedTask, FlowStep, LoopBlock } from './workflow-parser.js';
 import {
@@ -277,42 +282,70 @@ async function dispatchTaskWithResult(
   // 1. Generate trace ID
   const traceId = generateTraceId(config.runId, state.iteration, taskName);
 
-  // 2. Format trace prompt
+  // 2. Format trace prompt — injected into driver via DispatchOpts.appendSystemPrompt
   const tracePrompt = formatTracePrompt(traceId);
 
   // 3. Resolve session ID
   const sessionKey: SessionLookupKey = { taskName, storyKey };
   const sessionId = resolveSessionId(task.session, sessionKey, state);
 
-  // 4. Build dispatch options based on source_access
-  let dispatchOptions: DispatchOptions;
+  // 4. Resolve driver — forward-compat: task.driver field comes in story 11-1
+  const driverName = (task as { driver?: string }).driver ?? 'claude-code';
+  const driver = getDriver(driverName);
+
+  // 5. Resolve model via cascade: task → agent → driver
+  const agentAsModelSource = { model: definition.model };
+  const model = resolveModel(task as { model?: string }, agentAsModelSource, driver);
+
+  // 6. Determine cwd based on source_access
+  let cwd: string;
   let workspace: Awaited<ReturnType<typeof createIsolatedWorkspace>> | null = null;
 
   if (task.source_access === false) {
     workspace = await createIsolatedWorkspace({ runId: config.runId, storyFiles: [] });
-    dispatchOptions = {
-      ...workspace.toDispatchOptions(),
-      sessionId,
-      appendSystemPrompt: tracePrompt,
-    };
+    cwd = workspace.toDispatchOptions().cwd ?? projectDir;
   } else {
-    dispatchOptions = {
-      cwd: projectDir,
-      sessionId,
-      appendSystemPrompt: tracePrompt,
-    };
+    cwd = projectDir;
   }
 
-  // 5. Construct prompt
+  // 7. Construct prompt
   const prompt = customPrompt
     ?? (storyKey === PER_RUN_SENTINEL
       ? `Execute task "${taskName}" for the current run.`
       : `Implement story ${storyKey}`);
 
-  // 6. Dispatch agent
-  let result: DispatchResult;
+  // 8. Build DispatchOpts for the driver
+  const dispatchOpts: DispatchOpts = {
+    prompt,
+    model,
+    cwd,
+    sourceAccess: task.source_access !== false,
+    ...(sessionId ? { sessionId } : {}),
+    ...(tracePrompt ? { appendSystemPrompt: tracePrompt } : {}),
+    ...(((task as { plugins?: readonly string[] }).plugins) ? { plugins: (task as { plugins?: readonly string[] }).plugins } : {}),
+    ...(task.max_budget_usd != null ? { timeout: task.max_budget_usd } : {}),
+  };
+
+  // 9. Dispatch through the driver and consume AsyncIterable<StreamEvent>
+  let output = '';
+  let resultSessionId = '';
+  let cost = 0;
+  let errorEvent: { error: string; errorCategory?: string } | null = null;
+
   try {
-    result = await dispatchAgent(definition, prompt, dispatchOptions);
+    for await (const event of driver.dispatch(dispatchOpts)) {
+      if (event.type === 'text') {
+        output += event.text;
+      }
+      if (event.type === 'result') {
+        const resultEvt = event as ResultEvent;
+        resultSessionId = resultEvt.sessionId;
+        cost = resultEvt.cost;
+        if (resultEvt.error) {
+          errorEvent = { error: resultEvt.error, errorCategory: resultEvt.errorCategory };
+        }
+      }
+    }
   } finally {
     // Cleanup workspace regardless of dispatch success/failure
     if (workspace) {
@@ -320,10 +353,30 @@ async function dispatchTaskWithResult(
     }
   }
 
-  // 7. Record session ID (if dispatch returned one)
+  // 10. If the driver reported an error in the result event, throw DispatchError
+  if (errorEvent) {
+    // Map ErrorCategory to DispatchErrorCode
+    const categoryToCode: Record<string, string> = {
+      RATE_LIMIT: 'RATE_LIMIT',
+      NETWORK: 'NETWORK',
+      SDK_INIT: 'SDK_INIT',
+      AUTH: 'UNKNOWN',
+      TIMEOUT: 'UNKNOWN',
+      UNKNOWN: 'UNKNOWN',
+    };
+    const code = categoryToCode[errorEvent.errorCategory ?? 'UNKNOWN'] ?? 'UNKNOWN';
+    throw new DispatchError(
+      errorEvent.error,
+      code as DispatchErrorCode,
+      definition.name,
+      errorEvent,
+    );
+  }
+
+  // 11. Record session ID (if dispatch returned one)
   let updatedState = state;
-  if (result.sessionId) {
-    updatedState = recordSessionId(sessionKey, result.sessionId, updatedState);
+  if (resultSessionId) {
+    updatedState = recordSessionId(sessionKey, resultSessionId, updatedState);
   } else {
     // Append checkpoint manually when no session ID is returned
     const checkpoint: TaskCheckpoint = {
@@ -337,13 +390,13 @@ async function dispatchTaskWithResult(
     };
   }
 
-  // 8. Record trace ID
+  // 12. Record trace ID
   updatedState = recordTraceId(traceId, updatedState);
 
-  // 9. Write state to disk
+  // 13. Write state to disk
   writeWorkflowState(updatedState, projectDir);
 
-  return { updatedState, output: result.output };
+  return { updatedState, output };
 }
 
 // --- Retry Prompt Construction (Task 3) ---

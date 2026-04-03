@@ -16,6 +16,9 @@ const {
   mockReadFileSync,
   mockExistsSync,
   mockParse,
+  mockGetDriver,
+  mockResolveModel,
+  mockDriverDispatch,
 } = vi.hoisted(() => ({
   mockDispatchAgent: vi.fn(),
   mockReadWorkflowState: vi.fn(),
@@ -30,6 +33,9 @@ const {
   mockReadFileSync: vi.fn(),
   mockExistsSync: vi.fn(),
   mockParse: vi.fn(),
+  mockGetDriver: vi.fn(),
+  mockResolveModel: vi.fn(),
+  mockDriverDispatch: vi.fn(),
 }));
 
 vi.mock('../agent-dispatch.js', () => ({
@@ -46,6 +52,14 @@ vi.mock('../agent-dispatch.js', () => ({
       this.cause = cause;
     }
   },
+}));
+
+vi.mock('../agents/drivers/factory.js', () => ({
+  getDriver: mockGetDriver,
+}));
+
+vi.mock('../agents/model-resolver.js', () => ({
+  resolveModel: mockResolveModel,
 }));
 
 vi.mock('../workflow-state.js', () => ({
@@ -114,6 +128,33 @@ import type { ResolvedWorkflow, ResolvedTask } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
 
 // --- Helpers ---
+
+/**
+ * Helper: create an async iterable that yields stream events for the driver mock.
+ * Simulates what the real driver.dispatch() returns.
+ */
+function makeDriverStream(output: string, sessionId: string, opts?: { error?: string; errorCategory?: string }) {
+  return (async function* () {
+    if (output) {
+      yield { type: 'text' as const, text: output };
+    }
+    yield {
+      type: 'result' as const,
+      cost: 0.05,
+      sessionId,
+      ...(opts?.error ? { error: opts.error, errorCategory: opts.errorCategory ?? 'UNKNOWN' } : {}),
+    };
+  })();
+}
+
+/**
+ * Helper: create an async iterable that throws an error (for testing dispatch failures).
+ */
+function makeDriverStreamError(err: unknown) {
+  return (async function* () {
+    throw err;
+  })();
+}
 
 function makeDefaultState(overrides?: Partial<WorkflowState>): WorkflowState {
   return {
@@ -196,6 +237,26 @@ function setupDefaultMocks() {
     }),
   );
 
+  // Driver mock: returns an async iterable of StreamEvents
+  mockDriverDispatch.mockImplementation(() => {
+    return (async function* () {
+      yield { type: 'text', text: 'Done' };
+      yield { type: 'result', cost: 0.05, sessionId: 'sess-abc-123' };
+    })();
+  });
+
+  mockGetDriver.mockReturnValue({
+    name: 'claude-code',
+    defaultModel: 'claude-sonnet-4-20250514',
+    capabilities: { supportsPlugins: true, supportsStreaming: true, costReporting: true },
+    healthCheck: vi.fn(),
+    dispatch: mockDriverDispatch,
+    getLastCost: vi.fn().mockReturnValue(null),
+  });
+
+  mockResolveModel.mockReturnValue('claude-sonnet-4-20250514');
+
+  // Keep legacy mock for backward compat in any test that still references it
   mockDispatchAgent.mockResolvedValue({
     sessionId: 'sess-abc-123',
     success: true,
@@ -377,10 +438,9 @@ describe('dispatchTask', () => {
 
     expect(mockGenerateTraceId).toHaveBeenCalledWith('run-001', 0, 'implement');
     expect(mockFormatTracePrompt).toHaveBeenCalledWith('ch-run-001-0-implement');
-    expect(mockDispatchAgent).toHaveBeenCalledWith(
-      definition,
-      'Implement story 5-1-foo',
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
+        prompt: 'Implement story 5-1-foo',
         appendSystemPrompt: '[TRACE] trace_id=ch-run-001-0-implement',
       }),
     );
@@ -401,10 +461,11 @@ describe('dispatchTask', () => {
       { taskName: 'implement', storyKey: '5-1-foo' },
       state,
     );
-    expect(mockDispatchAgent).toHaveBeenCalledWith(
-      definition,
-      expect.any(String),
-      expect.objectContaining({ sessionId: 'prev-sess-id' }),
+    // Session ID is passed through to the driver via DispatchOpts.sessionId
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'prev-sess-id',
+      }),
     );
   });
 
@@ -417,9 +478,7 @@ describe('dispatchTask', () => {
     await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
 
     expect(mockCreateIsolatedWorkspace).not.toHaveBeenCalled();
-    expect(mockDispatchAgent).toHaveBeenCalledWith(
-      definition,
-      expect.any(String),
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
       expect.objectContaining({ cwd: '/my-project' }),
     );
   });
@@ -445,9 +504,7 @@ describe('dispatchTask', () => {
       runId: 'run-001',
       storyFiles: [],
     });
-    expect(mockDispatchAgent).toHaveBeenCalledWith(
-      definition,
-      expect.any(String),
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
       expect.objectContaining({ cwd: '/tmp/codeharness-verify-run-001' }),
     );
     expect(mockWorkspace.cleanup).toHaveBeenCalled();
@@ -494,12 +551,7 @@ describe('dispatchTask', () => {
   });
 
   it('appends checkpoint manually when dispatch returns no sessionId', async () => {
-    mockDispatchAgent.mockResolvedValue({
-      sessionId: '',
-      success: true,
-      durationMs: 100,
-      output: 'ok',
-    });
+    mockDriverDispatch.mockImplementation(() => makeDriverStream('ok', ''));
 
     const task = makeTask();
     const definition = makeDefinition();
@@ -526,7 +578,7 @@ describe('dispatchTask', () => {
       cleanup: vi.fn().mockResolvedValue(undefined),
     };
     mockCreateIsolatedWorkspace.mockResolvedValue(mockWorkspace);
-    mockDispatchAgent.mockRejectedValue(new Error('dispatch failed'));
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(new Error('dispatch failed')));
 
     const task = makeTask({ source_access: false });
     const definition = makeDefinition();
@@ -549,10 +601,10 @@ describe('dispatchTask', () => {
 
     await dispatchTask(task, 'verify', '__run__', definition, state, config);
 
-    expect(mockDispatchAgent).toHaveBeenCalledWith(
-      definition,
-      'Execute task "verify" for the current run.',
-      expect.any(Object),
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: 'Execute task "verify" for the current run.',
+      }),
     );
   });
 });
@@ -565,12 +617,10 @@ describe('executeWorkflow', () => {
 
   it('executes flow steps sequentially in order (AC #2)', async () => {
     const callOrder: string[] = [];
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        callOrder.push(prompt);
-        return { sessionId: 'sess-1', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      callOrder.push(opts.prompt);
+      return makeDriverStream('ok', 'sess-1');
+    });
 
     // Two stories, flow: [implement, verify]
     mockParse.mockReturnValue({
@@ -609,7 +659,7 @@ describe('executeWorkflow', () => {
 
     const result = await executeWorkflow(config);
 
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.tasksCompleted).toBe(2);
     expect(result.storiesProcessed).toBe(2);
   });
@@ -631,7 +681,7 @@ describe('executeWorkflow', () => {
 
     const result = await executeWorkflow(config);
 
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
   });
 
@@ -657,23 +707,16 @@ describe('executeWorkflow', () => {
 
   it('executes loop blocks instead of skipping them', async () => {
     // Loop with retry (per-story) + verify (per-run) — verify returns pass on first try
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        if (prompt.includes('Execute task')) {
-          return {
-            sessionId: 'sess-v',
-            success: true,
-            durationMs: 100,
-            output: JSON.stringify({
-              verdict: 'pass',
-              score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-              findings: [],
-            }),
-          };
-        }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        return makeDriverStream(JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+          findings: [],
+        }), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -692,15 +735,15 @@ describe('executeWorkflow', () => {
     const result = await executeWorkflow(config);
 
     // Should have dispatched: retry for 1 story + verify once
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.tasksCompleted).toBe(2);
   });
 
   it('handles DispatchError and records in result (AC #13)', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
-    mockDispatchAgent.mockRejectedValue(
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(
       new DispatchError('rate limited', 'UNKNOWN', 'dev', new Error('inner')),
-    );
+    ));
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -724,9 +767,9 @@ describe('executeWorkflow', () => {
 
   it('halts on RATE_LIMIT dispatch errors (AC #13)', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
-    mockDispatchAgent.mockRejectedValue(
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(
       new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner')),
-    );
+    ));
 
     mockParse.mockReturnValue({
       development_status: {
@@ -746,19 +789,19 @@ describe('executeWorkflow', () => {
 
     expect(result.success).toBe(false);
     // Should halt after first error — only one dispatch attempted
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.errors).toHaveLength(1);
   });
 
   it('continues on UNKNOWN errors for per-story tasks (AC #13)', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
     let callCount = 0;
-    mockDispatchAgent.mockImplementation(async () => {
+    mockDriverDispatch.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
-        throw new DispatchError('unknown error', 'UNKNOWN', 'dev', new Error('inner'));
+        return makeDriverStreamError(new DispatchError('unknown error', 'UNKNOWN', 'dev', new Error('inner')));
       }
-      return { sessionId: 'sess-1', success: true, durationMs: 100, output: 'ok' };
+      return makeDriverStream('ok', 'sess-1');
     });
 
     mockParse.mockReturnValue({
@@ -778,16 +821,16 @@ describe('executeWorkflow', () => {
     const result = await executeWorkflow(config);
 
     // Both stories attempted
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.errors).toHaveLength(1);
     expect(result.tasksCompleted).toBe(1);
   });
 
   it('sets phase to error on dispatch failure', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
-    mockDispatchAgent.mockRejectedValue(
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(
       new DispatchError('fail', 'UNKNOWN', 'dev', new Error('inner')),
-    );
+    ));
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -964,9 +1007,9 @@ describe('executeWorkflow', () => {
 
   it('records error checkpoint in state on dispatch failure (AC #13)', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
-    mockDispatchAgent.mockRejectedValue(
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(
       new DispatchError('fail', 'UNKNOWN', 'dev', new Error('inner')),
-    );
+    ));
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -996,9 +1039,9 @@ describe('executeWorkflow', () => {
 
   it('halts per-story RATE_LIMIT errors across flow steps (not just inner loop)', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
-    mockDispatchAgent.mockRejectedValue(
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(
       new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner')),
-    );
+    ));
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1018,13 +1061,13 @@ describe('executeWorkflow', () => {
 
     expect(result.success).toBe(false);
     // Should halt after implement fails — verify should NOT run
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].taskName).toBe('implement');
   });
 
   it('handles non-DispatchError exceptions in dispatch', async () => {
-    mockDispatchAgent.mockRejectedValue('string error');
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError('string error'));
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1062,15 +1105,15 @@ describe('executeWorkflow', () => {
       expect.stringContaining('task "nonexistent-task" not found'),
     );
     // implement should still run
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.success).toBe(true);
   });
 
   it('halts on NETWORK dispatch errors for per-run tasks', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
-    mockDispatchAgent.mockRejectedValue(
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(
       new DispatchError('network fail', 'NETWORK', 'dev', new Error('inner')),
-    );
+    ));
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1090,7 +1133,7 @@ describe('executeWorkflow', () => {
 
     expect(result.success).toBe(false);
     // Should halt after verify fails — implement never runs
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -1310,14 +1353,12 @@ describe('loop block execution', () => {
   }
 
   it('terminates loop when verdict is pass (AC #2)', async () => {
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        if (prompt.includes('Execute task')) {
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
-        }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        return makeDriverStream(makePassVerdict(), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1342,15 +1383,13 @@ describe('loop block execution', () => {
   it('terminates loop when maxIterations reached (AC #3)', async () => {
     // Verify always fails but with increasing passed count to avoid circuit breaker
     let iterCount = 0;
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        if (prompt.includes('Execute task')) {
-          iterCount++;
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeProgressingFailVerdict(iterCount) };
-        }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        iterCount++;
+        return makeDriverStream(makeProgressingFailVerdict(iterCount), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1371,7 +1410,7 @@ describe('loop block execution', () => {
 
     expect(result.success).toBe(false);
     // 3 iterations × 2 tasks per iteration = 6
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(6);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(6);
 
     // State should have phase=max-iterations
     const lastWriteCall = mockWriteWorkflowState.mock.calls[mockWriteWorkflowState.mock.calls.length - 1];
@@ -1381,16 +1420,14 @@ describe('loop block execution', () => {
 
   it('terminates loop when evaluateProgress detects stagnation (AC #4)', async () => {
     let dispatchCount = 0;
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        dispatchCount++;
-        if (prompt.includes('Execute task')) {
-          // Return the same fail verdict every time → stagnation (passed=1 each iteration)
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
-        }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      dispatchCount++;
+      if (opts.prompt.includes('Execute task')) {
+        // Return the same fail verdict every time → stagnation (passed=1 each iteration)
+        return makeDriverStream(makeFailVerdict(), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     // Track the state written by the engine to verify circuit breaker fields
     let lastWrittenState: WorkflowState | null = null;
@@ -1430,21 +1467,19 @@ describe('loop block execution', () => {
     const dispatches: string[] = [];
     let callCount = 0;
 
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        callCount++;
-        dispatches.push(prompt);
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      callCount++;
+      dispatches.push(opts.prompt);
 
-        if (prompt.includes('Execute task')) {
-          // First verify: fail, second verify: pass
-          if (callCount <= 2) {
-            return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
-          }
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+      if (opts.prompt.includes('Execute task')) {
+        // First verify: fail, second verify: pass
+        if (callCount <= 2) {
+          return makeDriverStream(makeFailVerdict(), 'sess-v');
         }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+        return makeDriverStream(makePassVerdict(), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1470,14 +1505,12 @@ describe('loop block execution', () => {
   });
 
   it('parses verdict from DispatchResult.output (AC #6)', async () => {
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        if (prompt.includes('Execute task')) {
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
-        }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        return makeDriverStream(makePassVerdict(), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1504,15 +1537,13 @@ describe('loop block execution', () => {
   });
 
   it('records all-UNKNOWN score when verdict parsing fails (AC #6)', async () => {
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        if (prompt.includes('Execute task')) {
-          // Return non-JSON output
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: 'not a json verdict' };
-        }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        // Return non-JSON output
+        return makeDriverStream('not a json verdict', 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: {
@@ -1547,20 +1578,18 @@ describe('loop block execution', () => {
   it('increments iteration and persists each loop pass (AC #7)', async () => {
     let callCount = 0;
     let evalCount = 0;
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        callCount++;
-        if (prompt.includes('Execute task')) {
-          evalCount++;
-          // Fail twice with increasing passed count (avoid circuit breaker), pass on third
-          if (callCount <= 4) { // calls 1-2 = iter1 (retry+verify), calls 3-4 = iter2
-            return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeProgressingFailVerdict(evalCount) };
-          }
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      callCount++;
+      if (opts.prompt.includes('Execute task')) {
+        evalCount++;
+        // Fail twice with increasing passed count (avoid circuit breaker), pass on third
+        if (callCount <= 4) { // calls 1-2 = iter1 (retry+verify), calls 3-4 = iter2
+          return makeDriverStream(makeProgressingFailVerdict(evalCount), 'sess-v');
         }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+        return makeDriverStream(makePassVerdict(), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1591,9 +1620,9 @@ describe('loop block execution', () => {
 
   it('halt error (RATE_LIMIT) terminates loop immediately (AC #8)', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
-    mockDispatchAgent.mockRejectedValue(
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(
       new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner')),
-    );
+    ));
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1615,7 +1644,7 @@ describe('loop block execution', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].code).toBe('RATE_LIMIT');
     // Only one dispatch attempted before halt
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
   });
 
   it('empty loop block terminates immediately', async () => {
@@ -1635,21 +1664,19 @@ describe('loop block execution', () => {
     const result = await executeWorkflow(config);
 
     expect(result.success).toBe(true);
-    expect(mockDispatchAgent).not.toHaveBeenCalled();
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
   });
 
   it('uses default maxIterations of 5 when not specified', async () => {
     let evalCount = 0;
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        if (prompt.includes('Execute task')) {
-          evalCount++;
-          // Increasing passed count to avoid circuit breaker stagnation detection
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeProgressingFailVerdict(evalCount) };
-        }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        evalCount++;
+        // Increasing passed count to avoid circuit breaker stagnation detection
+        return makeDriverStream(makeProgressingFailVerdict(evalCount), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1670,24 +1697,22 @@ describe('loop block execution', () => {
 
     expect(result.success).toBe(false);
     // 5 iterations × 2 dispatches = 10
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(10);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(10);
   });
 
   it('records multiple evaluator scores across iterations', async () => {
     let callCount = 0;
-    mockDispatchAgent.mockImplementation(
-      async (_def: SubagentDefinition, prompt: string) => {
-        callCount++;
-        if (prompt.includes('Execute task')) {
-          // Fail first, pass second
-          if (callCount <= 2) {
-            return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
-          }
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      callCount++;
+      if (opts.prompt.includes('Execute task')) {
+        // Fail first, pass second
+        if (callCount <= 2) {
+          return makeDriverStream(makeFailVerdict(), 'sess-v');
         }
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
-      },
-    );
+        return makeDriverStream(makePassVerdict(), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
 
     mockParse.mockReturnValue({
       development_status: { '3-1-foo': 'ready-for-dev' },
@@ -1720,14 +1745,14 @@ describe('loop block execution', () => {
     const { DispatchError } = await import('../agent-dispatch.js');
 
     let callCount = 0;
-    mockDispatchAgent.mockImplementation(async () => {
+    mockDriverDispatch.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
         // retry succeeds
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+        return makeDriverStream('ok', 'sess-r');
       }
       // verify throws RATE_LIMIT
-      throw new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner'));
+      return makeDriverStreamError(new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner')));
     });
 
     mockParse.mockReturnValue({
@@ -1756,27 +1781,27 @@ describe('loop block execution', () => {
     const { DispatchError } = await import('../agent-dispatch.js');
     let callCount = 0;
 
-    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
+    mockDriverDispatch.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
         // First retry succeeds (iteration 1)
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+        return makeDriverStream('ok', 'sess-r');
       }
       if (callCount === 2) {
         // First verify throws non-halt UNKNOWN error (iteration 1)
-        throw new DispatchError('unknown err', 'UNKNOWN', 'dev', new Error('inner'));
+        return makeDriverStreamError(new DispatchError('unknown err', 'UNKNOWN', 'dev', new Error('inner')));
       }
       if (callCount === 3) {
         // Verify re-dispatched (iteration 1 — error checkpoint doesn't count as completion,
         // so the loop stays on iteration 1 and re-dispatches verify)
-        return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+        return makeDriverStream(makeFailVerdict(), 'sess-v');
       }
       if (callCount === 4) {
         // Second retry (iteration 2 — all items retried since stale verdict cleared)
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+        return makeDriverStream('ok', 'sess-r');
       }
       // Second verify passes (iteration 2)
-      return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+      return makeDriverStream(makePassVerdict(), 'sess-v');
     });
 
     mockParse.mockReturnValue({
@@ -1799,24 +1824,24 @@ describe('loop block execution', () => {
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].code).toBe('UNKNOWN');
     // 5 dispatches: retry1 + verify1(error) + verify1-retry(ok) + retry2 + verify2(pass)
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(5);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(5);
   });
 
   it('non-halt per-run error records error and continues to next iteration', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
     let callCount = 0;
 
-    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       callCount++;
-      if (prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Execute task')) {
         if (callCount <= 2) {
           // First verify: non-halt error
-          throw new DispatchError('bad response', 'UNKNOWN', 'dev', new Error('inner'));
+          return makeDriverStreamError(new DispatchError('bad response', 'UNKNOWN', 'dev', new Error('inner')));
         }
         // Second verify: pass
-        return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
+        return makeDriverStream(makePassVerdict(), 'sess-v');
       }
-      return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      return makeDriverStream('ok', 'sess-r');
     });
 
     mockParse.mockReturnValue({
@@ -1944,7 +1969,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // Only 5-2-bar should have been dispatched (5-1-foo skipped)
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
     // warn should have been called for the skip
     expect(mockWarn).toHaveBeenCalledWith(
@@ -1966,7 +1991,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // Both 5-1-foo and 5-2-bar should be dispatched
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.tasksCompleted).toBe(2);
   });
 
@@ -1991,7 +2016,7 @@ describe('crash recovery & resume', () => {
 
     const result = await executeWorkflow(config);
 
-    expect(mockDispatchAgent).not.toHaveBeenCalled();
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
     expect(result.tasksCompleted).toBe(0);
     expect(mockWarn).toHaveBeenCalledWith(
       'workflow-engine: skipping completed task verify for __run__',
@@ -2032,7 +2057,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // Only 2 dispatches for 5-4-d and 5-5-e
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.tasksCompleted).toBe(2);
   });
 
@@ -2062,7 +2087,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // Only 1 dispatch for verify (implement skipped for both stories)
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
   });
 
@@ -2083,7 +2108,7 @@ describe('crash recovery & resume', () => {
     expect(result.errors).toEqual([]);
     expect(result.durationMs).toBe(0);
     // Should not dispatch anything or write state
-    expect(mockDispatchAgent).not.toHaveBeenCalled();
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
     expect(mockWriteWorkflowState).not.toHaveBeenCalled();
   });
 
@@ -2116,7 +2141,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // implement skipped, verify dispatched
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
   });
 
@@ -2135,7 +2160,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // Should execute all tasks from scratch
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.tasksCompleted).toBe(2);
   });
 
@@ -2155,7 +2180,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // 2 per-story + 1 per-run = 3 dispatches
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(3);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(3);
     expect(result.tasksCompleted).toBe(3);
   });
 
@@ -2215,20 +2240,15 @@ describe('crash recovery & resume', () => {
     });
 
     // verify returns pass so loop terminates
-    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
-      if (prompt.includes('Execute task')) {
-        return {
-          sessionId: 'sess-v',
-          success: true,
-          durationMs: 100,
-          output: JSON.stringify({
-            verdict: 'pass',
-            score: { passed: 2, failed: 0, unknown: 0, total: 2 },
-            findings: [],
-          }),
-        };
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        return makeDriverStream(JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+          findings: [],
+        }), 'sess-v');
       }
-      return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      return makeDriverStream('ok', 'sess-r');
     });
 
     const config = makeConfig({
@@ -2244,7 +2264,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // Only verify should be dispatched (retry already done for iteration 2)
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
     // retry should have been skipped
     expect(mockWarn).toHaveBeenCalledWith(
@@ -2274,20 +2294,15 @@ describe('crash recovery & resume', () => {
     });
 
     // Pass on next verify
-    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
-      if (prompt.includes('Execute task')) {
-        return {
-          sessionId: 'sess-v',
-          success: true,
-          durationMs: 100,
-          output: JSON.stringify({
-            verdict: 'pass',
-            score: { passed: 2, failed: 0, unknown: 0, total: 2 },
-            findings: [],
-          }),
-        };
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        return makeDriverStream(JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+          findings: [],
+        }), 'sess-v');
       }
-      return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      return makeDriverStream('ok', 'sess-r');
     });
 
     const config = makeConfig({
@@ -2344,7 +2359,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // Both stories should be dispatched (error checkpoint should not skip 5-1-foo)
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.tasksCompleted).toBe(2);
   });
 
@@ -2393,7 +2408,7 @@ describe('crash recovery & resume', () => {
 
     // 5-1-foo was successfully completed (no error flag), so it should be skipped.
     // Only 5-2-bar should be dispatched.
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(1);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
   });
 
@@ -2401,25 +2416,22 @@ describe('crash recovery & resume', () => {
     const { DispatchError } = await import('../agent-dispatch.js');
     let callCount = 0;
 
-    mockDispatchAgent.mockImplementation(async () => {
+    mockDriverDispatch.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
         // First per-story dispatch: non-halt error
-        throw new DispatchError('bad', 'UNKNOWN', 'dev', new Error('inner'));
+        return makeDriverStreamError(new DispatchError('bad', 'UNKNOWN', 'dev', new Error('inner')));
       }
       if (callCount === 2) {
         // Second per-story dispatch succeeds
-        return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+        return makeDriverStream('ok', 'sess-r');
       }
       // Verify passes
-      return {
-        sessionId: 'sess-v', success: true, durationMs: 100,
-        output: JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 2, failed: 0, unknown: 0, total: 2 },
-          findings: [],
-        }),
-      };
+      return makeDriverStream(JSON.stringify({
+        verdict: 'pass',
+        score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+        findings: [],
+      }), 'sess-v');
     });
 
     mockParse.mockReturnValue({
@@ -2442,7 +2454,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // 3 dispatches: retry(3-1-foo, error) + retry(3-2-bar, ok) + verify(pass)
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(3);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(3);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0].storyKey).toBe('3-1-foo');
   });
@@ -2469,18 +2481,15 @@ describe('crash recovery & resume', () => {
       development_status: { '3-1-foo': 'ready-for-dev' },
     });
 
-    mockDispatchAgent.mockImplementation(async (_def: SubagentDefinition, prompt: string) => {
-      if (prompt.includes('Execute task')) {
-        return {
-          sessionId: 'sess-v', success: true, durationMs: 100,
-          output: JSON.stringify({
-            verdict: 'pass',
-            score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-            findings: [],
-          }),
-        };
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        return makeDriverStream(JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+          findings: [],
+        }), 'sess-v');
       }
-      return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
+      return makeDriverStream('ok', 'sess-r');
     });
 
     const config = makeConfig({
@@ -2496,7 +2505,7 @@ describe('crash recovery & resume', () => {
     const result = await executeWorkflow(config);
 
     // Should advance to iteration 2, dispatch retry + verify
-    expect(mockDispatchAgent).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.tasksCompleted).toBe(2);
   });
 
@@ -2506,15 +2515,12 @@ describe('crash recovery & resume', () => {
     });
 
     // verify task uses 'evaluator' agent which is NOT in config.agents
-    mockDispatchAgent.mockImplementation(async () => {
-      return {
-        sessionId: 'sess-v', success: true, durationMs: 100,
-        output: JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-          findings: [],
-        }),
-      };
+    mockDriverDispatch.mockImplementation(() => {
+      return makeDriverStream(JSON.stringify({
+        verdict: 'pass',
+        score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+        findings: [],
+      }), 'sess-v');
     });
 
     const config = makeConfig({
@@ -2538,5 +2544,388 @@ describe('crash recovery & resume', () => {
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining('agent "evaluator" not found'),
     );
+  });
+});
+
+// --- Driver Integration Tests (Story 10-5) ---
+
+describe('driver integration (story 10-5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it('calls getDriver with "claude-code" when task has no driver field (AC #1, #2)', async () => {
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockGetDriver).toHaveBeenCalledWith('claude-code');
+  });
+
+  it('calls getDriver with task.driver when present (forward-compat)', async () => {
+    const task = { ...makeTask(), driver: 'opencode' } as ResolvedTask & { driver: string };
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockGetDriver).toHaveBeenCalledWith('opencode');
+  });
+
+  it('calls driver.dispatch() with properly constructed DispatchOpts (AC #7)', async () => {
+    const task = makeTask({ source_access: true });
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig({ projectDir: '/my-project' });
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: 'Implement story 5-1-foo',
+        model: 'claude-sonnet-4-20250514',
+        cwd: '/my-project',
+        sourceAccess: true,
+      }),
+    );
+  });
+
+  it('calls resolveModel with (task, agentModelSource, driver) (AC #4)', async () => {
+    const task = makeTask();
+    const definition = makeDefinition({ model: 'claude-haiku-35' });
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockResolveModel).toHaveBeenCalledWith(
+      task,
+      { model: 'claude-haiku-35' },
+      expect.objectContaining({ name: 'claude-code', defaultModel: 'claude-sonnet-4-20250514' }),
+    );
+  });
+
+  it('consumes AsyncIterable<StreamEvent> and extracts result data (AC #3)', async () => {
+    mockDriverDispatch.mockImplementation(() => {
+      return (async function* () {
+        yield { type: 'text', text: 'Hello ' };
+        yield { type: 'text', text: 'World' };
+        yield { type: 'result', cost: 0.12, sessionId: 'sess-driver-1' };
+      })();
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    // Session ID was extracted from result event and recorded
+    expect(mockRecordSessionId).toHaveBeenCalledWith(
+      { taskName: 'implement', storyKey: '5-1-foo' },
+      'sess-driver-1',
+      state,
+    );
+  });
+
+  it('maps error result events to DispatchError (AC #5)', async () => {
+    mockDriverDispatch.mockImplementation(() => {
+      return (async function* () {
+        yield { type: 'text', text: 'partial output' };
+        yield {
+          type: 'result',
+          cost: 0,
+          sessionId: 'sess-err',
+          error: 'Rate limit exceeded',
+          errorCategory: 'RATE_LIMIT',
+        };
+      })();
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await expect(
+      dispatchTask(task, 'implement', '5-1-foo', definition, state, config),
+    ).rejects.toThrow('Rate limit exceeded');
+
+    // Error should be a DispatchError with RATE_LIMIT code
+    try {
+      await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+    } catch (err: unknown) {
+      expect((err as { code: string }).code).toBe('RATE_LIMIT');
+    }
+  });
+
+  it('maps AUTH/TIMEOUT errorCategory to UNKNOWN DispatchErrorCode (AC #5)', async () => {
+    mockDriverDispatch.mockImplementation(() => {
+      return (async function* () {
+        yield {
+          type: 'result',
+          cost: 0,
+          sessionId: 'sess-err',
+          error: 'Authentication failed',
+          errorCategory: 'AUTH',
+        };
+      })();
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    try {
+      await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+      expect.unreachable('Should have thrown');
+    } catch (err: unknown) {
+      // AUTH maps to UNKNOWN since DispatchErrorCode doesn't have AUTH
+      expect((err as { code: string }).code).toBe('UNKNOWN');
+    }
+  });
+
+  it('maps SDK_INIT errorCategory to SDK_INIT DispatchErrorCode (halt-critical)', async () => {
+    mockDriverDispatch.mockImplementation(() => {
+      return (async function* () {
+        yield {
+          type: 'result',
+          cost: 0,
+          sessionId: 'sess-err',
+          error: 'Binary not found',
+          errorCategory: 'SDK_INIT',
+        };
+      })();
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    try {
+      await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+      expect.unreachable('Should have thrown');
+    } catch (err: unknown) {
+      expect((err as { code: string }).code).toBe('SDK_INIT');
+    }
+  });
+
+  it('passes sessionId through DispatchOpts when resolved', async () => {
+    mockResolveSessionId.mockReturnValue('prev-session-123');
+
+    const task = makeTask({ session: 'continue' });
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'prev-session-123',
+      }),
+    );
+  });
+
+  it('does not include sessionId in DispatchOpts when not resolved', async () => {
+    mockResolveSessionId.mockReturnValue(undefined);
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const callArgs = mockDriverDispatch.mock.calls[0][0] as Record<string, unknown>;
+    expect(callArgs.sessionId).toBeUndefined();
+  });
+
+  it('passes appendSystemPrompt through DispatchOpts with trace prompt', async () => {
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        appendSystemPrompt: '[TRACE] trace_id=ch-run-001-0-implement',
+      }),
+    );
+  });
+
+  it('passes timeout from task.max_budget_usd through DispatchOpts.timeout (AC #6)', async () => {
+    const task = makeTask({ max_budget_usd: 5.0 });
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        timeout: 5.0,
+      }),
+    );
+  });
+
+  it('does not include timeout when max_budget_usd is not set (AC #6)', async () => {
+    const task = makeTask(); // no max_budget_usd
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const callArgs = mockDriverDispatch.mock.calls[0][0] as Record<string, unknown>;
+    expect(callArgs.timeout).toBeUndefined();
+  });
+
+  it('passes sourceAccess=false when task.source_access is false (AC #7)', async () => {
+    const mockWorkspace = {
+      dir: '/tmp/codeharness-verify-run-001',
+      storyFilesDir: '/tmp/codeharness-verify-run-001/story-files',
+      verdictDir: '/tmp/codeharness-verify-run-001/verdict',
+      toDispatchOptions: () => ({ cwd: '/tmp/codeharness-verify-run-001' }),
+      cleanup: vi.fn().mockResolvedValue(undefined),
+    };
+    mockCreateIsolatedWorkspace.mockResolvedValue(mockWorkspace);
+
+    const task = makeTask({ source_access: false });
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'verify', '__run__', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sourceAccess: false,
+        cwd: '/tmp/codeharness-verify-run-001',
+      }),
+    );
+  });
+
+  it('does not import or call dispatchAgent (AC #8)', async () => {
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    // dispatchAgent should NOT be called — dispatch goes through driver
+    expect(mockDispatchAgent).not.toHaveBeenCalled();
+    // getDriver + driver.dispatch should be used instead
+    expect(mockGetDriver).toHaveBeenCalled();
+    expect(mockDriverDispatch).toHaveBeenCalled();
+  });
+
+  it('loop block dispatches through driver identically to sequential tasks (AC #9)', async () => {
+    const dispatches: string[] = [];
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      dispatches.push(opts.prompt);
+      if (opts.prompt.includes('Execute task')) {
+        return makeDriverStream(JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+          findings: [],
+        }), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Both retry and verify should go through driver.dispatch
+    expect(mockGetDriver).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
+    // Verify prompts are correct
+    expect(dispatches[0]).toBe('Implement story 3-1-foo');
+    expect(dispatches[1]).toBe('Execute task "verify" for the current run.');
+  });
+
+  it('retry prompts from evaluator findings pass through DispatchOpts.prompt (AC #9)', async () => {
+    let callCount = 0;
+    const dispatches: string[] = [];
+
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      callCount++;
+      dispatches.push(opts.prompt);
+      if (opts.prompt.includes('Execute task')) {
+        if (callCount <= 2) {
+          return makeDriverStream(JSON.stringify({
+            verdict: 'fail',
+            score: { passed: 1, failed: 1, unknown: 0, total: 2 },
+            findings: [
+              {
+                ac: 1,
+                description: 'Test suite failed',
+                status: 'fail',
+                evidence: { commands_run: ['npm run build'], output_observed: 'ERR', reasoning: 'Build broken' },
+              },
+              {
+                ac: 2,
+                description: 'Coverage met',
+                status: 'pass',
+                evidence: { commands_run: ['npm run test'], output_observed: 'OK', reasoning: 'Coverage fine' },
+              },
+            ],
+          }), 'sess-v');
+        }
+        return makeDriverStream(JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 2, failed: 0, unknown: 0, total: 2 },
+          findings: [],
+        }), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Second retry prompt should contain findings from the failed verify
+    const secondRetryPrompt = dispatches[2]; // [0]=retry, [1]=verify(fail), [2]=retry(with findings)
+    expect(secondRetryPrompt).toContain('Retry story 3-1-foo');
+    expect(secondRetryPrompt).toContain('AC #1 (FAIL)');
+    expect(secondRetryPrompt).toContain('Test suite failed');
   });
 });

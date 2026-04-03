@@ -89,6 +89,8 @@ export interface DispatchOpts {
   readonly sourceAccess: boolean;
   readonly plugins?: readonly string[];
   readonly timeout?: number;
+  readonly sessionId?: string;
+  readonly appendSystemPrompt?: string;
   readonly outputContract?: OutputContract;
 }
 

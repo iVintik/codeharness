@@ -77,6 +77,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | evaluator.ts | Evaluator module — workspace spawn, SDK-based agent dispatch with timeout, Docker availability check | `dispatchEvaluator`, `EvaluatorOptions`, `EvaluatorResult`, `isDockerAvailable`, `buildUnknownOutput` |
 | verdict-parser.ts | Evaluator verdict JSON schema validation and parsing — PASS-evidence invariant enforcement, typed error reporting | `parseVerdict`, `validateVerdict`, `VerdictParseError`, `EvaluatorVerdict`, `VerdictValidationResult` |
+| circuit-breaker.ts | Score-based circuit breaker — detects evaluator score stagnation and signals halt to prevent token waste on repeated failing iterations | `evaluateProgress`, `CircuitBreakerDecision` |
 
 ## Coverage & Testing
 

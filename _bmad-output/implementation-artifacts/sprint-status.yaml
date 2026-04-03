@@ -46,8 +46,8 @@ development_status:
   6-3-evaluator-prompt-template: done
 
   # Epic 7
-  epic-7: backlog
-  7-1-score-based-circuit-breaker-module: backlog
+  epic-7: in-progress
+  7-1-score-based-circuit-breaker-module: done
   7-2-resume-after-circuit-breaker: backlog
 
   # Epic 8

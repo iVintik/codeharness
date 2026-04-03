@@ -1296,6 +1296,19 @@ describe('loop block execution', () => {
     });
   }
 
+  /**
+   * Make a fail verdict with a custom passed count, used to simulate progress
+   * across iterations so the circuit breaker does not trigger stagnation.
+   */
+  function makeProgressingFailVerdict(passed: number): string {
+    const total = Math.max(passed + 1, 2); // always at least 1 failure
+    return JSON.stringify({
+      verdict: 'fail',
+      score: { passed, failed: total - passed, unknown: 0, total },
+      findings: [],
+    });
+  }
+
   it('terminates loop when verdict is pass (AC #2)', async () => {
     mockDispatchAgent.mockImplementation(
       async (_def: SubagentDefinition, prompt: string) => {
@@ -1327,11 +1340,13 @@ describe('loop block execution', () => {
   });
 
   it('terminates loop when maxIterations reached (AC #3)', async () => {
-    // Verify always fails
+    // Verify always fails but with increasing passed count to avoid circuit breaker
+    let iterCount = 0;
     mockDispatchAgent.mockImplementation(
       async (_def: SubagentDefinition, prompt: string) => {
         if (prompt.includes('Execute task')) {
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+          iterCount++;
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeProgressingFailVerdict(iterCount) };
         }
         return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
       },
@@ -1364,27 +1379,23 @@ describe('loop block execution', () => {
     expect(finalState.phase).toBe('max-iterations');
   });
 
-  it('terminates loop when circuit_breaker.triggered is true (AC #4)', async () => {
+  it('terminates loop when evaluateProgress detects stagnation (AC #4)', async () => {
     let dispatchCount = 0;
     mockDispatchAgent.mockImplementation(
       async (_def: SubagentDefinition, prompt: string) => {
         dispatchCount++;
         if (prompt.includes('Execute task')) {
+          // Return the same fail verdict every time → stagnation (passed=1 each iteration)
           return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
         }
         return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
       },
     );
 
-    // Simulate external circuit breaker trigger: after first iteration completes,
-    // the writeWorkflowState mock mutates the circuit_breaker object on the state.
-    // This works because executeLoopBlock uses shallow spread ({ ...currentState }),
-    // which preserves the circuit_breaker object reference.
+    // Track the state written by the engine to verify circuit breaker fields
+    let lastWrittenState: WorkflowState | null = null;
     mockWriteWorkflowState.mockImplementation((state: WorkflowState) => {
-      if (dispatchCount >= 2) {
-        state.circuit_breaker.triggered = true;
-        state.circuit_breaker.reason = 'score plateau';
-      }
+      lastWrittenState = state;
     });
 
     mockParse.mockReturnValue({
@@ -1404,11 +1415,15 @@ describe('loop block execution', () => {
     const result = await executeWorkflow(config);
 
     expect(result.success).toBe(false);
-    // Should have run only 1 full iteration (2 dispatches) before circuit breaker halts
-    // Second iteration starts: retry dispatches (dispatchCount=3), verify dispatches (dispatchCount=4)
-    // Circuit breaker was triggered after dispatchCount>=2, checked at end of iteration 2
-    // So we expect more than 2 dispatches (at least 2 iterations run before breaker check)
-    expect(dispatchCount).toBeGreaterThanOrEqual(2);
+    // Two full iterations: iter1 (retry+verify), iter2 (retry+verify) → circuit breaker triggers
+    expect(dispatchCount).toBe(4);
+
+    // Verify circuit breaker was set via evaluateProgress, not mock mutation
+    expect(lastWrittenState).not.toBeNull();
+    expect(lastWrittenState!.circuit_breaker.triggered).toBe(true);
+    expect(lastWrittenState!.circuit_breaker.reason).toBe('score-stagnation');
+    expect(lastWrittenState!.circuit_breaker.score_history).toEqual([1, 1]);
+    expect(lastWrittenState!.phase).toBe('circuit-breaker');
   });
 
   it('injects findings into retry prompt for failed stories (AC #5)', async () => {
@@ -1531,13 +1546,15 @@ describe('loop block execution', () => {
 
   it('increments iteration and persists each loop pass (AC #7)', async () => {
     let callCount = 0;
+    let evalCount = 0;
     mockDispatchAgent.mockImplementation(
       async (_def: SubagentDefinition, prompt: string) => {
         callCount++;
         if (prompt.includes('Execute task')) {
-          // Fail twice, pass on third
+          evalCount++;
+          // Fail twice with increasing passed count (avoid circuit breaker), pass on third
           if (callCount <= 4) { // calls 1-2 = iter1 (retry+verify), calls 3-4 = iter2
-            return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+            return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeProgressingFailVerdict(evalCount) };
           }
           return { sessionId: 'sess-v', success: true, durationMs: 100, output: makePassVerdict() };
         }
@@ -1622,10 +1639,13 @@ describe('loop block execution', () => {
   });
 
   it('uses default maxIterations of 5 when not specified', async () => {
+    let evalCount = 0;
     mockDispatchAgent.mockImplementation(
       async (_def: SubagentDefinition, prompt: string) => {
         if (prompt.includes('Execute task')) {
-          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeFailVerdict() };
+          evalCount++;
+          // Increasing passed count to avoid circuit breaker stagnation detection
+          return { sessionId: 'sess-v', success: true, durationMs: 100, output: makeProgressingFailVerdict(evalCount) };
         }
         return { sessionId: 'sess-r', success: true, durationMs: 100, output: 'ok' };
       },

@@ -370,9 +370,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "7-1-score-based-circuit-breaker-module",
+    "currentPhase": "verify",
+    "lastAction": "Starting test-provable verification",
     "acProgress": null
   },
   "actionItems": []

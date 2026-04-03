@@ -16,6 +16,7 @@ import { resolveSessionId, recordSessionId } from './session-manager.js';
 import type { SessionLookupKey } from './session-manager.js';
 import { parseVerdict, VerdictParseError } from './verdict-parser.js';
 import type { EvaluatorVerdict } from './verdict-parser.js';
+import { evaluateProgress } from './circuit-breaker.js';
 
 // Re-export EvaluatorVerdict for downstream consumers that import from workflow-engine
 export type { EvaluatorVerdict } from './verdict-parser.js';
@@ -614,6 +615,20 @@ export async function executeLoopBlock(
             };
           }
           writeWorkflowState(currentState, projectDir);
+
+          // Circuit breaker: evaluate progress after recording score
+          const cbDecision = evaluateProgress(currentState.evaluator_scores);
+          if (cbDecision.halt) {
+            currentState = {
+              ...currentState,
+              circuit_breaker: {
+                triggered: true,
+                reason: cbDecision.reason,
+                score_history: cbDecision.scoreHistory,
+              },
+            };
+            writeWorkflowState(currentState, projectDir);
+          }
         } catch (err: unknown) {
           const engineError = handleDispatchError(err, taskName, PER_RUN_SENTINEL);
           errors.push(engineError);

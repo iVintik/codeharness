@@ -33,6 +33,7 @@ export function registerRunCommand(program: Command): void {
     .option('--max-story-retries <n>', 'Max retries per story before flagging', '10')
     .option('--reset', 'Clear retry counters, flagged stories, and circuit breaker before starting', false)
     .option('--resume', 'Resume from last checkpoint (engine resumes by default)', false)
+    .option('--workflow <name>', 'Workflow name to load (default: "default")')
     .action(async (options, cmd) => {
       const globalOpts = cmd.optsWithGlobals();
       const isJson = !!globalOpts.json;
@@ -100,19 +101,33 @@ export function registerRunCommand(program: Command): void {
 
       // 4. Resolve workflow (embedded -> user patch -> project patch)
       const projectDir = process.cwd();
+      const workflowName = options.workflow ?? 'default';
+
+      // Validate workflow name: only alphanumeric, hyphens, underscores allowed
+      if (!/^[a-zA-Z0-9_-]+$/.test(workflowName)) {
+        fail(`Invalid workflow name "${workflowName}" — only alphanumeric characters, hyphens, and underscores are allowed`, outputOpts);
+        process.exitCode = 1;
+        return;
+      }
 
       let parsedWorkflow;
       try {
-        parsedWorkflow = resolveWorkflow({ cwd: projectDir });
+        parsedWorkflow = resolveWorkflow({ cwd: projectDir, name: workflowName });
       } catch (err: unknown) {
-        // Fallback: try direct file parsing for backward compatibility
+        // Fallback: try direct file parsing for backward compatibility (only for default)
+        if (workflowName !== 'default') {
+          const msg = err instanceof Error ? err.message : String(err);
+          fail(`Failed to resolve workflow: ${msg}`, outputOpts);
+          process.exitCode = 1;
+          return;
+        }
         const projectWorkflowPath = join(projectDir, '.codeharness', 'workflows', 'default.yaml');
         const templateWorkflowPath = join(projectDir, 'templates', 'workflows', 'default.yaml');
         const workflowPath = existsSync(projectWorkflowPath) ? projectWorkflowPath : templateWorkflowPath;
         try {
           parsedWorkflow = parseWorkflow(workflowPath);
         } catch (fallbackErr: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
+          const msg = fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
           fail(`Failed to resolve workflow: ${msg}`, outputOpts);
           process.exitCode = 1;
           return;

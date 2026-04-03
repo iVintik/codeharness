@@ -595,6 +595,107 @@ describe('run command', () => {
     });
   });
 
+  describe('--workflow option (Story 9.2)', () => {
+    it('passes --workflow name and cwd to resolveWorkflow', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--workflow', 'my-workflow']);
+
+      expect(resolveWorkflowMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'my-workflow', cwd: expect.any(String) }),
+      );
+    });
+
+    it('defaults to "default" when --workflow is not specified', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(resolveWorkflowMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'default' }),
+      );
+    });
+
+    it('exits 1 with clear error when custom workflow not found (no fallback)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      resolveWorkflowMock.mockImplementation(() => {
+        throw new Error('Embedded workflow not found: my-workflow');
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--workflow', 'my-workflow']);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to resolve workflow'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('my-workflow'));
+      expect(process.exitCode).toBe(1);
+      // Should NOT attempt fallback for non-default workflows
+      expect(parseWorkflowMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects workflow names with path traversal characters', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--workflow', '../../../etc/passwd']);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid workflow name'));
+      expect(process.exitCode).toBe(1);
+      expect(resolveWorkflowMock).not.toHaveBeenCalled();
+    });
+
+    it('rejects workflow names with slashes', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--workflow', 'foo/bar']);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid workflow name'));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('rejects workflow names with dots', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--workflow', 'my.workflow']);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Invalid workflow name'));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('accepts valid workflow names with hyphens and underscores', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--workflow', 'my-custom_workflow123']);
+
+      expect(resolveWorkflowMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'my-custom_workflow123' }),
+      );
+    });
+
+    it('still uses fallback for default workflow when resolveWorkflow fails', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      resolveWorkflowMock.mockImplementation(() => { throw new Error('bad YAML'); });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      // Default workflow should try fallback
+      expect(parseWorkflowMock).toHaveBeenCalled();
+    });
+  });
+
   describe('run command registration', () => {
     it('registers the run command with correct options', async () => {
       const { registerRunCommand } = await import('../run.js');
@@ -612,6 +713,7 @@ describe('run command', () => {
       expect(optionNames).toContain('--quiet');
       expect(optionNames).toContain('--max-story-retries');
       expect(optionNames).toContain('--resume');
+      expect(optionNames).toContain('--workflow');
     });
 
     it('--max-story-retries defaults to 10', async () => {

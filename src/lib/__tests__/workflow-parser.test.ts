@@ -744,4 +744,162 @@ flow:
     expect(result.tasks['custom-task']).toBeDefined();
     expect(result.tasks['custom-task'].agent).toBe('custom-agent');
   });
+
+  // --- Story 9.2: Custom Workflow Creation ---
+
+  describe('custom workflow by name (Story 9.2)', () => {
+    it('loads a custom workflow from .codeharness/workflows/{name}.yaml by name', () => {
+      const customDir = join(testDir, '.codeharness', 'workflows');
+      mkdirSync(customDir, { recursive: true });
+
+      writeFileSync(join(customDir, 'my-workflow.yaml'), `
+tasks:
+  deploy:
+    agent: deployer
+flow:
+  - deploy
+`, 'utf-8');
+
+      const result = resolveWorkflow({ cwd: testDir, name: 'my-workflow' });
+      expect(result.tasks.deploy).toBeDefined();
+      expect(result.tasks.deploy.agent).toBe('deployer');
+      expect(result.flow).toEqual(['deploy']);
+    });
+
+    it('custom workflow fails schema validation — throws WorkflowParseError', () => {
+      const customDir = join(testDir, '.codeharness', 'workflows');
+      mkdirSync(customDir, { recursive: true });
+
+      // Missing tasks key entirely
+      writeFileSync(join(customDir, 'bad-schema.yaml'), `
+flow:
+  - deploy
+`, 'utf-8');
+
+      expect(() => resolveWorkflow({ cwd: testDir, name: 'bad-schema' })).toThrow(WorkflowParseError);
+      try {
+        resolveWorkflow({ cwd: testDir, name: 'bad-schema' });
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Schema validation failed');
+        expect(pe.errors.length).toBeGreaterThan(0);
+      }
+    });
+
+    it('custom workflow passes schema but has dangling flow refs — throws WorkflowParseError', () => {
+      const customDir = join(testDir, '.codeharness', 'workflows');
+      mkdirSync(customDir, { recursive: true });
+
+      writeFileSync(join(customDir, 'dangling.yaml'), `
+tasks:
+  deploy:
+    agent: deployer
+flow:
+  - deploy
+  - nonexistent
+`, 'utf-8');
+
+      expect(() => resolveWorkflow({ cwd: testDir, name: 'dangling' })).toThrow(WorkflowParseError);
+      try {
+        resolveWorkflow({ cwd: testDir, name: 'dangling' });
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Dangling task references');
+        expect(pe.errors.some((e) => e.message.includes('nonexistent'))).toBe(true);
+      }
+    });
+
+    it('resolveWorkflow({ name: "nonexistent" }) with no matching file throws clear error', () => {
+      expect(() => resolveWorkflow({ cwd: testDir, name: 'nonexistent' })).toThrow(WorkflowParseError);
+      try {
+        resolveWorkflow({ cwd: testDir, name: 'nonexistent' });
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Embedded workflow not found: nonexistent');
+      }
+    });
+
+    it('resolveWorkflow() with no name defaults to "default" — backward-compatible', () => {
+      const result = resolveWorkflow({ cwd: testDir });
+      // Should load embedded default without error
+      expect(result.tasks).toBeDefined();
+      expect(result.tasks.implement).toBeDefined();
+      expect(result.flow.length).toBeGreaterThan(0);
+    });
+
+    it('custom workflow with extends key is NOT treated as full custom (falls to patch resolution)', () => {
+      const customDir = join(testDir, '.codeharness', 'workflows');
+      mkdirSync(customDir, { recursive: true });
+
+      // This has extends, so it should be treated as a patch-like file, not a full custom workflow
+      // Since the name is 'ci' and there is no embedded 'ci' template, this should throw
+      writeFileSync(join(customDir, 'ci.yaml'), `
+extends: embedded://default
+overrides:
+  tasks:
+    implement:
+      session: continue
+`, 'utf-8');
+
+      // With extends, it's not treated as a full custom workflow.
+      // It tries to load embedded 'ci' template which doesn't exist => error
+      expect(() => resolveWorkflow({ cwd: testDir, name: 'ci' })).toThrow(WorkflowParseError);
+      try {
+        resolveWorkflow({ cwd: testDir, name: 'ci' });
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Embedded workflow not found: ci');
+      }
+    });
+
+    it('custom workflow alongside patch file: patch is ignored for full custom workflows', () => {
+      const customDir = join(testDir, '.codeharness', 'workflows');
+      mkdirSync(customDir, { recursive: true });
+
+      // Full custom workflow (no extends)
+      writeFileSync(join(customDir, 'ci.yaml'), `
+tasks:
+  build:
+    agent: builder
+flow:
+  - build
+`, 'utf-8');
+
+      // Patch file that would change agent — should be ignored
+      writeFileSync(join(customDir, 'ci.patch.yaml'), `
+extends: embedded://default
+overrides:
+  tasks:
+    build:
+      agent: patched-builder
+`, 'utf-8');
+
+      const result = resolveWorkflow({ cwd: testDir, name: 'ci' });
+      expect(result.tasks.build.agent).toBe('builder'); // Not patched
+    });
+
+    it('custom workflow with custom agent names resolves agent field correctly', () => {
+      const customDir = join(testDir, '.codeharness', 'workflows');
+      mkdirSync(customDir, { recursive: true });
+
+      writeFileSync(join(customDir, 'multi-agent.yaml'), `
+tasks:
+  build:
+    agent: my-custom-builder
+  test:
+    agent: my-custom-tester
+  deploy:
+    agent: my-custom-deployer
+flow:
+  - build
+  - test
+  - deploy
+`, 'utf-8');
+
+      const result = resolveWorkflow({ cwd: testDir, name: 'multi-agent' });
+      expect(result.tasks.build.agent).toBe('my-custom-builder');
+      expect(result.tasks.test.agent).toBe('my-custom-tester');
+      expect(result.tasks.deploy.agent).toBe('my-custom-deployer');
+    });
+  });
 });

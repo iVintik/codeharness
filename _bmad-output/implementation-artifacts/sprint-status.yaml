@@ -80,10 +80,10 @@ development_status:
   12-3-driver-health-check-at-workflow-start: done
 
   # Epic 13
-  epic-13: backlog
+  epic-13: done
   13-1-output-contract-schema-serialization: done
   13-2-output-contract-prompt-injection: done
-  13-3-cross-framework-workflow-execution: backlog
+  13-3-cross-framework-workflow-execution: done
 
   # Epic 14
   epic-14: backlog

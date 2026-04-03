@@ -20,6 +20,7 @@ const {
   mockResolveModel,
   mockDriverDispatch,
   mockBuildPromptWithContractContext,
+  mockWriteOutputContract,
 } = vi.hoisted(() => ({
   mockDispatchAgent: vi.fn(),
   mockReadWorkflowState: vi.fn(),
@@ -38,6 +39,7 @@ const {
   mockResolveModel: vi.fn(),
   mockDriverDispatch: vi.fn(),
   mockBuildPromptWithContractContext: vi.fn(),
+  mockWriteOutputContract: vi.fn(),
 }));
 
 vi.mock('../agent-dispatch.js', () => ({
@@ -100,6 +102,7 @@ vi.mock('../output.js', () => ({
 
 vi.mock('../agents/output-contract.js', () => ({
   buildPromptWithContractContext: mockBuildPromptWithContractContext,
+  writeOutputContract: mockWriteOutputContract,
 }));
 
 vi.mock('node:fs', () => ({
@@ -132,6 +135,7 @@ import type {
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
+import type { OutputContract } from '../agents/types.js';
 
 // --- Helpers ---
 
@@ -222,6 +226,9 @@ function setupDefaultMocks() {
 
   // By default, pass through the base prompt unchanged (no contract injection)
   mockBuildPromptWithContractContext.mockImplementation((basePrompt: string) => basePrompt);
+
+  // By default, writeOutputContract succeeds silently
+  mockWriteOutputContract.mockImplementation(() => {});
 
   mockGenerateTraceId.mockReturnValue('ch-run-001-0-implement');
   mockFormatTracePrompt.mockReturnValue('[TRACE] trace_id=ch-run-001-0-implement');
@@ -2988,5 +2995,477 @@ describe('driver integration (story 10-5)', () => {
     expect(secondRetryPrompt).toContain('Retry story 3-1-foo');
     expect(secondRetryPrompt).toContain('AC #1 (FAIL)');
     expect(secondRetryPrompt).toContain('Test suite failed');
+  });
+});
+
+// --- Story 13-3: Cross-Framework Workflow Execution ---
+
+describe('output contract writing (story 13-3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  /**
+   * Helper: create a driver stream that includes tool events for Write/Edit.
+   */
+  function makeDriverStreamWithTools(output: string, sessionId: string, tools?: Array<{ name: string; input: string }>) {
+    return (async function* () {
+      if (tools) {
+        for (const tool of tools) {
+          yield { type: 'tool-start' as const, name: tool.name, id: `tool-${tool.name}` };
+          yield { type: 'tool-input' as const, partial: tool.input };
+          yield { type: 'tool-complete' as const };
+        }
+      }
+      if (output) {
+        yield { type: 'text' as const, text: output };
+      }
+      yield {
+        type: 'result' as const,
+        cost: 0.05,
+        sessionId,
+      };
+    })();
+  }
+
+  it('dispatchTaskWithResult writes output contract to .codeharness/contracts/ (AC #1)', async () => {
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockWriteOutputContract).toHaveBeenCalledTimes(1);
+    const [contract, contractDir] = mockWriteOutputContract.mock.calls[0] as [OutputContract, string];
+    expect(contractDir).toBe('/project/.codeharness/contracts');
+    expect(contract.taskName).toBe('implement');
+    expect(contract.storyId).toBe('5-1-foo');
+    expect(contract.version).toBe(1);
+    expect(contract.driver).toBe('claude-code');
+    expect(contract.model).toBe('claude-sonnet-4-20250514');
+  });
+
+  it('contract output field contains accumulated text events (AC #5)', async () => {
+    mockDriverDispatch.mockImplementation(() => {
+      return (async function* () {
+        yield { type: 'text', text: 'Hello ' };
+        yield { type: 'text', text: 'World' };
+        yield { type: 'result', cost: 0.10, sessionId: 'sess-1' };
+      })();
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.output).toBe('Hello World');
+  });
+
+  it('contract cost_usd is populated from result event cost (AC #5)', async () => {
+    mockDriverDispatch.mockImplementation(() => {
+      return (async function* () {
+        yield { type: 'text', text: 'ok' };
+        yield { type: 'result', cost: 0.42, sessionId: 'sess-1' };
+      })();
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.cost_usd).toBe(0.42);
+  });
+
+  it('contract cost_usd is null when cost is 0 (AC #5)', async () => {
+    mockDriverDispatch.mockImplementation(() => {
+      return (async function* () {
+        yield { type: 'result', cost: 0, sessionId: 'sess-1' };
+      })();
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.cost_usd).toBeNull();
+  });
+
+  it('contract changedFiles is populated from tool-complete events for Write/Edit (AC #5)', async () => {
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamWithTools('done', 'sess-1', [
+      { name: 'Write', input: '{"file_path": "/src/foo.ts"}' },
+      { name: 'Edit', input: '{"file_path": "/src/bar.ts"}' },
+      { name: 'Read', input: '{"file_path": "/src/baz.ts"}' }, // not a write tool
+    ]));
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.changedFiles).toEqual(['/src/foo.ts', '/src/bar.ts']);
+  });
+
+  it('contract testResults is null and acceptanceCriteria is empty (AC #5)', async () => {
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.testResults).toBeNull();
+    expect(contract.acceptanceCriteria).toEqual([]);
+  });
+
+  it('contract duration_ms is populated (AC #1, #5)', async () => {
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(typeof contract.duration_ms).toBe('number');
+    expect(contract.duration_ms).toBeGreaterThanOrEqual(0);
+  });
+
+  it('write failure is caught and logged, contract is null (AC #8)', async () => {
+    mockWriteOutputContract.mockImplementation(() => {
+      throw new Error('disk full');
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    // Should not throw
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('failed to write output contract'),
+    );
+  });
+
+  it('sequential flow passes contract from task N to task N+1 via previousOutputContract (AC #2, #3)', async () => {
+    // Track calls to buildPromptWithContractContext
+    const contractCalls: Array<OutputContract | null> = [];
+    mockBuildPromptWithContractContext.mockImplementation((basePrompt: string, contract: OutputContract | null) => {
+      contractCalls.push(contract);
+      return basePrompt;
+    });
+
+    mockParse.mockReturnValue({
+      development_status: {
+        '3-1-foo': 'ready-for-dev',
+      },
+    });
+
+    // Flow: [create-story, implement] — both per-story
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          'create-story': makeTask({ scope: 'per-story' }),
+          implement: makeTask({ scope: 'per-story' }),
+        },
+        flow: ['create-story', 'implement'],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // First task (create-story) gets null contract
+    expect(contractCalls[0]).toBeNull();
+    // Second task (implement) gets the contract from create-story
+    expect(contractCalls[1]).not.toBeNull();
+    expect(contractCalls[1]?.taskName).toBe('create-story');
+  });
+
+  it('first task in flow gets null as previousOutputContract (AC #6)', async () => {
+    const contractCalls: Array<OutputContract | null> = [];
+    mockBuildPromptWithContractContext.mockImplementation((basePrompt: string, contract: OutputContract | null) => {
+      contractCalls.push(contract);
+      return basePrompt;
+    });
+
+    mockParse.mockReturnValue({
+      development_status: {
+        '3-1-foo': 'ready-for-dev',
+      },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    expect(contractCalls[0]).toBeNull();
+  });
+
+  it('loop block passes contract between tasks within an iteration (AC #4)', async () => {
+    const contractCalls: Array<{ prompt: string; contract: OutputContract | null }> = [];
+    mockBuildPromptWithContractContext.mockImplementation((basePrompt: string, contract: OutputContract | null) => {
+      contractCalls.push({ prompt: basePrompt, contract });
+      return basePrompt;
+    });
+
+    // First verify call: pass verdict so loop exits
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        return makeDriverStream(JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+          findings: [],
+        }), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // retry is first in loop — gets null (or initial contract)
+    // verify should get the contract from retry
+    expect(contractCalls.length).toBeGreaterThanOrEqual(2);
+    // verify's contract should be from retry task
+    const verifyCall = contractCalls.find((c) => c.prompt.includes('Execute task'));
+    expect(verifyCall).toBeDefined();
+    expect(verifyCall!.contract).not.toBeNull();
+    expect(verifyCall!.contract?.taskName).toBe('retry');
+  });
+
+  it('loop block carries contract across iterations (AC #4)', async () => {
+    const contractCalls: Array<{ prompt: string; contract: OutputContract | null }> = [];
+    mockBuildPromptWithContractContext.mockImplementation((basePrompt: string, contract: OutputContract | null) => {
+      contractCalls.push({ prompt: basePrompt, contract });
+      return basePrompt;
+    });
+
+    let verifyCallCount = 0;
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Execute task')) {
+        verifyCallCount++;
+        if (verifyCallCount === 1) {
+          return makeDriverStream(JSON.stringify({
+            verdict: 'fail',
+            score: { passed: 0, failed: 1, unknown: 0, total: 1 },
+            findings: [{ ac: 1, description: 'Test', status: 'fail', evidence: { commands_run: [], output_observed: '', reasoning: 'failed' } }],
+          }), 'sess-v');
+        }
+        return makeDriverStream(JSON.stringify({
+          verdict: 'pass',
+          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+          findings: [],
+        }), 'sess-v');
+      }
+      return makeDriverStream('ok', 'sess-r');
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          retry: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run', source_access: false }),
+        },
+        flow: [{ loop: ['retry', 'verify'] }],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // Iteration 2, retry task should receive the contract from iteration 1's verify task
+    // Calls: [retry(null), verify(retry-contract), retry(verify-contract), verify(retry2-contract)]
+    expect(contractCalls.length).toBeGreaterThanOrEqual(4);
+    // Third call is iteration 2's retry — should have contract from verify
+    const iter2RetryCall = contractCalls[2];
+    expect(iter2RetryCall.contract).not.toBeNull();
+    expect(iter2RetryCall.contract?.taskName).toBe('verify');
+  });
+
+  it('write failure still allows next task to get null contract (graceful degradation, AC #8)', async () => {
+    mockWriteOutputContract.mockImplementation(() => {
+      throw new Error('disk full');
+    });
+
+    const contractCalls: Array<OutputContract | null> = [];
+    mockBuildPromptWithContractContext.mockImplementation((basePrompt: string, contract: OutputContract | null) => {
+      contractCalls.push(contract);
+      return basePrompt;
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          'create-story': makeTask({ scope: 'per-story' }),
+          implement: makeTask({ scope: 'per-story' }),
+        },
+        flow: ['create-story', 'implement'],
+      },
+    });
+
+    const result = await executeWorkflow(config);
+
+    // Workflow still completes despite contract write failure
+    expect(result.success).toBe(true);
+    // Second task gets null because write failed
+    expect(contractCalls[1]).toBeNull();
+  });
+
+  it('contract directory path uses .codeharness/contracts/ under projectDir (AC #9)', async () => {
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig({ projectDir: '/my-custom-project' });
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [, contractDir] = mockWriteOutputContract.mock.calls[0] as [OutputContract, string];
+    expect(contractDir).toBe('/my-custom-project/.codeharness/contracts');
+  });
+
+  it('changedFiles handles tools with "path" field instead of "file_path"', async () => {
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamWithTools('done', 'sess-1', [
+      { name: 'write_to_file', input: '{"path": "/src/new.ts"}' },
+    ]));
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.changedFiles).toEqual(['/src/new.ts']);
+  });
+
+  it('changedFiles is empty when no Write/Edit tools are used', async () => {
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamWithTools('done', 'sess-1', [
+      { name: 'Read', input: '{"file_path": "/src/foo.ts"}' },
+      { name: 'Bash', input: '{"command": "npm test"}' },
+    ]));
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.changedFiles).toEqual([]);
+  });
+
+  it('changedFiles handles malformed tool input gracefully', async () => {
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamWithTools('done', 'sess-1', [
+      { name: 'Write', input: 'not valid json' },
+    ]));
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.changedFiles).toEqual([]);
+  });
+
+  it('changedFiles deduplicates repeated file paths', async () => {
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamWithTools('done', 'sess-1', [
+      { name: 'Write', input: '{"file_path": "/src/foo.ts"}' },
+      { name: 'Edit', input: '{"file_path": "/src/foo.ts"}' },
+      { name: 'Write', input: '{"file_path": "/src/bar.ts"}' },
+    ]));
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.changedFiles).toEqual(['/src/foo.ts', '/src/bar.ts']);
+  });
+
+  it('3-step sequential flow passes contracts through all steps (AC #3)', async () => {
+    const contractCalls: Array<{ prompt: string; contract: OutputContract | null }> = [];
+    mockBuildPromptWithContractContext.mockImplementation((basePrompt: string, contract: OutputContract | null) => {
+      contractCalls.push({ prompt: basePrompt, contract });
+      return basePrompt;
+    });
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    // Flow: [create-story, implement, verify] — create-story and implement per-story, verify per-run
+    const config = makeConfig({
+      workflow: {
+        tasks: {
+          'create-story': makeTask({ scope: 'per-story' }),
+          implement: makeTask({ scope: 'per-story' }),
+          verify: makeTask({ scope: 'per-run' }),
+        },
+        flow: ['create-story', 'implement', 'verify'],
+      },
+    });
+
+    await executeWorkflow(config);
+
+    // create-story gets null (first task)
+    expect(contractCalls[0].contract).toBeNull();
+    // implement gets contract from create-story
+    expect(contractCalls[1].contract).not.toBeNull();
+    expect(contractCalls[1].contract?.taskName).toBe('create-story');
+    // verify gets contract from implement
+    expect(contractCalls[2].contract).not.toBeNull();
+    expect(contractCalls[2].contract?.taskName).toBe('implement');
   });
 });

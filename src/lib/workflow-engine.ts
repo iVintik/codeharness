@@ -1,4 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { parse } from 'yaml';
 import { warn } from './output.js';
 import { DispatchError } from './agent-dispatch.js';
@@ -7,14 +8,14 @@ import type { DispatchErrorCode } from './agent-dispatch.js';
 import { getDriver } from './agents/drivers/factory.js';
 import { resolveModel } from './agents/model-resolver.js';
 import type { DispatchOpts, DriverHealth, OutputContract } from './agents/types.js';
-import type { ResultEvent } from './agents/stream-parser.js';
+import type { ResultEvent, ToolStartEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
 import type { ResolvedWorkflow, ResolvedTask, FlowStep, LoopBlock } from './workflow-parser.js';
 import {
   readWorkflowState,
   writeWorkflowState,
 } from './workflow-state.js';
-import { buildPromptWithContractContext } from './agents/output-contract.js';
+import { buildPromptWithContractContext, writeOutputContract } from './agents/output-contract.js';
 import type { WorkflowState, TaskCheckpoint } from './workflow-state.js';
 import { createIsolatedWorkspace } from './source-isolation.js';
 import { generateTraceId, formatTracePrompt, recordTraceId } from './trace-id.js';
@@ -257,6 +258,12 @@ export async function dispatchTask(
   return updatedState;
 }
 
+/** Tool names that indicate file write/edit operations across different drivers. */
+const FILE_WRITE_TOOL_NAMES = new Set([
+  'Write', 'Edit', 'write_to_file', 'edit_file',
+  'write', 'edit', 'WriteFile', 'EditFile',
+]);
+
 // --- Flow Step Type Guard ---
 
 function isLoopBlock(step: FlowStep): step is LoopBlock {
@@ -279,7 +286,7 @@ async function dispatchTaskWithResult(
   config: EngineConfig,
   customPrompt?: string,
   previousOutputContract?: OutputContract,
-): Promise<{ updatedState: WorkflowState; output: string }> {
+): Promise<{ updatedState: WorkflowState; output: string; contract: OutputContract | null }> {
   const projectDir = config.projectDir ?? process.cwd();
 
   // 1. Generate trace ID
@@ -338,10 +345,41 @@ async function dispatchTaskWithResult(
   let cost = 0;
   let errorEvent: { error: string; errorCategory?: string } | null = null;
 
+  // Track changed files from tool-start/tool-input/tool-complete events (Task 2)
+  const changedFiles: string[] = [];
+  let activeToolName: string | null = null;
+  let activeToolInput = '';
+
+  // Timing measurement (Task 6)
+  const startMs = Date.now();
+
   try {
     for await (const event of driver.dispatch(dispatchOpts)) {
       if (event.type === 'text') {
         output += event.text;
+      }
+      if (event.type === 'tool-start') {
+        const toolStart = event as ToolStartEvent;
+        activeToolName = toolStart.name;
+        activeToolInput = '';
+      }
+      if (event.type === 'tool-input') {
+        activeToolInput += event.partial;
+      }
+      if (event.type === 'tool-complete') {
+        // Extract file path from Write/Edit tool completions
+        if (activeToolName && FILE_WRITE_TOOL_NAMES.has(activeToolName)) {
+          try {
+            const parsed = JSON.parse(activeToolInput) as Record<string, unknown>;
+            const filePath = (parsed.file_path ?? parsed.path ?? parsed.filePath) as string | undefined;
+            if (filePath && typeof filePath === 'string') {
+              changedFiles.push(filePath);
+            }
+          } catch { // IGNORE: best-effort — tool input may not be valid JSON (partial accumulation)
+          }
+        }
+        activeToolName = null;
+        activeToolInput = '';
       }
       if (event.type === 'result') {
         const resultEvt = event as ResultEvent;
@@ -399,10 +437,35 @@ async function dispatchTaskWithResult(
   // 12. Record trace ID
   updatedState = recordTraceId(traceId, updatedState);
 
+  // 12b. Construct and write output contract (Task 1)
+  const durationMs = Date.now() - startMs;
+  let contract: OutputContract | null = null;
+  try {
+    contract = {
+      version: 1,
+      taskName,
+      storyId: storyKey,
+      driver: driverName,
+      model,
+      timestamp: new Date().toISOString(),
+      cost_usd: cost > 0 ? cost : null,
+      duration_ms: durationMs,
+      changedFiles: [...new Set(changedFiles)],
+      testResults: null,
+      output,
+      acceptanceCriteria: [],
+    };
+    writeOutputContract(contract, join(projectDir, '.codeharness', 'contracts'));
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    warn(`workflow-engine: failed to write output contract for ${taskName}/${storyKey}: ${message}`);
+    contract = null;
+  }
+
   // 13. Write state to disk
   writeWorkflowState(updatedState, projectDir);
 
-  return { updatedState, output };
+  return { updatedState, output, contract };
 }
 
 // --- Retry Prompt Construction (Task 3) ---
@@ -498,6 +561,7 @@ interface LoopBlockResult {
   errors: EngineError[];
   tasksCompleted: number;
   halted: boolean;
+  lastContract: OutputContract | null;
 }
 
 /**
@@ -508,6 +572,7 @@ export async function executeLoopBlock(
   state: WorkflowState,
   config: EngineConfig,
   workItems: WorkItem[],
+  initialContract?: OutputContract | null,
 ): Promise<LoopBlockResult> {
   const projectDir = config.projectDir ?? process.cwd();
   const maxIterations = config.maxIterations ?? DEFAULT_MAX_ITERATIONS;
@@ -515,10 +580,11 @@ export async function executeLoopBlock(
   let tasksCompleted = 0;
   let currentState = state;
   let lastVerdict: EvaluatorVerdict | null = null;
+  let lastOutputContract: OutputContract | null = initialContract ?? null;
 
   // Handle empty loop block
   if (loopBlock.loop.length === 0) {
-    return { state: currentState, errors, tasksCompleted, halted: false };
+    return { state: currentState, errors, tasksCompleted, halted: false, lastContract: lastOutputContract };
   }
 
   while (true) {
@@ -579,9 +645,11 @@ export async function executeLoopBlock(
             : undefined;
 
           try {
-            currentState = await dispatchTask(
-              task, taskName, item.key, definition, currentState, config, prompt,
+            const dispatchResult = await dispatchTaskWithResult(
+              task, taskName, item.key, definition, currentState, config, prompt, lastOutputContract ?? undefined,
             );
+            currentState = dispatchResult.updatedState;
+            lastOutputContract = dispatchResult.contract;
             tasksCompleted++;
           } catch (err: unknown) {
             const engineError = handleDispatchError(err, taskName, item.key);
@@ -608,12 +676,12 @@ export async function executeLoopBlock(
 
         try {
           // We need the dispatch result output to parse verdict
-          // dispatchTask doesn't return the DispatchResult directly, so we
-          // intercept via a wrapper that captures the output
           const dispatchResult = await dispatchTaskWithResult(
             task, taskName, PER_RUN_SENTINEL, definition, currentState, config,
+            undefined, lastOutputContract ?? undefined,
           );
           currentState = dispatchResult.updatedState;
+          lastOutputContract = dispatchResult.contract;
           tasksCompleted++;
 
           // Attempt to parse verdict from output with retry semantics (story 6-2)
@@ -627,8 +695,10 @@ export async function executeLoopBlock(
               try {
                 const retryResult = await dispatchTaskWithResult(
                   task, taskName, PER_RUN_SENTINEL, definition, currentState, config,
+                  undefined, lastOutputContract ?? undefined,
                 );
                 currentState = retryResult.updatedState;
+                lastOutputContract = retryResult.contract;
                 tasksCompleted++;
                 verdict = parseVerdict(retryResult.output);
               } catch { // IGNORE: retry failed — fall back to all-UNKNOWN verdict
@@ -707,25 +777,25 @@ export async function executeLoopBlock(
     }
 
     if (haltedInLoop) {
-      return { state: currentState, errors, tasksCompleted, halted: true };
+      return { state: currentState, errors, tasksCompleted, halted: true, lastContract: lastOutputContract };
     }
 
     // 3. Check termination conditions
     if (lastVerdict?.verdict === 'pass') {
       // Success: loop passes
-      return { state: currentState, errors, tasksCompleted, halted: false };
+      return { state: currentState, errors, tasksCompleted, halted: false, lastContract: lastOutputContract };
     }
 
     if (currentState.iteration >= maxIterations) {
       currentState = { ...currentState, phase: 'max-iterations' };
       writeWorkflowState(currentState, projectDir);
-      return { state: currentState, errors, tasksCompleted, halted: false };
+      return { state: currentState, errors, tasksCompleted, halted: false, lastContract: lastOutputContract };
     }
 
     if (currentState.circuit_breaker.triggered) {
       currentState = { ...currentState, phase: 'circuit-breaker' };
       writeWorkflowState(currentState, projectDir);
-      return { state: currentState, errors, tasksCompleted, halted: false };
+      return { state: currentState, errors, tasksCompleted, halted: false, lastContract: lastOutputContract };
     }
   }
 }
@@ -867,15 +937,17 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
 
   // 3. Iterate through flow steps
   let halted = false;
+  let lastOutputContract: OutputContract | null = null;
   for (const step of config.workflow.flow) {
     if (halted) break;
 
     // Execute loop blocks
     if (isLoopBlock(step)) {
-      const loopResult = await executeLoopBlock(step, state, config, workItems);
+      const loopResult = await executeLoopBlock(step, state, config, workItems, lastOutputContract);
       state = loopResult.state;
       errors.push(...loopResult.errors);
       tasksCompleted += loopResult.tasksCompleted;
+      lastOutputContract = loopResult.lastContract;
 
       // Track processed stories from loop
       for (const item of workItems) {
@@ -918,7 +990,11 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
 
       // Per-run: dispatch once with sentinel key
       try {
-        state = await dispatchTask(task, taskName, PER_RUN_SENTINEL, definition, state, config);
+        const dispatchResult = await dispatchTaskWithResult(
+          task, taskName, PER_RUN_SENTINEL, definition, state, config, undefined, lastOutputContract ?? undefined,
+        );
+        state = dispatchResult.updatedState;
+        lastOutputContract = dispatchResult.contract;
         tasksCompleted++;
       } catch (err: unknown) {
         const engineError = handleDispatchError(err, taskName, PER_RUN_SENTINEL);
@@ -945,7 +1021,11 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
         }
 
         try {
-          state = await dispatchTask(task, taskName, item.key, definition, state, config);
+          const dispatchResult = await dispatchTaskWithResult(
+            task, taskName, item.key, definition, state, config, undefined, lastOutputContract ?? undefined,
+          );
+          state = dispatchResult.updatedState;
+          lastOutputContract = dispatchResult.contract;
           tasksCompleted++;
         } catch (err: unknown) {
           const engineError = handleDispatchError(err, taskName, item.key);

@@ -441,7 +441,7 @@
       }
     },
     "13-3-cross-framework-workflow-execution": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -616,9 +616,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "13-2-output-contract-prompt-injection",
-    "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

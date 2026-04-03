@@ -429,12 +429,16 @@
       }
     },
     "13-2-output-contract-prompt-injection": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T10:38:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/13-2-output-contract-prompt-injection-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "13-3-cross-framework-workflow-execution": {
       "status": "backlog",

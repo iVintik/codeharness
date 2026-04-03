@@ -3943,3 +3943,359 @@ Aggregated from session issues log Token Report sections:
 2. **Fix AGENTS.md auto-generation (action #57)** — highest-impact cost reduction. Saves ~$3-5/session.
 3. **Fix sprint-state.json epic sync (action #53)** — 3+ sessions of incorrect dashboard data.
 4. **Extract shared driver utilities (action #41)** — 5 sessions deferred, now 3 drivers with identical code.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 9, Part 3)
+
+**Timestamp:** 2026-04-03T14:45:00Z
+**Session window:** ~2026-04-03T09:20 to ~2026-04-03T11:15 (approx. 115 minutes)
+**Sprint progress:** 35/46 stories done (76%), Epics 1-13 complete
+
+---
+
+## 1. Session Summary
+
+This session completed 6 stories across Epics 12 and 13, closing both epics. Story 13-3 was the capstone story for Epic 13 (Cross-Framework Workflow Execution), completing the entire multi-framework orchestration feature set.
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 12-2-opencode-driver-implementation | create, dev, review, verify | **Done** | OpenCode driver with fixture-based tests. 4478 tests pass. |
+| 12-3-driver-health-check-at-workflow-start | create, dev, review, verify | **Done** | Health check with timeout, timer leak caught by review. 4488 tests. |
+| 13-1-output-contract-schema-serialization | create, dev, review, verify | **Done** | Path traversal vulnerability caught by review. 4506 tests. |
+| 13-2-output-contract-prompt-injection | create, dev, review, verify | **Done** | Dead code wiring bug caught by review. |
+| 13-3-cross-framework-workflow-execution | create, dev, review, verify | **Done** | Capstone story — changedFiles dedup fix. 4545 tests. |
+| **Epic 12 & 13** | — | **Complete** | All 6 stories shipped, all ACs pass. |
+
+**Net output:** 6 stories completed and verified, 2 epics closed, +67 tests added (4478 → 4545), coverage held at 96.82%.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed in session)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 12-3 | Timer leak — `setTimeout` never cleared on success path in `checkDriverHealth()` |
+| HIGH | 13-1 | Path traversal vulnerability — `taskName` with `../` could write outside `contractDir` |
+| HIGH | 13-1 | Empty input validation — empty `taskName`/`storyId` produced nonsensical filenames |
+| MEDIUM | 12-3 | Timeout error reported ALL drivers instead of only non-responding ones (AC #6 violation) |
+| MEDIUM | 12-3 | Double mock invocation in test |
+| MEDIUM | 13-1 | JSON parse error handling missing for corrupted contract files |
+| MEDIUM | 13-1 | Platform guard for `chmodSync` test (Windows) |
+| MEDIUM | 13-2 | `dispatchTask()` public API missing `previousOutputContract` parameter — dead code wiring |
+| MEDIUM | 13-2 | Missing integration test for workflow engine contract injection (AC #10) |
+| MEDIUM | 13-2 | Missing boundary test for output truncation at 2001 chars |
+| MEDIUM | 13-3 | `changedFiles` not deduplicated — same path could appear multiple times |
+| MEDIUM | 13-3 | Missing 3-step sequential flow test for AC #3 |
+
+**Summary:** 3 HIGH (2 security, 1 resource leak) and 9 MEDIUM issues caught and fixed. Code review continues to demonstrate high value — the path traversal vulnerability in 13-1 would have been a real security issue.
+
+### Known LOW Issues (deferred)
+
+- 12-2: Dead fixture files in test/fixtures/drivers/opencode/*.txt
+- 12-2: ~80 lines of classifyError/parseLine duplication across codex/opencode drivers
+- 12-2: `console.debug` for unparseable lines instead of structured logger
+- 13-1: No runtime schema validation at write time (by design)
+- 13-1: Concurrent write race condition (unlikely in sync code)
+- 13-2: No markdown sanitization in `formatContractAsPromptContext`
+- 13-2: `toFixed(2)` cost formatting shows `$0.00` for sub-cent costs
+- 13-3: `dispatchTask()` public API is effectively dead code internally
+- 13-3: Task 5 spec deviation — return type change not made for backward compat
+
+### Infrastructure / Process Issues
+
+- **AGENTS.md staleness (recurring):** Blocked `codeharness verify` in stories 12-2, 12-3, 13-1. This is the 5th+ session where AGENTS.md staleness causes verify failures. Still not auto-generated during dev phase.
+- **Proof format mismatches (recurring):** Verifier subagent generated wrong proof format in stories 12-3, 13-2, 13-3 (`### AC N:` vs `## AC N:`, `**Status:**` vs `**Verdict:**`, `**Verification tier:**` vs `**Tier:**`). Three separate format violations in one session.
+- **Pre-existing lint error:** `require-yield` at workflow-engine.test.ts persists across multiple stories.
+- **`codeharness stats --save` broken:** No `session-logs/` directory found. Stats cannot be generated from ralph logs.
+
+---
+
+## 3. Cost Analysis
+
+### Overall Cost (cumulative across all sessions)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $202.85 |
+| Total API calls | 1,568 |
+| Average cost per story | $3.46 (49 stories) |
+| Stories completed | 35/46 (76%) |
+
+### Cost by Token Type
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 83M | $124.55 | 61% |
+| Cache writes | 2.4M | $45.29 | 22% |
+| Output | 439K | $32.92 | 16% |
+| Input | 5.6K | $0.08 | <1% |
+
+Cache reads dominate at 61% — expected behavior for multi-phase story execution where context accumulates.
+
+### Cost by Phase
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 749 | $89.96 | 44.3% |
+| orchestrator | 175 | $37.21 | 18.3% |
+| create-story | 207 | $23.29 | 11.5% |
+| dev-story | 182 | $20.26 | 10.0% |
+| code-review | 158 | $18.61 | 9.2% |
+| retro | 97 | $13.52 | 6.7% |
+
+**Verify is the most expensive phase at 44.3%.** This is consistent with prior sessions. The phase has the most API calls (749) and frequently retries due to format mismatches and AGENTS.md staleness.
+
+### Subagent Token Report Breakdown (This Session)
+
+Aggregated from session issues log token reports for all 6 stories (15 subagent phases):
+
+| Phase | Total Tool Calls | Avg per Story | Top Tool |
+|-------|-----------------|---------------|----------|
+| create-story (5) | 89 | 17.8 | Read (34), Grep (26) |
+| dev-story (5) | 99 | 19.8 | Read (40), Edit (40) |
+| code-review (5) | 107 | 21.4 | Bash (38), Read (47) |
+| verify (5) | 70 | 14.0 | Bash (42), Read (15) |
+| **Total** | **365** | **24.3/story** | Read: 136, Bash: 91, Edit: 48 |
+
+**Key subagent-level observations:**
+
+1. **workflow-engine.test.ts read excessively:** Read 7-8 times per subagent in 13-3 (offset-based due to file size), and 3-4 times in 12-3 and 13-2. This single file accounts for ~20+ reads across the session. The file is too large for single reads.
+2. **Code review is the most tool-call-intensive phase** (21.4 avg), surpassing dev (19.8). Reviews run many Bash commands (builds, tests, lints) redundantly with dev.
+3. **No significant redundancy in create-story phases** — these were clean and efficient.
+4. **Verify phases had the fewest tool calls** (14.0 avg) but cost the most in aggregate due to retry loops from format mismatches.
+5. **`npm run build` run redundantly** in 12-3 dev phase (reported as redundant by subagent).
+6. **`npm run lint` and `ls verification/` each run twice** in 13-3 verify phase.
+
+### Estimated Session Cost
+
+With 6 stories at ~$3.46 average, this session's estimated cost is **~$20-25** (including orchestrator and retro overhead).
+
+---
+
+## 4. What Went Well
+
+- **6 stories completed in ~115 minutes** — the fastest story throughput rate of any session (~19 min/story including all 4 phases).
+- **Two full epics closed** (12 and 13), bringing multi-framework orchestration to completion.
+- **Zero regressions** — test count monotonically increased from 4478 to 4545 with no test failures.
+- **Coverage held steady** at 96.79-96.82% across all stories, never dipping below the 80% floor on any file.
+- **Code review caught 3 HIGH severity issues** including 2 security vulnerabilities (path traversal, timer leak) and 1 correctness bug (AC violation). These are the kind of bugs that would cause real problems in production.
+- **Story scoping was excellent** — each story was well-bounded, no scope creep, no blocked dependencies.
+- **Pre-wiring from 13-2 paid off** — the `previousOutputContract` parameter was already wired into the dispatch API, making 13-3 implementation smooth.
+
+---
+
+## 5. What Went Wrong
+
+- **Proof format mismatches in 3 of 5 verify phases** — verifier subagents consistently produce proof documents in the wrong format. Three different format violations: header level (`###` vs `##`), verdict label (`Status` vs `Verdict`), and tier label (`Verification tier` vs `Tier`). This wastes retries and token budget.
+- **AGENTS.md staleness blocked verify in 3 stories** — same issue as previous 4+ sessions. The dev phase does not auto-generate AGENTS.md, so verify always fails first, fixes it, then re-verifies.
+- **`codeharness stats --save` still broken** — action item #59 from previous retro was not addressed. Cannot generate automated cost reports.
+- **Driver code duplication not addressed** — action item #41 (extract shared driver utilities) has been deferred for 5+ sessions. Now 3 drivers share ~80 identical lines each.
+- **Pre-existing lint error persists** — `require-yield` at workflow-engine.test.ts has been noted in 3+ sessions but never fixed.
+- **Dead fixture files created in 12-2** that tests don't use — minor waste.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Pre-wiring APIs in predecessor stories** (13-2 wired `previousOutputContract` for 13-3) — reduces capstone story complexity significantly.
+2. **Code review as security gate** — 2 path traversal vulnerabilities caught across stories 13-1 and 4-4. This pattern consistently finds real issues.
+3. **Small, focused stories** (~100-200 lines prod code) with clear AC lists enable fast, clean execution. All 6 stories this session followed this pattern.
+4. **Offset-based reads for large test files** — the subagents correctly adapted to workflow-engine.test.ts being too large for single reads.
+
+### Patterns to Avoid
+
+1. **Deferring AGENTS.md generation** — every session pays the cost in verify failures. Must be automated in the dev phase.
+2. **Hardcoded proof format assumptions** in verifier prompts — the format specification is clearly not reaching the verifier subagent consistently.
+3. **Accumulating LOW issues without a cleanup sprint** — 9+ deferred LOWs from this session alone. Technical debt is growing.
+4. **Running full test suites in code review** when dev already proved them passing — redundant `npm run build` and `npm test` calls.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 64 | Fix proof format template — embed exact format spec with examples in verify skill prompt | HIGH | Tooling |
+| 65 | Auto-generate AGENTS.md during dev-story phase, not verify | HIGH | Process (carry-forward from #57) |
+| 66 | Fix `codeharness stats --save` to work without session-logs directory | MEDIUM | Tooling (carry-forward from #59) |
+| 67 | Fix pre-existing `require-yield` lint error in workflow-engine.test.ts | LOW | Cleanup (carry-forward from #60) |
+| 68 | Extract shared driver utilities (classifyError, parseLine) to common module | MEDIUM | Cleanup (carry-forward from #41, 5+ sessions) |
+| 69 | Split workflow-engine.test.ts into smaller focused test files | MEDIUM | Cleanup — reduces redundant reads |
+| 70 | Skip redundant `npm run build` in code-review when dev already passed | LOW | Process optimization |
+| 71 | Schedule a cleanup sprint to address accumulated LOW issues | MEDIUM | Planning |
+| 72 | Delete dead fixture files in test/fixtures/drivers/opencode/ | LOW | Cleanup |
+
+### Priority Recommendations for Next Session
+
+1. **Epic 14 (Dashboard & Visualization)** — next epic in backlog. Stories 14-1, 14-2, 14-3.
+2. **Fix AGENTS.md auto-generation (#65)** — highest-impact recurring issue. Saves ~$3-5/session in verify retries.
+3. **Fix proof format template (#64)** — second-highest recurring issue. 3 format violations this session alone.
+4. **Extract shared driver utilities (#68)** — 6 sessions deferred, now critical mass of duplication.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 10, ~11:14–11:40)
+
+**Timestamp:** 2026-04-03T15:30:00Z
+**Session window:** ~2026-04-03T11:14 to ~2026-04-03T11:40 (approx. 26 minutes)
+**Sprint progress:** 36/46 stories done (78%), Epics 1-13 complete, Epic 14 started
+
+---
+
+## 1. Session Summary
+
+This session began Epic 14 (Dashboard & Visualization) with story 14-1, the WorkflowGraph TUI component. One story completed across all four phases.
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 14-1-workflowgraph-component | create, dev, review, verify | **Done** | Ink-based TUI graph component with controller. 8/8 ACs pass. Commit `e427064`. |
+
+**Net output:** 1 story completed and verified. Test count not explicitly logged but coverage held at 96.83% across 171 test files.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed in session)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 14-1 | `loopIteration` had dead code branches — redundant/unreachable logic simplified |
+| HIGH | 14-1 | Separator width hard-capped at 50 instead of matching terminal width — fixed to cap at 80 |
+| MEDIUM | 14-1 | Missing test for loop iteration=0 — added 3 loop iteration tests |
+| MEDIUM | 14-1 | `updateWorkflowState` in controller was untested — tests added |
+
+**Summary:** 2 HIGH and 2 MEDIUM issues caught and fixed. The dead code branches and wrong separator width were both functional correctness issues that would have been visible to users.
+
+### Known LOW Issues (deferred)
+
+- 14-1: `currentTask` prop is dead code — kept for API contract compatibility
+- 14-1: Nested `<Text>` inside `<Text>` in loop rendering — valid Ink behavior but unusual
+
+### Infrastructure / Process Issues
+
+- **Pre-existing lint error persists:** `require-yield` in unrelated file continues to appear in lint output. Still not fixed (carried forward since session 6+).
+- **`codeharness verify` warnings:** "Showboat not installed" and "No exec-plan found" — non-blocking but noisy.
+- **`ink-testing-library` availability was unknown** at create-story time — dev notes flagged this risk but it turned out to be available.
+- **Spinner vs static indicator ambiguity:** Architecture doc says "cyan + spinner" for active tasks but codebase uses `◆`. Story defaulted to `◆`, deferring spinner to 14-2.
+
+---
+
+## 3. Cost Analysis
+
+### Overall Cost (cumulative across all sessions)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $202.85 |
+| Total API calls | 1,568 |
+| Average cost per story | $3.46 (49 stories tracked) |
+| Stories completed | 36/46 (78%) |
+
+Note: The cost report was generated from prior session data. `codeharness stats --save` still fails due to missing `session-logs/` directory (action item #66 still open).
+
+### Cost by Phase (cumulative)
+
+| Phase | Cost | % |
+|-------|------|---|
+| verify | $89.96 | 44.3% |
+| orchestrator | $37.21 | 18.3% |
+| create-story | $23.29 | 11.5% |
+| dev-story | $20.26 | 10.0% |
+| code-review | $18.61 | 9.2% |
+| retro | $13.52 | 6.7% |
+
+Verify remains the dominant cost at 44.3%. This session's verify was clean (no format mismatch, no AGENTS.md failure) — suggesting the prior session's fixes are holding.
+
+### Subagent Token Report Breakdown (This Session — Story 14-1 only)
+
+| Phase | Tool Calls | Top Tools |
+|-------|-----------|-----------|
+| create-story | 18 | Read: 10, Glob: 5, Bash: 3 |
+| dev-story | 24 | Edit: 14, Bash: 8, Read: 5 |
+| code-review | 21 | Bash: 9, Read: 8, Edit: 6 |
+| verify | 14 | Bash: 10, Read: 2, Write: 1 |
+| **Total** | **77** | Edit: 20, Bash: 30, Read: 25 |
+
+**Key observations:**
+
+1. **77 tool calls for 1 story** — higher than the session 9 average of 61 (365/6). The dev phase was Edit-heavy (14 calls) due to building a new UI component with multiple rendering modes.
+2. **ink-components.tsx and ink-renderer.tsx read 2x each** in create-story — minor redundancy due to understanding existing Ink patterns.
+3. **`npm run test:unit` run twice in verify** (pass/fail check + verbose names) — consistent with prior verify behavior.
+4. **No major redundancy** — this was a clean, efficient session compared to multi-story batches.
+
+### Estimated Session Cost
+
+At ~$3.46/story average + orchestrator overhead, estimated cost: **~$5-6** for this single-story session.
+
+### Cost Trend
+
+| Metric | Value |
+|--------|-------|
+| Cumulative cost | $202.85 |
+| Cost/story average | $3.46 |
+| This session estimate | ~$5-6 (1 story) |
+| Verify share | Still 44.3% cumulative |
+
+The per-story cost is stable. The cumulative verify share remains the biggest optimization target.
+
+---
+
+## 4. What Went Well
+
+1. **Clean single-story execution** — 14-1 went through all 4 phases with no retries, no format mismatches, no AGENTS.md failures. The cleanest session in recent memory.
+2. **Code review caught real UI bugs** — dead code branches in `loopIteration` and wrong separator width would have been user-visible defects.
+3. **Coverage held at 96.83%** — new component added with full test coverage from the start.
+4. **Architecture ambiguity handled well** — spinner vs static indicator decision was made pragmatically (use existing `◆` pattern, defer spinner to 14-2).
+5. **Fast execution** — ~26 minutes for 4 phases is well under the 30-minute target for a single story.
+
+---
+
+## 5. What Went Wrong
+
+1. **No cost report generation** — `codeharness stats --save` still broken (action item #66, now 4+ sessions deferred). Cost data is stale.
+2. **`require-yield` lint error still not fixed** — now carried across 5+ sessions. It's noise in every lint check.
+3. **`currentTask` dead code prop** in the new component — introduced as dead code from day one. Should have been excluded from the interface.
+4. **No color assertion capability** — `ink-testing-library` strips ANSI codes, so color rendering cannot be tested. Symbol proxies used instead. This is a testing gap for the entire TUI layer.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Resolving architecture ambiguities at create-story time** — the spinner vs `◆` decision was made early with clear rationale, avoiding dev-phase confusion.
+2. **UI component testing with ink-testing-library** — `lastFrame()` based assertions worked cleanly for the WorkflowGraph component. This pattern should be reused for 14-2 and 14-3.
+3. **Single-story sessions have less overhead** — no cross-story context pollution, no accumulated AGENTS.md drift, no format mismatch buildup.
+
+### Patterns to Avoid
+
+1. **Adding dead code props to new interfaces** — `currentTask` was dead on arrival. New interfaces should only include props that have callers.
+2. **Deferring tooling fixes indefinitely** — `codeharness stats --save` has been broken for 4+ sessions. The longer it stays broken, the less useful cost analysis becomes.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 64 | Fix proof format template — embed exact format spec with examples in verify skill prompt | HIGH | Tooling (carry-forward, no regression this session) |
+| 65 | Auto-generate AGENTS.md during dev-story phase, not verify | HIGH | Process (carry-forward, no regression this session) |
+| 66 | Fix `codeharness stats --save` to work without session-logs directory | MEDIUM | Tooling (carry-forward, 4+ sessions) |
+| 67 | Fix pre-existing `require-yield` lint error in workflow-engine.test.ts | LOW | Cleanup (carry-forward, 5+ sessions) |
+| 68 | Extract shared driver utilities (classifyError, parseLine) to common module | MEDIUM | Cleanup (carry-forward, 6+ sessions) |
+| 69 | Split workflow-engine.test.ts into smaller focused test files | MEDIUM | Cleanup |
+| 73 | Remove `currentTask` dead code prop from WorkflowGraph or wire it to a caller | LOW | Cleanup |
+| 74 | Add ANSI color testing capability or document the testing gap for TUI components | LOW | Tooling |
+| 75 | Continue Epic 14: stories 14-2 (task status driver labels) and 14-3 (activity display integration) | HIGH | Next sprint |
+
+### Priority Recommendations for Next Session
+
+1. **Stories 14-2 and 14-3** — complete Epic 14 (Dashboard & Visualization).
+2. **Fix `codeharness stats --save` (#66)** — 4 sessions deferred, cost analysis depends on it.
+3. **Fix `require-yield` lint (#67)** — trivial fix, 5 sessions of noise.

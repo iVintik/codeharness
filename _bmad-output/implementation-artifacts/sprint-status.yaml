@@ -88,7 +88,7 @@ development_status:
   # Epic 14
   epic-14: backlog
   14-1-workflowgraph-component: done
-  14-2-task-status-driver-labels: backlog
+  14-2-task-status-driver-labels: done
   14-3-activity-display-driver-integration: backlog
 
   # Epic 15

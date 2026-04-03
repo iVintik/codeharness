@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 46,
-    "done": 35,
+    "done": 36,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -457,12 +457,16 @@
       "acResults": null
     },
     "14-2-task-status-driver-labels": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/14-2-task-status-driver-labels-proof.md",
+      "acResults": {
+        "passed": 11,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "14-3-activity-display-driver-integration": {
       "status": "backlog",

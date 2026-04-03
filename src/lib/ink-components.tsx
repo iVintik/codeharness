@@ -53,6 +53,12 @@ export interface StoryMessage {
 
 export type TaskNodeState = 'pending' | 'active' | 'done' | 'failed';
 
+export interface TaskNodeMeta {
+  driver?: string;
+  costUsd?: number | null;
+  elapsedMs?: number | null;
+}
+
 export interface RendererState {
   sprintInfo: SprintInfo | null;
   stories: StoryStatusEntry[];
@@ -65,6 +71,7 @@ export interface RendererState {
   workflowFlow: FlowStep[];
   currentTaskName: string | null;
   taskStates: Record<string, TaskNodeState>;
+  taskMeta: Record<string, TaskNodeMeta>;
 }
 
 // --- Layout Components ---

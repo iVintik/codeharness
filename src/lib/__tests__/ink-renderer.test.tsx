@@ -36,6 +36,7 @@ function makeState(overrides?: Partial<RendererState>): RendererState {
     workflowFlow: [],
     currentTaskName: null,
     taskStates: {},
+    taskMeta: {},
     ...overrides,
   };
 }

@@ -5,35 +5,64 @@
  * (pending, active, done, failed). Loop blocks are rendered with an
  * iteration counter and visual grouping.
  *
+ * When `taskMeta` is provided, renders a multi-row layout:
+ *   Row 1: task names with status icons, connected by arrows
+ *   Row 2: driver labels (dimmed)
+ *   Row 3: cost/time for completed tasks (dimmed)
+ *
+ * When `taskMeta` is empty or omitted, renders the original single-line format.
+ *
  * This is a pure presentational component — no side effects, no state hooks.
  */
 
 import React from 'react';
 import { Text, Box } from 'ink';
 import type { FlowStep, LoopBlock } from './workflow-parser.js';
-import type { TaskNodeState } from './ink-components.js';
+import type { TaskNodeState, TaskNodeMeta } from './ink-components.js';
 
 /** Terminal width, capped to avoid excessive line lengths. */
 const termWidth = () => Math.min(process.stdout.columns || 60, 80);
+
+/** Spinner frames for active task animation. */
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 export interface WorkflowGraphProps {
   flow: FlowStep[];
   currentTask: string | null;
   taskStates: Record<string, TaskNodeState>;
+  taskMeta?: Record<string, TaskNodeMeta>;
 }
 
 function isLoopBlock(step: FlowStep): step is LoopBlock {
   return typeof step === 'object' && step !== null && 'loop' in step;
 }
 
+/** Format cost in USD. Returns `...` for null/undefined. */
+export function formatCost(costUsd: number | null | undefined): string {
+  if (costUsd == null) return '...';
+  return `$${costUsd.toFixed(2)}`;
+}
+
+/** Format elapsed time. Returns `Xm` for >=60s, `Xs` for <60s, `...` for null/undefined. */
+export function formatElapsed(ms: number | null | undefined): string {
+  if (ms == null) return '...';
+  const seconds = Math.round(ms / 1000);
+  if (seconds >= 60) {
+    return `${Math.floor(seconds / 60)}m`;
+  }
+  return `${seconds}s`;
+}
+
 /** Render a single task name with its status indicator. */
-function TaskNode({ name, status }: { name: string; status: TaskNodeState | undefined }) {
+function TaskNode({ name, status, spinnerFrame }: { name: string; status: TaskNodeState | undefined; spinnerFrame?: number }) {
   const s = status ?? 'pending';
   switch (s) {
     case 'done':
       return <Text color="green">{name} ✓</Text>;
-    case 'active':
-      return <Text color="cyan">◆ {name}</Text>;
+    case 'active': {
+      const frame = SPINNER_FRAMES[(spinnerFrame ?? 0) % SPINNER_FRAMES.length];
+      return <Text color="cyan">{frame} {name}</Text>;
+    }
     case 'failed':
       return <Text color="red">{name} ✗</Text>;
     case 'pending':
@@ -45,8 +74,6 @@ function TaskNode({ name, status }: { name: string; status: TaskNodeState | unde
 /** Count completed iterations for a loop block based on task states. */
 function loopIteration(tasks: string[], taskStates: Record<string, TaskNodeState>): number {
   // Heuristic: 0 before any task starts, 1 once any task is active/done/failed.
-  // Proper multi-iteration counting requires engine-provided iteration data,
-  // which will be wired when the engine integration story lands.
   const anyStarted = tasks.some(t => {
     const s = taskStates[t];
     return s !== undefined && s !== 'pending';
@@ -54,11 +81,38 @@ function loopIteration(tasks: string[], taskStates: Record<string, TaskNodeState
   return anyStarted ? 1 : 0;
 }
 
-export function WorkflowGraph({ flow, currentTask, taskStates }: WorkflowGraphProps) {
+/** Collect all task names from the flow in order (flattening loop blocks). */
+function collectTaskNames(flow: FlowStep[]): string[] {
+  const names: string[] = [];
+  for (const step of flow) {
+    if (isLoopBlock(step)) {
+      names.push(...step.loop);
+    } else {
+      names.push(step);
+    }
+  }
+  return names;
+}
+
+/** Check if taskMeta has any meaningful data. */
+function hasMetaData(taskMeta: Record<string, TaskNodeMeta> | undefined): boolean {
+  if (!taskMeta) return false;
+  return Object.keys(taskMeta).length > 0;
+}
+
+export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: WorkflowGraphProps) {
   if (flow.length === 0 || Object.keys(taskStates).length === 0) {
     return null;
   }
 
+  const meta = taskMeta ?? {};
+  const showMeta = hasMetaData(taskMeta);
+
+  // Derive spinner frame from wall clock. Parent re-renders on state updates
+  // which naturally advances the animation. No hooks needed.
+  const spinnerFrame = Math.floor(Date.now() / 80);
+
+  // Row 1: task names with status icons and arrows
   const elements: React.ReactNode[] = [];
 
   for (let i = 0; i < flow.length; i++) {
@@ -76,7 +130,7 @@ export function WorkflowGraph({ flow, currentTask, taskStates }: WorkflowGraphPr
           loopNodes.push(<Text key={`loop-arrow-${i}-${j}`}>{' → '}</Text>);
         }
         loopNodes.push(
-          <TaskNode key={`loop-task-${i}-${j}`} name={step.loop[j]} status={taskStates[step.loop[j]]} />
+          <TaskNode key={`loop-task-${i}-${j}`} name={step.loop[j]} status={taskStates[step.loop[j]]} spinnerFrame={spinnerFrame} />
         );
       }
       elements.push(
@@ -88,8 +142,65 @@ export function WorkflowGraph({ flow, currentTask, taskStates }: WorkflowGraphPr
       );
     } else {
       elements.push(
-        <TaskNode key={`task-${i}`} name={step} status={taskStates[step]} />
+        <TaskNode key={`task-${i}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} />
       );
+    }
+  }
+
+  // Row 2 & 3: driver labels and cost/time (only when meta is present)
+  let driverRow: React.ReactNode | null = null;
+  let costRow: React.ReactNode | null = null;
+
+  if (showMeta) {
+    const taskNames = collectTaskNames(flow);
+    const driverParts: string[] = [];
+    const costParts: string[] = [];
+    let hasAnyCost = false;
+
+    for (const name of taskNames) {
+      const m = meta[name];
+      const driver = m?.driver ?? '';
+      driverParts.push(driver);
+
+      const state = taskStates[name];
+      if (state === 'done') {
+        const costStr = formatCost(m?.costUsd);
+        const timeStr = formatElapsed(m?.elapsedMs);
+        costParts.push(`${costStr} / ${timeStr}`);
+        hasAnyCost = true;
+      } else {
+        costParts.push('');
+      }
+    }
+
+    // Build driver row: pad each label to match the task name width in row 1
+    const hasSomeDriver = driverParts.some(d => d.length > 0);
+    if (hasSomeDriver) {
+      const driverLabels: React.ReactNode[] = [];
+      for (let idx = 0; idx < taskNames.length; idx++) {
+        if (idx > 0) {
+          // Spacing to align under arrows — match ' → ' visual width (3 cols)
+          driverLabels.push(<Text key={`drv-sep-${idx}`}>{'   '}</Text>);
+        }
+        driverLabels.push(
+          <Text key={`drv-${idx}`} dimColor>{driverParts[idx] || ' '}</Text>
+        );
+      }
+      driverRow = <Text>  {driverLabels}</Text>;
+    }
+
+    // Build cost row
+    if (hasAnyCost) {
+      const costLabels: React.ReactNode[] = [];
+      for (let idx = 0; idx < taskNames.length; idx++) {
+        if (idx > 0) {
+          costLabels.push(<Text key={`cost-sep-${idx}`}>{'   '}</Text>);
+        }
+        costLabels.push(
+          <Text key={`cost-${idx}`} dimColor>{costParts[idx] || ' '}</Text>
+        );
+      }
+      costRow = <Text>  {costLabels}</Text>;
     }
   }
 
@@ -97,6 +208,8 @@ export function WorkflowGraph({ flow, currentTask, taskStates }: WorkflowGraphPr
     <Box flexDirection="column">
       <Text>{'━'.repeat(termWidth())}</Text>
       <Text>  {elements}</Text>
+      {driverRow}
+      {costRow}
       <Text>{'━'.repeat(termWidth())}</Text>
     </Box>
   );

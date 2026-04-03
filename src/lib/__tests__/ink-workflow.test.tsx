@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
-import { WorkflowGraph } from '../ink-workflow.js';
-import type { TaskNodeState } from '../ink-components.js';
+import { WorkflowGraph, formatCost, formatElapsed } from '../ink-workflow.js';
+import type { TaskNodeState, TaskNodeMeta } from '../ink-components.js';
 import type { FlowStep } from '../workflow-parser.js';
+
+/** Spinner frames used by TaskNode for active state. */
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
 
 describe('WorkflowGraph component', () => {
   it('renders sequential flow as task1 → task2 → task3', () => {
@@ -41,29 +44,33 @@ describe('WorkflowGraph component', () => {
     expect(frame).toContain(' ]');
   });
 
-  it('renders pending tasks with dim text', () => {
+  it('renders pending tasks with dim text (no status symbols)', () => {
     const flow: FlowStep[] = ['task1'];
     const taskStates: Record<string, TaskNodeState> = { 'task1': 'pending' };
     const { lastFrame } = render(
       <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} />
     );
     const frame = lastFrame()!;
-    // Dim text in Ink renders the text without color markers
     expect(frame).toContain('task1');
     // Pending should NOT have status symbols
     expect(frame).not.toContain('✓');
     expect(frame).not.toContain('✗');
-    expect(frame).not.toContain('◆');
+    // Should not contain any spinner frame
+    for (const sf of SPINNER_FRAMES) {
+      expect(frame).not.toContain(sf);
+    }
   });
 
-  it('renders active task with ◆ marker', () => {
+  it('renders active task with spinner indicator in cyan', () => {
     const flow: FlowStep[] = ['task1'];
     const taskStates: Record<string, TaskNodeState> = { 'task1': 'active' };
     const { lastFrame } = render(
       <WorkflowGraph flow={flow} currentTask="task1" taskStates={taskStates} />
     );
     const frame = lastFrame()!;
-    expect(frame).toContain('◆');
+    // Should contain one of the spinner frames
+    const hasSpinner = SPINNER_FRAMES.some(sf => frame.includes(sf));
+    expect(hasSpinner).toBe(true);
     expect(frame).toContain('task1');
   });
 
@@ -164,5 +171,200 @@ describe('WorkflowGraph component', () => {
     expect(frame).toContain('deploy');
     // Separator lines
     expect(frame).toContain('━');
+  });
+
+  // --- Driver label tests (AC #5) ---
+
+  it('renders driver label below task name when taskMeta is provided', () => {
+    const flow: FlowStep[] = ['implement', 'verify'];
+    const taskStates: Record<string, TaskNodeState> = {
+      'implement': 'done',
+      'verify': 'active',
+    };
+    const taskMeta: Record<string, TaskNodeMeta> = {
+      'implement': { driver: 'claude-code' },
+      'verify': { driver: 'codex' },
+    };
+    const { lastFrame } = render(
+      <WorkflowGraph flow={flow} currentTask="verify" taskStates={taskStates} taskMeta={taskMeta} />
+    );
+    const frame = lastFrame()!;
+    expect(frame).toContain('claude-code');
+    expect(frame).toContain('codex');
+  });
+
+  // --- Cost/time tests (AC #6, #7) ---
+
+  it('renders cost and elapsed time for completed tasks', () => {
+    const flow: FlowStep[] = ['implement'];
+    const taskStates: Record<string, TaskNodeState> = {
+      'implement': 'done',
+    };
+    const taskMeta: Record<string, TaskNodeMeta> = {
+      'implement': { driver: 'claude-code', costUsd: 0.42, elapsedMs: 240000 },
+    };
+    const { lastFrame } = render(
+      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} taskMeta={taskMeta} />
+    );
+    const frame = lastFrame()!;
+    expect(frame).toContain('$0.42');
+    expect(frame).toContain('4m');
+  });
+
+  it('renders ... for null cost and normal elapsed time', () => {
+    const flow: FlowStep[] = ['implement'];
+    const taskStates: Record<string, TaskNodeState> = {
+      'implement': 'done',
+    };
+    const taskMeta: Record<string, TaskNodeMeta> = {
+      'implement': { driver: 'codex', costUsd: null, elapsedMs: 120000 },
+    };
+    const { lastFrame } = render(
+      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} taskMeta={taskMeta} />
+    );
+    const frame = lastFrame()!;
+    expect(frame).toContain('...');
+    expect(frame).toContain('2m');
+    // Should NOT show $0.00
+    expect(frame).not.toContain('$0.00');
+  });
+
+  it('does not render cost row for non-completed tasks', () => {
+    const flow: FlowStep[] = ['implement'];
+    const taskStates: Record<string, TaskNodeState> = {
+      'implement': 'active',
+    };
+    const taskMeta: Record<string, TaskNodeMeta> = {
+      'implement': { driver: 'claude-code', costUsd: 0.42, elapsedMs: 240000 },
+    };
+    const { lastFrame } = render(
+      <WorkflowGraph flow={flow} currentTask="implement" taskStates={taskStates} taskMeta={taskMeta} />
+    );
+    const frame = lastFrame()!;
+    // Driver should still show
+    expect(frame).toContain('claude-code');
+    // Cost should NOT show for active tasks
+    expect(frame).not.toContain('$0.42');
+  });
+
+  // --- taskMeta prop acceptance test (AC #9) ---
+
+  it('accepts taskMeta prop and influences rendering', () => {
+    const flow: FlowStep[] = ['implement', 'verify'];
+    const taskStates: Record<string, TaskNodeState> = {
+      'implement': 'done',
+      'verify': 'pending',
+    };
+    const taskMeta: Record<string, TaskNodeMeta> = {
+      'implement': { driver: 'opencode', costUsd: 1.23, elapsedMs: 45000 },
+    };
+    const { lastFrame } = render(
+      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} taskMeta={taskMeta} />
+    );
+    const frame = lastFrame()!;
+    expect(frame).toContain('opencode');
+    expect(frame).toContain('$1.23');
+    expect(frame).toContain('45s');
+  });
+
+  // --- Driver labels in loop blocks (AC #5 with loops) ---
+
+  it('renders driver labels for tasks inside loop blocks', () => {
+    const flow: FlowStep[] = ['create-story', { loop: ['implement', 'verify'] }];
+    const taskStates: Record<string, TaskNodeState> = {
+      'create-story': 'done',
+      'implement': 'done',
+      'verify': 'active',
+    };
+    const taskMeta: Record<string, TaskNodeMeta> = {
+      'create-story': { driver: 'claude-code' },
+      'implement': { driver: 'codex', costUsd: 0.50, elapsedMs: 180000 },
+      'verify': { driver: 'opencode' },
+    };
+    const { lastFrame } = render(
+      <WorkflowGraph flow={flow} currentTask="verify" taskStates={taskStates} taskMeta={taskMeta} />
+    );
+    const frame = lastFrame()!;
+    expect(frame).toContain('claude-code');
+    expect(frame).toContain('codex');
+    expect(frame).toContain('opencode');
+    expect(frame).toContain('$0.50');
+    expect(frame).toContain('3m');
+  });
+
+  // --- Backward compatibility: no taskMeta renders identically to single-line ---
+
+  it('renders single-line format when taskMeta is empty', () => {
+    const flow: FlowStep[] = ['implement', 'verify'];
+    const taskStates: Record<string, TaskNodeState> = {
+      'implement': 'done',
+      'verify': 'pending',
+    };
+    const { lastFrame: withoutMeta } = render(
+      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} />
+    );
+    const { lastFrame: withEmptyMeta } = render(
+      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} taskMeta={{}} />
+    );
+    expect(withoutMeta()).toBe(withEmptyMeta());
+  });
+});
+
+// --- Format helper tests ---
+
+describe('formatCost', () => {
+  it('formats positive cost as $X.XX', () => {
+    expect(formatCost(0.42)).toBe('$0.42');
+    expect(formatCost(1.5)).toBe('$1.50');
+    expect(formatCost(0)).toBe('$0.00');
+    expect(formatCost(12.345)).toBe('$12.35');
+  });
+
+  it('returns ... for null', () => {
+    expect(formatCost(null)).toBe('...');
+  });
+
+  it('returns ... for undefined', () => {
+    expect(formatCost(undefined)).toBe('...');
+  });
+});
+
+describe('formatElapsed', () => {
+  it('formats seconds < 60 as Xs', () => {
+    expect(formatElapsed(5000)).toBe('5s');
+    expect(formatElapsed(45000)).toBe('45s');
+    expect(formatElapsed(59000)).toBe('59s');
+  });
+
+  it('formats seconds >= 60 as Xm', () => {
+    expect(formatElapsed(60000)).toBe('1m');
+    expect(formatElapsed(120000)).toBe('2m');
+    expect(formatElapsed(240000)).toBe('4m');
+  });
+
+  it('returns ... for null', () => {
+    expect(formatElapsed(null)).toBe('...');
+  });
+
+  it('returns ... for undefined', () => {
+    expect(formatElapsed(undefined)).toBe('...');
+  });
+
+  it('rounds to nearest second', () => {
+    expect(formatElapsed(1500)).toBe('2s');
+    expect(formatElapsed(500)).toBe('1s');
+  });
+
+  it('floors minutes for fractional values', () => {
+    // 90s = 1.5m → should show 1m not 2m
+    expect(formatElapsed(90000)).toBe('1m');
+    // 150s = 2.5m → should show 2m not 3m
+    expect(formatElapsed(150000)).toBe('2m');
+    // 89.999s rounds to 90s → 1m
+    expect(formatElapsed(89999)).toBe('1m');
+  });
+
+  it('returns 0s for 0ms', () => {
+    expect(formatElapsed(0)).toBe('0s');
   });
 });

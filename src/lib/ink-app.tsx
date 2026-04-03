@@ -19,7 +19,7 @@ export function App({ state }: { state: RendererState }) {
         {(msg, i) => <StoryMessageLine key={i} msg={msg} />}
       </Static>
       <Header info={state.sprintInfo} />
-      <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} />
+      <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} taskMeta={state.taskMeta} />
       <StoryBreakdown stories={state.stories} sprintInfo={state.sprintInfo} />
       {state.stories.length > 0 && <Separator />}
       <Box flexDirection="column" paddingLeft={1}>

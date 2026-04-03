@@ -20,6 +20,7 @@ import {
   type StoryStatusEntry,
   type StoryMessage,
   type TaskNodeState,
+  type TaskNodeMeta,
 } from './ink-components.js';
 import type { FlowStep } from './workflow-parser.js';
 
@@ -37,7 +38,7 @@ export interface RendererHandle {
   updateSprintState(state: SprintInfo | undefined): void;
   updateStories(stories: StoryStatusEntry[]): void;
   addMessage(msg: StoryMessage): void;
-  updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>): void;
+  updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>, taskMeta?: Record<string, TaskNodeMeta>): void;
   cleanup(): void;
 }
 
@@ -82,6 +83,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     workflowFlow: [],
     currentTaskName: null,
     taskStates: {},
+    taskMeta: {},
   };
 
   let cleaned = false;
@@ -239,11 +241,12 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     rerender();
   }
 
-  function updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>): void {
+  function updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>, taskMeta?: Record<string, TaskNodeMeta>): void {
     if (cleaned) return;
     state.workflowFlow = flow;
     state.currentTaskName = currentTask;
     state.taskStates = { ...taskStates };
+    state.taskMeta = taskMeta ? { ...taskMeta } : state.taskMeta;
     rerender();
   }
 
@@ -251,4 +254,4 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 }
 
 // Re-export types that consumers may need
-export type { SprintInfo, CompletedToolEntry, RetryInfo, RendererState, StoryStatusEntry, StoryStatusValue, StoryMessage, TaskNodeState } from './ink-components.js';
+export type { SprintInfo, CompletedToolEntry, RetryInfo, RendererState, StoryStatusEntry, StoryStatusValue, StoryMessage, TaskNodeState, TaskNodeMeta } from './ink-components.js';

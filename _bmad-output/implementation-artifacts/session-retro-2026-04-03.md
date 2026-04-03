@@ -5839,3 +5839,557 @@ Story 16-3 was the most expensive ($7.44) despite having a similar number of ACs
 | Epic 16 cost | $21.07 |
 | Cost per story | $5.27 |
 | Retries | 0 |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 5)
+
+**Timestamp:** 2026-04-03T22:25
+**Session window:** ~2026-04-03T22:25 to ~2026-04-03T22:50 (approx. 25 minutes)
+**Sprint progress:** Epic 16: 5/6 stories done. 16-6-story-flow-execution remains in backlog.
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 16-5-coverage-deduplication | create-story, dev, code-review, verify | **Done** | Full lifecycle. 6/6 ACs passed test-provable verification. |
+
+**Net output:** 1 story completed and verified. 21 new tests added (4747 -> 4768). Coverage: 96.6%.
+
+This was a focused single-story session. Story 16-5 adds coverage deduplication so the engine can skip redundant coverage runs when ACs are already met, and injects coverage context into evaluator prompts.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 16-5 | Vacuous integration test assertions — `if` guards silently skipped assertions when mock produced no calls. Tests passed but proved nothing. |
+| MEDIUM | 16-5 | Duplicated skip logic copy-pasted between `runCoverage()` and `checkOnlyCoverage()`. Extracted `checkSkipIfMet()`. |
+| MEDIUM | 16-5 | Duplicated format string between evaluator.ts and workflow-engine.ts. Extracted `formatCoverageContextMessage()`. |
+
+1 HIGH and 2 MEDIUM fixed. The HIGH bug (vacuous assertions) is a pattern worth watching — mock-heavy tests that gate assertions behind `if` checks are effectively no-ops when the mock setup doesn't trigger the expected code path.
+
+### Known LOW Issues (deferred)
+
+- `buildCoverageDeduplicationContext` doesn't independently verify `failed === 0` — relies on upstream invariant.
+- Synthetic `CoverageResult` returns `passCount: 0, failCount: 0` — misleading but unused downstream.
+- Redundant disk read in `buildCoverageDeduplicationContext` when verify flag is already in memory.
+
+### Workarounds / Tech Debt Introduced
+
+- `testResults` is still always `null` in engine-built output contracts. Coverage dedup logic is fully tested via unit tests but won't activate in real workflow runs until the engine gains test result parsing from agent output. This is a known dependency, not new debt.
+- `skipIfMet` parameter on `runCoverage`/`checkOnlyCoverage` is not called from production code yet. Engine-level dedup happens via prompt context injection, not by calling `runCoverage(dir, true)`. The skip logic in the runner is available for future use.
+
+### Verification Gaps
+
+- AC#5 evidence is slightly indirect — verifies `checkPreconditions()` doesn't import/call `runCoverage`, but the test checks flag-based pass/fail rather than call stack absence. Adequate but not airtight.
+
+### Infrastructure Issues
+
+- `codeharness verify` still emits warnings about missing exec-plan and showboat — informational only, expected for local CLI verification.
+- Pre-existing lint: 1 error in `run.test.ts`, 53 warnings — none in story files.
+- Proof document format mismatch required rewrite (`## AC N:` headers with evidence blocks) — same issue as prior sessions.
+
+---
+
+## 3. Cost Analysis
+
+### Session Cost
+
+| Story | Calls | Cost | Notes |
+|-------|-------|------|-------|
+| 16-5-coverage-deduplication | 37 | $4.80 | Single story, full lifecycle |
+
+**Total session cost:** ~$4.80
+**Cost per story:** $4.80
+
+### Cumulative Project Cost
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost (all time) | $306.57 |
+| Total API calls | 2,351 |
+| Stories tracked | 77 |
+| Average cost per story (all time) | $3.37 |
+
+### Cost by Phase (all time)
+
+| Phase | Cost | % | Observation |
+|-------|------|---|-------------|
+| verify | $136.33 | 44.5% | By far the most expensive phase — nearly half of all spend |
+| orchestrator | $54.67 | 17.8% | Routing/coordination overhead |
+| create-story | $33.80 | 11.0% | Story spec creation |
+| dev-story | $32.62 | 10.6% | Actual implementation |
+| code-review | $28.05 | 9.2% | Adversarial review |
+| retro | $21.08 | 6.9% | Session retrospectives |
+
+### Subagent-Level Token Breakdown (this session, story 16-5)
+
+| Phase | Tool Calls | Key Operations | Redundancy |
+|-------|-----------|----------------|------------|
+| create-story | 24 | Read: 7, Grep: 10, Glob: 5, Bash: 1, Write: 1 | None. Clean. |
+| dev-story | 29 | Read: 16, Edit: 9, Bash: 6, Grep: 4, Glob: 3 | workflow-engine.ts read 4x (large file, unavoidable for edits) |
+| code-review | 21 | Read: 9, Bash: 7, Edit: 6, Grep: 4, Glob: 1 | None. |
+| verify | 18 | Bash: 8, Grep: 9, Read: 4, Write: 2, Glob: 1 | Lint and coverage each run twice — could combine |
+
+**Observations:**
+- `workflow-engine.ts` was read 4x by dev-story — this is a large file (~800 LOC) that dominates cache reads. Each read is necessary for contextual editing, but the file's size amplifies cost.
+- Verify phase ran lint and coverage twice each. Combining into a single pass could save ~2 Bash calls per story.
+- No cross-phase file re-reading redundancy visible — each phase reads only what it needs.
+
+### Cost Optimization Opportunities
+
+1. **Verify phase is 44.5% of all spend.** This is the single biggest lever. Recommendations:
+   - Stories tagged `test-provable` (like all of 16-5's ACs) should use a lighter verify pass that runs tests once and maps results to ACs, skipping the full `codeharness verify` CLI dance.
+   - Avoid running lint+coverage+tests as separate Bash calls when a single `npm test` already produces all needed output.
+   - Proof document format continues to require rewrites — standardize the template in create-story so verify doesn't reformat.
+
+2. **Retro phase is 6.9% ($21.08).** No-op sessions and single-story sessions could use a lighter retro template. A 5-story retro and a 1-story retro should not cost the same.
+
+3. **Orchestrator overhead at 17.8%.** Routing decisions between phases are expensive. Consider whether orchestrator needs to re-read sprint state on every phase transition.
+
+4. **Average cost per story: $3.37 (all-time) vs $4.80 (this session).** This session is 42% above average. Likely driven by 16-5 touching multiple modules (runner, evaluator, workflow-engine) and requiring cross-module deduplication extraction. Stories that touch 3+ files in different subsystems cost more — expected but worth tracking.
+
+---
+
+## 4. What Went Well
+
+- **Clean single-story execution.** 16-5 went from backlog to done in one pass, no retries, no escalations.
+- **Code review caught a real bug.** Vacuous assertions (HIGH) would have shipped tests that proved nothing. Review continues to be high-value.
+- **Code review drove code quality improvements.** Two MEDIUM duplication issues were extracted into shared helpers, reducing future maintenance cost.
+- **All 6 ACs passed test-provable verification.** No Docker, no sandbox, no manual steps. Pure test evidence.
+- **Test count grew.** 4747 -> 4768 (+21 tests). Coverage held at 96.6%.
+- **No retries needed.** Story completed in a single pass through all 4 phases.
+
+---
+
+## 5. What Went Wrong
+
+- **Nothing major.** This was a clean session. Minor issues only:
+  - Verify phase ran lint and coverage twice (wasted ~2 Bash calls).
+  - Proof document required format rewrite — same issue as every prior session. This is now a systemic problem, not a one-off.
+  - `testResults` remaining null in production contracts means coverage dedup is tested but dormant. Not a session failure, but the feature won't activate until a future story adds test result parsing.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Test-provable verification works.** All 6 ACs verified without Docker or sandbox. This is the cheapest and most reliable verification path. Tag every possible AC as `test-provable`.
+- **Code review duplication detection.** Reviewer caught two copy-paste duplications and drove extraction. The code review phase is paying for itself in reduced future debt.
+- **Single-story focused sessions are efficient.** No context switching overhead, no story-to-story state leakage.
+
+### Patterns to Avoid
+
+- **Vacuous assertion pattern.** Tests that gate assertions behind `if (mock.calls.length > 0)` are dangerous — they silently pass when the mock isn't triggered. Always use unconditional assertions or explicit `expect().toBeDefined()` guards.
+- **Proof format mismatch.** The create-story phase should embed the exact proof format headers that verify expects. This rewrite-on-verify pattern has occurred in every session.
+
+---
+
+## 7. Action Items
+
+### Fix Now (before next session)
+
+- None. Session was clean.
+
+### Fix Soon (next sprint)
+
+- [ ] Standardize proof document format in create-story template so verify phase doesn't need to reformat every time.
+- [ ] Add engine test result parsing from agent output (unblocks coverage dedup activation in production).
+- [ ] Fix pre-existing lint error in `run.test.ts`.
+
+### Backlog
+
+- [ ] Extract `buildCoverageDeduplicationContext` disk read to use in-memory flag when available.
+- [ ] Clean up synthetic `CoverageResult` to not return misleading `passCount: 0`.
+- [ ] Investigate verify phase cost (44.5% of all spend) — prototype lighter verify for `test-provable` stories.
+- [ ] Track `workflow-engine.ts` size — at ~800 LOC it drives cache read costs in every story that touches the engine.
+
+### Cost Optimization
+
+- [ ] Combine lint + coverage + test into single Bash call in verify phase (saves ~2 calls/story).
+- [ ] Implement tiered retro: 1-story sessions get a short-form retro, 3+ story sessions get full retro.
+- [ ] Prototype lightweight verify for `test-provable` ACs: run tests once, parse output, map to ACs. Skip `codeharness verify` CLI overhead.
+- [ ] Track cost-per-story trend. Current session ($4.80) is 42% above all-time average ($3.37). If multi-module stories consistently cost more, budget accordingly.
+
+---
+
+## Session Scorecard
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 1 (16-5) |
+| Total ACs verified | 6/6 (100%) |
+| HIGH bugs caught by review | 1 |
+| MEDIUM bugs caught by review | 2 |
+| Tests added | 21 (4747 -> 4768) |
+| Coverage | 96.6% |
+| Session cost | ~$4.80 |
+| Cost per story | $4.80 |
+| Retries | 0 |
+
+---
+
+# Session 5 Retrospective — 2026-04-03T19:10
+
+**Session window:** ~2026-04-03T18:55 to ~2026-04-03T19:15 (approx. 20 minutes)
+**Sprint progress:** Epic 16 complete (6/6 stories done, all 16 epics through 16 shipped)
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 16-6-story-flow-execution | create-story, dev, code-review, verify | **Done** | Full lifecycle. 6/6 ACs passed. Epic 16 complete. |
+
+**Net output:** 1 story completed and verified. Epic 16 closed — all 6 stories shipped across sessions 3-5.
+
+This was the simplest story in Epic 16: a 2-line engine change (property rename from `workflow.flow` to `workflow.storyFlow`) plus 11 new tests. Total test count reached 4780 with 96.61% coverage.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 16-6 | Verdict JSON delivered via `subagentResult` instead of `text` events in 3 tests — engine ignores `subagentResult`, so `parseVerdict` received wrong input |
+| MEDIUM | 16-6 | AC #2 "telemetry after loop" test had no loop; tested sequential ordering only |
+| MEDIUM | 16-6 | AC #3 assertions trivially true (`> 1`, `toBeDefined()`); did not verify actual iteration count |
+
+All 3 issues fixed in code-review phase. The HIGH bug would have made 3 test cases silently test the wrong thing.
+
+### Known LOW Issues (deferred)
+
+- `defaultExecution` constant duplicates `EXECUTION_DEFAULTS` from `hierarchical-flow.ts` — minor DRY violation
+- `setupDefaultMocks()` default `text: 'Done'` causes `parseVerdict('Done')` to throw in any test that doesn't override — fragile test setup
+
+### Recurring Infrastructure Issues
+
+- **Proof format mismatch:** Verify subagent initially wrote `### AC N:` headers; `codeharness verify` expects `## AC N:`. This has happened in stories 16-1, 16-5, and 16-6 — three times this session. The create-story template or verify instructions need to specify the format.
+- **Pre-existing lint noise:** 1 error + 53 warnings in unrelated files. Same count across all session 3-5 stories.
+- **`_bmad/bmm/config.yaml` path wrong in workflow:** Every create-story subagent reports this. Still not fixed.
+- **`project-context.md` missing:** Referenced by workflow but doesn't exist. Reported every story.
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative Project Cost
+
+- **Total project cost:** $314.58 across 79 stories (2406 API calls)
+- **Average cost per story:** $3.38
+
+### Story 16-6 Cost
+
+- **Reported cost:** $7.00 (52 API calls) — 2.2% of total project spend
+- **Rank:** 4th most expensive story overall, despite being the simplest in Epic 16
+
+The $7.00 cost for a 2-line change is high. This reflects the fixed overhead of the 4-phase pipeline (create-story + dev + code-review + verify) regardless of story complexity.
+
+### Phase Cost Distribution (project-wide)
+
+| Phase | Cost | % | Observation |
+|-------|------|---|-------------|
+| verify | $140.23 | 44.6% | Dominant cost — nearly half of all spend |
+| orchestrator | $55.88 | 17.8% | Coordination overhead |
+| create-story | $34.46 | 11.0% | Story spec generation |
+| dev-story | $33.03 | 10.5% | Actual implementation |
+| code-review | $29.15 | 9.3% | Review and fix |
+| retro | $21.82 | 6.9% | Retrospectives |
+
+The verify phase costs 4.3x more than dev-story. This is the single biggest cost optimization target.
+
+### Subagent Token Report — Story 16-6 Breakdown
+
+| Phase | Tool Calls | Key Tools | Redundancy |
+|-------|-----------|-----------|------------|
+| create-story | 16 | Read: 6, Grep: 6, Glob: 5 | None |
+| dev-story | 20 | Read: 8, Edit: 5, Grep: 4 | None |
+| code-review | 22 | Read: 9, Bash: 6, Grep: 7 | workflow-engine.ts read 4x, test file 3x |
+| verify | 16 | Bash: 9, Read: 4 | Lint run 2x, coverage run 2x |
+| **Total** | **74** | | |
+
+**Redundancy patterns across Epic 16:**
+- `workflow-engine.ts` was the most re-read file — read 5x in dev, 4x in code-review for multiple stories (16-2, 16-4, 16-6). This ~600-line file is too large for subagents to hold in context.
+- Coverage and lint runs were duplicated in verify phase across stories 16-1, 16-3, 16-5, and 16-6. Each verify subagent ran coverage twice (once without proper filter, once with).
+- Code-review in story 16-3 ran coverage 3 times. Story 16-1 code-review had ~4 redundant Bash calls parsing coverage output.
+- The `codeharness coverage --min-file 80` command was broken for most of the session (pre-existing stats.test.ts failure). Subagents wasted cycles discovering this each time.
+
+### Tool Cost Distribution
+
+Bash ($89.24, 28.4%) and Read ($72.76, 23.1%) together account for over half of all tool spend. The Agent tool at $44.84 (14.3%) represents subagent spawning overhead.
+
+---
+
+## 4. What Went Well
+
+- **Clean story execution:** 16-6 completed in ~20 minutes with zero retries — the fastest story in Epic 16
+- **Epic 16 fully shipped:** All 6 stories (16-1 through 16-6) delivered across 3 sessions with no story failures or rollbacks
+- **Code review catching real bugs:** The HIGH bug in 16-6 (wrong event type in test mocks) would have made tests pass while testing the wrong thing. Code review earned its cost.
+- **Test count growth:** From 4676 (start of 16-1) to 4780 (end of 16-6) — 104 new tests added across Epic 16
+- **Coverage stable:** 96.6% maintained throughout all 6 stories, all 176 files above 80% floor
+- **Session issues log working well:** Every subagent contributed entries. This gave the retro concrete data instead of vague impressions.
+
+---
+
+## 5. What Went Wrong
+
+- **Verify phase dominates cost at 44.6%** — nearly half of all project spend goes to verification. The phase runs full build + test + lint + coverage per story, often duplicating runs within a single verify pass.
+- **Proof format wrong 3 times this session:** Verify subagent consistently writes `### AC N:` instead of `## AC N:`. The create-story spec should embed the correct format.
+- **$7 for a 2-line change:** The 4-phase pipeline has no "small story" fast path. Story 16-6 was trivial but burned the same overhead as complex stories.
+- **Pre-existing broken coverage command:** `codeharness coverage --min-file 80` was broken by stats.test.ts failure. Multiple subagents discovered this independently and wasted cycles.
+- **`workflow-engine.ts` read fatigue:** This file was read 4-5 times per phase by code-review and dev subagents. The file is growing and subagents cannot retain its full content.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Session issues log as retro input** — concrete, timestamped, per-subagent data made this retro factual rather than subjective
+2. **Code review before verify** — HIGH bugs in 16-6 (wrong mock event type) were caught before they could pollute verification evidence
+3. **Small stories complete fast** — 16-6 proves that well-scoped stories with clear ACs can go from spec to verified in 20 minutes
+
+### Patterns to Avoid
+
+1. **Running coverage/lint twice in verify** — subagents should run once and parse the output correctly the first time. The verify instructions should specify exact commands with filters.
+2. **Re-reading large files repeatedly** — `workflow-engine.ts` needs to be split, or subagents need targeted read ranges instead of full-file reads
+3. **Ignoring broken infrastructure** — the `codeharness coverage --min-file 80` bug was known since session 1 and burned cycles in every session. Should have been fixed as a tech debt story.
+4. **No fast path for trivial stories** — a 2-line change should not require 4 full subagent phases
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Fix `codeharness coverage --min-file 80` — broken by stats.test.ts failure | HIGH | Next session |
+| 2 | Add proof format spec (`## AC N:` not `### AC N:`) to create-story template | HIGH | Tooling |
+| 3 | Fix `_bmad/bmm/config.yaml` path reference in workflow — should be `_bmad/config.yaml` | MEDIUM | Tooling |
+| 4 | Investigate verify phase cost ($140 = 44.6%) — can coverage/lint runs be deduplicated? | MEDIUM | Architecture |
+| 5 | Consider "small story" fast path that skips create-story for trivial changes | LOW | Process |
+| 6 | Split `workflow-engine.ts` or provide subagent read guidance to reduce redundant reads | LOW | Tech debt |
+| 7 | Create `project-context.md` so subagents stop reporting it missing | LOW | Documentation |
+
+---
+
+## Session Scorecard
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 1 (16-6) |
+| Epic completed | Epic 16 (final story) |
+| Total ACs verified | 6/6 (100%) |
+| HIGH bugs caught by review | 1 |
+| MEDIUM bugs caught by review | 2 |
+| Tests added | 12 (4768 -> 4780) |
+| Coverage | 96.61% |
+| Session cost | ~$7.00 |
+| Cost per story | $7.00 |
+| Retries | 0 |
+| Session duration | ~20 minutes |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 7, Epic 17 start, ~19:20–19:50)
+
+**Timestamp:** 2026-04-03T19:50Z
+**Session window:** ~2026-04-03T19:20 to ~2026-04-03T19:50 (approx. 30 minutes)
+**Sprint progress:** Epic 16 done (6/6), Epic 17 started (17-1 at `verifying` status)
+**Overall:** 69/81 stories done (85.2%), 16 epics complete
+
+---
+
+## 1. Session Summary
+
+This session began Epic 17 (Parallel Worktree Management) with story 17-1-worktree-manager. Three phases completed; verification was not started due to time budget exhaustion.
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 17-1-worktree-manager | create-story, dev-story, code-review | **Verifying** (not started) | 11 ACs defined, 33 tests written, 4813 pass. Code review found 2 HIGH + 2 MEDIUM bugs, all fixed. Verification phase not attempted — budget expired. |
+
+**Net output:** 1 story implemented and reviewed, pending verification only.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue |
+|----------|-------|
+| HIGH | Command injection via unsanitized `epicId` passed directly to shell commands. Fixed with `validateEpicId()` input sanitizer. |
+| HIGH | Dead/unreachable code in `createWorktree` catch block — defensive fallback path was never exercised. Fixed. |
+| MEDIUM | `createdAt` always returned `new Date()` instead of actual worktree creation time. Fixed with `statSync(path).birthtime`. |
+| MEDIUM | Missing test coverage for prune fallback and corrupt `lane-state.json` paths. Added 3 tests. |
+
+### LOW Issues Deferred (not fixed)
+
+- Empty slug produces trailing dash in branch name (`ch/17-/`)
+- `extractEpicId` truncates epicIds containing dashes (e.g., `my-epic` becomes `my`)
+- `parsePorcelainOutput` may fail on inconsistent git blank-line formatting
+
+### Dev Phase Issues
+
+- **`boundaries.test.ts` surprise:** All catch blocks require `// IGNORE:` comments. Not documented in story dev notes — dev agent had to add 11 comments reactively on first test suite run.
+- **Test expectation error:** Numeric sort test had wrong expected order (`['10', '20', '3']` vs `['3', '10', '20']`). Fixed immediately but indicates insufficient test-first discipline.
+- **`createdAt` design gap:** `git worktree list --porcelain` does not output timestamps. The original implementation used `new Date()` as a placeholder — a silent lie. Code review caught it and fixed with `statSync`.
+
+### Workarounds / Tech Debt Introduced
+
+- `validateEpicId()` is a bolt-on sanitizer added in code review. The proper fix would be a parameterized command builder that never interpolates user strings into shell commands.
+- Orphan detection heuristic depends on `lane-state.json` format from Story 17-2 which hasn't been built yet. Current implementation uses a simplified "worktree exists but no lock file" check.
+
+### Infrastructure Issues (recurring)
+
+- `_bmad/bmm/config.yaml` path still wrong in workflow (actual: `_bmad/config.yaml`) — same issue since Session 1
+- No `project-context.md` — subagent reported it missing again
+- Merge scope exclusion: epic AC says "create/merge/cleanup" but architecture Decision 1 puts merge in Story 18-1. Story scope correctly excludes merge but the epic AC is misleading.
+
+---
+
+## 3. Cost Analysis
+
+### Sprint-Wide Cumulative Costs (from `codeharness stats`)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $318.50 |
+| Total API calls | 2,432 |
+| Average cost per story | $3.33 (81 stories tracked) |
+| Stories completed | 69 done, 1 verifying, 11 backlog |
+
+### Cost by Phase (sprint-wide)
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 1,158 | $140.44 | 44.1% |
+| orchestrator | 261 | $56.89 | 17.9% |
+| create-story | 308 | $35.44 | 11.1% |
+| dev-story | 296 | $33.29 | 10.5% |
+| code-review | 252 | $30.17 | 9.5% |
+| retro | 157 | $22.27 | 7.0% |
+
+**Key finding:** Verify remains the most expensive phase at 44.1% of total spend. This is consistent across all sessions.
+
+### Cost by Token Type
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 130.9M | $196.35 | 62% |
+| Cache writes | 3.8M | $70.45 | 22% |
+| Output | 688K | $51.61 | 16% |
+| Input | 6.6K | $0.10 | 0% |
+
+### This Session's Stories (from stats JSON)
+
+| Story | Calls | Est. Cost |
+|-------|-------|-----------|
+| 17-1-worktree-manager | 19 | ~$2.50 |
+| 17-1-wor (truncated key) | 4 | ~$0.30 |
+| **Session total** | ~23 | **~$2.80** |
+
+This is a low-cost session because verification was not run. For comparison, the prior session (16-6 only) cost ~$7.00 including verify.
+
+### Subagent-Level Token Breakdown (from session issues log)
+
+| Subagent Phase | Tool Calls | Top Tools | Redundancy |
+|----------------|------------|-----------|------------|
+| 17-1 create-story | 17 | Read: 9, Glob: 5, Grep: 3 | None |
+| 17-1 dev-story | 18 | Edit: 9, Bash: 6, Read: 6 | None |
+| 17-1 code-review | 28 | Bash: 14, Edit: 9, Read: 8 | 2 extra coverage grep checks |
+| **Total** | **63** | Bash: 21, Read: 23, Edit: 18 | Minimal |
+
+**Subagent observations:**
+- Code review is the most tool-heavy phase (28 calls) — consistent with all prior sessions
+- Bash dominance in code-review (14/28 calls) is from running tests after each fix
+- Read calls are reasonable (23 across 3 phases, 8 unique files)
+- Only redundancy: 2 coverage grep checks in code-review that could have been combined
+- No file was read excessively — `workflow-engine.ts` was NOT the central file for this story (it's a new module), so the repeated-read problem from Epic 16 did not recur
+
+### Wasted Spend
+
+- Negligible this session. No failed verifications, no retries, no no-op phases.
+- The 2 redundant coverage grep checks in code-review cost at most $0.05.
+
+### Cost Optimization Opportunities
+
+1. **Verify phase cost ($140 / 44.1%)** remains the biggest structural issue sprint-wide. Most of this is repeated coverage/lint/test runs, `codeharness verify` failures on bookkeeping, and proof document format fixes.
+2. **"Unknown" story bucket ($48.68 / 15.3%)** — orchestrator/retro calls not attributed to a story. This is pure overhead.
+3. **Truncated story keys** (e.g., `17-1-wor`, `16-3-tel`) indicate API calls where the story context was partially lost — these inflate the "unknown" bucket indirectly.
+
+---
+
+## 4. What Went Well
+
+1. **Clean new-module development:** `worktree-manager.ts` is a standalone module with no pre-existing coupling issues. Development was straightforward — 25 new tests in dev, 8 more in code review.
+2. **Code review caught a security bug:** Command injection via unsanitized `epicId` would have been a real vulnerability. The fix (input validation) was applied before verification.
+3. **No retries, no stuck phases:** All 3 phases completed on first attempt.
+4. **Low session cost ($2.80):** Efficient use of the time budget — 3 phases completed in 30 minutes with no wasted calls.
+5. **Session issues log maturity:** Subagent reports are now consistently structured with token reports, making cost aggregation reliable.
+6. **Test count growth:** 4805 tests (25 new in dev + 8 in code review = 33 for this story). Test suite remains stable.
+
+---
+
+## 5. What Went Wrong
+
+1. **Time budget exhaustion:** 30-minute budget was too short for a full 4-phase story cycle. Story is stuck at `verifying` — needs a follow-up session.
+2. **`boundaries.test.ts` catch-block requirement undocumented:** Dev agent hit this on first test suite run and had to add 11 `// IGNORE:` comments. This is a project convention that should be in the story dev notes or a shared reference.
+3. **Misleading epic AC scope:** Epic 17 AC says "create/merge/cleanup" but merge is in Story 18-1. This confusion appeared in create-story and required explicit scope exclusion documentation.
+4. **Recurring infrastructure noise:** `config.yaml` wrong path, missing `project-context.md` — same issues reported in sessions 1 through 6. Still unfixed.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **New standalone modules are fast and cheap** — `worktree-manager.ts` had no pre-existing code coupling, so dev/review phases ran cleanly without reading half the codebase.
+2. **Code review security checks** — command injection caught on a module that shells out to `git`. This pattern should be enforced for any module that calls `execSync`/`exec`.
+3. **Skipping verify when budget is exhausted** — better to leave at `verifying` than rush a partial verification.
+
+### Patterns to Avoid
+
+1. **Undocumented project conventions** — the `boundaries.test.ts` catch-block rule wasted time. All such conventions should be in a single project-rules file that create-story includes.
+2. **Starting a 4-phase story with only 30 minutes** — predictable outcome. Either allocate 45+ minutes or split the story phases across sessions intentionally.
+3. **Bolt-on sanitizers** — `validateEpicId()` is a symptom of direct string interpolation into shell commands. The proper pattern is a command builder that parameterizes inputs.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Complete verification for story 17-1-worktree-manager (11 ACs) | HIGH | Next session |
+| 2 | Fix `_bmad/bmm/config.yaml` path in workflow — should be `_bmad/config.yaml` (open since Session 1) | MEDIUM | Tooling |
+| 3 | Create `project-context.md` so subagents stop reporting it missing | MEDIUM | Documentation |
+| 4 | Document `boundaries.test.ts` catch-block `// IGNORE:` convention in project rules | MEDIUM | Documentation |
+| 5 | Replace bolt-on `validateEpicId()` with parameterized command builder pattern | LOW | Tech debt |
+| 6 | Address LOW deferred issues: empty slug trailing dash, `extractEpicId` truncation, porcelain parsing | LOW | Backlog |
+| 7 | Investigate verify phase cost reduction — deduplicate coverage/lint/test runs across phases | MEDIUM | Architecture |
+
+---
+
+## Session Scorecard
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 0 (1 at verifying) |
+| Phases completed | 3 (create-story, dev-story, code-review) |
+| Total ACs defined | 11 |
+| HIGH bugs caught by review | 2 |
+| MEDIUM bugs caught by review | 2 |
+| Tests added | 33 (4780 -> 4813) |
+| Coverage | 96.64% overall, worktree-manager.ts 98.21% stmts |
+| Session cost | ~$2.80 |
+| Retries | 0 |
+| Session duration | ~30 minutes |

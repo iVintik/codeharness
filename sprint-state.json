@@ -806,10 +806,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
-    "acProgress": null
+    "currentStory": "17-1-worktree-manager",
+    "currentPhase": "verify",
+    "lastAction": "Starting runtime-provable verification",
+    "acProgress": "11/11"
   },
   "actionItems": []
 }

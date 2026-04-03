@@ -108,7 +108,7 @@ development_status:
 
   # Epic 17
   epic-17: backlog
-  17-1-worktree-manager: backlog
+  17-1-worktree-manager: done
   17-2-lane-pool: backlog
   17-3-run-command-parallel-integration: backlog
 

@@ -1900,3 +1900,63 @@
 [2026-04-03 17:12:59] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-04-03_17-12-59.log
 [2026-04-03 17:12:59] [DEBUG] LIVE_OUTPUT=true, timeout=1800s
 [2026-04-03 17:12:59] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-04-03 17:42:18] [SUCCESS] Claude Code iteration completed successfully
+[2026-04-03 17:42:19] [SUCCESS] Story 15-3-driver-capability-matrix-routing-hints: DONE — Story 15.3: Driver Capability Matrix & Routing Hints [proof: verification/15-3-driver-capability-matrix-routing-hints-proof.md]
+[2026-04-03 17:42:24] [INFO] Progress: 47/47 done, 0 remaining (iterations: 19, elapsed: 7h24m)
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 1-1-delete-beads-integration
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 1-2-delete-ralph-loop-legacy-verification
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 1-3-workflow-state-module
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 2-1-workflow-yaml-json-schema
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 2-2-workflow-parser-module
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 2-3-default-embedded-workflow
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 2-4-init-command-workflow-generation
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 2-5-validate-command
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 3-1-agent-config-json-schema
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 3-2-embedded-agent-templates
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 3-3-agent-resolver-module
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 4-1-agent-dispatch-module-sdk-integration
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 4-2-session-boundary-management
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 4-3-trace-id-generation-injection
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 4-4-source-isolation-enforcement
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 5-1-flow-execution-sequential-steps
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 5-2-flow-execution-loop-blocks
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 5-3-crash-recovery-resume
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 5-4-run-status-commands
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 6-1-evaluator-module-workspace-spawn
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 6-2-evaluator-verdict-json-schema-parsing
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 6-3-evaluator-prompt-template
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 7-1-score-based-circuit-breaker-module
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 7-2-resume-after-circuit-breaker
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 8-1-issue-tracker-module-cli
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 8-2-retro-finding-auto-import
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 9-1-workflow-patch-resolution
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 9-2-custom-workflow-creation
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 10-1-agentdriver-interface-types
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 10-2-driver-factory-registry
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 10-3-claude-code-driver-extraction
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 10-4-model-resolution-module
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 10-5-workflow-engine-driver-integration
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 11-1-workflow-schema-extension
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 11-2-workflow-referential-integrity-validation
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 12-1-codex-driver-implementation
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 12-2-opencode-driver-implementation
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 12-3-driver-health-check-at-workflow-start
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 13-1-output-contract-schema-serialization
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 13-2-output-contract-prompt-injection
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 13-3-cross-framework-workflow-execution
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 14-1-workflowgraph-component
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 14-2-task-status-driver-labels
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 14-3-activity-display-driver-integration
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 15-1-plugin-pass-through-configuration
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 15-2-cost-tracking-per-driver
+[2026-04-03 17:42:24] [SUCCESS]   ✓ 15-3-driver-capability-matrix-routing-hints
+[2026-04-03 17:42:25] [INFO] ━━━ Session Issues (4 entries) ━━━
+[2026-04-03 17:42:25] [INFO] ━━━ Session Retro ━━━
+[2026-04-03 17:42:25] [LOOP] === End Iteration #19 ===
+[2026-04-03 17:42:26] [SUCCESS] All stories complete. 47 stories verified in 20 iterations.
+[2026-04-03 17:42:26] [SUCCESS] Ralph loop finished
+[2026-04-03 17:42:26] [INFO]   Iterations: 20
+[2026-04-03 17:42:26] [INFO]   Stories completed: 47/47
+[2026-04-03 17:42:26] [INFO]   Elapsed: 444m
+[2026-04-03 17:42:26] [INFO]   API calls: 18
+[2026-04-03 17:42:26] [SUCCESS] All stories complete. 47 stories verified in 20 iterations.

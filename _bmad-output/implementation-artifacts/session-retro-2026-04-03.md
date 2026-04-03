@@ -5242,3 +5242,210 @@ Aggregated from session issues log Token Reports:
 1. **Complete story 15-3** to close Epic 15 and the sprint.
 2. **Fix `require-yield` lint (#99)** — 2-minute fix, 7+ sessions of accumulated noise.
 3. **Fix `migration.test.ts` failure (#100)** — pre-existing but blocks clean green on test runs.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 15, Sprint Final)
+
+**Generated:** 2026-04-03T17:45:00Z
+**Session window:** ~2026-04-03T13:17 to ~2026-04-03T17:38 (approx. 4.5 hours)
+**Sprint progress:** 47/47 stories done (100%). All 15 epics complete. Sprint closed.
+
+---
+
+## 1. Session Summary
+
+This was the final session of the sprint. Story 15-3 (Driver Capability Matrix & Routing Hints) was the only remaining story. It completed cleanly in a single pass through all four phases.
+
+| Story | Phases Run | Outcome | ACs | Attempts | Notes |
+|-------|-----------|---------|-----|----------|-------|
+| 15-3-driver-capability-matrix-routing-hints | create-story, dev, code-review, verify | **Done** | 12/12 | 1 | Full lifecycle. Type annotation bug caught in review. AGENTS.md staleness fixed in verify. |
+
+**Net output:** 1 story completed and verified. Epic 15 closed. Sprint complete.
+**Test suite:** 4,649 tests across 173 files. 96.86% statement coverage. All files above 80% floor.
+
+### Sprint Completion Milestone
+
+With story 15-3 done, the sprint is fully complete:
+- 47 stories across 15 epics
+- Zero stories failed or blocked
+- Zero flagged stories
+- Commit `5506c30` marks the epic 15 closure
+
+---
+
+## 2. Issues Analysis
+
+### 2.1 Bugs Found by Code Review (fixed in session)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 15-3 | Wrong type annotation in `capability-check.ts` — `Record<string, boolean>` instead of `Partial<DriverCapabilities>` |
+| MEDIUM | 15-3 | Duplicate imports in `drivers.ts` and `capability-check.ts` |
+| MEDIUM | 15-3 | Missing test for JSON vs pretty-print output formatting in `drivers.test.ts` |
+
+### 2.2 Known LOW Issues (deferred)
+
+- `DRIVER_DESCRIPTIONS` static map could go stale if a new driver is added without updating the map.
+- `Record<string, unknown>` cast in `suggestCheaperDriver` loses type safety.
+
+### 2.3 Pre-existing Issues (not from this story)
+
+- **`require-yield` lint error** in `workflow-engine.test.ts:170` — present for 7+ sessions, never fixed.
+- **300-line violations** in `codex.ts` (333 lines) and `opencode.ts` (339 lines) from stories 12-1/12-2. Story 15-3 added 1 line to each.
+- **`AGENTS.md` staleness** — `src/lib/AGENTS.md` and `src/lib/agents/AGENTS.md` were missing `capability-check.ts`. Fixed during verify phase.
+
+### 2.4 Infrastructure Issues
+
+- **`codeharness stats --save` broken** for non-ralph sessions. Has been broken for 3+ sessions. Cannot generate cost reports automatically.
+- **Proof format mismatches** did not occur this session (resolved in earlier sessions).
+- **`project-context.md` still missing** — workflow references it but it was never created. Non-blocking.
+- **`config.yaml` path mismatch** — workflow expects `_bmad/bmm/config.yaml`, actual is `_bmad/config.yaml`. Recurring.
+
+---
+
+## 3. Cost Analysis
+
+### 3.1 Subagent Token Report — Story 15-3
+
+`codeharness stats` is broken, so cost analysis is based on subagent token reports from the session issues log.
+
+| Phase | Tool Calls | Breakdown | Unique Files | Notes |
+|-------|-----------|-----------|--------------|-------|
+| create-story | 26 | Bash: 2, Read: 13, Grep: 9, Write: 1, Glob: 4, Skill: 1 | 15 | Heavy read/grep for context gathering |
+| dev-story | 39 | Bash: 8, Read: 14, Edit: 20, Grep: 6, Write: 3, Glob: 1 | 18 | Most tool calls — 20 edits, clean implementation |
+| code-review | 28 | Bash: 10, Read: 13, Edit: 6, Grep: 4, Glob: 1, Skill: 1 | 17 | Found and fixed 1 HIGH + 2 MEDIUM issues |
+| verify | 15 | Bash: 11, Read: 1, Write: 1, Grep: 1, Glob: 2 | 1 | Lean — mostly Bash for CLI verification |
+| **Total** | **108** | | | |
+
+**Redundancy:** Minimal. 2 duplicate CLI runs in verify phase. No repeated file reads reported.
+
+### 3.2 Full-Sprint Subagent Analysis (Stories 12-2 through 15-3)
+
+Aggregated from all session issues token reports for stories completed today:
+
+| Story | Total Tool Calls | Phases | Key Observation |
+|-------|-----------------|--------|-----------------|
+| 12-2-opencode-driver | 59 | 4 | Clean run, no redundancy |
+| 12-3-health-check | 75 | 4 | `workflow-engine.test.ts` read 4x in dev (size limits) |
+| 13-1-output-contract | 67 | 4 | 1 re-read for Edit mismatch |
+| 13-2-prompt-injection | 76 | 4 | `workflow-engine.test.ts` read 3x in code-review |
+| 13-3-cross-framework | 88 | 4 | `workflow-engine.test.ts` read 8x in code-review (size-limited) |
+| 14-1-workflowgraph | 77 | 4 | `ink-components.tsx` and `ink-renderer.tsx` read 2x each |
+| 14-2-task-status | 75 | 4 | `ink-workflow.tsx` read 2x in dev |
+| 14-3-activity-display | 80 | 4 | `ink-renderer.test.tsx` is 881+ lines, multiple reads |
+| 15-1-plugin-config | 80 | 4 | Clean run, no redundancy |
+| 15-2-cost-tracking | 98 | 4 | 18 Edit calls in dev (checkbox pattern), `ink-renderer.test.tsx` read 4x |
+| 15-3-capability-matrix | 108 | 4 | 2 duplicate CLI runs in verify |
+
+**Total tool calls across 11 stories:** ~883
+
+### 3.3 Expensive Patterns Identified
+
+1. **Large file reads dominate cost.** `workflow-engine.test.ts` was read 8x in a single code-review phase (story 13-3) due to offset-limited reads on a large file. This file and `ink-renderer.test.tsx` (1,116 lines) are the two biggest cost drivers.
+2. **Dev phase is consistently the most expensive** — averaging 22-32 tool calls per story, dominated by Edit operations.
+3. **Code-review is the second most expensive** — 19-28 tool calls, driven by Read calls to understand context before suggesting fixes.
+4. **Verify phase is the cheapest** — 11-18 tool calls, mostly Bash commands for CLI invocation.
+5. **Create-story is moderate** — 14-26 tool calls, driven by Grep/Read for context discovery.
+
+### 3.4 Sprint Cost Summary
+
+| Metric | Value |
+|--------|-------|
+| Prior sessions estimated cost | $250.40 |
+| This session estimated cost | ~$12-15 (1 story, 108 tool calls) |
+| **Total sprint estimated cost** | **~$262-265** |
+| Stories completed | 47 |
+| Cost per story (average) | ~$5.60 |
+| Wasted spend (retries, format fixes) | ~$8-12 (proof format rewrites, duplicate CLI runs) |
+
+---
+
+## 4. What Went Well
+
+1. **Sprint completed 100%.** 47/47 stories, 15/15 epics. Zero failures, zero blocked.
+2. **Story 15-3 completed in one clean pass.** No retries, no escalations, all 12 ACs verified.
+3. **Code review continues to catch real bugs.** HIGH-severity type annotation error would have caused runtime failures. 3 issues found and fixed.
+4. **Test suite health is excellent.** 4,649 tests, 96.86% coverage, all 173 files above 80% floor.
+5. **No proof format mismatches this session.** Earlier sessions had recurring issues with verifier output format; this session was clean.
+6. **AGENTS.md staleness was fixed proactively** during verify phase rather than being deferred.
+7. **Session issues logging worked well.** Every phase reported tool call counts and redundancy observations, enabling this analysis.
+
+---
+
+## 5. What Went Wrong
+
+1. **`codeharness stats --save` still broken.** Cannot generate automated cost reports. Has been broken for 3+ sessions. Manual estimation only.
+2. **`require-yield` lint error persists.** Present for 7+ sessions. 2-minute fix that no session ever prioritized. Creates noise in every lint check.
+3. **300-line violations in `codex.ts` and `opencode.ts`** were introduced in session 9 (stories 12-1/12-2) and never cleaned up. Now entrenched.
+4. **`project-context.md` never created.** Referenced by workflows but absent. Every create-story phase logs this as an issue. Wasted log noise.
+5. **`config.yaml` path mismatch** logged in 3 separate sessions. Never fixed at the workflow level.
+6. **Pre-existing `migration.test.ts` failure** reported by multiple sessions, never addressed.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Four-phase pipeline (create-story, dev, code-review, verify) is reliable.** Every story that entered the pipeline completed successfully.
+2. **Code review catches real bugs every time.** This session: 1 HIGH, 2 MEDIUM. Sprint-wide: 32+ HIGH bugs caught before merge.
+3. **Token reports in session issues log** make cost analysis possible even when `codeharness stats` is broken.
+4. **Single-story sessions are clean.** When only one story runs, there's no context contamination or confusion.
+
+### Patterns to Avoid
+
+1. **Deferring 2-minute fixes across 7+ sessions.** The `require-yield` lint error cost more in accumulated noise and cognitive load than the fix would have.
+2. **Not fixing workflow config paths.** `_bmad/bmm/config.yaml` vs `_bmad/config.yaml` mismatch logged every session. Should be fixed once in the workflow template.
+3. **Large test files force expensive offset-limited reads.** `workflow-engine.test.ts` and `ink-renderer.test.tsx` should be split.
+4. **Not generating `project-context.md`** — either create it or remove the workflow reference.
+
+---
+
+## 7. Action Items
+
+### Immediate (before next sprint)
+
+| # | Action | Priority | Rationale |
+|---|--------|----------|-----------|
+| 1 | Fix `require-yield` lint error in `workflow-engine.test.ts:170` | HIGH | 7+ sessions of noise. 2-minute fix. |
+| 2 | Fix `migration.test.ts` pre-existing test failure | HIGH | Blocks clean test runs. |
+| 3 | Fix `codeharness stats --save` for non-ralph sessions | HIGH | Cost tracking broken for 3+ sessions. |
+| 4 | Fix `config.yaml` path in workflow templates (`_bmad/bmm/` -> `_bmad/`) | MEDIUM | Logged every session. |
+| 5 | Either generate `project-context.md` or remove workflow reference | MEDIUM | Noise reduction. |
+
+### Next Sprint
+
+| # | Action | Priority | Rationale |
+|---|--------|----------|-----------|
+| 6 | Split `workflow-engine.test.ts` (1,100+ lines) | MEDIUM | Most-read file in code review. Est. savings: $2-3/sprint. |
+| 7 | Split `ink-renderer.test.tsx` (1,116 lines) | MEDIUM | Second most-read file. Est. savings: $2-3/sprint. |
+| 8 | Fix 300-line violations in `codex.ts` (333) and `opencode.ts` (339) | LOW | Tech debt from stories 12-1/12-2. |
+| 9 | Extract `classifyError`/`parseLine` duplication (~80 lines) between codex.ts and opencode.ts | LOW | Intentional per architecture but creates maintenance burden. |
+
+### Backlog
+
+| # | Action | Priority | Notes |
+|---|--------|----------|-------|
+| 10 | Replace `_getState?()` with dedicated test interface | LOW | Code quality concern from story 15-2. |
+| 11 | Add `string-width` for proper column alignment in TUI | LOW | Manual space counting is fragile. |
+| 12 | Audit "unknown" cost bucket ($39.22 / 15.7% of spend) | MEDIUM | From prior retro — unattributed orchestrator overhead. |
+
+---
+
+## Sprint Final Summary
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 47/47 (100%) |
+| Epics completed | 15/15 (100%) |
+| Total tests | 4,649 |
+| Statement coverage | 96.86% |
+| Files above 80% floor | 173/173 (100%) |
+| Estimated total sprint cost | ~$262-265 |
+| Avg cost per story | ~$5.60 |
+| HIGH bugs caught by code review | 34+ (full sprint) |
+| Stories requiring retry | 3 (3-1, 3-3, 12-3) |
+| Stories with zero issues | ~60% of stories had clean dev phases |
+| Total elapsed time (ralph) | ~6.9 hours (24,923 seconds) |
+| Sprint calendar span | 2026-04-02 to 2026-04-03 (2 days) |

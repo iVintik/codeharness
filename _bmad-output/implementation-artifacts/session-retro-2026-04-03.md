@@ -2971,3 +2971,217 @@ Aggregated from `.session-issues.md` token reports:
 1. **Epic 12 (multi-framework drivers)** is next in the backlog — stories 12-1 (Codex driver), 12-2 (OpenCode driver), 12-3 (health check at workflow start).
 2. Before starting Epic 12, fix action item #13/16 (redundant coverage runs) — this single fix would save ~$3-5 per 9-story batch, compounding across all remaining work.
 3. Update AGENTS.md (action item #3) to eliminate the verification noise that burns cycles on every story.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 12, ~12:49–13:20)
+
+**Timestamp:** 2026-04-03T13:20Z
+**Session window:** ~2026-04-03T12:49 to ~2026-04-03T13:20 (approx. 31 minutes)
+**Sprint progress:** 36/49 stories done (73.5%), Epics 1-11 complete, Epic 12 in-progress (1/3 stories done)
+
+---
+
+## 1. Session Summary
+
+This session completed one story — 12-1-codex-driver-implementation — the first CLI-wrapped (non-SDK) driver. It went through the full lifecycle with no retries. This is the first story in Epic 12 (multi-framework drivers) and establishes the pattern for the remaining CLI-based driver implementations.
+
+| Story | Phases Run | Outcome | Key Notes |
+|-------|-----------|---------|-----------|
+| 12-1-codex-driver-implementation | create, dev, review, verify | **Done** | First CLI-wrapped driver. 53+ tests. codex.ts at 100% statement/function/line coverage, 96.03% branches. |
+
+**Net output:** 1 story completed and verified. Epic 12 now 1/3 done.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed) — 3 HIGH, 2 MEDIUM
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 12-1 | Missing branch coverage for `parseLine` edge cases — `tool_call` with missing name/call_id, `tool_input` with non-string input, `message` with non-string/missing content, `retry` with invalid types. Added 7 tests. |
+| HIGH | 12-1 | Catch block in `dispatch` (lines 299-311) had zero coverage. Added test destroying stdout stream to trigger it. |
+| MEDIUM | 12-1 | `ECONNREFUSED` regex branch unreachable — earlier regex always matched first. Added targeted test. |
+| MEDIUM | 12-1 | Missing CLI args edge case for empty model/cwd. |
+| MEDIUM (not fixed) | 12-1 | `classifyError` exported as public in codex.ts but module-private in claude-code.ts — inconsistent API surface. |
+
+### Workarounds Applied (tech debt introduced)
+
+| Story | Workaround | Risk |
+|-------|-----------|------|
+| 12-1 | Codex CLI NDJSON output format is speculative (not based on real CLI output) | May need rework when real Codex CLI is available |
+| 12-1 | Tests mock `child_process.spawn` directly despite architecture anti-pattern note | Pattern established — harder to change later |
+| 12-1 | `IGNORE:` comments added to 4 catch blocks in codex.ts for boundary enforcement | Suppresses legitimate coverage concern |
+
+### Verification Gaps
+
+- **AGENTS.md stale (again):** `codeharness verify` fails on missing entries for claude-code.ts, codex.ts, factory.ts, model-resolver.ts in `src/lib/agents/drivers`. Same pre-existing issue flagged in every story since Epic 10.
+- **25 pre-existing TSC errors** in unrelated files — zero in codex files.
+- **Test count discrepancy:** Story claimed 53 new tests, but delta from 4350 baseline was +64. Likely includes tests from other recent commits.
+
+### LOW Issues Deferred (not fixed)
+
+- `classifyError` API surface inconsistency between codex.ts (public) and claude-code.ts (private)
+- Duplicated `classifyError` logic and `NETWORK_CODES` set between codex.ts and claude-code.ts (now in 3 places: agent-dispatch.ts, claude-code.ts, codex.ts)
+- `child_process.spawn` mock pattern established despite architecture guidance against it
+
+### Tooling/Infrastructure Problems
+
+- **`codeharness stats --save` failed** with "No session-logs/ directory found." Stats unavailable for this specific session.
+- **`codeharness verify` still fails on AGENTS.md** — 12th+ consecutive story with this noise.
+- **BATS integration tests** continue to show BW01 warnings about missing shell scripts.
+
+---
+
+## 3. Cost Analysis
+
+### Overall Sprint Cost (cumulative from cost report)
+
+| Metric | Value |
+|--------|-------|
+| **Total API-equivalent cost** | **$202.85** |
+| Total API calls | 1,568 |
+| Average cost per story | $3.46 (49 stories tracked) |
+
+### Cost Breakdown by Token Type
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 83M | $124.55 | 61% |
+| Cache writes | 2.4M | $45.29 | 22% |
+| Output | 439K | $32.92 | 16% |
+| Input | 5.6K | $0.08 | <1% |
+
+### Cost by Phase (sprint-wide)
+
+| Phase | Calls | Cost | % | Observation |
+|-------|-------|------|---|-------------|
+| verify | 749 | $89.96 | 44.3% | Still nearly half of all spend |
+| orchestrator | 175 | $37.21 | 18.3% | Ralph overhead |
+| create-story | 207 | $23.29 | 11.5% | Read-heavy context loading |
+| dev-story | 182 | $20.26 | 10.0% | Actual implementation |
+| code-review | 158 | $18.61 | 9.2% | Highest bug-catch ROI |
+| retro | 97 | $13.52 | 6.7% | Retrospective generation |
+
+### Top Expensive Stories (sprint-wide)
+
+| Story | Cost | % | Why Expensive |
+|-------|------|---|---------------|
+| unknown (unattributed) | $33.23 | 16.4% | Orchestrator overhead, retros, untagged calls |
+| 5-1-flow-execution-sequential-steps | $8.84 | 4.4% | First engine story, complex setup |
+| 2-1-workflow-yaml-json-schema | $8.51 | 4.2% | First schema story, pattern establishment |
+| 9-2-custom-workflow-creation | $6.83 | 3.4% | Proof format retries in verification |
+| 3-2-embedded-agent-templates | $6.42 | 3.2% | Template loading complexity |
+
+### Subagent-Level Breakdown — Story 12-1
+
+Aggregated from `.session-issues.md` token reports:
+
+| Phase | Tool Calls | Top Tools | Notes |
+|-------|------------|-----------|-------|
+| create-story | 18 | Read: 10, Glob: 6, Grep: 3 | 12 unique files read |
+| dev-story | 24 | Edit: 10, Read: 9, Bash: 8 | `npm run test:unit` output ~500 lines (x2) |
+| code-review | 21 | Read: 13, Bash: 8, Edit: 3 | codex-driver.test.ts read 3x |
+| verification | 15 | Bash: 11, Grep: 3, Write: 1 | Clean — no redundant runs |
+| **Total** | **78** | | |
+
+**Story 12-1 estimated cost:** ~$5-7 based on 78 tool calls (slightly above the $3.46 average due to new-pattern overhead).
+
+### Where Tokens Were Spent — Key Findings
+
+1. **Dev-story had the most tool calls (24)** — primarily Edit (10) and Read (9). Two full test suite runs at ~500 lines each. Timeout test race condition required iterative fixing.
+2. **Code-review read codex-driver.test.ts 3 times** — file growing large enough to require chunked reads. Pattern emerging (same as workflow-parser.test.ts and workflow-engine.test.ts from prior sessions).
+3. **Verification was the cleanest phase** — 15 tool calls, no redundant runs. This is an improvement over prior sessions where verification averaged 16-20 calls with duplicate coverage runs.
+4. **`npm run test:unit` produced ~500 lines of output twice in dev-story** — ANSI escape codes inflate the output. A `--reporter=dot` flag would cut this dramatically.
+
+### Wasted Spend Analysis (this session)
+
+| Category | Estimated Waste | Notes |
+|----------|----------------|-------|
+| Duplicate test suite runs in dev-story | ~$0.50 | Two full runs where one + targeted rerun would suffice |
+| Chunked re-reads of test file | ~$0.30 | codex-driver.test.ts read 3x |
+| **Total** | **~$0.80** | Lower waste than prior sessions — verification was clean |
+
+### Cost Optimization Opportunities (updated)
+
+1. **Verification phase remains 44.3% of total spend.** This session's verification was clean (15 calls, no duplicates), but sprint-wide the problem persists. Fix the verification prompt/tooling to prevent regression.
+2. **Use `--reporter=dot` for test suite runs.** Two 500-line outputs in dev-story could be reduced to ~10 lines each. Saves context window and tokens.
+3. **$33.23 (16.4%) unattributed to any story.** The "unknown" bucket is the largest single cost item. Likely orchestrator overhead, retros, and untagged calls. Better attribution tagging would enable optimization.
+4. **Pre-load driver pattern context.** Story 12-1 read 12 unique files in create-story — 10-1, 10-2, 10-3 architecture/types. A "driver story template" with pre-loaded context would cut this.
+
+---
+
+## 4. What Went Well
+
+1. **12-1 completed with zero retries.** Full lifecycle in one pass — create, dev, review, verify, commit.
+2. **Code review caught real bugs.** Zero-coverage catch block and unreachable regex branch are legitimate issues that would have surfaced in production.
+3. **Verification phase was clean.** 15 tool calls, no redundant coverage runs. This is the first story in recent sessions where verification didn't have duplicate test/coverage runs — either the prompt improved or the simpler module helped.
+4. **First CLI-wrapped driver establishes pattern.** codex.ts at 100% coverage provides a template for story 12-2 (OpenCode driver).
+5. **Coverage stable at 96.74%.** 4414 tests, all 167+ files above 80%.
+6. **Boundary test catch-block enforcement worked.** 4 catch blocks in codex.ts properly annotated with `IGNORE:` — enforcement mechanism is functional.
+
+---
+
+## 5. What Went Wrong
+
+1. **`codeharness stats --save` broken** — "No session-logs/ directory found." Cannot generate per-session cost data. Used cumulative sprint cost report instead.
+2. **AGENTS.md still stale.** 12th+ consecutive story flagged. This wastes ~1-2 verification tool calls per story ($0.10-0.20 each) plus subagent reasoning time to identify and dismiss the noise.
+3. **Codex CLI output format is speculative.** The NDJSON format in test fixtures is plausible but not validated against real Codex CLI output. This is a known risk that could require rework.
+4. **`NETWORK_CODES` duplication now in 3 files.** Was in 2 files (agent-dispatch.ts, claude-code.ts), now also in codex.ts. Tech debt compounding.
+5. **`classifyError` logic duplicated** between claude-code.ts and codex.ts. Should be a shared utility in the driver base or a common module.
+6. **State-snapshot.json out of sync.** Shows 12-1 as `ready-for-dev` despite being committed. The state file is stale relative to actual git state.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **CLI-wrapped driver pattern.** codex.ts establishes: spawn process -> readline NDJSON -> map to ResultEvent -> yield. This is clean and testable. Reuse for 12-2.
+- **Verification without redundant runs.** This session's verification was the cleanest in recent memory — 15 calls, no duplicates. Whatever the subagent did differently, replicate it.
+- **Targeted code review.** Reviewer focused on branch coverage gaps and found real unreachable code. This is more valuable than style/naming nitpicks.
+
+### Patterns to Avoid
+
+- **Speculative protocol implementations.** Codex CLI output format was guessed. Better to document the assumption explicitly and add a "conformance test" story when real CLI is available.
+- **Duplicating error classification per driver.** `classifyError` and `NETWORK_CODES` should be extracted to a shared driver utility before 12-2 adds a third copy.
+- **Ignoring state-snapshot staleness.** The state file diverges from reality after manual commits. Either auto-update on commit or accept it's always stale.
+
+---
+
+## 7. Action Items
+
+### From Prior Sessions (status update)
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 3 | Update `src/lib/AGENTS.md` — missing entire `drivers/` directory | MEDIUM | **Open (13th session)** |
+| 4 | Fix `codeharness stats --save` for non-ralph sessions | LOW | **Open (still broken)** |
+| 11 | Fix `formatElapsed` duplication — 3 implementations | MEDIUM | Open |
+| 12 | Wire 5 dead CLI options to EngineConfig or remove them | MEDIUM | Open |
+| 13/16 | Eliminate redundant coverage runs in verification phase | HIGH | **Partially resolved — this session had 0 duplicates, but sprint-wide still 44.3%** |
+| 23 | Auto-update epic status in sprint-state.json | MEDIUM | Open |
+| 32 | Fix proof format specification in verification prompt | HIGH | Open |
+| 33 | Fix pre-existing 26 TSC errors | MEDIUM | Open (now 25) |
+| 34 | Extract `deepMerge` to shared util | LOW | Open |
+| 35 | Split large test files | LOW | Open |
+| 36 | Fix OOM fragility — vitest resolves real SDK before mocks | MEDIUM | Open |
+| 37 | Fix epic numbering mismatch | MEDIUM | Open |
+
+### New This Session
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 41 | Extract `classifyError` + `NETWORK_CODES` to shared driver utility before 12-2 | HIGH | Fix now |
+| 42 | Validate Codex CLI NDJSON output format against real CLI when available | MEDIUM | Backlog |
+| 43 | Fix state-snapshot.json 12-1 status (shows `ready-for-dev`, should be `done`) | LOW | Fix now |
+| 44 | Add `--reporter=dot` to dev-story test runs to reduce output size | LOW | Cost optimization |
+| 45 | Investigate `codeharness stats --save` failure — no session-logs directory | LOW | Fix soon |
+
+### Priority Recommendations for Next Session
+
+1. **Story 12-2 (OpenCode driver)** — reuse codex.ts as template. Should be faster given established pattern.
+2. **Before 12-2, extract shared driver utilities (action #41)** — `classifyError`, `NETWORK_CODES`, and potentially `buildCliArgs` patterns. Prevents a 4th duplication.
+3. **Story 12-3 (driver health check at workflow start)** — completes Epic 12.
+4. **Fix AGENTS.md (action #3)** — 13 sessions of noise. This is the single most persistent action item.

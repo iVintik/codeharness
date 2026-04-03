@@ -6,3 +6,4 @@
 export { getDriver, registerDriver, listDrivers, resetDrivers } from './factory.js';
 export { ClaudeCodeDriver } from './claude-code.js';
 export { CodexDriver } from './codex.js';
+export { OpenCodeDriver } from './opencode.js';

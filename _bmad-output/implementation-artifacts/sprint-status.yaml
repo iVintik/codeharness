@@ -76,7 +76,7 @@ development_status:
   # Epic 12
   epic-12: backlog
   12-1-codex-driver-implementation: done
-  12-2-opencode-driver-implementation: backlog
+  12-2-opencode-driver-implementation: done
   12-3-driver-health-check-at-workflow-start: backlog
 
   # Epic 13

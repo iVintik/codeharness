@@ -1,0 +1,9 @@
+{"type":"tool_call","name":"read_file","call_id":"oc_call_001"}
+{"type":"tool_input","call_id":"oc_call_001","input":"{\"path\":\"/src/main.go\"}"}
+{"type":"tool_result","call_id":"oc_call_001","output":"package main\nfunc main() {}"}
+{"type":"message","content":"I've read the file. Let me update it now."}
+{"type":"tool_call","name":"write_file","call_id":"oc_call_002"}
+{"type":"tool_input","call_id":"oc_call_002","input":"{\"path\":\"/src/main.go\",\"content\":\"package main\\nfunc main() { fmt.Println(\\\"hello\\\") }\"}"}
+{"type":"tool_result","call_id":"oc_call_002","output":"File written successfully."}
+{"type":"message","content":"Done. The file has been updated with the print statement."}
+{"type":"result","status":"completed","cost_usd":0.0021,"session_id":"opencode-sess-xyz789"}

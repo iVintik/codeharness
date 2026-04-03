@@ -1,23 +1,46 @@
-import { describe, it, expect } from 'vitest';
-import { getDriver } from '../index.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { getDriver, registerDriver, listDrivers, resetDrivers } from '../index.js';
+import type { AgentDriver, DispatchOpts, DriverHealth } from '../types.js';
+import type { StreamEvent } from '../stream-parser.js';
 
-describe('getDriver()', () => {
-  // Ralph driver removed (Story 1.2) — getDriver now throws for all names.
-  // Workflow engine driver will be added in Epic 5.
+/** Creates a minimal mock AgentDriver for testing. */
+function createMockDriver(name: string): AgentDriver {
+  return {
+    name,
+    defaultModel: 'mock-model',
+    capabilities: {
+      supportsPlugins: false,
+      supportsStreaming: true,
+      costReporting: false,
+    },
+    async healthCheck(): Promise<DriverHealth> {
+      return { available: true, authenticated: true, version: '1.0.0' };
+    },
+    async *dispatch(_opts: DispatchOpts): AsyncIterable<StreamEvent> {
+      yield { type: 'text', text: 'mock' };
+    },
+    getLastCost: () => null,
+  };
+}
 
-  it('throws for default driver (no drivers available)', () => {
-    expect(() => getDriver()).toThrow('No agent drivers available');
+describe('getDriver() — via agents barrel', () => {
+  beforeEach(() => {
+    resetDrivers();
   });
 
-  it('throws for explicit ralph driver name', () => {
-    expect(() => getDriver('ralph')).toThrow('No agent drivers available');
+  it('throws for unknown driver names with helpful message', () => {
+    expect(() => getDriver('unknown-agent')).toThrow("Driver 'unknown-agent' not found");
   });
 
-  it('throws for unknown driver names', () => {
-    expect(() => getDriver('unknown-agent')).toThrow('No agent drivers available');
+  it('returns a registered driver by name', () => {
+    const driver = createMockDriver('test-driver');
+    registerDriver(driver);
+    expect(getDriver('test-driver')).toBe(driver);
   });
 
-  it('includes requested driver name in error message', () => {
-    expect(() => getDriver('gpt-pilot')).toThrow('gpt-pilot');
+  it('barrel exports registerDriver, listDrivers, resetDrivers', () => {
+    expect(typeof registerDriver).toBe('function');
+    expect(typeof listDrivers).toBe('function');
+    expect(typeof resetDrivers).toBe('function');
   });
 });

@@ -1,8 +1,8 @@
 {
   "version": 2,
   "sprint": {
-    "total": 28,
-    "done": 26,
+    "total": 46,
+    "done": 28,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -301,6 +301,162 @@
       }
     },
     "9-2-custom-workflow-creation": {
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T07:20:00Z",
+      "lastError": null,
+      "proofPath": "verification/9-2-custom-workflow-creation-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
+    },
+    "10-1-agentdriver-interface-types": {
+      "status": "done",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "10-2-driver-factory-registry": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "10-3-claude-code-driver-extraction": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "10-4-model-resolution-module": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "10-5-workflow-engine-driver-integration": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "11-1-workflow-schema-extension": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "11-2-workflow-referential-integrity-validation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "12-1-codex-driver-implementation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "12-2-opencode-driver-implementation": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "12-3-driver-health-check-at-workflow-start": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "13-1-output-contract-schema-serialization": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "13-2-output-contract-prompt-injection": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "13-3-cross-framework-workflow-execution": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "14-1-workflowgraph-component": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "14-2-task-status-driver-labels": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "14-3-activity-display-driver-integration": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "15-1-plugin-pass-through-configuration": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "15-2-cost-tracking-per-driver": {
+      "status": "backlog",
+      "attempts": 0,
+      "lastAttempt": null,
+      "lastError": null,
+      "proofPath": null,
+      "acResults": null
+    },
+    "15-3-driver-capability-matrix-routing-hints": {
       "status": "backlog",
       "attempts": 0,
       "lastAttempt": null,
@@ -317,7 +473,19 @@
     "2-4-init-command-workflow-generation": 1,
     "2-5-validate-command": 1,
     "3-1-agent-config-json-schema": 2,
-    "3-3-agent-resolver-module": 4
+    "3-3-agent-resolver-module": 4,
+    "story-a": 1,
+    "5-3-crash-recovery-resume": 1,
+    "5-4-run-status-commands": 1,
+    "6-1-evaluator-module-workspace-spawn": 1,
+    "6-2-evaluator-verdict-json-schema-parsing": 1,
+    "6-3-evaluator-prompt-template": 1,
+    "7-1-score-based-circuit-breaker-module": 1,
+    "7-2-resume-after-circuit-breaker": 1,
+    "8-1-issue-tracker-module-cli": 1,
+    "8-2-retro-finding-auto-import": 1,
+    "9-1-workflow-patch-resolution": 1,
+    "9-2-custom-workflow-creation": 1
   },
   "flagged": [],
   "epics": {
@@ -342,14 +510,14 @@
       "storiesDone": 4
     },
     "epic-5": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 4,
-      "storiesDone": 0
+      "storiesDone": 4
     },
     "epic-6": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 3
     },
     "epic-7": {
       "status": "done",
@@ -357,13 +525,43 @@
       "storiesDone": 2
     },
     "epic-8": {
+      "status": "done",
+      "storiesTotal": 2,
+      "storiesDone": 2
+    },
+    "epic-9": {
+      "status": "done",
+      "storiesTotal": 2,
+      "storiesDone": 2
+    },
+    "epic-10": {
+      "status": "in-progress",
+      "storiesTotal": 5,
+      "storiesDone": 0
+    },
+    "epic-11": {
       "status": "in-progress",
       "storiesTotal": 2,
       "storiesDone": 0
     },
-    "epic-9": {
+    "epic-12": {
       "status": "in-progress",
-      "storiesTotal": 2,
+      "storiesTotal": 3,
+      "storiesDone": 0
+    },
+    "epic-13": {
+      "status": "in-progress",
+      "storiesTotal": 3,
+      "storiesDone": 0
+    },
+    "epic-14": {
+      "status": "in-progress",
+      "storiesTotal": 3,
+      "storiesDone": 0
+    },
+    "epic-15": {
+      "status": "in-progress",
+      "storiesTotal": 3,
       "storiesDone": 0
     }
   },

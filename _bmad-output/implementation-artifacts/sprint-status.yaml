@@ -63,36 +63,36 @@ development_status:
   # Epic 10
   epic-10: in-progress
   10-1-agentdriver-interface-types: done
-  10-2-driver-factory-registry: backlog
+  10-2-driver-factory-registry: done
   10-3-claude-code-driver-extraction: backlog
   10-4-model-resolution-module: backlog
   10-5-workflow-engine-driver-integration: backlog
 
   # Epic 11
-  epic-11: in-progress
+  epic-11: backlog
   11-1-workflow-schema-extension: backlog
   11-2-workflow-referential-integrity-validation: backlog
 
   # Epic 12
-  epic-12: in-progress
+  epic-12: backlog
   12-1-codex-driver-implementation: backlog
   12-2-opencode-driver-implementation: backlog
   12-3-driver-health-check-at-workflow-start: backlog
 
   # Epic 13
-  epic-13: in-progress
+  epic-13: backlog
   13-1-output-contract-schema-serialization: backlog
   13-2-output-contract-prompt-injection: backlog
   13-3-cross-framework-workflow-execution: backlog
 
   # Epic 14
-  epic-14: in-progress
+  epic-14: backlog
   14-1-workflowgraph-component: backlog
   14-2-task-status-driver-labels: backlog
   14-3-activity-display-driver-integration: backlog
 
   # Epic 15
-  epic-15: in-progress
+  epic-15: backlog
   15-1-plugin-pass-through-configuration: backlog
   15-2-cost-tracking-per-driver: backlog
   15-3-driver-capability-matrix-routing-hints: backlog

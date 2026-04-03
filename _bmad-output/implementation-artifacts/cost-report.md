@@ -1,55 +1,55 @@
 # Harness Cost Report
 
-Total API-equivalent cost: $140.54
-Total API calls: 1090
-Average cost per story: $3.57 (33 stories)
+Total API-equivalent cost: $172.36
+Total API calls: 1342
+Average cost per story: $3.51 (41 stories)
 
 ## Cost by Token Type
 
 | Type | Tokens | Rate | Cost | % |
 |------|--------|------|------|---|
-| Cache reads | 58,214,712 | $1.50/MTok | $87.32 | 62% |
-| Cache writes | 1,604,785 | $18.75/MTok | $30.09 | 21% |
-| Output | 307,347 | $75/MTok | $23.05 | 16% |
-| Input | 5,081 | $15/MTok | $0.08 | 0% |
+| Cache reads | 71,279,282 | $1.50/MTok | $106.92 | 62% |
+| Cache writes | 2,005,845 | $18.75/MTok | $37.61 | 22% |
+| Output | 369,987 | $75/MTok | $27.75 | 16% |
+| Input | 5,356 | $15/MTok | $0.08 | 0% |
 
 ## Cost by Phase
 
 | Phase | Calls | Cost | % |
 |-------|-------|------|---|
-| verify | 557 | $67.20 | 47.8% |
-| orchestrator | 123 | $24.39 | 17.4% |
-| dev-story | 127 | $14.20 | 10.1% |
-| create-story | 115 | $13.46 | 9.6% |
-| code-review | 107 | $12.61 | 9.0% |
-| retro | 61 | $8.68 | 6.2% |
+| verify | 653 | $78.30 | 45.4% |
+| orchestrator | 148 | $30.95 | 18.0% |
+| create-story | 175 | $19.41 | 11.3% |
+| dev-story | 152 | $16.83 | 9.8% |
+| code-review | 129 | $15.14 | 8.8% |
+| retro | 85 | $11.72 | 6.8% |
 
 ## Cost by Tool
 
 | Tool | Calls | Cost | % |
 |------|-------|------|---|
-| Read | 268 | $35.48 | 25.2% |
-| Bash | 304 | $33.49 | 23.8% |
-| Edit | 228 | $28.32 | 20.1% |
-| Agent | 134 | $19.30 | 13.7% |
-| Skill | 25 | $8.66 | 6.2% |
-| Grep | 59 | $6.54 | 4.7% |
-| Write | 34 | $4.32 | 3.1% |
-| Glob | 25 | $2.87 | 2.0% |
-| TodoWrite | 11 | $1.41 | 1.0% |
+| Bash | 390 | $42.61 | 24.7% |
+| Read | 317 | $42.48 | 24.6% |
+| Edit | 282 | $34.64 | 20.1% |
+| Agent | 160 | $23.02 | 13.4% |
+| Skill | 30 | $11.07 | 6.4% |
+| Grep | 83 | $9.01 | 5.2% |
+| Write | 36 | $4.59 | 2.7% |
+| Glob | 31 | $3.37 | 2.0% |
+| TodoWrite | 11 | $1.41 | 0.8% |
 | ToolSearch | 2 | $0.16 | 0.1% |
 
 ## Top 10 Most Expensive Stories
 
 | Story | Calls | Cost | % |
 |-------|-------|------|---|
-| unknown | 105 | $22.88 | 16.3% |
-| 5-1-flow-execution-sequential-steps | 65 | $8.84 | 6.3% |
-| 2-1-workflow-yaml-json-schema | 69 | $8.51 | 6.1% |
-| 3-2-embedded-agent-templates | 49 | $6.42 | 4.6% |
-| 6-2-evaluator-verdict-json-schema-parsing | 45 | $6.15 | 4.4% |
-| 5-4-run-status-commands | 55 | $6.14 | 4.4% |
-| 1-3-workflow-state-module | 47 | $5.48 | 3.9% |
-| 6-1-evaluator-module-workspace-spawn | 50 | $5.46 | 3.9% |
-| 5-2-flow-execution-loop-blocks | 42 | $5.28 | 3.8% |
-| 4-3-trace-id-generation-injection | 51 | $5.20 | 3.7% |
+| unknown | 122 | $28.58 | 16.6% |
+| 5-1-flow-execution-sequential-steps | 65 | $8.84 | 5.1% |
+| 2-1-workflow-yaml-json-schema | 69 | $8.51 | 4.9% |
+| 9-2-custom-workflow-creation | 64 | $6.83 | 4.0% |
+| 3-2-embedded-agent-templates | 49 | $6.42 | 3.7% |
+| 6-2-evaluator-verdict-json-schema-parsing | 45 | $6.15 | 3.6% |
+| 5-4-run-status-commands | 55 | $6.14 | 3.6% |
+| 9-1-workflow-patch-resolution | 53 | $6.09 | 3.5% |
+| 1-3-workflow-state-module | 47 | $5.48 | 3.2% |
+| 6-1-evaluator-module-workspace-spawn | 50 | $5.46 | 3.2% |

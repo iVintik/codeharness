@@ -1,14 +1,9 @@
 /**
  * Public API for the agents subsystem.
  *
- * Re-exports types (story 13-1), stream parser functions/types,
- * and the getDriver() factory (story 13-3).
- *
- * Ralph driver and prompt removed in Story 1.2 — will be replaced
- * by workflow engine in Epic 5.
+ * Re-exports types (story 10-1), stream parser functions/types,
+ * and the driver factory (story 10-2).
  */
-
-import type { AgentDriver } from './types.js';
 
 // New types (Epic 10)
 export type {
@@ -44,12 +39,4 @@ export type {
 
 // --- Driver Factory ---
 
-// TODO: v2 workflow-engine (Epic 5) — rebuild getDriver with workflow-based driver
-/**
- * Returns an AgentDriver instance by name.
- * Throws for all driver names — Ralph removed, workflow engine pending (Epic 5).
- */
-export function getDriver(name?: string, _config?: unknown): AgentDriver {
-  const driverName = name ?? 'default';
-  throw new Error(`No agent drivers available (requested: ${driverName}). Workflow engine pending (Epic 5).`);
-}
+export { getDriver, registerDriver, listDrivers, resetDrivers } from './drivers/factory.js';

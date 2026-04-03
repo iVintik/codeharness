@@ -1789,3 +1789,157 @@ With 137 subagent tool calls across 8 subagent invocations (4 phases x 2 stories
 | **Sprint total** | **28** | **~$85.00** | **~$3.04** |
 
 *Sprint total estimated cost differs from the $140.54 in cost-report.md because the report includes orchestrator overhead (~$24), retro phases (~$9), and failed/no-op iterations not attributed to specific stories (~$22).*
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 12)
+
+**Timestamp:** 2026-04-03T10:17
+**Session window:** ~2026-04-03T06:15 to ~2026-04-03T06:40 (approx. 25 minutes)
+**Sprint progress:** Epics 1-9 done, Epic 10 started (1/5 stories done)
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 10-1-agentdriver-interface-types | create, dev, review, verify | **Done** | Full lifecycle, 0 failures, 0 retries. 11/11 ACs passed. |
+
+**Net output:** 1 story completed and verified. This is the first story of the multi-framework orchestration epic (Epic 10), defining the AgentDriver interface types that all subsequent drivers will implement.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue | Fix |
+|----------|-------|-----|
+| HIGH | `DispatchOpts` fields mutable — drivers could mutate caller's options | Added `readonly` to all fields |
+| MEDIUM (x4) | Mutable fields on `DriverHealth`, `DriverCapabilities`, `OutputContract`, `TestResults`, `ACStatus` | Added `readonly` throughout |
+| MEDIUM | Test name/count mismatch ("8 event types" vs 9 actual) | Fixed assertion count |
+| MEDIUM | `ErrorCategory` exhaustiveness test cosmetic, not compile-time safe | Added `never` switch for real exhaustiveness |
+
+### Not Fixed (tracked)
+
+| Severity | Issue | Rationale |
+|----------|-------|-----------|
+| LOW | `ACStatus.status` typed as `string` rather than union type | Deferred — downstream stories will tighten |
+| LOW | `SpawnOpts` deprecated type still uses mutable fields | Scheduled for removal in story 10-3 |
+
+### Architecture Concerns
+
+- **Spec drift:** Story AC #1 added `capabilities` to `AgentDriver` interface, which is not in the architecture spec (Decision 1). The code reviewer flagged this. Needs reconciliation with architecture doc before Epic 10 continues.
+
+### Workarounds / Tech Debt
+
+- **Epic numbering mismatch:** Sprint-status uses "Epic 10" but epics file uses "Epic 1" internally. Create-story had to map manually. This is a recurring source of confusion from previous sessions.
+
+### Tooling Issues
+
+- 51 pre-existing lint warnings (unused vars) — unrelated to this story, not addressed
+- `codeharness verify` warns about missing Showboat and exec-plan — non-blocking, same as all prior sessions
+- BATS integration tests show exit code 127 (pre-existing)
+
+---
+
+## 3. Cost Analysis
+
+### This Session
+
+| Metric | Value |
+|--------|-------|
+| Total session cost (approx) | ~$31.82 |
+| Story 10-1 cost | ~$4.77 (45 calls) |
+| Orchestrator + retro overhead | ~$27.05 |
+
+**Note:** The session cost is disproportionately high relative to the single story completed. The $27 overhead suggests this session included significant orchestrator/retro/planning work beyond just executing story 10-1 (likely the multi-framework PRD, architecture, and readiness checks that preceded implementation).
+
+### Subagent-Level Token Breakdown (Story 10-1)
+
+| Phase | Tool Calls | Dominant Tools | Notes |
+|-------|-----------|---------------|-------|
+| create-story | 16 | Read: 10, Glob: 6 | Read-heavy — scanned 12 unique files for context. No redundancy. |
+| dev-story | 22 | Edit: 13, Bash: 6, Read: 5 | Edit-heavy as expected. Clean — no redundant operations. |
+| code-review | 18 | Bash: 8, Read: 7, Edit: 8 | `npm run build` ran twice (both necessary). Fixed 6 issues. |
+| verification | 15 | Bash: 10, Read: 5 | `npm run build` ran twice (minor waste). All 11 ACs proved. |
+| **Total** | **71** | | |
+
+### Cost Efficiency
+
+- **0 retries** — every phase passed first attempt. This is the cleanest story execution in the sprint.
+- **No redundant file reads** across subagents (except 1 file read twice in dev, build ran twice in verify — both minor).
+- **Largest Bash outputs** were small: test output ~40 lines, tsc ~30 lines. No wasted context from verbose outputs.
+
+### Sprint Cost Trend (updated)
+
+| Session | Stories | Est. Cost | Cost/Story |
+|---------|---------|-----------|------------|
+| Session 1 | 3 | ~$8.00 | ~$2.67 |
+| Session 2 | 2 | ~$6.00 | ~$3.00 |
+| Session 3 | 3 | ~$9.00 | ~$3.00 |
+| Session 4 | 2 | ~$7.00 | ~$3.50 |
+| Session 5 | 3 | ~$10.00 | ~$3.33 |
+| Session 6 | 2 | ~$6.50 | ~$3.25 |
+| Session 7 | 2 | ~$8.00 | ~$4.00 |
+| Session 8 | 4 | ~$14.00 | ~$3.50 |
+| Session 9 | 1 | ~$3.50 | ~$3.50 |
+| Session 10 | 1 | ~$4.00 | ~$4.00 |
+| Session 11 (final) | 2 | ~$9.00 | ~$4.50 |
+| **Session 12** | **1** | **~$4.77** | **~$4.77** |
+| **Sprint total** | **29** | **~$90** | **~$3.10** |
+
+---
+
+## 4. What Went Well
+
+- **Zero failures, zero retries.** Story 10-1 executed the full create → dev → review → verify lifecycle on the first pass. This is the first story in the sprint to achieve this without any proof format rewrites or phase restarts.
+- **Code review caught real mutability issues.** The HIGH-severity `DispatchOpts` mutability bug would have caused subtle bugs in multi-driver scenarios. Catching it now saves significant debugging later.
+- **Type-only story was well-scoped.** 4 files modified, 30+ tests, all 4219 tests passing. No runtime changes, no integration risk.
+- **Session issues log fully populated.** Every subagent reported cleanly with token reports, enabling this analysis.
+
+---
+
+## 5. What Went Wrong
+
+- **Session overhead dominates cost.** $27 of $32 session cost was NOT on the story itself. The multi-framework planning work (PRD, architecture, readiness report) that preceded this story inflated the session cost. This should have been tracked separately.
+- **Epic numbering mismatch persists.** This has been noted in multiple prior sessions. The mapping between sprint-status epic numbers and epics-file story numbers remains manual and error-prone.
+- **51 lint warnings accumulating.** These pre-existing warnings are noise that slows every verification phase. They've been carried since early sessions.
+
+---
+
+## 6. Lessons Learned
+
+| Pattern | Action |
+|---------|--------|
+| Type-only stories execute cleanly | Continue scoping first stories of new epics as type/interface-only when possible |
+| Mutability bugs caught early save later debugging | Keep the code review phase — it found 6 real issues this session |
+| Planning overhead inflates session costs | Track planning phases separately from implementation phases in cost accounting |
+| Spec drift between architecture doc and implementation | Review architecture alignment before each epic, not just at implementation readiness |
+
+---
+
+## 7. Action Items
+
+### Fix Now (before next session)
+
+- [ ] Reconcile `capabilities` field in AgentDriver interface with architecture spec Decision 1 — either update the spec or revert the addition
+
+### Fix Soon (next sprint)
+
+- [ ] Clean up 51 pre-existing lint warnings to reduce verification noise
+- [ ] Extract `deepMerge` to shared utility (tech debt from Epic 9, still outstanding)
+- [ ] Fix BATS integration test exit code 127 issue
+
+### Backlog
+
+- [ ] Normalize epic numbering between sprint-status and epics files
+- [ ] Remove `SpawnOpts` deprecated type (scheduled for story 10-3)
+- [ ] Tighten `ACStatus.status` from `string` to union type
+
+### Cost Optimization
+
+- [ ] Separate planning/architecture sessions from implementation sessions in cost tracking — the $27 overhead obscures per-story cost signals
+- [ ] Consider caching build artifacts between subagent phases — `npm run build` ran 4 times across the 4 phases of this single story
+- [ ] Monitor whether Epic 10 stories (types-heavy, less runtime code) maintain the zero-retry pattern — if so, the cost/story should stay around $4-5

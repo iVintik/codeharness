@@ -44,8 +44,23 @@ export interface EvaluatorResult {
 
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
 
-const EVALUATOR_PROMPT =
-  'Read the acceptance criteria in ./story-files/. For each AC, determine if it passes by running commands and checking output. Report your findings as JSON.';
+/**
+ * Build the evaluator dispatch prompt from the compiled agent definition instructions.
+ * The compiled SubagentDefinition.instructions already contain the prompt_template
+ * from evaluator.yaml (appended by compileSubagentDefinition). This function adds
+ * the minimal task-kick context that varies per dispatch — story file location and
+ * output directory. The full anti-leniency prompt, evidence requirements, and output
+ * format are in the instructions (system prompt), not duplicated here.
+ */
+function buildEvaluatorPrompt(): string {
+  const parts: string[] = [];
+
+  parts.push('Verify the acceptance criteria for this story.');
+  parts.push('Story files are available in ./story-files/. Read each file to find the ACs.');
+  parts.push('Write your verdict JSON output to ./verdict/verdict.json.');
+
+  return parts.join('\n');
+}
 
 // --- Helpers ---
 
@@ -125,9 +140,10 @@ export async function runEvaluator(options: EvaluatorOptions): Promise<Evaluator
     }
 
     // Step 4: Race dispatch against timeout
+    const evaluatorPrompt = buildEvaluatorPrompt();
     const dispatchPromise = dispatchAgent(
       options.agentDefinition,
-      EVALUATOR_PROMPT,
+      evaluatorPrompt,
       dispatchOptions,
     );
 

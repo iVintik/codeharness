@@ -237,7 +237,7 @@
       }
     },
     "6-3-evaluator-prompt-template": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

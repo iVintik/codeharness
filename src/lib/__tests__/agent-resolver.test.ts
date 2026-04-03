@@ -63,6 +63,60 @@ describe('agent-resolver', () => {
       expect(agent.disallowedTools).toContain('Write');
     });
 
+    it('loads evaluator.yaml with prompt_template field present (AC #5, story 6-3)', () => {
+      const agent = loadEmbeddedAgent('evaluator');
+      expect(agent.prompt_template).toBeDefined();
+      expect(typeof agent.prompt_template).toBe('string');
+      expect(agent.prompt_template!.length).toBeGreaterThan(0);
+    });
+
+    it('evaluator.yaml prompt_template contains anti-leniency keywords (AC #2, story 6-3)', () => {
+      const agent = loadEmbeddedAgent('evaluator');
+      const template = agent.prompt_template!;
+      expect(template).toContain('broken');
+      expect(template).toContain('benefit of the doubt');
+      expect(template).toContain('UNKNOWN');
+    });
+
+    it('evaluator.yaml prompt_template references verdict JSON structure (AC #3, story 6-3)', () => {
+      const agent = loadEmbeddedAgent('evaluator');
+      const template = agent.prompt_template!;
+      expect(template).toContain('verdict');
+      expect(template).toContain('score');
+      expect(template).toContain('findings');
+      expect(template).toContain('commands_run');
+      expect(template).toContain('output_observed');
+      expect(template).toContain('reasoning');
+    });
+
+    it('evaluator.yaml prompt_template includes tool access instructions (AC #4, story 6-3)', () => {
+      const agent = loadEmbeddedAgent('evaluator');
+      const template = agent.prompt_template!;
+      expect(template).toContain('docker exec');
+      expect(template).toContain('docker logs');
+      expect(template).toContain('docker ps');
+      expect(template).toContain('source code');
+    });
+
+    it('evaluator.yaml prompt_template instructs output to ./verdict/verdict.json (AC #3, story 6-3)', () => {
+      const agent = loadEmbeddedAgent('evaluator');
+      const template = agent.prompt_template!;
+      expect(template).toContain('./verdict/verdict.json');
+    });
+
+    it('evaluator.yaml prompt_template instructs reading from ./story-files/ (AC #1, story 6-3)', () => {
+      const agent = loadEmbeddedAgent('evaluator');
+      const template = agent.prompt_template!;
+      expect(template).toContain('./story-files/');
+    });
+
+    it('evaluator.yaml prompt_template instructs re-verification from scratch (AC #1, story 6-3)', () => {
+      const agent = loadEmbeddedAgent('evaluator');
+      const template = agent.prompt_template!;
+      expect(template).toContain('scratch');
+      expect(template).toContain('cache');
+    });
+
     it('throws AgentResolveError for non-existent embedded agent', () => {
       expect(() => loadEmbeddedAgent('nonexistent-agent')).toThrow(AgentResolveError);
       try {
@@ -529,6 +583,37 @@ describe('agent-resolver', () => {
       expect(result.instructions).toContain('Principles:');
       expect(result.disallowedTools).toEqual([]);
     });
+
+    it('includes prompt_template in instructions when present (AC #6)', () => {
+      const agent = makeMinimalAgent({
+        prompt_template: 'Verify all acceptance criteria from ./story-files/.',
+      });
+      const result = compileSubagentDefinition(agent);
+      expect(result.instructions).toContain('Verify all acceptance criteria from ./story-files/.');
+    });
+
+    it('output unchanged when prompt_template is absent (AC #6)', () => {
+      const agent = makeMinimalAgent();
+      const withoutTemplate = compileSubagentDefinition(agent);
+
+      const agentWithTemplate = makeMinimalAgent({ prompt_template: undefined });
+      const alsoWithout = compileSubagentDefinition(agentWithTemplate);
+
+      expect(withoutTemplate.instructions).toBe(alsoWithout.instructions);
+    });
+
+    it('prompt_template appears after prompt_patches.append in instructions', () => {
+      const agent = makeMinimalAgent({
+        prompt_patches: { append: 'PATCH_CONTENT_HERE' },
+        prompt_template: 'TEMPLATE_CONTENT_HERE',
+      });
+      const result = compileSubagentDefinition(agent);
+      const patchIdx = result.instructions.indexOf('PATCH_CONTENT_HERE');
+      const templateIdx = result.instructions.indexOf('TEMPLATE_CONTENT_HERE');
+      expect(patchIdx).toBeGreaterThan(-1);
+      expect(templateIdx).toBeGreaterThan(-1);
+      expect(templateIdx).toBeGreaterThan(patchIdx);
+    });
   });
 
   describe('AgentResolveError', () => {
@@ -558,6 +643,42 @@ describe('agent-resolver', () => {
     it('existing workflow parser still works', async () => {
       const { parseWorkflow } = await import('../workflow-parser.js');
       expect(typeof parseWorkflow).toBe('function');
+    });
+  });
+
+  describe('agent.schema.json prompt_template support (story 6-3)', () => {
+    it('accepts agent config with prompt_template (AC #8)', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = {
+        ...makeMinimalAgent(),
+        prompt_template: 'Some task instructions here.',
+      };
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(true);
+    });
+
+    it('accepts agent config without prompt_template (AC #8)', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = makeMinimalAgent();
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(true);
+    });
+
+    it('rejects prompt_template with non-string type', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = {
+        ...makeMinimalAgent(),
+        prompt_template: 42,
+      };
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(false);
+    });
+
+    it('evaluator.yaml with prompt_template passes schema validation', () => {
+      // loadEmbeddedAgent validates against schema internally
+      const agent = loadEmbeddedAgent('evaluator');
+      expect(agent.name).toBe('evaluator');
+      expect(agent.prompt_template).toBeDefined();
     });
   });
 });

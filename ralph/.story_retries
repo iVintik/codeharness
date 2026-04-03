@@ -3,3 +3,4 @@ story-a 1
 5-4-run-status-commands 1
 6-1-evaluator-module-workspace-spawn 1
 6-2-evaluator-verdict-json-schema-parsing 1
+6-3-evaluator-prompt-template 1

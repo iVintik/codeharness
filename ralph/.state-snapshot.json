@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 13,
+    "done": 14,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -225,15 +225,19 @@
       "acResults": null
     },
     "6-2-evaluator-verdict-json-schema-parsing": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T04:15:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/6-2-evaluator-verdict-json-schema-parsing-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "6-3-evaluator-prompt-template": {
-      "status": "backlog",
+      "status": "ready-for-dev",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

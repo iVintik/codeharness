@@ -40,10 +40,10 @@ development_status:
   5-4-run-status-commands: done
 
   # Epic 6
-  epic-6: backlog
+  epic-6: done
   6-1-evaluator-module-workspace-spawn: done
   6-2-evaluator-verdict-json-schema-parsing: done
-  6-3-evaluator-prompt-template: backlog
+  6-3-evaluator-prompt-template: done
 
   # Epic 7
   epic-7: backlog

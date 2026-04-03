@@ -160,6 +160,30 @@ describe('runEvaluator', () => {
         expect.objectContaining({ cwd: '/tmp/codeharness-verify-test-run' }),
       );
     });
+
+    it('dispatch prompt includes story file paths reference (AC #7, story 6-3)', async () => {
+      vi.mocked(isDockerAvailable).mockReturnValue(true);
+      const mockWorkspace = makeMockWorkspace();
+      vi.mocked(createIsolatedWorkspace).mockResolvedValue(mockWorkspace);
+      vi.mocked(dispatchAgent).mockResolvedValue(makeDispatchResult());
+
+      await runEvaluator(makeOptions());
+
+      const promptArg = vi.mocked(dispatchAgent).mock.calls[0][1] as string;
+      expect(promptArg).toContain('./story-files/');
+    });
+
+    it('dispatch prompt includes verdict output path (AC #7, story 6-3)', async () => {
+      vi.mocked(isDockerAvailable).mockReturnValue(true);
+      const mockWorkspace = makeMockWorkspace();
+      vi.mocked(createIsolatedWorkspace).mockResolvedValue(mockWorkspace);
+      vi.mocked(dispatchAgent).mockResolvedValue(makeDispatchResult());
+
+      await runEvaluator(makeOptions());
+
+      const promptArg = vi.mocked(dispatchAgent).mock.calls[0][1] as string;
+      expect(promptArg).toContain('./verdict/verdict.json');
+    });
   });
 
   describe('trace ID injection', () => {
@@ -296,6 +320,41 @@ describe('runEvaluator', () => {
       expect(vi.mocked(dispatchAgent).mock.calls[0][0]).toEqual(
         expect.objectContaining({ disallowedTools: ['Edit', 'Write'] }),
       );
+    });
+  });
+
+  describe('evaluator prompt template integration (story 6-3)', () => {
+    it('compiled evaluator definition instructions contain anti-leniency keywords', async () => {
+      // Import agent-resolver to test the full flow
+      const { loadEmbeddedAgent, compileSubagentDefinition } = await import('../agent-resolver.js');
+      const agent = loadEmbeddedAgent('evaluator');
+      const compiled = compileSubagentDefinition(agent);
+
+      expect(compiled.instructions).toContain('broken');
+      expect(compiled.instructions).toContain('benefit of the doubt');
+      expect(compiled.instructions).toContain('UNKNOWN');
+    });
+
+    it('compiled evaluator definition instructions reference verdict JSON structure', async () => {
+      const { loadEmbeddedAgent, compileSubagentDefinition } = await import('../agent-resolver.js');
+      const agent = loadEmbeddedAgent('evaluator');
+      const compiled = compileSubagentDefinition(agent);
+
+      expect(compiled.instructions).toContain('verdict');
+      expect(compiled.instructions).toContain('score');
+      expect(compiled.instructions).toContain('findings');
+      expect(compiled.instructions).toContain('commands_run');
+    });
+
+    it('compiled evaluator uses prompt_template from YAML, not a hardcoded constant', async () => {
+      const { loadEmbeddedAgent, compileSubagentDefinition } = await import('../agent-resolver.js');
+      const agent = loadEmbeddedAgent('evaluator');
+      const compiled = compileSubagentDefinition(agent);
+
+      // The instructions should contain the full prompt_template content
+      expect(compiled.instructions).toContain('./story-files/');
+      expect(compiled.instructions).toContain('./verdict/verdict.json');
+      expect(compiled.instructions).toContain('docker exec');
     });
   });
 

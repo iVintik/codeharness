@@ -76,6 +76,10 @@
         "type": "string"
       },
       "description": "Tools this agent is not allowed to use"
+    },
+    "prompt_template": {
+      "type": "string",
+      "description": "Task-specific prompt template included in compiled instructions"
     }
   },
   "additionalProperties": false

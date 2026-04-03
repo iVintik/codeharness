@@ -32,6 +32,7 @@ export interface ResolvedAgent {
   prompt_patches?: {
     append?: string;
   };
+  prompt_template?: string;
 }
 
 /**
@@ -338,6 +339,10 @@ export function compileSubagentDefinition(agent: ResolvedAgent): SubagentDefinit
 
   if (agent.prompt_patches?.append) {
     parts.push(agent.prompt_patches.append);
+  }
+
+  if (agent.prompt_template) {
+    parts.push(agent.prompt_template);
   }
 
   return {

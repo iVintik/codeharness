@@ -798,3 +798,198 @@ Also includes 5-4 subagent reports from iteration #11 (carried over from Session
 | 14 | **Rename or archive `epic-6-retrospective.md`** to avoid confusion with current Epic 6 | LOW | Next session | New |
 | 15 | **Consolidate `EvaluatorVerdict` type** between `workflow-engine.ts` and `evaluator.ts` in story 6-2 | MEDIUM | Story 6-2 | New |
 | 16 | **Add "single vitest run" instruction to verification subagent prompt** to prevent duplicate test runs | LOW | Backlog | New |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 6)
+
+**Timestamp:** 2026-04-03T04:25Z
+**Session window:** ~2026-04-03T03:56 to ~2026-04-03T04:21 (approx. 25 minutes)
+**Sprint progress:** 22/28 stories done (78.6%), Epics 1-5 complete, Epic 6 at 2/3
+
+---
+
+## 1. Session Summary
+
+This session covered ralph iteration #13, which completed story 6-2-evaluator-verdict-json-schema-parsing end-to-end.
+
+| Story | Ralph Iteration | Phases Run | Outcome | Notes |
+|-------|----------------|-----------|---------|-------|
+| 6-2-evaluator-verdict-json-schema-parsing | #13 | create-story, dev-story, code-review, verification | **Done** | Full lifecycle in ~25 min. 10/10 ACs. Commit `fff31a2`. |
+
+**Key deliverables:**
+- `verdict-parser.ts` — JSON schema validation via Ajv, retry-aware error handling, `VerdictParseError` custom error class
+- `verdict.schema.json` — formal JSON Schema for evaluator verdict format
+- `buildAllUnknownVerdict()` added to `workflow-engine.ts` for timeout/crash fallback
+- 33 tests (up from 28 after code review added 5), 96.8% overall coverage, all 160 files above 80% floor
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue | Impact |
+|----------|-------|--------|
+| HIGH | `validateVerdict` returned mutable reference to input — caller modifications would corrupt the cached/original object | Correctness: downstream code could silently mutate the verdict, causing non-deterministic behavior |
+| MEDIUM | `VerdictParseError` missing `Object.setPrototypeOf` call — `instanceof` checks would fail in transpiled output | Reliability: error-handling branches that check `instanceof VerdictParseError` would fall through to generic handlers |
+| MEDIUM | Inconsistent `additionalProperties` in schema — `score` and `evidence` sub-objects had `false`, top-level had `true` | Schema correctness: unexpected top-level properties would pass validation, potentially confusing downstream parsers |
+| MEDIUM | Branch coverage gap — 86.95% branch before review, improved with 5 new tests (28 to 33 total) | Quality: fallback paths (`??` defaults) and edge cases (`passed === 0`) were untested |
+
+All four issues fixed during code review. The mutable reference bug is particularly insidious — it would have caused action-at-a-distance bugs that are hard to reproduce.
+
+### LOW Issues (not fixed — tech debt)
+
+| Severity | Issue |
+|----------|-------|
+| LOW | `buildAllUnknownVerdict` takes `WorkItem[]` but only uses `.length` — could accept `number` instead |
+| LOW | `parseVerdict` always throws with `retryable: true` (stateless) — retry semantics handled by caller, not parser. Spec ambiguity about per-call-count retry behavior. |
+
+### Verification Gaps
+
+- **AC6 (retryable=false on second failure):** The parser itself always throws `retryable: true`. The workflow engine handles retry counting and decides when to stop. Accepted per design intent — the parser is stateless by design and should not track call counts.
+- **AGENTS.md stale:** Initially failed `codeharness verify` because AGENTS.md was missing entries for `evaluator.ts` and `verdict-parser.ts`. Fixed during verification by adding Blind Evaluator (Epic 6) section.
+- **Proof format mismatch:** Initial proof used `### AC1:` (h3) headers instead of `## AC 1:` (h2) format expected by `validateProofQuality`. Required full proof rewrite. This is the second time proof format has caused rework (also happened in Session 1).
+
+### Infrastructure Issues
+
+- **`_bmad/bmm/config.yaml` still not found.** Create-story references this path but the actual config is at `_bmad/config.yaml`. Third consecutive session flagging this.
+- **`ralph/.state-snapshot.json` divergence continues.** Not checked this session but last known state was 8 stories behind.
+- **`codeharness stats` still broken.** Sixth consecutive session.
+
+---
+
+## 3. Cost Analysis
+
+### Iteration-Level Metrics
+
+| Ralph Iteration | Story Work | Log File Size | Wall Time | Outcome |
+|-----------------|-----------|---------------|-----------|---------|
+| #13 | 6-2 full lifecycle | 2.78 MB | ~25 min | Completed |
+
+### Subagent Token Report (from .session-issues.md)
+
+| Subagent Phase | Tool Calls | Read | Bash | Edit | Grep | Glob | Write | Skill |
+|---------------|------------|------|------|------|------|------|-------|-------|
+| 6-2 create-story | 14 | 8 | 1 | 0 | 2 | 4 | 1 | 0 |
+| 6-2 dev-story | 25 | 8 | 8 | 11 | 2 | 3 | 3 | 0 |
+| 6-2 code-review | 22 | 8 | 9 | 5 | 3 | 2 | 0 | 1 |
+| 6-2 verification | 16 | 2 | 10 | 0 | 3 | 0 | 1 | 0 |
+| **6-2 Total** | **77** | **26** | **28** | **16** | **10** | **9** | **5** | **1** |
+
+### Subagent-Level Breakdown — Where Tokens Were Spent
+
+**Most tool-call-heavy phases:**
+1. **dev-story (25 calls)** — highest in this story's lifecycle. Edit-heavy (11 edits) because the story involved creating a new module (`verdict-parser.ts`), its test file, and the JSON schema file, plus wiring into `workflow-engine.ts`. This is structurally correct — new module creation is Edit-heavy.
+2. **code-review (22 calls)** — consistent with prior sessions. 9 Bash calls for the fix-test-fix loop (run tests after each fix).
+3. **verification (16 calls)** — Bash-heavy (10 calls). Coverage ran 3 times with different grep filters instead of capturing once and filtering locally. This is the same redundancy pattern flagged in Sessions 1, 3, 4, and 5.
+
+**Redundant operations identified:**
+- **Coverage run 3 times during verification** with different grep filters. Could have been captured once and parsed locally. Estimated waste: ~$0.30-0.50.
+- **One re-read of `workflow-engine.test.ts`** during dev-story. Minor — only 2 total reads of this file.
+- **Two coverage grep attempts** during dev-story — tried different patterns to extract coverage data.
+
+**Largest Bash outputs:**
+- `npm test | tail -80` (~80 lines) in verification — full test suite output
+- `vitest --reporter=verbose` (~40 lines) in verification
+- `npm run test:unit` (~30 lines) in dev-story
+- `npx vitest run --coverage` (~20 lines) in dev-story
+- `npm run build` (~20 lines) in dev-story and code-review
+
+**Read patterns:**
+- 26/77 calls (34%) were Read — slightly lower than Session 5's 40%. The create-story phase read 8 files (vs 10 in 6-1). Reads are decreasing as more boilerplate context becomes familiar in Epic 6.
+- No file read 3+ times in any phase — consistent improvement from earlier sessions.
+
+### Estimated Session Cost
+
+| Component | Estimated Cost |
+|-----------|---------------|
+| Story 6-2 (full lifecycle, 77 tool calls) | ~$5.50 |
+| Orchestrator overhead | ~$1.00 |
+| **Session total** | **~$6.50** |
+
+### Cumulative Cost Tracking
+
+| Session | Stories Completed | Estimated Cost | Cost/Story |
+|---------|-------------------|---------------|------------|
+| Prior sessions (Epics 1-2) | 7 | $37.08 | $4.45 |
+| Session 1 (2026-04-03, early) | 2.5 | ~$12.00 | ~$4.80 |
+| Session 2 (2026-04-03, late) | 0.5 | ~$3.50 | ~$7.00* |
+| Session 3 | 1 | ~$4.50 | ~$4.50 |
+| Session 4 | 2 | ~$13.50 | ~$6.75 |
+| Session 5 | 1 | ~$7.50 | ~$7.50 |
+| **Session 6 (this)** | **1** | **~$6.50** | **~$6.50** |
+| **Cumulative** | **15** | **~$84.58** | **~$5.64** |
+
+*Average cost/story trending up from $4.45 (Epics 1-2) to $5.64 cumulative. Main drivers: orchestrator overhead per iteration and the verification phase's repeated test runs.
+
+### Wasted Spend
+
+- **Triple coverage run in verification:** ~$0.50. Same pattern as Sessions 1, 3, 4, 5.
+- **Proof format rewrite:** ~$0.30. Had to regenerate the entire proof document because of h3 vs h2 header format. This is the second time.
+- **Total estimated waste this session:** ~$0.80 (12% of session cost). Lower than Session 5's 27% — improvement.
+
+---
+
+## 4. What Went Well
+
+1. **Story 6-2 completed in one clean iteration, 25 minutes.** Matches 6-1's speed. Epic 6 stories are fast because the evaluator is a well-bounded domain.
+2. **Code review caught a deep correctness bug.** The mutable reference return from `validateVerdict` would have caused action-at-a-distance bugs. The `Object.setPrototypeOf` fix for custom errors is a pattern that should be standard.
+3. **High test quality.** 33 tests covering JSON schema validation, parse errors, retry semantics, edge cases. 96.8% overall coverage maintained.
+4. **Session issues log fully functional.** All 4 phases reported with detailed tool breakdowns. This is the second consecutive session with complete reporting.
+5. **AGENTS.md partially fixed.** The Blind Evaluator (Epic 6) section was added during verification. This addresses action item #3 for `evaluator.ts` and `verdict-parser.ts`.
+6. **Sprint at 78.6%.** 22/28 stories done. Only 6 stories remain across Epics 6-9.
+7. **Zero retries.** Story completed on first attempt with no stuck phases.
+
+---
+
+## 5. What Went Wrong
+
+1. **Verification ran coverage 3 times.** This redundancy pattern has now occurred in 5 of 6 sessions. The verification subagent prompt does not effectively prevent duplicate test runs.
+2. **Proof format mismatch (again).** The verification subagent generated `### AC1:` headers instead of `## AC 1:` format. This exact issue happened in Session 1. The proof template format is not being communicated to the subagent.
+3. **`_bmad/bmm/config.yaml` path mismatch persists.** Third session flagging this. The create-story subagent looks for `_bmad/bmm/config.yaml` but it lives at `_bmad/config.yaml`.
+4. **`codeharness stats` still broken.** Sixth consecutive session. Cost analysis remains entirely manual estimation from subagent token reports and log file sizes.
+5. **AC6 ambiguity.** The spec says `retryable: false` on second failure, but the parser is stateless — it cannot track call count. The engine handles this correctly, but the AC wording caused confusion during verification. Spec should be clearer about which component owns retry semantics.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Deep clone on validation outputs.** The `validateVerdict` mutable reference bug is a general pattern: any function that validates-and-returns should return a defensive copy if the caller might mutate it. Add this to code review checklist.
+- **`Object.setPrototypeOf` in custom Error subclasses.** TypeScript transpilation breaks `instanceof` for Error subclasses. Always add `Object.setPrototypeOf(this, new.target.prototype)` in the constructor. This is now the second time this pattern was needed (also in `workflow-engine.ts` errors).
+- **Ajv for schema validation.** The JSON Schema approach with Ajv provides excellent error messages and is more maintainable than hand-written validation. The schema file also serves as documentation.
+
+### Patterns to Avoid
+
+- **Triple coverage grep in verification.** Run `npx vitest run --coverage` once, capture the output, and grep locally. Do not re-run the test suite to get different coverage views.
+- **Wrong proof header format.** The verification subagent needs the exact format specification in its prompt: `## AC N:` (h2, space before N, colon after). This has caused rework twice.
+- **Stateless parser with stateful AC specs.** If an AC says "on the Nth call, do X," the component being tested must either be stateful or the AC must be reworded to describe the actual stateless behavior.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | ~~Complete code-review and verify for story 5-1~~ | ~~HIGH~~ | ~~Session 2~~ | DONE |
+| 2 | Fix `codeharness verify` to work without pre-set harness state flags | MEDIUM | Backlog | Open |
+| 3 | **Update `src/lib/AGENTS.md`** — missing: agent-dispatch, agent-resolver, session-manager, trace-id (evaluator + verdict-parser now added) | MEDIUM | Next session | Partial (3 of 7 done) |
+| 4 | Fix `codeharness stats --save` to work for non-ralph sessions | MEDIUM | Backlog | Open (6 sessions broken) |
+| 5 | **Fix or delete `ralph/.state-snapshot.json`** — shows 13 done vs 22 actual | HIGH | Next session | Open (escalated — 9 stories behind) |
+| 6 | Fix `.session-issues.md` write mechanism for all iterations | LOW | Backlog | Resolved (working 2 sessions in a row) |
+| 7 | Fix pre-existing TS errors in `src/commands/__tests__/run.test.ts` | LOW | Backlog | Open |
+| 8 | Address deferred LOW issues from 4-3, 4-4, 5-1, 5-2, 5-3, 5-4, 6-1, 6-2 code reviews | LOW | Backlog | Open (growing — now 8 stories of deferred LOWs) |
+| 9 | Add integration test for actual YAML parsing (not mocked) in workflow-engine | LOW | Backlog | Open |
+| 10 | Extract shared dispatch/checkpoint logic from sequential and loop paths | LOW | Backlog | Open |
+| 11 | **Fix `formatElapsed` duplication** — 3 implementations, flagged 4+ sessions | MEDIUM | Next sprint | Open |
+| 12 | **Wire 5 dead CLI options** to EngineConfig or remove them | MEDIUM | Next sprint | Open |
+| 13 | Limit ralph to 1 story per iteration to prevent timeout waste | LOW | Backlog | Open |
+| 14 | Rename or archive `epic-6-retrospective.md` to avoid confusion with current Epic 6 | LOW | Next session | Open |
+| 15 | ~~Consolidate `EvaluatorVerdict` type between `workflow-engine.ts` and `evaluator.ts` in story 6-2~~ | ~~MEDIUM~~ | ~~Story 6-2~~ | DONE (verdict-parser owns the type now) |
+| 16 | **Add "single vitest run" instruction to verification subagent prompt** — redundant coverage runs in 5/6 sessions | MEDIUM | Next sprint | Open (escalated from LOW — recurring 5 sessions) |
+| 17 | **Fix proof document format spec in verification subagent prompt** — must use `## AC N:` (h2), not `### ACN:` (h3). Caused rework in Sessions 1 and 6. | MEDIUM | Next sprint | New |
+| 18 | **Fix `_bmad/bmm/config.yaml` path** — create-story looks for `_bmad/bmm/config.yaml` but actual path is `_bmad/config.yaml`. Flagged 3 sessions. | LOW | Backlog | New |
+| 19 | **Add `Object.setPrototypeOf` to code review checklist** for custom Error subclasses | LOW | Backlog | New |
+| 20 | **Add defensive-copy check to code review checklist** for validation functions that return data | LOW | Backlog | New |

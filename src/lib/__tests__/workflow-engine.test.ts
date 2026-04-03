@@ -1096,7 +1096,7 @@ describe('executeWorkflow', () => {
 
 // --- Loop Block Tests (Story 5-2) ---
 
-describe('parseVerdict', () => {
+describe('parseVerdict (re-exported from verdict-parser)', () => {
   it('parses valid verdict JSON', () => {
     const verdict = parseVerdict(JSON.stringify({
       verdict: 'pass',
@@ -1104,9 +1104,9 @@ describe('parseVerdict', () => {
       findings: [],
     }));
 
-    expect(verdict).not.toBeNull();
-    expect(verdict!.verdict).toBe('pass');
-    expect(verdict!.score.passed).toBe(3);
+    expect(verdict).toBeDefined();
+    expect(verdict.verdict).toBe('pass');
+    expect(verdict.score.passed).toBe(3);
   });
 
   it('parses verdict with findings', () => {
@@ -1126,56 +1126,56 @@ describe('parseVerdict', () => {
     };
 
     const verdict = parseVerdict(JSON.stringify(input));
-    expect(verdict).not.toBeNull();
-    expect(verdict!.findings).toHaveLength(1);
-    expect(verdict!.findings[0].ac).toBe(1);
+    expect(verdict).toBeDefined();
+    expect(verdict.findings).toHaveLength(1);
+    expect(verdict.findings[0].ac).toBe(1);
   });
 
-  it('returns null for invalid JSON', () => {
-    expect(parseVerdict('not json')).toBeNull();
+  it('throws VerdictParseError for invalid JSON', () => {
+    expect(() => parseVerdict('not json')).toThrow();
   });
 
-  it('returns null for missing verdict field', () => {
-    expect(parseVerdict(JSON.stringify({
+  it('throws VerdictParseError for missing verdict field', () => {
+    expect(() => parseVerdict(JSON.stringify({
       score: { passed: 1, failed: 0, unknown: 0, total: 1 },
       findings: [],
-    }))).toBeNull();
+    }))).toThrow();
   });
 
-  it('returns null for invalid verdict value', () => {
-    expect(parseVerdict(JSON.stringify({
+  it('throws VerdictParseError for invalid verdict value', () => {
+    expect(() => parseVerdict(JSON.stringify({
       verdict: 'maybe',
       score: { passed: 1, failed: 0, unknown: 0, total: 1 },
       findings: [],
-    }))).toBeNull();
+    }))).toThrow();
   });
 
-  it('returns null for missing score field', () => {
-    expect(parseVerdict(JSON.stringify({
+  it('throws VerdictParseError for missing score field', () => {
+    expect(() => parseVerdict(JSON.stringify({
       verdict: 'pass',
       findings: [],
-    }))).toBeNull();
+    }))).toThrow();
   });
 
-  it('returns null for missing findings field', () => {
-    expect(parseVerdict(JSON.stringify({
+  it('throws VerdictParseError for missing findings field', () => {
+    expect(() => parseVerdict(JSON.stringify({
       verdict: 'pass',
       score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-    }))).toBeNull();
+    }))).toThrow();
   });
 
-  it('returns null for non-object input', () => {
-    expect(parseVerdict('"just a string"')).toBeNull();
-    expect(parseVerdict('42')).toBeNull();
-    expect(parseVerdict('null')).toBeNull();
+  it('throws VerdictParseError for non-object input', () => {
+    expect(() => parseVerdict('"just a string"')).toThrow();
+    expect(() => parseVerdict('42')).toThrow();
+    expect(() => parseVerdict('null')).toThrow();
   });
 
-  it('returns null when score fields are not numbers', () => {
-    expect(parseVerdict(JSON.stringify({
+  it('throws VerdictParseError when score fields are not numbers', () => {
+    expect(() => parseVerdict(JSON.stringify({
       verdict: 'pass',
       score: { passed: 'one', failed: 0, unknown: 0, total: 1 },
       findings: [],
-    }))).toBeNull();
+    }))).toThrow();
   });
 });
 

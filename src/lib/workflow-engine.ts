@@ -14,6 +14,12 @@ import { createIsolatedWorkspace } from './source-isolation.js';
 import { generateTraceId, formatTracePrompt, recordTraceId } from './trace-id.js';
 import { resolveSessionId, recordSessionId } from './session-manager.js';
 import type { SessionLookupKey } from './session-manager.js';
+import { parseVerdict, VerdictParseError } from './verdict-parser.js';
+import type { EvaluatorVerdict } from './verdict-parser.js';
+
+// Re-export EvaluatorVerdict for downstream consumers that import from workflow-engine
+export type { EvaluatorVerdict } from './verdict-parser.js';
+export { parseVerdict } from './verdict-parser.js';
 
 // --- Interfaces ---
 
@@ -35,31 +41,6 @@ export interface EngineConfig {
   projectDir?: string;
   /** Maximum loop iterations before termination. Defaults to 5. */
   maxIterations?: number;
-}
-
-/**
- * Evaluator verdict returned by a verify task (AD5).
- */
-export interface EvaluatorVerdict {
-  verdict: 'pass' | 'fail';
-  score: {
-    passed: number;
-    failed: number;
-    unknown: number;
-    total: number;
-  };
-  findings: Array<{
-    ac: number;
-    description: string;
-    status: 'pass' | 'fail' | 'unknown';
-    evidence: {
-      commands_run: string[];
-      output_observed: string;
-      reasoning: string;
-    };
-  }>;
-  evaluator_trace_id?: string;
-  duration_seconds?: number;
 }
 
 /**
@@ -364,38 +345,6 @@ async function dispatchTaskWithResult(
   return { updatedState, output: result.output };
 }
 
-// --- Verdict Parsing (Task 2) ---
-
-/**
- * Attempt to parse a DispatchResult.output string as an EvaluatorVerdict.
- * Returns null if parsing fails or required fields are missing.
- */
-export function parseVerdict(output: string): EvaluatorVerdict | null {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(output);
-  } catch { // IGNORE: invalid JSON means no verdict — return null
-    return null;
-  }
-
-  if (!parsed || typeof parsed !== 'object') return null;
-
-  const obj = parsed as Record<string, unknown>;
-
-  // Validate required top-level fields
-  if (obj.verdict !== 'pass' && obj.verdict !== 'fail') return null;
-  if (!obj.score || typeof obj.score !== 'object') return null;
-  if (!Array.isArray(obj.findings)) return null;
-
-  const score = obj.score as Record<string, unknown>;
-  if (typeof score.passed !== 'number') return null;
-  if (typeof score.failed !== 'number') return null;
-  if (typeof score.unknown !== 'number') return null;
-  if (typeof score.total !== 'number') return null;
-
-  return parsed as EvaluatorVerdict;
-}
-
 // --- Retry Prompt Construction (Task 3) ---
 
 /**
@@ -423,6 +372,39 @@ export function buildRetryPrompt(storyKey: string, findings: EvaluatorVerdict['f
     .join('\n\n');
 
   return `Retry story ${storyKey}. Previous evaluator findings:\n\n${formattedFindings}\n\nFocus on fixing the failed criteria above.`;
+}
+
+// --- All-UNKNOWN Verdict Builder ---
+
+/**
+ * Build an all-UNKNOWN EvaluatorVerdict as fallback when the evaluator
+ * fails to produce valid JSON after retry.
+ */
+export function buildAllUnknownVerdict(
+  workItems: WorkItem[],
+  reasoning: string,
+): EvaluatorVerdict {
+  const findings = workItems.map((_, index) => ({
+    ac: index + 1,
+    description: `AC #${index + 1}`,
+    status: 'unknown' as const,
+    evidence: {
+      commands_run: [] as string[],
+      output_observed: '',
+      reasoning,
+    },
+  }));
+
+  return {
+    verdict: 'fail',
+    score: {
+      passed: 0,
+      failed: 0,
+      unknown: findings.length,
+      total: findings.length,
+    },
+    findings,
+  };
 }
 
 // --- Failed Story Filtering (Task 4) ---
@@ -574,8 +556,31 @@ export async function executeLoopBlock(
           currentState = dispatchResult.updatedState;
           tasksCompleted++;
 
-          // Attempt to parse verdict from output
-          const verdict = parseVerdict(dispatchResult.output);
+          // Attempt to parse verdict from output with retry semantics (story 6-2)
+          let verdict: EvaluatorVerdict | null = null;
+          try {
+            verdict = parseVerdict(dispatchResult.output);
+          } catch (parseErr: unknown) {
+            if (parseErr instanceof VerdictParseError && parseErr.retryable) {
+              // Re-dispatch evaluator for one retry attempt
+              warn(`workflow-engine: verdict parse failed, retrying evaluator for ${taskName}`);
+              try {
+                const retryResult = await dispatchTaskWithResult(
+                  task, taskName, PER_RUN_SENTINEL, definition, currentState, config,
+                );
+                currentState = retryResult.updatedState;
+                tasksCompleted++;
+                verdict = parseVerdict(retryResult.output);
+              } catch { // IGNORE: retry failed — fall back to all-UNKNOWN verdict
+                // Second failure: generate all-UNKNOWN verdict
+                verdict = buildAllUnknownVerdict(
+                  workItems,
+                  'Evaluator failed to produce valid JSON after retry',
+                );
+              }
+            }
+            // If not a VerdictParseError or not retryable, verdict stays null
+          }
           lastVerdict = verdict;
 
           // Record score in state

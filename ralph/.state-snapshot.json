@@ -209,7 +209,7 @@
       }
     },
     "5-4-run-status-commands": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -217,7 +217,7 @@
       "acResults": null
     },
     "6-1-evaluator-module-workspace-spawn": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

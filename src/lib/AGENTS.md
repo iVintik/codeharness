@@ -71,6 +71,13 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | workflow-engine.ts | Sequential flow execution orchestrator — composes all Epic 1-4 modules to execute workflow steps in order, dispatching agents per-story or per-run | `executeWorkflow`, `dispatchTask`, `loadWorkItems`, `EngineConfig`, `EngineResult`, `EngineError`, `WorkItem` |
 
+## Blind Evaluator (Epic 6)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| evaluator.ts | Evaluator module — workspace spawn, SDK-based agent dispatch with timeout, Docker availability check | `dispatchEvaluator`, `EvaluatorOptions`, `EvaluatorResult`, `isDockerAvailable`, `buildUnknownOutput` |
+| verdict-parser.ts | Evaluator verdict JSON schema validation and parsing — PASS-evidence invariant enforcement, typed error reporting | `parseVerdict`, `validateVerdict`, `VerdictParseError`, `EvaluatorVerdict`, `VerdictValidationResult` |
+
 ## Coverage & Testing
 
 | File | Purpose | Key Exports |
@@ -190,4 +197,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/ralph-prompt.ts | Ralph system prompt generator — builds the prompt template for ralph sessions | `generateRalphPrompt`, `RalphPromptConfig` |
 | agents/index.ts | Barrel re-exports for agents subsystem — RalphDriver, stream parser, ralph prompt | all public API from ralph.ts, stream-parser.ts, ralph-prompt.ts, types.ts |
 
-**Total: 61 library files + 4 shared test utility files across 25 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**
+**Total: 63 library files + 4 shared test utility files across 26 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**

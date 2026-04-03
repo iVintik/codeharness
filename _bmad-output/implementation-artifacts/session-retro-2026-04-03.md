@@ -417,3 +417,384 @@ From the parent's output summary:
 | 8 | Address deferred LOW issues from 4-3, 4-4, 5-1, and 5-2 code reviews | LOW | Backlog | Open (updated) |
 | 9 | Add integration test for actual YAML parsing (not mocked) in workflow-engine | LOW | Backlog | Open |
 | 10 | Extract shared dispatch/checkpoint logic from sequential and loop paths to eliminate duplication pattern | LOW | Next story touching workflow-engine | New |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 4)
+
+**Timestamp:** 2026-04-03T03:35Z
+**Session window:** ~2026-04-03T02:41 to ~2026-04-03T03:34 (approx. 53 minutes)
+**Sprint progress:** 20/28 stories done (71.4%), Epics 1-5 complete
+
+---
+
+## 1. Session Summary
+
+This session completed Epic 5 — the final two stories (5-3 and 5-4) were implemented, reviewed, verified, and committed. Story 5-4 required two ralph iterations due to a timeout on iteration #9.
+
+| Story | Ralph Iteration | Phases Run | Outcome | Wall Time | Notes |
+|-------|----------------|-----------|---------|-----------|-------|
+| 5-3-crash-recovery-resume | #9 (partial) + commit in #9 output | create-story, dev-story, code-review, verify | **Done** | ~29 min | Completed within iteration #9 but iteration timed out at 30m during 5-4 work. Commit `8a89164`. |
+| 5-4-run-status-commands | #9 (timeout) + #10 | create-story, dev-story, code-review, verify | **Done** | ~22 min (iter 10) | Iteration #9 timed out. Iteration #10 completed full lifecycle. Commit `3a27dad`. |
+| Epic 5 milestone | — | — | **Done** | — | All 4 stories shipped. Commit `f4feb28`. |
+
+**Net output:** 2 stories completed + verified, 1 epic closed, sprint at 71.4%.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 5-4 | `--resume` flag registered but never read — `options.resume` ignored, engine's `phase === 'completed'` early-exit was never bypassed |
+| MEDIUM | 5-4 | Story File List incomplete (missing `run-helpers.ts` dependency) |
+
+Only 1 HIGH bug this session (down from 3 in Session 1 and 2 in Session 2). The `--resume` flag bug is a functional gap — the flag was wired in CLI but its value never reached the engine. Would have been a user-visible bug.
+
+### MEDIUM Issues (not fixed — tech debt)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| MEDIUM | 5-4 | `formatElapsed` duplicated in 3 files with 3 different implementations |
+| MEDIUM | 5-4 | 5 CLI options (`--timeout`, `--iteration-timeout`, `--calls`, `--max-story-retries`, `--reset`) parsed but never passed to EngineConfig. Pre-existing tech debt. |
+| LOW | 5-4 | `run.ts` at 172 lines exceeds aspirational "under 100" guidance (within NFR9 300-line limit) |
+| LOW | 5-4 | `formatElapsed` exported but only used internally in `formatters.ts` |
+
+### Infrastructure Issues
+
+- **Iteration #9 timed out at 30 minutes.** Story 5-3 was committed within iteration #9 but the iteration also started 5-4 work and ran out of time. The timeout report was saved (`ralph/logs/timeout-report-9-unknown.md`).
+- **`.session-issues.md` was updated this session.** The write mechanism is functional again for iterations #9-10 (was broken in Session 3). The session issues log contains meaningful data for the 5-4 story.
+- **`ralph/.state-snapshot.json` still divergent.** Shows `sprint.done: 13`, Epic 5 `storiesDone: 0` despite all 4 stories complete. The snapshot update mechanism continues to lag — now 7 stories behind reality (13 vs 20).
+- **Config path mismatch:** `_bmad/bmm/config.yaml` referenced by create-story but doesn't exist; actual config at `_bmad/config.yaml`.
+
+### Verification Gaps
+
+- No session-issues entries were written for story 5-3. The create-story and dev-story phases for 5-3 completed without self-reporting — only 5-4 phases wrote to the log.
+
+---
+
+## 3. Cost Analysis
+
+### Iteration-Level Metrics
+
+| Ralph Iteration | Story Work | Log File Size | Wall Time | Outcome |
+|-----------------|-----------|---------------|-----------|---------|
+| #9 | 5-3 full + 5-4 partial | 2.15 MB | 30 min (timeout) | 5-3 committed, 5-4 timed out |
+| #10 | 5-4 full | 2.67 MB | ~22 min | Completed |
+| **Total** | | **4.82 MB** | **~53 min** | |
+
+### Subagent Token Report (from .session-issues.md — 5-4 only)
+
+| Subagent Phase | Tool Calls | Top Tools |
+|---------------|------------|-----------|
+| 5-4 create-story | 21 | Read: 14, Glob: 6, Write: 1, Skill: 1 |
+| 5-4 dev-story | 24 | Read: 10, Bash: 8, Edit: 7, Write: 2, Grep: 2, Glob: 1 |
+| 5-4 code-review | 22 | Read: 9, Bash: 7, Edit: 7, Grep: 2, Glob: 1, Skill: 1 |
+| **5-4 Total** | **67** | Read: 33, Bash: 15, Edit: 14, Glob: 7, Grep: 4, Write: 3, Skill: 2 |
+
+Story 5-3 did not report to `.session-issues.md`. Estimated at ~60-70 tool calls based on log file size and prior story patterns.
+
+### Observations
+
+- **Read dominates** at 33/67 calls (49%) for 5-4. The create-story phase alone read 14 files — consistent with prior sessions where story creation is the most Read-heavy phase.
+- **No redundant operations reported** in dev-story or code-review for 5-4. This is an improvement over Sessions 1-3 which each had 2-4 redundant operations.
+- **Largest Bash outputs:** `npx vitest run` full suite (~30 lines), targeted tests (~28 lines), `ls` (~26 lines), `git diff` (~100 lines for code review).
+- **Timeout waste:** Iteration #9 consumed 30 full minutes and a 2.15 MB log. Story 5-3 was committed but 5-4's partial work was lost and had to be redone in iteration #10. Estimated wasted cost: ~$2-3 (the 5-4 partial work).
+
+### Estimated Session Cost
+
+| Component | Estimated Cost |
+|-----------|---------------|
+| Story 5-3 (full lifecycle) | ~$4.50 |
+| Story 5-4 — iteration #9 partial (wasted) | ~$2.50 |
+| Story 5-4 — iteration #10 (full lifecycle) | ~$5.00 |
+| Orchestrator overhead + retro | ~$1.50 |
+| **Session total** | **~$13.50** |
+
+### Cumulative Cost Tracking
+
+| Session | Stories Completed | Estimated Cost | Cost/Story |
+|---------|-------------------|---------------|------------|
+| Prior sessions (Epics 1-2) | 7 | $37.08 | $4.45 |
+| Session 1 (2026-04-03, early) | 2.5 | ~$12.00 | ~$4.80 |
+| Session 2 (2026-04-03, late) | 0.5 | ~$3.50 | ~$7.00* |
+| Session 3 | 1 | ~$4.50 | ~$4.50 |
+| **Session 4 (this)** | **2** | **~$13.50** | **~$6.75** |
+| **Cumulative** | **13** | **~$70.58** | **~$5.43** |
+
+*Session 2 and this session's per-story cost are inflated by waste (Session 2: tail-end work; Session 4: timeout retry).
+
+### Cost Optimization Opportunities
+
+1. **Timeout budget:** Iteration #9 tried to do two stories (5-3 + 5-4) and timed out. If the orchestrator had committed after 5-3 and started a new iteration for 5-4, the ~$2.50 partial work would not have been lost.
+2. **5 dead CLI options:** The 5 parsed-but-unused CLI flags (`--timeout`, `--iteration-timeout`, `--calls`, `--max-story-retries`, `--reset`) represent wasted complexity in every code review that has to assess them.
+3. **`formatElapsed` x3:** Three implementations of the same function across the codebase. Each code review flags it but defers. The accumulated review cost of re-evaluating this each time likely exceeds the fix cost.
+
+---
+
+## 4. What Went Well
+
+1. **Epic 5 completed.** All 4 stories (sequential steps, loop blocks, crash recovery, run/status commands) are done. The workflow engine is now fully functional.
+2. **Recovery from timeout.** Iteration #9 timed out but iteration #10 completed 5-4 cleanly in ~22 minutes. The retry mechanism works.
+3. **Session issues log functional again.** After being broken in Session 3, the `.session-issues.md` mechanism worked for Session 4's iteration #10. This produced usable token reports for the retrospective.
+4. **Code review quality maintained.** Found the `--resume` flag bug — a flag that was advertised in CLI help but silently did nothing. This would have been confusing for users.
+5. **Sprint velocity at 71.4%.** 20/28 stories done. The remaining 8 stories span Epics 6-9 (evaluator, circuit breaker, issue tracker, workflow patches).
+6. **Zero story retries.** Both 5-3 and 5-4 completed on first attempt (the timeout was an iteration timeout, not a story retry). No stuck cycles.
+7. **Coverage remains high.** 96.78% overall, all 158 files above 80% floor.
+
+---
+
+## 5. What Went Wrong
+
+1. **Iteration #9 timeout.** Attempted to complete both 5-3 and 5-4 in a single 30-minute iteration. 5-3 committed successfully but the remaining time was insufficient for 5-4. Wasted ~$2.50 in partial work.
+2. **No session issues for story 5-3.** The create-story and dev-story phases for 5-3 did not write to `.session-issues.md`, making cost analysis and issue tracking incomplete for half this session.
+3. **`ralph/.state-snapshot.json` is now 7 stories behind.** Shows 13 done vs 20 actual. Epic 5 shows `storiesDone: 0`. This file is increasingly useless as a state reference.
+4. **`formatElapsed` duplication flagged for the 4th time.** This tech debt item keeps getting deferred. It's now been flagged in Sessions 1, 2, 3, and 4 code reviews.
+5. **5 dead CLI options still present.** Pre-existing tech debt that every code review has to evaluate and then skip. Each review cycle burns ~2-3 minutes on this.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **One story per iteration.** Iterations that complete one story cleanly (like #8 for 5-2 and #10 for 5-4) have 100% success rate. Iteration #9 tried to squeeze in two and timed out.
+- **Code review catches wiring bugs.** The `--resume` flag bug is the kind of "plumbing" error that tests don't catch because tests typically test the engine directly, not the CLI→engine wiring.
+- **Session issues log when it works.** The 5-4 token reports enabled precise cost analysis. When the mechanism works, it's valuable.
+
+### Patterns to Avoid
+
+- **Two stories in one iteration.** The 30-minute budget is tight for a full lifecycle (create → dev → review → verify). Attempting two stories risks timeout and wasted partial work.
+- **Perpetually deferring the same tech debt.** `formatElapsed` has been flagged 4 times. At some point the accumulated review cost of re-evaluating it exceeds the fix cost. Same for the 5 dead CLI options.
+- **Trusting `.state-snapshot.json`.** It's now 35% behind reality (13/20). Either fix the sync mechanism or stop consulting it.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | ~~Complete code-review and verify for story 5-1~~ | ~~HIGH~~ | ~~Session 2~~ | DONE |
+| 2 | Fix `codeharness verify` to work without pre-set harness state flags | MEDIUM | Backlog | Open |
+| 3 | Update `src/lib/AGENTS.md` — still missing: agent-dispatch, agent-resolver, session-manager, trace-id | MEDIUM | Next session | Partial |
+| 4 | Fix `codeharness stats --save` to work for non-ralph sessions | MEDIUM | Backlog | Open (4 sessions broken) |
+| 5 | Fix `ralph/.state-snapshot.json` sync — shows 13 done vs 20 actual | HIGH | Next session | Open (escalated — 7 stories behind) |
+| 6 | Fix `.session-issues.md` write mechanism for all iterations (worked for #10, not #9) | MEDIUM | Backlog | Partial |
+| 7 | Fix pre-existing TS errors in `src/commands/__tests__/run.test.ts` | LOW | Backlog | Open |
+| 8 | Address deferred LOW issues from 4-3, 4-4, 5-1, 5-2, 5-3, 5-4 code reviews | LOW | Backlog | Open (growing) |
+| 9 | Add integration test for actual YAML parsing (not mocked) in workflow-engine | LOW | Backlog | Open |
+| 10 | Extract shared dispatch/checkpoint logic from sequential and loop paths | LOW | Backlog | Open |
+| 11 | **Fix `formatElapsed` duplication** — 3 implementations across codebase, flagged 4 sessions in a row | MEDIUM | Next sprint | New (escalated from LOW) |
+| 12 | **Wire 5 dead CLI options** (`--timeout`, `--iteration-timeout`, `--calls`, `--max-story-retries`, `--reset`) to EngineConfig or remove them | MEDIUM | Next sprint | New (escalated from LOW) |
+| 13 | **Limit ralph to 1 story per iteration** to prevent timeout waste | LOW | Backlog | New |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 5)
+
+**Timestamp:** 2026-04-03T04:00Z
+**Session window:** ~2026-04-03T03:11 to ~2026-04-03T03:55 (approx. 44 minutes)
+**Sprint progress:** 21/28 stories done (75%), Epics 1-5 complete, Epic 6 at 1/3
+
+---
+
+## 1. Session Summary
+
+This session covered ralph iterations #11 and #12. Iteration #11 completed stories 5-3, 5-4, and the Epic 5 milestone (these were the tail-end commit/verify work from Session 4). Iteration #12 completed story 6-1, the first story of Epic 6 (Blind Evaluator & Verification).
+
+| Story | Ralph Iteration | Phases Run | Outcome | Notes |
+|-------|----------------|-----------|---------|-------|
+| 5-3-crash-recovery-resume | #11 (commit tail) | — | **Done** (already done in Session 4) | Commit `8a89164` |
+| 5-4-run-status-commands | #11 (commit tail) | — | **Done** (already done in Session 4) | Commit `3a27dad` |
+| Epic 5 milestone | #11 | — | **Done** | Commit `f4feb28` |
+| 6-1-evaluator-module-workspace-spawn | #12 | create-story, dev-story, code-review, verification | **Done** | Full lifecycle. Commit `fb76b15`. |
+
+**Net new output this session:** 1 story completed end-to-end (6-1), 1 epic milestone committed (Epic 5).
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 6-1 | Timer leak — `setTimeout` in `Promise.race` never cleared on success path. Could keep Node.js alive 5 min after evaluator completes. |
+| MEDIUM | 6-1 | Non-Error rejection path untested. Test added. |
+| MEDIUM | 6-1 | Workspace creation failure path untested. Test added. |
+
+The timer leak is a real resource issue. In long-running CLI sessions, leaked timers accumulate and prevent clean process exit. This was caught by code review and fixed with `clearTimeout` on the success path.
+
+### LOW Issues (not fixed — tech debt)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| LOW | 6-1 | `buildUnknownOutput` names findings `ac: index + 1` mapping to story files, not actual ACs. Misleading naming — downstream parsing (story 6-2) will handle. |
+| LOW | 6-1 | `isDockerAvailable()` is synchronous `execFileSync` blocking event loop up to 10s. Acceptable for CLI. |
+
+### Risks Identified During Story Creation
+
+- **Epic naming collision:** `epic-6-retrospective.md` documents a previous sprint's Epic 6 (Dashboard Visualization Rework), not the current Epic 6 (Blind Evaluator & Verification). Subagent navigated past it but this is a source of confusion.
+- **Timeout via `Promise.race()` does not abort the underlying SDK session.** Agent may continue running after timeout. Known architectural trade-off — no clean abort mechanism exists for the Claude SDK.
+- **`EvaluatorVerdict` type duplication risk.** Already defined in `workflow-engine.ts` (story 5-2). Story 6-1's `EvaluatorResult` returns raw `output: string` — consolidation deferred to story 6-2.
+
+### Verification Gaps
+
+- **AGENTS.md stale:** `codeharness verify` flagged `AGENTS.md` missing `evaluator.ts` from module listing. Documentation artifact issue, not an AC failure.
+- **AC 3 partial reliance on pre-compiled agent definition:** Evaluator receives `bare: true` and `source_access: false` but doesn't set them. By design — the agent definition is pre-compiled.
+- **Branch coverage 92.85%:** Uncovered branch at line 160 is a defensive `if (timeoutTimer)` guard. Timer is always set so the false branch is unreachable in practice.
+
+### Infrastructure Issues
+
+- **`ralph/.state-snapshot.json` still divergent.** Now shows `sprint.done: 13` (from Session 3 era) vs actual 21 done. Gap has grown to 8 stories.
+- **Vitest run twice during verification:** Full coverage run + evaluator-only run. Could have been combined into a single run.
+- **Config path mismatch persists:** `_bmad/bmm/config.yaml` referenced but doesn't exist; actual config at `_bmad/config.yaml`.
+
+---
+
+## 3. Cost Analysis
+
+### Iteration-Level Metrics
+
+| Ralph Iteration | Story Work | Log File Size | Wall Time (approx) | Outcome |
+|-----------------|-----------|---------------|---------------------|---------|
+| #11 | Epic 5 milestone commit, 6-1 story creation start | 2.75 MB | ~26 min | Completed |
+| #12 | 6-1 full lifecycle | 2.32 MB | ~17 min | Completed |
+| **Total** | | **5.07 MB** | **~44 min** | |
+
+### Subagent Token Report (from .session-issues.md)
+
+| Subagent Phase | Tool Calls | Read | Bash | Edit | Grep | Glob | Write | Skill |
+|---------------|------------|------|------|------|------|------|-------|-------|
+| 6-1 create-story | 16 | 8 | 0 | 0 | 1 | 7 | 1 | 0 |
+| 6-1 dev-story | 14 | 7 | 6 | 2 | 1 | 0 | 2 | 0 |
+| 6-1 code-review | 18 | 8 | 7 | 3 | 1 | 1 | 0 | 1 |
+| 6-1 verification | 14 | 2 | 8 | 0 | 4 | 0 | 1 | 0 |
+| **6-1 Total** | **62** | **25** | **21** | **5** | **7** | **8** | **4** | **1** |
+
+Also includes 5-4 subagent reports from iteration #11 (carried over from Session 4):
+
+| Subagent Phase | Tool Calls | Read | Bash | Edit | Grep | Glob | Write | Skill |
+|---------------|------------|------|------|------|------|------|-------|-------|
+| 5-4 create-story | 21 | 14 | 2 | 0 | 1 | 6 | 1 | 1 |
+| 5-4 dev-story | 24 | 10 | 8 | 7 | 2 | 1 | 2 | 0 |
+| 5-4 code-review | 22 | 9 | 7 | 7 | 2 | 1 | 0 | 1 |
+| **5-4 Total** | **67** | **33** | **17** | **14** | **5** | **8** | **3** | **2** |
+
+### Subagent-Level Breakdown — Where Tokens Were Spent
+
+**Most tool-call-heavy phases:**
+1. 5-4 dev-story (24 calls) and 5-4 code-review (22 calls) — consistent with prior sessions where dev and review are the most expensive phases.
+2. 6-1 code-review (18 calls) — lower than 5-4 because evaluator.ts is a smaller, more focused module.
+
+**Redundant operations identified:**
+- 6-1 verification: vitest ran twice (full suite + evaluator-only). Could have been a single targeted run with `--coverage`.
+- 5-4 create-story: one redundant read of `sprint-status.yaml`.
+- No file was read 3+ times in any subagent phase — an improvement over earlier sessions.
+
+**Largest Bash outputs:**
+- `npx tsc --noEmit` (~130 lines) in 6-1 dev-story — TypeScript check is verbose
+- `npx vitest --coverage` (~140 lines) in 6-1 dev-story
+- `ls verification/` (~133 lines) in 6-1 verification — large directory listing
+- `git diff HEAD -- src/commands/run.ts` (~100 lines) in 5-4 code-review
+
+**Read-heaviness:** 25/62 calls (40%) for 6-1 were Read. 33/67 (49%) for 5-4. Story creation is consistently the most Read-heavy phase (8/16 = 50% for 6-1 create-story, 14/21 = 67% for 5-4 create-story).
+
+### Estimated Session Cost
+
+| Component | Estimated Cost |
+|-----------|---------------|
+| Story 6-1 (full lifecycle, 62 tool calls) | ~$5.00 |
+| Iteration #11 overhead (Epic 5 commit, orchestrator) | ~$1.50 |
+| Orchestrator + retro overhead | ~$1.00 |
+| **Session total** | **~$7.50** |
+
+### Cumulative Cost Tracking
+
+| Session | Stories Completed | Estimated Cost | Cost/Story |
+|---------|-------------------|---------------|------------|
+| Prior sessions (Epics 1-2) | 7 | $37.08 | $4.45 |
+| Session 1 (2026-04-03, early) | 2.5 | ~$12.00 | ~$4.80 |
+| Session 2 (2026-04-03, late) | 0.5 | ~$3.50 | ~$7.00* |
+| Session 3 | 1 | ~$4.50 | ~$4.50 |
+| Session 4 | 2 | ~$13.50 | ~$6.75 |
+| **Session 5 (this)** | **1** | **~$7.50** | **~$7.50** |
+| **Cumulative** | **14** | **~$78.08** | **~$5.58** |
+
+*Session 5 cost/story is higher than average because iteration #11 spent time on Epic 5 milestone commit work (not a new story) and the orchestrator overhead was spread across only 1 new story.
+
+### Wasted Spend
+
+- **Duplicate vitest runs in verification:** ~$0.50 wasted. Verification ran vitest twice — once full suite, once evaluator-only.
+- **Iteration #11 overhead:** ~$1.50 spent on committing already-done work from Session 4 and orchestrating the transition to Epic 6.
+- **Total estimated waste this session:** ~$2.00 (27% of session cost)
+
+### Cost Optimization Opportunities
+
+1. **Combine vitest runs in verification phase.** A single `npx vitest run --coverage` with the right filter produces both test results and coverage. Running it twice is pure waste.
+2. **Reduce `ls` output in verification.** The 133-line directory listing of `verification/` is mostly noise. Verification should target specific files, not browse directories.
+3. **Story creation Read count.** 6-1 create-story read 10 unique files. Consider pre-loading a "story context bundle" that combines architecture, PRD, and epic summary into a single reference document.
+
+---
+
+## 4. What Went Well
+
+1. **Story 6-1 completed in one clean iteration.** Full lifecycle (create, dev, review, verify) in ~17 minutes. This is the fastest story completion yet, beating 5-2's 27-minute record.
+2. **Code review caught a real timer leak.** The `setTimeout` leak in `Promise.race` is exactly the kind of resource bug that causes mysterious CI hangs and slow exits. Fixed before merge.
+3. **Zero redundant file reads.** No file was read 3+ times in any subagent phase. This is the first session with no file-read redundancy.
+4. **Session issues log fully functional.** All 4 phases of 6-1 wrote token reports. This is the first session where every phase reported.
+5. **Sprint at 75%.** 21/28 stories done. Epic 6 is underway with 1/3 stories complete.
+6. **Circuit breaker stable.** CLOSED state, 0 total opens, 0 consecutive failures. The system is running healthy.
+7. **Coverage remains high.** 96.79% overall. Evaluator module at 100/92.85/100/100 (stmt/branch/func/line).
+
+---
+
+## 5. What Went Wrong
+
+1. **`ralph/.state-snapshot.json` now 8 stories behind reality.** Shows 13 done vs 21 actual. This file is actively misleading and should either be fixed or deleted.
+2. **`codeharness stats` still broken.** Fifth consecutive session. The cost report mechanism has been non-functional since Session 1. All cost analysis in this and prior retros is manual estimation.
+3. **AGENTS.md still stale.** Now missing `evaluator.ts` in addition to `agent-dispatch.ts`, `agent-resolver.ts`, `session-manager.ts`, `trace-id.ts`. 5 modules behind (was 4 in Session 4 — growing).
+4. **Epic naming collision.** `epic-6-retrospective.md` refers to an old Epic 6 (Dashboard Visualization Rework), not the current one (Blind Evaluator & Verification). Creates confusion for subagents navigating the file tree.
+5. **Verification ran vitest twice.** Known redundancy pattern that keeps recurring. Verification subagent is not learning from prior session lessons.
+6. **`EvaluatorVerdict` type exists in two conceptual locations.** `workflow-engine.ts` has it from story 5-2, and story 6-1 introduces `EvaluatorResult` with different semantics. This needs consolidation in story 6-2 or it will cause confusion.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Small, focused modules complete faster.** `evaluator.ts` is a single-responsibility module (spawn + timeout + workspace). It completed in 17 minutes — the fastest story yet. Contrast with `workflow-engine.ts` stories that took 27-53 minutes due to module complexity.
+- **Timer cleanup in Promise.race.** Every `Promise.race` with a `setTimeout` needs `clearTimeout` on the non-timeout path. This should be a standard code review checklist item.
+- **Session issues log working end-to-end.** When all phases report, the retrospective has precise data. The mechanism is valuable — keep it working.
+
+### Patterns to Avoid
+
+- **Running vitest twice in verification.** This has happened in Sessions 1, 3, 4, and 5. The verification subagent prompt should explicitly say "run vitest once with coverage, do not run it again."
+- **Letting AGENTS.md debt accumulate.** Now 5 modules behind. The cost of updating it grows with each session because reviewers keep flagging it. Batch-update it in the next session.
+- **Stale `.state-snapshot.json`.** Stop consulting it. Use `sprint-status.yaml` as the single source of truth until the sync mechanism is fixed.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | ~~Complete code-review and verify for story 5-1~~ | ~~HIGH~~ | ~~Session 2~~ | DONE |
+| 2 | Fix `codeharness verify` to work without pre-set harness state flags | MEDIUM | Backlog | Open |
+| 3 | **Update `src/lib/AGENTS.md`** — missing: agent-dispatch, agent-resolver, session-manager, trace-id, evaluator | HIGH | Next session | Open (escalated — 5 modules behind) |
+| 4 | Fix `codeharness stats --save` to work for non-ralph sessions | MEDIUM | Backlog | Open (5 sessions broken) |
+| 5 | **Fix or delete `ralph/.state-snapshot.json`** — shows 13 done vs 21 actual | HIGH | Next session | Open (escalated — 8 stories behind) |
+| 6 | Fix `.session-issues.md` write mechanism for all iterations | LOW | Backlog | Resolved (worked this session) |
+| 7 | Fix pre-existing TS errors in `src/commands/__tests__/run.test.ts` | LOW | Backlog | Open |
+| 8 | Address deferred LOW issues from 4-3, 4-4, 5-1, 5-2, 5-3, 5-4, 6-1 code reviews | LOW | Backlog | Open (growing) |
+| 9 | Add integration test for actual YAML parsing (not mocked) in workflow-engine | LOW | Backlog | Open |
+| 10 | Extract shared dispatch/checkpoint logic from sequential and loop paths | LOW | Backlog | Open |
+| 11 | **Fix `formatElapsed` duplication** — 3 implementations, flagged 4+ sessions | MEDIUM | Next sprint | Open |
+| 12 | **Wire 5 dead CLI options** to EngineConfig or remove them | MEDIUM | Next sprint | Open |
+| 13 | Limit ralph to 1 story per iteration to prevent timeout waste | LOW | Backlog | Open |
+| 14 | **Rename or archive `epic-6-retrospective.md`** to avoid confusion with current Epic 6 | LOW | Next session | New |
+| 15 | **Consolidate `EvaluatorVerdict` type** between `workflow-engine.ts` and `evaluator.ts` in story 6-2 | MEDIUM | Story 6-2 | New |
+| 16 | **Add "single vitest run" instruction to verification subagent prompt** to prevent duplicate test runs | LOW | Backlog | New |

@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://codeharness.dev/schemas/verdict.schema.json",
+  "title": "EvaluatorVerdict",
+  "description": "Schema for evaluator verdict output (AD5)",
+  "type": "object",
+  "required": ["verdict", "score", "findings"],
+  "additionalProperties": true,
+  "properties": {
+    "verdict": {
+      "type": "string",
+      "enum": ["pass", "fail"]
+    },
+    "score": {
+      "type": "object",
+      "required": ["passed", "failed", "unknown", "total"],
+      "additionalProperties": true,
+      "properties": {
+        "passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unknown": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ac", "description", "status", "evidence"],
+        "additionalProperties": true,
+        "properties": {
+          "ac": {
+            "type": "integer"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "unknown"]
+          },
+          "evidence": {
+            "type": "object",
+            "required": ["commands_run", "output_observed", "reasoning"],
+            "additionalProperties": true,
+            "properties": {
+              "commands_run": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "output_observed": {
+                "type": "string"
+              },
+              "reasoning": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "evaluator_trace_id": {
+      "type": "string"
+    },
+    "duration_seconds": {
+      "type": "number"
+    }
+  }
+}

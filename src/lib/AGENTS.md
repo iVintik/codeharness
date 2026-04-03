@@ -201,11 +201,12 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/types.ts | AgentDriver interface and related types — DriverHealth, DriverCapabilities, DispatchOpts, OutputContract, plus deprecated SpawnOpts/AgentProcess/AgentEvent | `AgentDriver`, `DriverHealth`, `DriverCapabilities`, `DispatchOpts`, `OutputContract`, `TestResults`, `ACStatus` |
 | agents/stream-parser.ts | Stateless NDJSON stream parser — converts Claude API streaming events into typed `StreamEvent` objects | `parseStreamLine`, `StreamEvent`, `ToolStartEvent`, `ToolInputEvent`, `ToolCompleteEvent`, `TextEvent`, `RetryEvent`, `ResultEvent` |
 | agents/model-resolver.ts | Model resolution with 3-level cascade: task → agent → driver default | `resolveModel` |
-| agents/index.ts | Barrel re-exports for agents subsystem — types, stream parser, driver factory, model resolver | all public API |
+| agents/output-contract.ts | Atomic write/read for OutputContract JSON files — writes to .tmp then renames, path-traversal safe | `writeOutputContract`, `readOutputContract` |
+| agents/index.ts | Barrel re-exports for agents subsystem — types, stream parser, driver factory, model resolver, output contract | all public API |
 | agents/drivers/factory.ts | Driver factory and module-singleton registry — register, retrieve, list, and reset drivers | `getDriver`, `registerDriver`, `listDrivers`, `resetDrivers` |
 | agents/drivers/claude-code.ts | Claude Code driver — in-process driver using the Agent SDK (no CLI spawning) | `ClaudeCodeDriver` |
 | agents/drivers/codex.ts | Codex driver — CLI-wrapped driver for OpenAI Codex, spawns `codex` binary and parses NDJSON stdout | `CodexDriver` |
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 68 library files + 4 shared test utility files across 26 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 69 library files + 4 shared test utility files across 26 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

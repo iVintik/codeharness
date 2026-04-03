@@ -6,7 +6,7 @@ import type { DispatchErrorCode } from './agent-dispatch.js';
 // Note: dispatchAgent is no longer imported — dispatch goes through the driver factory
 import { getDriver } from './agents/drivers/factory.js';
 import { resolveModel } from './agents/model-resolver.js';
-import type { DispatchOpts, DriverHealth } from './agents/types.js';
+import type { DispatchOpts, DriverHealth, OutputContract } from './agents/types.js';
 import type { ResultEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
 import type { ResolvedWorkflow, ResolvedTask, FlowStep, LoopBlock } from './workflow-parser.js';
@@ -14,6 +14,7 @@ import {
   readWorkflowState,
   writeWorkflowState,
 } from './workflow-state.js';
+import { buildPromptWithContractContext } from './agents/output-contract.js';
 import type { WorkflowState, TaskCheckpoint } from './workflow-state.js';
 import { createIsolatedWorkspace } from './source-isolation.js';
 import { generateTraceId, formatTracePrompt, recordTraceId } from './trace-id.js';
@@ -248,9 +249,10 @@ export async function dispatchTask(
   state: WorkflowState,
   config: EngineConfig,
   customPrompt?: string,
+  previousOutputContract?: OutputContract,
 ): Promise<WorkflowState> {
   const { updatedState } = await dispatchTaskWithResult(
-    task, taskName, storyKey, definition, state, config, customPrompt,
+    task, taskName, storyKey, definition, state, config, customPrompt, previousOutputContract,
   );
   return updatedState;
 }
@@ -276,6 +278,7 @@ async function dispatchTaskWithResult(
   state: WorkflowState,
   config: EngineConfig,
   customPrompt?: string,
+  previousOutputContract?: OutputContract,
 ): Promise<{ updatedState: WorkflowState; output: string }> {
   const projectDir = config.projectDir ?? process.cwd();
 
@@ -309,10 +312,13 @@ async function dispatchTaskWithResult(
   }
 
   // 7. Construct prompt
-  const prompt = customPrompt
+  const basePrompt = customPrompt
     ?? (storyKey === PER_RUN_SENTINEL
       ? `Execute task "${taskName}" for the current run.`
       : `Implement story ${storyKey}`);
+
+  // 7b. Inject previous task's output contract context into the prompt (story 13-2)
+  const prompt = buildPromptWithContractContext(basePrompt, previousOutputContract ?? null);
 
   // 8. Build DispatchOpts for the driver
   const dispatchOpts: DispatchOpts = {

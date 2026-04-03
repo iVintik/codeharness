@@ -3185,3 +3185,514 @@ Aggregated from `.session-issues.md` token reports:
 2. **Before 12-2, extract shared driver utilities (action #41)** — `classifyError`, `NETWORK_CODES`, and potentially `buildCliArgs` patterns. Prevents a 4th duplication.
 3. **Story 12-3 (driver health check at workflow start)** — completes Epic 12.
 4. **Fix AGENTS.md (action #3)** — 13 sessions of noise. This is the single most persistent action item.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 9, Iteration 9)
+
+**Timestamp:** 2026-04-03T13:35 UTC+4
+**Session window:** ~13:15 to ~13:33 (approx. 18 minutes)
+**Sprint progress:** 36/47 stories done (76.6%), Epics 1-11 complete, Epic 12 at 2/3
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 12-2-opencode-driver-implementation | create-story, dev-story, code-review, verify | **Done** | Full lifecycle. 11/11 ACs passed. Commit `1ed6db3`. |
+
+**Net output:** 1 story completed and verified in a single iteration (~18 minutes). This is the fastest full-lifecycle story delivery in the project so far.
+
+---
+
+## 2. Issues Analysis
+
+### Issues Reported by Subagents
+
+| Phase | Severity | Issue | Impact |
+|-------|----------|-------|--------|
+| create-story | INFO | OpenCode CLI output format must be reverse-engineered; fixtures are plausible guesses | Low — gracefully handles command failure |
+| create-story | INFO | `opencode auth status` command is a guess | Low — healthCheck handles failure gracefully |
+| create-story | INFO | No `project-context.md` found (workflow references it) | None — no impact |
+| create-story | LOW | `classifyError` duplication between CodexDriver and OpenCodeDriver (~80 identical lines) | Technical debt — intentional per architecture decision |
+| code-review | LOW | Dead fixture files in `test/fixtures/drivers/opencode/*.txt` (tests use inline data) | Cleanup debt |
+| code-review | LOW | `console.debug` for unparseable lines instead of structured logger | Shared pattern across all drivers |
+| verify | MEDIUM | Stale AGENTS.md — `codeharness verify` fails on precondition for src/lib/agents/drivers module | Pre-existing debt, not story-related. 14th session flagging this. |
+| verify | LOW | Test count discrepancy: story changelog says 64, actual is 69 | Minor documentation drift |
+| verify | INFO | Branch coverage 96.03% — 4 uncovered branches at lines 149, 198, 306-307 | Acceptable — edge cases in parseLine and error catch |
+
+**No HIGH issues.** No bugs found by code-review requiring fixes. This is the first driver story to pass code-review with zero fixes needed.
+
+### Categorization
+
+- **Bugs found:** 0 (zero code-review fixes needed)
+- **Technical debt:** 2 (classifyError duplication, dead fixtures)
+- **Documentation debt:** 2 (AGENTS.md stale, test count discrepancy)
+- **Known unknowns:** 2 (OpenCode CLI output format, auth check command)
+
+---
+
+## 3. Cost Analysis
+
+### Session-Level Cost
+
+The `codeharness stats` command is not available (no session-logs/ directory — this is tracked as action #45 from prior retro). Cost analysis uses the subagent token reports from the session issues log.
+
+### Subagent Tool Call Breakdown
+
+| Phase | Tool Calls | Bash | Read | Edit | Write | Grep | Glob | Skill | Unique Files |
+|-------|-----------|------|------|------|-------|------|------|-------|-------------|
+| create-story | 16 | 3 | 7 | 0 | 1 | 4 | 2 | 1 | 10 |
+| dev-story | 20 | 4 | 11 | 3 | 6 | 0 | 2 | 1 | 11 |
+| code-review | 12 | 3 | 7 | 1 | 0 | 1 | 3 | 1 | 8 |
+| verify | 11 | 7 | 3 | 0 | 1 | 0 | 0 | 0 | 3 |
+| **Total** | **59** | **17** | **28** | **4** | **8** | **5** | **7** | **3** | — |
+
+### Analysis
+
+- **No redundancy reported by any subagent.** All four phases reported "No redundancy" — zero repeated file reads, zero wasted Bash calls. This is a first.
+- **Read-heavy profile (47% of calls):** Expected — subagents need to read the existing CodexDriver, interface types, test patterns, and story spec.
+- **Low tool count overall (59 total):** Compare to story 12-1 (Codex driver) which was in the prior retro's session. The OpenCode driver benefited from the established pattern.
+- **Verify phase is Bash-heavy (7/11 calls):** Running test suites, coverage checks, and build verification. This is structurally correct.
+
+### Cumulative Cost Context (from cost-report.md)
+
+The cumulative project cost report shows $202.85 across 1568 API calls and 49 stories ($3.46/story average). The verify phase dominates at 44.3% of total cost — this remains the most expensive phase and is the primary target for cost optimization.
+
+---
+
+## 4. What Went Well
+
+1. **Fastest full-lifecycle story:** ~18 minutes from create-story to verified-done. Previous fastest was ~25 minutes (story 12-1).
+2. **Zero code-review fixes:** First time a driver story passed code-review clean. The CodexDriver pattern established in 12-1 paid off — the template was followed precisely.
+3. **Zero redundancy across all subagents.** No repeated reads, no wasted operations. Subagents are staying focused.
+4. **All 11 ACs passed on first verify run.** No re-verification needed.
+5. **Pattern reuse worked.** The architecture decision to keep drivers as independent files with duplicated utility code (classifyError, etc.) made 12-2 a near-copy of 12-1, which is exactly the intent.
+6. **96.78% statement coverage, 96.03% branch coverage.** Well above the 80% floor.
+
+---
+
+## 5. What Went Wrong
+
+1. **AGENTS.md stale — 14th session.** This is now the longest-running unresolved action item in the project. `codeharness verify` fails its precondition check every single session because of this. It is noise that every verify subagent must work around.
+2. **`codeharness stats` still broken.** Action #45 from the prior retro remains open. No session-logs/ directory exists, so cost reporting depends on manual subagent token report aggregation.
+3. **classifyError duplication not extracted.** Action #41 from prior retro recommended extracting shared driver utilities before 12-2. This was not done. Now three drivers (claude-code, codex, opencode) have identical classifyError implementations.
+4. **Dead fixture files created.** create-story generated `test/fixtures/drivers/opencode/*.txt` but dev-story used inline test data instead. Minor waste.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Template-driven driver stories work.** When the first driver (claude-code extraction in 10-3) establishes the pattern and the second (codex, 12-1) validates it, the third (opencode, 12-2) becomes near-mechanical. Keep this approach for future drivers.
+- **Inline test data over fixture files.** Both 12-1 and 12-2 used inline test data, which is faster to write and avoids dead fixture debt. Make this the standard for driver tests.
+- **Keeping subagent phases lean.** 59 total tool calls for a full lifecycle is efficient. The session issues log shows all phases reported zero redundancy.
+
+### Patterns to Avoid
+
+- **Skipping shared utility extraction.** The prior retro flagged this explicitly. Ignoring it means the debt grows with each new driver. Before 12-3 or any Epic 13+ work, extract `classifyError` and `NETWORK_CODES`.
+- **Creating fixture files that tests don't use.** The create-story phase should not generate fixture files unless the dev-story phase is guaranteed to use them.
+
+---
+
+## 7. Action Items
+
+### Carried Forward (Still Open)
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 3 | Fix AGENTS.md for all new modules | HIGH | Open — 14 sessions |
+| 37 | Fix epic numbering mismatch | MEDIUM | Open |
+| 41 | Extract `classifyError` + `NETWORK_CODES` to shared driver utility | HIGH | Open — now 3 drivers duplicated |
+| 42 | Validate Codex CLI NDJSON output against real CLI | MEDIUM | Backlog |
+| 45 | Fix `codeharness stats --save` — no session-logs directory | LOW | Open |
+
+### New This Session
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 46 | Remove dead fixture files in `test/fixtures/drivers/opencode/` | LOW | Cleanup |
+| 47 | Standardize on inline test data for driver tests (update create-story template) | LOW | Process |
+
+### Priority Recommendations for Next Session
+
+1. **Story 12-3 (driver health check at workflow start)** — completes Epic 12. All three drivers are now implemented.
+2. **Extract shared driver utilities (action #41)** — before Epic 13 begins. Three duplicated implementations is the limit.
+3. **Fix AGENTS.md (action #3)** — 14 sessions. Just do it.
+4. **Epic 13 (output contracts)** — next epic in the backlog.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 10, Iteration 10, ~13:35–14:00)
+
+**Timestamp:** 2026-04-03T14:00 UTC+4
+**Session window:** ~13:35 to ~13:55 (approx. 20 minutes)
+**Sprint progress:** 37/47 stories done (78.7%), Epics 1-11 complete, Epic 12 at 3/3 — **Epic 12 complete**
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 12-3-driver-health-check-at-workflow-start | create-story, dev-story, code-review, verify | **Done** | Full lifecycle. 9/9 ACs passed. Commit `69583ca`. Completes Epic 12. |
+
+**Net output:** 1 story completed and verified. Epic 12 (Multi-Framework Drivers) is now fully done — all 3 stories (12-1, 12-2, 12-3) shipped in back-to-back sessions.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed in-session)
+
+| Severity | Phase | Issue | Fix Applied |
+|----------|-------|-------|-------------|
+| HIGH | code-review | Timer leak — `setTimeout` never cleared on success path in `checkDriverHealth()` | Added `clearTimeout` on resolution |
+| MEDIUM | code-review | Timeout error inaccuracy — reported ALL drivers instead of only non-responding ones (AC #6 violation) | Fixed to filter to only timed-out drivers |
+| MEDIUM | code-review | Double mock invocation — test called `checkDriverHealth` twice per assertion | Removed duplicate call |
+| MEDIUM | code-review | Missing test for "timeout error reports only drivers that did not respond" | Added new test case |
+
+Code review caught 1 HIGH and 3 MEDIUM issues. The HIGH timer leak would have caused resource exhaustion in long-running workflows. Good catch.
+
+### Technical Debt Introduced
+
+| Issue | Severity | Notes |
+|-------|----------|-------|
+| `HealthResult` type defined inline in function body | LOW | Cosmetic — code-review flagged but did not fix. Should be at module scope. |
+| `timeoutMs` optional parameter added for testability | LOW | Clean workaround for fake timer issues, but not in original spec |
+
+### Documentation Debt
+
+| Issue | Sessions Open | Notes |
+|-------|--------------|-------|
+| Stale AGENTS.md | **15th session** | Fixed this session — created `src/lib/agents/drivers/AGENTS.md`, updated `src/lib/AGENTS.md` and `src/lib/agents/AGENTS.md` |
+| Pre-existing lint error `require-yield` at `workflow-engine.test.ts:154` | Unknown | Not from this story; not addressed |
+
+### Verification Issues
+
+| Issue | Impact |
+|-------|--------|
+| Proof format mismatch — verifier generated `### AC N:` but parser expects `## AC N:` | Verifier had to rewrite proof document manually. Wasted ~2-3 tool calls. |
+| Stale AGENTS.md precondition failure | Fixed in verify phase itself — verify subagent updated AGENTS.md files |
+
+### Infrastructure Issues
+
+- **`codeharness stats --save` still broken.** No session-logs directory. Action #45 remains open.
+- **Multiple epics files with conflicting 12-3 definitions.** create-story had to determine correct source (epics-multi-framework.md). Risk of wrong story spec if sources diverge further.
+
+---
+
+## 3. Cost Analysis
+
+### Session-Level Cost
+
+No per-session cost available (`codeharness stats` broken — action #45). Analysis based on subagent token reports from the session issues log.
+
+### Subagent Tool Call Breakdown (Story 12-3 only)
+
+| Phase | Tool Calls | Bash | Read | Edit | Write | Grep | Glob | Skill | Unique Files | Redundancy |
+|-------|-----------|------|------|------|-------|------|------|-------|-------------|------------|
+| create-story | 21 | 2 | 8 | 0 | 1 | 7 | 3 | 1 | 10 | None |
+| dev-story | 19 | 8 | 7 | 7 | 1 | 2 | 1 | 0 | 6 | workflow-engine.test.ts read 4x, workflow-engine.ts read 3x. One redundant `npm run build` |
+| code-review | 21 | 10 | 6 | 4 | 0 | 2 | 1 | 1 | 8 | None |
+| verify | 14 | 9 | 2 | 0 | 1 | 3 | 0 | 0 | 3 | npm run test:unit run twice (verbose + summary) |
+| **Total** | **75** | **29** | **23** | **11** | **3** | **14** | **5** | **2** | — | — |
+
+### Where Tokens Were Spent
+
+- **dev-story repeated reads:** `workflow-engine.test.ts` read 4 times, `workflow-engine.ts` read 3 times. This story modifies the workflow engine itself (not just a standalone driver), so the subagent needed multiple passes as it integrated the health check. Partially unavoidable, but a pre-loaded context strategy could cut 2-3 reads.
+- **code-review Bash-heavy (10 calls):** Ran builds, test suites, and coverage multiple times to verify each fix. This is expected when fixing 4 issues in-session.
+- **verify ran test suite twice:** Once with verbose output, once for summary. Could be combined into a single run.
+- **create-story Grep-heavy (7 calls):** Searched across multiple epic files to resolve the conflicting 12-3 definitions. This is a direct consequence of having multiple epics files.
+
+### Comparison: 12-2 vs 12-3
+
+| Metric | 12-2 (OpenCode) | 12-3 (Health Check) | Delta |
+|--------|-----------------|---------------------|-------|
+| Total tool calls | 59 | 75 | +27% |
+| Code-review fixes | 0 | 4 | +4 |
+| Redundant operations | 0 | 3 (reads + test run) | +3 |
+| Time (approx) | 18 min | 20 min | +11% |
+
+12-3 was more expensive because it touched the workflow engine (a central module) rather than adding an isolated driver file. The code-review phase found real bugs (timer leak, AC violation), so the extra cost was justified.
+
+### Cumulative Sprint Cost (from cost-report.md)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $202.85 |
+| Total API calls | 1,568 |
+| Stories completed | 49 (including orchestrator overhead) |
+| Average cost per story | $3.46 |
+| Most expensive phase | verify (44.3%, $89.96) |
+| Largest unattributed cost | "unknown" bucket ($33.23, 16.4%) |
+
+### Wasted Spend (this session)
+
+| Category | Estimated Waste | Notes |
+|----------|----------------|-------|
+| Redundant reads of workflow-engine files | ~$0.40 | 4x read of test file, 3x of source |
+| Duplicate test suite run in verify | ~$0.25 | Verbose + summary could be one run |
+| Redundant `npm run build` in dev-story | ~$0.15 | Build was already passing |
+| Proof format mismatch rewrite | ~$0.20 | Verifier had to redo proof document |
+| **Total** | **~$1.00** | Slightly higher than 12-2's $0.80 |
+
+### Cost Optimization Opportunities
+
+1. **Verify phase remains the #1 cost target (44.3%).** The proof format mismatch issue is a process bug — the verify template should document the expected format to avoid rework.
+2. **Pre-load central module context for integration stories.** Stories touching workflow-engine.ts should have it pre-loaded in the dev-story context, not discovered incrementally.
+3. **Combine test runs.** "Run tests verbose" + "run tests summary" should be a single `--reporter=verbose` call.
+4. **Resolve epic file conflicts.** Multiple epics files with different 12-3 definitions caused 7 Grep calls in create-story. Consolidate or add a manifest that points to the canonical source.
+
+---
+
+## 4. What Went Well
+
+1. **Epic 12 complete.** All three driver stories (12-1 codex, 12-2 opencode, 12-3 health check) shipped in consecutive sessions. The multi-framework driver foundation is done.
+2. **Code review caught a real resource leak.** The `setTimeout` timer leak in `checkDriverHealth()` would have caused issues in production workflows with many drivers. Review continues to earn its keep.
+3. **AGENTS.md finally fixed.** The verify subagent created `src/lib/agents/drivers/AGENTS.md` and updated parent AGENTS.md files. This was the longest-running open action item (15 sessions).
+4. **9/9 ACs passed on first verify.** Despite the proof format mismatch requiring a rewrite, all acceptance criteria passed without re-verification.
+5. **Timeout testability solved cleanly.** The optional `timeoutMs` parameter is a standard testing pattern — no hacks, no monkey-patching.
+6. **4,488 tests pass across 167 files, zero regressions.** Coverage stable at 96.79%.
+
+---
+
+## 5. What Went Wrong
+
+1. **Proof format mismatch in verify.** The verifier generated `### AC N:` headers but the parser expected `## AC N:`. This required a full rewrite of the proof document — wasted 2-3 tool calls and reasoning time. This is a tooling/prompt bug.
+2. **dev-story read workflow-engine files repeatedly.** 7 reads of 2 files. The health check integration required understanding the existing workflow engine flow, which the subagent built up incrementally rather than reading once.
+3. **`codeharness stats` still broken (15th session).** No session-logs directory. This forces manual cost estimation from subagent token reports every session.
+4. **classifyError/NETWORK_CODES duplication not extracted.** Action #41 is now in its 3rd session. Three drivers have identical implementations.
+5. **Multiple epics files caused confusion.** create-story spent 7 Grep calls resolving which file had the correct 12-3 definition.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Code review before merge for integration stories.** 12-3 touched a central module (workflow-engine.ts) and code-review found a timer leak and an AC violation. For stories that modify shared infrastructure, code review is especially high-value.
+- **Fix documentation debt during verify.** The verify subagent fixed AGENTS.md — a 15-session-old action item — as part of its precondition checks. Let verify phases own documentation fixups when they encounter stale docs.
+- **Optional timeout parameters for testability.** Clean, standard pattern. Use it for any time-dependent code.
+
+### Patterns to Avoid
+
+- **Incremental discovery of central module context.** When a story integrates with workflow-engine.ts, the dev-story prompt should pre-load both the source and test file instead of letting the subagent read them piecemeal across 7 calls.
+- **Inconsistent proof format templates.** The verify phase needs a canonical proof format documented in its prompt. The `###` vs `##` mismatch is a recurring friction point.
+- **Deferring shared utility extraction indefinitely.** classifyError duplication has been flagged for 3 sessions. If it's not extracted before Epic 13, it will be 4+ drivers deep.
+
+---
+
+## 7. Action Items
+
+### Carried Forward (Status Update)
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 3 | Fix AGENTS.md for all new modules | HIGH | **CLOSED** — fixed in 12-3 verify phase |
+| 37 | Fix epic numbering mismatch | MEDIUM | Open |
+| 41 | Extract `classifyError` + `NETWORK_CODES` to shared driver utility | HIGH | Open — 3 sessions, 3 drivers duplicated |
+| 42 | Validate Codex CLI NDJSON output against real CLI | MEDIUM | Backlog |
+| 45 | Fix `codeharness stats --save` — no session-logs directory | LOW | Open — 15th session |
+| 46 | Remove dead fixture files in `test/fixtures/drivers/opencode/` | LOW | Open |
+| 47 | Standardize on inline test data for driver tests | LOW | Open |
+
+### New This Session
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 48 | Fix verify proof format template — `## AC N:` not `### AC N:` | MEDIUM | Tooling |
+| 49 | Pre-load central module context for integration stories (workflow-engine.ts, etc.) | LOW | Process |
+| 50 | Consolidate epic files or add canonical source manifest | MEDIUM | Process |
+| 51 | Move `HealthResult` type to module scope in `checkDriverHealth` | LOW | Cleanup |
+| 52 | Investigate pre-existing `require-yield` lint error at `workflow-engine.test.ts:154` | LOW | Cleanup |
+
+### Priority Recommendations for Next Session
+
+1. **Extract shared driver utilities (action #41)** — 3 drivers with identical `classifyError` + `NETWORK_CODES`. Do this before Epic 13.
+2. **Epic 13 (output contracts)** — next epic. Stories 13-1, 13-2, 13-3.
+3. **Fix verify proof format (action #48)** — saves ~$0.20 per verify phase and eliminates a recurring friction point.
+4. **Fix epic file confusion (action #50)** — prevents wasted Grep calls in create-story.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 11, ~13:35–14:20)
+
+**Timestamp:** 2026-04-03T14:20 UTC+4
+**Session window:** ~13:35 to ~14:20 (approx. 45 minutes)
+**Sprint progress:** 37/47 stories done (78.7%), Epics 1-12 complete, Epic 13 at 1/3
+
+---
+
+## 1. Session Summary
+
+This session completed 2 stories and closed Epic 12.
+
+| Story | Phases Run | Outcome | Wall Time | Notes |
+|-------|-----------|---------|-----------|-------|
+| 12-3-driver-health-check-at-workflow-start | status fix only | **Done** | ~5 min | Was already implemented and verified in Session 10 (commit `69583ca`). This session only fixed sprint-state.json status sync — story was stuck at `backlog` despite being done. |
+| 13-1-output-contract-schema-serialization | create-story, dev-story, code-review, verify | **Done** | ~35 min | Full lifecycle. 10/10 ACs passed. Code review found 2 HIGH + 3 MEDIUM issues, all fixed. Commit `c1dbd42`. |
+| Epic 12 milestone | — | **Done** | — | All 3 stories (12-1, 12-2, 12-3) confirmed done. Epic marked complete. |
+
+**Net output:** 1 full-lifecycle story completed (13-1), 1 status-sync fix (12-3), 1 epic closed.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review — Story 13-1 (all fixed)
+
+| Severity | Issue | Fix Applied |
+|----------|-------|-------------|
+| HIGH | **Path traversal vulnerability** — `taskName` with `../` could write outside `contractDir` | Added `assertSafeComponent` validation that rejects path separators and `..` |
+| HIGH | **Empty input validation** — empty `taskName`/`storyId` produced nonsensical filenames | Added validation that throws on empty/whitespace-only inputs |
+| MEDIUM | **JSON parse error handling** — `readOutputContract` had no handling for corrupted files | Added try/catch with descriptive error wrapping |
+| MEDIUM | **Platform guard** — `chmodSync` test assumed POSIX permission model | Added Windows platform guard |
+| MEDIUM | **Lint violations** — `preserve-caught-error` at lines 59 and 84 | Added `cause` to re-thrown errors |
+
+### LOW Issues Deferred (not fixed)
+
+- No runtime schema validation at write time — by design per story spec
+- Concurrent write race condition — unlikely in synchronous code path
+
+### Infrastructure Issues
+
+| Issue | Impact | Status |
+|-------|--------|--------|
+| Sprint-state.json not updated for 12-3 | Story was stuck at `backlog` despite being done. Required manual status fix. | Fixed this session |
+| Stale AGENTS.md precondition failure | `codeharness verify` initially blocked. Fixed by running doc-health. | Fixed this session |
+| `codeharness stats --save` still broken | No session-logs directory. 16th session with broken cost reporting. | Open |
+| Lint errors surfaced post-verification | 2 `preserve-caught-error` violations found after AC verification passed. Late-stage fix. | Fixed this session |
+
+### Process Issues
+
+- **Sprint state divergence pattern continues.** Story 12-3 was fully implemented in Session 10 but sprint-state.json did not update. This is the same class of bug reported in Sessions 3-8 with `ralph/.state-snapshot.json`. The state management layer has persistent sync issues.
+- **Naming overlap noted.** `output_contract` field exists in workflow schema for task-level schema config (different from the runtime contract files created by story 13-1). Naming collision documented in Dev Notes but not resolved.
+
+---
+
+## 3. Cost Analysis
+
+### Subagent Tool Call Breakdown (from .session-issues.md)
+
+**Story 12-3 (this session — status fix only, no subagent phases ran)**
+
+Story 12-3's subagent phases (create, dev, review, verify) ran in Session 10 and are reported in that retro. This session only performed orchestrator-level status sync.
+
+**Story 13-1 (full lifecycle)**
+
+| Phase | Tool Calls | Bash | Read | Edit | Write | Grep | Glob | Skill | Unique Files | Redundancy |
+|-------|-----------|------|------|------|-------|------|------|-------|-------------|------------|
+| create-story | 14 | 3 | 5 | 0 | 1 | 3 | 5 | 0 | 6 | None |
+| dev-story | 17 | 6 | 5 | 5 | 3 | 0 | 0 | 0 | 5 | 1 re-read for Edit mismatch |
+| code-review | 22 | 10 | 8 | 5 | 0 | 2 | 1 | 1 | 9 | None |
+| verify | 14 | 9 | 4 | 0 | 1 | 1 | 0 | 0 | 4 | None |
+| **13-1 Total** | **67** | **28** | **22** | **10** | **5** | **6** | **6** | **1** | — | — |
+
+### Where Tokens Were Spent
+
+- **code-review was the heaviest phase (22 calls, 33%).** 10 Bash calls — running builds/tests after each of the 5 fixes. 8 Read calls to examine implementation, tests, and architecture docs. This is consistent with the pattern: more review fixes = more Bash calls.
+- **Bash dominates at 28/67 calls (42%).** Code review (10) and verify (9) account for 68% of all Bash calls — both phases run tests/builds repeatedly.
+- **Read is second at 22/67 (33%).** code-review (8) and dev-story (5) are the heaviest readers. No file was read more than twice — an improvement over Session 10 where workflow-engine files were read 7 times.
+- **No significant redundancy.** Only 1 re-read (Edit mismatch in dev-story). The cleanest session in terms of wasted operations.
+
+### Comparison: Session 10 (12-3) vs Session 11 (13-1)
+
+| Metric | Session 10 (12-3) | Session 11 (13-1) | Delta |
+|--------|-------------------|-------------------|-------|
+| Total tool calls | 75 | 67 | -11% |
+| Code-review fixes | 4 | 5 | +1 |
+| Redundant operations | 3 | 1 | -67% |
+| Read calls | 23 | 22 | -4% |
+
+13-1 was more efficient despite having more code-review fixes. The key difference: 13-1 was a standalone module (output-contract.ts) rather than an integration into a central module (workflow-engine.ts). Standalone modules require fewer repeated reads.
+
+### Cumulative Sprint Cost
+
+Carrying forward from Session 10's cost-report.md data:
+
+| Metric | Value |
+|--------|-------|
+| Cumulative API-equivalent cost (through Session 10) | ~$202.85 |
+| This session estimated cost | ~$5.00 |
+| **Running total** | **~$207.85** |
+| Stories completed (total) | 37 |
+| Average cost per story | ~$5.62 |
+
+### Estimated Session Cost Breakdown
+
+| Component | Estimated Cost |
+|-----------|---------------|
+| Story 13-1 full lifecycle (67 tool calls) | ~$4.50 |
+| Orchestrator overhead (status fix, retro) | ~$0.50 |
+| **Session total** | **~$5.00** |
+
+---
+
+## 4. What Went Well
+
+1. **Clean full-lifecycle execution for 13-1.** Create, dev, review, verify — all passed on first attempt. No retries, no timeouts, no stuck phases.
+2. **Code review caught 2 HIGH security bugs.** Path traversal and empty input validation would have been exploitable in production. The review phase continues to justify its ~33% share of session cost.
+3. **All 10 ACs passed on first verification.** Despite 5 code-review fixes applied mid-pipeline, verification found no regressions.
+4. **Lowest redundancy session.** Only 1 redundant operation (1 re-read). Prior sessions averaged 2-4 redundant operations. The standalone module pattern reduces wasted reads.
+5. **Epic 12 closed.** The multi-framework driver layer (codex, opencode, health check) is complete. All 3 stories were done, just needed status sync.
+6. **Sprint at 78.7%.** 37/47 stories done. 10 remaining across Epics 13-15.
+7. **4,506 tests pass across 170 files, zero regressions.** Coverage stable at 96.79%.
+
+---
+
+## 5. What Went Wrong
+
+1. **Sprint-state.json sync bug.** Story 12-3 was done since Session 10 but its status was stuck at `backlog`. This required manual intervention. State management continues to be unreliable — the same class of bug has been reported in every retro since Session 3.
+2. **Late-stage lint violations.** Two `preserve-caught-error` lint errors in output-contract.ts were caught after verification passed. The code-review phase should have caught these, or the build/lint step should run as a verification precondition.
+3. **`codeharness stats --save` still broken.** 16th consecutive session. Cost analysis relies entirely on manual aggregation from subagent token reports.
+4. **`output_contract` naming overlap.** The existing workflow schema field `output_contract` and the new runtime contract files share the same name for different concepts. This will cause confusion in future stories (13-2, 13-3) that bridge both.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Standalone module stories are cheaper.** 13-1 (output-contract.ts, a new standalone module) cost 67 tool calls vs 75 for 12-3 (integrating into workflow-engine.ts). New isolated modules have less context overhead and fewer repeated reads.
+- **Path traversal checks on any user-provided path component.** The `assertSafeComponent` pattern from 13-1's code review should be applied to all file-path-constructing functions. This is a reusable security primitive.
+- **Fix lint before verification.** The post-verification lint fix pattern is wasteful. Lint should be part of the code-review checklist.
+
+### Patterns to Avoid
+
+- **Trusting sprint-state.json as authoritative.** It drifts from reality. The orchestrator and verify phases must update it reliably, or an alternative state mechanism is needed.
+- **Naming collisions across story scopes.** `output_contract` meaning different things in different contexts will bite in Epic 13's later stories. Should have been renamed during story creation.
+
+---
+
+## 7. Action Items
+
+### Carried Forward (Status Update)
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 37 | Fix epic numbering mismatch | MEDIUM | Open |
+| 41 | Extract `classifyError` + `NETWORK_CODES` to shared driver utility | HIGH | Open — now 4 sessions old |
+| 42 | Validate Codex CLI NDJSON output against real CLI | MEDIUM | Backlog |
+| 45 | Fix `codeharness stats --save` — no session-logs directory | LOW | Open — 16th session |
+| 46 | Remove dead fixture files in `test/fixtures/drivers/opencode/` | LOW | Open |
+| 48 | Fix verify proof format template — `## AC N:` not `### AC N:` | MEDIUM | Open |
+| 50 | Consolidate epic files or add canonical source manifest | MEDIUM | Open |
+
+### New This Session
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 53 | Fix sprint-state.json sync — stories complete but status stuck at `backlog` | HIGH | Tooling |
+| 54 | Add lint check as code-review precondition (catch `preserve-caught-error` before verify) | MEDIUM | Process |
+| 55 | Resolve `output_contract` naming overlap before stories 13-2 and 13-3 | MEDIUM | Next story |
+| 56 | Apply `assertSafeComponent` pattern to all file-path-constructing functions | LOW | Cleanup |
+
+### Priority Recommendations for Next Session
+
+1. **Story 13-2 (output-contract-prompt-injection)** — next in sprint plan. Continue Epic 13.
+2. **Fix sprint-state.json sync (action #53)** — recurring bug causing status drift every session.
+3. **Resolve `output_contract` naming overlap (action #55)** — will cause confusion in 13-2.
+4. **Extract shared driver utilities (action #41)** — 4 sessions deferred, technical debt growing.

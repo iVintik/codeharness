@@ -47,4 +47,9 @@ export { resolveModel } from './model-resolver.js';
 
 // --- Output Contract ---
 
-export { writeOutputContract, readOutputContract } from './output-contract.js';
+export {
+  writeOutputContract,
+  readOutputContract,
+  formatContractAsPromptContext,
+  buildPromptWithContractContext,
+} from './output-contract.js';

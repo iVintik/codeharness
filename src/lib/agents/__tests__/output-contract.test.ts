@@ -2,7 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtempSync, mkdirSync, rmSync, readdirSync, chmodSync, existsSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir, platform } from 'node:os';
-import { writeOutputContract, readOutputContract } from '../output-contract.js';
+import {
+  writeOutputContract,
+  readOutputContract,
+  formatContractAsPromptContext,
+  buildPromptWithContractContext,
+} from '../output-contract.js';
 import type { OutputContract } from '../types.js';
 
 // --- Helpers ---
@@ -233,5 +238,206 @@ describe('output-contract', () => {
     const barrel = await import('../index.js');
     expect(typeof barrel.writeOutputContract).toBe('function');
     expect(typeof barrel.readOutputContract).toBe('function');
+  });
+
+  // --- Story 13-2: formatContractAsPromptContext ---
+
+  describe('formatContractAsPromptContext', () => {
+    it('returns a string containing header with task name, driver, model, cost, duration, timestamp', () => {
+      const contract = makeContract();
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('implement');
+      expect(result).toContain('claude-code');
+      expect(result).toContain('opus-4');
+      expect(result).toContain('$0.42');
+      expect(result).toContain('12.3s');
+      expect(result).toContain('2026-04-03T12:00:00Z');
+    });
+
+    it('formats Changed Files section listing each file', () => {
+      const contract = makeContract({
+        changedFiles: ['src/api/users.ts', 'src/api/users.test.ts'],
+      });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('### Changed Files');
+      expect(result).toContain('- src/api/users.ts');
+      expect(result).toContain('- src/api/users.test.ts');
+    });
+
+    it('formats Test Results section with passed, failed, and coverage', () => {
+      const contract = makeContract({
+        testResults: { passed: 12, failed: 0, coverage: 98.5 },
+      });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('### Test Results');
+      expect(result).toContain('**Passed:** 12');
+      expect(result).toContain('**Failed:** 0');
+      expect(result).toContain('**Coverage:** 98.5%');
+    });
+
+    it('shows "No test results available" when testResults is null', () => {
+      const contract = makeContract({ testResults: null });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('### Test Results');
+      expect(result).toContain('No test results available');
+    });
+
+    it('formats Acceptance Criteria section listing each AC with id, description, status', () => {
+      const contract = makeContract({
+        acceptanceCriteria: [
+          { id: 'AC1', description: 'User can register', status: 'implemented' },
+          { id: 'AC2', description: 'User can login', status: 'passed' },
+        ],
+      });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('### Acceptance Criteria');
+      expect(result).toContain('**AC1** (implemented): User can register');
+      expect(result).toContain('**AC2** (passed): User can login');
+    });
+
+    it('handles empty changedFiles and null testResults without crashing', () => {
+      const contract = makeContract({
+        changedFiles: [],
+        testResults: null,
+      });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(typeof result).toBe('string');
+      expect(result.length).toBeGreaterThan(0);
+      expect(result).toContain('### Changed Files');
+      expect(result).toContain('None');
+      expect(result).toContain('No test results available');
+    });
+
+    it('handles empty acceptanceCriteria array', () => {
+      const contract = makeContract({ acceptanceCriteria: [] });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('### Acceptance Criteria');
+      expect(result).toContain('None');
+    });
+
+    it('truncates output field > 2000 characters with [truncated] marker', () => {
+      const longOutput = 'x'.repeat(3000);
+      const contract = makeContract({ output: longOutput });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('[truncated]');
+      // The output section should not contain the full 3000 chars
+      expect(result).not.toContain('x'.repeat(2001));
+    });
+
+    it('does NOT truncate output field <= 2000 characters', () => {
+      const shortOutput = 'y'.repeat(2000);
+      const contract = makeContract({ output: shortOutput });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).not.toContain('[truncated]');
+      expect(result).toContain(shortOutput);
+    });
+
+    it('truncates output field at exactly 2001 characters (boundary)', () => {
+      const boundaryOutput = 'z'.repeat(2001);
+      const contract = makeContract({ output: boundaryOutput });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('[truncated]');
+      // Should contain exactly 2000 z's, not 2001
+      expect(result).toContain('z'.repeat(2000));
+      expect(result).not.toContain('z'.repeat(2001));
+    });
+
+    it('shows "None" for empty output', () => {
+      const contract = makeContract({ output: '' });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('### Output Summary');
+      expect(result).toContain('None');
+    });
+
+    it('handles null cost_usd gracefully', () => {
+      const contract = makeContract({ cost_usd: null });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('**Cost:** N/A');
+    });
+
+    it('handles null coverage in testResults', () => {
+      const contract = makeContract({
+        testResults: { passed: 5, failed: 1, coverage: null },
+      });
+      const result = formatContractAsPromptContext(contract);
+
+      expect(result).toContain('**Coverage:** N/A');
+    });
+  });
+
+  // --- Story 13-2: buildPromptWithContractContext ---
+
+  describe('buildPromptWithContractContext', () => {
+    it('returns basePrompt unchanged when contract is null', () => {
+      const base = 'Implement story 13-2';
+      const result = buildPromptWithContractContext(base, null);
+      expect(result).toBe(base);
+    });
+
+    it('appends formatted context with separator when contract is provided', () => {
+      const base = 'Implement story 13-2';
+      const contract = makeContract();
+      const result = buildPromptWithContractContext(base, contract);
+
+      expect(result).toContain(base);
+      expect(result).toContain('---');
+      expect(result).toContain('## Previous Task Context');
+      expect(result).toContain('### Context from Previous Task');
+    });
+
+    it('preserves the base prompt at the beginning', () => {
+      const base = 'Implement story 13-2';
+      const contract = makeContract();
+      const result = buildPromptWithContractContext(base, contract);
+
+      expect(result.startsWith(base)).toBe(true);
+    });
+
+    it('round-trip: all key contract fields appear in the combined prompt', () => {
+      const base = 'Implement story 13-2';
+      const contract = makeContract({
+        taskName: 'implement',
+        driver: 'codex',
+        model: 'gpt-4',
+        changedFiles: ['src/main.ts'],
+        testResults: { passed: 8, failed: 2, coverage: 75.0 },
+        output: 'Completed with warnings.',
+        acceptanceCriteria: [
+          { id: 'AC1', description: 'Auth works', status: 'passed' },
+        ],
+      });
+      const result = buildPromptWithContractContext(base, contract);
+
+      expect(result).toContain('implement');
+      expect(result).toContain('codex');
+      expect(result).toContain('gpt-4');
+      expect(result).toContain('src/main.ts');
+      expect(result).toContain('**Passed:** 8');
+      expect(result).toContain('**Failed:** 2');
+      expect(result).toContain('75%');
+      expect(result).toContain('Completed with warnings.');
+      expect(result).toContain('AC1');
+      expect(result).toContain('Auth works');
+    });
+  });
+
+  // --- Story 13-2: barrel exports for new functions ---
+
+  it('exports formatContractAsPromptContext and buildPromptWithContractContext from barrel', async () => {
+    const barrel = await import('../index.js');
+    expect(typeof barrel.formatContractAsPromptContext).toBe('function');
+    expect(typeof barrel.buildPromptWithContractContext).toBe('function');
   });
 });

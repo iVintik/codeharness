@@ -1346,3 +1346,158 @@
 [2026-04-03 13:15:51] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-04-03_13-15-51.log
 [2026-04-03 13:15:51] [DEBUG] LIVE_OUTPUT=true, timeout=1800s
 [2026-04-03 13:15:51] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-04-03 13:35:07] [SUCCESS] Claude Code iteration completed successfully
+[2026-04-03 13:35:08] [WARN] Story 12-3-driver-health-check-at-workflow-start — retry 1/10
+[2026-04-03 13:35:08] [SUCCESS] Story 12-2-opencode-driver-implementation: DONE — Story 12.2: OpenCode Driver Implementation [proof: verification/12-2-opencode-driver-implementation-proof.md]
+[2026-04-03 13:35:13] [INFO] Progress: 37/47 done, 10 remaining (iterations: 9, elapsed: 3h17m)
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 1-1-delete-beads-integration
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 1-2-delete-ralph-loop-legacy-verification
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 1-3-workflow-state-module
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 2-1-workflow-yaml-json-schema
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 2-2-workflow-parser-module
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 2-3-default-embedded-workflow
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 2-4-init-command-workflow-generation
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 2-5-validate-command
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 3-1-agent-config-json-schema
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 3-2-embedded-agent-templates
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 3-3-agent-resolver-module
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 4-1-agent-dispatch-module-sdk-integration
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 4-2-session-boundary-management
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 4-3-trace-id-generation-injection
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 4-4-source-isolation-enforcement
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 5-1-flow-execution-sequential-steps
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 5-2-flow-execution-loop-blocks
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 5-3-crash-recovery-resume
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 5-4-run-status-commands
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 6-1-evaluator-module-workspace-spawn
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 6-2-evaluator-verdict-json-schema-parsing
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 6-3-evaluator-prompt-template
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 7-1-score-based-circuit-breaker-module
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 7-2-resume-after-circuit-breaker
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 8-1-issue-tracker-module-cli
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 8-2-retro-finding-auto-import
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 9-1-workflow-patch-resolution
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 9-2-custom-workflow-creation
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 10-1-agentdriver-interface-types
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 10-2-driver-factory-registry
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 10-3-claude-code-driver-extraction
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 10-4-model-resolution-module
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 10-5-workflow-engine-driver-integration
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 11-1-workflow-schema-extension
+[2026-04-03 13:35:13] [SUCCESS]   ✓ 11-2-workflow-referential-integrity-validation
+[2026-04-03 13:35:14] [SUCCESS]   ✓ 12-1-codex-driver-implementation
+[2026-04-03 13:35:14] [SUCCESS]   ✓ 12-2-opencode-driver-implementation
+[2026-04-03 13:35:14] [INFO] Next up: 12-3-driver-health-check-at-workflow-start (backlog)
+[2026-04-03 13:35:14] [INFO] ━━━ Session Issues (4 entries) ━━━
+[2026-04-03 13:35:14] [INFO] ━━━ Session Retro ━━━
+[2026-04-03 13:35:14] [LOOP] === End Iteration #9 ===
+[2026-04-03 13:35:14] [LOOP] === Iteration #10 ===
+[2026-04-03 13:35:15] [LOOP] Iteration 10 — Task: '(reading from prompt)'
+[2026-04-03 13:35:15] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format stream-json --verbose --include-partial-messages --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite W... (truncated)
+[2026-04-03 13:35:15] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-04-03_13-35-15.log
+[2026-04-03 13:35:15] [DEBUG] LIVE_OUTPUT=true, timeout=1800s
+[2026-04-03 13:35:15] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-04-03 13:59:40] [SUCCESS] Claude Code iteration completed successfully
+[2026-04-03 13:59:41] [WARN] Story 12-3-driver-health-check-at-workflow-start — retry 2/10
+[2026-04-03 13:59:46] [INFO] Progress: 37/47 done, 10 remaining (iterations: 10, elapsed: 3h42m)
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 1-1-delete-beads-integration
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 1-2-delete-ralph-loop-legacy-verification
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 1-3-workflow-state-module
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 2-1-workflow-yaml-json-schema
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 2-2-workflow-parser-module
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 2-3-default-embedded-workflow
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 2-4-init-command-workflow-generation
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 2-5-validate-command
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 3-1-agent-config-json-schema
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 3-2-embedded-agent-templates
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 3-3-agent-resolver-module
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 4-1-agent-dispatch-module-sdk-integration
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 4-2-session-boundary-management
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 4-3-trace-id-generation-injection
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 4-4-source-isolation-enforcement
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 5-1-flow-execution-sequential-steps
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 5-2-flow-execution-loop-blocks
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 5-3-crash-recovery-resume
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 5-4-run-status-commands
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 6-1-evaluator-module-workspace-spawn
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 6-2-evaluator-verdict-json-schema-parsing
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 6-3-evaluator-prompt-template
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 7-1-score-based-circuit-breaker-module
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 7-2-resume-after-circuit-breaker
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 8-1-issue-tracker-module-cli
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 8-2-retro-finding-auto-import
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 9-1-workflow-patch-resolution
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 9-2-custom-workflow-creation
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 10-1-agentdriver-interface-types
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 10-2-driver-factory-registry
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 10-3-claude-code-driver-extraction
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 10-4-model-resolution-module
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 10-5-workflow-engine-driver-integration
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 11-1-workflow-schema-extension
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 11-2-workflow-referential-integrity-validation
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 12-1-codex-driver-implementation
+[2026-04-03 13:59:46] [SUCCESS]   ✓ 12-2-opencode-driver-implementation
+[2026-04-03 13:59:47] [INFO] Next up: 12-3-driver-health-check-at-workflow-start (backlog)
+[2026-04-03 13:59:47] [INFO] ━━━ Session Issues (8 entries) ━━━
+[2026-04-03 13:59:47] [INFO] ━━━ Session Retro ━━━
+[2026-04-03 13:59:47] [LOOP] === End Iteration #10 ===
+[2026-04-03 13:59:47] [LOOP] === Iteration #11 ===
+[2026-04-03 13:59:48] [LOOP] Iteration 11 — Task: '(reading from prompt)'
+[2026-04-03 13:59:48] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format stream-json --verbose --include-partial-messages --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite W... (truncated)
+[2026-04-03 13:59:48] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-04-03_13-59-48.log
+[2026-04-03 13:59:48] [DEBUG] LIVE_OUTPUT=true, timeout=1800s
+[2026-04-03 13:59:48] [INFO] Starting Claude Code (timeout: 30m)...
+[2026-04-03 14:22:27] [SUCCESS] Claude Code iteration completed successfully
+[2026-04-03 14:22:28] [WARN] Story 13-2-output-contract-prompt-injection — retry 1/10
+[2026-04-03 14:22:28] [SUCCESS] Story 12-3-driver-health-check-at-workflow-start: DONE — Story 12.3: Driver Health Check at Workflow Start [proof: verification/12-3-driver-health-check-at-workflow-start-proof.md]
+[2026-04-03 14:22:28] [SUCCESS] Story 13-1-output-contract-schema-serialization: DONE — Story 13.1: Output Contract Schema & Serialization [proof: verification/13-1-output-contract-schema-serialization-proof.md]
+[2026-04-03 14:22:33] [INFO] Progress: 39/47 done, 8 remaining (iterations: 11, elapsed: 4h4m)
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 1-1-delete-beads-integration
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 1-2-delete-ralph-loop-legacy-verification
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 1-3-workflow-state-module
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 2-1-workflow-yaml-json-schema
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 2-2-workflow-parser-module
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 2-3-default-embedded-workflow
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 2-4-init-command-workflow-generation
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 2-5-validate-command
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 3-1-agent-config-json-schema
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 3-2-embedded-agent-templates
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 3-3-agent-resolver-module
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 4-1-agent-dispatch-module-sdk-integration
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 4-2-session-boundary-management
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 4-3-trace-id-generation-injection
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 4-4-source-isolation-enforcement
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 5-1-flow-execution-sequential-steps
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 5-2-flow-execution-loop-blocks
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 5-3-crash-recovery-resume
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 5-4-run-status-commands
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 6-1-evaluator-module-workspace-spawn
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 6-2-evaluator-verdict-json-schema-parsing
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 6-3-evaluator-prompt-template
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 7-1-score-based-circuit-breaker-module
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 7-2-resume-after-circuit-breaker
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 8-1-issue-tracker-module-cli
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 8-2-retro-finding-auto-import
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 9-1-workflow-patch-resolution
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 9-2-custom-workflow-creation
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 10-1-agentdriver-interface-types
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 10-2-driver-factory-registry
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 10-3-claude-code-driver-extraction
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 10-4-model-resolution-module
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 10-5-workflow-engine-driver-integration
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 11-1-workflow-schema-extension
+[2026-04-03 14:22:33] [SUCCESS]   ✓ 11-2-workflow-referential-integrity-validation
+[2026-04-03 14:22:34] [SUCCESS]   ✓ 12-1-codex-driver-implementation
+[2026-04-03 14:22:34] [SUCCESS]   ✓ 12-2-opencode-driver-implementation
+[2026-04-03 14:22:34] [SUCCESS]   ✓ 12-3-driver-health-check-at-workflow-start
+[2026-04-03 14:22:34] [SUCCESS]   ✓ 13-1-output-contract-schema-serialization
+[2026-04-03 14:22:34] [INFO] Next up: 13-2-output-contract-prompt-injection (backlog)
+[2026-04-03 14:22:34] [INFO] ━━━ Session Issues (12 entries) ━━━
+[2026-04-03 14:22:34] [INFO] ━━━ Session Retro ━━━
+[2026-04-03 14:22:34] [LOOP] === End Iteration #11 ===
+[2026-04-03 14:22:34] [LOOP] === Iteration #12 ===
+[2026-04-03 14:22:35] [LOOP] Iteration 12 — Task: '(reading from prompt)'
+[2026-04-03 14:22:35] [DEBUG] Command: claude --plugin-dir /Users/ivintik/dev/personal/codeharness/.claude --output-format stream-json --verbose --include-partial-messages --allowedTools Write Read Edit MultiEdit Glob Grep Task TodoWrite W... (truncated)
+[2026-04-03 14:22:35] [DEBUG] Output file: /Users/ivintik/dev/personal/codeharness/ralph/logs/claude_output_2026-04-03_14-22-35.log
+[2026-04-03 14:22:35] [DEBUG] LIVE_OUTPUT=true, timeout=1800s
+[2026-04-03 14:22:35] [INFO] Starting Claude Code (timeout: 30m)...

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 46,
-    "done": 33,
+    "done": 35,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -393,28 +393,40 @@
       }
     },
     "12-2-opencode-driver-implementation": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T09:35:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/12-2-opencode-driver-implementation-proof.md",
+      "acResults": {
+        "passed": 11,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "12-3-driver-health-check-at-workflow-start": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 2,
+      "lastAttempt": "2026-04-03T09:55:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/12-3-driver-health-check-at-workflow-start-proof.md",
+      "acResults": {
+        "passed": 9,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "13-1-output-contract-schema-serialization": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T10:18:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/13-1-output-contract-schema-serialization-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "13-2-output-contract-prompt-injection": {
       "status": "backlog",
@@ -561,9 +573,9 @@
       "storiesDone": 0
     },
     "epic-12": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 3
     },
     "epic-13": {
       "status": "in-progress",

@@ -82,7 +82,7 @@ development_status:
   # Epic 13
   epic-13: backlog
   13-1-output-contract-schema-serialization: done
-  13-2-output-contract-prompt-injection: backlog
+  13-2-output-contract-prompt-injection: done
   13-3-cross-framework-workflow-execution: backlog
 
   # Epic 14

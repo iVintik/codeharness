@@ -19,6 +19,7 @@ const {
   mockGetDriver,
   mockResolveModel,
   mockDriverDispatch,
+  mockBuildPromptWithContractContext,
 } = vi.hoisted(() => ({
   mockDispatchAgent: vi.fn(),
   mockReadWorkflowState: vi.fn(),
@@ -36,6 +37,7 @@ const {
   mockGetDriver: vi.fn(),
   mockResolveModel: vi.fn(),
   mockDriverDispatch: vi.fn(),
+  mockBuildPromptWithContractContext: vi.fn(),
 }));
 
 vi.mock('../agent-dispatch.js', () => ({
@@ -94,6 +96,10 @@ vi.mock('../session-manager.js', () => ({
 
 vi.mock('../output.js', () => ({
   warn: mockWarn,
+}));
+
+vi.mock('../agents/output-contract.js', () => ({
+  buildPromptWithContractContext: mockBuildPromptWithContractContext,
 }));
 
 vi.mock('node:fs', () => ({
@@ -213,6 +219,9 @@ function makeConfig(overrides?: Partial<EngineConfig>): EngineConfig {
 function setupDefaultMocks() {
   mockReadWorkflowState.mockReturnValue(makeDefaultState());
   mockWriteWorkflowState.mockImplementation(() => {});
+
+  // By default, pass through the base prompt unchanged (no contract injection)
+  mockBuildPromptWithContractContext.mockImplementation((basePrompt: string) => basePrompt);
 
   mockGenerateTraceId.mockReturnValue('ch-run-001-0-implement');
   mockFormatTracePrompt.mockReturnValue('[TRACE] trace_id=ch-run-001-0-implement');
@@ -605,6 +614,57 @@ describe('dispatchTask', () => {
       expect.objectContaining({
         prompt: 'Execute task "verify" for the current run.',
       }),
+    );
+  });
+
+  it('calls buildPromptWithContractContext with previousOutputContract when provided (AC #10, story 13-2)', async () => {
+    const contract = {
+      version: 1,
+      taskName: 'implement',
+      storyId: '13-1',
+      driver: 'claude-code',
+      model: 'opus-4',
+      timestamp: '2026-04-03T12:00:00Z',
+      cost_usd: 0.42,
+      duration_ms: 12345,
+      changedFiles: ['src/lib/agents/output-contract.ts'],
+      testResults: { passed: 10, failed: 0, coverage: 95.5 },
+      output: 'All tasks complete.',
+      acceptanceCriteria: [
+        { id: 'AC1', description: 'Module exports write/read', status: 'passed' },
+      ],
+    };
+    mockBuildPromptWithContractContext.mockReturnValue('enriched prompt with context');
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config, undefined, contract);
+
+    expect(mockBuildPromptWithContractContext).toHaveBeenCalledWith(
+      'Implement story 5-1-foo',
+      contract,
+    );
+    expect(mockDriverDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: 'enriched prompt with context',
+      }),
+    );
+  });
+
+  it('passes null to buildPromptWithContractContext when no previousOutputContract (story 13-2)', async () => {
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockBuildPromptWithContractContext).toHaveBeenCalledWith(
+      'Implement story 5-1-foo',
+      null,
     );
   });
 });

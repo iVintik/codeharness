@@ -84,3 +84,94 @@ export function readOutputContract(
     throw new Error(`Failed to read output contract from ${filePath}: ${message}`, { cause: err });
   }
 }
+
+/** Maximum characters for the output summary before truncation. */
+const OUTPUT_TRUNCATE_LIMIT = 2000;
+
+/**
+ * Format an OutputContract as a structured text block suitable for injection
+ * into a subsequent task's prompt. Provides cross-framework context: changed
+ * files, test results, output summary, and acceptance criteria statuses.
+ *
+ * The `output` field is truncated to 2000 characters to avoid prompt bloat.
+ */
+export function formatContractAsPromptContext(contract: OutputContract): string {
+  const sections: string[] = [];
+
+  // Header: task metadata
+  const costStr = contract.cost_usd != null ? `$${contract.cost_usd.toFixed(2)}` : 'N/A';
+  const durationStr = `${(contract.duration_ms / 1000).toFixed(1)}s`;
+  sections.push(
+    `### Context from Previous Task\n` +
+    `- **Task:** ${contract.taskName}\n` +
+    `- **Driver:** ${contract.driver}\n` +
+    `- **Model:** ${contract.model}\n` +
+    `- **Cost:** ${costStr}\n` +
+    `- **Duration:** ${durationStr}\n` +
+    `- **Timestamp:** ${contract.timestamp}`,
+  );
+
+  // Changed Files
+  if (contract.changedFiles.length > 0) {
+    const fileList = contract.changedFiles.map((f) => `- ${f}`).join('\n');
+    sections.push(`### Changed Files\n${fileList}`);
+  } else {
+    sections.push(`### Changed Files\nNone`);
+  }
+
+  // Test Results
+  if (contract.testResults) {
+    const tr = contract.testResults;
+    const coverageStr = tr.coverage != null ? `${tr.coverage}%` : 'N/A';
+    sections.push(
+      `### Test Results\n` +
+      `- **Passed:** ${tr.passed}\n` +
+      `- **Failed:** ${tr.failed}\n` +
+      `- **Coverage:** ${coverageStr}`,
+    );
+  } else {
+    sections.push(`### Test Results\nNo test results available`);
+  }
+
+  // Output Summary (truncated)
+  let outputText = contract.output;
+  if (outputText.length > OUTPUT_TRUNCATE_LIMIT) {
+    outputText = outputText.slice(0, OUTPUT_TRUNCATE_LIMIT) + ' [truncated]';
+  }
+  if (outputText.length > 0) {
+    sections.push(`### Output Summary\n${outputText}`);
+  } else {
+    sections.push(`### Output Summary\nNone`);
+  }
+
+  // Acceptance Criteria
+  if (contract.acceptanceCriteria.length > 0) {
+    const acList = contract.acceptanceCriteria
+      .map((ac) => `- **${ac.id}** (${ac.status}): ${ac.description}`)
+      .join('\n');
+    sections.push(`### Acceptance Criteria\n${acList}`);
+  } else {
+    sections.push(`### Acceptance Criteria\nNone`);
+  }
+
+  return sections.join('\n\n');
+}
+
+/**
+ * Build a prompt with optional contract context appended.
+ *
+ * If `previousContract` is null (first task in workflow), returns `basePrompt`
+ * unchanged. Otherwise, appends a formatted contract context block separated
+ * by a clear delimiter.
+ */
+export function buildPromptWithContractContext(
+  basePrompt: string,
+  previousContract: OutputContract | null,
+): string {
+  if (!previousContract) {
+    return basePrompt;
+  }
+
+  const context = formatContractAsPromptContext(previousContract);
+  return `${basePrompt}\n\n---\n\n## Previous Task Context\n\n${context}`;
+}

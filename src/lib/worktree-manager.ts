@@ -7,6 +7,7 @@
  * `codeharness/` namespace.
  *
  * @see Story 17-1: Worktree Manager
+ * @see Story 18-2: Merge Agent for Conflict Resolution (onConflict callback)
  */
 
 import { exec, execSync } from 'node:child_process';
@@ -14,7 +15,22 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 
+import type { ConflictResolutionResult } from './merge-agent.js';
+
 const execAsync = promisify(exec);
+
+/**
+ * Partial conflict context that mergeWorktree can fill from its own state.
+ * The onConflict callback receives this and enriches it with driver/descriptions
+ * before calling the merge agent.
+ */
+export interface MergeConflictInfo {
+  readonly epicId: string;
+  readonly branch: string;
+  readonly conflicts: string[];
+  readonly cwd: string;
+  readonly testCommand: string;
+}
 
 // --- Constants ---
 
@@ -104,6 +120,13 @@ export class AsyncMutex {
 
 /** Module-level singleton merge mutex shared across all WorktreeManager instances. */
 export const mergeMutex = new AsyncMutex();
+
+/**
+ * Callback invoked when merge conflicts are detected.
+ * Receives partial conflict info (what mergeWorktree knows), returns resolution result.
+ * The caller enriches this with driver and descriptions before calling the merge agent.
+ */
+export type OnConflictCallback = (info: MergeConflictInfo) => Promise<ConflictResolutionResult>;
 
 // --- WorktreeManager Class ---
 
@@ -265,6 +288,7 @@ export class WorktreeManager {
     epicId: string,
     strategy: MergeStrategy = 'merge-commit',
     testCommand: string = 'npm test',
+    onConflict?: OnConflictCallback,
   ): Promise<MergeResult> {
     const start = Date.now();
 
@@ -328,6 +352,34 @@ export class WorktreeManager {
       } catch { // IGNORE: merge/rebase failure is expected — detect conflict vs git-error below
         const conflicts = this.detectConflicts();
         if (conflicts.length > 0) {
+          // If onConflict callback is provided, invoke the merge agent
+          if (onConflict) {
+            const result = await onConflict({
+              epicId,
+              branch,
+              conflicts,
+              cwd: this.cwd,
+              testCommand,
+            });
+            if (result.resolved) {
+              // Agent resolved and committed — cleanup worktree
+              this.cleanupWorktree(epicId);
+              return {
+                success: true,
+                testResults: result.testResults,
+                durationMs: Date.now() - start,
+              };
+            }
+            // Escalated — abort merge, preserve worktree
+            this.abortMerge(strategy);
+            return {
+              success: false,
+              reason: 'conflict',
+              conflicts,
+              durationMs: Date.now() - start,
+            };
+          }
+          // No callback — existing behavior
           this.abortMerge(strategy);
           return {
             success: false,

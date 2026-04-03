@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 64,
-    "done": 48,
+    "done": 51,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -557,7 +557,7 @@
       "acResults": null
     },
     "17-1-worktree-manager": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -565,31 +565,39 @@
       "acResults": null
     },
     "17-2-lane-pool": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-04-04T00:31:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/17-2-lane-pool-proof.md",
       "acResults": null
     },
     "17-3-run-command-parallel-integration": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T01:12:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/17-3-run-command-parallel-integration-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "18-1-merge-serialization-execution": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T01:30:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/18-1-merge-serialization-execution-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "18-2-merge-agent-conflict-resolution": {
-      "status": "backlog",
+      "status": "ready-for-dev",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -767,9 +775,9 @@
       "storiesDone": 6
     },
     "epic-17": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 3
     },
     "epic-18": {
       "status": "in-progress",

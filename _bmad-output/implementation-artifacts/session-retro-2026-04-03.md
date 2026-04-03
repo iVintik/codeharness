@@ -6393,3 +6393,160 @@ This is a low-cost session because verification was not run. For comparison, the
 | Session cost | ~$2.80 |
 | Retries | 0 |
 | Session duration | ~30 minutes |
+
+---
+
+# Session 8 Retrospective — 2026-04-03T22:25
+
+**Session window:** ~2026-04-03T22:25 to ~2026-04-04T00:00 (approx. 95 minutes)
+**Sprint progress:** 82/82 stories tracked, Epic 17 story 17-1 completed this session
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 17-1-worktree-manager | verify | DONE | 11/11 ACs passed (10 test-provable + 1 runtime-provable). Story entered session at `verifying` status from Session 7. |
+
+Single-story session focused entirely on verification. The implementation and code review were completed in Session 7; this session drove the proof through the harness verification pipeline.
+
+---
+
+## 2. Issues Analysis
+
+### Category: Proof Format (2 issues)
+
+| # | Issue | Severity | Resolution |
+|---|-------|----------|------------|
+| 1 | Initial proof had `output` blocks without preceding `bash` blocks | MEDIUM | Rewrote proof with `bash`+`output` pairs as required by proof parser |
+| 2 | Proof tier line `Tier: runtime-provable` not detected — regex expects `**Tier:**` (bold markdown) | LOW | Changed to `**Tier:** runtime-provable` |
+
+**Root cause:** The proof format spec is strict but under-documented. The parser's regex for tier detection requires bold markdown formatting, and evidence blocks require `bash`+`output` pairing. Neither requirement is obvious from the proof template.
+
+### Category: Stale Artifacts (2 issues)
+
+| # | Issue | Severity | Resolution |
+|---|-------|----------|------------|
+| 3 | AGENTS.md missing `worktree-manager.ts` entry | LOW | Added entry manually |
+| 4 | `coverage_met` flag false in harness state | MEDIUM | Ran `codeharness coverage --min-file 80` to update |
+
+**Root cause:** AGENTS.md is not auto-generated — it requires manual maintenance whenever new source files are added. This has been a recurring issue across multiple sessions. The coverage flag was stale because the coverage check hadn't been re-run after the last code changes.
+
+### Category: State Management (1 issue)
+
+| # | Issue | Severity | Resolution |
+|---|-------|----------|------------|
+| 5 | `sprint-status.yaml` reverted to `backlog` after `codeharness coverage` command regenerated it from `sprint-state.json` | HIGH | Manual override back to `done` |
+
+**Root cause:** `sprint-status.yaml` is a derived view auto-generated from `sprint-state.json`. Any harness command that regenerates the YAML will overwrite manual edits. The `sprint-state.json` source of truth was not updated to `done` before the YAML was regenerated.
+
+### Summary by Severity
+
+| Severity | Count |
+|----------|-------|
+| HIGH | 1 |
+| MEDIUM | 2 |
+| LOW | 2 |
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative (all sessions)
+
+| Metric | Value |
+|--------|-------|
+| Total API cost | $325.35 |
+| Total API calls | 2,474 |
+| Average cost per story | $3.36 |
+| Stories tracked | 82 |
+
+### Story 17-1 cost
+
+| Metric | Value |
+|--------|-------|
+| API calls | 57 |
+| Cost | $8.24 |
+| % of total | 2.5% |
+
+This is above the $3.36 average — expected for a runtime-provable verification tier with 11 ACs.
+
+### Phase cost distribution (cumulative)
+
+| Phase | Cost | % |
+|-------|------|---|
+| verify | $146.19 | 44.9% |
+| orchestrator | $57.79 | 17.8% |
+| create-story | $35.44 | 10.9% |
+| dev-story | $33.29 | 10.2% |
+| code-review | $30.17 | 9.3% |
+| retro | $22.46 | 6.9% |
+
+Verification remains the dominant cost at 44.9%. This is consistent with previous sessions.
+
+### Token distribution
+
+| Type | % of cost |
+|------|-----------|
+| Cache reads | 62% |
+| Cache writes | 22% |
+| Output | 16% |
+| Input | <1% |
+
+Cache reads dominating at 62% is expected — the harness reads many files repeatedly during verification.
+
+---
+
+## 4. What Went Well
+
+- **Clean verification pass.** All 11/11 ACs passed without needing code changes — the implementation from Session 7 was solid.
+- **Runtime-provable AC handled correctly.** AC 11 (actual git worktree lifecycle) was validated with a bash time-bounded test rather than a unit test, which is appropriate for the tier.
+- **Session was focused.** Single story, single phase, clean outcome. No scope creep.
+- **Issues were fixable in-session.** Every issue encountered had a known fix and was resolved without blocking.
+
+---
+
+## 5. What Went Wrong
+
+- **Proof format friction.** Two separate format issues (bash+output pairing, bold tier header) required proof rewrites. This is wasted effort on formatting rather than substance.
+- **sprint-status.yaml state loss.** Running `codeharness coverage` silently overwrote manual status changes. This is a data-loss bug in the harness — any command that regenerates the YAML from JSON will revert manual edits.
+- **AGENTS.md still not automated.** This is the Nth session flagging AGENTS.md as stale. No automated solution has been implemented.
+- **Coverage grep ran 3 times** due to output truncation — redundant tool calls wasting tokens.
+
+---
+
+## 6. Lessons Learned
+
+1. **Always update `sprint-state.json` before running any harness command** that regenerates `sprint-status.yaml`. The YAML is a derived view — the JSON is the source of truth.
+2. **Proof format requirements should be in the proof template itself**, not discovered through parser failures. Bold `**Tier:**` and `bash`+`output` pairing should be documented inline.
+3. **AGENTS.md maintenance needs automation** — either a pre-commit hook or a harness post-dev-story step. Manual maintenance has failed repeatedly.
+4. **Runtime-provable verification is inherently more expensive** than test-provable. Budget ~2.5x average cost for stories with runtime-provable ACs.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Fix sprint-status.yaml regeneration to read `sprint-state.json` status instead of defaulting to backlog | HIGH | Tooling (codeharness) |
+| 2 | Add proof format requirements (bash+output pairing, bold Tier header) to the proof template | MEDIUM | Tooling (codeharness) |
+| 3 | Automate AGENTS.md updates — post-dev-story hook or pre-verify check | MEDIUM | Tooling (codeharness) |
+| 4 | Investigate verify phase cost — still 44.9% of total spend, look for deduplication opportunities | LOW | Architecture |
+| 5 | Begin Epic 17 remaining stories: 17-2-lane-pool, 17-3-run-command-parallel-integration | HIGH | Next session |
+
+---
+
+## Session Scorecard
+
+| Metric | Value |
+|--------|-------|
+| Stories completed | 1 (17-1-worktree-manager) |
+| Phases completed | 1 (verify) |
+| ACs verified | 11/11 |
+| Verification tier | runtime-provable |
+| Issues encountered | 5 (1 HIGH, 2 MEDIUM, 2 LOW) |
+| Session cost (story) | $8.24 |
+| Cumulative project cost | $325.35 |
+| Retries | 0 |
+| Session duration | ~95 minutes |

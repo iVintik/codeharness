@@ -113,9 +113,9 @@ development_status:
   17-3-run-command-parallel-integration: done
 
   # Epic 18
-  epic-18: in-progress
+  epic-18: backlog
   18-1-merge-serialization-execution: done
-  18-2-merge-agent-conflict-resolution: backlog
+  18-2-merge-agent-conflict-resolution: done
   18-3-cross-worktree-test-validation: backlog
 
   # Epic 19

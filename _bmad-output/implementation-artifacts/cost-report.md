@@ -1,55 +1,55 @@
 # Harness Cost Report
 
-Total API-equivalent cost: $318.50
-Total API calls: 2432
-Average cost per story: $3.33 (81 stories)
+Total API-equivalent cost: $350.27
+Total API calls: 2667
+Average cost per story: $3.54 (84 stories)
 
 ## Cost by Token Type
 
 | Type | Tokens | Rate | Cost | % |
 |------|--------|------|------|---|
-| Cache reads | 130,898,432 | $1.50/MTok | $196.35 | 62% |
-| Cache writes | 3,757,119 | $18.75/MTok | $70.45 | 22% |
-| Output | 688,139 | $75/MTok | $51.61 | 16% |
-| Input | 6,575 | $15/MTok | $0.10 | 0% |
+| Cache reads | 144,588,458 | $1.50/MTok | $216.88 | 62% |
+| Cache writes | 4,101,397 | $18.75/MTok | $76.90 | 22% |
+| Output | 751,313 | $75/MTok | $56.35 | 16% |
+| Input | 9,243 | $15/MTok | $0.14 | 0% |
 
 ## Cost by Phase
 
 | Phase | Calls | Cost | % |
 |-------|-------|------|---|
-| verify | 1158 | $140.44 | 44.1% |
-| orchestrator | 261 | $56.89 | 17.9% |
-| create-story | 308 | $35.44 | 11.1% |
-| dev-story | 296 | $33.29 | 10.5% |
-| code-review | 252 | $30.17 | 9.5% |
-| retro | 157 | $22.27 | 7.0% |
+| verify | 1294 | $158.89 | 45.4% |
+| orchestrator | 283 | $61.59 | 17.6% |
+| create-story | 343 | $38.99 | 11.1% |
+| dev-story | 310 | $34.88 | 10.0% |
+| code-review | 269 | $32.14 | 9.2% |
+| retro | 168 | $23.78 | 6.8% |
 
 ## Cost by Tool
 
 | Tool | Calls | Cost | % |
 |------|-------|------|---|
-| Bash | 798 | $89.70 | 28.2% |
-| Read | 530 | $73.88 | 23.2% |
-| Edit | 465 | $57.77 | 18.1% |
-| Agent | 311 | $45.58 | 14.3% |
-| Skill | 55 | $20.16 | 6.3% |
-| Grep | 150 | $16.30 | 5.1% |
-| Write | 44 | $6.33 | 2.0% |
-| Glob | 49 | $5.12 | 1.6% |
-| TodoWrite | 26 | $3.35 | 1.1% |
-| ToolSearch | 4 | $0.33 | 0.1% |
+| Bash | 870 | $97.96 | 28.0% |
+| Read | 585 | $81.85 | 23.4% |
+| Edit | 517 | $64.66 | 18.5% |
+| Agent | 336 | $49.39 | 14.1% |
+| Skill | 60 | $21.72 | 6.2% |
+| Grep | 164 | $17.98 | 5.1% |
+| Write | 48 | $7.08 | 2.0% |
+| Glob | 52 | $5.41 | 1.5% |
+| TodoWrite | 30 | $3.82 | 1.1% |
+| ToolSearch | 5 | $0.41 | 0.1% |
 
 ## Top 10 Most Expensive Stories
 
 | Story | Calls | Cost | % |
 |-------|-------|------|---|
-| unknown | 185 | $48.68 | 15.3% |
-| 5-1-flow-execution-sequential-steps | 65 | $8.84 | 2.8% |
-| 2-1-workflow-yaml-json-schema | 69 | $8.51 | 2.7% |
-| 16-6-story-flow-execution | 53 | $7.15 | 2.2% |
-| 9-2-custom-workflow-creation | 64 | $6.83 | 2.1% |
-| 3-2-embedded-agent-templates | 49 | $6.42 | 2.0% |
-| 14-3-activity-display-driver-integration | 48 | $6.35 | 2.0% |
-| 16-3-telemetry-writer | 46 | $6.20 | 1.9% |
-| 6-2-evaluator-verdict-json-schema-parsing | 45 | $6.15 | 1.9% |
-| 5-4-run-status-commands | 55 | $6.14 | 1.9% |
+| unknown | 203 | $52.96 | 15.1% |
+| 5-1-flow-execution-sequential-steps | 65 | $8.84 | 2.5% |
+| 2-1-workflow-yaml-json-schema | 69 | $8.51 | 2.4% |
+| 17-1-worktree-manager | 57 | $8.24 | 2.4% |
+| 17-3-run-command-parallel-integration | 75 | $8.14 | 2.3% |
+| 17-2-lane-pool | 61 | $7.58 | 2.2% |
+| 16-6-story-flow-execution | 53 | $7.15 | 2.0% |
+| 9-2-custom-workflow-creation | 64 | $6.83 | 2.0% |
+| 3-2-embedded-agent-templates | 49 | $6.42 | 1.8% |
+| 14-3-activity-display-driver-integration | 48 | $6.35 | 1.8% |

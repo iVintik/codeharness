@@ -1065,6 +1065,134 @@ describe('worktree-manager', () => {
     });
   });
 
+  describe('mergeWorktree — onConflict callback (AC #10 Story 18-2)', () => {
+    it('invokes onConflict callback when conflicts detected and callback provided', async () => {
+      const onConflict = vi.fn().mockResolvedValue({
+        resolved: true,
+        attempts: 1,
+        escalated: false,
+        testResults: { passed: 10, failed: 0 },
+        resolvedFiles: ['src/a.ts'],
+      });
+
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('conflict');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('CONFLICT');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('src/a.ts');
+        // Cleanup calls
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17', 'merge-commit', 'npm test', onConflict);
+
+      expect(onConflict).toHaveBeenCalledOnce();
+      expect(result.success).toBe(true);
+      expect(result.testResults).toEqual({ passed: 10, failed: 0 });
+    });
+
+    it('does NOT invoke onConflict when no conflicts detected', async () => {
+      const onConflict = vi.fn();
+
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '10 passed' });
+
+      await manager.mergeWorktree('17', 'merge-commit', 'npm test', onConflict);
+
+      expect(onConflict).not.toHaveBeenCalled();
+    });
+
+    it('preserves existing behavior when onConflict is NOT provided', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('conflict');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('CONFLICT');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('src/a.ts');
+        if (cmd.includes('merge --abort')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('conflict');
+      expect(result.conflicts).toEqual(['src/a.ts']);
+    });
+
+    it('returns conflict result when onConflict returns escalated', async () => {
+      const onConflict = vi.fn().mockResolvedValue({
+        resolved: false,
+        attempts: 3,
+        escalated: true,
+        escalationMessage: 'Could not resolve',
+      });
+
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('conflict');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('CONFLICT');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('src/a.ts');
+        if (cmd.includes('merge --abort')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17', 'merge-commit', 'npm test', onConflict);
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('conflict');
+    });
+
+    it('passes conflict context to onConflict callback', async () => {
+      const onConflict = vi.fn().mockResolvedValue({
+        resolved: true,
+        attempts: 1,
+        escalated: false,
+      });
+
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('conflict');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('CONFLICT');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('src/a.ts\nsrc/b.ts');
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      await manager.mergeWorktree('17', 'merge-commit', 'npm test', onConflict);
+
+      const ctx = onConflict.mock.calls[0][0];
+      expect(ctx.epicId).toBe('17');
+      expect(ctx.branch).toBe('codeharness/epic-17-slug');
+      expect(ctx.conflicts).toEqual(['src/a.ts', 'src/b.ts']);
+      expect(ctx.cwd).toBe('/repo');
+      expect(ctx.testCommand).toBe('npm test');
+    });
+  });
+
   describe('AsyncMutex', () => {
     it('acquire returns a release function', async () => {
       const mutex = new AsyncMutex();

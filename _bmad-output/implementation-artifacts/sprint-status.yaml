@@ -101,7 +101,7 @@ development_status:
   epic-16: backlog
   16-1-hierarchical-flow-schema-parser: done
   16-2-engine-handled-null-tasks: done
-  16-3-telemetry-writer: backlog
+  16-3-telemetry-writer: done
   16-4-verify-flag-propagation: backlog
   16-5-coverage-deduplication: backlog
   16-6-story-flow-execution: backlog

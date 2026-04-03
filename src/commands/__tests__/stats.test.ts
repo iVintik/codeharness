@@ -125,7 +125,7 @@ describe('codeharness stats', () => {
   it('fails when session-logs/ does not exist', async () => {
     const { stdout, exitCode } = await runCli(['stats']);
     expect(exitCode).toBe(1);
-    expect(stdout).toContain('No session-logs/ directory found');
+    expect(stdout).toContain('No logs directory found');
   });
 
   it('produces a report with valid log data', async () => {

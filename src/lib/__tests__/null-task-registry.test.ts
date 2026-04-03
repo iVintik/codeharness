@@ -6,6 +6,7 @@ import {
   clearNullTaskRegistry,
 } from '../null-task-registry.js';
 import type { TaskContext, NullTaskResult } from '../null-task-registry.js';
+import { writeTelemetryEntry } from '../telemetry-writer.js';
 
 describe('null-task-registry', () => {
   // Note: 'telemetry' is registered at module load time as a built-in.
@@ -93,8 +94,8 @@ describe('null-task-registry', () => {
       expect(getNullTask('telemetry')).toBeUndefined();
       expect(listNullTasks()).toHaveLength(0);
 
-      // Re-register telemetry for subsequent tests
-      registerNullTask('telemetry', async () => ({ success: true, output: 'telemetry: no-op placeholder' }));
+      // Re-register the real telemetry handler for subsequent tests
+      registerNullTask('telemetry', writeTelemetryEntry);
     });
   });
 

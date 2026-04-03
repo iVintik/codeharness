@@ -10,6 +10,7 @@
  */
 
 import type { OutputContract } from './agents/types.js';
+import { writeTelemetryEntry } from './telemetry-writer.js';
 
 // --- Interfaces ---
 
@@ -80,7 +81,8 @@ export function listNullTasks(): string[] {
 
 /**
  * Clear all registered handlers. Intended for test cleanup only.
- * Re-registers built-in handlers after clearing.
+ * Does NOT re-register built-in handlers — callers must re-register
+ * any handlers they need after clearing.
  */
 export function clearNullTaskRegistry(): void {
   registry.clear();
@@ -89,8 +91,7 @@ export function clearNullTaskRegistry(): void {
 // --- Built-in Handlers ---
 
 /**
- * No-op telemetry handler (placeholder — real implementation in story 16-3).
+ * Telemetry handler — writes structured NDJSON after each story completes.
+ * @see Story 16-3: Telemetry Writer
  */
-registerNullTask('telemetry', async (_ctx: TaskContext): Promise<NullTaskResult> => {
-  return { success: true, output: 'telemetry: no-op placeholder' };
-});
+registerNullTask('telemetry', writeTelemetryEntry);

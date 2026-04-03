@@ -525,7 +525,7 @@
       "acResults": null
     },
     "16-3-telemetry-writer": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -806,9 +806,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "16-3-telemetry-writer",
+    "currentPhase": "verify",
+    "lastAction": "Starting test-provable verification",
     "acProgress": null
   },
   "actionItems": []

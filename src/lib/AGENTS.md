@@ -66,6 +66,13 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | source-isolation.ts | Source isolation for black-box verification — creates isolated workspaces with dist artifacts only, no source code | `createIsolatedWorkspace`, `IsolatedWorkspace`, `IsolationOptions` |
 | trace-id.ts | Trace ID generation per iteration, prompt injection formatting, state recording | `generateTraceId`, `formatTracePrompt`, `recordTraceId`, `sanitizeSegment` |
 
+## Null Task Registry & Telemetry (Epic 16)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| null-task-registry.ts | Registry for null-task handlers — maps task names to handler functions, built-in telemetry handler registered on import | `registerNullTask`, `getNullTaskHandler`, `clearNullTaskRegistry`, `NullTaskHandler`, `NullTaskResult` |
+| telemetry-writer.ts | Telemetry NDJSON writer — appends per-story telemetry entries to `.codeharness/telemetry.jsonl`, reads/filters by epic | `writeTelemetryEntry`, `readTelemetryForEpic`, `TelemetryEntry` |
+
 ## Workflow Execution (Epic 5)
 
 | File | Purpose | Key Exports |
@@ -211,4 +218,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 71 library files + 4 shared test utility files across 26 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 73 library files + 4 shared test utility files across 27 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

@@ -61,10 +61,10 @@ development_status:
   9-2-custom-workflow-creation: done
 
   # Epic 10
-  epic-10: in-progress
+  epic-10: backlog
   10-1-agentdriver-interface-types: done
   10-2-driver-factory-registry: done
-  10-3-claude-code-driver-extraction: backlog
+  10-3-claude-code-driver-extraction: done
   10-4-model-resolution-module: backlog
   10-5-workflow-engine-driver-integration: backlog
 

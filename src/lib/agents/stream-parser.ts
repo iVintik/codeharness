@@ -44,6 +44,10 @@ export interface ResultEvent {
   readonly sessionId: string;
   /** Normalized cost in USD for multi-driver comparison. */
   readonly cost_usd?: number | null;
+  /** Error message when the dispatch failed. Absent on success. */
+  readonly error?: string;
+  /** Classified error category. Present only when `error` is set. */
+  readonly errorCategory?: import('../agents/types.js').ErrorCategory;
 }
 
 /** Discriminated union of all stream events the parser can emit. */

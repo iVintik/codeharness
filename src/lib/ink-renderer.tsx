@@ -19,7 +19,9 @@ import {
   type RendererState,
   type StoryStatusEntry,
   type StoryMessage,
+  type TaskNodeState,
 } from './ink-components.js';
+import type { FlowStep } from './workflow-parser.js';
 
 // --- Public Types ---
 
@@ -35,6 +37,7 @@ export interface RendererHandle {
   updateSprintState(state: SprintInfo | undefined): void;
   updateStories(stories: StoryStatusEntry[]): void;
   addMessage(msg: StoryMessage): void;
+  updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>): void;
   cleanup(): void;
 }
 
@@ -45,6 +48,7 @@ const noopHandle: RendererHandle = {
   updateSprintState() {},
   updateStories() {},
   addMessage() {},
+  updateWorkflowState() {},
   cleanup() {},
 };
 
@@ -75,6 +79,9 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     activeToolArgs: '',
     lastThought: null,
     retryInfo: null,
+    workflowFlow: [],
+    currentTaskName: null,
+    taskStates: {},
   };
 
   let cleaned = false;
@@ -232,8 +239,16 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     rerender();
   }
 
-  return { update, updateSprintState, updateStories, addMessage, cleanup };
+  function updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>): void {
+    if (cleaned) return;
+    state.workflowFlow = flow;
+    state.currentTaskName = currentTask;
+    state.taskStates = { ...taskStates };
+    rerender();
+  }
+
+  return { update, updateSprintState, updateStories, addMessage, updateWorkflowState, cleanup };
 }
 
 // Re-export types that consumers may need
-export type { SprintInfo, CompletedToolEntry, RetryInfo, RendererState, StoryStatusEntry, StoryStatusValue, StoryMessage } from './ink-components.js';
+export type { SprintInfo, CompletedToolEntry, RetryInfo, RendererState, StoryStatusEntry, StoryStatusValue, StoryMessage, TaskNodeState } from './ink-components.js';

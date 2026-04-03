@@ -9,6 +9,7 @@
 
 import React from 'react';
 import { Text, Box } from 'ink';
+import type { FlowStep } from './workflow-parser.js';
 
 // --- Types ---
 
@@ -50,6 +51,8 @@ export interface StoryMessage {
   details?: string[];
 }
 
+export type TaskNodeState = 'pending' | 'active' | 'done' | 'failed';
+
 export interface RendererState {
   sprintInfo: SprintInfo | null;
   stories: StoryStatusEntry[];
@@ -59,6 +62,9 @@ export interface RendererState {
   activeToolArgs: string;
   lastThought: string | null;
   retryInfo: RetryInfo | null;
+  workflowFlow: FlowStep[];
+  currentTaskName: string | null;
+  taskStates: Record<string, TaskNodeState>;
 }
 
 // --- Layout Components ---

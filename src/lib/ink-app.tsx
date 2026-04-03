@@ -10,6 +10,7 @@ import React from 'react';
 import { Box, Static } from 'ink';
 import { Header, Separator, StoryBreakdown, type RendererState } from './ink-components.js';
 import { CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine } from './ink-activity-components.js';
+import { WorkflowGraph } from './ink-workflow.js';
 
 export function App({ state }: { state: RendererState }) {
   return (
@@ -18,6 +19,7 @@ export function App({ state }: { state: RendererState }) {
         {(msg, i) => <StoryMessageLine key={i} msg={msg} />}
       </Static>
       <Header info={state.sprintInfo} />
+      <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} />
       <StoryBreakdown stories={state.stories} sprintInfo={state.sprintInfo} />
       {state.stories.length > 0 && <Separator />}
       <Box flexDirection="column" paddingLeft={1}>

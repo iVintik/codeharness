@@ -33,6 +33,9 @@ function makeState(overrides?: Partial<RendererState>): RendererState {
     activeToolArgs: '',
     lastThought: null,
     retryInfo: null,
+    workflowFlow: [],
+    currentTaskName: null,
+    taskStates: {},
     ...overrides,
   };
 }
@@ -633,11 +636,34 @@ describe('startRenderer', () => {
     });
   });
 
+  describe('updateWorkflowState', () => {
+    it('updates workflow graph state', () => {
+      handle = startRenderer({ _forceTTY: true });
+      handle.updateWorkflowState(
+        ['create-story', 'implement', 'verify'],
+        'implement',
+        { 'create-story': 'done', 'implement': 'active', 'verify': 'pending' },
+      );
+    });
+
+    it('ignores updates after cleanup', () => {
+      handle = startRenderer({ _forceTTY: true });
+      handle.cleanup();
+      handle.updateWorkflowState(
+        ['task1'],
+        'task1',
+        { task1: 'active' },
+      );
+      handle = null;
+    });
+  });
+
   describe('quiet mode includes new methods', () => {
-    it('no-op handle has updateStories and addMessage', () => {
+    it('no-op handle has updateStories, addMessage, and updateWorkflowState', () => {
       handle = startRenderer({ quiet: true });
       handle.updateStories([{ key: '1-1', status: 'done' }]);
       handle.addMessage({ type: 'ok', key: '1-1', message: 'DONE' });
+      handle.updateWorkflowState(['task1'], 'task1', { task1: 'active' });
     });
   });
 

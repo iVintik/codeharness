@@ -481,7 +481,7 @@
       }
     },
     "15-1-plugin-pass-through-configuration": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,

@@ -646,6 +646,106 @@ describe('agent-resolver', () => {
     });
   });
 
+  describe('agent.schema.json plugins support (story 15-1)', () => {
+    it('accepts agent config with plugins array (AC #4)', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = {
+        ...makeMinimalAgent(),
+        plugins: ['gstack'],
+      };
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(true);
+    });
+
+    it('accepts agent config without plugins field (backward compat, AC #4)', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = makeMinimalAgent();
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(true);
+    });
+
+    it('accepts agent config with multiple plugins', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = {
+        ...makeMinimalAgent(),
+        plugins: ['gstack', 'omo'],
+      };
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(true);
+    });
+
+    it('rejects plugins with non-string items', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = {
+        ...makeMinimalAgent(),
+        plugins: [42],
+      };
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(false);
+    });
+
+    it('rejects plugins with empty string items', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = {
+        ...makeMinimalAgent(),
+        plugins: [''],
+      };
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(false);
+    });
+
+    it('rejects plugins as empty array (minItems: 1)', async () => {
+      const { validateAgentSchema } = await import('../schema-validate.js');
+      const agent = {
+        ...makeMinimalAgent(),
+        plugins: [],
+      };
+      const result = validateAgentSchema(agent);
+      expect(result.valid).toBe(false);
+    });
+
+    it('ResolvedAgent with plugins resolves correctly (AC #4)', () => {
+      const agent = makeMinimalAgent({ plugins: ['gstack'] });
+      expect(agent.plugins).toEqual(['gstack']);
+    });
+
+    it('compileSubagentDefinition carries plugins through (AC #4)', () => {
+      const agent = makeMinimalAgent({ plugins: ['gstack'] });
+      const result = compileSubagentDefinition(agent);
+      expect(result.plugins).toEqual(['gstack']);
+    });
+
+    it('compileSubagentDefinition omits plugins when not present', () => {
+      const agent = makeMinimalAgent();
+      const result = compileSubagentDefinition(agent);
+      expect(result.plugins).toBeUndefined();
+    });
+
+    it('compileSubagentDefinition omits plugins when empty array', () => {
+      const agent = makeMinimalAgent({ plugins: [] });
+      const result = compileSubagentDefinition(agent);
+      expect(result.plugins).toBeUndefined();
+    });
+
+    it('custom agent with plugins resolves correctly', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-resolver-'));
+      try {
+        const projectDir = path.join(tmpDir, 'project');
+        vi.spyOn(os, 'homedir').mockReturnValue(path.join(tmpDir, 'home'));
+
+        const customAgent = makeMinimalAgent({ name: 'plugin-agent', plugins: ['gstack'] });
+        writeTempYaml(projectDir, '.codeharness/agents/plugin-agent.yaml', customAgent);
+
+        const agent = resolveAgent('plugin-agent', { cwd: projectDir });
+        expect(agent.name).toBe('plugin-agent');
+        expect(agent.plugins).toEqual(['gstack']);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        vi.restoreAllMocks();
+      }
+    });
+  });
+
   describe('agent.schema.json prompt_template support (story 6-3)', () => {
     it('accepts agent config with prompt_template (AC #8)', async () => {
       const { validateAgentSchema } = await import('../schema-validate.js');

@@ -29,6 +29,7 @@ export interface ResolvedAgent {
     traits: Record<string, number>;
   };
   disallowedTools?: string[];
+  plugins?: string[];
   prompt_patches?: {
     append?: string;
   };
@@ -43,6 +44,7 @@ export interface SubagentDefinition {
   model: string;
   instructions: string;
   disallowedTools: string[];
+  plugins?: readonly string[];
   bare: true;
 }
 
@@ -368,6 +370,7 @@ export function compileSubagentDefinition(agent: ResolvedAgent): SubagentDefinit
     model: DEFAULT_MODEL,
     instructions: parts.join('\n\n'),
     disallowedTools: agent.disallowedTools ?? [],
+    ...(agent.plugins?.length ? { plugins: agent.plugins } : {}),
     bare: true,
   };
 }

@@ -676,6 +676,81 @@ describe('dispatchTask', () => {
   });
 });
 
+describe('plugin resolution cascade (story 15-1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it('uses task.plugins when task specifies plugins (AC #1, #6)', async () => {
+    const task = makeTask({ plugins: ['gstack'] });
+    const definition = makeDefinition({ plugins: ['agent-plugin'] });
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
+    const call = mockDriverDispatch.mock.calls[0][0];
+    expect(call.plugins).toEqual(['gstack']);
+  });
+
+  it('falls back to agent plugins when task has no plugins (AC #5)', async () => {
+    const task = makeTask(); // no plugins
+    const definition = makeDefinition({ plugins: ['agent-plugin'] });
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
+    const call = mockDriverDispatch.mock.calls[0][0];
+    expect(call.plugins).toEqual(['agent-plugin']);
+  });
+
+  it('uses undefined when neither task nor agent has plugins (AC #7)', async () => {
+    const task = makeTask(); // no plugins
+    const definition = makeDefinition(); // no plugins
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
+    const call = mockDriverDispatch.mock.calls[0][0];
+    expect(call.plugins).toBeUndefined();
+  });
+
+  it('task plugins override agent plugins — no merging (AC #6)', async () => {
+    const task = makeTask({ plugins: ['task-plugin'] });
+    const definition = makeDefinition({ plugins: ['agent-plugin'] });
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
+    const call = mockDriverDispatch.mock.calls[0][0];
+    expect(call.plugins).toEqual(['task-plugin']);
+    expect(call.plugins).not.toContain('agent-plugin');
+  });
+
+  it('explicit empty task.plugins=[] overrides agent plugins via ?? semantics', async () => {
+    const task = makeTask({ plugins: [] });
+    const definition = makeDefinition({ plugins: ['agent-plugin'] });
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
+    const call = mockDriverDispatch.mock.calls[0][0];
+    // Empty array is not null/undefined, so ?? does NOT fall through to agent plugins.
+    // This is intentional: explicit empty = "no plugins".
+    expect(call.plugins).toEqual([]);
+  });
+});
+
 describe('executeWorkflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();

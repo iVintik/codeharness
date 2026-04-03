@@ -335,7 +335,7 @@ async function dispatchTaskWithResult(
     sourceAccess: task.source_access !== false,
     ...(sessionId ? { sessionId } : {}),
     ...(tracePrompt ? { appendSystemPrompt: tracePrompt } : {}),
-    ...(task.plugins ? { plugins: task.plugins } : {}),
+    ...((task.plugins ?? definition.plugins) ? { plugins: task.plugins ?? definition.plugins } : {}),
     ...(task.max_budget_usd != null ? { timeout: task.max_budget_usd } : {}),
   };
 

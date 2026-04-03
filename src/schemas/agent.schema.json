@@ -80,6 +80,15 @@
     "prompt_template": {
       "type": "string",
       "description": "Task-specific prompt template included in compiled instructions"
+    },
+    "plugins": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "description": "Plugins to load in the driver session (e.g. gstack for claude-code, omo for opencode)"
     }
   },
   "additionalProperties": false

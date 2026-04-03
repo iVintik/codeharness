@@ -25,6 +25,8 @@ import type { SessionLookupKey } from './session-manager.js';
 import { parseVerdict, VerdictParseError } from './verdict-parser.js';
 import type { EvaluatorVerdict } from './verdict-parser.js';
 import { evaluateProgress } from './circuit-breaker.js';
+import { getNullTask, listNullTasks } from './null-task-registry.js';
+import type { TaskContext, NullTaskResult } from './null-task-registry.js';
 
 // Re-export EvaluatorVerdict for downstream consumers that import from workflow-engine
 export type { EvaluatorVerdict } from './verdict-parser.js';
@@ -269,6 +271,113 @@ const FILE_WRITE_TOOL_NAMES = new Set([
 
 function isLoopBlock(step: FlowStep): step is LoopBlock {
   return typeof step === 'object' && step !== null && 'loop' in step;
+}
+
+// --- Null Task Execution ---
+
+/**
+ * Execute a null task (agent: null) directly in the engine.
+ *
+ * Looks up the handler via the null task registry, builds a TaskContext,
+ * calls the handler, writes a TaskCheckpoint, and returns the same shape
+ * as dispatchTaskWithResult so callers don't need branching.
+ *
+ * @throws EngineError with code NULL_TASK_NOT_FOUND if no handler is registered.
+ */
+async function executeNullTask(
+  task: ResolvedTask,
+  taskName: string,
+  storyKey: string,
+  state: WorkflowState,
+  config: EngineConfig,
+  previousOutputContract?: OutputContract,
+  accumulatedCostUsd?: number,
+): Promise<{ updatedState: WorkflowState; output: string; contract: OutputContract | null }> {
+  const projectDir = config.projectDir ?? process.cwd();
+
+  // 1. Look up handler
+  const handler = getNullTask(taskName);
+  if (!handler) {
+    const registered = listNullTasks();
+    const registeredList = registered.length > 0 ? registered.join(', ') : '(none)';
+    const error: EngineError = {
+      taskName,
+      storyKey,
+      code: 'NULL_TASK_NOT_FOUND',
+      message: `No null task handler registered for "${taskName}". Registered handlers: ${registeredList}`,
+    };
+    throw error;
+  }
+
+  // 2. Build TaskContext
+  const startMs = Date.now();
+  const workflowStartMs = state.started ? new Date(state.started).getTime() : startMs;
+  const ctx: TaskContext = {
+    storyKey,
+    taskName,
+    cost: accumulatedCostUsd ?? 0,
+    durationMs: startMs - workflowStartMs,
+    outputContract: previousOutputContract ?? null,
+    projectDir,
+  };
+
+  // 3. Call handler (wrap in try/catch for structured error reporting)
+  let result: NullTaskResult;
+  try {
+    result = await handler(ctx);
+  } catch (handlerErr: unknown) {
+    const error: EngineError = {
+      taskName,
+      storyKey,
+      code: 'NULL_TASK_HANDLER_ERROR',
+      message: `Null task handler "${taskName}" threw: ${handlerErr instanceof Error ? handlerErr.message : String(handlerErr)}`,
+    };
+    throw error;
+  }
+  const durationMs = Date.now() - startMs;
+
+  // 4. Check handler result — if success is false, throw an EngineError
+  if (!result.success) {
+    const error: EngineError = {
+      taskName,
+      storyKey,
+      code: 'NULL_TASK_FAILED',
+      message: `Null task handler "${taskName}" returned success=false${result.output ? `: ${result.output}` : ''}`,
+    };
+    throw error;
+  }
+
+  // 5. Write TaskCheckpoint
+  const checkpoint: TaskCheckpoint = {
+    task_name: taskName,
+    story_key: storyKey,
+    completed_at: new Date().toISOString(),
+  };
+  let updatedState: WorkflowState = {
+    ...state,
+    tasks_completed: [...state.tasks_completed, checkpoint],
+  };
+
+  // 6. Build OutputContract (driver: "engine", model: "null", cost_usd: 0)
+  const contract: OutputContract = {
+    version: 1,
+    taskName,
+    storyId: storyKey,
+    driver: 'engine',
+    model: 'null',
+    timestamp: new Date().toISOString(),
+    cost_usd: 0,
+    duration_ms: durationMs,
+    changedFiles: [],
+    testResults: null,
+    output: result.output ?? '',
+    acceptanceCriteria: [],
+  };
+
+  // 7. Write state to disk
+  writeWorkflowState(updatedState, projectDir);
+
+  return { updatedState, output: result.output ?? '', contract };
 }
 
 // --- Core Dispatch (shared by dispatchTask and loop block execution) ---
@@ -582,6 +691,7 @@ export async function executeLoopBlock(
   let currentState = state;
   let lastVerdict: EvaluatorVerdict | null = null;
   let lastOutputContract: OutputContract | null = initialContract ?? null;
+  let accumulatedCostUsd = 0;
 
   // Handle empty loop block
   if (loopBlock.loop.length === 0) {
@@ -623,6 +733,56 @@ export async function executeLoopBlock(
         continue;
       }
 
+      // --- Null task path in loop ---
+      if (task.agent === null) {
+        if (task.scope === 'per-story') {
+          const itemsToProcess = lastVerdict ? getFailedItems(lastVerdict, workItems) : workItems;
+          for (const item of itemsToProcess) {
+            if (isLoopTaskCompleted(currentState, taskName, item.key, currentState.iteration)) {
+              warn(`workflow-engine: skipping completed task ${taskName} for ${item.key}`);
+              continue;
+            }
+            try {
+              const nullResult = await executeNullTask(
+                task, taskName, item.key, currentState, config, lastOutputContract ?? undefined, accumulatedCostUsd,
+              );
+              currentState = nullResult.updatedState;
+              lastOutputContract = nullResult.contract;
+              tasksCompleted++;
+            } catch (err: unknown) {
+              const engineError = isEngineError(err)
+                ? err
+                : handleDispatchError(err, taskName, item.key);
+              errors.push(engineError);
+              currentState = recordErrorInState(currentState, taskName, item.key, engineError);
+              writeWorkflowState(currentState, projectDir);
+            }
+          }
+        } else {
+          if (isLoopTaskCompleted(currentState, taskName, PER_RUN_SENTINEL, currentState.iteration)) {
+            warn(`workflow-engine: skipping completed task ${taskName} for ${PER_RUN_SENTINEL}`);
+            continue;
+          }
+          try {
+            const nullResult = await executeNullTask(
+              task, taskName, PER_RUN_SENTINEL, currentState, config, lastOutputContract ?? undefined, accumulatedCostUsd,
+            );
+            currentState = nullResult.updatedState;
+            lastOutputContract = nullResult.contract;
+            tasksCompleted++;
+          } catch (err: unknown) {
+            const engineError = isEngineError(err)
+              ? err
+              : handleDispatchError(err, taskName, PER_RUN_SENTINEL);
+            errors.push(engineError);
+            currentState = recordErrorInState(currentState, taskName, PER_RUN_SENTINEL, engineError);
+            writeWorkflowState(currentState, projectDir);
+          }
+        }
+        continue;
+      }
+
+      // --- Agent task path in loop ---
       const definition = config.agents[task.agent];
       if (!definition) {
         warn(`workflow-engine: agent "${task.agent}" not found for task "${taskName}", skipping`);
@@ -651,6 +811,7 @@ export async function executeLoopBlock(
             );
             currentState = dispatchResult.updatedState;
             lastOutputContract = dispatchResult.contract;
+            accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
             tasksCompleted++;
           } catch (err: unknown) {
             const engineError = handleDispatchError(err, taskName, item.key);
@@ -683,6 +844,7 @@ export async function executeLoopBlock(
           );
           currentState = dispatchResult.updatedState;
           lastOutputContract = dispatchResult.contract;
+          accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
           tasksCompleted++;
 
           // Attempt to parse verdict from output with retry semantics (story 6-2)
@@ -817,9 +979,10 @@ const HEALTH_CHECK_TIMEOUT_MS = 5000;
  * Throws if any driver is unavailable or if the timeout fires.
  */
 export async function checkDriverHealth(workflow: ResolvedWorkflow, timeoutMs?: number): Promise<void> {
-  // 1. Collect unique driver names from all tasks
+  // 1. Collect unique driver names from all tasks (skip null agent tasks)
   const driverNames = new Set<string>();
   for (const task of Object.values(workflow.tasks)) {
+    if (task.agent === null) continue;
     driverNames.add(task.driver ?? 'claude-code');
   }
 
@@ -945,6 +1108,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   // 3. Iterate through flow steps
   let halted = false;
   let lastOutputContract: OutputContract | null = null;
+  let accumulatedCostUsd = 0;
   for (const step of config.workflow.flow) {
     if (halted) break;
 
@@ -981,6 +1145,57 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
       continue;
     }
 
+    // --- Null task path (agent: null) ---
+    if (task.agent === null) {
+      if (task.scope === 'per-run') {
+        if (isTaskCompleted(state, taskName, PER_RUN_SENTINEL)) {
+          warn(`workflow-engine: skipping completed task ${taskName} for ${PER_RUN_SENTINEL}`);
+          continue;
+        }
+        try {
+          const nullResult = await executeNullTask(
+            task, taskName, PER_RUN_SENTINEL, state, config, lastOutputContract ?? undefined, accumulatedCostUsd,
+          );
+          state = nullResult.updatedState;
+          lastOutputContract = nullResult.contract;
+          tasksCompleted++;
+        } catch (err: unknown) {
+          const engineError = isEngineError(err)
+            ? err
+            : handleDispatchError(err, taskName, PER_RUN_SENTINEL);
+          errors.push(engineError);
+          state = recordErrorInState(state, taskName, PER_RUN_SENTINEL, engineError);
+          writeWorkflowState(state, projectDir);
+        }
+      } else {
+        for (const item of workItems) {
+          processedStories.add(item.key);
+          if (isTaskCompleted(state, taskName, item.key)) {
+            warn(`workflow-engine: skipping completed task ${taskName} for ${item.key}`);
+            continue;
+          }
+          try {
+            const nullResult = await executeNullTask(
+              task, taskName, item.key, state, config, lastOutputContract ?? undefined, accumulatedCostUsd,
+            );
+            state = nullResult.updatedState;
+            lastOutputContract = nullResult.contract;
+            tasksCompleted++;
+          } catch (err: unknown) {
+            const engineError = isEngineError(err)
+              ? err
+              : handleDispatchError(err, taskName, item.key);
+            errors.push(engineError);
+            state = recordErrorInState(state, taskName, item.key, engineError);
+            writeWorkflowState(state, projectDir);
+          }
+        }
+      }
+      continue;
+    }
+
+    // --- Agent task path ---
+
     // Look up the agent definition
     const definition = config.agents[task.agent];
     if (!definition) {
@@ -1002,6 +1217,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
         );
         state = dispatchResult.updatedState;
         lastOutputContract = dispatchResult.contract;
+        accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
         tasksCompleted++;
       } catch (err: unknown) {
         const engineError = handleDispatchError(err, taskName, PER_RUN_SENTINEL);
@@ -1033,6 +1249,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
           );
           state = dispatchResult.updatedState;
           lastOutputContract = dispatchResult.contract;
+          accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
           tasksCompleted++;
         } catch (err: unknown) {
           const engineError = handleDispatchError(err, taskName, item.key);
@@ -1094,6 +1311,13 @@ function recordErrorInState(
     phase: 'error',
     tasks_completed: [...state.tasks_completed, errorCheckpoint],
   };
+}
+
+function isEngineError(err: unknown): err is EngineError {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as Record<string, unknown>;
+  return typeof e.taskName === 'string' && typeof e.storyKey === 'string'
+    && typeof e.code === 'string' && typeof e.message === 'string';
 }
 
 function handleDispatchError(err: unknown, taskName: string, storyKey: string): EngineError {

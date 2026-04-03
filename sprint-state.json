@@ -517,7 +517,7 @@
       "acResults": null
     },
     "16-2-engine-handled-null-tasks": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -806,9 +806,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "16-1-hierarchical-flow-schema-parser",
-    "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

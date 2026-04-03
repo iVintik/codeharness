@@ -138,7 +138,7 @@ export function registerRunCommand(program: Command): void {
       const agents: Record<string, SubagentDefinition> = {};
       try {
         for (const [, task] of Object.entries(parsedWorkflow.tasks)) {
-          if (!agents[task.agent]) {
+          if (task.agent != null && !agents[task.agent]) {
             const resolved = resolveAgent(task.agent, { cwd: projectDir });
             agents[task.agent] = compileSubagentDefinition(resolved);
           }

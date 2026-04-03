@@ -102,11 +102,10 @@ describe('validateWorkflowSchema', () => {
       expect(result.errors.some((e) => e.keyword === 'required')).toBe(true);
     });
 
-    it('rejects missing flow field (AC #3)', () => {
+    it('accepts tasks-only at schema level (flow/story_flow enforced in parser)', () => {
+      // Schema no longer requires flow — mutual exclusivity enforced in validateAndResolve
       const result = validateWorkflowSchema({ tasks: {} });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.message.includes('flow'))).toBe(true);
-      expect(result.errors.some((e) => e.keyword === 'required')).toBe(true);
+      expect(result.valid).toBe(true);
     });
 
     it('rejects missing agent in task (AC #7)', () => {

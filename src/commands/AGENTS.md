@@ -141,6 +141,12 @@ Manages the verification environment for black-box story verification. Builds a 
 - **Key deps:** `modules/verify` (buildVerifyImage, prepareVerifyWorkspace, checkVerifyEnv, cleanupVerifyEnv), `lib/output`
 - **Subcommands:** `build` (build Docker image, supports `--json`), `prepare --story <key>` (create clean workspace), `check` (validate image/CLI/otel), `cleanup --story <key>` (remove workspace and container)
 
+### drivers.ts
+Lists registered agent drivers and their capabilities. Ensures all built-in drivers (claude-code, codex, opencode) are registered, then outputs a JSON capability matrix with default model, capabilities, and description per driver.
+- **Key deps:** `lib/agents/drivers/factory` (listDrivers, getDriver, registerDriver), `lib/agents/drivers/claude-code`, `lib/agents/drivers/codex`, `lib/agents/drivers/opencode`, `lib/output`
+- **Exports:** `registerDriversCommand(program)`
+- **Subcommands:** none; supports `--json`
+
 ### issue.ts
 Manages lightweight file-based issue tracking via `.codeharness/issues.yaml`. Supports creating, listing, and closing issues with auto-generated sequential IDs (`issue-NNN`).
 - **Key deps:** `lib/issue-tracker` (createIssue, closeIssue, readIssues), `lib/output`

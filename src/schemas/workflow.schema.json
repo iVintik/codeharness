@@ -4,7 +4,7 @@
   "title": "Codeharness Workflow",
   "description": "Schema for codeharness workflow YAML files",
   "type": "object",
-  "required": ["tasks", "flow"],
+  "required": ["tasks"],
   "properties": {
     "tasks": {
       "type": "object",
@@ -14,8 +14,26 @@
       }
     },
     "flow": {
+      "$ref": "#/definitions/flowArray",
+      "description": "Ordered execution steps — task references or loop blocks (legacy; prefer story_flow)"
+    },
+    "story_flow": {
+      "$ref": "#/definitions/flowArray",
+      "description": "Story-level execution flow — task references or loop blocks"
+    },
+    "epic_flow": {
+      "$ref": "#/definitions/flowArray",
+      "description": "Epic-level execution flow — task references or loop blocks (supports built-in refs: merge, validate)"
+    },
+    "execution": {
+      "$ref": "#/definitions/execution",
+      "description": "Execution configuration for parallel and isolation settings"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "flowArray": {
       "type": "array",
-      "description": "Ordered execution steps — task references or loop blocks",
       "items": {
         "oneOf": [
           {
@@ -40,23 +58,59 @@
           }
         ]
       }
-    }
-  },
-  "additionalProperties": false,
-  "definitions": {
+    },
+    "execution": {
+      "type": "object",
+      "properties": {
+        "max_parallel": {
+          "type": "integer",
+          "default": 1,
+          "minimum": 1,
+          "description": "Maximum number of parallel executions"
+        },
+        "isolation": {
+          "type": "string",
+          "enum": ["worktree", "none"],
+          "default": "none",
+          "description": "Isolation strategy — worktree or none"
+        },
+        "merge_strategy": {
+          "type": "string",
+          "enum": ["rebase", "merge-commit"],
+          "default": "merge-commit",
+          "description": "Merge strategy for parallel work"
+        },
+        "epic_strategy": {
+          "type": "string",
+          "enum": ["parallel", "sequential"],
+          "default": "sequential",
+          "description": "Epic execution strategy — parallel or sequential"
+        },
+        "story_strategy": {
+          "type": "string",
+          "enum": ["sequential", "parallel"],
+          "default": "sequential",
+          "description": "Story execution strategy — sequential or parallel"
+        }
+      },
+      "additionalProperties": false
+    },
     "task": {
       "type": "object",
       "required": ["agent"],
       "properties": {
         "agent": {
-          "type": "string",
-          "description": "Agent identifier for this task"
+          "oneOf": [
+            { "type": "string" },
+            { "type": "null" }
+          ],
+          "description": "Agent identifier for this task (null for engine-handled tasks)"
         },
         "scope": {
           "type": "string",
-          "enum": ["per-story", "per-run"],
+          "enum": ["per-story", "per-run", "per-epic"],
           "default": "per-story",
-          "description": "Execution scope — per-story or per-run"
+          "description": "Execution scope — per-story, per-run, or per-epic"
         },
         "session": {
           "type": "string",

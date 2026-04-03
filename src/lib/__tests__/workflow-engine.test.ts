@@ -139,7 +139,7 @@ import type {
   EvaluatorVerdict,
 } from '../workflow-engine.js';
 import type { WorkflowState } from '../workflow-state.js';
-import type { ResolvedWorkflow, ResolvedTask } from '../workflow-parser.js';
+import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
 import type { OutputContract } from '../agents/types.js';
 
@@ -207,15 +207,32 @@ function makeTask(overrides?: Partial<ResolvedTask>): ResolvedTask {
   };
 }
 
+const defaultExecution: ExecutionConfig = {
+  max_parallel: 1,
+  isolation: 'none',
+  merge_strategy: 'merge-commit',
+  epic_strategy: 'sequential',
+  story_strategy: 'sequential',
+};
+
+function makeWorkflow(partial: { tasks: Record<string, ResolvedTask>; flow: (string | { loop: string[] })[] }): ResolvedWorkflow {
+  return {
+    ...partial,
+    execution: defaultExecution,
+    storyFlow: partial.flow,
+    epicFlow: [],
+  };
+}
+
 function makeConfig(overrides?: Partial<EngineConfig>): EngineConfig {
   return {
-    workflow: {
+    workflow: makeWorkflow({
       tasks: {
         implement: makeTask(),
         verify: makeTask({ scope: 'per-run', source_access: false }),
       },
       flow: ['implement', 'verify'],
-    },
+    }),
     agents: {
       dev: makeDefinition(),
     },
@@ -799,10 +816,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -821,10 +838,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { verify: makeTask({ scope: 'per-run' }) },
         flow: ['verify'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -841,10 +858,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -871,13 +888,13 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -898,10 +915,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -927,10 +944,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -960,10 +977,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -985,10 +1002,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1006,10 +1023,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1026,10 +1043,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1053,12 +1070,12 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: ['verify'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1073,10 +1090,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask({ source_access: true }) },
         flow: ['implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1093,13 +1110,13 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
           verify: makeTask({ scope: 'per-run' }),
         },
         flow: ['implement', 'verify'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1120,10 +1137,10 @@ describe('executeWorkflow', () => {
     mockExistsSync.mockReturnValue(false);
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1139,10 +1156,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask({ agent: 'nonexistent' }) },
         flow: ['implement'],
-      },
+      }),
       agents: {}, // no agents
     });
 
@@ -1164,10 +1181,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1196,13 +1213,13 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
           verify: makeTask({ scope: 'per-run' }),
         },
         flow: ['implement', 'verify'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1222,10 +1239,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1241,10 +1258,10 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['nonexistent-task', 'implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1268,13 +1285,13 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
           verify: makeTask({ scope: 'per-run' }),
         },
         flow: ['verify', 'implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1513,13 +1530,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1544,13 +1561,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
       maxIterations: 3,
     });
 
@@ -1588,13 +1605,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1634,13 +1651,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1665,13 +1682,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1701,13 +1718,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
       maxIterations: 1,
     });
 
@@ -1744,13 +1761,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1777,13 +1794,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1801,12 +1818,12 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
         },
         flow: [{ loop: [] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1831,13 +1848,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
       // maxIterations not set — should default to 5
     });
 
@@ -1867,13 +1884,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -1908,13 +1925,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1957,13 +1974,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -1997,13 +2014,13 @@ describe('loop block execution', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2108,10 +2125,10 @@ describe('crash recovery & resume', () => {
     );
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2130,10 +2147,10 @@ describe('crash recovery & resume', () => {
     mockReadWorkflowState.mockReturnValue(makeDefaultState());
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2156,10 +2173,10 @@ describe('crash recovery & resume', () => {
     );
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { verify: makeTask({ scope: 'per-run', source_access: false }) },
         flow: ['verify'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2196,10 +2213,10 @@ describe('crash recovery & resume', () => {
     );
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2223,13 +2240,13 @@ describe('crash recovery & resume', () => {
     );
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: ['implement', 'verify'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2277,13 +2294,13 @@ describe('crash recovery & resume', () => {
     );
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: ['implement', 'verify'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2299,10 +2316,10 @@ describe('crash recovery & resume', () => {
     mockReadWorkflowState.mockReturnValue(makeDefaultState());
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2316,13 +2333,13 @@ describe('crash recovery & resume', () => {
     mockReadWorkflowState.mockReturnValue(makeDefaultState());
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: ['implement', 'verify'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2343,10 +2360,10 @@ describe('crash recovery & resume', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -2400,13 +2417,13 @@ describe('crash recovery & resume', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2454,13 +2471,13 @@ describe('crash recovery & resume', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -2498,10 +2515,10 @@ describe('crash recovery & resume', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2546,10 +2563,10 @@ describe('crash recovery & resume', () => {
     );
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2590,13 +2607,13 @@ describe('crash recovery & resume', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2641,13 +2658,13 @@ describe('crash recovery & resume', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -2672,13 +2689,13 @@ describe('crash recovery & resume', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', agent: 'evaluator' }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
       agents: {
         dev: makeDefinition(),
         // 'evaluator' agent is NOT provided
@@ -2998,13 +3015,13 @@ describe('driver integration (story 10-5)', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -3060,13 +3077,13 @@ describe('driver integration (story 10-5)', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -3263,13 +3280,13 @@ describe('output contract writing (story 13-3)', () => {
 
     // Flow: [create-story, implement] — both per-story
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           'create-story': makeTask({ scope: 'per-story' }),
           implement: makeTask({ scope: 'per-story' }),
         },
         flow: ['create-story', 'implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -3295,10 +3312,10 @@ describe('output contract writing (story 13-3)', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask() },
         flow: ['implement'],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -3330,13 +3347,13 @@ describe('output contract writing (story 13-3)', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -3383,13 +3400,13 @@ describe('output contract writing (story 13-3)', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           retry: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run', source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
-      },
+      }),
     });
 
     await executeWorkflow(config);
@@ -3419,13 +3436,13 @@ describe('output contract writing (story 13-3)', () => {
     });
 
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           'create-story': makeTask({ scope: 'per-story' }),
           implement: makeTask({ scope: 'per-story' }),
         },
         flow: ['create-story', 'implement'],
-      },
+      }),
     });
 
     const result = await executeWorkflow(config);
@@ -3528,14 +3545,14 @@ describe('output contract writing (story 13-3)', () => {
 
     // Flow: [create-story, implement, verify] — create-story and implement per-story, verify per-run
     const config = makeConfig({
-      workflow: {
+      workflow: makeWorkflow({
         tasks: {
           'create-story': makeTask({ scope: 'per-story' }),
           implement: makeTask({ scope: 'per-story' }),
           verify: makeTask({ scope: 'per-run' }),
         },
         flow: ['create-story', 'implement', 'verify'],
-      },
+      }),
     });
 
     await executeWorkflow(config);

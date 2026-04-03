@@ -97,43 +97,34 @@ development_status:
   15-2-cost-tracking-per-driver: done
   15-3-driver-capability-matrix-routing-hints: done
 
-  # ══════════════════════════════════════════════
-  # Parallel Execution (PRD 2026-04-03)
-  # ══════════════════════════════════════════════
-
-  # Epic 16: Hierarchical Flow Model & Engine-Handled Tasks
+  # Epic 16
   epic-16: backlog
-  16-1-hierarchical-flow-schema-parser: backlog
+  16-1-hierarchical-flow-schema-parser: done
   16-2-engine-handled-null-tasks: backlog
   16-3-telemetry-writer: backlog
   16-4-verify-flag-propagation: backlog
   16-5-coverage-deduplication: backlog
   16-6-story-flow-execution: backlog
-  epic-16-retrospective: optional
 
-  # Epic 17: Worktree Management & Lane Pool
+  # Epic 17
   epic-17: backlog
   17-1-worktree-manager: backlog
   17-2-lane-pool: backlog
   17-3-run-command-parallel-integration: backlog
-  epic-17-retrospective: optional
 
-  # Epic 18: Merge Agent & Cross-Worktree Validation
+  # Epic 18
   epic-18: backlog
   18-1-merge-serialization-execution: backlog
   18-2-merge-agent-conflict-resolution: backlog
   18-3-cross-worktree-test-validation: backlog
-  epic-18-retrospective: optional
 
-  # Epic 19: Epic Completion & Lifecycle
+  # Epic 19
   epic-19: backlog
   19-1-epic-completion-detection: backlog
   19-2-epic-flow-execution: backlog
-  epic-19-retrospective: optional
 
-  # Epic 20: Multi-Lane TUI
+  # Epic 20
   epic-20: backlog
   20-1-lane-container-lane-components: backlog
   20-2-summary-bar-merge-status: backlog
   20-3-lane-event-routing-activity-display: backlog
-  epic-20-retrospective: optional

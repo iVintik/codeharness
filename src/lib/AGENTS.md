@@ -54,6 +54,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | schema-validate.ts | JSON Schema validation using ajv — workflow YAML structure validation with typed error reporting | `validateWorkflowSchema`, `validateAgainstSchema`, `ValidationResult`, `ValidationError` |
 | workflow-parser.ts | Workflow YAML parser — reads file, validates against JSON schema, checks referential integrity, applies defaults, returns typed `ResolvedWorkflow` | `parseWorkflow`, `WorkflowParseError`, `ResolvedWorkflow`, `ResolvedTask`, `LoopBlock`, `FlowStep` |
+| hierarchical-flow.ts | Hierarchical flow resolver — normalizes legacy `flow` or new `story_flow`/`epic_flow`/`execution` sections into a unified `HierarchicalFlow`, validates enum fields and applies defaults | `resolveHierarchicalFlow`, `HierarchicalFlowError`, `HierarchicalFlow`, `ExecutionConfig`, `BUILTIN_EPIC_FLOW_TASKS`, `EXECUTION_DEFAULTS` |
 
 ## Agent Infrastructure (Epic 4)
 
@@ -210,4 +211,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 70 library files + 4 shared test utility files across 26 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 71 library files + 4 shared test utility files across 26 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

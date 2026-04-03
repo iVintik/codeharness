@@ -113,10 +113,27 @@ vi.mock('yaml', () => ({
 
 import { checkDriverHealth, executeWorkflow } from '../workflow-engine.js';
 import type { EngineConfig } from '../workflow-engine.js';
-import type { ResolvedWorkflow, ResolvedTask } from '../workflow-parser.js';
+import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { DriverHealth } from '../agents/types.js';
 
 // --- Helpers ---
+
+const defaultExecution: ExecutionConfig = {
+  max_parallel: 1,
+  isolation: 'none',
+  merge_strategy: 'merge-commit',
+  epic_strategy: 'sequential',
+  story_strategy: 'sequential',
+};
+
+function makeWorkflow(partial: { tasks: Record<string, ResolvedTask>; flow: (string | { loop: string[] })[] }): ResolvedWorkflow {
+  return {
+    ...partial,
+    execution: defaultExecution,
+    storyFlow: partial.flow,
+    epicFlow: [],
+  };
+}
 
 function makeTask(overrides?: Partial<ResolvedTask>): ResolvedTask {
   return {
@@ -155,10 +172,10 @@ describe('checkDriverHealth', () => {
   });
 
   it('succeeds when a single driver passes health check', async () => {
-    const workflow: ResolvedWorkflow = {
+    const workflow = makeWorkflow({
       tasks: { implement: makeTask({ driver: 'claude-code' }) },
       flow: ['implement'],
-    };
+    });
 
     const driver = makeMockDriver('claude-code', makeHealthy());
     mockGetDriver.mockReturnValue(driver);
@@ -168,13 +185,13 @@ describe('checkDriverHealth', () => {
   });
 
   it('succeeds when multiple unique drivers all pass', async () => {
-    const workflow: ResolvedWorkflow = {
+    const workflow = makeWorkflow({
       tasks: {
         implement: makeTask({ driver: 'claude-code' }),
         codexTask: makeTask({ driver: 'codex' }),
       },
       flow: ['implement', 'codexTask'],
-    };
+    });
 
     const claudeDriver = makeMockDriver('claude-code', makeHealthy());
     const codexDriver = makeMockDriver('codex', makeHealthy());
@@ -190,14 +207,14 @@ describe('checkDriverHealth', () => {
   });
 
   it('deduplicates drivers — healthCheck called once per unique driver', async () => {
-    const workflow: ResolvedWorkflow = {
+    const workflow = makeWorkflow({
       tasks: {
         task1: makeTask({ driver: 'claude-code' }),
         task2: makeTask({ driver: 'claude-code' }),
         task3: makeTask({ driver: 'claude-code' }),
       },
       flow: ['task1', 'task2', 'task3'],
-    };
+    });
 
     const driver = makeMockDriver('claude-code', makeHealthy());
     mockGetDriver.mockReturnValue(driver);
@@ -208,13 +225,13 @@ describe('checkDriverHealth', () => {
   });
 
   it('throws when one driver fails, listing the failing driver and error', async () => {
-    const workflow: ResolvedWorkflow = {
+    const workflow = makeWorkflow({
       tasks: {
         implement: makeTask({ driver: 'claude-code' }),
         codexTask: makeTask({ driver: 'codex' }),
       },
       flow: ['implement', 'codexTask'],
-    };
+    });
 
     const claudeDriver = makeMockDriver('claude-code', makeHealthy());
     const codexDriver = makeMockDriver('codex', makeUnhealthy('codex CLI not found'));
@@ -231,14 +248,14 @@ describe('checkDriverHealth', () => {
   });
 
   it('throws listing ALL failing drivers when multiple fail', async () => {
-    const workflow: ResolvedWorkflow = {
+    const workflow = makeWorkflow({
       tasks: {
         task1: makeTask({ driver: 'claude-code' }),
         task2: makeTask({ driver: 'codex' }),
         task3: makeTask({ driver: 'opencode' }),
       },
       flow: ['task1', 'task2', 'task3'],
-    };
+    });
 
     const claudeDriver = makeMockDriver('claude-code', makeUnhealthy('claude not found'));
     const codexDriver = makeMockDriver('codex', makeUnhealthy('codex not found'));
@@ -261,13 +278,13 @@ describe('checkDriverHealth', () => {
   });
 
   it('defaults to claude-code when task has no driver field', async () => {
-    const workflow: ResolvedWorkflow = {
+    const workflow = makeWorkflow({
       tasks: {
         task1: makeTask(), // no driver field — defaults to claude-code
         task2: makeTask(), // also no driver field
       },
       flow: ['task1', 'task2'],
-    };
+    });
 
     const driver = makeMockDriver('claude-code', makeHealthy());
     mockGetDriver.mockReturnValue(driver);
@@ -279,10 +296,10 @@ describe('checkDriverHealth', () => {
   });
 
   it('throws on timeout when health check hangs', async () => {
-    const workflow: ResolvedWorkflow = {
+    const workflow = makeWorkflow({
       tasks: { implement: makeTask({ driver: 'claude-code' }) },
       flow: ['implement'],
-    };
+    });
 
     const hangingDriver = {
       name: 'claude-code',
@@ -303,13 +320,13 @@ describe('checkDriverHealth', () => {
   });
 
   it('timeout error reports only drivers that did not respond', async () => {
-    const workflow: ResolvedWorkflow = {
+    const workflow = makeWorkflow({
       tasks: {
         task1: makeTask({ driver: 'fast-driver' }),
         task2: makeTask({ driver: 'slow-driver' }),
       },
       flow: ['task1', 'task2'],
-    };
+    });
 
     // fast-driver resolves instantly; slow-driver hangs
     const fastDriver = {
@@ -361,10 +378,10 @@ describe('executeWorkflow — health check integration', () => {
     });
 
     const config: EngineConfig = {
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask({ driver: 'claude-code' }) },
         flow: ['implement'],
-      },
+      }),
       agents: { dev: { name: 'dev', model: 'test', instructions: '', disallowedTools: [], bare: true } },
       sprintStatusPath: '/tmp/sprint-status.yaml',
       runId: 'test-run',
@@ -395,10 +412,10 @@ describe('executeWorkflow — health check integration', () => {
     mockGetDriver.mockReturnValue(failingDriver);
 
     const config: EngineConfig = {
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask({ driver: 'claude-code' }) },
         flow: ['implement'],
-      },
+      }),
       agents: { dev: { name: 'dev', model: 'test', instructions: '', disallowedTools: [], bare: true } },
       sprintStatusPath: '/tmp/sprint-status.yaml',
       runId: 'test-run',
@@ -450,10 +467,10 @@ describe('executeWorkflow — health check integration', () => {
     mockExistsSync.mockReturnValue(false);
 
     const config: EngineConfig = {
-      workflow: {
+      workflow: makeWorkflow({
         tasks: { implement: makeTask({ driver: 'claude-code', scope: 'per-run' }) },
         flow: ['implement'],
-      },
+      }),
       agents: { dev: { name: 'dev', model: 'test', instructions: '', disallowedTools: [], bare: true } },
       sprintStatusPath: '/tmp/sprint-status.yaml',
       runId: 'test-run',

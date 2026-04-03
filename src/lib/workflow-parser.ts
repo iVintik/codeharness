@@ -6,6 +6,17 @@ import { parse } from 'yaml';
 import { validateWorkflowSchema } from './schema-validate.js';
 import { listDrivers } from './agents/drivers/factory.js';
 import { listEmbeddedAgents, resolveAgent, AgentResolveError } from './agent-resolver.js';
+import {
+  resolveHierarchicalFlow,
+  HierarchicalFlowError,
+  BUILTIN_EPIC_FLOW_TASKS,
+  type ExecutionConfig,
+  type HierarchicalFlow,
+} from './hierarchical-flow.js';
+
+// Re-export hierarchical flow types for consumers
+export type { ExecutionConfig, HierarchicalFlow } from './hierarchical-flow.js';
+export { BUILTIN_EPIC_FLOW_TASKS } from './hierarchical-flow.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -15,8 +26,8 @@ const TEMPLATES_DIR = resolve(__dirname, '../../templates/workflows');
 // --- Interfaces ---
 
 export interface ResolvedTask {
-  agent: string;
-  scope: 'per-story' | 'per-run';
+  agent: string | null;
+  scope: 'per-story' | 'per-run' | 'per-epic';
   session: 'fresh' | 'continue';
   source_access: boolean;
   prompt_template?: string;
@@ -37,6 +48,12 @@ export type FlowStep = string | LoopBlock;
 export interface ResolvedWorkflow {
   tasks: Record<string, ResolvedTask>;
   flow: FlowStep[];
+  /** Execution configuration (parallel, isolation, merge strategy). */
+  execution: ExecutionConfig;
+  /** Story-level flow steps (normalized from `flow` or `story_flow`). */
+  storyFlow: FlowStep[];
+  /** Epic-level flow steps (empty if not defined). */
+  epicFlow: FlowStep[];
 }
 
 // --- Error Class ---
@@ -87,8 +104,8 @@ function validateReferentialIntegrity(
       }
     }
 
-    // Validate agent field if present
-    if (task.agent !== undefined && typeof task.agent === 'string') {
+    // Validate agent field if present (skip null agents — engine-handled tasks)
+    if (task.agent !== undefined && task.agent !== null && typeof task.agent === 'string') {
       try {
         resolveAgent(task.agent);
       } catch (err: unknown) {
@@ -126,6 +143,21 @@ function validateReferentialIntegrity(
  * Shared between parseWorkflow (direct file) and resolveWorkflow (patch chain).
  */
 function validateAndResolve(parsed: unknown): ResolvedWorkflow {
+  // Pre-schema validation: at least one of flow or story_flow must be present
+  if (
+    parsed !== null &&
+    typeof parsed === 'object' &&
+    !Array.isArray(parsed)
+  ) {
+    const obj = parsed as Record<string, unknown>;
+    if (!('flow' in obj) && !('story_flow' in obj)) {
+      throw new WorkflowParseError(
+        'Schema validation failed: /: must have either "flow" or "story_flow"',
+        [{ path: '/', message: 'must have either "flow" or "story_flow"' }],
+      );
+    }
+  }
+
   // Validate against JSON schema
   const result = validateWorkflowSchema(parsed);
   if (!result.valid) {
@@ -137,37 +169,42 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
   }
 
   // At this point, parsed has passed schema validation — safe to cast
-  const data = parsed as { tasks: Record<string, Record<string, unknown>>; flow: unknown[] };
+  const data = parsed as Record<string, unknown> & {
+    tasks: Record<string, Record<string, unknown>>;
+    flow?: unknown[];
+    story_flow?: unknown[];
+    epic_flow?: unknown[];
+    execution?: Record<string, unknown>;
+  };
+
+  // Check for flow/story_flow coexistence (before referential integrity)
+  const hasFlow = 'flow' in data && data.flow !== undefined;
+  const hasStoryFlow = 'story_flow' in data && data.story_flow !== undefined;
+  if (hasFlow && hasStoryFlow) {
+    throw new WorkflowParseError(
+      'Workflow cannot have both "flow" and "story_flow" — use "story_flow" for hierarchical workflows or "flow" for legacy mode',
+      [{ path: '/', message: 'Cannot have both "flow" and "story_flow"' }],
+    );
+  }
+
+  // Determine the effective story flow for referential integrity checks
+  const effectiveStoryFlow: unknown[] = (hasStoryFlow ? data.story_flow : data.flow) ?? [];
+  const effectiveEpicFlow: unknown[] = data.epic_flow ?? [];
 
   // Referential integrity check — collect all errors before throwing
   const taskNames = new Set(Object.keys(data.tasks));
   const allErrors: Array<{ path: string; message: string }> = [];
 
-  // 1. Flow-to-task dangling reference check
-  for (let i = 0; i < data.flow.length; i++) {
-    const step = data.flow[i];
-    if (typeof step === 'string') {
-      if (!taskNames.has(step)) {
-        allErrors.push({
-          path: `/flow/${i}`,
-          message: `Task "${step}" referenced in flow but not defined in tasks`,
-        });
-      }
-    } else if (typeof step === 'object' && step !== null && 'loop' in step) {
-      const loopBlock = step as { loop: string[] };
-      for (let j = 0; j < loopBlock.loop.length; j++) {
-        const ref = loopBlock.loop[j];
-        if (!taskNames.has(ref)) {
-          allErrors.push({
-            path: `/flow/${i}/loop/${j}`,
-            message: `Task "${ref}" referenced in loop but not defined in tasks`,
-          });
-        }
-      }
-    }
+  // 1. Story flow (or legacy flow) task reference validation
+  const storyFlowLabel = hasStoryFlow ? 'story_flow' : 'flow';
+  validateFlowReferences(effectiveStoryFlow, taskNames, storyFlowLabel, allErrors, false);
+
+  // 2. Epic flow task reference validation (with built-in whitelist)
+  if (effectiveEpicFlow.length > 0) {
+    validateFlowReferences(effectiveEpicFlow, taskNames, 'epic_flow', allErrors, true);
   }
 
-  // 2. Driver and agent referential integrity check
+  // 3. Driver and agent referential integrity check
   validateReferentialIntegrity(data, allErrors);
 
   if (allErrors.length > 0) {
@@ -179,7 +216,7 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
   const resolvedTasks: Record<string, ResolvedTask> = {};
   for (const [taskName, task] of Object.entries(data.tasks)) {
     const resolved: ResolvedTask = {
-      agent: task.agent as string,
+      agent: task.agent as string | null,
       scope: (task.scope as ResolvedTask['scope']) ?? 'per-story',
       session: (task.session as ResolvedTask['session']) ?? 'fresh',
       source_access: (task.source_access as boolean) ?? true,
@@ -208,15 +245,66 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
     resolvedTasks[taskName] = resolved;
   }
 
-  // Build resolved flow
-  const resolvedFlow: FlowStep[] = data.flow.map((step) => {
-    if (typeof step === 'string') {
-      return step;
+  // Resolve hierarchical flow
+  let hierarchical: HierarchicalFlow;
+  try {
+    hierarchical = resolveHierarchicalFlow(data, resolvedTasks);
+  } catch (err: unknown) {
+    if (err instanceof HierarchicalFlowError) {
+      throw new WorkflowParseError(err.message, [{ path: '/', message: err.message }]);
     }
-    return step as LoopBlock;
-  });
+    throw err;
+  }
 
-  return { tasks: resolvedTasks, flow: resolvedFlow };
+  // Build resolved flow for backward compat (storyFlow is the primary flow)
+  const resolvedFlow: FlowStep[] = hierarchical.storyFlow;
+
+  return {
+    tasks: resolvedTasks,
+    flow: resolvedFlow,
+    execution: hierarchical.execution,
+    storyFlow: hierarchical.storyFlow,
+    epicFlow: hierarchical.epicFlow,
+  };
+}
+
+// --- Flow Reference Validation ---
+
+/**
+ * Validate that all task references in a flow array point to defined tasks.
+ * When `allowBuiltins` is true, built-in epic flow task names are also accepted.
+ */
+function validateFlowReferences(
+  flow: unknown[],
+  taskNames: Set<string>,
+  flowLabel: string,
+  errors: Array<{ path: string; message: string }>,
+  allowBuiltins: boolean,
+): void {
+  for (let i = 0; i < flow.length; i++) {
+    const step = flow[i];
+    if (typeof step === 'string') {
+      const isValid = taskNames.has(step) || (allowBuiltins && BUILTIN_EPIC_FLOW_TASKS.has(step));
+      if (!isValid) {
+        errors.push({
+          path: `/${flowLabel}/${i}`,
+          message: `Task "${step}" referenced in ${flowLabel} but not defined in tasks`,
+        });
+      }
+    } else if (typeof step === 'object' && step !== null && 'loop' in step) {
+      const loopBlock = step as { loop: string[] };
+      for (let j = 0; j < loopBlock.loop.length; j++) {
+        const ref = loopBlock.loop[j];
+        const isValid = taskNames.has(ref) || (allowBuiltins && BUILTIN_EPIC_FLOW_TASKS.has(ref));
+        if (!isValid) {
+          errors.push({
+            path: `/${flowLabel}/${i}/loop/${j}`,
+            message: `Task "${ref}" referenced in loop but not defined in tasks`,
+          });
+        }
+      }
+    }
+  }
 }
 
 // --- Parser ---

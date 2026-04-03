@@ -198,10 +198,14 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
-| agents/types.ts | AgentDriver interface and related types — SpawnOpts, AgentProcess, AgentEvent discriminated union | `AgentDriver`, `SpawnOpts`, `AgentProcess`, `AgentEvent` |
-| agents/ralph.ts | RalphDriver implementation — wraps ralph.sh spawning and output parsing in AgentDriver interface | `RalphDriver`, `buildSpawnArgs`, `resolveRalphPath`, `parseRalphMessage`, `parseIterationMessage` |
-| agents/stream-parser.ts | Stateless NDJSON stream parser — converts Claude API streaming events into typed `StreamEvent` objects | `parseStreamLine`, `StreamEvent`, `StreamEventType` |
-| agents/ralph-prompt.ts | Ralph system prompt generator — builds the prompt template for ralph sessions | `generateRalphPrompt`, `RalphPromptConfig` |
-| agents/index.ts | Barrel re-exports for agents subsystem — RalphDriver, stream parser, ralph prompt | all public API from ralph.ts, stream-parser.ts, ralph-prompt.ts, types.ts |
+| agents/types.ts | AgentDriver interface and related types — DriverHealth, DriverCapabilities, DispatchOpts, OutputContract, plus deprecated SpawnOpts/AgentProcess/AgentEvent | `AgentDriver`, `DriverHealth`, `DriverCapabilities`, `DispatchOpts`, `OutputContract`, `TestResults`, `ACStatus` |
+| agents/stream-parser.ts | Stateless NDJSON stream parser — converts Claude API streaming events into typed `StreamEvent` objects | `parseStreamLine`, `StreamEvent`, `ToolStartEvent`, `ToolInputEvent`, `ToolCompleteEvent`, `TextEvent`, `RetryEvent`, `ResultEvent` |
+| agents/model-resolver.ts | Model resolution with 3-level cascade: task → agent → driver default | `resolveModel` |
+| agents/index.ts | Barrel re-exports for agents subsystem — types, stream parser, driver factory, model resolver | all public API |
+| agents/drivers/factory.ts | Driver factory and module-singleton registry — register, retrieve, list, and reset drivers | `getDriver`, `registerDriver`, `listDrivers`, `resetDrivers` |
+| agents/drivers/claude-code.ts | Claude Code driver — in-process driver using the Agent SDK (no CLI spawning) | `ClaudeCodeDriver` |
+| agents/drivers/codex.ts | Codex driver — CLI-wrapped driver for OpenAI Codex, spawns `codex` binary and parses NDJSON stdout | `CodexDriver` |
+| agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
+| agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 63 library files + 4 shared test utility files across 26 categories (includes 5 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/).**
+**Total: 68 library files + 4 shared test utility files across 26 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

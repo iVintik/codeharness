@@ -249,7 +249,7 @@ function setupDefaultMocks() {
     name: 'claude-code',
     defaultModel: 'claude-sonnet-4-20250514',
     capabilities: { supportsPlugins: true, supportsStreaming: true, costReporting: true },
-    healthCheck: vi.fn(),
+    healthCheck: vi.fn().mockResolvedValue({ available: true, authenticated: true, version: '1.0.0' }),
     dispatch: mockDriverDispatch,
     getLastCost: vi.fn().mockReturnValue(null),
   });
@@ -2862,7 +2862,8 @@ describe('driver integration (story 10-5)', () => {
     await executeWorkflow(config);
 
     // Both retry and verify should go through driver.dispatch
-    expect(mockGetDriver).toHaveBeenCalledTimes(2);
+    // +1 for health check (deduped to 1 call for claude-code default)
+    expect(mockGetDriver).toHaveBeenCalledTimes(3);
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     // Verify prompts are correct
     expect(dispatches[0]).toBe('Implement story 3-1-foo');

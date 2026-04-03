@@ -6,7 +6,7 @@ import type { DispatchErrorCode } from './agent-dispatch.js';
 // Note: dispatchAgent is no longer imported — dispatch goes through the driver factory
 import { getDriver } from './agents/drivers/factory.js';
 import { resolveModel } from './agents/model-resolver.js';
-import type { DispatchOpts } from './agents/types.js';
+import type { DispatchOpts, DriverHealth } from './agents/types.js';
 import type { ResultEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
 import type { ResolvedWorkflow, ResolvedTask, FlowStep, LoopBlock } from './workflow-parser.js';
@@ -725,6 +725,75 @@ export async function executeLoopBlock(
 }
 
 
+// --- Driver Health Check ---
+
+/** Default timeout for the health check phase (NFR6). */
+const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
+/**
+ * Run health checks on all unique drivers referenced in a workflow.
+ *
+ * Collects unique driver names from `workflow.tasks`, resolves each via
+ * `getDriver()`, and runs all `healthCheck()` calls concurrently with a
+ * 5-second timeout (NFR6).
+ *
+ * Throws if any driver is unavailable or if the timeout fires.
+ */
+export async function checkDriverHealth(workflow: ResolvedWorkflow, timeoutMs?: number): Promise<void> {
+  // 1. Collect unique driver names from all tasks
+  const driverNames = new Set<string>();
+  for (const task of Object.values(workflow.tasks)) {
+    driverNames.add(task.driver ?? 'claude-code');
+  }
+
+  // 2. Resolve drivers
+  const drivers = new Map<string, ReturnType<typeof getDriver>>();
+  for (const name of driverNames) {
+    drivers.set(name, getDriver(name));
+  }
+
+  // 3. Run health checks concurrently, tracking which drivers responded
+  interface HealthResult { name: string; health: DriverHealth }
+  const responded = new Set<string>();
+  const healthChecks = Promise.all(
+    [...drivers.entries()].map(async ([name, driver]): Promise<HealthResult> => {
+      const health = await driver.healthCheck();
+      responded.add(name);
+      return { name, health };
+    }),
+  );
+
+  // 4. Race against timeout (NFR6) — clear timer on success to prevent leaks
+  const effectiveTimeout = timeoutMs ?? HEALTH_CHECK_TIMEOUT_MS;
+  let timer: ReturnType<typeof setTimeout>;
+  const timeoutPromise = new Promise<'timeout'>((resolve) => {
+    timer = setTimeout(() => resolve('timeout'), effectiveTimeout);
+  });
+
+  const result = await Promise.race([healthChecks, timeoutPromise]);
+
+  if (result === 'timeout') {
+    // Report only the drivers that did NOT respond (AC #6)
+    const pending = [...driverNames].filter((n) => !responded.has(n));
+    const names = pending.length > 0 ? pending.join(', ') : [...driverNames].join(', ');
+    throw new Error(
+      `Driver health check timed out after ${effectiveTimeout}ms. Drivers that did not respond: ${names}`,
+    );
+  }
+
+  // Health checks completed before timeout — clear the timer
+  clearTimeout(timer!);
+
+  // 5. Check for failures
+  const failures = result.filter((r) => !r.health.available);
+  if (failures.length > 0) {
+    const details = failures
+      .map((f) => `${f.name}: ${f.health.error ?? 'unavailable'}`)
+      .join('; ');
+    throw new Error(`Driver health check failed: ${details}`);
+  }
+}
+
 // --- Main Execution ---
 
 /**
@@ -763,6 +832,29 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
     workflow_name: config.workflow.flow.filter((s) => typeof s === 'string').join(' -> '),
   };
   writeWorkflowState(state, projectDir);
+
+  // 1b. Pre-flight driver health check
+  try {
+    await checkDriverHealth(config.workflow);
+  } catch (err: unknown) { // IGNORE: health check failure — record and abort
+    const message = err instanceof Error ? err.message : String(err);
+    state = { ...state, phase: 'failed' };
+    const engineError: EngineError = {
+      taskName: '__health_check__',
+      storyKey: '__health_check__',
+      code: 'HEALTH_CHECK',
+      message,
+    };
+    errors.push(engineError);
+    writeWorkflowState(state, projectDir);
+    return {
+      success: false,
+      tasksCompleted: 0,
+      storiesProcessed: 0,
+      errors,
+      durationMs: Date.now() - startMs,
+    };
+  }
 
   // 2. Load work items
   const workItems = loadWorkItems(config.sprintStatusPath, config.issuesPath);

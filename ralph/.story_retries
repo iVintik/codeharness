@@ -5,3 +5,4 @@ story-a 1
 6-2-evaluator-verdict-json-schema-parsing 1
 6-3-evaluator-prompt-template 1
 7-1-score-based-circuit-breaker-module 1
+7-2-resume-after-circuit-breaker 1

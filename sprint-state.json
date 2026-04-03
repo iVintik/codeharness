@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 28,
-    "done": 14,
+    "done": 24,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -245,20 +245,24 @@
       "acResults": null
     },
     "7-1-score-based-circuit-breaker-module": {
-      "status": "backlog",
-      "attempts": 0,
+      "status": "done",
+      "attempts": 1,
       "lastAttempt": null,
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "7-2-resume-after-circuit-breaker": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/7-2-resume-after-circuit-breaker-proof.md",
+      "acResults": {
+        "passed": 8,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "8-1-issue-tracker-module-cli": {
       "status": "backlog",
@@ -370,9 +374,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "7-1-score-based-circuit-breaker-module",
-    "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

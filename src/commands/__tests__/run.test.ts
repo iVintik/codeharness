@@ -466,6 +466,117 @@ describe('run command', () => {
       expect(writeWorkflowStateMock).not.toHaveBeenCalled();
       expect(executeWorkflowMock).toHaveBeenCalled();
     });
+
+    it('--resume resets circuit-breaker phase: triggered/reason/phase reset, score_history and evaluator_scores preserved', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      readWorkflowStateMock.mockReturnValue({
+        workflow_name: 'implement -> verify',
+        started: new Date().toISOString(),
+        iteration: 5,
+        phase: 'circuit-breaker',
+        tasks_completed: ['implement:1', 'verify:1'],
+        evaluator_scores: [
+          { iteration: 1, passed: 3, failed: 2, unknown: 0, total: 5, timestamp: '2026-04-03T00:00:00.000Z' },
+          { iteration: 2, passed: 3, failed: 2, unknown: 0, total: 5, timestamp: '2026-04-03T00:01:00.000Z' },
+        ],
+        circuit_breaker: {
+          triggered: true,
+          reason: 'Stagnation detected: no improvement for 2 consecutive iterations',
+          score_history: [3, 3],
+        },
+        trace_ids: ['trace-1'],
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--resume']);
+
+      expect(writeWorkflowStateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phase: 'idle',
+          circuit_breaker: expect.objectContaining({
+            triggered: false,
+            reason: null,
+            score_history: [3, 3],
+          }),
+          evaluator_scores: [
+            { iteration: 1, passed: 3, failed: 2, unknown: 0, total: 5, timestamp: '2026-04-03T00:00:00.000Z' },
+            { iteration: 2, passed: 3, failed: 2, unknown: 0, total: 5, timestamp: '2026-04-03T00:01:00.000Z' },
+          ],
+          tasks_completed: ['implement:1', 'verify:1'],
+          iteration: 5,
+        }),
+        expect.any(String),
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Resuming after circuit breaker — previous findings preserved'));
+      expect(executeWorkflowMock).toHaveBeenCalled();
+    });
+
+    it('--resume with circuit-breaker logs appropriate info message', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      readWorkflowStateMock.mockReturnValue({
+        workflow_name: '',
+        started: '',
+        iteration: 2,
+        phase: 'circuit-breaker',
+        tasks_completed: [],
+        evaluator_scores: [],
+        circuit_breaker: { triggered: true, reason: 'stagnation', score_history: [1] },
+        trace_ids: [],
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--resume']);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Resuming after circuit breaker'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('previous findings preserved'));
+    });
+
+    it('--resume with completed phase still works as before (regression)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      readWorkflowStateMock.mockReturnValue({
+        workflow_name: 'implement -> verify',
+        started: new Date().toISOString(),
+        iteration: 3,
+        phase: 'completed',
+        tasks_completed: [],
+        evaluator_scores: [],
+        circuit_breaker: { triggered: false, reason: null, score_history: [] },
+        trace_ids: [],
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand(['--resume']);
+
+      expect(writeWorkflowStateMock).toHaveBeenCalledWith(
+        expect.objectContaining({ phase: 'idle' }),
+        expect.any(String),
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Resuming from completed state'));
+    });
+
+    it('without --resume, circuit-breaker phase is NOT reset (AC #5)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      readWorkflowStateMock.mockReturnValue({
+        workflow_name: '',
+        started: '',
+        iteration: 5,
+        phase: 'circuit-breaker',
+        tasks_completed: [],
+        evaluator_scores: [],
+        circuit_breaker: { triggered: true, reason: 'stagnation', score_history: [3, 3] },
+        trace_ids: [],
+      });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(writeWorkflowStateMock).not.toHaveBeenCalled();
+      expect(executeWorkflowMock).toHaveBeenCalled();
+    });
   });
 
   describe('run command registration', () => {

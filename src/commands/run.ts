@@ -130,12 +130,24 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      // 6. Handle --resume: reset completed state so the engine re-enters execution
+      // 6. Handle --resume: reset completed or circuit-breaker state so the engine re-enters execution
       if (options.resume) {
         const currentState = readWorkflowState(projectDir);
         if (currentState.phase === 'completed') {
           writeWorkflowState({ ...currentState, phase: 'idle' }, projectDir);
           info('Resuming from completed state — phase reset to idle', outputOpts);
+        } else if (currentState.phase === 'circuit-breaker') {
+          writeWorkflowState({
+            ...currentState,
+            phase: 'idle',
+            circuit_breaker: {
+              ...currentState.circuit_breaker,
+              triggered: false,
+              reason: null,
+              // score_history is PRESERVED
+            },
+          }, projectDir);
+          info('Resuming after circuit breaker — previous findings preserved', outputOpts);
         }
       }
 

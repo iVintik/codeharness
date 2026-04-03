@@ -993,3 +993,133 @@ All four issues fixed during code review. The mutable reference bug is particula
 | 18 | **Fix `_bmad/bmm/config.yaml` path** — create-story looks for `_bmad/bmm/config.yaml` but actual path is `_bmad/config.yaml`. Flagged 3 sessions. | LOW | Backlog | New |
 | 19 | **Add `Object.setPrototypeOf` to code review checklist** for custom Error subclasses | LOW | Backlog | New |
 | 20 | **Add defensive-copy check to code review checklist** for validation functions that return data | LOW | Backlog | New |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 7, ~04:25–04:53)
+
+**Session window:** ~2026-04-03T04:25 to ~2026-04-03T04:53 (approx. 28 minutes)
+**Budget:** 30 minutes
+**Sprint progress:** 22/28 stories done (79%), Epics 1–6 complete, Epic 7 in-progress
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Duration (est.) | Notes |
+|-------|-----------|---------|-----------------|-------|
+| 7-1-score-based-circuit-breaker-module | create-story, dev, code-review, verify | **Done** | ~28 min | Full lifecycle in one session. 10/10 ACs passed, 100% coverage on circuit-breaker.ts. |
+
+**Net output:** 1 story completed and verified. Story 7-1 closes the gap where `workflow-engine.ts` checked `circuit_breaker.triggered` but nothing ever set it.
+
+**Sprint velocity this session:** 1 story / 28 min = ~2.1 stories/hour (consistent with recent sessions).
+
+---
+
+## 2. Issues Analysis
+
+### Issues from subagent reports (7-1 only)
+
+| # | Issue | Severity | Category | Status |
+|---|-------|----------|----------|--------|
+| 1 | `AGENTS.md` stale — didn't list `circuit-breaker.ts` | LOW | Doc gap | Fixed in-session (workaround by verification agent) |
+| 2 | Proof format mismatch — `**Verdict:** PASS` vs expected `— PASS` in heading | MEDIUM | Recurring | Fixed in-session (rewrite). **4th occurrence across sessions.** |
+| 3 | vitest coverage table truncates filenames — required multiple grep attempts | LOW | Tooling | Unresolved (inherent vitest behavior) |
+| 4 | Workflow engine comment typo: `/ Circuit breaker:` (missing second slash) at line 619 | LOW | Code quality | Not fixed (cosmetic) |
+| 5 | Integration test used mock mutation instead of real `evaluateProgress()` code path | HIGH | Test quality | Fixed by code-review agent |
+| 6 | Inaccurate test comment ("triggered after dispatchCount>=2") | MEDIUM | Code quality | Fixed by code-review agent |
+| 7 | Test regressions from integration — 3 workflow-engine tests broke because mock evaluator returned static `passed: 1`, triggering stagnation | HIGH | Integration | Fixed by dev agent with `makeProgressingFailVerdict()` helper |
+| 8 | `remainingFailures` returns placeholder indices, not specific AC numbers | LOW | Design limitation | Documented, accepted |
+| 9 | `config.yaml` path mismatch (`_bmad/bmm/config.yaml` vs `_bmad/config.yaml`) | LOW | Recurring | Not fixed. **3rd session flagging this.** |
+| 10 | No input validation on `EvaluatorScore` fields (trusts upstream) | LOW | Deferred | Accepted — upstream owns validation |
+
+### Recurring issues (tracked across sessions)
+
+| Issue | Sessions Seen | Escalation |
+|-------|---------------|------------|
+| Proof format mismatch (h2 vs h3, verdict format) | 4 sessions | MEDIUM — still not fixed in verification subagent prompt |
+| `config.yaml` path mismatch | 3 sessions | LOW — never blocks, just noise |
+| Redundant vitest coverage runs | 5+ sessions | MEDIUM — escalated last session |
+
+---
+
+## 3. Cost Analysis
+
+### Parent-level cost (from cost-report.md)
+
+The cost report covers cumulative sprint data (all 7+ stories tracked), not this session alone. Key stats:
+
+- **Total API cost:** $37.08 across 288 calls (all sessions)
+- **Average cost per story:** $4.45
+- **Dominant cost:** Cache reads at 61% ($22.62) — expected with large context window
+- **Most expensive phase:** Verify at 43.8% ($16.24) — disproportionate
+
+### Subagent-level token breakdown (this session, story 7-1)
+
+| Subagent Phase | Tool Calls | Dominant Tools | Largest Bash Outputs |
+|----------------|------------|----------------|---------------------|
+| create-story | 19 | Read: 10, Glob: 5, Grep: 4 | `ls implementation-artifacts` (~180 lines) |
+| dev-story | 16 | Bash: 6, Read: 5, Edit: 5 | `npm run test:unit` (~15 lines) |
+| code-review | 21 | Bash: 10, Read: 7, Grep: 4 | `git diff` (~80 lines), `npm run test:unit` (~60 lines) |
+| verify | 19 | Bash: 12, Read: 3, Grep: 3 | `ls verification/` (~136 lines), vitest coverage (~60 lines) |
+| **Total** | **75** | | |
+
+### Subagent inefficiencies identified
+
+1. **Verification phase dominated tool calls** (19 of 75) with 12 Bash calls — 3 separate attempts to extract coverage data via grep refinement, 2 runs of `codeharness verify` due to proof format errors.
+2. **`ls verification/` produced 136 lines** — unnecessarily large output. A targeted glob or filtered ls would be cheaper.
+3. **Code review ran `npm run test:unit` producing ~60 lines** plus `git diff` at ~80 lines — reasonable but the test output could be suppressed to just pass/fail.
+4. **No file was read 3+ times** in any subagent — this is an improvement over earlier sessions.
+5. **create-story read 14 files (10 unique)** — highest Read count, but no redundancy beyond one re-read.
+
+### Cost efficiency assessment
+
+- **75 total subagent tool calls** for a full story lifecycle (create → dev → review → verify) is efficient.
+- **dev-story was the leanest** at 16 calls with zero redundancy — the dev agent is well-tuned.
+- **Verification remains the most expensive phase** both at parent level (43.8%) and at subagent level. The proof format mismatch bug forces rewrites, doubling verification work.
+
+---
+
+## 4. What Went Well
+
+1. **Full story lifecycle in 28 minutes** — create-story through verification completed within budget (30 min). No timeout.
+2. **Zero redundant file reads** — no subagent read the same file 3+ times. Improvement over earlier sessions.
+3. **Code review caught real bugs** — mock mutation in integration test was dead code; caught and fixed before verification.
+4. **Dev agent handled test regressions proactively** — 3 broken workflow-engine tests from circuit breaker integration were fixed with a helper function, not hacked around.
+5. **100% coverage on new module** — circuit-breaker.ts hit 100%, overall coverage held at 96.81%.
+6. **dev-story was zero-waste** — 16 tool calls, no redundancy, clean build+test on first pass.
+
+---
+
+## 5. What Went Wrong
+
+1. **Proof format mismatch — again.** Verification agent produced wrong format (`**Verdict:** PASS` instead of `— PASS`), requiring rewrite. This is the 4th session with this bug. The action item to fix the verification subagent prompt has been open since Session 4.
+2. **vitest coverage grep dance** — 3 attempts to extract coverage data from truncated filenames. This happens every session and wastes 2-3 tool calls each time.
+3. **AGENTS.md was stale** — dev agent didn't update it when adding `circuit-breaker.ts`. The verification agent had to patch it as a workaround.
+4. **`config.yaml` path still wrong** — create-story looked for `_bmad/bmm/config.yaml` (doesn't exist) for the 3rd session in a row. Harmless but noisy.
+
+---
+
+## 6. Lessons Learned
+
+1. **The verification subagent prompt is the single highest-ROI fix remaining.** Two recurring bugs (proof format, redundant vitest runs) both originate from unclear instructions in the verification prompt. Fixing that one artifact would eliminate ~30% of verification rework.
+2. **dev-story is the gold standard** — zero redundancy, smallest tool call count, clean first-pass results. Other phases should be studied against this baseline.
+3. **Mock mutations in tests are a code smell.** The code review correctly identified that mutating mocks to simulate integration defeats the purpose. This pattern should be added to review checklists.
+4. **AGENTS.md updates should be part of the dev-story checklist**, not left to verification to catch. Doc gaps compound across stories.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Target | Status |
+|---|--------|----------|--------|--------|
+| 1 | **Fix proof document format spec in verification subagent prompt** — enforce `## AC N:` and `— PASS/FAIL` format | HIGH | Next session | Open (carried from Session 6, escalated) |
+| 2 | **Add "single vitest run" instruction to verification subagent prompt** | MEDIUM | Next session | Open (carried from Session 6) |
+| 3 | **Add AGENTS.md update to dev-story checklist** — dev agent should update module index when adding new files | MEDIUM | Next session | New |
+| 4 | Fix `_bmad/bmm/config.yaml` path or suppress warning | LOW | Backlog | Open (3rd session) |
+| 5 | Fix workflow-engine comment typo at line 619 (`/ Circuit breaker:` → `// Circuit breaker:`) | LOW | Backlog | New |
+| 6 | Add mock-mutation anti-pattern to code review checklist | LOW | Backlog | New |
+| 7 | Address deferred LOW issues from 7-1 code review (no input validation on EvaluatorScore, `remainingFailures` includes unknown) | LOW | Backlog | New |
+| 8 | Fix `ralph/.state-snapshot.json` stale data (shows 13 done vs 22 actual) | HIGH | Next session | Open (carried — still 9 stories behind) |
+| 9 | Fix `formatElapsed` duplication (3 implementations) | MEDIUM | Next sprint | Open (carried from Session 5) |
+| 10 | Wire 5 dead CLI options to EngineConfig or remove them | MEDIUM | Next sprint | Open (carried from Session 6) |

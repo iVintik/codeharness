@@ -161,6 +161,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | epic-completion.ts | Epic completion detection — pure logic module for checking if all stories in an epic are done, epic lifecycle state machine transitions | `checkEpicCompletion`, `getEpicStories`, `transitionEpicState`, `EpicLifecycleStatus`, `EpicCompletionError`, `VALID_TRANSITIONS` |
+| epic-flow-executor.ts | Epic flow executor — orchestrates retro/merge/validate sequence when an epic completes, drives state transitions through epic lifecycle | `executeEpicFlow`, `EpicFlowConfig`, `EpicFlowResult`, `EpicFlowStepResult`, `EpicFlowError` |
 
 ## Worktree Management & Parallel Execution (Epic 17)
 
@@ -233,4 +234,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 78 library files + 4 shared test utility files across 29 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 79 library files + 4 shared test utility files across 29 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

@@ -121,7 +121,7 @@ development_status:
   # Epic 19
   epic-19: backlog
   19-1-epic-completion-detection: done
-  19-2-epic-flow-execution: backlog
+  19-2-epic-flow-execution: done
 
   # Epic 20
   epic-20: backlog

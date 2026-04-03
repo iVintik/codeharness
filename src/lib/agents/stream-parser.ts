@@ -42,6 +42,8 @@ export interface ResultEvent {
   readonly type: 'result';
   readonly cost: number;
   readonly sessionId: string;
+  /** Normalized cost in USD for multi-driver comparison. */
+  readonly cost_usd?: number | null;
 }
 
 /** Discriminated union of all stream events the parser can emit. */

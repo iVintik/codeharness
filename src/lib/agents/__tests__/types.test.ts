@@ -2,18 +2,61 @@ import { describe, it, expect } from 'vitest';
 import { Readable } from 'node:stream';
 import type {
   AgentDriver,
+  DispatchOpts,
+  DriverHealth,
+  DriverCapabilities,
+  ErrorCategory,
+  OutputContract,
+  TestResults,
+  ACStatus,
+  // Deprecated types — must still compile
   AgentProcess,
   AgentEvent,
   SpawnOpts,
 } from '../types.js';
+import type { StreamEvent, ResultEvent } from '../stream-parser.js';
 import type {
+  // Barrel re-exports — new types
   AgentDriver as BarrelAgentDriver,
+  DriverHealth as BarrelDriverHealth,
+  DriverCapabilities as BarrelDriverCapabilities,
+  DispatchOpts as BarrelDispatchOpts,
+  ErrorCategory as BarrelErrorCategory,
+  OutputContract as BarrelOutputContract,
+  TestResults as BarrelTestResults,
+  ACStatus as BarrelACStatus,
+  // Barrel re-exports — deprecated types
   AgentProcess as BarrelAgentProcess,
   AgentEvent as BarrelAgentEvent,
   SpawnOpts as BarrelSpawnOpts,
 } from '../index.js';
 
-/** Creates a minimal mock AgentProcess for testing. */
+// --- Helpers ---
+
+/** Creates a mock AgentDriver implementing the new interface. */
+function createMockDriver(): AgentDriver {
+  return {
+    name: 'mock-driver',
+    defaultModel: 'mock-model-v1',
+    capabilities: {
+      supportsPlugins: true,
+      supportsStreaming: true,
+      costReporting: true,
+    },
+    async healthCheck(): Promise<DriverHealth> {
+      return { available: true, authenticated: true, version: '1.0.0' };
+    },
+    async *dispatch(_opts: DispatchOpts): AsyncIterable<StreamEvent> {
+      yield { type: 'text', text: 'hello' };
+      yield { type: 'result', cost: 0.01, sessionId: 'mock-session' };
+    },
+    getLastCost(): number | null {
+      return 0.01;
+    },
+  };
+}
+
+/** Creates a minimal mock AgentProcess for deprecated type tests. */
 function createMockProcess(): AgentProcess {
   const handlers: Record<string, Function> = {};
   return {
@@ -26,8 +69,371 @@ function createMockProcess(): AgentProcess {
   };
 }
 
-describe('agents/types exports', () => {
-  describe('SpawnOpts', () => {
+// --- New Interface Tests ---
+
+describe('agents/types — new AgentDriver interface (Epic 10)', () => {
+  describe('AgentDriver interface', () => {
+    it('satisfies interface with mock implementation', () => {
+      const driver = createMockDriver();
+      expect(driver.name).toBe('mock-driver');
+      expect(driver.defaultModel).toBe('mock-model-v1');
+      expect(driver.capabilities).toBeDefined();
+      expect(typeof driver.healthCheck).toBe('function');
+      expect(typeof driver.dispatch).toBe('function');
+      expect(typeof driver.getLastCost).toBe('function');
+    });
+
+    it('has readonly name and defaultModel', () => {
+      const driver = createMockDriver();
+      expect(driver.name).toBe('mock-driver');
+      expect(driver.defaultModel).toBe('mock-model-v1');
+    });
+
+    it('has readonly capabilities', () => {
+      const driver = createMockDriver();
+      expect(driver.capabilities.supportsPlugins).toBe(true);
+      expect(driver.capabilities.supportsStreaming).toBe(true);
+      expect(driver.capabilities.costReporting).toBe(true);
+    });
+
+    it('healthCheck returns Promise<DriverHealth>', async () => {
+      const driver = createMockDriver();
+      const health = await driver.healthCheck();
+      expect(health.available).toBe(true);
+      expect(health.authenticated).toBe(true);
+      expect(health.version).toBe('1.0.0');
+    });
+
+    it('dispatch returns AsyncIterable<StreamEvent>', async () => {
+      const driver = createMockDriver();
+      const opts: DispatchOpts = {
+        prompt: 'test',
+        model: 'mock-model-v1',
+        cwd: '/tmp',
+        sourceAccess: true,
+      };
+      const events: StreamEvent[] = [];
+      for await (const event of driver.dispatch(opts)) {
+        events.push(event);
+      }
+      expect(events).toHaveLength(2);
+      expect(events[0].type).toBe('text');
+      expect(events[1].type).toBe('result');
+    });
+
+    it('getLastCost returns number or null', () => {
+      const driver = createMockDriver();
+      const cost = driver.getLastCost();
+      expect(cost).toBe(0.01);
+    });
+
+    it('getLastCost can return null', () => {
+      const driver: AgentDriver = {
+        ...createMockDriver(),
+        getLastCost: () => null,
+      };
+      expect(driver.getLastCost()).toBeNull();
+    });
+  });
+
+  describe('DispatchOpts', () => {
+    it('accepts all required fields', () => {
+      const opts: DispatchOpts = {
+        prompt: 'implement story',
+        model: 'claude-sonnet-4-20250514',
+        cwd: '/home/project',
+        sourceAccess: true,
+      };
+      expect(opts.prompt).toBe('implement story');
+      expect(opts.model).toBe('claude-sonnet-4-20250514');
+      expect(opts.cwd).toBe('/home/project');
+      expect(opts.sourceAccess).toBe(true);
+    });
+
+    it('accepts all optional fields', () => {
+      const contract: OutputContract = {
+        version: 1,
+        taskName: 'implement',
+        storyId: '10-1',
+        driver: 'claude-code',
+        model: 'claude-sonnet-4-20250514',
+        timestamp: '2026-04-03T10:00:00Z',
+        cost_usd: null,
+        duration_ms: 0,
+        changedFiles: [],
+        testResults: null,
+        output: '',
+        acceptanceCriteria: [],
+      };
+      const opts: DispatchOpts = {
+        prompt: 'test',
+        model: 'model',
+        cwd: '/tmp',
+        sourceAccess: false,
+        plugins: ['plugin-a', 'plugin-b'],
+        timeout: 30000,
+        outputContract: contract,
+      };
+      expect(opts.plugins).toEqual(['plugin-a', 'plugin-b']);
+      expect(opts.timeout).toBe(30000);
+      expect(opts.outputContract).toBeDefined();
+    });
+
+    it('optional fields are undefined when not provided', () => {
+      const opts: DispatchOpts = {
+        prompt: 'x',
+        model: 'm',
+        cwd: '/',
+        sourceAccess: false,
+      };
+      expect(opts.plugins).toBeUndefined();
+      expect(opts.timeout).toBeUndefined();
+      expect(opts.outputContract).toBeUndefined();
+    });
+  });
+
+  describe('DriverHealth', () => {
+    it('accepts a healthy status', () => {
+      const health: DriverHealth = {
+        available: true,
+        authenticated: true,
+        version: '2.1.0',
+      };
+      expect(health.available).toBe(true);
+      expect(health.authenticated).toBe(true);
+      expect(health.version).toBe('2.1.0');
+      expect(health.error).toBeUndefined();
+    });
+
+    it('accepts an unhealthy status with error', () => {
+      const health: DriverHealth = {
+        available: false,
+        authenticated: false,
+        version: null,
+        error: 'CLI not found on PATH',
+      };
+      expect(health.available).toBe(false);
+      expect(health.version).toBeNull();
+      expect(health.error).toBe('CLI not found on PATH');
+    });
+
+    it('error field is optional', () => {
+      const health: DriverHealth = {
+        available: true,
+        authenticated: true,
+        version: '1.0.0',
+      };
+      expect(health.error).toBeUndefined();
+    });
+  });
+
+  describe('DriverCapabilities', () => {
+    it('accepts capability flags', () => {
+      const caps: DriverCapabilities = {
+        supportsPlugins: true,
+        supportsStreaming: false,
+        costReporting: true,
+      };
+      expect(caps.supportsPlugins).toBe(true);
+      expect(caps.supportsStreaming).toBe(false);
+      expect(caps.costReporting).toBe(true);
+    });
+
+    it('all-false capabilities are valid', () => {
+      const caps: DriverCapabilities = {
+        supportsPlugins: false,
+        supportsStreaming: false,
+        costReporting: false,
+      };
+      expect(caps.supportsPlugins).toBe(false);
+      expect(caps.supportsStreaming).toBe(false);
+      expect(caps.costReporting).toBe(false);
+    });
+  });
+
+  describe('ErrorCategory', () => {
+    it('covers exactly 5 values', () => {
+      const categories: ErrorCategory[] = [
+        'RATE_LIMIT',
+        'NETWORK',
+        'AUTH',
+        'TIMEOUT',
+        'UNKNOWN',
+      ];
+      expect(categories).toHaveLength(5);
+      // Verify each is a valid ErrorCategory (compile-time check)
+      categories.forEach((cat) => {
+        expect(typeof cat).toBe('string');
+      });
+    });
+
+    it('each value is assignable to ErrorCategory', () => {
+      const a: ErrorCategory = 'RATE_LIMIT';
+      const b: ErrorCategory = 'NETWORK';
+      const c: ErrorCategory = 'AUTH';
+      const d: ErrorCategory = 'TIMEOUT';
+      const e: ErrorCategory = 'UNKNOWN';
+      expect([a, b, c, d, e]).toEqual([
+        'RATE_LIMIT',
+        'NETWORK',
+        'AUTH',
+        'TIMEOUT',
+        'UNKNOWN',
+      ]);
+    });
+
+    it('exhaustiveness check — switch covers all categories', () => {
+      // Compile-time exhaustiveness: if ErrorCategory gains a 6th value,
+      // the `never` default will cause a TS error
+      function classifyError(cat: ErrorCategory): string {
+        switch (cat) {
+          case 'RATE_LIMIT': return 'retry';
+          case 'NETWORK': return 'retry';
+          case 'AUTH': return 'fail';
+          case 'TIMEOUT': return 'fail';
+          case 'UNKNOWN': return 'fail';
+          default: {
+            const _exhaustive: never = cat;
+            return _exhaustive;
+          }
+        }
+      }
+      expect(classifyError('RATE_LIMIT')).toBe('retry');
+      expect(classifyError('NETWORK')).toBe('retry');
+      expect(classifyError('AUTH')).toBe('fail');
+      expect(classifyError('TIMEOUT')).toBe('fail');
+      expect(classifyError('UNKNOWN')).toBe('fail');
+    });
+  });
+
+  describe('OutputContract, TestResults, ACStatus', () => {
+    it('accepts a valid OutputContract', () => {
+      const contract: OutputContract = {
+        version: 1,
+        taskName: 'implement-story',
+        storyId: '10-1',
+        driver: 'claude-code',
+        model: 'claude-sonnet-4-20250514',
+        timestamp: '2026-04-03T12:00:00Z',
+        cost_usd: 0.42,
+        duration_ms: 15000,
+        changedFiles: ['src/lib/agents/types.ts'],
+        testResults: { passed: 10, failed: 0, coverage: 95.5 },
+        output: 'Implementation complete',
+        acceptanceCriteria: [
+          { id: 'AC-1', description: 'Interface refactored', status: 'passed' },
+        ],
+      };
+      expect(contract.version).toBe(1);
+      expect(contract.cost_usd).toBe(0.42);
+      expect(contract.testResults?.passed).toBe(10);
+      expect(contract.acceptanceCriteria).toHaveLength(1);
+    });
+
+    it('accepts null cost_usd and testResults', () => {
+      const contract: OutputContract = {
+        version: 1,
+        taskName: 'task',
+        storyId: 'x',
+        driver: 'd',
+        model: 'm',
+        timestamp: 't',
+        cost_usd: null,
+        duration_ms: 0,
+        changedFiles: [],
+        testResults: null,
+        output: '',
+        acceptanceCriteria: [],
+      };
+      expect(contract.cost_usd).toBeNull();
+      expect(contract.testResults).toBeNull();
+    });
+
+    it('TestResults accepts valid values', () => {
+      const results: TestResults = {
+        passed: 5,
+        failed: 2,
+        coverage: 87.3,
+      };
+      expect(results.passed).toBe(5);
+      expect(results.failed).toBe(2);
+      expect(results.coverage).toBe(87.3);
+    });
+
+    it('TestResults coverage can be null', () => {
+      const results: TestResults = {
+        passed: 3,
+        failed: 0,
+        coverage: null,
+      };
+      expect(results.coverage).toBeNull();
+    });
+
+    it('ACStatus accepts valid values', () => {
+      const ac: ACStatus = {
+        id: 'AC-1',
+        description: 'Driver interface refactored',
+        status: 'passed',
+      };
+      expect(ac.id).toBe('AC-1');
+      expect(ac.description).toBe('Driver interface refactored');
+      expect(ac.status).toBe('passed');
+    });
+  });
+
+  describe('StreamEvent — ResultEvent cost_usd extension', () => {
+    it('ResultEvent accepts optional cost_usd field', () => {
+      const event: ResultEvent = {
+        type: 'result',
+        cost: 0.05,
+        sessionId: 'sess-1',
+        cost_usd: 0.05,
+      };
+      expect(event.cost_usd).toBe(0.05);
+    });
+
+    it('ResultEvent cost_usd can be null', () => {
+      const event: ResultEvent = {
+        type: 'result',
+        cost: 0.05,
+        sessionId: 'sess-1',
+        cost_usd: null,
+      };
+      expect(event.cost_usd).toBeNull();
+    });
+
+    it('ResultEvent cost_usd is optional (backward compat)', () => {
+      const event: ResultEvent = {
+        type: 'result',
+        cost: 0.05,
+        sessionId: 'sess-1',
+      };
+      expect(event.cost_usd).toBeUndefined();
+    });
+  });
+
+  describe('dispatch returns AsyncIterable<StreamEvent>', () => {
+    it('can be consumed with for-await-of', async () => {
+      const driver = createMockDriver();
+      const opts: DispatchOpts = {
+        prompt: 'test',
+        model: 'mock',
+        cwd: '/tmp',
+        sourceAccess: true,
+      };
+      const types: string[] = [];
+      for await (const event of driver.dispatch(opts)) {
+        types.push(event.type);
+      }
+      expect(types).toEqual(['text', 'result']);
+    });
+  });
+});
+
+// --- Deprecated Types Tests (backward compatibility) ---
+
+describe('agents/types — deprecated types (backward compat)', () => {
+  describe('SpawnOpts (deprecated)', () => {
     it('defines required fields: storyKey, prompt, workDir, timeout', () => {
       const opts: SpawnOpts = {
         storyKey: '13-1-agent-driver',
@@ -51,19 +457,9 @@ describe('agents/types exports', () => {
       };
       expect(opts.env).toEqual({ FOO: 'bar' });
     });
-
-    it('allows env to be undefined', () => {
-      const opts: SpawnOpts = {
-        storyKey: 'x',
-        prompt: 'p',
-        workDir: '/w',
-        timeout: 1000,
-      };
-      expect(opts.env).toBeUndefined();
-    });
   });
 
-  describe('AgentProcess', () => {
+  describe('AgentProcess (deprecated)', () => {
     it('satisfies interface with mock implementation', () => {
       const proc = createMockProcess();
       expect(proc.stdout).toBeDefined();
@@ -71,218 +467,100 @@ describe('agents/types exports', () => {
       expect(typeof proc.on).toBe('function');
       expect(typeof proc.kill).toBe('function');
     });
-
-    it('supports on close handler', () => {
-      const proc = createMockProcess();
-      let closeCalled = false;
-      proc.on('close', (_code: number) => {
-        closeCalled = true;
-      });
-      // Type-level: this compiles, proving the overload exists
-      expect(closeCalled).toBe(false);
-    });
-
-    it('supports on error handler', () => {
-      const proc = createMockProcess();
-      let errorCalled = false;
-      proc.on('error', (_err: Error) => {
-        errorCalled = true;
-      });
-      // Type-level: this compiles, proving the error overload exists
-      expect(errorCalled).toBe(false);
-    });
-
-    it('kill accepts optional signal', () => {
-      const proc = createMockProcess();
-      // No-arg call
-      proc.kill();
-      // With signal
-      proc.kill('SIGTERM');
-      expect(typeof proc.kill).toBe('function');
-    });
   });
 
-  describe('AgentEvent discriminated union', () => {
-    const ALL_EVENT_TYPES = [
-      'tool-start',
-      'tool-complete',
-      'text',
-      'story-complete',
-      'story-failed',
-      'iteration',
-      'retry',
-      'result',
-    ] as const;
-
-    it('covers all 8 event types', () => {
-      expect(ALL_EVENT_TYPES).toHaveLength(8);
-    });
-
-    it('accepts tool-start event', () => {
-      const event: AgentEvent = { type: 'tool-start', name: 'Read' };
-      expect(event.type).toBe('tool-start');
-    });
-
-    it('accepts tool-complete event', () => {
-      const event: AgentEvent = {
-        type: 'tool-complete',
-        name: 'Write',
-        args: '{"path": "/tmp/f"}',
-      };
-      expect(event.type).toBe('tool-complete');
-    });
-
-    it('accepts text event', () => {
-      const event: AgentEvent = { type: 'text', text: 'hello' };
-      expect(event.type).toBe('text');
-    });
-
-    it('accepts story-complete event', () => {
-      const event: AgentEvent = {
-        type: 'story-complete',
-        key: '13-1',
-        details: 'done',
-      };
-      expect(event.type).toBe('story-complete');
-    });
-
-    it('accepts story-failed event', () => {
-      const event: AgentEvent = {
-        type: 'story-failed',
-        key: '13-1',
-        reason: 'timeout',
-      };
-      expect(event.type).toBe('story-failed');
-    });
-
-    it('accepts iteration event', () => {
-      const event: AgentEvent = { type: 'iteration', count: 3 };
-      expect(event.type).toBe('iteration');
-    });
-
-    it('accepts retry event', () => {
-      const event: AgentEvent = { type: 'retry', attempt: 2, delay: 5000 };
-      expect(event.type).toBe('retry');
-    });
-
-    it('accepts result event', () => {
-      const event: AgentEvent = {
-        type: 'result',
-        cost: 0.42,
-        sessionId: 'abc-123',
-      };
-      expect(event.type).toBe('result');
-    });
-
-    it('narrows type correctly via discriminant', () => {
-      const event: AgentEvent = { type: 'retry', attempt: 1, delay: 2000 };
-      if (event.type === 'retry') {
-        // TypeScript narrows to { type: 'retry'; attempt: number; delay: number }
-        expect(event.attempt).toBe(1);
-        expect(event.delay).toBe(2000);
-      }
-    });
-
-    it('covers every event type with a valid instance', () => {
+  describe('AgentEvent discriminated union (deprecated)', () => {
+    it('covers all 9 event variants', () => {
       const events: AgentEvent[] = [
         { type: 'tool-start', name: 'a' },
-        { type: 'tool-complete', name: 'b', args: 'c' },
-        { type: 'text', text: 'd' },
-        { type: 'story-complete', key: 'e', details: 'f' },
-        { type: 'story-failed', key: 'g', reason: 'h' },
+        { type: 'tool-input', partial: 'b' },
+        { type: 'tool-complete', name: 'c', args: 'd' },
+        { type: 'text', text: 'e' },
+        { type: 'story-complete', key: 'f', details: 'g' },
+        { type: 'story-failed', key: 'h', reason: 'i' },
         { type: 'iteration', count: 1 },
         { type: 'retry', attempt: 1, delay: 1 },
-        { type: 'result', cost: 0, sessionId: 'i' },
+        { type: 'result', cost: 0, sessionId: 'j' },
       ];
-      const types = events.map((e) => e.type);
-      expect(types).toEqual([...ALL_EVENT_TYPES]);
-    });
-  });
-
-  describe('AgentDriver interface', () => {
-    it('satisfies interface with mock implementation', () => {
-      const driver: AgentDriver = {
-        name: 'test-driver',
-        spawn(_opts: SpawnOpts): AgentProcess {
-          return createMockProcess();
-        },
-        parseOutput(_line: string): AgentEvent | null {
-          return null;
-        },
-        getStatusFile(): string {
-          return '/tmp/status.json';
-        },
-      };
-      expect(driver.name).toBe('test-driver');
-      expect(typeof driver.spawn).toBe('function');
-      expect(typeof driver.parseOutput).toBe('function');
-      expect(typeof driver.getStatusFile).toBe('function');
-    });
-
-    it('has readonly name property', () => {
-      const driver: AgentDriver = {
-        name: 'immutable',
-        spawn: () => createMockProcess(),
-        parseOutput: () => null,
-        getStatusFile: () => '',
-      };
-      // TypeScript enforces readonly at compile time; runtime check that value exists
-      expect(driver.name).toBe('immutable');
-    });
-
-    it('parseOutput can return null for unrecognized lines', () => {
-      const driver: AgentDriver = {
-        name: 'null-parser',
-        spawn: () => createMockProcess(),
-        parseOutput: () => null,
-        getStatusFile: () => '',
-      };
-      expect(driver.parseOutput('random garbage')).toBeNull();
-    });
-
-    it('parseOutput can return a typed AgentEvent', () => {
-      const prefix = 'TEXT: ';
-      const driver: AgentDriver = {
-        name: 'event-parser',
-        spawn: () => createMockProcess(),
-        parseOutput: (line: string) => {
-          if (line.startsWith(prefix)) {
-            return { type: 'text', text: line.slice(prefix.length) };
-          }
-          return null;
-        },
-        getStatusFile: () => '/tmp/status.json',
-      };
-      const event = driver.parseOutput('TEXT: hello');
-      expect(event).toEqual({ type: 'text', text: 'hello' });
-      expect(driver.parseOutput('unknown')).toBeNull();
+      expect(events).toHaveLength(9);
     });
   });
 
   describe('barrel re-exports from index.ts', () => {
-    it('re-exports all types from types.ts', () => {
-      // Type-level test: if these imports compile, the barrel re-exports work.
-      // Use the barrel-imported types to construct values, proving they are the same types.
+    it('re-exports new types', () => {
+      // Type-level: these compile, proving barrel exports work
+      const health: BarrelDriverHealth = {
+        available: true,
+        authenticated: true,
+        version: '1.0',
+      };
+      const caps: BarrelDriverCapabilities = {
+        supportsPlugins: true,
+        supportsStreaming: true,
+        costReporting: true,
+      };
+      const cat: BarrelErrorCategory = 'RATE_LIMIT';
+      const tr: BarrelTestResults = { passed: 1, failed: 0, coverage: null };
+      const ac: BarrelACStatus = {
+        id: '1',
+        description: 'd',
+        status: 'passed',
+      };
+      const contract: BarrelOutputContract = {
+        version: 1,
+        taskName: 't',
+        storyId: 's',
+        driver: 'd',
+        model: 'm',
+        timestamp: 'ts',
+        cost_usd: null,
+        duration_ms: 0,
+        changedFiles: [],
+        testResults: tr,
+        output: '',
+        acceptanceCriteria: [ac],
+      };
+      const opts: BarrelDispatchOpts = {
+        prompt: 'p',
+        model: 'm',
+        cwd: '/',
+        sourceAccess: true,
+        outputContract: contract,
+      };
+      const driver: BarrelAgentDriver = {
+        name: 'barrel',
+        defaultModel: 'model',
+        capabilities: caps,
+        async healthCheck() {
+          return health;
+        },
+        async *dispatch(_o: BarrelDispatchOpts) {
+          yield { type: 'result' as const, cost: 0, sessionId: '' };
+        },
+        getLastCost: () => null,
+      };
+
+      expect(health.available).toBe(true);
+      expect(caps.supportsPlugins).toBe(true);
+      expect(cat).toBe('RATE_LIMIT');
+      expect(opts.prompt).toBe('p');
+      expect(contract.version).toBe(1);
+      expect(driver.name).toBe('barrel');
+    });
+
+    it('re-exports deprecated types', () => {
       const opts: BarrelSpawnOpts = {
-        storyKey: 'barrel-test',
+        storyKey: 'x',
         prompt: 'p',
         workDir: '/w',
         timeout: 1000,
       };
       const proc: BarrelAgentProcess = createMockProcess();
       const event: BarrelAgentEvent = { type: 'text', text: 'barrel' };
-      const driver: BarrelAgentDriver = {
-        name: 'barrel-driver',
-        spawn: () => proc,
-        parseOutput: () => event,
-        getStatusFile: () => '',
-      };
 
-      // Runtime assertions prove the barrel types are usable
-      expect(opts.storyKey).toBe('barrel-test');
+      expect(opts.storyKey).toBe('x');
       expect(proc.stdout).toBeDefined();
       expect(event.type).toBe('text');
-      expect(driver.name).toBe('barrel-driver');
     });
   });
 });

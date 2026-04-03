@@ -10,13 +10,25 @@
 
 import type { AgentDriver } from './types.js';
 
-// Types
+// New types (Epic 10)
 export type {
-  SpawnOpts,
-  AgentProcess,
-  AgentEvent,
   AgentDriver,
+  DriverHealth,
+  DriverCapabilities,
+  DispatchOpts,
+  ErrorCategory,
+  OutputContract,
+  TestResults,
+  ACStatus,
 } from './types.js';
+
+// Deprecated types — kept for backward compatibility until story 10-3
+/** @deprecated Use `DispatchOpts` instead. */
+export type { SpawnOpts } from './types.js';
+/** @deprecated Use `AsyncIterable<StreamEvent>` from `dispatch()` instead. */
+export type { AgentProcess } from './types.js';
+/** @deprecated Use `StreamEvent` from `stream-parser.ts` instead. */
+export type { AgentEvent } from './types.js';
 
 // Stream parser
 export { parseStreamLine } from './stream-parser.js';

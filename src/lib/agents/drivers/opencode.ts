@@ -174,6 +174,7 @@ export class OpenCodeDriver implements AgentDriver {
     supportsPlugins: true,
     supportsStreaming: true,
     costReporting: true,
+    costTier: 2,
   };
 
   private lastCost: number | null = null;

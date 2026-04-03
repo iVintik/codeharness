@@ -134,6 +134,7 @@ describe('CodexDriver', () => {
         supportsPlugins: false,
         supportsStreaming: true,
         costReporting: true,
+        costTier: 1,
       });
     });
   });

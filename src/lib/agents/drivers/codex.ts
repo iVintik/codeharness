@@ -168,6 +168,7 @@ export class CodexDriver implements AgentDriver {
     supportsPlugins: false,
     supportsStreaming: true,
     costReporting: true,
+    costTier: 1,
   };
 
   private lastCost: number | null = null;

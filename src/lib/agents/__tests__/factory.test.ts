@@ -8,19 +8,24 @@ import {
   getDriver,
   listDrivers,
   resetDrivers,
+  suggestCheaperDriver,
 } from '../drivers/factory.js';
 
 // --- Helpers ---
 
 /** Creates a minimal mock AgentDriver for testing. */
-function createMockDriver(name: string): AgentDriver {
+function createMockDriver(
+  name: string,
+  opts: { supportsPlugins?: boolean; costTier?: number } = {},
+): AgentDriver {
   return {
     name,
     defaultModel: 'mock-model',
     capabilities: {
-      supportsPlugins: false,
+      supportsPlugins: opts.supportsPlugins ?? false,
       supportsStreaming: true,
       costReporting: false,
+      costTier: opts.costTier ?? 1,
     },
     async healthCheck(): Promise<DriverHealth> {
       return { available: true, authenticated: true, version: '1.0.0' };
@@ -190,6 +195,53 @@ describe('agents/drivers/factory — Driver Factory & Registry', () => {
       expect(source).not.toMatch(/\breaddir/i);
       expect(source).not.toMatch(/\bglob\b/i);
       expect(source).not.toMatch(/\brequire\s*\(/);
+    });
+  });
+
+  describe('suggestCheaperDriver', () => {
+    it('returns cheaper driver when one exists', () => {
+      registerDriver(createMockDriver('claude-code', { supportsPlugins: true, costTier: 3 }));
+      registerDriver(createMockDriver('codex', { supportsPlugins: false, costTier: 1 }));
+      // No required caps — codex can handle it
+      const result = suggestCheaperDriver('claude-code', {});
+      expect(result).toBe('codex');
+    });
+
+    it('returns null when current driver is cheapest', () => {
+      registerDriver(createMockDriver('codex', { supportsPlugins: false, costTier: 1 }));
+      registerDriver(createMockDriver('claude-code', { supportsPlugins: true, costTier: 3 }));
+      const result = suggestCheaperDriver('codex', {});
+      expect(result).toBeNull();
+    });
+
+    it('respects required capabilities when suggesting', () => {
+      registerDriver(createMockDriver('claude-code', { supportsPlugins: true, costTier: 3 }));
+      registerDriver(createMockDriver('codex', { supportsPlugins: false, costTier: 1 }));
+      registerDriver(createMockDriver('opencode', { supportsPlugins: true, costTier: 2 }));
+      // Requires plugins — codex can't handle it, opencode can
+      const result = suggestCheaperDriver('claude-code', { supportsPlugins: true });
+      expect(result).toBe('opencode');
+    });
+
+    it('returns null when no driver satisfies required caps at lower cost', () => {
+      registerDriver(createMockDriver('claude-code', { supportsPlugins: true, costTier: 3 }));
+      registerDriver(createMockDriver('codex', { supportsPlugins: false, costTier: 1 }));
+      // Requires plugins — codex can't, only claude-code can (no cheaper option)
+      const result = suggestCheaperDriver('claude-code', { supportsPlugins: true });
+      expect(result).toBeNull();
+    });
+
+    it('returns null for unregistered driver', () => {
+      const result = suggestCheaperDriver('nonexistent', {});
+      expect(result).toBeNull();
+    });
+
+    it('returns cheapest among multiple capable drivers', () => {
+      registerDriver(createMockDriver('expensive', { supportsPlugins: true, costTier: 5 }));
+      registerDriver(createMockDriver('mid', { supportsPlugins: true, costTier: 3 }));
+      registerDriver(createMockDriver('cheap', { supportsPlugins: true, costTier: 1 }));
+      const result = suggestCheaperDriver('expensive', { supportsPlugins: true });
+      expect(result).toBe('cheap');
     });
   });
 

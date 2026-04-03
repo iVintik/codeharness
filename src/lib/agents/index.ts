@@ -10,6 +10,7 @@ export type {
   AgentDriver,
   DriverHealth,
   DriverCapabilities,
+  CapabilityWarning,
   DispatchOpts,
   ErrorCategory,
   OutputContract,
@@ -39,7 +40,11 @@ export type {
 
 // --- Driver Factory ---
 
-export { getDriver, registerDriver, listDrivers, resetDrivers } from './drivers/factory.js';
+export { getDriver, registerDriver, listDrivers, resetDrivers, suggestCheaperDriver } from './drivers/factory.js';
+
+// --- Capability Check ---
+
+export { checkCapabilityConflicts } from './capability-check.js';
 
 // --- Model Resolution ---
 

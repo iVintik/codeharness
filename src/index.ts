@@ -23,6 +23,7 @@ import { registerObservabilityGateCommand } from './commands/observability-gate.
 import { registerAuditCommand } from './commands/audit.js';
 import { registerStatsCommand } from './commands/stats.js';
 import { registerIssueCommand } from './commands/issue.js';
+import { registerDriversCommand } from './commands/drivers.js';
 
 // Library exports — available to consumers via `import { parseStreamLine } from 'codeharness'`
 export { parseStreamLine } from './lib/agents/stream-parser.js';
@@ -65,6 +66,7 @@ export function createProgram(): Command {
   registerAuditCommand(program);
   registerStatsCommand(program);
   registerIssueCommand(program);
+  registerDriversCommand(program);
 
   return program;
 }

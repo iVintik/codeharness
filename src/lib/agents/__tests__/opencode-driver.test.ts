@@ -134,6 +134,7 @@ describe('OpenCodeDriver', () => {
         supportsPlugins: true,
         supportsStreaming: true,
         costReporting: true,
+        costTier: 2,
       });
     });
   });

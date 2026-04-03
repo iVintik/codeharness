@@ -203,10 +203,11 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/model-resolver.ts | Model resolution with 3-level cascade: task → agent → driver default | `resolveModel` |
 | agents/output-contract.ts | Atomic write/read for OutputContract JSON files — writes to .tmp then renames, path-traversal safe | `writeOutputContract`, `readOutputContract` |
 | agents/index.ts | Barrel re-exports for agents subsystem — types, stream parser, driver factory, model resolver, output contract | all public API |
+| agents/capability-check.ts | Pre-flight capability conflict detection and cost routing hints — checks workflow tasks against driver capabilities, suggests cheaper alternatives | `checkCapabilityConflicts`, `CapabilityWarning` |
 | agents/drivers/factory.ts | Driver factory and module-singleton registry — register, retrieve, list, and reset drivers | `getDriver`, `registerDriver`, `listDrivers`, `resetDrivers` |
 | agents/drivers/claude-code.ts | Claude Code driver — in-process driver using the Agent SDK (no CLI spawning) | `ClaudeCodeDriver` |
 | agents/drivers/codex.ts | Codex driver — CLI-wrapped driver for OpenAI Codex, spawns `codex` binary and parses NDJSON stdout | `CodexDriver` |
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 69 library files + 4 shared test utility files across 26 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 70 library files + 4 shared test utility files across 26 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

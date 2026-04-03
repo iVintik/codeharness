@@ -6,6 +6,7 @@ import { DispatchError } from './agent-dispatch.js';
 import type { DispatchErrorCode } from './agent-dispatch.js';
 // Note: dispatchAgent is no longer imported — dispatch goes through the driver factory
 import { getDriver } from './agents/drivers/factory.js';
+import { checkCapabilityConflicts } from './agents/capability-check.js';
 import { resolveModel } from './agents/model-resolver.js';
 import type { DispatchOpts, DriverHealth, OutputContract } from './agents/types.js';
 import type { ResultEvent, ToolStartEvent } from './agents/stream-parser.js';
@@ -930,6 +931,12 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
       errors,
       durationMs: Date.now() - startMs,
     };
+  }
+
+  // 1c. Pre-flight capability conflict check (advisory only — never aborts)
+  const capWarnings = checkCapabilityConflicts(config.workflow);
+  for (const cw of capWarnings) {
+    warn(cw.message);
   }
 
   // 2. Load work items

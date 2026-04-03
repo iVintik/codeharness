@@ -12,6 +12,7 @@ function createMockDriver(name: string): AgentDriver {
       supportsPlugins: false,
       supportsStreaming: true,
       costReporting: false,
+      costTier: 1,
     },
     async healthCheck(): Promise<DriverHealth> {
       return { available: true, authenticated: true, version: '1.0.0' };

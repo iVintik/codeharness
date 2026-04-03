@@ -11,6 +11,7 @@ Pluggable agent driver system for wrapping external coding agents (Claude Code, 
 | model-resolver.ts | Model resolution with 3-level cascade: task → agent → driver default | `resolveModel` |
 | output-contract.ts | Atomic write/read for OutputContract JSON files — writes to .tmp then renames, path-traversal safe | `writeOutputContract`, `readOutputContract` |
 | index.ts | Barrel re-exports for agents subsystem — types, stream parser, driver factory, model resolver, output contract | all public API |
+| capability-check.ts | Pre-flight capability conflict detection and cost routing hints — checks workflow tasks against driver capabilities, suggests cheaper alternatives | `checkCapabilityConflicts`, `CapabilityWarning` |
 
 ## Subdirectories — drivers/
 

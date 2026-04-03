@@ -42,6 +42,7 @@ function createMockDriver(): AgentDriver {
       supportsPlugins: true,
       supportsStreaming: true,
       costReporting: true,
+      costTier: 1,
     },
     async healthCheck(): Promise<DriverHealth> {
       return { available: true, authenticated: true, version: '1.0.0' };
@@ -228,26 +229,30 @@ describe('agents/types — new AgentDriver interface (Epic 10)', () => {
   });
 
   describe('DriverCapabilities', () => {
-    it('accepts capability flags', () => {
+    it('accepts capability flags including costTier', () => {
       const caps: DriverCapabilities = {
         supportsPlugins: true,
         supportsStreaming: false,
         costReporting: true,
+        costTier: 3,
       };
       expect(caps.supportsPlugins).toBe(true);
       expect(caps.supportsStreaming).toBe(false);
       expect(caps.costReporting).toBe(true);
+      expect(caps.costTier).toBe(3);
     });
 
-    it('all-false capabilities are valid', () => {
+    it('all-false capabilities are valid with costTier 1', () => {
       const caps: DriverCapabilities = {
         supportsPlugins: false,
         supportsStreaming: false,
         costReporting: false,
+        costTier: 1,
       };
       expect(caps.supportsPlugins).toBe(false);
       expect(caps.supportsStreaming).toBe(false);
       expect(caps.costReporting).toBe(false);
+      expect(caps.costTier).toBe(1);
     });
   });
 
@@ -498,6 +503,7 @@ describe('agents/types — deprecated types (backward compat)', () => {
         supportsPlugins: true,
         supportsStreaming: true,
         costReporting: true,
+        costTier: 1,
       };
       const cat: BarrelErrorCategory = 'RATE_LIMIT';
       const tr: BarrelTestResults = { passed: 1, failed: 0, coverage: null };

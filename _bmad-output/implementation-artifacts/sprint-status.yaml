@@ -92,7 +92,7 @@ development_status:
   14-3-activity-display-driver-integration: done
 
   # Epic 15
-  epic-15: backlog
+  epic-15: done
   15-1-plugin-pass-through-configuration: done
   15-2-cost-tracking-per-driver: done
-  15-3-driver-capability-matrix-routing-hints: backlog
+  15-3-driver-capability-matrix-routing-hints: done

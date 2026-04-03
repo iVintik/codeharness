@@ -60,6 +60,12 @@ vi.mock('../agent-dispatch.js', () => ({
 
 vi.mock('../agents/drivers/factory.js', () => ({
   getDriver: mockGetDriver,
+  suggestCheaperDriver: vi.fn().mockReturnValue(null),
+  listDrivers: vi.fn().mockReturnValue([]),
+}));
+
+vi.mock('../agents/capability-check.js', () => ({
+  checkCapabilityConflicts: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('../agents/model-resolver.js', () => ({
@@ -264,7 +270,7 @@ function setupDefaultMocks() {
   mockGetDriver.mockReturnValue({
     name: 'claude-code',
     defaultModel: 'claude-sonnet-4-20250514',
-    capabilities: { supportsPlugins: true, supportsStreaming: true, costReporting: true },
+    capabilities: { supportsPlugins: true, supportsStreaming: true, costReporting: true, costTier: 3 },
     healthCheck: vi.fn().mockResolvedValue({ available: true, authenticated: true, version: '1.0.0' }),
     dispatch: mockDriverDispatch,
     getLastCost: vi.fn().mockReturnValue(null),

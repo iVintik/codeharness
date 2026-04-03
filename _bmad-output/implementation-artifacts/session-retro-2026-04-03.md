@@ -5057,3 +5057,188 @@ Aggregated from session issues log Token Reports:
 3. **Fix `require-yield` lint (#87)** — 6+ sessions of noise. 2-minute fix.
 4. **Split large test files (#89, #90)** — `workflow-engine.test.ts` and `ink-renderer.test.tsx` are the top token sinks.
 5. **Consider sprint retrospective on the full sprint** once 15-2 and 15-3 are done — this sprint has been highly productive (45 stories, $250 total, 96.86% coverage).
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 14)
+
+**Timestamp:** 2026-04-03T16:50Z
+**Session window:** ~2026-04-03T12:48 to ~2026-04-03T13:10 (approx. 22 minutes)
+**Sprint progress:** 46/47 stories done (97.9%), Epics 1-14 complete, Epic 15 at 2/3
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 15-2-cost-tracking-per-driver | create-story, dev, code-review, verify | **Done** | Full lifecycle. 10/10 ACs verified. 11 new tests added. |
+
+**Net output:** 1 story completed + verified. Epic 15 now at 2/3 (only 15-3-driver-capability-matrix-routing-hints remains in backlog).
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue |
+|----------|-------|
+| HIGH | Cost-loss on story key change — `updateSprintState` reset `currentStoryCosts` before `updateStories` could snapshot. Fixed with `pendingStoryCosts` map. |
+| HIGH | Controller tests had zero assertions — 4 tests verified no-crash only. Fixed with real value assertions via `_getState()`. |
+| MEDIUM | Caller object mutation — `updateStories()` directly mutated caller's `StoryStatusEntry` objects. Fixed with `stories.map()`. |
+| MEDIUM | `ink-renderer.tsx` at 321 lines, violated 300-line limit. Fixed to 284 by extracting helper. |
+
+### LOW Issues Deferred (not fixed)
+
+- `_getState?()` optional method pattern — cleaner with separate test interface
+- `pendingStoryCosts` Map vs plain object inconsistency with rest of codebase
+
+### Infrastructure Issues
+
+- **Pre-existing `require-yield` lint error** at `workflow-engine.test.ts:164` — flagged in 7+ sessions now, never fixed
+- **`codeharness stats --save` still fails** — no `session-logs/` directory. Same issue as prior sessions.
+- **Verification format mismatch** did NOT recur — proof was accepted on first attempt (progress on #86 from prior retro)
+
+### Verification Gaps
+
+- **AC 8 (NFR2 500ms latency):** Verified by code inspection (no artificial delays) rather than runtime timing. Indirect evidence, acceptable for TUI rendering.
+- **Test name ANSI escapes** in vitest output made grep matching fragile during verify.
+
+---
+
+## 3. Cost Analysis
+
+### Overall Sprint Cost (cumulative)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $250.40 |
+| Total API calls | 1,936 |
+| Average cost per story | $3.41 (across 62 phase-calls) |
+| Stories completed | 46/47 |
+
+### Cost by Phase
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 947 | $113.94 | 45.5% |
+| orchestrator | 214 | $44.84 | 17.9% |
+| create-story | 235 | $26.87 | 10.7% |
+| dev-story | 234 | $26.16 | 10.4% |
+| code-review | 184 | $21.80 | 8.7% |
+| retro | 122 | $16.78 | 6.7% |
+
+### Subagent Token Report (Session 14 only)
+
+| Phase | Tool Calls | Top Tools | Files Read | Notes |
+|-------|------------|-----------|------------|-------|
+| create-story | 24 | Grep: 12, Read: 7, Glob: 4 | 11 unique | Grep-heavy due to multiple epics file resolution |
+| dev-story | 32 | Edit: 18, Read: 7, Bash: 6 | 7 unique | 18 Edits for subtask checkbox updates (necessary) |
+| code-review | 24 | Bash: 9, Read: 9, Edit: 8 | 8 unique | `ink-renderer.test.tsx` read 4x (offset-based, size-limited) |
+| verify | 18 | Bash: 12, Read: 2, Grep: 5 | 2 unique | `npm run lint` run twice (minor redundancy) |
+| **Total** | **98** | Read: 25, Bash: 28, Edit: 26, Grep: 17 | — | — |
+
+### Subagent-Level Breakdown
+
+- **Dev-story had the most tool calls (32)** — 18 Edit calls for subtask checkbox updates, which is high but each is a distinct pattern match. This is an artifact of the story template format, not inefficiency.
+- **Code-review read `ink-renderer.test.tsx` 4 times** — the file is 1100+ lines, requiring offset-based reads. This is the same file flagged in prior retros (#90).
+- **Verify ran `npm run lint` twice** — once before proof, once after. Avoidable with a single combined run.
+- **No file was read redundantly in create-story or dev-story** — clean execution.
+- **Estimated session cost: ~$4-5** (single story, well-scoped at ~30 lines prod + 50 lines test).
+
+### Cost Efficiency Observations
+
+- **15-2 was a cheap story** — small scope, pre-existing infrastructure from Epics 10-14 meant minimal new code.
+- **Verify phase remains the dominant cost center** at 45.5% of sprint spend ($113.94). This ratio has not improved.
+- **Retro phase at 6.7% ($16.78)** is modest but still 2x the cost of a typical story. Short-session retros with no-op detection could halve this.
+- **"unknown" story category at $39.22 (15.7%)** — this is orchestrator and cross-cutting overhead that can't be attributed to a specific story. It includes session initialization, sprint planning, and inter-story transitions.
+
+---
+
+## 4. What Went Well
+
+1. **Clean single-story execution.** 15-2 went from backlog to done in ~22 minutes with no retries, no stuck phases.
+2. **Code review caught 2 HIGH bugs** — cost-loss on key change and assertion-less tests. Both would have been production defects.
+3. **File size discipline enforced** — reviewer caught `ink-renderer.tsx` exceeding 300-line limit, fixed before merge.
+4. **Proof format issue did not recur** — possible signal that the template fix (#86) is partially addressed.
+5. **Test count at 4,625** with coverage at 96.85% — healthy trajectory.
+6. **`pendingStoryCosts` map is a sound design** — reviewer elevated the fix from a simple reset to a persistent-until-consumed pattern.
+
+---
+
+## 5. What Went Wrong
+
+1. **`require-yield` lint error still unfixed** — 7+ sessions of noise. Flagged in prior retro action items #87 but never actioned.
+2. **`codeharness stats --save` still broken** for non-ralph sessions — no session-logs directory. Flagged in prior retro, still unfixed.
+3. **Large test file problem persists** — `ink-renderer.test.tsx` at 1,116 lines drove 4 offset-based reads in code review. Action items #89/#90 remain open.
+4. **`npm run lint` run twice in verify** — small waste but persistent pattern.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Small, infrastructure-leveraging stories** — 15-2 needed only ~30 lines of prod code because Epics 10-14 already built the cost tracking plumbing. Story scoping that leverages existing infrastructure is the cheapest path.
+- **`pendingStoryCosts` pattern** — reviewer identified that resetting state before consumers read it is a general race condition. The fix (persist until consumed) is a pattern to apply elsewhere.
+- **Defensive mutation guards** — `stories.map()` instead of direct mutation is a pattern that prevents caller-side surprises.
+
+### Patterns to Avoid
+
+- **Ignoring prior retro action items** — #86 (proof format), #87 (require-yield), #89/#90 (split test files) have been open for 2+ retro cycles. They accumulate real cost.
+- **Testing no-crash instead of behavior** — reviewer found 4 tests with zero assertions. "Doesn't throw" is not verification.
+
+---
+
+## 7. Action Items
+
+### Fix Now (before next session)
+
+| # | Action | Priority | Est. Savings |
+|---|--------|----------|-------------|
+| 99 | Fix `require-yield` lint error in workflow-engine.test.ts:164 | HIGH | Noise reduction across all future sessions |
+| 100 | Fix pre-existing `migration.test.ts` test failure | HIGH | Blocks clean test runs |
+
+### Fix Soon (next sprint)
+
+| # | Action | Priority | Est. Savings |
+|---|--------|----------|-------------|
+| 101 | Split `ink-renderer.test.tsx` (1,116 lines) | MEDIUM | ~$2-3/sprint in cache reads |
+| 102 | Complete story 15-3 (driver capability matrix) to close Epic 15 | HIGH | Sprint completion |
+| 103 | Combine `npm run lint` calls in verify phase to single invocation | LOW | ~$0.50/sprint |
+
+### Backlog
+
+| # | Action | Priority | Notes |
+|---|--------|----------|-------|
+| 104 | Fix `codeharness stats --save` for non-ralph sessions | LOW | 3+ sessions broken |
+| 105 | Replace `_getState?()` with dedicated test interface | LOW | Code quality |
+| 106 | Audit "unknown" cost bucket ($39.22) — reduce orchestrator overhead | MEDIUM | 15.7% of spend unattributed |
+
+### Cost Optimization Actions
+
+| Action | Est. Savings | Effort |
+|--------|-------------|--------|
+| Split large test files (#89, #90, #101) | $5-8/sprint | 2 hours |
+| Deduplicate lint/test runs in verify (#103) | $0.50-1/sprint | 15 min |
+| Reduce orchestrator overhead (#106) | $3-5/sprint | Investigation |
+| **Total addressable waste** | **$8.50-14/sprint** | **~3 hours** |
+
+### Sprint Completion Status
+
+| Metric | Value |
+|--------|-------|
+| Stories done | 46/47 (97.9%) |
+| Epics complete | 14/15 |
+| Remaining | Epic 15: 15-3 (driver capability matrix/routing hints) |
+| Total sprint cost | $250.40 |
+| Total tests | 4,625 |
+| Coverage | 96.85% |
+| HIGH bugs caught by review | 2 (this session), 32+ (full sprint) |
+
+### Priority for Next Session
+
+1. **Complete story 15-3** to close Epic 15 and the sprint.
+2. **Fix `require-yield` lint (#99)** — 2-minute fix, 7+ sessions of accumulated noise.
+3. **Fix `migration.test.ts` failure (#100)** — pre-existing but blocks clean green on test runs.

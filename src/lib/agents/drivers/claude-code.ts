@@ -160,6 +160,7 @@ export class ClaudeCodeDriver implements AgentDriver {
     supportsPlugins: true,
     supportsStreaming: true,
     costReporting: true,
+    costTier: 3,
   };
 
   private lastCost: number | null = null;

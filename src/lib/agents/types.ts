@@ -28,6 +28,18 @@ export interface DriverCapabilities {
   readonly supportsPlugins: boolean;
   readonly supportsStreaming: boolean;
   readonly costReporting: boolean;
+  readonly costTier: number;
+}
+
+/**
+ * A capability conflict or routing hint warning.
+ * Pure data — no side effects. Used by checkCapabilityConflicts().
+ */
+export interface CapabilityWarning {
+  readonly taskName: string;
+  readonly driverName: string;
+  readonly capability: string;
+  readonly message: string;
 }
 
 /**

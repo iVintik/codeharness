@@ -81,6 +81,7 @@ describe('ClaudeCodeDriver', () => {
         supportsPlugins: true,
         supportsStreaming: true,
         costReporting: true,
+        costTier: 3,
       });
     });
   });

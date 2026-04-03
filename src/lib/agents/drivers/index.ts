@@ -3,7 +3,7 @@
  * Re-exports all public symbols from the driver factory.
  */
 
-export { getDriver, registerDriver, listDrivers, resetDrivers } from './factory.js';
+export { getDriver, registerDriver, listDrivers, resetDrivers, suggestCheaperDriver } from './factory.js';
 export { ClaudeCodeDriver } from './claude-code.js';
 export { CodexDriver } from './codex.js';
 export { OpenCodeDriver } from './opencode.js';

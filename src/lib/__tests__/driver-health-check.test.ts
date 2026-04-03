@@ -40,6 +40,12 @@ const {
 
 vi.mock('../agents/drivers/factory.js', () => ({
   getDriver: mockGetDriver,
+  suggestCheaperDriver: vi.fn().mockReturnValue(null),
+  listDrivers: vi.fn().mockReturnValue([]),
+}));
+
+vi.mock('../agents/capability-check.js', () => ({
+  checkCapabilityConflicts: vi.fn().mockReturnValue([]),
 }));
 
 vi.mock('../agents/model-resolver.js', () => ({
@@ -126,7 +132,7 @@ function makeMockDriver(name: string, health: DriverHealth) {
   return {
     name,
     defaultModel: 'test-model',
-    capabilities: { supportsPlugins: false, supportsStreaming: true, costReporting: true },
+    capabilities: { supportsPlugins: false, supportsStreaming: true, costReporting: true, costTier: 1 },
     healthCheck: vi.fn().mockResolvedValue(health),
     dispatch: vi.fn(),
     getLastCost: vi.fn().mockReturnValue(null),
@@ -281,7 +287,7 @@ describe('checkDriverHealth', () => {
     const hangingDriver = {
       name: 'claude-code',
       defaultModel: 'test-model',
-      capabilities: { supportsPlugins: false, supportsStreaming: true, costReporting: true },
+      capabilities: { supportsPlugins: false, supportsStreaming: true, costReporting: true, costTier: 1 },
       // Resolves after 200ms — longer than the 50ms timeout we'll pass
       healthCheck: vi.fn().mockImplementation(() => new Promise((resolve) => {
         setTimeout(() => resolve(makeHealthy()), 200);
@@ -309,7 +315,7 @@ describe('checkDriverHealth', () => {
     const fastDriver = {
       name: 'fast-driver',
       defaultModel: 'test-model',
-      capabilities: { supportsPlugins: false, supportsStreaming: true, costReporting: true },
+      capabilities: { supportsPlugins: false, supportsStreaming: true, costReporting: true, costTier: 1 },
       healthCheck: vi.fn().mockResolvedValue(makeHealthy()),
       dispatch: vi.fn(),
       getLastCost: vi.fn().mockReturnValue(null),
@@ -317,7 +323,7 @@ describe('checkDriverHealth', () => {
     const slowDriver = {
       name: 'slow-driver',
       defaultModel: 'test-model',
-      capabilities: { supportsPlugins: false, supportsStreaming: true, costReporting: true },
+      capabilities: { supportsPlugins: false, supportsStreaming: true, costReporting: true, costTier: 1 },
       healthCheck: vi.fn().mockImplementation(() => new Promise(() => { /* never resolves */ })),
       dispatch: vi.fn(),
       getLastCost: vi.fn().mockReturnValue(null),

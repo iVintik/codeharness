@@ -8,7 +8,7 @@
  * @see architecture-multi-framework.md — "Register in factory.ts — never auto-discover"
  */
 
-import type { AgentDriver } from '../types.js';
+import type { AgentDriver, DriverCapabilities } from '../types.js';
 
 const registry = new Map<string, AgentDriver>();
 
@@ -64,4 +64,47 @@ export function listDrivers(): string[] {
  */
 export function resetDrivers(): void {
   registry.clear();
+}
+
+/**
+ * Suggest a cheaper registered driver whose capabilities satisfy the required capabilities.
+ *
+ * Returns the name of the cheapest capable driver if it is cheaper than the current driver,
+ * or `null` if the current driver is already the cheapest capable option.
+ *
+ * @param driverName - The current driver name.
+ * @param requiredCaps - Partial capability flags the task requires (only boolean fields checked).
+ * @returns The cheaper driver name or null.
+ */
+export function suggestCheaperDriver(
+  driverName: string,
+  requiredCaps: Partial<DriverCapabilities>,
+): string | null {
+  const current = registry.get(driverName);
+  if (!current) return null;
+
+  let cheapestName: string | null = null;
+  let cheapestTier = Infinity;
+
+  for (const [name, driver] of registry) {
+    // Check that this driver satisfies all required boolean capabilities
+    let satisfies = true;
+    for (const [key, value] of Object.entries(requiredCaps)) {
+      if (typeof value === 'boolean' && value === true) {
+        if (!(driver.capabilities as Record<string, unknown>)[key]) {
+          satisfies = false;
+          break;
+        }
+      }
+    }
+    if (satisfies && driver.capabilities.costTier < cheapestTier) {
+      cheapestTier = driver.capabilities.costTier;
+      cheapestName = name;
+    }
+  }
+
+  if (cheapestName && cheapestTier < current.capabilities.costTier) {
+    return cheapestName;
+  }
+  return null;
 }

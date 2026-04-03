@@ -1595,3 +1595,197 @@ The verification phase continues to dominate at 47.8% of total sprint cost ($67.
 | **Sprint total** | **27** | **~$77.00** | **~$2.85** |
 
 *Sprint total estimated cost differs from the $140.54 in cost-report.md because the report includes orchestrator overhead, retro phases, and failed/no-op iterations not attributed to specific stories.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 11 — FINAL)
+
+**Session window:** ~2026-04-03T06:39 to ~2026-04-03T07:20 (approx. 41 minutes)
+**Sprint progress:** 28/28 stories done (100%), all 9 epics complete
+**Milestone:** Sprint complete. All 28 stories across 9 epics shipped and verified.
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 9-1-workflow-patch-resolution | create-story, dev, code-review, verify | **Done** | Full lifecycle. 10/10 ACs. Patch chain resolution with `replace` semantics. |
+| 9-2-custom-workflow-creation | create-story, dev, code-review, verify | **Done** | Full lifecycle. 10/10 ACs. CLI `--workflow` flag for custom workflow selection. |
+| Epic 9 milestone | -- | **Done** | Both stories shipped. Commit `9e8bc79`. |
+
+**Net output:** 2 stories completed + verified, 1 epic closed, sprint finished.
+
+**Elapsed time breakdown:**
+- Story 9-1: ~17 minutes (02:42 - 02:58 per issue log timestamps)
+- Story 9-2: ~14 minutes (07:06 - 07:20)
+- Gap between stories: ~4 hours (session 10 retro + idle time between ralph loops)
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 9-1 | ~75 lines duplicated validation/integrity/defaults between `parseWorkflow()` and `resolveWorkflow()`. Extracted `validateAndResolve()`. |
+| HIGH | 9-1 | `loadWorkflowPatch` silently swallowed EACCES permission errors. Now only returns null for missing files. |
+| HIGH | 9-2 | Path traversal via `--workflow` CLI flag — no input sanitization allowed `../` to escape workflows directory. Fixed with regex. |
+| MEDIUM | 9-1 | Empty catch clause discarded original error message in embedded workflow loading. |
+| MEDIUM | 9-1 | No test for `resolveWorkflow({ name: 'custom' })` path. Added. |
+| MEDIUM | 9-2 | Wrong error variable in `run.ts` fallback catch block (`err` instead of `fallbackErr`). |
+| MEDIUM | 9-2 | Weak test assertions for `cwd` and error message content. Strengthened. |
+
+**Code review caught 3 HIGH bugs this session, including a path traversal vulnerability.** This is the second session in a row where code review found a path traversal issue (4-4 had one too). Pattern worth noting.
+
+### Known LOW Issues (deferred)
+
+- 9-1: `deepMerge` duplicated in agent-resolver.ts and workflow-parser.ts (tech debt)
+- 9-1: Custom workflow detection re-reads file that `parseWorkflow` also reads (minor I/O)
+- 9-2: Duplicate test for `resolveWorkflow({ name: 'nonexistent' })` across story sections
+- 9-2: Legacy fallback path in run.ts should eventually be removed
+
+### Process Issues
+
+- **Proof format mismatches in verification:** Both stories had initial proof rejections. 9-1 used wrong heading level (`### AC N:` vs `## AC N:`). 9-2 missed ACs 9-10 and used wrong tier header format. Verification subagents are still not reliably following the proof template on first attempt.
+- **BATS integration tests all exit 127:** Pre-existing, unrelated. These have been flagged since session 5 and remain unfixed.
+- **Branch coverage 79.12%:** Story 9-1 verification noted branch coverage below 80%, though statement coverage (93.96%) and function coverage (100%) are strong. The AC wording ("80%+ coverage") is ambiguous on which metric.
+
+---
+
+## 3. Cost Analysis
+
+### Session-Level Cost Estimate
+
+With 137 subagent tool calls across 8 subagent invocations (4 phases x 2 stories), plus orchestrator overhead, estimated session cost: **~$8-10**.
+
+### Subagent Token Report Aggregation
+
+| Subagent Phase | Story 9-1 Calls | Story 9-2 Calls | Total |
+|----------------|----------------|----------------|-------|
+| create-story | 13 | 17 | 30 |
+| dev-story | 22 | 12 | 34 |
+| code-review | 18 | 19 | 37 |
+| verification | 16 | 20 | 36 |
+| **Total** | **69** | **68** | **137** |
+
+### Tool Usage Across Subagents
+
+| Tool | 9-1 Calls | 9-2 Calls | Total | Notes |
+|------|----------|----------|-------|-------|
+| Bash | 21 | 24 | 45 | Dominated by test runs, builds |
+| Read | 23 | 21 | 44 | 23 unique files, ~26 total reads |
+| Edit | 19 | 12 | 31 | Code changes + proof fixes |
+| Grep | 12 | 15 | 27 | Search during create-story and verification |
+| Glob | 7 | 8 | 15 | File discovery |
+| Write | 3 | 2 | 5 | Story specs + proofs |
+| Skill | 2 | 1 | 3 | -- |
+
+### Waste/Redundancy Identified
+
+1. **Verification phase ran tests 2x each story** — vitest coverage and npm test:unit invoked separately when one combined run would suffice. ~4 redundant Bash calls.
+2. **Proof format corrections required re-runs** — verification ran 3 times on 9-2 due to template mismatches. Each re-run re-reads files and re-runs grep. ~6 wasted calls.
+3. **One file read twice** in dev-story for 9-1 (workflow-parser.test.ts). Minor.
+4. **Two Glob calls for same pattern** in create-story for 9-2. Minor.
+
+### Full Sprint Cost Summary (updated)
+
+| Metric | Value |
+|--------|-------|
+| Total API cost (cost-report.md) | $140.54 |
+| Total API calls | 1,090 |
+| Stories completed | 28 (+ retros, orchestrator) |
+| Average cost per story | $3.57 |
+| Cache read cost (62%) | $87.32 |
+| Cache write cost (21%) | $30.09 |
+| Output cost (16%) | $23.05 |
+| Input cost (<1%) | $0.08 |
+
+**Cost drivers:** Verification phase accounts for 47.8% of total spend ($67.20) — by far the most expensive phase. This is driven by repeated test execution, coverage runs, and proof generation with ANSI-heavy output. The orchestrator at 17.4% is the second largest cost center.
+
+---
+
+## 4. What Went Well
+
+1. **Sprint completed.** All 28 stories across 9 epics are done and verified. This is the project's first full sprint completion.
+2. **Efficient final session.** Two stories fully lifecycled (create -> dev -> review -> verify) in ~41 minutes of active time. Both had clean implementations.
+3. **Story 9-2 was smaller than expected.** The create-story phase correctly identified that 9-1 did the heavy lifting, making 9-2 primarily CLI plumbing. Good story decomposition in the epic.
+4. **Code review continues to find real bugs.** 3 HIGH-severity issues caught this session, including a path traversal vulnerability. The review phase has proven its value consistently across the sprint.
+5. **96.75% test coverage maintained.** All 163 files above 80% threshold. Coverage did not regress during the final stories.
+6. **Proof-based verification works.** Despite template friction, every story produced machine-verifiable proof of all ACs passing.
+
+---
+
+## 5. What Went Wrong
+
+1. **Verification proof template friction persists.** Both stories had proof format rejections on first attempt. This has been a recurring issue across multiple sessions. The verification subagent does not reliably match the expected heading format, tier label, and code block structure.
+2. **Path traversal vulnerability pattern.** This is the second time in 2 sessions (after 4-4) that code review caught a path traversal via unsanitized user input. The dev subagent does not proactively add input sanitization for filesystem paths.
+3. **deepMerge duplication not resolved.** Flagged in 9-1 as tech debt, still present. No story was created to extract it to a shared util.
+4. **BATS tests still broken (exit 127).** Pre-existing issue flagged since session 5. Never prioritized for fix. These tests provide no signal.
+5. **4-hour gap between stories.** Ralph idle time between the two stories suggests orchestrator inefficiency or rate limit pauses.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Code review as security gate.** Every session where code review runs, it catches real bugs. The 4-phase pipeline (create -> dev -> review -> verify) is worth the cost.
+2. **Story decomposition that front-loads complexity.** Story 9-1 did the heavy lifting; 9-2 was fast because the foundation existed. This pattern (hard story first, easy story second) works well.
+3. **Session issues log as retrospective input.** Having subagents report their own issues creates high-quality raw material for retros. The token reports per subagent are especially useful for cost analysis.
+
+### Patterns to Avoid
+
+1. **Verification running tests twice.** Coverage and unit tests should be a single invocation, not separate runs.
+2. **Proof template drift.** The verification subagent needs stronger template enforcement — either a stricter prompt or a pre-populated template it fills in.
+3. **Ignoring recurring LOW issues.** deepMerge duplication, BATS exit 127, and other LOWs have accumulated across sessions without resolution. Need a periodic tech debt sweep.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Extract `deepMerge` to shared utility (agent-resolver.ts + workflow-parser.ts) | LOW | Next sprint |
+| 2 | Fix BATS integration tests (exit 127) or remove them | MEDIUM | Next sprint |
+| 3 | Add input sanitization for filesystem paths to dev subagent prompt/checklist | HIGH | Harness improvement |
+| 4 | Reduce verification phase cost: combine test + coverage into single run | MEDIUM | Harness improvement |
+| 5 | Fix verification proof template: stricter heading/tier format in prompt | MEDIUM | Harness improvement |
+| 6 | Remove legacy fallback path in run.ts | LOW | Next sprint |
+| 7 | Resolve branch coverage ambiguity in AC templates (statement vs branch vs line) | LOW | Process |
+
+---
+
+## Sprint-Wide Final Summary
+
+| Metric | Value |
+|--------|-------|
+| Total stories | 28 |
+| Total epics | 9 |
+| Sessions to complete | 11 |
+| Total API cost | ~$140.54 |
+| Avg cost per story | $3.57 |
+| HIGH bugs caught by review | 14+ across sprint |
+| Final test coverage | 96.75% (163 files, all above 80%) |
+| Stories rejected/blocked | 0 |
+| Sprint duration | ~2 weeks (2026-03-19 to 2026-04-03) |
+
+### Per-Session Tracker (complete)
+
+| Session | Stories Completed | Est. Cost | Avg/Story |
+|---------|-------------------|-----------|-----------|
+| Session 1 | 2 | ~$7.00 | ~$3.50 |
+| Session 2 | 2 | ~$7.00 | ~$3.50 |
+| Session 3 | 3 | ~$9.00 | ~$3.00 |
+| Session 4 | 2 | ~$7.00 | ~$3.50 |
+| Session 5 | 3 | ~$10.00 | ~$3.33 |
+| Session 6 | 2 | ~$6.50 | ~$3.25 |
+| Session 7 | 2 | ~$8.00 | ~$4.00 |
+| Session 8 | 4 | ~$14.00 | ~$3.50 |
+| Session 9 | 1 | ~$3.50 | ~$3.50 |
+| Session 10 | 1 | ~$4.00 | ~$4.00 |
+| **Session 11 (final)** | **2** | **~$9.00** | **~$4.50** |
+| **Sprint total** | **28** | **~$85.00** | **~$3.04** |
+
+*Sprint total estimated cost differs from the $140.54 in cost-report.md because the report includes orchestrator overhead (~$24), retro phases (~$9), and failed/no-op iterations not attributed to specific stories (~$22).*

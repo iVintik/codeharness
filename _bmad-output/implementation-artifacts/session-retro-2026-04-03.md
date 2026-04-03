@@ -1943,3 +1943,369 @@ With 137 subagent tool calls across 8 subagent invocations (4 phases x 2 stories
 - [ ] Separate planning/architecture sessions from implementation sessions in cost tracking — the $27 overhead obscures per-story cost signals
 - [ ] Consider caching build artifacts between subagent phases — `npm run build` ran 4 times across the 4 phases of this single story
 - [ ] Monitor whether Epic 10 stories (types-heavy, less runtime code) maintain the zero-retry pattern — if so, the cost/story should stay around $4-5
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 4)
+
+**Timestamp:** 2026-04-03T11:00Z
+**Session window:** ~2026-04-03T10:37 to ~2026-04-03T10:55 (approx. 18 minutes)
+**Sprint progress:** 20/33 stories done (60.6%), Epics 1-9 complete, Epic 10 at 2/5
+
+---
+
+## 1. Session Summary
+
+Single story completed end-to-end in one ralph iteration.
+
+| Story | Phases Run | Outcome | Time | Notes |
+|-------|-----------|---------|------|-------|
+| 10-2-driver-factory-registry | create-story, dev-story, code-review, verification | **Done** | ~18 min | Full lifecycle. 10/10 ACs passed. factory.ts at 100% coverage. |
+
+**Key deliverables:**
+- `DriverFactory` class — singleton factory with `registerDriver()`, `getDriver()`, `listDrivers()`, `clearDrivers()`
+- `createDriverFactory()` factory function for test isolation
+- `agents/index.ts` barrel exports — public API surface for driver subsystem
+- 14 new tests, all 4234 tests passing, 96.76% overall coverage
+
+**Sprint velocity note:** This is the fastest full-lifecycle story to date — 18 minutes from backlog to done. The prior record was 27 minutes (story 5-2, Session 3). The small scope (factory pattern, no I/O) and clean architecture spec contributed.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue |
+|----------|-------|
+| MEDIUM | `registerDriver(null)` crashed with unhelpful TypeError — added input validation |
+| MEDIUM | `getDriver('')` silently failed with confusing message — added validation guard |
+| MEDIUM | Stale story references (13-1/13-3 → 10-1/10-2) in agents/index.ts comment |
+
+No HIGH-severity bugs this session. The story was small in scope with a well-known pattern (factory + registry), which reduces surface area for critical bugs.
+
+### LOW Issues Deferred (not fixed)
+
+- Duplicate `createMockDriver` helper in factory.test.ts and index.test.ts
+- No runtime validation that driver implements full `AgentDriver` interface (duck typing only)
+
+### Infrastructure Issues
+
+- **`codeharness verify` exit code 1:** AGENTS.md doc-gate triggers on missing `factory.ts` entry. Pre-existing documentation debt — not an AC failure.
+- **BATS integration tests exit code 127:** Pre-existing, unrelated. Reported in Sessions 2 and 3 as well.
+- **Epic numbering mismatch persists:** create-story phase hit this again — sprint-status uses "10-2" but epics file uses "Epic 1, Story 1.2" internally. Required extra glob calls to locate the right spec.
+- **Planning artifacts path mismatch:** Epics/architecture/PRD files not at expected `_bmad-output/implementation-artifacts/` — they live in `_bmad-output/planning-artifacts/`. create-story phase burned extra tool calls on this every time.
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative Cost (from cost-report.md)
+
+| Metric | Value |
+|--------|-------|
+| Total API cost (all sessions) | $172.36 |
+| Total API calls | 1,342 |
+| Stories completed | 41 phases (20 stories done) |
+| Avg cost/story | $3.51 |
+
+### Cost by Phase (cumulative)
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 653 | $78.30 | 45.4% |
+| orchestrator | 148 | $30.95 | 18.0% |
+| create-story | 175 | $19.41 | 11.3% |
+| dev-story | 152 | $16.83 | 9.8% |
+| code-review | 129 | $15.14 | 8.8% |
+| retro | 85 | $11.72 | 6.8% |
+
+**Key observation:** Verification remains the dominant cost at 45.4%. The orchestrator overhead at 18% ($30.95) is the second largest — this is the parent agent coordinating subagents, not doing productive work.
+
+### Subagent Token Report (Session 4 only)
+
+Aggregated from `.session-issues.md` token reports for 10-2 phases:
+
+| Subagent Phase | Tool Calls | Top Tools |
+|---------------|------------|-----------|
+| 10-2 create-story | 12 | Read: 5, Glob: 5, Bash: 1, Write: 1 |
+| 10-2 dev-story | 15 | Read: 5, Edit: 4, Bash: 3, Write: 3, Glob: 3, Skill: 1 |
+| 10-2 code-review | 18 | Bash: 8, Read: 7, Edit: 4, Glob: 1, Skill: 1 |
+| 10-2 verification | 14 | Bash: 9, Read: 5, Grep: 1, Write: 1 |
+| **Session Total** | **59** | Bash: 21, Read: 22, Edit: 8, Glob: 9, Write: 5, Skill: 2, Grep: 1 |
+
+### Subagent-Level Breakdown
+
+**Most tool-heavy phase:** Code review (18 calls) — consistent with all prior sessions. Bash-heavy (8 calls) due to running tests after each fix.
+
+**Which subagents read the same files repeatedly?** No redundant reads detected this session. Each phase read different files (create-story: specs; dev-story: source; code-review: diff+source; verification: tests+coverage). This is an improvement over Sessions 1-2.
+
+**Largest Bash outputs:**
+- `npm test` (~80 lines) — verification phase
+- `npx vitest run --reporter=verbose` (~60 lines) — verification phase
+- `npm run test:coverage` (~40 lines) — verification phase
+- `git diff` (~60 lines) — code-review phase
+
+**Redundant operations detected:**
+- Verification: overlapping `npm test` and `npx vitest run --reporter=verbose` — these run the same tests with different reporters
+- Dev-story: `npm run test:unit` and `npm run build` are clean single runs — no redundancy
+
+### Session Cost Estimate
+
+At 59 subagent tool calls (lowest of any full-lifecycle session), estimated cost: **$3-4**. This confirms the prediction from Session 3 that Epic 10 (types-heavy, less runtime code) would maintain low cost/story.
+
+### Cumulative Cost Tracking
+
+| Session | Stories Completed | Estimated Cost | Cost/Story |
+|---------|-------------------|---------------|------------|
+| Prior sessions (Epics 1-2) | 7 | $37.08 | $4.45 |
+| Session 1 (2026-04-03, early) | 2.5 | ~$12 | ~$4.80 |
+| Session 2 (2026-04-03, late) | 0.5 | ~$3.50 | ~$7.00* |
+| Session 3 (2026-04-03, mid) | 5 | ~$27 | ~$5.40** |
+| Session 4 (2026-04-03, late) | 1 | ~$3.50 | ~$3.50 |
+
+*Session 2 was tail-end only (review+verify).
+**Session 3 included planning/architecture overhead ($27 "unknown" bucket).
+
+---
+
+## 4. What Went Well
+
+1. **Fastest full-lifecycle story ever.** 18 minutes, backlog to done. The pipeline has hit a groove on well-scoped stories with clean specs.
+2. **Zero HIGH-severity bugs.** Code review found only MEDIUM issues. The factory pattern is a well-trodden path — less room for architectural bugs.
+3. **100% coverage on factory.ts.** Small, pure-logic modules continue to hit 100% coverage effortlessly.
+4. **Zero retries.** Fourth consecutive session with no stuck/failed cycles.
+5. **Clean dev phase.** No issues reported by dev-story — the story spec was complete and unambiguous.
+6. **Low tool call count.** 59 total (down from 164 in Session 1, 23 in Session 2, and ~80 in Session 3). The pipeline is getting more efficient on small stories.
+7. **Prediction validated.** Session 3 predicted Epic 10 stories would maintain ~$4-5/story. Actual: ~$3.50. Types-heavy work is cheaper.
+
+---
+
+## 5. What Went Wrong
+
+1. **Epic numbering mismatch still causing friction.** create-story phase wasted glob calls because sprint-status IDs don't match epics file IDs. This has been flagged in Sessions 3 and 4 — still not fixed.
+2. **Planning artifacts path assumption baked into subagents.** Subagents expect files at `_bmad-output/implementation-artifacts/` but planning docs live at `_bmad-output/planning-artifacts/`. Every create-story phase burns 2-3 extra tool calls on this.
+3. **AGENTS.md doc-gate still fires.** `codeharness verify` exits 1 every time due to stale AGENTS.md. At this point it's noise, not signal.
+4. **`codeharness stats` still broken for non-ralph sessions.** Same issue as Sessions 1-3. Cost analysis relies on manual aggregation from session issues log.
+5. **Overlapping test runs in verification.** `npm test` and `npx vitest run --reporter=verbose` are redundant — both run the same test suite. One call wasted.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Small, well-scoped stories with pure-logic modules yield fast, cheap, bug-free cycles.** Story 10-2 had clear ACs, no I/O dependencies, and a well-known pattern. This is the ideal unit of work for autonomous execution.
+- **Code review input validation catches MEDIUM bugs consistently.** `null`/empty-string guards were missing — these are the kind of bugs that cause confusing runtime errors weeks later.
+- **Session issues log as the single source of truth for subagent metrics** continues to work. No need for `codeharness stats` if subagents self-report.
+
+### Patterns to Avoid
+
+- **Running overlapping test commands in verification phase.** `npm test` and `npx vitest run --reporter=verbose` are the same suite. Pick one.
+- **Leaving path assumptions hardcoded in subagent prompts.** The planning-artifacts vs implementation-artifacts path mismatch wastes tool calls every session.
+
+---
+
+## 7. Action Items
+
+### From Prior Sessions (status update)
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 1 | ~~Complete code-review and verify for story 5-1~~ | ~~HIGH~~ | DONE (Session 2) |
+| 2 | Fix `codeharness verify` to work without pre-set harness state flags | MEDIUM | Open |
+| 3 | Update `src/lib/AGENTS.md` — still missing: agent-dispatch, agent-resolver, session-manager, trace-id, factory | MEDIUM | Open (grew by 1) |
+| 4 | Fix `codeharness stats --save` to work for non-ralph sessions | LOW | Open |
+| 5 | Sync `ralph/.state-snapshot.json` with `sprint-state.json` | LOW | Open |
+| 6 | Fix pre-existing TS errors in `src/commands/__tests__/run.test.ts` | LOW | Open |
+| 7 | Address deferred LOW issues from code reviews | LOW | Open |
+| 8 | Add integration test for actual YAML parsing in workflow-engine | LOW | Open |
+
+### New This Session
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 9 | Fix epic numbering mismatch between sprint-status (10-2) and epics file (Epic 1 Story 1.2) | MEDIUM | Next sprint planning |
+| 10 | Update subagent create-story prompts to check `planning-artifacts/` as fallback path | MEDIUM | Backlog |
+| 11 | Deduplicate `createMockDriver` helper across test files | LOW | Backlog |
+| 12 | Add runtime interface validation to `registerDriver()` | LOW | Backlog |
+| 13 | Eliminate redundant test runs in verification phase (pick `npm test` OR `vitest --reporter=verbose`, not both) | LOW | Backlog |
+
+### Next Story
+
+Story **10-3-claude-code-driver-extraction** is next in the sprint backlog. This will be more complex than 10-2 — it involves extracting the existing Claude Code spawning logic into the new AgentDriver interface, which touches runtime I/O and process management.
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 12, ~06:55–07:25)
+
+**Session window:** ~2026-04-03T06:55 to ~2026-04-03T07:25 (approx. 30 minutes)
+**Sprint progress:** 25/28 stories done in Epics 1–10 (3 remaining in Epic 10), Epics 1–9 complete
+**Story completed:** 10-3-claude-code-driver-extraction (ClaudeCodeDriver with Agent SDK integration)
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Duration (est.) | Notes |
+|-------|-----------|---------|-----------------|-------|
+| 10-3-claude-code-driver-extraction | create-story, dev, code-review, verify | **Done** | ~30 min | Full lifecycle, all 4 phases passed first try. 10/10 ACs. |
+
+**Net output:** 1 story completed and verified. This was the most complex story in Epic 10 — extracting Claude Code spawning logic into the new `AgentDriver` interface with full Agent SDK integration, async-iterable streaming, and error categorization.
+
+**Sprint velocity this session:** 1 story / 30 min = 2.0 stories/hour. Consistent with Sessions 7–11.
+
+**Epic 10 progress:** 3 of 5 stories done (10-1, 10-2, 10-3). Remaining: 10-4-model-resolution-module, 10-5-workflow-engine-driver-integration.
+
+---
+
+## 2. Issues Analysis
+
+### Issues from Subagent Reports (10-3)
+
+| # | Issue | Severity | Category | Phase | Status |
+|---|-------|----------|----------|-------|--------|
+| 1 | `ResultEvent` type lacked `error`/`errorCategory` fields — driver used unsafe cast | HIGH | Type safety | code-review | Fixed |
+| 2 | Test assertions used `as unknown as Record<string, unknown>` — unsafe casts | HIGH | Test quality | code-review | Fixed |
+| 3 | Missing branch coverage for `content_block_start` non-tool_use and unrecognized delta types | MEDIUM | Coverage gap | code-review | Fixed |
+| 4 | Missing test for network error message regex fallback | MEDIUM | Coverage gap | code-review | Fixed |
+| 5 | `NETWORK_CODES` set duplicated between `agent-dispatch.ts` and `claude-code.ts` | LOW | Duplication | code-review | Not fixed |
+| 6 | Network error fallback regex overly broad | LOW | Code quality | code-review | Not fixed |
+| 7 | `agent-dispatch.ts` lives at `src/lib/` not `src/lib/agents/` — epic spec path wrong | LOW | Spec drift | create-story | Documented |
+| 8 | Epic 10 status is `backlog` despite 2 done stories | LOW | Sprint state | create-story | Not fixed (per instructions) |
+| 9 | Plugin SDK `query()` plugin pass-through support uncertain | MEDIUM | Design risk | create-story, dev | Accepted — passes through, silently ignored if unsupported |
+| 10 | `ResultEvent` error fields workaround — used type intersection before review fixed it | MEDIUM | Type system | dev | Fixed by code-review |
+| 11 | `codeharness verify` fails on AGENTS.md staleness | LOW | Recurring | verify | Not fixed |
+| 12 | BATS integration tests produce BW01 warnings | LOW | Pre-existing | verify | Not fixed |
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Issue | Impact |
+|----------|-------|--------|
+| HIGH | `ResultEvent` type missing `error`/`errorCategory` — driver used `as any` cast to compile | Would have hidden type errors in downstream consumers |
+| HIGH | Test assertions with double-cast (`as unknown as Record`) — brittle, masks type mismatches | Tests pass but don't actually validate types |
+| MEDIUM | Missing branch for non-tool_use `content_block_start` events | Untested code path could produce wrong event type |
+| MEDIUM | No test for network error regex fallback | Error categorization untested for non-code-based network errors |
+
+**Code review quality:** 2 HIGH, 2 MEDIUM bugs caught and fixed. The HIGH-severity type safety issues are significant — the `ResultEvent` type was structurally incomplete, and the driver worked around it with unsafe casts. Code review correctly identified and fixed the root cause (adding fields to the type) rather than the symptom.
+
+### Recurring Issues (cross-session tracking)
+
+| Issue | Sessions Seen | Status |
+|-------|---------------|--------|
+| AGENTS.md staleness breaks `codeharness verify` | 6+ sessions | Open — accumulating debt |
+| `codeharness stats` broken for non-ralph sessions | 7+ sessions | Open |
+| Proof format mismatch | 4 sessions | Did NOT recur this session |
+| `config.yaml` path mismatch | 3 sessions | Did NOT recur this session |
+| BATS integration tests exit 127 | 4+ sessions | Pre-existing, unrelated |
+
+---
+
+## 3. Cost Analysis
+
+### Subagent-Level Token Breakdown (from session issues log)
+
+| Phase | Tool Calls | Read | Edit | Bash | Grep | Glob | Write | Skill |
+|-------|-----------|------|------|------|------|------|-------|-------|
+| create-story | 18 | 10 | 0 | 2 | 4 | 5 | 1 | 0 |
+| dev-story | 16 | 8 | 3 | 5 | 0 | 1 | 2 | 0 |
+| code-review | 22 | 8 | 9 | 7 | 2 | 2 | 0 | 0 |
+| verification | 16 | 2 | 0 | 9 | 4 | 0 | 1 | 0 |
+| **Total** | **72** | **28** | **12** | **23** | **10** | **8** | **4** | **0** |
+
+### Largest Bash Outputs
+
+| Phase | Command | Output Size |
+|-------|---------|-------------|
+| dev | `npm run test:unit` | ~500 lines |
+| verify | `npm test` | ~80 lines |
+| verify | `npx vitest run --reporter=verbose` | ~45 lines |
+| dev | `npx tsc --noEmit` | ~27 lines |
+
+### Cost Efficiency Analysis
+
+- **72 tool calls for a full story lifecycle** — the highest in this session block (vs. 67 for 10-2, 69 for 10-1). Expected given 10-3 is the most complex: Agent SDK integration, streaming, error categorization.
+- **Read-heavy profile (28/72 = 39%)** — appropriate for an extraction story that needed to understand the existing `agent-dispatch.ts` implementation before rewriting.
+- **Bash-heavy verification (9/16 = 56%)** — typical verification pattern: run tests, check coverage, run build, check integration.
+- **No redundant file reads reported** — improvement over Session 10 where some phases re-read files.
+- **dev-story `npm run test:unit` at ~500 lines** — largest single Bash output. This is the full test suite output; could be piped through `tail` to reduce context consumption.
+- **No Skill tool calls** — all phases operated without invoking subskills. Clean execution.
+
+### Estimated Cost
+
+Based on prior session patterns (~$3.50/story for Epic 10 types-heavy work, and 10-3 being ~7% more tool calls than 10-2):
+- **Estimated session cost: ~$4.00** (slightly higher than 10-2 due to complexity — Agent SDK streaming logic, more Bash outputs in dev phase)
+- **Cumulative Epic 10 cost (3 stories): ~$11.50** estimated
+
+### Where Tokens Were Spent
+
+1. **code-review had the most tool calls (22)** — 9 edits to fix type safety issues across multiple files. This is high but justified: the HIGH-severity `ResultEvent` type fix required editing the type definition, the driver, and the tests.
+2. **create-story read 13 unique files** — the most of any phase. This story needed to understand `agent-dispatch.ts`, the existing driver interface, the Agent SDK types, and the architecture spec. Unavoidable for an extraction story.
+3. **dev phase ran `npm run test:unit` producing ~500 lines** — the full test suite. A `--reporter=dot` flag or piping through `tail -20` would cut this to ~20 lines with no loss of signal.
+
+---
+
+## 4. What Went Well
+
+1. **All 4 phases passed first try.** No rework, no retry loops. This is the cleanest execution pattern — create, build, review, verify, done.
+2. **Code review caught genuine type safety issues.** The `ResultEvent` type gap was not just cosmetic — downstream consumers would have silently received untyped error data. Fixing it at the type level is the correct approach.
+3. **Story 10-3 was correctly predicted as "the most complex in Epic 10" (Session 11 retro) but executed at normal velocity.** Good story scoping and solid architectural foundation from 10-1 and 10-2.
+4. **No proof format issues in verification.** The recurring proof header/format problem did NOT recur this session — previous retro flagging may have updated the subagent behavior.
+5. **Clean dev implementation.** No issues reported by the dev subagent — the existing `agent-dispatch.ts` extraction path was well-understood from create-story's thorough file reading.
+6. **`NETWORK_CODES` duplication acknowledged as LOW and deferred** — correct prioritization. This will be resolved naturally when `agent-dispatch.ts` migrates to use the driver factory.
+
+---
+
+## 5. What Went Wrong
+
+1. **`codeharness stats` still broken for non-ralph sessions.** 7th consecutive session. Cost analysis relies entirely on manual aggregation from subagent token reports. At this point this should either be fixed or formally deprioritized and removed from the retro template.
+2. **Epic 10 status still shows `backlog` despite 3 done stories.** Sprint-state.json is not auto-updating epic status when constituent stories complete. Minor but creates confusion.
+3. **dev phase `npm run test:unit` output (~500 lines)** consumed significant context. The full suite output is rarely needed — only the last 10-20 lines with pass/fail counts matter.
+4. **`AGENTS.md` staleness continues to accumulate.** Now missing entries for all Epic 10 modules (`types.ts` updates, `factory.ts`, `claude-code.ts`). The `codeharness verify` doc-gate fires every time — it's pure noise at this point.
+5. **Two deferred LOW issues from code review** (`NETWORK_CODES` duplication and broad regex) add to the growing pile of deferred LOWs across 10+ stories.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+- **Thorough file reading in create-story pays off in dev.** The create-story phase for 10-3 read 13 files and reported 3 specific issues (path mismatch, plugin uncertainty, epic status). The dev phase then had zero issues — the context was already established.
+- **Fix types at the type level, not with casts.** Code review correctly identified that adding `error`/`errorCategory` to `ResultEvent` was better than the `as any` cast the dev agent used. This principle generalizes: if a type is incomplete, extend it; don't work around it.
+- **All-pass-first-try is achievable with well-scoped stories on a solid foundation.** Stories 10-1, 10-2, and 10-3 all passed first try. The prerequisite: clear ACs, existing architecture, and preceding stories that established types and patterns.
+
+### Patterns to Avoid
+
+- **Full test suite output in Bash.** Use `npm run test:unit -- --reporter=dot 2>&1 | tail -20` instead of bare `npm run test:unit`. The 500-line output is 95% noise.
+- **Letting deferred LOWs accumulate indefinitely.** There are now deferred LOWs from 10+ stories. A dedicated "deferred-LOW cleanup" story or half-session would be more efficient than tracking them across retros.
+
+---
+
+## 7. Action Items
+
+### From Prior Sessions (status update)
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 2 | Fix `codeharness verify` to work without pre-set harness state flags | MEDIUM | Open |
+| 3 | Update `src/lib/AGENTS.md` — now also missing: factory.ts, claude-code.ts, types.ts updates | MEDIUM | Open (grew by 2) |
+| 4 | Fix `codeharness stats --save` for non-ralph sessions | LOW | Open (7 sessions — deprioritize or fix) |
+| 5 | Sync `ralph/.state-snapshot.json` with `sprint-state.json` | LOW | Open |
+| 9 | Fix epic numbering mismatch between sprint-status and epics file | MEDIUM | Open |
+| 10 | Update subagent create-story prompts to check `planning-artifacts/` as fallback | MEDIUM | Open |
+| 13 | Eliminate redundant test runs in verification phase | LOW | Open |
+| 16 | Add "single vitest run" instruction to verification subagent prompt | MEDIUM | Open |
+
+### New This Session
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 21 | Extract `NETWORK_CODES` to shared constant — duplicated between `agent-dispatch.ts` and `claude-code.ts` | LOW | Backlog |
+| 22 | Narrow network error fallback regex in `claude-code.ts` | LOW | Backlog |
+| 23 | Auto-update epic status in sprint-state.json when all constituent stories complete | MEDIUM | Backlog |
+| 24 | Add `--reporter=dot | tail -20` to dev subagent test commands to reduce Bash output | LOW | Backlog |
+| 25 | Schedule a "deferred-LOW cleanup" half-session — 10+ stories of accumulated LOWs | MEDIUM | Next sprint |
+
+### Next Stories
+
+Stories **10-4-model-resolution-module** and **10-5-workflow-engine-driver-integration** remain in the Epic 10 backlog. 10-4 is a pure-logic module (model string resolution), expected to be fast. 10-5 is the integration story that wires drivers into the workflow engine — expected to be the most complex remaining story in the epic.

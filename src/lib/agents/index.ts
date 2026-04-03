@@ -40,3 +40,7 @@ export type {
 // --- Driver Factory ---
 
 export { getDriver, registerDriver, listDrivers, resetDrivers } from './drivers/factory.js';
+
+// --- Model Resolution ---
+
+export { resolveModel } from './model-resolver.js';

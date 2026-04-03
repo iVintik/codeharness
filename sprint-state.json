@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 64,
-    "done": 48,
+    "done": 49,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -557,7 +557,7 @@
       "acResults": null
     },
     "17-1-worktree-manager": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -565,11 +565,11 @@
       "acResults": null
     },
     "17-2-lane-pool": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-04-04T00:31:00Z",
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/17-2-lane-pool-proof.md",
       "acResults": null
     },
     "17-3-run-command-parallel-integration": {
@@ -806,10 +806,10 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "17-1-worktree-manager",
-    "currentPhase": "verify",
-    "lastAction": "Starting runtime-provable verification",
-    "acProgress": "11/11"
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
+    "acProgress": null
   },
   "actionItems": []
 }

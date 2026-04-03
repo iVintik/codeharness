@@ -156,11 +156,12 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | epic-generator.ts | Generates onboarding epic from scan findings, imports to beads | `generateOnboardingEpic`, `writeOnboardingEpic`, `formatEpicSummary`, `promptApproval`, `importOnboardingEpic` |
 | onboard-checks.ts | Precondition checks and gap filtering for onboarding | `runPreconditions`, `findVerificationGaps`, `findPerFileCoverageGaps`, `findObservabilityGaps`, `getOnboardingProgress`, `filterTrackedGaps` |
 
-## Worktree Management (Epic 17)
+## Worktree Management & Parallel Execution (Epic 17)
 
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | worktree-manager.ts | Git worktree lifecycle — create/cleanup/list/orphan-detect for parallel epic execution in isolated working directories | `WorktreeManager`, `WorktreeInfo`, `WorktreeError`, `BRANCH_PREFIX`, `WORKTREE_BASE` |
+| lane-pool.ts | Lane pool scheduler — manages concurrent epic execution with Promise.race scheduling, lane lifecycle events, and configurable parallelism | `LanePool`, `LaneEvent`, `PoolResult`, `LaneStatus`, `EpicDescriptor`, `EpicResult`, `ExecuteEpicFn` |
 
 ## Retry State Management
 
@@ -224,4 +225,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 74 library files + 4 shared test utility files across 28 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 75 library files + 4 shared test utility files across 28 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

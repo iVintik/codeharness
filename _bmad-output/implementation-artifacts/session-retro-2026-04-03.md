@@ -1431,3 +1431,167 @@ The 400-line test output from 8-1 dev-story is the outlier. Piping through `tail
 | 8 | Fix `ralph/.state-snapshot.json` stale data | HIGH | Next session | Open (carried from Session 7) |
 | 9 | **FR42 divergence between prd.md and epics-v2.md** -- reconcile or deprecate prd.md version | LOW | Backlog | New |
 | 10 | Add priority/status union types to Issue interface | LOW | Next sprint | Open (carried from Session 8) |
+
+---
+
+# Session 10 Retrospective — 2026-04-03T06:39
+
+**Session window:** ~2026-04-03T06:39 to ~2026-04-03T07:00 (approx. 21 minutes)
+**Sprint progress:** 27/28 stories done (96%), Epics 1-8 complete, Epic 9: 1/2 done
+**Ralph iteration:** #18 (current), story committed in iteration window
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 9-1-workflow-patch-resolution | create-story, dev, code-review, verify | **Done** | Full lifecycle. 10/10 ACs passed. Workflow patch chain resolution with `replace` semantics. Commit `a674410`. |
+
+**Net output:** 1 story completed + verified + committed. 1 story remains (9-2-custom-workflow-creation, backlog).
+
+The story was substantial: 20 files changed, 9912 insertions, 4936 deletions. It introduced workflow patch chain resolution with a 3-tier merge hierarchy (embedded defaults, project patches, user patches) and a new `replace` operation.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 9-1 | ~75 lines duplicated validation/integrity/defaults between `parseWorkflow()` and `resolveWorkflow()`. Extracted `validateAndResolve()`. |
+| HIGH | 9-1 | `loadWorkflowPatch` silently swallowed EACCES permission errors. Now throws on permission errors, null only for missing files. |
+| MEDIUM | 9-1 | Empty catch clause in embedded workflow loading discarded original error message. |
+| MEDIUM | 9-1 | No test for `resolveWorkflow({ name: 'custom' })` path. Added. |
+
+Code review caught 2 HIGH and 2 MEDIUM issues. The EACCES swallowing bug is notable -- silent permission errors in a file-loading function that chains multiple sources would have been extremely difficult to debug in production. All fixed in-session.
+
+### Known LOW Issues (deferred)
+
+- **`deepMerge` duplication:** Function duplicated between `agent-resolver.ts` and `workflow-parser.ts`. Flagged by both create-story and code-review. Should be extracted to a shared utility. This is tech debt introduced this session.
+- **Custom workflow detection re-reads file:** Minor I/O waste where `resolveWorkflow` re-reads a file that `parseWorkflow` also reads.
+
+### Verification Gaps
+
+- **Branch coverage 79.12%:** Below 80% for branches specifically. Statement coverage 93.96%, function coverage 100%. The AC says "80%+ coverage" without specifying branch coverage, so this passed -- but branch coverage is a legitimate gap.
+- **BATS integration tests:** All show exit code 127 (pre-existing, unrelated). These are broken and have been for multiple sessions.
+- **Proof format mismatch (5th occurrence):** First proof used `### AC N:` (h3) instead of `## AC N:` (h2) and lacked bash/output block pairs. Had to rewrite. This is the 5th consecutive session where verification wasted tokens on format correction.
+
+### Infrastructure / Process Issues
+
+- **Real filesystem in test:** User-level patch ordering test writes/restores `~/.codeharness/workflows/default.patch.yaml` on real filesystem. Crash mid-test could leave a stale file. Acknowledged as acceptable tech debt.
+- **`additionalProperties: false` in schema blocks patches:** workflow.schema.json's strict validation prevents patch files from being validated against the same schema. Patch files have different shapes by design.
+- **`codeharness stats` still broken.** Using stale cost-report.md from earlier sessions.
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative Sprint Cost (from cost-report.md -- stale, pre-session 10)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $140.54 |
+| Total API calls | 1,090 |
+| Average cost per story | $3.57 (33 phases across all stories) |
+| Stories completed | 27/28 |
+
+**Note:** `codeharness stats` cannot generate fresh data. The cost-report.md was last updated at 05:45 and does not include session 10 (story 9-1). Estimated session 10 cost below is derived from the token report in the session issues log.
+
+### Session 10 Subagent-Level Token Analysis
+
+| Phase | Tool Calls | Top Tools | Key Observations |
+|-------|-----------|-----------|------------------|
+| create-story | 13 | Read:6, Glob:5, Grep:4, Write:1 | 8 unique files read, zero redundancy. Clean. |
+| dev-story | 22 | Edit:13, Read:7, Bash:5, Grep:2, Glob:1 | Most tool calls of any phase. 2 `npm run test:unit` runs (~800 + ~600 lines output). One file read twice (workflow-parser.test.ts). |
+| code-review | 18 | Read:8, Bash:6, Edit:6, Grep:2, Glob:1 | 10 unique files read. Clean run. No redundancy. |
+| verification | 16 | Bash:10, Grep:4, Read:2, Write:1 | vitest coverage run twice, npm test run twice. Proof format correction. |
+| **Total** | **69** | | |
+
+**Estimated session 10 cost:** ~$4.00 (69 tool calls at sprint average of ~$0.06/call). This is slightly above average for a full lifecycle, justified by the story's size (285 lines new code in workflow-parser.ts, 367 lines of tests).
+
+### Phase Cost Distribution (This Session)
+
+| Phase | Tool Calls | % of Session | Waste |
+|-------|-----------|-------------|-------|
+| dev-story | 22 | 32% | 1 redundant file read, ~1400 lines of verbose test output |
+| code-review | 18 | 26% | None |
+| verification | 16 | 23% | 2 duplicate test runs, 1 proof rewrite |
+| create-story | 13 | 19% | None |
+
+**Waste breakdown:**
+- Verification duplicate test runs: ~4 tool calls wasted (~$0.24)
+- Proof format rewrite: ~3 tool calls wasted (~$0.18)
+- Dev-story verbose test output: not wasted calls, but large context window consumption (~1400 lines could be ~60 with `--reporter=dot`)
+- Total estimated waste: ~$0.42 (10.5% of session cost)
+
+### Sprint-Wide Cost Patterns
+
+The verification phase continues to dominate at 47.8% of total sprint cost ($67.20). Dev-story is 10.1% ($14.20). The 4.7x ratio between verification and development is the biggest efficiency lever available.
+
+---
+
+## 4. What Went Well
+
+1. **Story 9-1 completed full lifecycle in ~20 minutes.** Create-story through verification in a single iteration. 69 tool calls, well below the sprint average.
+2. **Code review caught 2 HIGH bugs.** The EACCES permission error swallowing would have been a production debugging nightmare. The duplicated validation logic was a maintenance hazard. Both fixed immediately.
+3. **Test coverage is strong.** 96.75% overall, all 163 files above 80%. 367 lines of new tests for workflow-parser alone.
+4. **`deepMerge` duplication was consciously deferred.** Both create-story and code-review flagged it, but neither wasted time trying to extract it mid-story. Clean tech debt tracking.
+5. **Sprint is at 96% completion.** 27 of 28 stories done. Only 9-2 (custom workflow creation) remains in backlog.
+
+---
+
+## 5. What Went Wrong
+
+1. **Proof format mismatch -- 5th consecutive session.** This is now the single most persistent waste pattern in the sprint. Estimated cumulative cost: $4-6 across all sessions. The action item to fix the verification subagent prompt has been carried since Session 6 and never addressed.
+2. **Verification ran tests twice.** Both vitest coverage and npm test were run twice in the verification phase. The second run adds nothing -- output is identical. This pattern has been seen in multiple sessions.
+3. **`codeharness stats` remains broken.** No fresh cost data since 05:45. The `session-logs/` directory issue has been open since Session 8. Without it, cost analysis relies on stale data and manual estimation from token reports.
+4. **`deepMerge` is now duplicated in production code.** This is real tech debt: if the merge logic needs to change, it must be changed in two places (`agent-resolver.ts` and `workflow-parser.ts`).
+
+---
+
+## 6. Lessons Learned
+
+1. **Large stories can still be efficient.** 9-1 touched 20 files with ~10K lines changed, yet completed in 69 tool calls. The key factor was clear ACs and a well-understood codebase (by session 10, the patterns are established).
+2. **Schema design has downstream costs.** `additionalProperties: false` in workflow.schema.json is correct for validation but creates a mismatch with patch files. This was a design decision in story 2-1 that surfaced as friction in 9-1. Schemas should anticipate extension points.
+3. **Duplicate test runs in verification are the low-hanging fruit.** A single instruction in the verification prompt ("run vitest coverage ONCE and reuse the output") would eliminate ~4 wasted calls per story. Over 27 stories, that is ~108 calls or ~$6.50.
+4. **The sprint is nearly done.** At 96% completion with 1 story remaining in backlog, the focus should shift from execution speed to quality -- addressing accumulated tech debt and closing action items.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Target | Status |
+|---|--------|----------|--------|--------|
+| 1 | **Fix proof document format spec in verification subagent prompt** | CRITICAL | Before next session | Open (carried from Sessions 6-9 -- now 5th carry) |
+| 2 | **Wire AGENTS.md update into dev-story subagent prompt** | HIGH | Before next session | Open (carried from Sessions 7-9) |
+| 3 | **Extract `deepMerge` to shared utility** (`src/lib/utils/deep-merge.ts`) | HIGH | Next session | New -- tech debt from 9-1 |
+| 4 | **Add single vitest coverage run instruction to verification prompt** | MEDIUM | Next session | Open (carried from Session 6) |
+| 5 | **Fix config.yaml path in workflow.yaml** (`_bmad/bmm/config.yaml` -> `_bmad/config.yaml`) | MEDIUM | Next session | Open (carried from Session 9) |
+| 6 | **Fix `codeharness stats`** -- session-logs/ directory not created | MEDIUM | Next session | Open (carried from Sessions 8-9) |
+| 7 | Fix `ralph/.state-snapshot.json` stale data | HIGH | Next session | Open (carried from Session 7) |
+| 8 | **Fix BATS integration tests** -- exit code 127 across all tests | MEDIUM | Next sprint | Open (pre-existing) |
+| 9 | **Pipe verbose test output through `tail -20` or use `--reporter=dot`** | LOW | Next session | Open (carried from Session 9) |
+| 10 | **Unify retro-to-issue pipelines** | LOW | Next sprint | Open (carried from Session 9) |
+| 11 | **FR42 divergence between prd.md and epics-v2.md** | LOW | Backlog | Open (carried from Session 9) |
+| 12 | Add priority/status union types to Issue interface | LOW | Next sprint | Open (carried from Session 8) |
+| 13 | **Add branch coverage to AC definitions** -- 79.12% branch coverage slipped through "80%+ coverage" AC | LOW | Next sprint | New |
+
+### Cumulative Session Tracking
+
+| Session | Stories Completed | Est. Cost | Cost/Story |
+|---------|-------------------|-----------|------------|
+| Session 1 | 2.5 | ~$12.00 | ~$4.80 |
+| Session 2 | 0.5 | ~$3.50 | ~$7.00* |
+| Session 3 | 1 | ~$4.50 | ~$4.50 |
+| Session 4 | 2 | ~$13.50 | ~$6.75 |
+| Session 5 | 2 | ~$7.50 | ~$3.75 |
+| Session 6 | 2 | ~$6.50 | ~$3.25 |
+| Session 7 | 2 | ~$8.00 | ~$4.00 |
+| Session 8 | 4 | ~$14.00 | ~$3.50 |
+| Session 9 | 1 | ~$3.50 | ~$3.50 |
+| **Session 10 (this)** | **1** | **~$4.00** | **~$4.00** |
+| **Sprint total** | **27** | **~$77.00** | **~$2.85** |
+
+*Sprint total estimated cost differs from the $140.54 in cost-report.md because the report includes orchestrator overhead, retro phases, and failed/no-op iterations not attributed to specific stories.

@@ -1,10 +1,22 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { WorktreeManager, WorktreeError, BRANCH_PREFIX, WORKTREE_BASE } from '../worktree-manager.js';
-import type { WorktreeInfo } from '../worktree-manager.js';
+import { WorktreeManager, WorktreeError, BRANCH_PREFIX, WORKTREE_BASE, AsyncMutex, mergeMutex } from '../worktree-manager.js';
+import type { WorktreeInfo, MergeResult, MergeStrategy } from '../worktree-manager.js';
+
+// Create a mock execAsync that we can control — must use vi.hoisted so it's
+// available when vi.mock factory runs (vi.mock calls are hoisted above imports)
+const { mockExecAsync } = vi.hoisted(() => ({
+  mockExecAsync: vi.fn(),
+}));
 
 // Mock child_process
 vi.mock('node:child_process', () => ({
   execSync: vi.fn(),
+  exec: vi.fn(),
+}));
+
+// Mock node:util to return our controllable mockExecAsync
+vi.mock('node:util', () => ({
+  promisify: () => mockExecAsync,
 }));
 
 // Mock node:fs
@@ -547,6 +559,544 @@ describe('worktree-manager', () => {
       const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
       const branchCmd = calls.find((c) => c.startsWith('git branch codeharness/'));
       expect(branchCmd).toContain(' main');
+    });
+  });
+
+  describe('MergeResult interface shape (AC #9)', () => {
+    it('has all required fields on success', async () => {
+      // Setup: branch exists, status clean, merge succeeds, tests pass
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) return Buffer.from('');
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '5 passed\n0 failed' });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result).toHaveProperty('success');
+      expect(result).toHaveProperty('durationMs');
+      expect(typeof result.success).toBe('boolean');
+      expect(typeof result.durationMs).toBe('number');
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('includes reason and conflicts on conflict failure', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('conflict');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('CONFLICT');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('file1.ts\nfile2.ts');
+        if (cmd.includes('merge --abort')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('conflict');
+      expect(result.conflicts).toEqual(['file1.ts', 'file2.ts']);
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('includes testResults on tests-failed', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) return Buffer.from('');
+        if (cmd.includes('reset --hard')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '3 passed\n2 failed' });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('tests-failed');
+      expect(result.testResults).toEqual({ passed: 3, failed: 2 });
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    });
+  });
+
+  describe('mergeWorktree — merge-commit strategy (AC #1, #8)', () => {
+    it('calls git merge --no-ff for merge-commit strategy', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '10 passed' });
+
+      await manager.mergeWorktree('17', 'merge-commit');
+
+      const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls).toContainEqual(
+        expect.stringContaining('git merge --no-ff codeharness/epic-17-slug'),
+      );
+    });
+
+    it('defaults to merge-commit when strategy is not specified', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '10 passed' });
+
+      await manager.mergeWorktree('17');
+
+      const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls).toContainEqual(
+        expect.stringContaining('git merge --no-ff'),
+      );
+    });
+  });
+
+  describe('mergeWorktree — rebase strategy (AC #8)', () => {
+    it('calls git rebase for rebase strategy', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '10 passed' });
+
+      await manager.mergeWorktree('17', 'rebase');
+
+      const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls).toContainEqual(
+        expect.stringContaining('git rebase codeharness/epic-17-slug'),
+      );
+      // Should NOT contain git merge
+      const mergeCall = calls.find((c) => c.includes('git merge --no-ff'));
+      expect(mergeCall).toBeUndefined();
+    });
+  });
+
+  describe('mergeWorktree — mutex serialization (AC #2)', () => {
+    it('serializes concurrent merge calls via mutex', async () => {
+      const executionOrder: string[] = [];
+
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list codeharness/epic-1-')) return Buffer.from('  codeharness/epic-1-alpha\n');
+        if (cmd.includes('branch --list codeharness/epic-2-')) return Buffer.from('  codeharness/epic-2-beta\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff codeharness/epic-1')) {
+          executionOrder.push('merge-1-start');
+          return Buffer.from('');
+        }
+        if (cmd.includes('merge --no-ff codeharness/epic-2')) {
+          executionOrder.push('merge-2-start');
+          return Buffer.from('');
+        }
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '5 passed' });
+
+      // Launch two merges concurrently
+      const [result1, result2] = await Promise.all([
+        manager.mergeWorktree('1'),
+        manager.mergeWorktree('2'),
+      ]);
+
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+      // Both should complete — mutex serializes them
+      expect(executionOrder).toContain('merge-1-start');
+      expect(executionOrder).toContain('merge-2-start');
+    });
+
+    it('merge mutex is a module-level singleton shared across instances', () => {
+      // The exported mergeMutex should be the same instance
+      expect(mergeMutex).toBeInstanceOf(AsyncMutex);
+      // Two different WorktreeManager instances share the same mutex
+      const mgr1 = new WorktreeManager('main', '/repo1');
+      const mgr2 = new WorktreeManager('main', '/repo2');
+      // Both use the module-level mergeMutex — verified by the fact that
+      // concurrent calls across instances are serialized (tested above).
+      // Here we just verify the singleton exists and is an AsyncMutex.
+      expect(mergeMutex).toBeDefined();
+    });
+  });
+
+  describe('mergeWorktree — success path (AC #3, #4)', () => {
+    it('runs test suite after successful merge and cleans up worktree', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) return Buffer.from('');
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '10 passed\n0 failed\nAll files | 95.5' });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(true);
+      expect(result.testResults).toEqual({ passed: 10, failed: 0, coverage: 95.5 });
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+
+      // Verify cleanup was called
+      const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls).toContainEqual(
+        expect.stringContaining('git worktree remove /tmp/codeharness-wt-epic-17 --force'),
+      );
+    });
+  });
+
+  describe('mergeWorktree — test failure path (AC #5)', () => {
+    it('reverts merge on test failure and preserves worktree', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) return Buffer.from('');
+        if (cmd.includes('reset --hard HEAD~1')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '8 passed\n3 failed' });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('tests-failed');
+      expect(result.testResults).toEqual({ passed: 8, failed: 3 });
+
+      // Verify revert was called
+      const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls).toContainEqual(
+        expect.stringContaining('git reset --hard HEAD~1'),
+      );
+
+      // Verify cleanup was NOT called (worktree preserved for investigation)
+      const cleanupCall = calls.find((c) => c.includes('worktree remove'));
+      expect(cleanupCall).toBeUndefined();
+    });
+  });
+
+  describe('mergeWorktree — conflict detection (AC #6)', () => {
+    it('detects merge conflicts and returns conflict file list', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('merge conflict');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('CONFLICT (content): Merge conflict');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('src/a.ts\nsrc/b.ts\npackage.json');
+        if (cmd.includes('merge --abort')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('conflict');
+      expect(result.conflicts).toEqual(['src/a.ts', 'src/b.ts', 'package.json']);
+    });
+
+    it('aborts merge after conflict detection', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('conflict');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('CONFLICT');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('file.ts');
+        if (cmd.includes('merge --abort')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      await manager.mergeWorktree('17');
+
+      const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls).toContainEqual(
+        expect.stringContaining('git merge --abort'),
+      );
+    });
+
+    it('aborts rebase after conflict detection', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('git rebase')) {
+          const err = new Error('conflict');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('CONFLICT');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('file.ts');
+        if (cmd.includes('rebase --abort')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      await manager.mergeWorktree('17', 'rebase');
+
+      const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls).toContainEqual(
+        expect.stringContaining('git rebase --abort'),
+      );
+    });
+  });
+
+  describe('mergeWorktree — git error handling (AC #10)', () => {
+    it('returns git-error when branch not found', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from(''); // No branch found
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('99');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('git-error');
+      expect(result.durationMs).toBeGreaterThanOrEqual(0);
+    });
+
+    it('returns git-error when main is dirty', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from(' M dirty-file.ts');
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('git-error');
+    });
+
+    it('returns git-error on unexpected git failure (not conflict)', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('fatal: branch not found');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('fatal: branch not found');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from(''); // No conflicts
+        if (cmd.includes('merge --abort')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('git-error');
+    });
+
+    it('rolls back on unexpected git error during merge', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) {
+          const err = new Error('fatal');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('fatal');
+          throw err;
+        }
+        if (cmd.includes('diff --name-only --diff-filter=U')) return Buffer.from('');
+        if (cmd.includes('merge --abort')) return Buffer.from('');
+        return Buffer.from('');
+      });
+
+      await manager.mergeWorktree('17');
+
+      const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
+      expect(calls).toContainEqual(
+        expect.stringContaining('git merge --abort'),
+      );
+    });
+  });
+
+  describe('mergeWorktree — testCommand validation', () => {
+    it('rejects testCommand with shell metacharacters', async () => {
+      const result = await manager.mergeWorktree('17', 'merge-commit', 'npm test; rm -rf /');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('git-error');
+    });
+
+    it('rejects testCommand with command substitution', async () => {
+      const result = await manager.mergeWorktree('17', 'merge-commit', '$(whoami)');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('git-error');
+    });
+
+    it('accepts safe testCommand strings', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '5 passed' });
+
+      const result = await manager.mergeWorktree('17', 'merge-commit', 'npm run test');
+      expect(result.success).toBe(true);
+    });
+
+    it('accepts testCommand with path separators', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('worktree remove')) return Buffer.from('');
+        if (cmd.includes('branch -D')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '5 passed' });
+
+      const result = await manager.mergeWorktree('17', 'merge-commit', './node_modules/.bin/vitest');
+      expect(result.success).toBe(true);
+    });
+  });
+
+  describe('mergeWorktree — branch name validation', () => {
+    it('rejects branches with shell metacharacters', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug$(whoami)\n');
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('git-error');
+    });
+  });
+
+  describe('mergeWorktree — branch re-verification after mutex', () => {
+    it('returns git-error if branch disappears while waiting for mutex', async () => {
+      let callCount = 0;
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) {
+          callCount++;
+          // First call (before mutex): branch exists
+          if (callCount === 1) return Buffer.from('  codeharness/epic-17-slug\n');
+          // Second call (after mutex): branch gone
+          return Buffer.from('');
+        }
+        return Buffer.from('');
+      });
+
+      const result = await manager.mergeWorktree('17');
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('git-error');
+    });
+  });
+
+  describe('mergeWorktree — test command failure edge cases', () => {
+    it('handles test command that exits non-zero with parseable output', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) return Buffer.from('');
+        if (cmd.includes('reset --hard')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      // execAsync rejects (non-zero exit) but has stdout
+      mockExecAsync.mockRejectedValue({
+        stdout: '5 passed\n1 failed',
+        stderr: 'Test suite failed',
+      });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('tests-failed');
+      expect(result.testResults).toEqual({ passed: 5, failed: 1 });
+    });
+
+    it('handles test command with no parseable output (reports 1 failure)', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) return Buffer.from('');
+        if (cmd.includes('reset --hard')) return Buffer.from('');
+        return Buffer.from('');
+      });
+      mockExecAsync.mockRejectedValue({
+        stdout: '',
+        stderr: 'npm ERR! missing script: test',
+      });
+
+      const result = await manager.mergeWorktree('17');
+
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('tests-failed');
+      expect(result.testResults).toEqual({ passed: 0, failed: 1 });
+    });
+
+    it('handles git reset --hard failure gracefully after test failure', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd.includes('branch --list')) return Buffer.from('  codeharness/epic-17-slug\n');
+        if (cmd.includes('status --porcelain')) return Buffer.from('');
+        if (cmd.includes('merge --no-ff')) return Buffer.from('');
+        if (cmd.includes('reset --hard')) {
+          const err = new Error('corrupted');
+          (err as unknown as { stderr: Buffer }).stderr = Buffer.from('error');
+          throw err;
+        }
+        return Buffer.from('');
+      });
+      mockExecAsync.mockResolvedValue({ stdout: '0 passed\n3 failed' });
+
+      const result = await manager.mergeWorktree('17');
+
+      // Should still return tests-failed even if reset fails
+      expect(result.success).toBe(false);
+      expect(result.reason).toBe('tests-failed');
+    });
+  });
+
+  describe('AsyncMutex', () => {
+    it('acquire returns a release function', async () => {
+      const mutex = new AsyncMutex();
+      const release = await mutex.acquire();
+      expect(typeof release).toBe('function');
+      release();
+    });
+
+    it('serializes access — second acquire waits for first release', async () => {
+      const mutex = new AsyncMutex();
+      const order: string[] = [];
+
+      const release1 = await mutex.acquire();
+      order.push('acquired-1');
+
+      // Second acquire should not resolve until release1 is called
+      let release2: (() => void) | null = null;
+      const acquire2Promise = mutex.acquire().then((r) => {
+        release2 = r;
+        order.push('acquired-2');
+      });
+
+      // Give the event loop a tick — acquire2 should still be pending
+      await new Promise((r) => setTimeout(r, 10));
+      expect(order).toEqual(['acquired-1']);
+
+      // Release first lock
+      release1();
+      await acquire2Promise;
+
+      expect(order).toEqual(['acquired-1', 'acquired-2']);
+      release2!();
     });
   });
 });

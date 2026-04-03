@@ -9,9 +9,12 @@
  * @see Story 17-1: Worktree Manager
  */
 
-import { execSync } from 'node:child_process';
+import { exec, execSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
+
+const execAsync = promisify(exec);
 
 // --- Constants ---
 
@@ -52,6 +55,55 @@ export class WorktreeError extends Error {
     this.stderr = stderr;
   }
 }
+
+// --- Merge Types ---
+
+/**
+ * Strategy used when merging an epic branch into main.
+ */
+export type MergeStrategy = 'rebase' | 'merge-commit';
+
+/**
+ * Result of a merge operation.
+ */
+export interface MergeResult {
+  /** Whether the merge and post-merge validation succeeded. */
+  success: boolean;
+  /** Reason for failure, if any. */
+  reason?: 'conflict' | 'tests-failed' | 'git-error';
+  /** List of conflicting file paths, when reason is 'conflict'. */
+  conflicts?: string[];
+  /** Test suite results from post-merge validation. */
+  testResults?: { passed: number; failed: number; coverage?: number };
+  /** Total wall-clock duration of the merge operation in milliseconds. */
+  durationMs: number;
+}
+
+// --- Async Mutex ---
+
+/**
+ * Simple async mutex for serializing merge operations.
+ * No external dependencies — uses a promise-based wait queue.
+ */
+export class AsyncMutex {
+  private locked = false;
+  private waitQueue: Array<() => void> = [];
+
+  async acquire(): Promise<() => void> {
+    while (this.locked) {
+      await new Promise<void>((resolve) => this.waitQueue.push(resolve));
+    }
+    this.locked = true;
+    return () => {
+      this.locked = false;
+      const next = this.waitQueue.shift();
+      if (next) next();
+    };
+  }
+}
+
+/** Module-level singleton merge mutex shared across all WorktreeManager instances. */
+export const mergeMutex = new AsyncMutex();
 
 // --- WorktreeManager Class ---
 
@@ -195,6 +247,130 @@ export class WorktreeManager {
   detectOrphans(): WorktreeInfo[] {
     const worktrees = this.listWorktrees();
     return worktrees.filter((wt) => this.isOrphaned(wt));
+  }
+
+  /**
+   * Merge an epic branch into the main branch with serialized access.
+   *
+   * Acquires a module-level mutex so only one merge runs at a time.
+   * After a clean merge, runs the test suite. If tests fail, the merge
+   * is reverted. On conflict or git error, the main branch is restored.
+   *
+   * @param epicId  The epic identifier whose branch should be merged.
+   * @param strategy  Merge strategy: `'merge-commit'` (default) or `'rebase'`.
+   * @param testCommand  Command to run for post-merge validation (default: `'npm test'`).
+   * @returns A `MergeResult` describing the outcome.
+   */
+  async mergeWorktree(
+    epicId: string,
+    strategy: MergeStrategy = 'merge-commit',
+    testCommand: string = 'npm test',
+  ): Promise<MergeResult> {
+    const start = Date.now();
+
+    // Validate testCommand to prevent shell injection — only allow safe characters
+    if (!/^[a-zA-Z0-9_./ -]+$/.test(testCommand)) {
+      return {
+        success: false,
+        reason: 'git-error',
+        durationMs: Date.now() - start,
+      };
+    }
+
+    // Find branch for this epicId
+    const branch = this.findBranchForEpic(epicId);
+    if (!branch) {
+      return {
+        success: false,
+        reason: 'git-error',
+        durationMs: Date.now() - start,
+      };
+    }
+
+    // Validate branch name to prevent command injection via malicious branch names
+    if (!/^[a-zA-Z0-9_./-]+$/.test(branch)) {
+      return {
+        success: false,
+        reason: 'git-error',
+        durationMs: Date.now() - start,
+      };
+    }
+
+    const release = await mergeMutex.acquire();
+    try {
+      // Re-verify branch still exists after acquiring mutex (could be deleted while waiting)
+      const branchCheck = this.findBranchForEpic(epicId);
+      if (!branchCheck || branchCheck !== branch) {
+        return {
+          success: false,
+          reason: 'git-error',
+          durationMs: Date.now() - start,
+        };
+      }
+
+      // Verify main branch is clean before merge
+      const status = this.execGit('git status --porcelain');
+      if (status.length > 0) {
+        return {
+          success: false,
+          reason: 'git-error',
+          durationMs: Date.now() - start,
+        };
+      }
+
+      // Attempt merge or rebase
+      try {
+        if (strategy === 'rebase') {
+          this.execGit(`git rebase ${branch}`);
+        } else {
+          this.execGit(`git merge --no-ff ${branch}`);
+        }
+      } catch { // IGNORE: merge/rebase failure is expected — detect conflict vs git-error below
+        const conflicts = this.detectConflicts();
+        if (conflicts.length > 0) {
+          this.abortMerge(strategy);
+          return {
+            success: false,
+            reason: 'conflict',
+            conflicts,
+            durationMs: Date.now() - start,
+          };
+        }
+        // Not a conflict — unexpected git error
+        this.abortMerge(strategy);
+        return {
+          success: false,
+          reason: 'git-error',
+          durationMs: Date.now() - start,
+        };
+      }
+
+      // Run test suite after successful merge
+      const testResults = await this.runTestSuite(testCommand);
+      if (testResults.failed > 0) {
+        // Revert merge on test failure
+        try {
+          this.execGit('git reset --hard HEAD~1');
+        } catch { // IGNORE: reset failure indicates corrupted git state; still return tests-failed
+        }
+        return {
+          success: false,
+          reason: 'tests-failed',
+          testResults,
+          durationMs: Date.now() - start,
+        };
+      }
+
+      // Success — cleanup worktree
+      this.cleanupWorktree(epicId);
+      return {
+        success: true,
+        testResults,
+        durationMs: Date.now() - start,
+      };
+    } finally {
+      release();
+    }
   }
 
   // --- Private Helpers ---
@@ -353,6 +529,84 @@ export class WorktreeManager {
     const dashIndex = withoutPrefix.indexOf('-');
     if (dashIndex === -1) return withoutPrefix;
     return withoutPrefix.slice(0, dashIndex);
+  }
+
+  /**
+   * Detect conflicting files after a failed merge/rebase.
+   * Uses `git diff --name-only --diff-filter=U` to find unmerged paths.
+   */
+  private detectConflicts(): string[] {
+    try {
+      const output = this.execGit('git diff --name-only --diff-filter=U');
+      return output
+        .split('\n')
+        .map((f) => f.trim())
+        .filter((f) => f.length > 0);
+    } catch { // IGNORE: diff failure means no conflict info available
+      return [];
+    }
+  }
+
+  /**
+   * Abort an in-progress merge or rebase to restore main branch state.
+   */
+  private abortMerge(strategy: MergeStrategy): void {
+    try {
+      if (strategy === 'rebase') {
+        this.execGit('git rebase --abort');
+      } else {
+        this.execGit('git merge --abort');
+      }
+    } catch { // IGNORE: abort may fail if merge already resolved; main state is preserved
+    }
+  }
+
+  /**
+   * Run the test suite and parse results from stdout.
+   * Uses async exec with a 5-minute timeout.
+   */
+  private async runTestSuite(
+    testCommand: string = 'npm test',
+  ): Promise<{ passed: number; failed: number; coverage?: number }> {
+    try {
+      const { stdout } = await execAsync(testCommand, {
+        cwd: this.cwd,
+        timeout: 300_000, // 5 minutes
+      });
+
+      return this.parseTestOutput(stdout);
+    } catch (err: unknown) {
+      // Test command failed (non-zero exit) — parse whatever output we got
+      const stdout = (err as { stdout?: string })?.stdout ?? '';
+      const result = this.parseTestOutput(stdout);
+      // If we couldn't parse anything, report 1 failure
+      if (result.passed === 0 && result.failed === 0) {
+        return { passed: 0, failed: 1 };
+      }
+      return result;
+    }
+  }
+
+  /**
+   * Parse test output to extract pass/fail counts and optional coverage.
+   * Supports common vitest/jest output patterns.
+   */
+  private parseTestOutput(stdout: string): { passed: number; failed: number; coverage?: number } {
+    let passed = 0;
+    let failed = 0;
+    let coverage: number | undefined;
+
+    // Match vitest/jest "Tests: X passed, Y failed" or "X passed" patterns
+    const passMatch = stdout.match(/(\d+)\s+passed/);
+    const failMatch = stdout.match(/(\d+)\s+failed/);
+    if (passMatch) passed = parseInt(passMatch[1], 10);
+    if (failMatch) failed = parseInt(failMatch[1], 10);
+
+    // Match coverage percentage patterns like "All files | 85.5"
+    const covMatch = stdout.match(/All files[^|]*\|\s*([\d.]+)/);
+    if (covMatch) coverage = parseFloat(covMatch[1]);
+
+    return { passed, failed, ...(coverage !== undefined && { coverage }) };
   }
 
   /**

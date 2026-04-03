@@ -1294,3 +1294,140 @@ Story 8-1 had the highest total tool calls (81), driven by verification retries.
 | 8 | **Fix `epic-8-retrospective.md` to match epics-v2.md** — old content describes different epic 8 | LOW | Backlog | New |
 | 9 | Fix `codeharness stats` — no session-logs/ directory found | MEDIUM | Next session | New |
 | 10 | Fix `ralph/.state-snapshot.json` stale data | HIGH | Next session | Open (carried from Session 7) |
+
+---
+
+# Session 9 Retrospective — 2026-04-03T06:15
+
+**Session window:** ~2026-04-03T06:15 to ~2026-04-03T06:40 (approx. 25 minutes)
+**Sprint progress:** 26/28 stories done (93%), Epics 1-8 complete, Epic 9 (2 stories) remaining
+
+---
+
+## 1. Session Summary
+
+| Story | Phases Run | Outcome | Notes |
+|-------|-----------|---------|-------|
+| 8-2-retro-finding-auto-import | create-story, dev, code-review, verify | **Done** | Full lifecycle. 10/10 ACs. Wired retro-parser + issue-tracker into retro-import command. |
+| Epic 8 milestone | -- | **Done** | Both stories (8-1, 8-2) shipped. Commit `e6837f9`. |
+
+**Net output:** 1 story completed + verified, 1 epic closed. 2 stories remain in Epic 9.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 8-2 | Missing error handling around `importToIssuesYaml` call -- filesystem errors crashed the command |
+| MEDIUM | 8-2 | No summary output in non-JSON mode after import |
+| MEDIUM | 8-2 | Table-based duplicate detection path entirely untested |
+| MEDIUM | 8-2 | Error recovery path for import failure untested |
+
+Code review caught 1 HIGH and 3 MEDIUM issues. The HIGH issue (unhandled filesystem error in a CLI command) would have caused silent crashes in production. All were fixed in the same session.
+
+### Known LOW Issues (deferred)
+
+- 8-2: Double `as unknown as` casts at retro-import.ts:138-139 -- type workaround, not a runtime risk.
+
+### Infrastructure / Process Issues
+
+- **config.yaml path wrong (again):** `_bmad/bmm/config.yaml` doesn't exist; actual path is `_bmad/config.yaml`. This was also flagged in 7-1. The create-story subagent keeps referencing the wrong path from workflow.yaml.
+- **FR42 mismatch:** prd.md FR42 differs from epics-v2.md FR42. create-story used epics-v2.md as source of truth -- correct, but the divergence is tech debt.
+- **Retro file format variance:** Older retros use table format with different column headers (`Priority` vs `Status`). This means the retro-parser needs to handle multiple formats -- covered, but fragile.
+- **Three parallel retro-to-issue pipelines:** `retro-to-sprint.ts`, retro-import command (GitHub issues), and now `issues.yaml`. Not unified. Growing complexity.
+- **Proof format mismatch (4th occurrence):** Verification subagent initially wrote narrative format, rejected by `codeharness verify`. Had to rewrite to `## AC N:` with bash/output blocks. This is the 4th session in a row where this wasted tokens.
+- **`codeharness stats` still broken:** No `session-logs/` directory found. Cannot generate fresh cost reports. Using stale cost-report.md from earlier session.
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative Sprint Cost (from cost-report.md)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $140.54 |
+| Total API calls | 1,090 |
+| Average cost per story | $3.57 (33 stories) |
+| Stories completed | 26/28 |
+
+**Token breakdown:** 62% cache reads ($87.32), 21% cache writes ($30.09), 16% output ($23.05), <1% input ($0.08).
+
+**Phase breakdown:** Verification dominates at 47.8% ($67.20) of total cost -- nearly half the budget goes to proving stories work. dev-story is only 10.1% ($14.20).
+
+### Session 9 Subagent-Level Token Analysis (from session issues log)
+
+| Phase | Tool Calls | Top Tools | Notes |
+|-------|-----------|-----------|-------|
+| create-story | 20 | Read:13, Glob:5, Grep:4 | Read-heavy (16 unique files). Clean. |
+| dev-story | 18 | Edit:10, Bash:5, Read:5 | Most efficient phase. Zero issues. Zero redundancy. |
+| code-review | 18 | Read:8, Bash:7, Edit:4 | Clean run. No redundant operations. |
+| verification | 19 | Bash:11, Write:4, Read:3 | Proof written twice (format correction). Otherwise clean. |
+| **Total** | **75** | | |
+
+**Session 9 estimated cost:** ~$3.50 (based on 75 tool calls at sprint average). Below-average cost for a full lifecycle -- story was small and well-scoped.
+
+### Subagent Waste Patterns (Across All Sessions Today)
+
+1. **Verification proof format rewrites** -- 5 of 7 verification phases had to rewrite proofs at least once. Estimated waste: 15-25 extra tool calls across the day.
+2. **Duplicate vitest/coverage runs** -- 7-1 verification ran coverage 3 times, 7-2 verification ran it 3 times. Could reuse output.
+3. **AGENTS.md staleness** -- 8-1 verification failed initially because AGENTS.md was stale, requiring 4 Edit calls to fix. Dev-story should maintain this.
+4. **`codeharness verify` retries** -- 8-1 ran verify 3 times due to format fixes. Each invocation re-reads the proof and re-runs checks.
+
+### Heaviest Bash Outputs
+
+| Phase | Command | Approx Lines |
+|-------|---------|-------------|
+| 8-1 dev-story | `npm run test:unit` | ~400 lines |
+| 7-1 create-story | `ls implementation-artifacts` | ~180 lines |
+| 8-1 verification | `ls verification/` | ~136 lines |
+| Various | `npx vitest --coverage` | ~60-80 lines each |
+
+The 400-line test output from 8-1 dev-story is the outlier. Piping through `tail -20` or `--reporter=dot` would reduce this significantly.
+
+---
+
+## 4. What Went Well
+
+1. **Story 8-2 was fast and clean.** Full lifecycle in ~25 minutes, 75 tool calls, zero dev issues, zero test regressions. The "wiring" pattern (connecting existing modules) is highly efficient.
+2. **dev-story phase continues to be the gold standard.** Zero issues reported across both 8-1 and 8-2 dev phases. Pattern is mature: read story, implement, test, done.
+3. **Code review continues to earn its keep.** Caught a HIGH crash bug in 8-2 that would have hit production. The review-then-fix loop adds ~18 tool calls but prevents real defects.
+4. **Epic 8 completed in a single extended session.** Both stories created, implemented, reviewed, and verified without manual intervention.
+
+---
+
+## 5. What Went Wrong
+
+1. **Proof format mismatch -- 4th consecutive session.** Action item #1 from Sessions 6, 7, and 8 was to fix the verification subagent prompt. Still not done. Each occurrence wastes ~5 tool calls and ~$0.50. Over the sprint this has cost an estimated $3-5.
+2. **`codeharness stats` is broken.** Cannot generate fresh cost reports without `session-logs/` directory. This was flagged in Session 8 and still not fixed.
+3. **Three parallel retro-to-issue pipelines now exist.** The 8-2 story added a third path (issues.yaml) alongside retro-to-sprint.ts and GitHub issue import. No unification plan.
+4. **config.yaml path reference is wrong in workflow.yaml.** Flagged in 7-1 and again in 8-2. The create-story subagent wastes cycles trying to resolve variables from a nonexistent file.
+
+---
+
+## 6. Lessons Learned
+
+1. **Action items without enforcement are ignored.** The proof format fix has been carried across 4 sessions. It is clearly not going to happen unless someone does it manually or it becomes a story. Retro action items are write-only unless wired into automation.
+2. **Small, well-scoped stories are dramatically cheaper.** 8-2 cost ~$3.50 for a full lifecycle. Compare with 5-1 at $8.84 (a larger, first-of-kind story). Tight scoping pays dividends.
+3. **"Wiring" stories (connecting existing modules) have near-zero risk.** Both 8-1 and 8-2 dev phases reported zero issues. When the building blocks exist and are tested, integration is mechanical.
+4. **The verification phase remains the dominant cost center.** At 47.8% of total sprint cost, any optimization here has outsized impact. The proof format fix alone would reduce verification cost by ~10%.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Target | Status |
+|---|--------|----------|--------|--------|
+| 1 | **Fix proof document format spec in verification subagent prompt** | CRITICAL | Before next session | Open (carried from Sessions 6, 7, 8 -- now 4th carry) |
+| 2 | **Wire AGENTS.md update into dev-story subagent prompt** | HIGH | Before next session | Open (carried from Sessions 7, 8) |
+| 3 | **Add single vitest coverage run instruction to verification prompt** | MEDIUM | Next session | Open (carried from Session 6) |
+| 4 | **Fix config.yaml path in workflow.yaml** (`_bmad/bmm/config.yaml` -> `_bmad/config.yaml`) | MEDIUM | Next session | New |
+| 5 | **Fix `codeharness stats`** -- session-logs/ directory not created | MEDIUM | Next session | Open (carried from Session 8) |
+| 6 | **Unify retro-to-issue pipelines** -- three parallel paths is unnecessary complexity | LOW | Next sprint | New |
+| 7 | **Pipe verbose test output through `tail -20` or use `--reporter=dot`** in dev-story/verification | LOW | Next session | New |
+| 8 | Fix `ralph/.state-snapshot.json` stale data | HIGH | Next session | Open (carried from Session 7) |
+| 9 | **FR42 divergence between prd.md and epics-v2.md** -- reconcile or deprecate prd.md version | LOW | Backlog | New |
+| 10 | Add priority/status union types to Issue interface | LOW | Next sprint | Open (carried from Session 8) |

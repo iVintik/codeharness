@@ -532,3 +532,115 @@ describe('checkOnlyCoverage', () => {
     expect(result.testsPassed).toBe(true);
   });
 });
+
+// --- Story 16-5: Coverage Deduplication Skip Logic ---
+
+describe('runCoverage skipIfMet (story 16-5)', () => {
+  it('AC#2: skips coverage run when skipIfMet=true and coverage_met=true in state', () => {
+    const state = getDefaultState('nodejs');
+    state.session_flags.coverage_met = true;
+    state.session_flags.tests_passed = true;
+    state.coverage.current = 95;
+    state.coverage.target = 90;
+    writeState(state, testDir);
+
+    // No package.json, no vitest config — normal run would fail
+    const result = runCoverage(testDir, true);
+
+    expect(result.success).toBe(true);
+    expect(result.testsPassed).toBe(true);
+    expect(result.coveragePercent).toBe(95);
+    expect(result.rawOutput).toContain('Coverage skip: already met');
+    // execSync should NOT have been called
+    expect(mockedExecSync).not.toHaveBeenCalled();
+  });
+
+  it('AC#4: does NOT skip when skipIfMet=true but coverage_met=false', () => {
+    const state = getDefaultState('nodejs');
+    state.session_flags.coverage_met = false;
+    state.session_flags.tests_passed = true;
+    state.coverage.current = 50;
+    writeState(state, testDir);
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ name: 'test' }));
+
+    // Will fall through to normal run and fail (no coverage tool)
+    const result = runCoverage(testDir, true);
+
+    // Falls through: no vitest config detected → unknown tool → fail
+    expect(result.success).toBe(false);
+    expect(result.rawOutput).toContain('No coverage tool detected');
+  });
+
+  it('AC#3: does NOT skip when skipIfMet=false even if coverage_met=true', () => {
+    const state = getDefaultState('nodejs');
+    state.session_flags.coverage_met = true;
+    state.session_flags.tests_passed = true;
+    state.coverage.current = 95;
+    writeState(state, testDir);
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ name: 'test' }));
+
+    // skipIfMet = false → normal run
+    const result = runCoverage(testDir, false);
+
+    // Falls through: no vitest config detected → unknown tool → fail
+    expect(result.success).toBe(false);
+    expect(result.rawOutput).toContain('No coverage tool detected');
+  });
+
+  it('falls through to normal run when state file is unreadable', () => {
+    // No state file written — readStateWithBody will throw
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ name: 'test' }));
+
+    const result = runCoverage(testDir, true);
+
+    // Falls through to normal run (state unreadable)
+    expect(result.success).toBe(false);
+    expect(result.rawOutput).toContain('No coverage tool detected');
+  });
+});
+
+describe('checkOnlyCoverage skipIfMet (story 16-5)', () => {
+  it('AC#2: skips coverage check when skipIfMet=true and coverage_met=true in state', () => {
+    const state = getDefaultState('nodejs');
+    state.session_flags.coverage_met = true;
+    state.session_flags.tests_passed = true;
+    state.coverage.current = 95;
+    state.coverage.target = 90;
+    writeState(state, testDir);
+
+    const result = checkOnlyCoverage(testDir, true);
+
+    expect(result.success).toBe(true);
+    expect(result.testsPassed).toBe(true);
+    expect(result.coveragePercent).toBe(95);
+    expect(result.rawOutput).toContain('Coverage skip: already met');
+  });
+
+  it('AC#4: does NOT skip when skipIfMet=true but coverage_met=false', () => {
+    const state = getDefaultState('nodejs');
+    state.session_flags.coverage_met = false;
+    writeState(state, testDir);
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ name: 'test' }));
+
+    const result = checkOnlyCoverage(testDir, true);
+
+    // Falls through: no vitest config detected → unknown tool → fail
+    expect(result.success).toBe(false);
+    expect(result.rawOutput).toContain('No coverage tool detected');
+  });
+
+  it('backward compat: works normally without skipIfMet parameter', () => {
+    const state = getDefaultState('nodejs');
+    state.session_flags.coverage_met = true;
+    state.session_flags.tests_passed = true;
+    writeState(state, testDir);
+    writeFileSync(join(testDir, 'package.json'), JSON.stringify({ name: 'test' }));
+
+    // No skipIfMet → normal run
+    const result = checkOnlyCoverage(testDir);
+
+    // Falls through: no vitest config detected → unknown tool → fail
+    expect(result.success).toBe(false);
+    expect(result.rawOutput).toContain('No coverage tool detected');
+  });
+});

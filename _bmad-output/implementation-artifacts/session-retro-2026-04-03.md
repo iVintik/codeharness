@@ -5603,3 +5603,239 @@ Session 3 cost per story (~$8) is higher than the all-time average ($3.37) but l
 | Test failures introduced | 0 | 0 | PASS |
 | Coverage floor | 80% per file | 96.58% overall | PASS |
 | Retries needed | 0 | 0 | PASS |
+
+---
+
+# Session Retrospective — 2026-04-03 (Session 4: Epic 16 stories)
+
+**Timestamp:** 2026-04-03T22:10Z
+**Session window:** Stories 16-1 through 16-4 completed across Sessions 1-4 today
+**Session 4 focus:** Story 16-4-verify-flag-propagation (create -> dev -> review -> verify -> done in ~19 minutes)
+**Sprint progress:** Epic 16 at 4/6 stories done (16-5, 16-6 remain in backlog)
+
+---
+
+## 1. Session Summary
+
+Today's sessions completed four stories from Epic 16 (Hierarchical Flow & Engine Enhancements). Each story followed the full create -> dev -> code-review -> verify pipeline.
+
+| Story | Session | Phases | Outcome | Wall Time | Notes |
+|-------|---------|--------|---------|-----------|-------|
+| 16-1-hierarchical-flow-schema-parser | 1 | create, dev, review, verify | **Done** | ~26 min | 11/11 ACs. JSON Schema + parser for hierarchical flows. |
+| 16-2-engine-handled-null-tasks | 2 | create, dev, review, verify | **Done** | ~20 min | 8/8 ACs. Null task registry + engine integration. |
+| 16-3-telemetry-writer | 3 | create, dev, review, verify | **Done** | ~23 min | 10/10 ACs. Telemetry write module + null-task-registry cleanup. |
+| 16-4-verify-flag-propagation | 4 | create, dev, review, verify | **Done** | ~19 min | 8/8 ACs. Engine propagates verify flags to harness state. |
+
+**Net output:** 4 stories completed, 37/37 ACs verified, 4747 tests passing at session end, 96.59% overall coverage.
+
+---
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (fixed this session)
+
+| Severity | Story | Issue |
+|----------|-------|-------|
+| HIGH | 16-1 | `resolveHierarchicalFlow` accepted arbitrary types without validation — could produce malformed objects |
+| HIGH | 16-2 | `success: false` from null task handler silently ignored — checkpoint written as success |
+| HIGH | 16-3 | `clearNullTaskRegistry` JSDoc claimed it re-registered built-in handlers but did not |
+| HIGH | 16-4 | Test AC#1 name claimed positive flag-setting test but actually tested null/no-op path |
+| MEDIUM | 16-1 | Operator precedence issue with `as` cast + `??` in workflow-parser.ts |
+| MEDIUM | 16-1 | `run.ts` null guard used `!== null` instead of `!= null` |
+| MEDIUM | 16-1 | 4 missing test cases for loop blocks and strategy validation error paths |
+| MEDIUM | 16-2 | Handler exceptions not wrapped in EngineError |
+| MEDIUM | 16-2 | `cost` field used last task's cost instead of accumulated total |
+| MEDIUM | 16-2 | No registry cleanup function for test isolation |
+| MEDIUM | 16-3 | `readTelemetryForEpic` defaulted to `process.cwd()` — made `projectDir` required |
+| MEDIUM | 16-3 | `TestResultsSummary` duplicated `TestResults` type |
+| MEDIUM | 16-3 | Unused imports in test; null-task-registry.test.ts re-registered fake handler |
+| MEDIUM | 16-3 | Pre-existing stats.test.ts assertion mismatch — fixed opportunistically |
+| MEDIUM | 16-4 | Duplicate AC#7 test names; bare catch block swallowed error details |
+
+**Total: 4 HIGH + 11 MEDIUM bugs fixed across 4 stories.** All caught by code review before verification.
+
+### LOW Issues Deferred (tech debt introduced/carried)
+
+| Story | Issue |
+|-------|-------|
+| 16-1 | Duplicate flow/story_flow coexistence check in two files (defense-in-depth, acceptable) |
+| 16-1 | `resolveHierarchicalFlow` silently returns empty storyFlow when no flow provided |
+| 16-2 | `executeNullTask` accepts `task` param but doesn't use it — misleading API |
+| 16-2 | Duplicated null-task-path code in executeWorkflow/executeLoopBlock |
+| 16-2 | Accumulated cost tracking is bolt-on threading rather than structural ExecutionContext |
+| 16-3 | `cost ?? null` is dead code (cost is never undefined) |
+| 16-3 | Unnecessary optional chain on `contract?.acceptanceCriteria` |
+| 16-4 | Tests rely on in-place mutation of contract object inside mock — coupling risk |
+| 16-4 | No integration test for AC#6 (cross-module verify reads engine-set flags) |
+
+### Workarounds Applied
+
+1. **16-2:** `executeNullTask` throws plain `EngineError` object (not Error subclass). Added `isEngineError()` type guard as workaround. Inconsistent with `DispatchError` which extends Error.
+2. **16-2:** `cost` field in TaskContext carries only previous task's cost, not accumulated total. Bolt-on `accumulatedCostUsd` tracker added.
+3. **16-4:** Tests use `writeOutputContract` mock interception to mutate contract object past `readonly` interface. Couples tests to implementation detail.
+4. **16-4:** Engine hardcodes `testResults: null` — flag propagation won't activate in production until a future story adds test result parsing from agent output.
+
+### Verification Gaps
+
+| Story | Gap |
+|-------|-----|
+| 16-1 | `codeharness verify` initially failed on preconditions: AGENTS.md missing entries, proof format headers wrong |
+| 16-2 | `codeharness verify` failed on bookkeeping (tests_passed=false, coverage_met=false, AGENTS.md stale) |
+| 16-3 | `codeharness verify` failed on documentation gate: AGENTS.md missing telemetry-writer.ts and null-task-registry.ts entries |
+| 16-4 | AC#6 proof is structural (confirms same field names) — no E2E integration test |
+
+### Infrastructure / Tooling Issues
+
+- **`_bmad/bmm/config.yaml` path incorrect** — referenced by workflow but actual location is `_bmad/config.yaml`. Flagged in all 4 create-story phases.
+- **`codeharness coverage --min-file 80` broken** — pre-existing stats.test.ts failure prevented coverage generation until Session 3 fixed it.
+- **AGENTS.md consistently stale** — every verify phase flags missing entries for new files. Documentation tax on every story.
+- **30 pre-existing tsc errors** in unrelated files — noise in every build check.
+- **2 pre-existing lint warnings** (prefer-const, unused error variable).
+- **Coverage runs duplicated** — verify phase ran coverage separately from test run in stories 16-1 and 16-3.
+
+---
+
+## 3. Cost Analysis
+
+### Per-Story Costs (from codeharness stats)
+
+| Story | API Calls | Cost | Cost/AC |
+|-------|-----------|------|---------|
+| 16-1-hierarchical-flow-schema-parser | 44 | $4.72 | $0.43 |
+| 16-2-engine-handled-null-tasks | 39 | $4.25 | $0.53 |
+| 16-3-telemetry-writer | 58 | $7.44 | $0.74 |
+| 16-4-verify-flag-propagation | 38 | $4.66 | $0.58 |
+| **Epic 16 total (4 stories)** | **179** | **$21.07** | **$0.57 avg** |
+
+Story 16-3 was the most expensive ($7.44) despite having a similar number of ACs. Root cause: code-review ran 35 tool calls (highest of any phase across all 4 stories) and executed coverage 3 times.
+
+### Subagent Tool Call Breakdown (from .session-issues.md)
+
+| Phase | 16-1 | 16-2 | 16-3 | 16-4 | Total | % |
+|-------|------|------|------|------|-------|---|
+| create-story | 23 | 20 | 16 | 16 | 75 | 24% |
+| dev-story | 33 | 25 | 16 | 25 | 99 | 32% |
+| code-review | 28 | 37 | 35 | 20 | 120 | 39% |
+| verify | 17+46* | 14 | 11 | 12 | 100 | — |
+
+*16-1 verify required a fix subagent (~46 calls) to correct AGENTS.md and proof format.
+
+**Code review is the most expensive phase** at 39% of tool calls (excluding verify fix subagents). This is consistent with the all-time stats showing verify at 44.5% of total cost.
+
+### Subagent-Level Redundancy Analysis
+
+**Files read repeatedly within a single phase:**
+- `workflow-engine.ts` read 5x in both 16-2 dev and 16-4 dev (large file, different sections needed)
+- `workflow-engine.test.ts` read 5x in 16-4 dev (same pattern)
+- 16-3 code-review: coverage run executed 3 times with different grep filters
+
+**Redundant operations:**
+- 16-1 verify: coverage run 3 times with different grep filters before usable output
+- 16-3 code-review: coverage run 3 times (same pattern as 16-1)
+- 16-4 verify: coverage run duplicated with test run
+
+**Bash output volume:** Coverage runs dominate Bash cost. Each full `vitest --coverage` run produces 80-160 lines of output. Running it 3x per phase multiplies cache write cost.
+
+### All-Time Cost Summary
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $300.85 |
+| Total API calls | 2,311 |
+| Stories tracked | 76 |
+| Average cost per story | $3.35 |
+| Verify phase share | 44.5% ($133.80) |
+| Orchestrator share | 17.8% ($53.64) |
+| Cache reads share | 62% ($185.73) |
+
+### Cost Optimization Opportunities
+
+1. **Coverage run consolidation:** Coverage was run 3x in 16-1 verify, 3x in 16-3 code-review, and 2x in 16-4 verify. A single `vitest --coverage --reporter=json` with JSON parsing would eliminate ~8 redundant runs across this session alone.
+2. **Targeted test runs during code-review:** Running 4700+ tests to verify a 5-line fix is wasteful. Code-review phases should use `vitest run <file>` for targeted testing, then run full suite once at end.
+3. **Verify phase costs 44.5% of total:** This is the single largest cost center. Consider caching test/coverage results from code-review phase and reusing in verify (they run within minutes of each other).
+4. **AGENTS.md overhead:** Every verify phase fails on AGENTS.md, triggering fix subagents (16-1 verify fix subagent alone was ~46 tool calls). Automating AGENTS.md generation would eliminate this recurring cost.
+
+---
+
+## 4. What Went Well
+
+1. **4 stories completed in 4 sessions, ~88 minutes total.** Average of ~22 minutes per story for full lifecycle. Consistent, predictable velocity.
+2. **37/37 ACs verified.** 100% pass rate across all stories, no partial passes.
+3. **Code review caught 4 HIGH bugs.** Every story had at least one HIGH-severity bug caught before verification. The review phase is load-bearing.
+4. **Zero retries.** All 4 stories completed on first attempt through the pipeline.
+5. **Pre-existing stats.test.ts bug fixed** opportunistically during 16-3 code review — unblocked the `codeharness coverage` command.
+6. **Session issues log worked reliably.** All 16 subagent phases reported token data, enabling precise cost attribution.
+7. **No redundant file reads in create-story or dev-story phases** (except workflow-engine.ts which is large and requires multiple section reads).
+8. **Test count grew from 4676 to 4747** (+71 tests) across the 4 stories with zero regressions.
+
+---
+
+## 5. What Went Wrong
+
+1. **Coverage grep filter failures persist.** This has been flagged in every session since Session 1. Coverage output was parsed 3x in both 16-1 verify and 16-3 code-review. The problem is subagents guessing at grep patterns for vitest coverage output format.
+2. **AGENTS.md stale on every verify.** Every single story's verify phase flagged missing AGENTS.md entries. This triggers fix subagents or manual workarounds each time. The 16-1 verify fix subagent consumed ~46 tool calls just for AGENTS.md and proof format fixes.
+3. **`_bmad/bmm/config.yaml` path wrong in all 4 create-story phases.** Known since Session 1, never fixed. Minor but adds noise to every story creation log.
+4. **`testResults: null` hardcoded in engine.** Story 16-4's verify flag propagation is implemented and tested, but will never activate in production until a future story parses test results from agent output. The feature is "done" but effectively dormant.
+5. **Verify phase is 44.5% of total cost.** Nearly half of all API spending goes to verification. While verification is valuable, the cost ratio is disproportionate.
+6. **`codeharness verify` failed on preconditions in 3 of 4 stories.** The tool's precondition checks (AGENTS.md, state flags, proof format) fail more often than they pass, reducing trust in the tool.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Single-story-per-session execution.** All 4 sessions completed their story within time budget. No timeouts, no partial work lost.
+2. **Subagent token reports in session issues log.** Having tool call counts per phase enabled the cost breakdown in this retro. This practice has matured and should be maintained.
+3. **Opportunistic pre-existing bug fixes during code review.** The stats.test.ts fix in 16-3 was free in context and unblocked the coverage command for subsequent stories.
+4. **Test-provable ACs.** All 37 ACs were tagged test-provable during story creation. This made verification straightforward — no subjective judgment needed.
+
+### Patterns to Avoid
+
+1. **Running coverage with grep filters.** Subagents guess at grep patterns and fail 2-3 times before getting a usable result. Use `--reporter=json` or read the coverage summary file directly.
+2. **Full test suite for every code-review fix iteration.** The 16-2 code-review ran 37 tool calls with 2 full test suite runs. Running targeted tests first and full suite once at end would save 40-50% of code-review Bash cost.
+3. **AGENTS.md as a manual verification gate.** This file goes stale immediately when modules are added. Either automate generation or remove from verify preconditions.
+4. **Hardcoding `testResults: null` without a follow-up story.** Story 16-4's feature is dormant. The backlog should have a story to wire test result parsing.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Status |
+|---|--------|----------|--------|
+| 1 | Fix `codeharness coverage --min-file` command | HIGH | Fixed (stats.test.ts fixed in 16-3) |
+| 2 | Automate AGENTS.md generation or remove from verify preconditions | HIGH | Open — flagged in all 4 stories this session |
+| 3 | Standardize coverage extraction in subagent prompts (use `--reporter=json` or read summary file) | HIGH | Open — 3x coverage runs in multiple phases |
+| 4 | Fix config.yaml path reference in workflow.yaml (`_bmad/bmm/config.yaml` -> `_bmad/config.yaml`) | MEDIUM | Open — flagged in all 4 create-story phases |
+| 5 | Add story to backlog: parse test results from agent output (activate 16-4 verify flags) | MEDIUM | Open — feature is dormant without this |
+| 6 | Make `EngineError` a proper Error subclass (16-2 workaround) | MEDIUM | Open — inconsistent with DispatchError |
+| 7 | Extract shared dispatch/checkpoint logic from sequential and loop null-task paths (16-2 duplication) | LOW | Open — carried from prior sessions |
+| 8 | Add E2E integration test for cross-module verify flag reads (16-4 AC#6 gap) | LOW | Open |
+| 9 | Investigate caching test/coverage results between code-review and verify phases | LOW | Open — could cut verify cost significantly |
+| 10 | Address 30 pre-existing tsc errors in unrelated files | LOW | Open — carried from prior sessions |
+
+## Session 4 Scorecard
+
+| Metric | Target | Actual | Status |
+|--------|--------|--------|--------|
+| Stories completed | 1 (16-4) | 1 | PASS |
+| Time budget | 30 min | ~19 min | PASS |
+| AC pass rate | 100% | 100% (8/8) | PASS |
+| Test failures introduced | 0 | 0 | PASS |
+| Coverage floor | 80% per file | 96.59% overall | PASS |
+| Retries needed | 0 | 0 | PASS |
+
+## Full-Day Scorecard (Sessions 1-4)
+
+| Metric | Value |
+|--------|-------|
+| Stories completed today | 4 (16-1 through 16-4) |
+| Total ACs verified | 37/37 (100%) |
+| Total wall time | ~88 minutes |
+| Average time per story | ~22 minutes |
+| HIGH bugs caught by review | 4 |
+| MEDIUM bugs caught by review | 11 |
+| Tests added | 71 (4676 -> 4747) |
+| Epic 16 cost | $21.07 |
+| Cost per story | $5.27 |
+| Retries | 0 |

@@ -533,7 +533,7 @@
       "acResults": null
     },
     "16-4-verify-flag-propagation": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -541,9 +541,9 @@
       "acResults": null
     },
     "16-5-coverage-deduplication": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T18:48:00Z",
       "lastError": null,
       "proofPath": null,
       "acResults": null
@@ -764,7 +764,7 @@
     "epic-16": {
       "status": "in-progress",
       "storiesTotal": 6,
-      "storiesDone": 0
+      "storiesDone": 4
     },
     "epic-17": {
       "status": "in-progress",
@@ -806,9 +806,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "16-4-verify-flag-propagation",
-    "currentPhase": "verify",
-    "lastAction": "Starting verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

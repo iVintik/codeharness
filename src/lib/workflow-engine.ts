@@ -28,6 +28,7 @@ import { evaluateProgress } from './circuit-breaker.js';
 import { getNullTask, listNullTasks } from './null-task-registry.js';
 import type { TaskContext, NullTaskResult } from './null-task-registry.js';
 import { readStateWithBody, writeState } from './state.js';
+import { formatCoverageContextMessage } from './evaluator.js';
 
 // Re-export EvaluatorVerdict for downstream consumers that import from workflow-engine
 export type { EvaluatorVerdict } from './verdict-parser.js';
@@ -100,6 +101,41 @@ const HALT_ERROR_CODES = new Set(['RATE_LIMIT', 'NETWORK', 'SDK_INIT']);
 
 /** Default maximum loop iterations before termination. */
 const DEFAULT_MAX_ITERATIONS = 5;
+
+// --- Coverage Deduplication (Story 16-5) ---
+
+/**
+ * Build a coverage context string for injection into the verify task prompt.
+ *
+ * Returns a formatted coverage context line if:
+ * 1. `coverage_met` is `true` in harness state
+ * 2. The previous output contract has non-null `testResults.coverage`
+ *
+ * Returns null if coverage deduplication should not apply (coverage not met,
+ * no contract data, or state unreadable).
+ */
+export function buildCoverageDeduplicationContext(
+  contract: OutputContract | null,
+  projectDir: string,
+): string | null {
+  // Guard: no contract or no test results
+  if (!contract?.testResults) return null;
+
+  const { coverage } = contract.testResults;
+  if (coverage === null || coverage === undefined) return null;
+
+  // Check harness state for coverage_met flag
+  try {
+    const { state } = readStateWithBody(projectDir);
+    if (!state.session_flags.coverage_met) return null;
+
+    const target = state.coverage.target ?? 90;
+    return formatCoverageContextMessage(coverage, target);
+  } catch {
+    // IGNORE: state unreadable — no deduplication
+    return null;
+  }
+}
 
 // --- Verify Flag Propagation (Story 16-4) ---
 
@@ -486,7 +522,17 @@ async function dispatchTaskWithResult(
       : `Implement story ${storyKey}`);
 
   // 7b. Inject previous task's output contract context into the prompt (story 13-2)
-  const prompt = buildPromptWithContractContext(basePrompt, previousOutputContract ?? null);
+  let prompt = buildPromptWithContractContext(basePrompt, previousOutputContract ?? null);
+
+  // 7c. Coverage deduplication (story 16-5): append coverage context when
+  // coverage_met is true and the previous contract has coverage data.
+  const coverageDedup = buildCoverageDeduplicationContext(
+    previousOutputContract ?? null,
+    projectDir,
+  );
+  if (coverageDedup) {
+    prompt = `${prompt}\n\n${coverageDedup}`;
+  }
 
   // 8. Build DispatchOpts for the driver
   const dispatchOpts: DispatchOpts = {

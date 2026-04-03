@@ -191,8 +191,41 @@ export function getTestCommand(dir?: string): string {
   return toolInfo.runCommand;
 }
 
-export function runCoverage(dir?: string): CoverageResult {
+/**
+ * Check if coverage has already been met according to harness state.
+ * Returns a synthetic CoverageResult when skipIfMet is true and
+ * coverage_met is true in the state file. Returns null to indicate
+ * the caller should fall through to the normal coverage run.
+ */
+function checkSkipIfMet(baseDir: string, skipIfMet?: boolean): CoverageResult | null {
+  if (!skipIfMet) return null;
+  try {
+    const { state } = readStateWithBody(baseDir);
+    if (!state.session_flags.coverage_met) return null;
+    const current = state.coverage.current ?? 0;
+    return {
+      success: true,
+      testsPassed: state.session_flags.tests_passed,
+      passCount: 0,
+      failCount: 0,
+      coveragePercent: current,
+      rawOutput: `Coverage skip: already met (${current}%, target: ${state.coverage.target}%)`,
+    };
+  } catch {
+    // IGNORE: state unreadable — fall through to normal coverage run
+    return null;
+  }
+}
+
+export function runCoverage(dir?: string, skipIfMet?: boolean): CoverageResult {
   const baseDir = dir ?? process.cwd();
+
+  // Coverage deduplication (story 16-5): when the engine has already
+  // determined coverage_met === true, skip the actual coverage run and
+  // return a synthetic result from the existing state.
+  const skipResult = checkSkipIfMet(baseDir, skipIfMet);
+  if (skipResult) return skipResult;
+
   const toolInfo = detectCoverageTool(baseDir);
 
   if (toolInfo.tool === 'unknown' || !toolInfo.runCommand) {
@@ -250,8 +283,13 @@ export function runCoverage(dir?: string): CoverageResult {
   };
 }
 
-export function checkOnlyCoverage(dir?: string): CoverageResult {
+export function checkOnlyCoverage(dir?: string, skipIfMet?: boolean): CoverageResult {
   const baseDir = dir ?? process.cwd();
+
+  // Coverage deduplication (story 16-5): same skip logic as runCoverage.
+  const skipResult = checkSkipIfMet(baseDir, skipIfMet);
+  if (skipResult) return skipResult;
+
   const toolInfo = detectCoverageTool(baseDir);
 
   if (toolInfo.tool === 'unknown') {

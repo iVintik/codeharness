@@ -139,6 +139,7 @@ import {
   executeLoopBlock,
   isTaskCompleted,
   isLoopTaskCompleted,
+  buildCoverageDeduplicationContext,
   PER_RUN_SENTINEL,
 } from '../workflow-engine.js';
 import type {
@@ -3874,5 +3875,245 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining('flag propagation failed'),
     );
+  });
+});
+
+// --- Story 16-5: Coverage Deduplication ---
+
+describe('buildCoverageDeduplicationContext (story 16-5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  function makeContract(overrides?: Partial<OutputContract>): OutputContract {
+    return {
+      version: 1,
+      taskName: 'implement',
+      storyId: '5-1-foo',
+      driver: 'claude-code',
+      model: 'claude-sonnet-4-20250514',
+      timestamp: '2026-04-03T00:00:00.000Z',
+      cost_usd: 0.05,
+      duration_ms: 1000,
+      changedFiles: [],
+      testResults: null,
+      output: 'Done',
+      acceptanceCriteria: [],
+      ...overrides,
+    };
+  }
+
+  it('AC#1: returns coverage context string when coverage_met is true and contract has coverage', () => {
+    mockReadStateWithBody.mockReturnValue({
+      state: {
+        session_flags: { coverage_met: true, tests_passed: true, logs_queried: false, verification_run: false },
+        coverage: { target: 90, baseline: null, current: 95, tool: 'c8' },
+      },
+      body: '',
+    });
+
+    const contract = makeContract({
+      testResults: { passed: 10, failed: 0, coverage: 95 },
+    });
+
+    const result = buildCoverageDeduplicationContext(contract, '/project');
+    expect(result).toBe('Coverage already verified by engine: 95% (target: 90%). No re-run needed.');
+  });
+
+  it('AC#2: returns null when coverage_met is false', () => {
+    mockReadStateWithBody.mockReturnValue({
+      state: {
+        session_flags: { coverage_met: false, tests_passed: true, logs_queried: false, verification_run: false },
+        coverage: { target: 90, baseline: null, current: 80, tool: 'c8' },
+      },
+      body: '',
+    });
+
+    const contract = makeContract({
+      testResults: { passed: 10, failed: 0, coverage: 80 },
+    });
+
+    const result = buildCoverageDeduplicationContext(contract, '/project');
+    expect(result).toBeNull();
+  });
+
+  it('AC#3: returns null when contract has testResults: null', () => {
+    mockReadStateWithBody.mockReturnValue({
+      state: {
+        session_flags: { coverage_met: true, tests_passed: true, logs_queried: false, verification_run: false },
+        coverage: { target: 90, baseline: null, current: 95, tool: 'c8' },
+      },
+      body: '',
+    });
+
+    const contract = makeContract({ testResults: null });
+
+    const result = buildCoverageDeduplicationContext(contract, '/project');
+    expect(result).toBeNull();
+  });
+
+  it('AC#3: returns null when contract is null', () => {
+    const result = buildCoverageDeduplicationContext(null, '/project');
+    expect(result).toBeNull();
+    // readStateWithBody should not even be called
+    expect(mockReadStateWithBody).not.toHaveBeenCalled();
+  });
+
+  it('AC#4: returns null when coverage_met is false even with valid contract coverage', () => {
+    mockReadStateWithBody.mockReturnValue({
+      state: {
+        session_flags: { coverage_met: false, tests_passed: true, logs_queried: false, verification_run: false },
+        coverage: { target: 90, baseline: null, current: 50, tool: 'c8' },
+      },
+      body: '',
+    });
+
+    const contract = makeContract({
+      testResults: { passed: 10, failed: 0, coverage: 50 },
+    });
+
+    const result = buildCoverageDeduplicationContext(contract, '/project');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when testResults.coverage is null', () => {
+    mockReadStateWithBody.mockReturnValue({
+      state: {
+        session_flags: { coverage_met: true, tests_passed: true, logs_queried: false, verification_run: false },
+        coverage: { target: 90, baseline: null, current: null, tool: 'c8' },
+      },
+      body: '',
+    });
+
+    const contract = makeContract({
+      testResults: { passed: 10, failed: 0, coverage: null },
+    });
+
+    const result = buildCoverageDeduplicationContext(contract, '/project');
+    expect(result).toBeNull();
+  });
+
+  it('gracefully returns null when state is unreadable', () => {
+    mockReadStateWithBody.mockImplementation(() => {
+      throw new Error('State file not found');
+    });
+
+    const contract = makeContract({
+      testResults: { passed: 10, failed: 0, coverage: 95 },
+    });
+
+    const result = buildCoverageDeduplicationContext(contract, '/project');
+    expect(result).toBeNull();
+  });
+
+  it('uses default target of 90 when state.coverage.target is null', () => {
+    mockReadStateWithBody.mockReturnValue({
+      state: {
+        session_flags: { coverage_met: true, tests_passed: true, logs_queried: false, verification_run: false },
+        coverage: { target: null, baseline: null, current: 95, tool: 'c8' },
+      },
+      body: '',
+    });
+
+    const contract = makeContract({
+      testResults: { passed: 10, failed: 0, coverage: 95 },
+    });
+
+    const result = buildCoverageDeduplicationContext(contract, '/project');
+    expect(result).toBe('Coverage already verified by engine: 95% (target: 90%). No re-run needed.');
+  });
+});
+
+describe('coverage deduplication in dispatchTask (story 16-5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it('AC#1,#6: appends coverage context to prompt when coverage_met is true', async () => {
+    // Make state have coverage_met = true
+    mockReadStateWithBody.mockReturnValue({
+      state: {
+        harness_version: '0.1.0',
+        initialized: true,
+        stack: 'node',
+        stacks: ['node'],
+        enforcement: { frontend: true, database: true, api: true },
+        coverage: { target: 90, baseline: null, current: 95, tool: 'c8' },
+        session_flags: { logs_queried: false, tests_passed: true, coverage_met: true, verification_run: false },
+        verification_log: [],
+      },
+      body: '\n# Codeharness State\n',
+    });
+
+    // Contract with test results
+    const previousContract: OutputContract = {
+      version: 1,
+      taskName: 'implement',
+      storyId: '5-1-foo',
+      driver: 'claude-code',
+      model: 'claude-sonnet-4-20250514',
+      timestamp: '2026-04-03T00:00:00.000Z',
+      cost_usd: 0.05,
+      duration_ms: 1000,
+      changedFiles: [],
+      testResults: { passed: 10, failed: 0, coverage: 95 },
+      output: 'Done',
+      acceptanceCriteria: [],
+    };
+
+    await dispatchTask(
+      makeTask({ scope: 'per-run', source_access: false }),
+      'verify',
+      PER_RUN_SENTINEL,
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+      undefined,
+      previousContract,
+    );
+
+    // The driver should have been called with a prompt that includes the coverage context
+    const driverDispatchCalls = mockGetDriver().dispatch.mock?.calls;
+    expect(driverDispatchCalls).toBeDefined();
+    expect(driverDispatchCalls!.length).toBeGreaterThan(0);
+    const opts = driverDispatchCalls![0][0];
+    expect(opts.prompt).toContain('Coverage already verified by engine: 95% (target: 90%). No re-run needed.');
+  });
+
+  it('AC#2: does NOT append coverage context when coverage_met is false', async () => {
+    // Default mocks have coverage_met = false
+    const previousContract: OutputContract = {
+      version: 1,
+      taskName: 'implement',
+      storyId: '5-1-foo',
+      driver: 'claude-code',
+      model: 'claude-sonnet-4-20250514',
+      timestamp: '2026-04-03T00:00:00.000Z',
+      cost_usd: 0.05,
+      duration_ms: 1000,
+      changedFiles: [],
+      testResults: { passed: 10, failed: 0, coverage: 50 },
+      output: 'Done',
+      acceptanceCriteria: [],
+    };
+
+    await dispatchTask(
+      makeTask({ scope: 'per-run', source_access: false }),
+      'verify',
+      PER_RUN_SENTINEL,
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+      undefined,
+      previousContract,
+    );
+
+    // The driver prompt should NOT contain coverage dedup context
+    const driverDispatchCalls = mockGetDriver().dispatch.mock?.calls;
+    expect(driverDispatchCalls).toBeDefined();
+    expect(driverDispatchCalls!.length).toBeGreaterThan(0);
+    const opts = driverDispatchCalls![0][0];
+    expect(opts.prompt).not.toContain('Coverage already verified by engine');
   });
 });

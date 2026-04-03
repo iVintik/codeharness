@@ -9,6 +9,18 @@ import { formatTracePrompt } from './trace-id.js';
 // --- Interfaces ---
 
 /**
+ * Coverage context from a previous task's output contract.
+ * When present, the evaluator prompt includes pre-computed coverage data
+ * so coverage does not need to be re-run.
+ */
+export interface CoverageContext {
+  /** The coverage percentage from the implement task's output contract. */
+  coverage: number;
+  /** The coverage target from the harness state. */
+  target: number;
+}
+
+/**
  * Options for running the blind evaluator.
  */
 export interface EvaluatorOptions {
@@ -22,6 +34,8 @@ export interface EvaluatorOptions {
   timeoutMs?: number;
   /** Optional trace ID for correlation in logs/metrics. */
   traceId?: string;
+  /** Optional pre-computed coverage context — when provided, coverage is not re-run. */
+  coverageContext?: CoverageContext;
 }
 
 /**
@@ -45,19 +59,36 @@ export interface EvaluatorResult {
 const DEFAULT_TIMEOUT_MS = 300_000; // 5 minutes
 
 /**
+ * Format the coverage deduplication context message.
+ * Single source of truth — used by both `buildEvaluatorPrompt()` and
+ * `buildCoverageDeduplicationContext()` in workflow-engine.ts.
+ */
+export function formatCoverageContextMessage(coverage: number, target: number): string {
+  return `Coverage already verified by engine: ${coverage}% (target: ${target}%). No re-run needed.`;
+}
+
+/**
  * Build the evaluator dispatch prompt from the compiled agent definition instructions.
  * The compiled SubagentDefinition.instructions already contain the prompt_template
  * from evaluator.yaml (appended by compileSubagentDefinition). This function adds
  * the minimal task-kick context that varies per dispatch — story file location and
  * output directory. The full anti-leniency prompt, evidence requirements, and output
  * format are in the instructions (system prompt), not duplicated here.
+ *
+ * When `coverageContext` is provided (coverage already met by engine flag propagation),
+ * a coverage context block is appended so the evaluator does not re-run coverage.
  */
-function buildEvaluatorPrompt(): string {
+export function buildEvaluatorPrompt(coverageContext?: CoverageContext): string {
   const parts: string[] = [];
 
   parts.push('Verify the acceptance criteria for this story.');
   parts.push('Story files are available in ./story-files/. Read each file to find the ACs.');
   parts.push('Write your verdict JSON output to ./verdict/verdict.json.');
+
+  if (coverageContext) {
+    parts.push('');
+    parts.push(formatCoverageContextMessage(coverageContext.coverage, coverageContext.target));
+  }
 
   return parts.join('\n');
 }
@@ -140,7 +171,7 @@ export async function runEvaluator(options: EvaluatorOptions): Promise<Evaluator
     }
 
     // Step 4: Race dispatch against timeout
-    const evaluatorPrompt = buildEvaluatorPrompt();
+    const evaluatorPrompt = buildEvaluatorPrompt(options.coverageContext);
     const dispatchPromise = dispatchAgent(
       options.agentDefinition,
       evaluatorPrompt,

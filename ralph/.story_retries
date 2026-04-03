@@ -1,3 +1,4 @@
 16-2-engine-handled-null-tasks 1
 16-3-telemetry-writer 1
 16-4-verify-flag-propagation 1
+16-5-coverage-deduplication 1

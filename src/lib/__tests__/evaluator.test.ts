@@ -20,8 +20,8 @@ vi.mock('../trace-id.js', () => ({
 
 // --- Imports ---
 
-import { runEvaluator } from '../evaluator.js';
-import type { EvaluatorOptions, EvaluatorResult } from '../evaluator.js';
+import { runEvaluator, buildEvaluatorPrompt } from '../evaluator.js';
+import type { EvaluatorOptions, EvaluatorResult, CoverageContext } from '../evaluator.js';
 import { isDockerAvailable } from '../docker/index.js';
 import { createIsolatedWorkspace } from '../source-isolation.js';
 import { dispatchAgent } from '../agent-dispatch.js';
@@ -459,5 +459,41 @@ describe('runEvaluator', () => {
       expect(clearTimeoutSpy).toHaveBeenCalled();
       clearTimeoutSpy.mockRestore();
     });
+  });
+});
+
+// --- Story 16-5: Coverage Deduplication in Evaluator Prompt ---
+
+describe('buildEvaluatorPrompt (story 16-5)', () => {
+  it('AC#1,#6: includes coverage context when coverageContext is provided', () => {
+    const ctx: CoverageContext = { coverage: 95, target: 90 };
+    const prompt = buildEvaluatorPrompt(ctx);
+
+    expect(prompt).toContain('Coverage already verified by engine: 95% (target: 90%). No re-run needed.');
+    // Should still include standard prompt parts
+    expect(prompt).toContain('Verify the acceptance criteria for this story.');
+    expect(prompt).toContain('./story-files/');
+    expect(prompt).toContain('./verdict/verdict.json');
+  });
+
+  it('AC#2: does NOT include coverage context when coverageContext is undefined', () => {
+    const prompt = buildEvaluatorPrompt(undefined);
+
+    expect(prompt).not.toContain('Coverage already verified by engine');
+    expect(prompt).toContain('Verify the acceptance criteria for this story.');
+  });
+
+  it('AC#3: does NOT include coverage context when no argument passed', () => {
+    const prompt = buildEvaluatorPrompt();
+
+    expect(prompt).not.toContain('Coverage already verified by engine');
+    expect(prompt).toContain('Verify the acceptance criteria for this story.');
+  });
+
+  it('includes correct coverage and target values in context', () => {
+    const ctx: CoverageContext = { coverage: 100, target: 100 };
+    const prompt = buildEvaluatorPrompt(ctx);
+
+    expect(prompt).toContain('Coverage already verified by engine: 100% (target: 100%). No re-run needed.');
   });
 });

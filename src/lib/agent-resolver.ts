@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
@@ -174,6 +174,24 @@ export function loadEmbeddedAgent(name: string): ResolvedAgent {
   }
 
   return parsed as ResolvedAgent;
+}
+
+// --- Embedded Agent Listing ---
+
+/**
+ * List all embedded agent template names (filenames without .yaml extension).
+ * Returns a sorted array of available agent names.
+ */
+export function listEmbeddedAgents(): string[] {
+  try {
+    const files = readdirSync(TEMPLATES_DIR);
+    return files
+      .filter((f) => f.endsWith('.yaml'))
+      .map((f) => f.replace(/\.yaml$/, ''))
+      .sort();
+  } catch { // IGNORE: directory unreadable — return empty list
+    return [];
+  }
 }
 
 // --- Patch Loading ---

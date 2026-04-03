@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { parse } from 'yaml';
 import { validateWorkflowSchema } from './schema-validate.js';
+import { listDrivers } from './agents/drivers/factory.js';
+import { listEmbeddedAgents, resolveAgent, AgentResolveError } from './agent-resolver.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -49,6 +51,73 @@ export class WorkflowParseError extends Error {
   }
 }
 
+// --- Referential Integrity Validation ---
+
+/**
+ * Validate that driver and agent references in tasks point to real registered
+ * drivers and resolvable agents. Collects errors into the provided array
+ * (does not throw — caller decides when to throw).
+ *
+ * Driver validation is skipped when the driver registry is empty (parse can
+ * be called independently of engine startup).
+ *
+ * Agent validation tries resolveAgent() first (covers embedded, user-level,
+ * and project-level agents). Distinguishes between "not found" errors and
+ * other failures (corrupt YAML, schema errors) to provide accurate messages.
+ */
+function validateReferentialIntegrity(
+  data: { tasks: Record<string, Record<string, unknown>> },
+  errors: Array<{ path: string; message: string }>,
+): void {
+  // Driver validation — only when registry is populated
+  const registeredDrivers = listDrivers();
+  const driverRegistryPopulated = registeredDrivers.length > 0;
+
+  // Agent list for error messages
+  const embeddedAgents = listEmbeddedAgents();
+
+  for (const [taskName, task] of Object.entries(data.tasks)) {
+    // Validate driver field if present
+    if (task.driver !== undefined && typeof task.driver === 'string' && driverRegistryPopulated) {
+      if (!registeredDrivers.includes(task.driver)) {
+        errors.push({
+          path: `/tasks/${taskName}/driver`,
+          message: `Driver "${task.driver}" not found in task "${taskName}". Registered drivers: ${registeredDrivers.join(', ')}`,
+        });
+      }
+    }
+
+    // Validate agent field if present
+    if (task.agent !== undefined && typeof task.agent === 'string') {
+      try {
+        resolveAgent(task.agent);
+      } catch (err: unknown) {
+        // Distinguish "not found" from "found but broken" (corrupt YAML, schema errors)
+        if (err instanceof AgentResolveError && err.message.startsWith('Embedded agent not found:')) {
+          const available = embeddedAgents.length > 0 ? embeddedAgents.join(', ') : '(none)';
+          errors.push({
+            path: `/tasks/${taskName}/agent`,
+            message: `Agent "${task.agent}" not found in task "${taskName}". Available agents: ${available}`,
+          });
+        } else if (err instanceof AgentResolveError) {
+          // Agent exists but is broken (corrupt YAML, schema validation failure, etc.)
+          errors.push({
+            path: `/tasks/${taskName}/agent`,
+            message: `Agent "${task.agent}" in task "${taskName}" failed to resolve: ${err.message}`,
+          });
+        } else {
+          // Unexpected error — still report it instead of silently swallowing
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push({
+            path: `/tasks/${taskName}/agent`,
+            message: `Agent "${task.agent}" in task "${taskName}" failed to resolve: ${msg}`,
+          });
+        }
+      }
+    }
+  }
+}
+
 // --- Shared Validation & Resolution ---
 
 /**
@@ -70,15 +139,16 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
   // At this point, parsed has passed schema validation — safe to cast
   const data = parsed as { tasks: Record<string, Record<string, unknown>>; flow: unknown[] };
 
-  // Referential integrity check
+  // Referential integrity check — collect all errors before throwing
   const taskNames = new Set(Object.keys(data.tasks));
-  const danglingRefs: Array<{ path: string; message: string }> = [];
+  const allErrors: Array<{ path: string; message: string }> = [];
 
+  // 1. Flow-to-task dangling reference check
   for (let i = 0; i < data.flow.length; i++) {
     const step = data.flow[i];
     if (typeof step === 'string') {
       if (!taskNames.has(step)) {
-        danglingRefs.push({
+        allErrors.push({
           path: `/flow/${i}`,
           message: `Task "${step}" referenced in flow but not defined in tasks`,
         });
@@ -88,7 +158,7 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
       for (let j = 0; j < loopBlock.loop.length; j++) {
         const ref = loopBlock.loop[j];
         if (!taskNames.has(ref)) {
-          danglingRefs.push({
+          allErrors.push({
             path: `/flow/${i}/loop/${j}`,
             message: `Task "${ref}" referenced in loop but not defined in tasks`,
           });
@@ -97,9 +167,12 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
     }
   }
 
-  if (danglingRefs.length > 0) {
-    const details = danglingRefs.map((e) => e.message).join('; ');
-    throw new WorkflowParseError(`Dangling task references: ${details}`, danglingRefs);
+  // 2. Driver and agent referential integrity check
+  validateReferentialIntegrity(data, allErrors);
+
+  if (allErrors.length > 0) {
+    const details = allErrors.map((e) => e.message).join('; ');
+    throw new WorkflowParseError(`Referential integrity errors: ${details}`, allErrors);
   }
 
   // Apply defaults and build resolved tasks

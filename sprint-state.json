@@ -369,12 +369,16 @@
       "acResults": null
     },
     "11-2-workflow-referential-integrity-validation": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T08:48:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/11-2-workflow-referential-integrity-validation-proof.md",
+      "acResults": {
+        "passed": 9,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "12-1-codex-driver-implementation": {
       "status": "backlog",
@@ -592,9 +596,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "11-1-workflow-schema-extension",
-    "currentPhase": "verify",
-    "lastAction": "Marking done",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

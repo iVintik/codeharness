@@ -15,6 +15,8 @@ import {
   type FlowStep,
   type WorkflowPatch,
 } from '../workflow-parser.js';
+import { registerDriver, resetDrivers } from '../agents/drivers/factory.js';
+import type { AgentDriver } from '../agents/types.js';
 
 let testDir: string;
 
@@ -248,7 +250,7 @@ flow:
         parseWorkflow(filePath);
       } catch (err) {
         const pe = err as WorkflowParseError;
-        expect(pe.message).toContain('Dangling task references');
+        expect(pe.message).toContain('Referential integrity errors');
         expect(pe.errors.some((e) => e.message.includes('nonexistent'))).toBe(true);
       }
     });
@@ -270,7 +272,7 @@ flow:
         parseWorkflow(filePath);
       } catch (err) {
         const pe = err as WorkflowParseError;
-        expect(pe.message).toContain('Dangling task references');
+        expect(pe.message).toContain('Referential integrity errors');
         expect(pe.errors.some((e) => e.message.includes('ghost_task'))).toBe(true);
         expect(pe.errors.some((e) => e.path.includes('loop'))).toBe(true);
       }
@@ -921,7 +923,7 @@ replace:
       resolveWorkflow({ cwd: testDir });
     } catch (err) {
       const pe = err as WorkflowParseError;
-      expect(pe.message).toContain('Dangling task references');
+      expect(pe.message).toContain('Referential integrity errors');
       expect(pe.errors.some((e) => e.message.includes('nonexistent_task'))).toBe(true);
     }
   });
@@ -968,14 +970,14 @@ overrides:
     writeFileSync(join(customDir, 'default.yaml'), `
 tasks:
   custom-task:
-    agent: custom-agent
+    agent: dev
 flow:
   - custom-task
 `, 'utf-8');
 
     const result = resolveWorkflow({ cwd: testDir });
     expect(result.tasks['custom-task']).toBeDefined();
-    expect(result.tasks['custom-task'].agent).toBe('custom-agent');
+    expect(result.tasks['custom-task'].agent).toBe('dev');
   });
 
   // --- Story 9.2: Custom Workflow Creation ---
@@ -988,14 +990,14 @@ flow:
       writeFileSync(join(customDir, 'my-workflow.yaml'), `
 tasks:
   deploy:
-    agent: deployer
+    agent: dev
 flow:
   - deploy
 `, 'utf-8');
 
       const result = resolveWorkflow({ cwd: testDir, name: 'my-workflow' });
       expect(result.tasks.deploy).toBeDefined();
-      expect(result.tasks.deploy.agent).toBe('deployer');
+      expect(result.tasks.deploy.agent).toBe('dev');
       expect(result.flow).toEqual(['deploy']);
     });
 
@@ -1026,7 +1028,7 @@ flow:
       writeFileSync(join(customDir, 'dangling.yaml'), `
 tasks:
   deploy:
-    agent: deployer
+    agent: dev
 flow:
   - deploy
   - nonexistent
@@ -1037,7 +1039,7 @@ flow:
         resolveWorkflow({ cwd: testDir, name: 'dangling' });
       } catch (err) {
         const pe = err as WorkflowParseError;
-        expect(pe.message).toContain('Dangling task references');
+        expect(pe.message).toContain('Referential integrity errors');
         expect(pe.errors.some((e) => e.message.includes('nonexistent'))).toBe(true);
       }
     });
@@ -1093,7 +1095,7 @@ overrides:
       writeFileSync(join(customDir, 'ci.yaml'), `
 tasks:
   build:
-    agent: builder
+    agent: qa
 flow:
   - build
 `, 'utf-8');
@@ -1104,25 +1106,25 @@ extends: embedded://default
 overrides:
   tasks:
     build:
-      agent: patched-builder
+      agent: architect
 `, 'utf-8');
 
       const result = resolveWorkflow({ cwd: testDir, name: 'ci' });
-      expect(result.tasks.build.agent).toBe('builder'); // Not patched
+      expect(result.tasks.build.agent).toBe('qa'); // Not patched
     });
 
-    it('custom workflow with custom agent names resolves agent field correctly', () => {
+    it('custom workflow with valid agent names resolves agent field correctly', () => {
       const customDir = join(testDir, '.codeharness', 'workflows');
       mkdirSync(customDir, { recursive: true });
 
       writeFileSync(join(customDir, 'multi-agent.yaml'), `
 tasks:
   build:
-    agent: my-custom-builder
+    agent: dev
   test:
-    agent: my-custom-tester
+    agent: qa
   deploy:
-    agent: my-custom-deployer
+    agent: architect
 flow:
   - build
   - test
@@ -1130,9 +1132,279 @@ flow:
 `, 'utf-8');
 
       const result = resolveWorkflow({ cwd: testDir, name: 'multi-agent' });
-      expect(result.tasks.build.agent).toBe('my-custom-builder');
-      expect(result.tasks.test.agent).toBe('my-custom-tester');
-      expect(result.tasks.deploy.agent).toBe('my-custom-deployer');
+      expect(result.tasks.build.agent).toBe('dev');
+      expect(result.tasks.test.agent).toBe('qa');
+      expect(result.tasks.deploy.agent).toBe('architect');
+    });
+  });
+});
+
+// --- Referential Integrity Validation Tests (Story 11-2) ---
+
+describe('referential integrity validation', () => {
+  function mockDriver(name: string): AgentDriver {
+    return {
+      name,
+      defaultModel: 'test-model',
+      capabilities: { streaming: false, tools: false, subagents: false, computerUse: false },
+      async healthCheck() { return { status: 'healthy' as const, driver: name }; },
+      async *dispatch() { /* empty */ },
+      getLastCost() { return null; },
+    };
+  }
+
+  afterEach(() => {
+    resetDrivers();
+  });
+
+  describe('driver validation (AC #1, #4)', () => {
+    it('workflow with driver: claude-code passes when driver is registered (AC #4)', () => {
+      registerDriver(mockDriver('claude-code'));
+
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    driver: claude-code
+flow:
+  - implement
+`;
+      const filePath = writeYaml('valid-driver.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.tasks.implement.driver).toBe('claude-code');
+    });
+
+    it('workflow with driver: nonexistent throws WorkflowParseError with helpful message (AC #1)', () => {
+      registerDriver(mockDriver('claude-code'));
+
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    driver: codex
+flow:
+  - implement
+`;
+      const filePath = writeYaml('invalid-driver.yaml', yaml);
+
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Referential integrity errors');
+        expect(pe.errors.some((e) => e.path === '/tasks/implement/driver')).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('codex'))).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('implement'))).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('claude-code'))).toBe(true);
+      }
+    });
+
+    it('driver validation is skipped when registry is empty (AC #4, Task 4)', () => {
+      // No drivers registered — validation should be skipped
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    driver: any-driver-name
+flow:
+  - implement
+`;
+      const filePath = writeYaml('empty-registry.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.tasks.implement.driver).toBe('any-driver-name');
+    });
+  });
+
+  describe('agent validation (AC #2, #6)', () => {
+    it('workflow with agent: dev (valid embedded agent) passes validation (AC #2)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+flow:
+  - implement
+`;
+      const filePath = writeYaml('valid-agent.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.tasks.implement.agent).toBe('dev');
+    });
+
+    it('workflow with agent: nonexistent-agent throws WorkflowParseError with helpful message (AC #2)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: nonexistent-agent
+flow:
+  - implement
+`;
+      const filePath = writeYaml('invalid-agent.yaml', yaml);
+
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Referential integrity errors');
+        expect(pe.errors.some((e) => e.path === '/tasks/implement/agent')).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('nonexistent-agent'))).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('implement'))).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('dev'))).toBe(true);
+      }
+    });
+
+    it('all embedded agent names pass validation', () => {
+      const agents = ['dev', 'qa', 'architect', 'pm', 'sm', 'analyst', 'ux-designer', 'tech-writer', 'evaluator'];
+      for (const agentName of agents) {
+        const yaml = `
+tasks:
+  task1:
+    agent: ${agentName}
+flow:
+  - task1
+`;
+        const filePath = writeYaml(`agent-${agentName}.yaml`, yaml);
+        const result = parseWorkflow(filePath);
+        expect(result.tasks.task1.agent).toBe(agentName);
+      }
+    });
+
+    it('not-found agent error includes "not found" and available agents list', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: nonexistent-agent
+flow:
+  - implement
+`;
+      const filePath = writeYaml('notfound-msg.yaml', yaml);
+
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        const agentError = pe.errors.find((e) => e.path === '/tasks/implement/agent');
+        expect(agentError).toBeDefined();
+        // "not found" path: message says "not found" and lists available agents
+        expect(agentError!.message).toContain('not found');
+        expect(agentError!.message).toContain('Available agents:');
+        expect(agentError!.message).toContain('dev');
+      }
+    });
+  });
+
+  describe('multiple errors collected (AC #3)', () => {
+    it('collects all referential integrity errors in a single throw', () => {
+      registerDriver(mockDriver('claude-code'));
+
+      const yaml = `
+tasks:
+  task1:
+    agent: fake-agent
+    driver: nonexistent
+  task2:
+    agent: another-fake
+flow:
+  - task1
+  - task2
+`;
+      const filePath = writeYaml('multi-errors.yaml', yaml);
+
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        // Should have errors for: task1/driver, task1/agent, task2/agent
+        expect(pe.errors.length).toBeGreaterThanOrEqual(3);
+        expect(pe.errors.some((e) => e.path === '/tasks/task1/driver')).toBe(true);
+        expect(pe.errors.some((e) => e.path === '/tasks/task1/agent')).toBe(true);
+        expect(pe.errors.some((e) => e.path === '/tasks/task2/agent')).toBe(true);
+      }
+    });
+
+    it('combines flow-ref and driver/agent errors in a single throw (AC #7)', () => {
+      registerDriver(mockDriver('claude-code'));
+
+      const yaml = `
+tasks:
+  implement:
+    agent: fake-agent
+    driver: bad-driver
+flow:
+  - implement
+  - nonexistent-task
+`;
+      const filePath = writeYaml('combined-errors.yaml', yaml);
+
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        // Flow dangling ref
+        expect(pe.errors.some((e) => e.path === '/flow/1' && e.message.includes('nonexistent-task'))).toBe(true);
+        // Driver ref
+        expect(pe.errors.some((e) => e.path === '/tasks/implement/driver' && e.message.includes('bad-driver'))).toBe(true);
+        // Agent ref
+        expect(pe.errors.some((e) => e.path === '/tasks/implement/agent' && e.message.includes('fake-agent'))).toBe(true);
+      }
+    });
+  });
+
+  describe('absent fields skip validation (AC #5)', () => {
+    it('workflow with no driver field on any task passes (AC #5)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  verify:
+    agent: evaluator
+flow:
+  - implement
+  - verify
+`;
+      const filePath = writeYaml('no-driver.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.tasks.implement.driver).toBeUndefined();
+      expect(result.tasks.verify.driver).toBeUndefined();
+    });
+  });
+
+  describe('backward compatibility (AC #9)', () => {
+    it('existing minimal workflow still parses without errors', () => {
+      const filePath = writeYaml('compat-minimal.yaml', minimalYaml);
+      const result = parseWorkflow(filePath);
+      expect(result.tasks.implement).toBeDefined();
+      expect(result.tasks.implement.agent).toBe('dev');
+    });
+
+    it('embedded default workflow resolves without errors', () => {
+      const result = resolveWorkflow({ cwd: testDir });
+      expect(result.tasks).toBeDefined();
+      expect(result.tasks.implement).toBeDefined();
+      expect(result.flow.length).toBeGreaterThan(0);
+    });
+
+    it('existing flow-ref checks still work (regression guard)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+flow:
+  - implement
+  - ghost
+`;
+      const filePath = writeYaml('flow-ref-regression.yaml', yaml);
+
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.errors.some((e) => e.message.includes('ghost'))).toBe(true);
+      }
     });
   });
 });

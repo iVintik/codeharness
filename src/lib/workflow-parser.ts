@@ -21,6 +21,9 @@ export interface ResolvedTask {
   input_contract?: Record<string, unknown>;
   output_contract?: Record<string, unknown>;
   max_budget_usd?: number;
+  driver?: string;
+  model?: string;
+  plugins?: string[];
 }
 
 export interface LoopBlock {
@@ -119,6 +122,15 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
     }
     if (task.max_budget_usd !== undefined) {
       resolved.max_budget_usd = task.max_budget_usd as number;
+    }
+    if (task.driver !== undefined) {
+      resolved.driver = task.driver as string;
+    }
+    if (task.model !== undefined) {
+      resolved.model = task.model as string;
+    }
+    if (task.plugins !== undefined) {
+      resolved.plugins = task.plugins as string[];
     }
     resolvedTasks[taskName] = resolved;
   }

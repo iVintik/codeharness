@@ -70,7 +70,7 @@ development_status:
 
   # Epic 11
   epic-11: backlog
-  11-1-workflow-schema-extension: backlog
+  11-1-workflow-schema-extension: done
   11-2-workflow-referential-integrity-validation: backlog
 
   # Epic 12

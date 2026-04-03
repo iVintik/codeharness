@@ -368,6 +368,213 @@ flow:
     });
   });
 
+  describe('driver, model, and plugins fields (Story 11-1)', () => {
+    it('minimal workflow without new fields parses successfully — backward compat (AC #2)', () => {
+      const filePath = writeYaml('compat.yaml', minimalYaml);
+      const result = parseWorkflow(filePath);
+
+      expect(result.tasks.implement.driver).toBeUndefined();
+      expect(result.tasks.implement.model).toBeUndefined();
+      expect(result.tasks.implement.plugins).toBeUndefined();
+    });
+
+    it('task with driver: codex parses into ResolvedTask.driver === "codex" (AC #3)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    driver: codex
+flow:
+  - implement
+`;
+      const filePath = writeYaml('driver.yaml', yaml);
+      const result = parseWorkflow(filePath);
+
+      expect(result.tasks.implement.driver).toBe('codex');
+      expect(result.tasks.implement.model).toBeUndefined();
+      expect(result.tasks.implement.plugins).toBeUndefined();
+    });
+
+    it('task with model: claude-opus-4 parses into ResolvedTask.model (AC #3)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    model: claude-opus-4
+flow:
+  - implement
+`;
+      const filePath = writeYaml('model.yaml', yaml);
+      const result = parseWorkflow(filePath);
+
+      expect(result.tasks.implement.model).toBe('claude-opus-4');
+      expect(result.tasks.implement.driver).toBeUndefined();
+    });
+
+    it('task with plugins: [gstack, omo] parses into ResolvedTask.plugins (AC #3)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    plugins:
+      - gstack
+      - omo
+flow:
+  - implement
+`;
+      const filePath = writeYaml('plugins.yaml', yaml);
+      const result = parseWorkflow(filePath);
+
+      expect(result.tasks.implement.plugins).toEqual(['gstack', 'omo']);
+    });
+
+    it('task with all three new fields parses correctly (AC #3)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    driver: codex
+    model: codex-mini
+    plugins:
+      - gstack
+flow:
+  - implement
+`;
+      const filePath = writeYaml('all-new.yaml', yaml);
+      const result = parseWorkflow(filePath);
+
+      expect(result.tasks.implement.driver).toBe('codex');
+      expect(result.tasks.implement.model).toBe('codex-mini');
+      expect(result.tasks.implement.plugins).toEqual(['gstack']);
+    });
+
+    it('driver: 123 (wrong type) fails schema validation (AC #8)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    driver: 123
+flow:
+  - implement
+`;
+      const filePath = writeYaml('bad-driver.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Schema validation failed');
+      }
+    });
+
+    it('model: true (wrong type) fails schema validation (AC #8)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    model: true
+flow:
+  - implement
+`;
+      const filePath = writeYaml('bad-model.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Schema validation failed');
+      }
+    });
+
+    it('plugins: "not-array" (wrong type) fails schema validation (AC #8)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    plugins: not-array
+flow:
+  - implement
+`;
+      const filePath = writeYaml('bad-plugins.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Schema validation failed');
+      }
+    });
+
+    it('new fields alongside agent pass schema validation — not rejected as additionalProperties (AC #6)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    driver: codex
+    model: codex-mini
+    plugins:
+      - gstack
+flow:
+  - implement
+`;
+      const filePath = writeYaml('additional-props.yaml', yaml);
+      // Should NOT throw — new fields are recognized by schema
+      const result = parseWorkflow(filePath);
+      expect(result.tasks.implement.agent).toBe('dev');
+      expect(result.tasks.implement.driver).toBe('codex');
+    });
+
+    it('ResolvedTask type exposes optional driver, model, plugins fields (AC #4)', () => {
+      const filePath = writeYaml('type-check.yaml', minimalYaml);
+      const result = parseWorkflow(filePath);
+      const task: ResolvedTask = result.tasks.implement;
+
+      // TypeScript compile-time check: these fields exist on ResolvedTask
+      const _driver: string | undefined = task.driver;
+      const _model: string | undefined = task.model;
+      const _plugins: string[] | undefined = task.plugins;
+
+      // Runtime: they are undefined when not set
+      expect(_driver).toBeUndefined();
+      expect(_model).toBeUndefined();
+      expect(_plugins).toBeUndefined();
+    });
+
+    it('plugins: [123] (non-string array items) fails schema validation', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    plugins:
+      - 123
+flow:
+  - implement
+`;
+      const filePath = writeYaml('bad-plugins-items.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toContain('Schema validation failed');
+      }
+    });
+
+    it('empty plugins array is valid', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    plugins: []
+flow:
+  - implement
+`;
+      const filePath = writeYaml('empty-plugins.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.tasks.implement.plugins).toEqual([]);
+    });
+  });
+
   describe('WorkflowParseError structure (AC #8)', () => {
     it('extends Error and has name and errors array', () => {
       const err = new WorkflowParseError('test error', [
@@ -561,6 +768,32 @@ overrides:
     expect(result.tasks.implement.agent).toBe('dev');
     expect(result.tasks.implement.scope).toBe('per-story');
     expect(result.tasks.implement.source_access).toBe(true);
+  });
+
+  it('deep-merges driver, model, plugins via project patch onto embedded base (Story 11-1)', () => {
+    const patchDir = join(testDir, '.codeharness', 'workflows');
+    mkdirSync(patchDir, { recursive: true });
+
+    const patchContent = `
+extends: embedded://default
+overrides:
+  tasks:
+    implement:
+      driver: codex
+      model: codex-mini
+      plugins:
+        - gstack
+`;
+    writeFileSync(join(patchDir, 'default.patch.yaml'), patchContent, 'utf-8');
+
+    const result = resolveWorkflow({ cwd: testDir });
+
+    expect(result.tasks.implement.driver).toBe('codex');
+    expect(result.tasks.implement.model).toBe('codex-mini');
+    expect(result.tasks.implement.plugins).toEqual(['gstack']);
+    // Preserved from base
+    expect(result.tasks.implement.agent).toBe('dev');
+    expect(result.tasks.implement.scope).toBe('per-story');
   });
 
   it('applies replace sections as full replacement (not deep merge)', () => {

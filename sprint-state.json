@@ -361,11 +361,11 @@
       }
     },
     "11-1-workflow-schema-extension": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
+      "proofPath": "verification/11-1-workflow-schema-extension-proof.md",
       "acResults": null
     },
     "11-2-workflow-referential-integrity-validation": {
@@ -592,9 +592,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "11-1-workflow-schema-extension",
+    "currentPhase": "verify",
+    "lastAction": "Marking done",
     "acProgress": null
   },
   "actionItems": []

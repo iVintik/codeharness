@@ -84,6 +84,19 @@
         "max_budget_usd": {
           "type": "number",
           "description": "Maximum budget in USD for this task execution"
+        },
+        "driver": {
+          "type": "string",
+          "description": "Agent driver framework (e.g., claude-code, codex, opencode)"
+        },
+        "model": {
+          "type": "string",
+          "description": "Model override for this task (falls through to resolution chain if omitted)"
+        },
+        "plugins": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Plugin names to load in the driver session"
         }
       },
       "additionalProperties": false

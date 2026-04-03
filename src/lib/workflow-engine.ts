@@ -289,13 +289,13 @@ async function dispatchTaskWithResult(
   const sessionKey: SessionLookupKey = { taskName, storyKey };
   const sessionId = resolveSessionId(task.session, sessionKey, state);
 
-  // 4. Resolve driver — forward-compat: task.driver field comes in story 11-1
-  const driverName = (task as { driver?: string }).driver ?? 'claude-code';
+  // 4. Resolve driver
+  const driverName = task.driver ?? 'claude-code';
   const driver = getDriver(driverName);
 
   // 5. Resolve model via cascade: task → agent → driver
   const agentAsModelSource = { model: definition.model };
-  const model = resolveModel(task as { model?: string }, agentAsModelSource, driver);
+  const model = resolveModel(task, agentAsModelSource, driver);
 
   // 6. Determine cwd based on source_access
   let cwd: string;
@@ -322,7 +322,7 @@ async function dispatchTaskWithResult(
     sourceAccess: task.source_access !== false,
     ...(sessionId ? { sessionId } : {}),
     ...(tracePrompt ? { appendSystemPrompt: tracePrompt } : {}),
-    ...(((task as { plugins?: readonly string[] }).plugins) ? { plugins: (task as { plugins?: readonly string[] }).plugins } : {}),
+    ...(task.plugins ? { plugins: task.plugins } : {}),
     ...(task.max_budget_usd != null ? { timeout: task.max_budget_usd } : {}),
   };
 

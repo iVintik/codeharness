@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 46,
-    "done": 28,
+    "done": 33,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -341,20 +341,24 @@
       "acResults": null
     },
     "10-4-model-resolution-module": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T11:35:00Z",
       "lastError": null,
       "proofPath": null,
       "acResults": null
     },
     "10-5-workflow-engine-driver-integration": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
-      "lastAttempt": null,
+      "lastAttempt": "2026-04-03T07:58:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/10-5-workflow-engine-driver-integration-proof.md",
+      "acResults": {
+        "passed": 11,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "11-1-workflow-schema-extension": {
       "status": "backlog",

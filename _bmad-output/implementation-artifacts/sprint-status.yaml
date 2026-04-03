@@ -57,5 +57,5 @@ development_status:
 
   # Epic 9
   epic-9: backlog
-  9-1-workflow-patch-resolution: backlog
+  9-1-workflow-patch-resolution: done
   9-2-custom-workflow-creation: backlog

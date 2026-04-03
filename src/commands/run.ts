@@ -6,7 +6,7 @@ import { isDockerAvailable } from '../lib/docker/index.js';
 import { cleanupContainers } from '../modules/infra/index.js';
 import { readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
 import { countStories, formatElapsed } from '../lib/run-helpers.js';
-import { parseWorkflow } from '../lib/workflow-parser.js';
+import { parseWorkflow, resolveWorkflow } from '../lib/workflow-parser.js';
 import { resolveAgent, compileSubagentDefinition } from '../lib/agent-resolver.js';
 import { executeWorkflow } from '../lib/workflow-engine.js';
 import { readWorkflowState, writeWorkflowState } from '../lib/workflow-state.js';
@@ -98,20 +98,25 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      // 4. Parse workflow YAML
+      // 4. Resolve workflow (embedded -> user patch -> project patch)
       const projectDir = process.cwd();
-      const projectWorkflowPath = join(projectDir, '.codeharness', 'workflows', 'default.yaml');
-      const templateWorkflowPath = join(projectDir, 'templates', 'workflows', 'default.yaml');
-      const workflowPath = existsSync(projectWorkflowPath) ? projectWorkflowPath : templateWorkflowPath;
 
       let parsedWorkflow;
       try {
-        parsedWorkflow = parseWorkflow(workflowPath);
+        parsedWorkflow = resolveWorkflow({ cwd: projectDir });
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        fail(`Failed to parse workflow: ${msg}`, outputOpts);
-        process.exitCode = 1;
-        return;
+        // Fallback: try direct file parsing for backward compatibility
+        const projectWorkflowPath = join(projectDir, '.codeharness', 'workflows', 'default.yaml');
+        const templateWorkflowPath = join(projectDir, 'templates', 'workflows', 'default.yaml');
+        const workflowPath = existsSync(projectWorkflowPath) ? projectWorkflowPath : templateWorkflowPath;
+        try {
+          parsedWorkflow = parseWorkflow(workflowPath);
+        } catch (fallbackErr: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          fail(`Failed to resolve workflow: ${msg}`, outputOpts);
+          process.exitCode = 1;
+          return;
+        }
       }
 
       // 5. Resolve agents referenced in workflow

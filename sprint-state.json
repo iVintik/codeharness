@@ -289,12 +289,16 @@
       }
     },
     "9-1-workflow-patch-resolution": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T02:59:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/9-1-workflow-patch-resolution-proof.md",
+      "acResults": {
+        "passed": 10,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "9-2-custom-workflow-creation": {
       "status": "backlog",

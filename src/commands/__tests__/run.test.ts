@@ -12,7 +12,7 @@ const {
   realExistsSync, startRendererMock, rendererCleanupMock,
   getSprintStateMock, reconcileStateMock,
   isDockerAvailableMock, cleanupContainersMock,
-  parseWorkflowMock, resolveAgentMock, compileSubagentMock,
+  parseWorkflowMock, resolveWorkflowMock, resolveAgentMock, compileSubagentMock,
   executeWorkflowMock,
   readWorkflowStateMock, writeWorkflowStateMock,
 } = vi.hoisted(() => {
@@ -40,6 +40,12 @@ const {
     isDockerAvailableMock: vi.fn(() => true),
     cleanupContainersMock: vi.fn((): { success: boolean; data?: { containersRemoved: number; names: string[] }; error?: string } => ({ success: true, data: { containersRemoved: 0, names: [] } })),
     parseWorkflowMock: vi.fn(() => ({
+      tasks: {
+        implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
+      },
+      flow: ['implement'],
+    })),
+    resolveWorkflowMock: vi.fn(() => ({
       tasks: {
         implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
       },
@@ -111,6 +117,7 @@ vi.mock('../../modules/infra/index.js', () => ({
 
 vi.mock('../../lib/workflow-parser.js', () => ({
   parseWorkflow: (...args: unknown[]) => parseWorkflowMock(...(args as Parameters<typeof parseWorkflowMock>)),
+  resolveWorkflow: (...args: unknown[]) => resolveWorkflowMock(...(args as Parameters<typeof resolveWorkflowMock>)),
 }));
 
 vi.mock('../../lib/agent-resolver.js', () => ({
@@ -150,6 +157,13 @@ describe('run command', () => {
     cleanupContainersMock.mockReturnValue({ success: true, data: { containersRemoved: 0, names: [] } });
     parseWorkflowMock.mockReset();
     parseWorkflowMock.mockReturnValue({
+      tasks: {
+        implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
+      },
+      flow: ['implement'],
+    });
+    resolveWorkflowMock.mockReset();
+    resolveWorkflowMock.mockReturnValue({
       tasks: {
         implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
       },
@@ -282,7 +296,7 @@ describe('run command', () => {
 
       await runCommand();
 
-      expect(parseWorkflowMock).toHaveBeenCalled();
+      expect(resolveWorkflowMock).toHaveBeenCalled();
       expect(resolveAgentMock).toHaveBeenCalled();
       expect(executeWorkflowMock).toHaveBeenCalled();
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Workflow completed'));
@@ -336,15 +350,17 @@ describe('run command', () => {
       expect(process.exitCode).toBe(1);
     });
 
-    it('exits 1 when workflow parsing fails', async () => {
+    it('exits 1 when workflow resolution fails', async () => {
       mockPaths({ '.claude': true });
       readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
-      parseWorkflowMock.mockImplementation(() => { throw new Error('bad YAML'); });
+      resolveWorkflowMock.mockImplementation(() => { throw new Error('bad YAML'); });
+      // Fallback also fails
+      parseWorkflowMock.mockImplementation(() => { throw new Error('fallback bad YAML'); });
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
       await runCommand();
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to parse workflow'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to resolve workflow'));
       expect(process.exitCode).toBe(1);
     });
 

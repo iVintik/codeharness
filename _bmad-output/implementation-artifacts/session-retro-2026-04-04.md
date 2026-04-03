@@ -320,3 +320,419 @@ The most actionable saving is combining test+coverage runs (currently done twice
 | 8 | Plan async refactor of WorktreeManager.createWorktree before epic 18 | Medium | architecture | Carried |
 | 9 | Tag orchestrator costs to specific stories to reduce $51.19 "unknown" bucket | Low | tooling | Carried |
 | 10 | Reduce redundant glob patterns in create-story subagent | Low | process | Carried |
+
+---
+
+# Session Retrospective — 2026-04-04 (Session 3: Stories 17-3, 18-1, 18-2)
+
+**Generated:** 2026-04-04T02:00:00Z
+
+---
+
+## 1. Session Summary
+
+### Stories Attempted This Session
+
+| Story | Phases Completed | Outcome |
+|-------|-----------------|---------|
+| 17-3-run-command-parallel-integration | verification | Verified and committed as `bf1532a`. Epic 17 complete. |
+| 18-1-merge-serialization-execution | create-story, dev-story, code-review, verification | Full pipeline. Committed as `39582ec`. |
+| 18-2-merge-agent-conflict-resolution | create-story, dev-story, code-review | All pipeline phases complete. Awaiting verification. |
+
+### Session Velocity
+
+3 stories processed. 2 fully committed. 1 awaiting verification. This is the highest-throughput session of the sprint — the pipeline ran 10 subagent phases total (1 verify + 4 full pipeline + 5 partial pipeline).
+
+### Sprint Progress (Cumulative)
+
+- **Total stories:** 64
+- **Done:** 51 (79.7%)
+- **In progress (code-review complete):** 1 (18-2)
+- **Backlog:** 12 (18-3, epics 19-20)
+- **Failed:** 0
+- **Epics completed:** 17 of 20 (epic 17 closed this session)
+
+---
+
+## 2. Issues Analysis
+
+### Issues from Session Log
+
+**Category: Security (2 issues, HIGH — both fixed)**
+- **Shell injection via testCommand parameter** in worktree-manager. Raw shell string passed to exec. Fixed with regex validation in code-review phase.
+- **Shell injection via malicious branch names.** Branch names used unsanitized in shell commands. Fixed with regex validation.
+- **Takeaway:** The code-review subagent caught both injection vectors. The dev-story subagent did not consider untrusted input — a recurring blind spot.
+
+**Category: Logic Bugs (2 issues, HIGH/MEDIUM — both fixed)**
+- **resolveConflicts false positive** in merge-agent: unparseable test output (0 passed, 0 failed) treated as success. Fixed by requiring at least 1 passed test.
+- **`driver: undefined as never`** would crash at runtime when onConflict callback fires. Fixed by introducing MergeConflictInfo type that doesn't require a driver.
+
+**Category: Race Conditions (1 issue, MEDIUM — fixed)**
+- **TOCTOU race on branch existence** in worktree-manager. Branch existence checked before mutex acquired, then assumed valid inside mutex. Fixed with re-verification inside mutex critical section.
+
+**Category: Code Duplication (1 issue, LOW — unfixed)**
+- `parseTestOutput` duplicated between merge-agent.ts and worktree-manager.ts. Should be extracted to a shared utility. Left for future cleanup.
+
+**Category: Test/Tooling Friction (3 issues)**
+- Proof document format mismatch (17-3 verification): `### AC N:` headers instead of `## AC N:`, missing bash+output blocks. Required rewrite.
+- Subagent misreported Babel/Jest compilation failure when project uses vitest (17-3 verification).
+- npm test ran 4 times in 18-1 verification subagent — wasteful repeated execution.
+
+**Category: Design Gaps (3 issues, LOW — unfixed)**
+- No mutex acquisition timeout — starvation risk under high contention.
+- No logging in merge path — debugging blind spot.
+- parseTestOutput only reads stdout, not stderr — test frameworks that write to stderr will be missed.
+- testCommand as raw shell string (architectural) — safer pattern would be execFile with array args.
+- No integration test for full mergeWorktree + onConflict + resolveConflicts pipeline.
+
+**Category: Missing Context (2 issues)**
+- No `project-context.md` found — both create-story subagents (18-1, 18-2) had to gather context from architecture and epics files instead. This is a recurring issue that adds ~2 Read calls per create-story.
+
+---
+
+## 3. Cost Analysis
+
+### Updated Sprint Totals
+
+| Metric | Previous Session | Current | Delta |
+|--------|-----------------|---------|-------|
+| Total API cost | $334.36 | $357.86 | +$23.50 |
+| Total API calls | 2,543 | 2,728 | +185 |
+| Stories done | 49 | 51 | +2 (+1 in code-review) |
+| Cost per story (avg) | $3.45 | $3.58 | +$0.13 |
+
+### Session Cost Breakdown: ~$23.50
+
+| Story | Est. Cost | Phases |
+|-------|-----------|--------|
+| 17-3 verification | ~$3.50 | verify only |
+| 18-1 full pipeline | ~$11.00 | create-story + dev-story + code-review + verify |
+| 18-2 partial pipeline | ~$9.00 | create-story + dev-story + code-review |
+
+Epic 17-18 stories are more expensive than average ($3.58) because they involve complex concurrent/merge logic with higher coverage demands.
+
+### Cost by Phase (Updated)
+
+| Phase | Calls | Cost | % | Delta |
+|-------|-------|------|---|-------|
+| verify | 1,313 | $161.60 | 45.2% | +$10.79 |
+| orchestrator | 288 | $62.52 | 17.5% | +$3.01 |
+| create-story | 357 | $40.25 | 11.2% | +$4.11 |
+| dev-story | 313 | $35.19 | 9.8% | +$1.51 |
+| code-review | 283 | $33.63 | 9.4% | +$2.64 |
+| retro | 174 | $24.68 | 6.9% | +$1.45 |
+
+Verification still dominates at 45.2%. The 83 additional verify calls this session contributed ~$10.79.
+
+### Subagent-Level Token Breakdown (This Session)
+
+| Subagent | Tool Calls | Heaviest Tools | Largest Bash Output | Redundancy |
+|----------|-----------|----------------|---------------------|------------|
+| 17-3 verification | 5 | Bash: 3, Read: 1 | — | None |
+| 18-1 create-story | 18 | Read: 10, Glob: 4 | git log (~10 lines) | None |
+| 18-1 dev-story | 16 | Edit: 7, Read: 5 | vitest coverage (~30 lines) | None |
+| 18-1 code-review | 16 | Bash: 7, Read: 6 | test:coverage (~60 lines x2) | test:coverage ran twice |
+| 18-1 verification | 16 | Bash: 10, Read: 3 | vitest verbose (~80 lines) | **npm test ran 4 times** |
+| 18-2 create-story | 18 | Read: 10, Glob: 5 | git diff --stat (~8 lines) | worktree-manager.ts read 3x |
+| 18-2 dev-story | 20 | Edit: 8, Bash: 7 | tsc --noEmit (~50 lines) | None |
+| 18-2 code-review | 22 | Bash: 9, Read: 8 | test:coverage (~80 lines) | None |
+
+**Key findings:**
+- **18-1 verification ran npm test 4 times** to extract different parts of the output. This is the single biggest waste — a single run with captured output could serve all 4 needs. Estimated waste: ~$2-3.
+- **18-1 code-review ran test:coverage twice** (pre-fix and post-fix). The post-fix run is necessary; the pre-fix run could be skipped if the review phase assumed tests pass from dev-story.
+- **18-2 create-story read worktree-manager.ts 3 times** at different offsets. Could be reduced to 1-2 reads with better offset planning.
+- **Total tool calls this session: 131.** Efficient for 10 subagent phases (13.1 calls/phase average).
+
+### Cost by Token Type (Updated)
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 147.97M | $221.95 | 62% |
+| Cache writes | 4.17M | $78.21 | 22% |
+| Output | 767K | $57.56 | 16% |
+| Input | 9.3K | $0.14 | 0% |
+
+Cache reads remain the dominant cost driver. Each subagent session re-reads the full context window, making cache reads proportional to the number of subagent invocations. With 10 subagent phases this session, that's significant.
+
+---
+
+## 4. What Went Well
+
+- **Epic 17 completed.** All 3 stories (worktree-manager, lane-pool, run-command-parallel-integration) shipped. The parallel execution foundation is in place.
+- **Code review caught 4 HIGH/MEDIUM security and logic bugs** across 18-1 and 18-2. Shell injection, false positive conflict resolution, TOCTOU race, and runtime crash — all fixed before merge.
+- **Zero failures across 51 stories.** Perfect completion rate maintained.
+- **High throughput.** 3 stories processed in one session, 10 subagent phases executed. The pipeline is running smoothly at scale.
+- **Efficient subagent discipline.** Most subagents reported zero redundant operations. The 131 total tool calls across 10 phases averages 13.1 calls/phase — lean.
+- **Session issues log is working.** Every subagent reported token usage and issues. This gives real visibility into where effort goes.
+
+---
+
+## 5. What Went Wrong
+
+- **Verification phase continues to dominate costs (45.2%).** Despite being flagged in sessions 1 and 2, no structural change has been made. The 18-1 verification subagent running npm test 4 times is a concrete example of waste.
+- **Shell injection vulnerabilities in dev-story output.** The dev-story subagent does not consider untrusted input scenarios. Code review is the only safety net, and it's catching issues that should be prevented by design.
+- **No project-context.md.** Both 18-1 and 18-2 create-story phases had to reconstruct context from architecture files. This adds ~2 extra Read calls per story creation.
+- **parseTestOutput duplicated.** Copy-pasted between merge-agent.ts and worktree-manager.ts. Technical debt accumulating within the same epic.
+- **BATS test failures (253 `not ok`)** reported as pre-existing in 18-1 verification. These are noise that could confuse verification subagents into misinterpreting results.
+- **Proof format issues persist.** Despite being flagged in session 2, the 17-3 verification subagent still produced proofs in the wrong format. The fix from session 2 action item #4 hasn't been implemented.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+1. **Code review as security gate.** The review phase caught shell injection and TOCTOU that dev-story missed. This two-phase approach (build then adversarially review) works.
+2. **Session issues log with token reports.** Having each subagent self-report enables real cost attribution. Continue requiring this.
+3. **Inline workarounds for missing dependencies.** AsyncMutex implemented inline rather than adding an npm dependency — keeps the dependency tree clean.
+
+### Patterns to Avoid
+1. **Running npm test multiple times in verification.** Capture once, reference everywhere. The 18-1 verification subagent's 4 runs is the anti-pattern.
+2. **Trusting user-supplied strings in shell commands.** The dev-story subagent should default to input validation for any parameter that reaches exec/spawn. Add this to the dev-story prompt template.
+3. **Ignoring carried action items.** Session 2 flagged proof format issues and verification cost. Neither was addressed before session 3 ran. Action items need an enforcement mechanism.
+
+### New Insight: Security Debt in Shell-Heavy Modules
+Stories 18-1 and 18-2 both use `child_process.exec` with string interpolation. The code-review phase caught the issues, but this pattern will recur in every story that touches shell commands. A defensive coding guideline (or a shared `safeExec` wrapper) would prevent the class of bugs rather than catching them post-hoc.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | Complete verification of 18-2-merge-agent-conflict-resolution | High | harness | New |
+| 2 | Begin 18-3-cross-worktree-test-validation | High | harness | New |
+| 3 | Extract `parseTestOutput` to shared utility — duplicated in merge-agent.ts and worktree-manager.ts | High | dev | New |
+| 4 | Create `safeExec` wrapper that validates inputs before shell execution — prevent shell injection class | High | architecture | New |
+| 5 | Fix verification subagent to capture test/coverage output once and reuse — eliminate 4x npm test runs | High | tooling | Escalated from session 2 |
+| 6 | Teach verification subagent to use bash+output proof format by default | High | tooling | Carried (unfixed) |
+| 7 | Generate project-context.md to eliminate redundant context gathering in create-story | Medium | tooling | New |
+| 8 | Add input validation guidelines to dev-story prompt — untrusted params must be validated | Medium | process | New |
+| 9 | Fix pre-existing BATS test failures (253 `not ok`) — noise pollutes verification | Medium | dev | New |
+| 10 | Add AGENTS.md update step to dev-story subagent workflow | Medium | tooling | Carried (unfixed) |
+| 11 | Investigate verification phase cost — 45.2% of total budget, third session flagging this | Medium | process | Carried |
+| 12 | Add mutex acquisition timeout to WorktreeManager to prevent starvation | Low | dev | New |
+| 13 | Tag orchestrator costs to specific stories — $53.74 "unknown" bucket (15%) | Low | tooling | Carried |
+
+---
+
+# Session Retrospective — 2026-04-04 (Session 4: Stories 18-3, 19-1 partial)
+
+**Generated:** 2026-04-04T03:00:00Z
+
+---
+
+## 1. Session Summary
+
+### Stories Attempted This Session
+
+| Story | Phases Completed | Outcome |
+|-------|-----------------|---------|
+| 18-2-merge-agent-conflict-resolution | verification | Verified and committed as `5d78b76`. |
+| 18-3-cross-worktree-test-validation | create-story, dev-story, code-review, verification | Full pipeline. Committed as `6c245cb`. Epic 18 complete. |
+| 19-1-epic-completion-detection | create-story | Story spec created. Committed as `a6156eb`. Marked ready-for-dev. |
+
+### Session Velocity
+
+3 stories touched. 2 fully committed (18-2 verification, 18-3 full pipeline). 1 story spec created (19-1). This session closed out Epic 18 (all 3 stories done) and began Epic 19.
+
+### Sprint Progress (Cumulative)
+
+- **Total stories:** 64
+- **Done:** 53 (82.8%)
+- **Ready for dev:** 1 (19-1)
+- **Backlog:** 10 (19-2, epics 20)
+- **Failed:** 0
+- **Epics completed:** 18 of 20 (epics 17 and 18 closed this day)
+
+---
+
+## 2. Issues Analysis
+
+### Issues from Session Log
+
+**Category: Security/Correctness (3 issues, HIGH — all fixed)**
+- **resolveConflicts false positive** (18-2 code-review): unparseable test output (0/0) treated as success. Fixed by requiring >= 1 passed test.
+- **`driver: undefined as never`** runtime crash (18-2 code-review): MergeConflictInfo type introduced to remove driver dependency from callback.
+- **Coverage type mismatch** (18-3 code-review): `undefined` vs `null` inconsistency across validator, worktree-manager, merge-agent. Fixed with consistent typing.
+
+**Category: Missing maxBuffer/stderr (2 issues, MEDIUM — fixed)**
+- Missing `maxBuffer` on exec could truncate large test output (18-3). Fixed.
+- Missing stderr capture loses diagnostic info from test runners (18-3). Fixed.
+
+**Category: Telemetry Typing (1 issue, MEDIUM — fixed)**
+- Telemetry object not typed against canonical TelemetryEntry (18-3). Fixed.
+
+**Category: Code Duplication (2 issues, LOW — unfixed)**
+- `parseTestOutput` still duplicated between merge-agent.ts and worktree-manager.ts. Carried from session 3.
+- `writeMergeTelemetry` duplicates NDJSON write logic from telemetry-writer.ts. New debt.
+
+**Category: Test/Tooling Friction (4 issues)**
+- `codeharness verify` precondition failure: AGENTS.md stale for `src/lib` — missing `cross-worktree-validator.ts`. Fixed by orchestrator.
+- Prior session completed create/dev/review for 18-3 but crashed before updating sprint-status.yaml. Orchestrator detected mismatch and recovered.
+- worktree-manager.test.ts read 4 times in dev-story due to token limits (large file, chunked reads).
+- Two separate coverage commands in 18-3 verification couldn't isolate per-file percentage.
+
+**Category: Missing Context (2 issues, recurring)**
+- No `project-context.md` — both 18-3 and 19-1 create-story subagents used extra globs to find context. 4th session flagging this.
+- No `_bmad/bmm/config.yaml` at expected path — actual location is `_bmad/config.yaml`. Extra glob each time.
+
+**Category: Design Gaps (2 issues, LOW — unfixed)**
+- `parseTestOutput` first-match regex could pick per-suite counts instead of summary.
+- `buildEscalationMessage` is private, only tested indirectly.
+- No integration test for full merge-then-validate flow with real git repo.
+
+---
+
+## 3. Cost Analysis
+
+### Updated Sprint Totals
+
+| Metric | Previous Session | Current | Delta |
+|--------|-----------------|---------|-------|
+| Total API cost | $357.86 | $366.27 | +$8.41 |
+| Total API calls | 2,728 | 2,783 | +55 |
+| Stories done | 51 | 53 | +2 (+1 ready-for-dev) |
+| Cost per story (avg) | $3.58 | $3.53 | -$0.05 |
+
+### Session Cost: ~$8.41
+
+| Story | Est. Cost | Phases |
+|-------|-----------|--------|
+| 18-2 verification | ~$1.50 | verify only (carried from session 3) |
+| 18-3 full pipeline | ~$5.50 | create-story + dev-story + code-review + verify |
+| 19-1 create-story | ~$1.41 | create-story only |
+
+This session was efficient — $8.41 for 2 completed stories and 1 story spec, below the $3.53 average per story invocation.
+
+### Cost by Phase (Updated)
+
+| Phase | Calls | Cost | % | Delta |
+|-------|-------|------|---|-------|
+| verify | 1,334 | $164.51 | 44.9% | +$2.90 |
+| orchestrator | 294 | $64.54 | 17.6% | +$2.02 |
+| create-story | 368 | $41.52 | 11.3% | +$1.27 |
+| dev-story | 316 | $35.51 | 9.7% | +$0.32 |
+| code-review | 284 | $33.75 | 9.2% | +$0.12 |
+| retro | 187 | $26.43 | 7.2% | +$1.75 |
+
+Verification remains at 44.9% — consistent across all 4 sessions. The structural issue is unchanged.
+
+### Subagent-Level Token Breakdown (This Session)
+
+| Subagent | Tool Calls | Heaviest Tools | Largest Bash Output | Redundancy |
+|----------|-----------|----------------|---------------------|------------|
+| 18-2 verification (est.) | ~16 | Bash: ~9 | vitest verbose (~80 lines) | None reported |
+| 18-3 create-story | 17 | Read: 10, Glob: 7 | git log (~5 lines) | 1 extra glob for config path |
+| 18-3 dev-story | 26 | Edit: 13, Read: 10 | tsc --noEmit (~32 lines) | worktree-manager.test.ts read 4x (chunked) |
+| 18-3 code-review | 30 | Edit: 16, Read: 10 | vitest verbose (~50 lines) | 1 redundant glob for workflow file |
+| 18-3 verification | 21 | Bash: 9, Grep: 4 | npm test:unit (~80 lines) | 2 coverage commands that didn't yield needed data |
+| 19-1 create-story | 16 | Read: 10, Bash: 3 | git diff --name-only (~35 lines) | None |
+
+**Key findings:**
+- **18-3 code-review had 30 tool calls** — the highest single-subagent count this session. 16 Edit calls indicate extensive fix iterations. This is the cost of catching 4 issues (1 HIGH, 3 MEDIUM).
+- **18-3 dev-story read worktree-manager.test.ts 4 times** due to token limits on large files. This file is growing — at some point chunked reads become a significant cost driver.
+- **Total tool calls this session: ~126.** Across 6 subagent phases, that's 21 calls/phase — higher than session 3's 13.1 avg. The 18-3 code-review phase (30 calls) drove this up.
+- **No npm test 4x anti-pattern this session.** The verification subagent improved, though 2 redundant coverage commands still occurred.
+
+### Cost by Token Type (Updated)
+
+| Type | Tokens | Cost | % |
+|------|--------|------|---|
+| Cache reads | 150.9M | $226.34 | 62% |
+| Cache writes | 4.3M | $80.85 | 22% |
+| Output | 786K | $58.93 | 16% |
+| Input | 9.4K | $0.14 | 0% |
+
+Cache reads still dominate at 62%. The ratio has held constant across all sessions — this is structural to the subagent architecture.
+
+### Cost Trend Across Sessions
+
+| Session | Cost | Stories Completed | $/Story |
+|---------|------|-------------------|---------|
+| Session 1 | ~$329.10 (cumulative baseline) | 48 | $6.86 |
+| Session 2 | +$5.26 | 1 | $5.26 |
+| Session 3 | +$23.50 | 2 (+1 partial) | $7.83 |
+| Session 4 | +$8.41 | 2 (+1 spec) | $2.80 |
+
+Session 4 was the cheapest per-story session. The combination of one verification-only run (18-2) and one story spec (19-1) brought the average down.
+
+---
+
+## 4. What Went Well
+
+- **Epic 18 completed.** All 3 merge stories (serialization, conflict resolution, cross-worktree validation) shipped. The merge subsystem is functional end-to-end.
+- **Code review caught 6 issues this session** (3 HIGH, 3 MEDIUM). All fixed before commit. The adversarial review process continues to be the primary quality gate.
+- **Crash recovery worked.** 18-3 had a prior session crash between code-review and status update. The orchestrator detected the mismatch and recovered automatically — no manual intervention needed.
+- **53 stories done, 0 failures.** Perfect completion rate maintained across 18 epics.
+- **Session cost efficiency.** $8.41 for this session is below average, even with a complex story (18-3 had 30 code-review tool calls).
+- **AGENTS.md issue caught earlier.** The orchestrator fixed the stale AGENTS.md before verification, rather than failing and retrying.
+
+---
+
+## 5. What Went Wrong
+
+- **Verification cost unchanged at 44.9%.** Four sessions have flagged this. No structural fix has been applied. $164.51 of $366.27 total spend is verification.
+- **Code duplication growing.** `parseTestOutput` is now in 2 files, `writeMergeTelemetry` duplicates NDJSON logic from a third. Epic 18 accumulated technical debt within a 3-story span.
+- **worktree-manager.test.ts too large for single read.** 4 chunked reads in dev-story is a signal the test file needs splitting or the subagent needs larger context windows.
+- **No project-context.md.** Fourth session flagging this. Every create-story subagent wastes 1-2 extra Read/Glob calls finding context that should be pre-generated.
+- **config.yaml path mismatch.** `_bmad/bmm/config.yaml` vs `_bmad/config.yaml` causes an extra glob in every create-story subagent. Trivial to fix, not yet fixed.
+- **No integration tests for merge pipeline.** All 3 Epic 18 stories use mocked git operations. No test validates the full merge-then-validate flow with a real repository.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+1. **Crash recovery via state mismatch detection.** The orchestrator comparing sprint-status vs actual artifacts caught the 18-3 crash gracefully. This pattern is robust.
+2. **Code review as security + correctness gate.** 6 issues caught this session, including type mismatches that would have caused runtime failures. Worth the ~30 tool calls.
+3. **Incremental story progression.** Creating 19-1's spec while closing 18-3 means the next session starts immediately with dev — no warmup cost.
+
+### Patterns to Avoid
+1. **Accumulating duplication within an epic.** `parseTestOutput` should have been extracted to a utility after story 18-1 created it. By 18-3, it's duplicated and diverging.
+2. **Ignoring action items across sessions.** The following have been flagged in 3+ sessions without resolution:
+   - Verification cost (44.9%) — sessions 1, 2, 3, 4
+   - project-context.md missing — sessions 3, 4
+   - Proof format issues — sessions 2, 3
+   - AGENTS.md automation — sessions 2, 3, 4
+3. **Large test files without splitting.** worktree-manager.test.ts is now large enough to require 4 chunked reads. This will only grow as more stories add tests.
+
+### New Insight: Technical Debt Velocity
+Epic 18 introduced 3 instances of code duplication across 3 stories in one day. The pipeline optimizes for story completion speed but has no mechanism to detect or flag intra-epic duplication. A post-epic cleanup step (or a duplication check in code-review) would catch this.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner | Status |
+|---|--------|----------|-------|--------|
+| 1 | Dev and complete 19-1-epic-completion-detection (spec ready) | High | harness | New |
+| 2 | Begin 19-2-epic-flow-execution | High | harness | New |
+| 3 | Extract `parseTestOutput` to shared utility in `src/lib/utils/` — duplicated in merge-agent.ts and worktree-manager.ts | High | dev | Carried x2 |
+| 4 | Extract `writeMergeTelemetry` to use telemetry-writer.ts — duplicates NDJSON logic | Medium | dev | New |
+| 5 | Generate project-context.md — 4 sessions of wasted context-gathering calls | High | tooling | Carried x2 |
+| 6 | Fix `_bmad/config.yaml` path assumption — subagents look in `_bmad/bmm/config.yaml` first | Medium | tooling | New |
+| 7 | Split worktree-manager.test.ts or increase subagent read capacity — 4 chunked reads per dev-story | Medium | dev | New |
+| 8 | Add integration test for full merge pipeline (real git repo, not mocked) | Medium | qa | New |
+| 9 | Add post-epic duplication check to code-review subagent | Medium | process | New |
+| 10 | Fix verification subagent to capture test/coverage output once and reuse | High | tooling | Carried x3 |
+| 11 | Teach verification subagent to use bash+output proof format by default | High | tooling | Carried x3 |
+| 12 | Add AGENTS.md update step to dev-story subagent workflow | Medium | tooling | Carried x3 |
+| 13 | Investigate verification phase cost — 44.9% of budget, 4th session flagging | Medium | process | Carried x4 |
+| 14 | Tag orchestrator costs to specific stories — $55.52 "unknown" bucket (15.2%) | Low | tooling | Carried x4 |
+| 15 | Add mutex acquisition timeout to WorktreeManager | Low | dev | Carried |
+| 16 | Fix pre-existing BATS test failures (noise in verification) | Low | dev | Carried |
+
+---
+
+### Cumulative Sprint Health Dashboard
+
+| Metric | Value | Trend |
+|--------|-------|-------|
+| Stories completed | 53/64 | +5 today |
+| Epics completed | 18/20 | +2 today (17, 18) |
+| Failure rate | 0% | Holding |
+| Total cost | $366.27 | +$37.17 today |
+| Avg cost/story | $3.53 | Stable |
+| Verification cost share | 44.9% | Unchanged (structural) |
+| Unresolved action items | 7 carried 2+ sessions | Growing — needs attention |
+| Technical debt items | 5 (duplication, missing tests, large files) | +3 this session |

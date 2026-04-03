@@ -340,9 +340,9 @@
       "storiesDone": 0
     },
     "epic-7": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 2,
-      "storiesDone": 0
+      "storiesDone": 2
     },
     "epic-8": {
       "status": "in-progress",

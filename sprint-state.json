@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 64,
-    "done": 47,
+    "done": 48,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -549,7 +549,7 @@
       "acResults": null
     },
     "16-6-story-flow-execution": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -762,9 +762,9 @@
       "storiesDone": 3
     },
     "epic-16": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 6,
-      "storiesDone": 4
+      "storiesDone": 6
     },
     "epic-17": {
       "status": "in-progress",

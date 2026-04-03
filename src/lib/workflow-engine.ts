@@ -1169,7 +1169,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
     ...state,
     phase: 'executing',
     started: state.started || new Date().toISOString(),
-    workflow_name: config.workflow.flow.filter((s) => typeof s === 'string').join(' -> '),
+    workflow_name: config.workflow.storyFlow.filter((s) => typeof s === 'string').join(' -> '),
   };
   writeWorkflowState(state, projectDir);
 
@@ -1209,7 +1209,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   let halted = false;
   let lastOutputContract: OutputContract | null = null;
   let accumulatedCostUsd = 0;
-  for (const step of config.workflow.flow) {
+  for (const step of config.workflow.storyFlow) {
     if (halted) break;
 
     // Execute loop blocks

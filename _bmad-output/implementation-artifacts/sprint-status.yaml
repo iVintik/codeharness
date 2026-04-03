@@ -74,14 +74,14 @@ development_status:
   11-2-workflow-referential-integrity-validation: done
 
   # Epic 12
-  epic-12: backlog
+  epic-12: done
   12-1-codex-driver-implementation: done
   12-2-opencode-driver-implementation: done
-  12-3-driver-health-check-at-workflow-start: backlog
+  12-3-driver-health-check-at-workflow-start: done
 
   # Epic 13
   epic-13: backlog
-  13-1-output-contract-schema-serialization: backlog
+  13-1-output-contract-schema-serialization: done
   13-2-output-contract-prompt-injection: backlog
   13-3-cross-framework-workflow-execution: backlog
 

@@ -9,7 +9,8 @@ Pluggable agent driver system for wrapping external coding agents (Claude Code, 
 | types.ts | AgentDriver interface and related types — DriverHealth, DriverCapabilities, DispatchOpts, OutputContract, plus deprecated SpawnOpts/AgentProcess/AgentEvent | `AgentDriver`, `DriverHealth`, `DriverCapabilities`, `DispatchOpts`, `OutputContract`, `TestResults`, `ACStatus` |
 | stream-parser.ts | Stateless NDJSON stream parser — converts Claude API streaming events into typed `StreamEvent` objects | `parseStreamLine`, `StreamEvent`, `ToolStartEvent`, `ToolInputEvent`, `ToolCompleteEvent`, `TextEvent`, `RetryEvent`, `ResultEvent` |
 | model-resolver.ts | Model resolution with 3-level cascade: task → agent → driver default | `resolveModel` |
-| index.ts | Barrel re-exports for agents subsystem — types, stream parser, driver factory, model resolver | all public API |
+| output-contract.ts | Atomic write/read for OutputContract JSON files — writes to .tmp then renames, path-traversal safe | `writeOutputContract`, `readOutputContract` |
+| index.ts | Barrel re-exports for agents subsystem — types, stream parser, driver factory, model resolver, output contract | all public API |
 
 ## Subdirectories — drivers/
 

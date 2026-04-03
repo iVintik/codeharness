@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://codeharness.dev/schemas/output-contract.schema.json",
+  "title": "Codeharness Output Contract",
+  "description": "Schema for output contract JSON files produced by task dispatches",
+  "type": "object",
+  "required": [
+    "version",
+    "taskName",
+    "storyId",
+    "driver",
+    "model",
+    "timestamp",
+    "cost_usd",
+    "duration_ms",
+    "changedFiles",
+    "testResults",
+    "output",
+    "acceptanceCriteria"
+  ],
+  "properties": {
+    "version": {
+      "type": "number",
+      "description": "Contract format version (currently 1)"
+    },
+    "taskName": {
+      "type": "string",
+      "description": "Name of the task that produced this contract"
+    },
+    "storyId": {
+      "type": "string",
+      "description": "Story identifier this task belongs to"
+    },
+    "driver": {
+      "type": "string",
+      "description": "Driver that executed the task (e.g. claude-code, codex, opencode)"
+    },
+    "model": {
+      "type": "string",
+      "description": "Model used for the task"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "ISO 8601 timestamp of task completion"
+    },
+    "cost_usd": {
+      "type": ["number", "null"],
+      "description": "Cost in USD, or null if not available"
+    },
+    "duration_ms": {
+      "type": "number",
+      "description": "Task duration in milliseconds"
+    },
+    "changedFiles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of files changed by the task"
+    },
+    "testResults": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["passed", "failed", "coverage"],
+          "properties": {
+            "passed": {
+              "type": "number"
+            },
+            "failed": {
+              "type": "number"
+            },
+            "coverage": {
+              "type": ["number", "null"]
+            }
+          }
+        }
+      ],
+      "description": "Test results summary, or null if no tests were run"
+    },
+    "output": {
+      "type": "string",
+      "description": "Raw output from the task"
+    },
+    "acceptanceCriteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "status"],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Acceptance criteria status entries"
+    }
+  },
+  "additionalProperties": false
+}

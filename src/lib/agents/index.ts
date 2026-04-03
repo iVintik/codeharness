@@ -44,3 +44,7 @@ export { getDriver, registerDriver, listDrivers, resetDrivers } from './drivers/
 // --- Model Resolution ---
 
 export { resolveModel } from './model-resolver.js';
+
+// --- Output Contract ---
+
+export { writeOutputContract, readOutputContract } from './output-contract.js';

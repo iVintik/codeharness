@@ -595,9 +595,9 @@
       "storiesDone": 0
     },
     "epic-14": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 3
     },
     "epic-15": {
       "status": "in-progress",

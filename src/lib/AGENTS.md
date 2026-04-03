@@ -156,6 +156,12 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | epic-generator.ts | Generates onboarding epic from scan findings, imports to beads | `generateOnboardingEpic`, `writeOnboardingEpic`, `formatEpicSummary`, `promptApproval`, `importOnboardingEpic` |
 | onboard-checks.ts | Precondition checks and gap filtering for onboarding | `runPreconditions`, `findVerificationGaps`, `findPerFileCoverageGaps`, `findObservabilityGaps`, `getOnboardingProgress`, `filterTrackedGaps` |
 
+## Epic Completion Detection (Epic 19)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| epic-completion.ts | Epic completion detection — pure logic module for checking if all stories in an epic are done, epic lifecycle state machine transitions | `checkEpicCompletion`, `getEpicStories`, `transitionEpicState`, `EpicLifecycleStatus`, `EpicCompletionError`, `VALID_TRANSITIONS` |
+
 ## Worktree Management & Parallel Execution (Epic 17)
 
 | File | Purpose | Key Exports |
@@ -227,4 +233,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 77 library files + 4 shared test utility files across 28 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 78 library files + 4 shared test utility files across 29 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

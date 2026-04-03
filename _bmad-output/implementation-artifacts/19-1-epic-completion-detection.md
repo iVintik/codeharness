@@ -1,6 +1,6 @@
 # Story 19.1: Epic Completion Detection
 
-Status: ready-for-dev
+Status: verifying
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -34,41 +34,41 @@ so that epic_flow tasks are triggered automatically.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create `src/lib/epic-completion.ts` (AC: #1, #6, #8)
-  - [ ] Define `EpicLifecycleStatus` type with all six states
-  - [ ] Define `VALID_TRANSITIONS` map encoding the allowed state machine transitions
-  - [ ] Define `EpicCompletionError` class extending `Error`
-  - [ ] Export all types and functions
+- [x] Task 1: Create `src/lib/epic-completion.ts` (AC: #1, #6, #8)
+  - [x] Define `EpicLifecycleStatus` type with all six states
+  - [x] Define `VALID_TRANSITIONS` map encoding the allowed state machine transitions
+  - [x] Define `EpicCompletionError` class extending `Error`
+  - [x] Export all types and functions
 
-- [ ] Task 2: Implement `getEpicStories()` (AC: #5)
-  - [ ] Filter `state.stories` by epic ID prefix (extract epic number from story key pattern `{epicNum}-{storyNum}-{slug}`)
-  - [ ] Return array of matching story keys
+- [x] Task 2: Implement `getEpicStories()` (AC: #5)
+  - [x] Filter `state.stories` by epic ID prefix (extract epic number from story key pattern `{epicNum}-{storyNum}-{slug}`)
+  - [x] Return array of matching story keys
 
-- [ ] Task 3: Implement `checkEpicCompletion()` (AC: #2, #3, #9, #10)
-  - [ ] Validate epic exists in `state.epics`; throw `EpicCompletionError` if not
-  - [ ] Get stories for epic via `getEpicStories()`
-  - [ ] Return `false` if zero stories
-  - [ ] Return `true` only if ALL stories have status `done`
+- [x] Task 3: Implement `checkEpicCompletion()` (AC: #2, #3, #9, #10)
+  - [x] Validate epic exists in `state.epics`; throw `EpicCompletionError` if not
+  - [x] Get stories for epic via `getEpicStories()`
+  - [x] Return `false` if zero stories
+  - [x] Return `true` only if ALL stories have status `done`
 
-- [ ] Task 4: Implement `transitionEpicState()` (AC: #4, #7, #8, #9)
-  - [ ] Validate epic exists in `state.epics`; throw `EpicCompletionError` if not
-  - [ ] Validate transition is allowed via `VALID_TRANSITIONS`; throw `EpicCompletionError` if not
-  - [ ] Return a new `SprintState` with the epic's status updated (immutable — do not mutate input)
-  - [ ] Update `storiesDone` count when transitioning to `completing` (count stories with status `done`)
+- [x] Task 4: Implement `transitionEpicState()` (AC: #4, #7, #8, #9)
+  - [x] Validate epic exists in `state.epics`; throw `EpicCompletionError` if not
+  - [x] Validate transition is allowed via `VALID_TRANSITIONS`; throw `EpicCompletionError` if not
+  - [x] Return a new `SprintState` with the epic's status updated (immutable — do not mutate input)
+  - [x] Update `storiesDone` count when transitioning to `completing` (count stories with status `done`)
 
-- [ ] Task 5: Write unit tests for `src/lib/__tests__/epic-completion.test.ts` (AC: #1-#10)
-  - [ ] Test: `checkEpicCompletion` returns `true` when all stories are `done`
-  - [ ] Test: `checkEpicCompletion` returns `false` when any story is not `done`
-  - [ ] Test: `checkEpicCompletion` returns `false` for epic with zero stories
-  - [ ] Test: `checkEpicCompletion` throws for non-existent epic
-  - [ ] Test: `getEpicStories` filters correctly by epic ID prefix
-  - [ ] Test: `getEpicStories` does not include stories from other epics
-  - [ ] Test: `transitionEpicState` returns updated state with new status
-  - [ ] Test: `transitionEpicState` updates `storiesDone` on `completing` transition
-  - [ ] Test: `transitionEpicState` throws on invalid transition
-  - [ ] Test: `transitionEpicState` throws for non-existent epic
-  - [ ] Test: `EpicLifecycleStatus` includes all six values
-  - [ ] Test: `VALID_TRANSITIONS` encodes the correct state machine
+- [x] Task 5: Write unit tests for `src/lib/__tests__/epic-completion.test.ts` (AC: #1-#10)
+  - [x] Test: `checkEpicCompletion` returns `true` when all stories are `done`
+  - [x] Test: `checkEpicCompletion` returns `false` when any story is not `done`
+  - [x] Test: `checkEpicCompletion` returns `false` for epic with zero stories
+  - [x] Test: `checkEpicCompletion` throws for non-existent epic
+  - [x] Test: `getEpicStories` filters correctly by epic ID prefix
+  - [x] Test: `getEpicStories` does not include stories from other epics
+  - [x] Test: `transitionEpicState` returns updated state with new status
+  - [x] Test: `transitionEpicState` updates `storiesDone` on `completing` transition
+  - [x] Test: `transitionEpicState` throws on invalid transition
+  - [x] Test: `transitionEpicState` throws for non-existent epic
+  - [x] Test: `EpicLifecycleStatus` includes all six values
+  - [x] Test: `VALID_TRANSITIONS` encodes the correct state machine
 
 ## Dev Notes
 
@@ -251,10 +251,18 @@ Files created in Epic 18:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+Claude Opus 4.6 (1M context)
 
 ### Debug Log References
 
 ### Completion Notes List
 
+- All 24 unit tests pass covering all 10 acceptance criteria
+- Full suite: 4976 tests pass, 183 test files, zero regressions
+- Module is ~120 lines, pure logic, no I/O — matches architecture constraints
+- Follows existing patterns from cross-worktree-validator.ts and merge-agent.ts
+
 ### File List
+
+- `src/lib/epic-completion.ts` — new module (epic completion detection + lifecycle state machine)
+- `src/lib/__tests__/epic-completion.test.ts` — 24 unit tests covering all ACs

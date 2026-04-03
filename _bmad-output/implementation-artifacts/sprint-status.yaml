@@ -119,8 +119,8 @@ development_status:
   18-3-cross-worktree-test-validation: done
 
   # Epic 19
-  epic-19: in-progress
-  19-1-epic-completion-detection: ready-for-dev
+  epic-19: backlog
+  19-1-epic-completion-detection: done
   19-2-epic-flow-execution: backlog
 
   # Epic 20

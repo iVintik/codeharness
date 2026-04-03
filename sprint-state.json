@@ -617,7 +617,7 @@
       }
     },
     "19-1-epic-completion-detection": {
-      "status": "backlog",
+      "status": "ready-for-dev",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -818,9 +818,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "19-1-epic-completion-detection",
+    "currentPhase": "create",
+    "lastAction": "Starting create-story",
     "acProgress": null
   },
   "actionItems": []

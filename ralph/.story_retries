@@ -11,3 +11,6 @@
 13-3-cross-framework-workflow-execution 1
 14-1-workflowgraph-component 1
 14-2-task-status-driver-labels 1
+14-3-activity-display-driver-integration 1
+15-1-plugin-pass-through-configuration 1
+15-2-cost-tracking-per-driver 1

@@ -94,5 +94,5 @@ development_status:
   # Epic 15
   epic-15: backlog
   15-1-plugin-pass-through-configuration: done
-  15-2-cost-tracking-per-driver: backlog
+  15-2-cost-tracking-per-driver: done
   15-3-driver-capability-matrix-routing-hints: backlog

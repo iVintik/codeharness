@@ -1,11 +1,6 @@
 /**
  * Ink Terminal Renderer — live terminal UI for Claude activity display.
- *
- * Exports a controller API: startRenderer(), which returns a RendererHandle
- * with update(), updateSprintState(), and cleanup() methods.
- *
- * The renderer accumulates state from StreamEvent objects and renders
- * tool calls, thoughts, and sprint progress using Ink (React for terminals).
+ * Exports startRenderer() which returns a RendererHandle for feeding events.
  */
 
 import React from 'react';
@@ -40,6 +35,8 @@ export interface RendererHandle {
   addMessage(msg: StoryMessage): void;
   updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>, taskMeta?: Record<string, TaskNodeMeta>): void;
   cleanup(): void;
+  /** @internal Expose state for testing. Not part of the public API. */
+  _getState?(): RendererState;
 }
 
 // --- No-op handle for quiet mode ---
@@ -88,6 +85,12 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     driverCosts: {},
   };
 
+  // Per-story cost tracking (not part of RendererState — internal to controller)
+  let currentStoryCosts: Record<string, number> = {};
+  let lastStoryKey: string | null = state.sprintInfo?.storyKey ?? null;
+  // Costs finalized for completed stories, awaiting snapshot into StoryStatusEntry
+  const pendingStoryCosts: Map<string, Record<string, number>> = new Map();
+
   let cleaned = false;
 
   // Mount Ink with performance options
@@ -108,53 +111,36 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   function cleanup() {
     if (cleaned) return;
     cleaned = true;
-    try {
-      inkInstance.unmount();
-    } catch {
-      // Ignore — may already be unmounted
-    }
-    try {
-      inkInstance.cleanup();
-    } catch {
-      // Ignore
-    }
-    // Remove our signal handlers
+    try { inkInstance.unmount(); } catch { /* may already be unmounted */ }
+    try { inkInstance.cleanup(); } catch { /* ignore */ }
     process.removeListener('SIGINT', onSigint);
     process.removeListener('SIGTERM', onSigterm);
   }
 
-  function onSigint() {
-    cleanup();
-    // Re-raise signal so the default handler runs (allows caller to handle exit)
-    process.kill(process.pid, 'SIGINT');
-  }
-
-  function onSigterm() {
-    cleanup();
-    process.kill(process.pid, 'SIGTERM');
-  }
-
-  // Register signal handlers
+  function onSigint() { cleanup(); process.kill(process.pid, 'SIGINT'); }
+  function onSigterm() { cleanup(); process.kill(process.pid, 'SIGTERM'); }
   process.on('SIGINT', onSigint);
   process.on('SIGTERM', onSigterm);
+
+  /** Promote active tool to completed list, bounded to MAX_COMPLETED_TOOLS. */
+  function promoteActiveTool(clearActive: boolean) {
+    if (!state.activeTool) return;
+    const entry: CompletedToolEntry = {
+      name: state.activeTool.name, args: state.activeToolArgs,
+      driver: state.activeDriverName ?? undefined,
+    };
+    const updated = [...state.completedTools, entry];
+    state.completedTools = updated.length > MAX_COMPLETED_TOOLS
+      ? updated.slice(updated.length - MAX_COMPLETED_TOOLS) : updated;
+    if (clearActive) { state.activeTool = null; state.activeToolArgs = ''; state.activeDriverName = null; }
+  }
 
   function update(event: StreamEvent, driverName?: string): void {
     if (cleaned) return;
 
     switch (event.type) {
       case 'tool-start':
-        // If a long-running tool was still active, promote it to completed now
-        if (state.activeTool) {
-          const entry: CompletedToolEntry = {
-            name: state.activeTool.name,
-            args: state.activeToolArgs,
-            driver: state.activeDriverName ?? undefined,
-          };
-          const updated = [...state.completedTools, entry];
-          state.completedTools = updated.length > MAX_COMPLETED_TOOLS
-            ? updated.slice(updated.length - MAX_COMPLETED_TOOLS)
-            : updated;
-        }
+        promoteActiveTool(false); // promote any lingering long-running tool
         state.activeTool = { name: event.name };
         state.activeToolArgs = '';
         state.activeDriverName = driverName ?? null;
@@ -167,31 +153,11 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
         return; // Skip rerender — args only shown on completion
 
       case 'tool-complete':
-        // CRITICAL: Only promote if there's an active tool.
-        // The parser emits tool-complete for ALL content_block_stop events
-        // (both tool and text blocks). Ignore if no activeTool is set.
+        // Only promote if there's an active tool (parser emits tool-complete for text blocks too).
+        // Long-running tools (Agent, Skill) stay active until next tool-start.
         if (state.activeTool) {
-          // Long-running tools (Agent, Skill) get content_block_stop when their
-          // INPUT is complete, not when they finish executing. Keep them active
-          // so the spinner shows during the entire execution. They'll be promoted
-          // when the next tool-start fires (below in tool-start case).
-          const LONG_RUNNING_TOOLS = ['Agent', 'Skill'];
-          if (LONG_RUNNING_TOOLS.includes(state.activeTool.name)) {
-            break; // Keep as active — don't promote to completed yet
-          }
-          const entry: CompletedToolEntry = {
-            name: state.activeTool.name,
-            args: state.activeToolArgs,
-            driver: state.activeDriverName ?? undefined,
-          };
-          const updated = [...state.completedTools, entry];
-          // Bound the list to prevent unbounded memory growth in long sessions
-          state.completedTools = updated.length > MAX_COMPLETED_TOOLS
-            ? updated.slice(updated.length - MAX_COMPLETED_TOOLS)
-            : updated;
-          state.activeTool = null;
-          state.activeToolArgs = '';
-          state.activeDriverName = null;
+          if (['Agent', 'Skill'].includes(state.activeTool.name)) break;
+          promoteActiveTool(true);
         }
         break;
 
@@ -212,11 +178,16 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
             totalCost: (state.sprintInfo.totalCost ?? 0) + event.cost,
           };
         }
-        // Accumulate per-driver cost
+        // Accumulate per-driver cost (run-level)
         if (event.cost > 0 && driverName) {
           state.driverCosts = {
             ...state.driverCosts,
             [driverName]: (state.driverCosts[driverName] ?? 0) + event.cost,
+          };
+          // Accumulate per-story cost
+          currentStoryCosts = {
+            ...currentStoryCosts,
+            [driverName]: (currentStoryCosts[driverName] ?? 0) + event.cost,
           };
         }
         break;
@@ -239,12 +210,55 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     } else {
       state.sprintInfo = sprintState ?? null;
     }
+
+    // When story key changes, freeze current costs for the old story
+    const newKey = state.sprintInfo?.storyKey ?? null;
+    if (newKey && lastStoryKey && newKey !== lastStoryKey) {
+      if (Object.keys(currentStoryCosts).length > 0) {
+        pendingStoryCosts.set(lastStoryKey, { ...currentStoryCosts });
+      }
+      currentStoryCosts = {};
+      lastStoryKey = newKey;
+    } else if (newKey && !lastStoryKey) {
+      lastStoryKey = newKey;
+    }
+
     rerender();
   }
 
   function updateStories(stories: StoryStatusEntry[]): void {
     if (cleaned) return;
-    state.stories = [...stories];
+    const currentKey = state.sprintInfo?.storyKey ?? null;
+    // Snapshot per-story costs onto done stories (immutable — don't mutate caller objects).
+    // Check both pendingStoryCosts (from prior stories) and currentStoryCosts (active story).
+    const hasCurrentCosts = Object.keys(currentStoryCosts).length > 0;
+    const updatedStories = stories.map(s => {
+      if (s.status !== 'done' || s.costByDriver) return s;
+      // Check pending costs first (costs frozen when story key changed)
+      const pending = pendingStoryCosts.get(s.key);
+      if (pending) {
+        pendingStoryCosts.delete(s.key);
+        return { ...s, costByDriver: pending };
+      }
+      // Check current costs (story completing without key change)
+      if (hasCurrentCosts && s.key === (lastStoryKey ?? currentKey)) {
+        const snap = { ...currentStoryCosts };
+        currentStoryCosts = {};
+        return { ...s, costByDriver: snap };
+      }
+      return s;
+    });
+    // Track story key changes for per-story cost reset
+    if (currentKey && currentKey !== lastStoryKey) {
+      if (lastStoryKey && Object.keys(currentStoryCosts).length > 0) {
+        pendingStoryCosts.set(lastStoryKey, { ...currentStoryCosts });
+      }
+      currentStoryCosts = {};
+      lastStoryKey = currentKey;
+    } else if (currentKey && !lastStoryKey) {
+      lastStoryKey = currentKey;
+    }
+    state.stories = updatedStories;
     rerender();
   }
 
@@ -263,7 +277,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     rerender();
   }
 
-  return { update, updateSprintState, updateStories, addMessage, updateWorkflowState, cleanup };
+  return { update, updateSprintState, updateStories, addMessage, updateWorkflowState, cleanup, _getState: () => state };
 }
 
 // Re-export types that consumers may need

@@ -38,6 +38,7 @@ export interface StoryStatusEntry {
   status: StoryStatusValue;
   retryCount?: number;
   maxRetries?: number;
+  costByDriver?: Record<string, number>;
 }
 
 export interface RetryInfo {
@@ -152,7 +153,16 @@ export function StoryBreakdown({ stories, sprintInfo }: { stories: StoryStatusEn
   const lines: React.ReactNode[] = [];
 
   if (done.length > 0) {
-    const doneItems = done.map(s => `${shortKey(s.key)} ✓`).join('  ');
+    const doneItems = done.map(s => {
+      let item = `${shortKey(s.key)} ✓`;
+      if (s.costByDriver && Object.keys(s.costByDriver).length > 0) {
+        const costParts = Object.keys(s.costByDriver).sort().map(
+          driver => `${driver} ${formatCost(s.costByDriver![driver])}`
+        );
+        item += ` ${costParts.join(', ')}`;
+      }
+      return item;
+    }).join('  ');
     lines.push(
       <Text key="done"><Text color="green">{'Done: '}</Text><Text color="green">{doneItems}</Text></Text>
     );

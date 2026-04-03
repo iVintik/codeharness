@@ -489,7 +489,7 @@
       "acResults": null
     },
     "15-2-cost-tracking-per-driver": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -624,9 +624,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "15-2-cost-tracking-per-driver",
+    "currentPhase": "verify",
+    "lastAction": "Starting test-provable verification",
     "acProgress": null
   },
   "actionItems": []

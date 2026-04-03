@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 46,
-    "done": 35,
+    "done": 36,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -457,23 +457,31 @@
       "acResults": null
     },
     "14-2-task-status-driver-labels": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/14-2-task-status-driver-labels-proof.md",
+      "acResults": {
+        "passed": 11,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "14-3-activity-display-driver-integration": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T12:18:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/14-3-activity-display-driver-integration-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "15-1-plugin-pass-through-configuration": {
-      "status": "backlog",
+      "status": "done",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -587,9 +595,9 @@
       "storiesDone": 0
     },
     "epic-14": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 3
     },
     "epic-15": {
       "status": "in-progress",

@@ -990,3 +990,143 @@ describe('driver name in update() (controller integration)', () => {
     handle.update({ type: 'tool-complete' });
   });
 });
+
+// --- Per-Story Cost Tracking Tests (Story 15-2) ---
+
+describe('StoryBreakdown per-story cost display', () => {
+  it('renders done story with multi-driver costs sorted alphabetically', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '1-1-auth', status: 'done', costByDriver: { codex: 0.15, 'claude-code': 0.42 } },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('1-1 ✓ claude-code $0.42, codex $0.15');
+  });
+
+  it('renders done story with single-driver cost', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '1-1-auth', status: 'done', costByDriver: { 'claude-code': 0.42 } },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('1-1 ✓ claude-code $0.42');
+  });
+
+  it('renders done story with no cost data as just checkmark', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '1-1-auth', status: 'done' },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('1-1 ✓');
+    expect(frame).not.toContain('$');
+  });
+
+  it('renders done story with empty costByDriver as just checkmark', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '1-1-auth', status: 'done', costByDriver: {} },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('1-1 ✓');
+    expect(frame).not.toContain('$');
+  });
+
+  it('formats cost as $X.XX with two decimal places', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '2-1-test', status: 'done', costByDriver: { opencode: 3 } },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('$3.00');
+  });
+
+  it('renders multiple done stories each with their own cost breakdown', () => {
+    const stories: StoryStatusEntry[] = [
+      { key: '1-1-auth', status: 'done', costByDriver: { 'claude-code': 0.42 } },
+      { key: '1-2-api', status: 'done', costByDriver: { codex: 0.30, 'claude-code': 0.10 } },
+      { key: '1-3-ui', status: 'done' },
+    ];
+    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('1-1 ✓ claude-code $0.42');
+    expect(frame).toContain('1-2 ✓ claude-code $0.10, codex $0.30');
+    expect(frame).toContain('1-3 ✓');
+  });
+});
+
+describe('per-story cost accumulation (controller integration)', () => {
+  let handle: RendererHandle;
+
+  afterEach(() => {
+    handle?.cleanup();
+  });
+
+  it('snapshots per-story costs from multiple drivers onto done story', () => {
+    handle = startRenderer({
+      sprintState: { storyKey: '1-1-auth', phase: 'dev', done: 0, total: 2 },
+      _forceTTY: true,
+    });
+    handle.update({ type: 'result', cost: 0.42, sessionId: 's1' }, 'claude-code');
+    handle.update({ type: 'result', cost: 0.15, sessionId: 's2' }, 'codex');
+    handle.updateStories([{ key: '1-1-auth', status: 'done' }]);
+    const stories = handle._getState!().stories;
+    expect(stories[0].costByDriver).toEqual({ 'claude-code': 0.42, codex: 0.15 });
+  });
+
+  it('sums multiple result events from same driver within one story', () => {
+    handle = startRenderer({
+      sprintState: { storyKey: '1-1-auth', phase: 'dev', done: 0, total: 2 },
+      _forceTTY: true,
+    });
+    handle.update({ type: 'result', cost: 0.20, sessionId: 's1' }, 'claude-code');
+    handle.update({ type: 'result', cost: 0.22, sessionId: 's2' }, 'claude-code');
+    handle.updateStories([{ key: '1-1-auth', status: 'done' }]);
+    const stories = handle._getState!().stories;
+    expect(stories[0].costByDriver).toEqual({ 'claude-code': expect.closeTo(0.42, 5) });
+  });
+
+  it('preserves old story costs when story key changes via updateSprintState', () => {
+    handle = startRenderer({
+      sprintState: { storyKey: '1-1-auth', phase: 'dev', done: 0, total: 3 },
+      _forceTTY: true,
+    });
+    handle.update({ type: 'result', cost: 0.50, sessionId: 's1' }, 'claude-code');
+    // Story changes — old costs frozen for 1-1-auth, new accumulation starts
+    handle.updateSprintState({ storyKey: '1-2-api', phase: 'dev', done: 1, total: 3 });
+    handle.update({ type: 'result', cost: 0.10, sessionId: 's2' }, 'codex');
+    handle.updateStories([
+      { key: '1-1-auth', status: 'done' },
+      { key: '1-2-api', status: 'done' },
+    ]);
+    const stories = handle._getState!().stories;
+    expect(stories[0].costByDriver).toEqual({ 'claude-code': 0.50 });
+    expect(stories[1].costByDriver).toEqual({ codex: 0.10 });
+  });
+
+  it('does not create cost entries for zero cost events', () => {
+    handle = startRenderer({
+      sprintState: { storyKey: '1-1-auth', phase: 'dev', done: 0, total: 2 },
+      _forceTTY: true,
+    });
+    handle.update({ type: 'result', cost: 0, sessionId: 's1' }, 'claude-code');
+    handle.updateStories([{ key: '1-1-auth', status: 'done' }]);
+    const stories = handle._getState!().stories;
+    expect(stories[0].costByDriver).toBeUndefined();
+  });
+
+  it('does not mutate caller story objects', () => {
+    handle = startRenderer({
+      sprintState: { storyKey: '1-1-auth', phase: 'dev', done: 0, total: 2 },
+      _forceTTY: true,
+    });
+    handle.update({ type: 'result', cost: 0.30, sessionId: 's1' }, 'claude-code');
+    const callerStory: StoryStatusEntry = { key: '1-1-auth', status: 'done' };
+    handle.updateStories([callerStory]);
+    // Caller object should NOT have been mutated
+    expect(callerStory.costByDriver).toBeUndefined();
+    // But internal state should have costs
+    const stories = handle._getState!().stories;
+    expect(stories[0].costByDriver).toEqual({ 'claude-code': 0.30 });
+  });
+});

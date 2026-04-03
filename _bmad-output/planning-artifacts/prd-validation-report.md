@@ -2,8 +2,9 @@
 validationTarget: '_bmad-output/planning-artifacts/prd.md'
 validationDate: '2026-04-03'
 inputDocuments:
-  - prd-v1 (existing completed PRD, used as brownfield context)
-  - docs/index.md (project documentation overview)
+  - prd-multi-framework.md (brownfield context)
+  - architecture-multi-framework.md (workflow engine architecture)
+  - quick-spec-session-telemetry-retro-split.md (telemetry quick spec)
 validationStepsCompleted: ['step-v-01', 'step-v-02', 'step-v-03', 'step-v-04', 'step-v-05', 'step-v-06', 'step-v-07', 'step-v-08', 'step-v-09', 'step-v-10', 'step-v-11', 'step-v-12']
 validationStatus: COMPLETE
 holisticQualityRating: '4.5/5'
@@ -12,15 +13,15 @@ overallStatus: Pass
 
 # PRD Validation Report
 
-**PRD Being Validated:** _bmad-output/planning-artifacts/prd.md (Multi-Framework Orchestration)
+**PRD Being Validated:** _bmad-output/planning-artifacts/prd.md (Parallel Execution & Hierarchical Flow)
 **Validation Date:** 2026-04-03
 
 ## Input Documents
 
-- PRD: prd.md (multi-framework orchestration, completed all 12 steps) ✓
-- Product Brief: 0 (none — PRD created from direct user input)
-- Research: 0 (web research conducted inline for gstack/omo/OpenCode/Codex)
-- Additional References: prd-v1 (existing codeharness PRD, brownfield context) ✓
+- PRD: prd.md (parallel execution, 30 FRs, 13 NFRs) ✓
+- Product Brief: 0 (none — created from direct conversation)
+- Research: 0
+- Additional References: 3 (multi-framework PRD, architecture, telemetry quick spec) ✓
 
 ## Validation Findings
 
@@ -30,7 +31,7 @@ overallStatus: Pass
 1. Executive Summary
 2. Project Classification
 3. Success Criteria
-4. Project Scoping & Phased Development
+4. Product Scope
 5. User Journeys
 6. Innovation & Novel Patterns
 7. Developer Tool Specific Requirements
@@ -40,7 +41,7 @@ overallStatus: Pass
 **BMAD Core Sections Present:**
 - Executive Summary: Present ✓
 - Success Criteria: Present ✓
-- Product Scope: Present ✓ (as "Project Scoping & Phased Development")
+- Product Scope: Present ✓
 - User Journeys: Present ✓
 - Functional Requirements: Present ✓
 - Non-Functional Requirements: Present ✓
@@ -57,77 +58,65 @@ overallStatus: Pass
 **Redundant Phrases:** 0 occurrences
 
 **Total Violations:** 0
-
 **Severity Assessment:** Pass
-
-**Recommendation:** PRD demonstrates excellent information density. Zero anti-pattern violations. Direct, concise language throughout.
 
 ### Product Brief Coverage
 
-**Status:** N/A — No Product Brief was provided as input. PRD was created from direct user conversation with inline web research.
+**Status:** N/A — No Product Brief. PRD created from direct conversation with inline design discussion.
 
 ### Measurability Validation
 
 **Functional Requirements:**
 
-- **Total FRs Analyzed:** 38
+- **Total FRs Analyzed:** 30
 - **Format Violations:** 0 — all follow "[Actor] can [capability]" pattern
 - **Subjective Adjectives Found:** 0
 - **Vague Quantifiers Found:** 0
-- **Implementation Leakage:** 0 — technology names (claude-code, codex, opencode, StreamEvent, JSON, YAML, Ink) are capability-relevant for a developer tool wrapping named CLIs
+- **Implementation Leakage:** 0 — technology names (git worktree, NDJSON, Ink) are capability-relevant
 - **FR Violations Total:** 0
 
 **Non-Functional Requirements:**
 
-- **Total NFRs Analyzed:** 18
-- **Missing Metrics:** 1 — NFR3 ("must keep up with driver output rate") lacks specific throughput target
-- **Incomplete Template:** 2 — NFR12 and NFR18 are testable but lack explicit "as measured by" clause
+- **Total NFRs Analyzed:** 13
+- **Missing Metrics:** 0 — all have specific measurable criteria
+- **Incomplete Template:** 1 — NFR5 "within the project's normal test timeout" is relative, not absolute
 - **Missing Context:** 0
-- **NFR Violations Total:** 3 (minor)
+- **NFR Violations Total:** 1 (minor)
 
 **Overall Assessment:**
-
-- **Total Requirements:** 56 (38 FRs + 18 NFRs)
-- **Total Violations:** 3 (all minor NFR template incompleteness)
+- **Total Requirements:** 43 (30 FRs + 13 NFRs)
+- **Total Violations:** 1
 - **Severity:** Pass
-
-**Recommendation:** Strong measurability. Consider: (1) NFR3: add "zero dropped events under output rates up to 1000 lines/second", (2) NFR12/NFR18: add explicit measurement methods.
 
 ### Traceability Validation
 
 **Chain Validation:**
 
-- **Executive Summary → Success Criteria:** Intact ✓ — all success criteria map to executive summary themes (cross-framework verification, lock-in breaking, TUI visibility)
-- **Success Criteria → User Journeys:** Intact ✓ — every criterion has supporting journey evidence
+- **Executive Summary → Success Criteria:** Intact ✓ — parallel speedup, merge reliability, retro cost, TUI visibility all trace
+- **Success Criteria → User Journeys:** Intact ✓ — every criterion has supporting journey
 - **User Journeys → Functional Requirements:** Intact ✓ — all 4 journeys fully traced to FRs
-- **Scope → FR Alignment:** Intact ✓ — MVP capabilities table maps to FR capability areas
+- **Scope → FR Alignment:** Intact ✓ — MVP capabilities map to FR capability areas
 
 **Orphan Elements:**
 
-- **Orphan Functional Requirements:** 0 — all FRs trace to journeys or scope
+- **Orphan FRs:** 0
 - **Unsupported Success Criteria:** 0
 - **User Journeys Without FRs:** 0
 
 **Total Traceability Issues:** 0
-
 **Severity:** Pass
-
-**Recommendation:** Traceability chain is fully intact. All 38 FRs trace to user journeys or MVP scope. All success criteria have supporting journey evidence.
 
 ### Implementation Leakage Validation
 
-**Note:** codeharness is a developer tool wrapping specific named CLIs (claude-code, codex, opencode). Technology names (StreamEvent, JSON, YAML, Ink) are capability-relevant — they describe WHAT the system must interoperate with.
+**Note:** Developer tool wrapping git commands and Ink TUI. Technology names (git worktree, NDJSON, Ink, rebase) are capability-relevant.
 
 **Total Implementation Leakage Violations:** 0
-
 **Severity:** Pass
-
-**Recommendation:** No implementation leakage. FRs specify capabilities (WHAT) without prescribing implementation (HOW). Technology names are all capability-relevant for a CLI orchestration tool.
 
 ### Domain Compliance Validation
 
 **Domain:** general
-**Complexity:** Low
+**Complexity:** Low (domain), High (technical)
 **Assessment:** N/A — No special domain compliance requirements
 
 ### Project-Type Compliance Validation
@@ -135,11 +124,11 @@ overallStatus: Pass
 **Project Type:** developer_tool
 
 **Required Sections:**
-- `language_matrix`: Present ✓ — Target Drivers table with binary/output/auth per driver
-- `installation_methods`: Present ✓ — `npm install -g codeharness`
-- `api_surface`: Present ✓ — workflow YAML schema extensions, driver interface, CLI commands
-- `code_examples`: Present ✓ — YAML workflow examples in user journeys
-- `migration_guide`: Present ✓ — Migration from Single-Driver section
+- `language_matrix`: Present ✓ (workflow YAML extensions documented)
+- `installation_methods`: Present ✓ (extends existing npm package)
+- `api_surface`: Present ✓ (workflow YAML schema, execution config)
+- `code_examples`: Present ✓ (YAML examples in journeys + dev tool section)
+- `migration_guide`: Present ✓ (backward compatibility: flat flow still works)
 
 **Excluded Sections:**
 - `visual_design`: Absent ✓
@@ -150,75 +139,63 @@ overallStatus: Pass
 
 ### SMART Requirements Validation
 
-**Total FRs Analyzed:** 38
+**Total FRs Analyzed:** 30
 
 **Scoring Summary:**
-- **All scores >= 3:** 100% (38/38)
-- **All scores >= 4:** 92% (35/38)
-- **Overall Average Score:** 4.7/5.0
+- **All scores >= 3:** 100% (30/30)
+- **All scores >= 4:** 97% (29/30)
+- **Overall Average Score:** 4.8/5.0
 
 **Flagged FRs:**
 
 | FR | Category | Score | Issue | Suggestion |
 |----|----------|-------|-------|------------|
-| FR23 | Specific | 3 | "e.g., `--plugin`, `--agent` flags" makes mechanism vague | "System can append driver-specific CLI flags from workflow config to the spawn command" |
-| FR36 | Measurable | 3 | "suggest a cheaper driver" — suggestion mechanism undefined | "Display advisory message in TUI when task driver costs >2x cheapest capable alternative" |
-| FR37 | Specific | 3 | "queryable format" is vague | "Report driver capabilities as structured JSON via `codeharness drivers` CLI command" |
+| FR10 | Specific | 3 | "detect epic independence" — independence criteria not specified | Specify: "epics with no shared story dependencies and no overlapping file paths in story specs" |
 
-**Severity:** Pass — 7.9% flagged (3/38), well below 10% threshold
+**Severity:** Pass — 3.3% flagged (1/30)
 
 ### Holistic Quality Assessment
 
 **Document Flow & Coherence:**
 
 **Strengths:**
-- Clear narrative arc: framework lock-in problem → multi-driver solution → 38 FRs → 18 NFRs
-- Consistent driver/framework terminology — no contradictions across sections
-- User journeys include concrete YAML examples and TUI mockups — tangible, not abstract
-- Innovation section identifies genuine uncontested novelty
-- 9 capability areas map cleanly to potential epics
+- Clear narrative: sequential problem → parallel solution → hierarchical flow → merge safety
+- User journeys are concrete with TUI mockups and YAML examples
+- Innovation section identifies genuinely novel patterns (worktree parallelism, agent: null)
+- 30 FRs across 7 capability areas — clean, scannable
 
 **Areas for Improvement:**
-- Journey 4 references `src/lib/agents/drivers/` — implementation path that may change. Acceptable for developer tool PRD but could be more abstract.
-- "What Makes This Special" subsection could be promoted to its own ## header for better LLM extraction
-
-**Dual Audience Effectiveness:**
-
-**For Humans:** Strong — executive-friendly vision, developer-clear YAML examples, decisive scope tables
-**For LLMs:** Strong — consistent ## headers, structured FRs, tables throughout
+- Journey 1 references specific epic numbers (10, 14) which ties the PRD to a specific sprint. Consider making generic.
 
 **Dual Audience Score:** 4.5/5
 
 **BMAD PRD Principles Compliance:**
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| Information Density | Met | Zero anti-pattern violations |
-| Measurability | Met | All FRs testable. 3 minor NFR gaps, 3 minor FR specificity |
-| Traceability | Met | All FRs trace to journeys/scope. No orphans. |
-| Domain Awareness | Met | General domain correctly identified |
-| Zero Anti-Patterns | Met | No filler, wordiness, or redundancy |
-| Dual Audience | Met | Human-readable + LLM-consumable |
-| Markdown Format | Met | Consistent ## headers, proper hierarchy |
+| Principle | Status |
+|-----------|--------|
+| Information Density | Met — zero violations |
+| Measurability | Met — 1 minor NFR gap |
+| Traceability | Met — all chains intact |
+| Domain Awareness | Met — general domain |
+| Zero Anti-Patterns | Met |
+| Dual Audience | Met |
+| Markdown Format | Met — consistent ## headers |
 
 **Principles Met:** 7/7
-
-**Overall Quality Rating:** 4.5/5 — Strong PRD with minor improvements possible
+**Overall Quality Rating:** 4.5/5
 
 ### Completeness Validation
-
-**Template Completeness:** 0 template variables remaining ✓
 
 **Content Completeness by Section:**
 - Executive Summary: Complete ✓
 - Project Classification: Complete ✓
-- Success Criteria: Complete ✓ (3 dimensions + measurable outcomes table)
-- Project Scoping: Complete ✓ (MVP + Expansion + risks)
+- Success Criteria: Complete ✓ (4 dimensions + measurable outcomes)
+- Product Scope: Complete ✓ (MVP + Post-MVP)
 - User Journeys: Complete ✓ (4 journeys + requirements summary)
-- Innovation & Novel Patterns: Complete ✓ (4 innovations + market context + validation + risk)
-- Developer Tool Requirements: Complete ✓ (driver architecture, schema, install, migration, implementation)
-- Functional Requirements: Complete ✓ (38 FRs, 9 capability areas)
-- Non-Functional Requirements: Complete ✓ (18 NFRs, 3 categories)
+- Innovation: Complete ✓ (4 patterns)
+- Developer Tool Requirements: Complete ✓
+- Functional Requirements: Complete ✓ (30 FRs, 7 areas)
+- Non-Functional Requirements: Complete ✓ (13 NFRs, 3 categories)
 
 **Overall Completeness:** 100% — Pass
 
@@ -226,16 +203,14 @@ overallStatus: Pass
 
 **Overall Status:** Pass
 **Quality Rating:** 4.5/5
-**Total Requirements:** 56 (38 FRs + 18 NFRs)
-**Total Violations:** 9 (3 minor NFR template gaps + 3 minor FR SMART specificity + 3 minor NFR measurability)
+**Total Requirements:** 43 (30 FRs + 13 NFRs)
+**Total Violations:** 2 (1 minor NFR template gap + 1 minor FR specificity)
 **Critical Issues:** 0
 
-**Top 5 Improvements (optional):**
+**Top 3 Improvements (optional):**
 
-1. NFR3: add specific throughput target ("zero dropped events under 1000 lines/second")
-2. FR23: remove `e.g.` — specify exact mechanism for plugin config passing
-3. FR36: specify cost routing hint mechanism (TUI advisory when >2x cheapest alternative)
-4. FR37: specify "queryable format" concretely (JSON via CLI command)
-5. NFR12/NFR18: add explicit "as measured by" clauses
+1. FR10: specify epic independence criteria explicitly
+2. NFR5: replace "project's normal test timeout" with absolute value
+3. Journey 1: make epic numbers generic instead of sprint-specific
 
 **This PRD is ready for architecture and epic breakdown.**

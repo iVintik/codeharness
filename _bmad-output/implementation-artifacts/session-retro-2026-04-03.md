@@ -5449,3 +5449,157 @@ Aggregated from all session issues token reports for stories completed today:
 | Stories with zero issues | ~60% of stories had clean dev phases |
 | Total elapsed time (ralph) | ~6.9 hours (24,923 seconds) |
 | Sprint calendar span | 2026-04-02 to 2026-04-03 (2 days) |
+
+---
+
+# Session 3 Retrospective — 2026-04-03T21:37Z
+
+**Sprint:** Epic 16 (Parallel Execution Foundation)
+**Session scope:** Story 16-3-telemetry-writer
+**Time budget:** 30 minutes | **Elapsed:** ~23 minutes | **Utilization:** 77%
+
+## 1. Session Summary
+
+| Metric | Value |
+|--------|-------|
+| Stories attempted | 1 |
+| Stories completed | 1 (16-3-telemetry-writer) |
+| Stories failed/skipped | 0 |
+| Phases executed | 4 (create, dev, review, verify) |
+| Total subagent tool calls | 78 |
+| ACs verified | 10/10 (100%) |
+| Tests added | 18 new, all passing |
+| Final test count | 4,737 passing |
+| Coverage | 96.58% overall, telemetry-writer.ts at 100% stmts/funcs/lines |
+
+Story 16-3 was picked up from backlog and moved through all four phases cleanly. No retries needed. Completed well within the 30-minute budget.
+
+## 2. Issues Analysis
+
+### Bugs Found by Code Review (5 fixes applied)
+
+| Severity | Issue | Phase |
+|----------|-------|-------|
+| HIGH | `clearNullTaskRegistry` JSDoc claimed it re-registers built-in handlers but did not | code-review |
+| MEDIUM | `readTelemetryForEpic` defaulted to `process.cwd()` — made `projectDir` required | code-review |
+| MEDIUM | `TestResultsSummary` duplicated `TestResults` type — fixed with type alias | code-review |
+| MEDIUM | Unused imports in test file | code-review |
+| MEDIUM | null-task-registry.test.ts re-registered fake no-op instead of real handler | code-review |
+| MEDIUM (pre-existing) | stats.test.ts assertion mismatch — fixed opportunistically | code-review |
+
+### Deferred Issues (not fixed)
+
+| Severity | Issue | Reason |
+|----------|-------|--------|
+| LOW | `cost ?? null` is dead code (cost is never undefined) | Cosmetic, no behavioral impact |
+| LOW | Unnecessary optional chain on `contract?.acceptanceCriteria` | Defensive coding, harmless |
+
+### Infrastructure Issues
+
+- **`codeharness verify` documentation gate failure**: AGENTS.md missing entries for telemetry-writer.ts and null-task-registry.ts. Not an AC failure — bookkeeping gap.
+- **`attempts` field gap**: TaskContext does not include retry count. Telemetry records `attempts: null` until a future story extends TaskContext.
+- **30 pre-existing tsc errors** in unrelated files.
+- **config.yaml path mismatch**: Workflow references `_bmad/bmm/config.yaml` but actual path is `_bmad/config.yaml`. Recurring issue from sessions 1-2.
+
+## 3. Cost Analysis
+
+### Cumulative Project Cost (all-time)
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $295.26 |
+| Total API calls | 2,270 |
+| Stories completed (all-time) | 74 |
+| Average cost per story | $3.37 |
+
+### Cost by Phase (all-time)
+
+| Phase | Cost | % | Note |
+|-------|------|---|------|
+| verify | $131.45 | 44.5% | Still the single largest cost driver |
+| orchestrator | $52.87 | 17.9% | |
+| create-story | $32.64 | 11.1% | |
+| dev-story | $31.65 | 10.7% | |
+| code-review | $26.47 | 9.0% | |
+| retro | $20.18 | 6.8% | |
+
+### Session 3 Subagent-Level Token Breakdown
+
+| Phase | Tool Calls | Key Operations | Redundancy |
+|-------|-----------|----------------|------------|
+| create-story | 16 | Read: 8, Grep: 4, Bash: 3, Glob: 3, Write: 1 | None |
+| dev-story | 16 | Edit: 8, Bash: 6, Read: 4, Write: 2 | None |
+| code-review | 35 | Bash: 20, Read: 8, Edit: 7, Grep: 5 | Coverage ran 3x |
+| verify | 11 | Bash: 6, Read: 4, Write: 1 | None |
+| **Total** | **78** | | |
+
+### Subagent Efficiency Observations
+
+- **code-review was the heaviest phase** (35 of 78 tool calls, 45%). This is expected — it reads, tests, fixes, and re-tests.
+- **Coverage ran 3 times in code-review**. The first two runs likely used incorrect grep filters. This is a recurring pattern from sessions 1-2 as well.
+- **No file read redundancy** in create-story or dev-story. Each read a file exactly once.
+- **workflow-engine.ts** was not a hot file this session (unlike sessions 1-2 where it was read 5x per phase). Story 16-3 is a new module with its own file.
+- **Bash was the most expensive tool** (28.1% of all-time cost) due to test suite runs. Each full test run processes 4700+ tests.
+
+### Cost Trend
+
+| Session | Stories | Approx Cost | Cost/Story |
+|---------|---------|-------------|------------|
+| Session 1 (epic 1-15) | ~47 | ~$262 | ~$5.60 |
+| Session 2 (16-1, 16-2) | 2 | ~$25 | ~$12.50 |
+| Session 3 (16-3) | 1 | ~$8 | ~$8.00 |
+
+Session 3 cost per story (~$8) is higher than the all-time average ($3.37) but lower than session 2. The newer stories in epic 16 are more complex (multi-module integration, larger codebase to navigate).
+
+## 4. What Went Well
+
+- **Clean single-story execution**: 16-3 went backlog-to-done in 23 minutes with zero retries.
+- **Code review caught real bugs**: The HIGH-severity JSDoc lie and the MEDIUM `process.cwd()` default were genuine quality issues that would have caused confusion later.
+- **No redundant file reads**: create-story and dev-story each read files exactly once. The previous sessions' pattern of reading workflow-engine.ts 5x per phase did not recur.
+- **All 10 ACs verified with evidence**: No partial passes, no manual overrides.
+- **Pre-existing stats.test.ts bug fixed opportunistically** during code review.
+- **78 total tool calls** for a complete story lifecycle is lean.
+
+## 5. What Went Wrong
+
+- **Coverage grep filter failures** (code-review): Coverage output was parsed 3 times before getting a clean result. This has been a recurring issue across all three sessions.
+- **AGENTS.md stale**: The verify phase's `codeharness verify` command failed because AGENTS.md lacked entries for the new files. This is a documentation-maintenance overhead that slows verify.
+- **`attempts` field gap**: The telemetry writer had to write `attempts: null` because TaskContext doesn't carry retry count. This was a known gap from the epic design but wasn't addressed before this story.
+- **verify phase cost dominance**: 44.5% of all-time cost goes to verify. This phase runs full test suites, coverage, and the verification tool — each of which is expensive.
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+
+1. **Single-story sessions within time budget** — 30 minutes for one story with all four phases is reliable and predictable.
+2. **Subagent token reports in session issues log** — having tool call counts per phase enables cost attribution. Keep this practice.
+3. **Opportunistic pre-existing bug fixes during code review** — the stats.test.ts fix was free in context.
+
+### Patterns to Avoid
+
+1. **Running coverage with wrong grep filters** — subagents should use a standardized coverage extraction command. Consider adding a `codeharness coverage --file <name>` that returns just one file's metrics.
+2. **AGENTS.md as a manual verification gate** — this file goes stale every time a new module is added. Either automate its generation or remove it from the verify preconditions.
+3. **Full test suite for every code-review iteration** — running 4700+ tests to verify a 5-line fix is wasteful. Targeted test runs (e.g., `jest telemetry`) would cut Bash cost significantly.
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Fix `codeharness coverage --min-file` command (broken since session 1) | HIGH | Next sprint |
+| 2 | Automate AGENTS.md generation or remove from verify preconditions | MEDIUM | Tooling |
+| 3 | Add `attempts` field to TaskContext for telemetry completeness | MEDIUM | Story 16-4+ |
+| 4 | Standardize coverage grep filter in subagent prompts to avoid 3x runs | MEDIUM | Prompt tuning |
+| 5 | Investigate targeted test runs in code-review phase to reduce Bash cost | LOW | Process |
+| 6 | Fix config.yaml path reference in workflow.yaml (`_bmad/bmm/config.yaml` -> `_bmad/config.yaml`) | LOW | Cleanup |
+| 7 | Address 30 pre-existing tsc errors in unrelated files | LOW | Tech debt |
+
+## Session 3 Scorecard
+
+| Metric | Target | Actual | Status |
+|--------|--------|--------|--------|
+| Stories completed | 1 | 1 | PASS |
+| Time budget | 30 min | 23 min | PASS |
+| AC pass rate | 100% | 100% (10/10) | PASS |
+| Test failures introduced | 0 | 0 | PASS |
+| Coverage floor | 80% per file | 96.58% overall | PASS |
+| Retries needed | 0 | 0 | PASS |

@@ -27,6 +27,7 @@ import type { EvaluatorVerdict } from './verdict-parser.js';
 import { evaluateProgress } from './circuit-breaker.js';
 import { getNullTask, listNullTasks } from './null-task-registry.js';
 import type { TaskContext, NullTaskResult } from './null-task-registry.js';
+import { readStateWithBody, writeState } from './state.js';
 
 // Re-export EvaluatorVerdict for downstream consumers that import from workflow-engine
 export type { EvaluatorVerdict } from './verdict-parser.js';
@@ -99,6 +100,54 @@ const HALT_ERROR_CODES = new Set(['RATE_LIMIT', 'NETWORK', 'SDK_INIT']);
 
 /** Default maximum loop iterations before termination. */
 const DEFAULT_MAX_ITERATIONS = 5;
+
+// --- Verify Flag Propagation (Story 16-4) ---
+
+/**
+ * Propagate test/coverage flags from the implement task's output contract
+ * to the harness state file. Only runs for tasks named 'implement' whose
+ * output contract contains a non-null `testResults`.
+ *
+ * This sets `session_flags.tests_passed` and `session_flags.coverage_met`
+ * before the verify task runs, so verify's precondition check passes
+ * without re-running coverage.
+ */
+function propagateVerifyFlags(
+  taskName: string,
+  contract: OutputContract | null,
+  projectDir: string,
+): void {
+  // Guard: only run for implement tasks
+  if (taskName !== 'implement') return;
+
+  // Guard: skip if no contract or no test results
+  if (!contract?.testResults) return;
+
+  const { failed, coverage } = contract.testResults;
+
+  try {
+    const { state, body } = readStateWithBody(projectDir);
+
+    // Set tests_passed if all tests passed
+    if (failed === 0) {
+      state.session_flags.tests_passed = true;
+    }
+
+    // Set coverage_met if coverage meets the target
+    // null coverage is not >= any target (null >= N is false in JS)
+    if (coverage !== null && coverage !== undefined && coverage >= state.coverage.target) {
+      state.session_flags.coverage_met = true;
+    }
+
+    writeState(state, projectDir, body);
+  } catch (err: unknown) {
+    // IGNORE: if state file doesn't exist or can't be written,
+    // flag propagation is best-effort — the verify step will
+    // still work via the coverage evaluator path.
+    const msg = err instanceof Error ? err.message : String(err);
+    warn(`workflow-engine: flag propagation failed for ${taskName}: ${msg}`);
+  }
+}
 
 // --- Crash Recovery: Task Completion Check ---
 
@@ -255,9 +304,11 @@ export async function dispatchTask(
   customPrompt?: string,
   previousOutputContract?: OutputContract,
 ): Promise<WorkflowState> {
-  const { updatedState } = await dispatchTaskWithResult(
+  const { updatedState, contract } = await dispatchTaskWithResult(
     task, taskName, storyKey, definition, state, config, customPrompt, previousOutputContract,
   );
+  const projectDir = config.projectDir ?? process.cwd();
+  propagateVerifyFlags(taskName, contract, projectDir);
   return updatedState;
 }
 
@@ -811,6 +862,7 @@ export async function executeLoopBlock(
             );
             currentState = dispatchResult.updatedState;
             lastOutputContract = dispatchResult.contract;
+            propagateVerifyFlags(taskName, dispatchResult.contract, projectDir);
             accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
             tasksCompleted++;
           } catch (err: unknown) {
@@ -844,6 +896,7 @@ export async function executeLoopBlock(
           );
           currentState = dispatchResult.updatedState;
           lastOutputContract = dispatchResult.contract;
+          propagateVerifyFlags(taskName, dispatchResult.contract, projectDir);
           accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
           tasksCompleted++;
 
@@ -862,6 +915,7 @@ export async function executeLoopBlock(
                 );
                 currentState = retryResult.updatedState;
                 lastOutputContract = retryResult.contract;
+                propagateVerifyFlags(taskName, retryResult.contract, projectDir);
                 tasksCompleted++;
                 verdict = parseVerdict(retryResult.output);
               } catch { // IGNORE: retry failed — fall back to all-UNKNOWN verdict
@@ -1217,6 +1271,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
         );
         state = dispatchResult.updatedState;
         lastOutputContract = dispatchResult.contract;
+        propagateVerifyFlags(taskName, dispatchResult.contract, projectDir);
         accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
         tasksCompleted++;
       } catch (err: unknown) {
@@ -1249,6 +1304,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
           );
           state = dispatchResult.updatedState;
           lastOutputContract = dispatchResult.contract;
+          propagateVerifyFlags(taskName, dispatchResult.contract, projectDir);
           accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
           tasksCompleted++;
         } catch (err: unknown) {

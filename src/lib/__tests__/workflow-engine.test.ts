@@ -21,6 +21,8 @@ const {
   mockDriverDispatch,
   mockBuildPromptWithContractContext,
   mockWriteOutputContract,
+  mockReadStateWithBody,
+  mockWriteState,
 } = vi.hoisted(() => ({
   mockDispatchAgent: vi.fn(),
   mockReadWorkflowState: vi.fn(),
@@ -40,6 +42,8 @@ const {
   mockDriverDispatch: vi.fn(),
   mockBuildPromptWithContractContext: vi.fn(),
   mockWriteOutputContract: vi.fn(),
+  mockReadStateWithBody: vi.fn(),
+  mockWriteState: vi.fn(),
 }));
 
 vi.mock('../agent-dispatch.js', () => ({
@@ -118,6 +122,11 @@ vi.mock('node:fs', () => ({
 
 vi.mock('yaml', () => ({
   parse: mockParse,
+}));
+
+vi.mock('../state.js', () => ({
+  readStateWithBody: mockReadStateWithBody,
+  writeState: mockWriteState,
 }));
 
 import {
@@ -252,6 +261,22 @@ function setupDefaultMocks() {
 
   // By default, writeOutputContract succeeds silently
   mockWriteOutputContract.mockImplementation(() => {});
+
+  // By default, readStateWithBody returns a default harness state
+  mockReadStateWithBody.mockReturnValue({
+    state: {
+      harness_version: '0.1.0',
+      initialized: true,
+      stack: 'node',
+      stacks: ['node'],
+      enforcement: { frontend: true, database: true, api: true },
+      coverage: { target: 80, baseline: null, current: null, tool: 'c8' },
+      session_flags: { logs_queried: false, tests_passed: false, coverage_met: false, verification_run: false },
+      verification_log: [],
+    },
+    body: '\n# Codeharness State\n',
+  });
+  mockWriteState.mockImplementation(() => {});
 
   mockGenerateTraceId.mockReturnValue('ch-run-001-0-implement');
   mockFormatTracePrompt.mockReturnValue('[TRACE] trace_id=ch-run-001-0-implement');
@@ -3565,5 +3590,289 @@ describe('output contract writing (story 13-3)', () => {
     // verify gets contract from implement
     expect(contractCalls[2].contract).not.toBeNull();
     expect(contractCalls[2].contract?.taskName).toBe('implement');
+  });
+});
+
+// --- Story 16-4: Verify Flag Propagation ---
+
+describe('propagateVerifyFlags (story 16-4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  function makeContract(overrides?: Partial<OutputContract>): OutputContract {
+    return {
+      version: 1,
+      taskName: 'implement',
+      storyId: '5-1-foo',
+      driver: 'claude-code',
+      model: 'claude-sonnet-4-20250514',
+      timestamp: '2026-04-03T00:00:00.000Z',
+      cost_usd: 0.05,
+      duration_ms: 1000,
+      changedFiles: [],
+      testResults: null,
+      output: 'Done',
+      acceptanceCriteria: [],
+      ...overrides,
+    };
+  }
+
+  /**
+   * Helper: set up the driver to return a stream whose output contract
+   * will have a specific taskName (via the engine's internal contract builder).
+   * The propagation function reads from the contract built by the engine,
+   * which always has testResults: null — but we override readStateWithBody
+   * to verify that propagateVerifyFlags is called correctly.
+   *
+   * Since the engine builds contracts with testResults: null, we need to
+   * intercept the writeOutputContract call to inject testResults into the
+   * contract that gets returned from dispatchTaskWithResult.
+   */
+
+  it('AC#1: implement task with null testResults does not trigger propagation', async () => {
+    // Override writeOutputContract to capture and inject testResults
+    let capturedContract: OutputContract | null = null;
+    mockWriteOutputContract.mockImplementation((contract: OutputContract) => {
+      capturedContract = contract;
+    });
+
+    // The engine builds contracts with testResults: null.
+    // propagateVerifyFlags reads the contract returned by dispatchTaskWithResult.
+    // Since testResults is always null in engine-built contracts, we need to
+    // test propagateVerifyFlags through dispatchTask by making the engine
+    // actually produce a contract with testResults.
+    //
+    // But the engine hardcodes testResults: null. The propagation logic
+    // operates on whatever contract the engine builds. So for now, the
+    // production path won't trigger until testResults parsing is added.
+    //
+    // Test strategy: call dispatchTask with task named 'implement',
+    // verify that writeState is NOT called (since testResults is null).
+    // Then test the actual propagation logic by directly testing state writes
+    // when the mock returns contracts with testResults.
+
+    await dispatchTask(
+      makeTask({ scope: 'per-story' }),
+      'implement',
+      '5-1-foo',
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    // Engine-built contracts have testResults: null, so no propagation should occur
+    expect(mockWriteState).not.toHaveBeenCalled();
+  });
+
+  it('AC#3: implement task with testResults: null does not change any flags', async () => {
+    await dispatchTask(
+      makeTask({ scope: 'per-story' }),
+      'implement',
+      '5-1-foo',
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    // testResults is null in engine-built contracts → no state writes
+    expect(mockWriteState).not.toHaveBeenCalled();
+  });
+
+  it('AC#7: non-implement task does not trigger flag propagation', async () => {
+    await dispatchTask(
+      makeTask({ scope: 'per-run', source_access: false }),
+      'verify',
+      PER_RUN_SENTINEL,
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    expect(mockWriteState).not.toHaveBeenCalled();
+  });
+
+  // --- Direct propagation logic tests via executeWorkflow with mocked contracts ---
+  // These tests verify the propagation logic by intercepting the contract construction
+
+  it('AC#1,#2: sets both tests_passed and coverage_met when both conditions met', async () => {
+    // Intercept writeOutputContract to inject testResults into the contract
+    // We modify the contract object in-place so propagateVerifyFlags sees it
+    mockWriteOutputContract.mockImplementation((contract: OutputContract) => {
+      // Mutate the contract to add testResults (the engine builds mutable objects
+      // despite the readonly interface — the object literal is not frozen)
+      (contract as Record<string, unknown>).testResults = {
+        passed: 10,
+        failed: 0,
+        coverage: 95,
+      };
+    });
+
+    await dispatchTask(
+      makeTask({ scope: 'per-story' }),
+      'implement',
+      '5-1-foo',
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    // propagateVerifyFlags should have been called with the mutated contract
+    expect(mockReadStateWithBody).toHaveBeenCalledWith('/project');
+    expect(mockWriteState).toHaveBeenCalledTimes(1);
+
+    const writtenState = mockWriteState.mock.calls[0][0];
+    expect(writtenState.session_flags.tests_passed).toBe(true);
+    expect(writtenState.session_flags.coverage_met).toBe(true);
+  });
+
+  it('AC#4: implement task with failed > 0 does NOT set tests_passed', async () => {
+    mockWriteOutputContract.mockImplementation((contract: OutputContract) => {
+      (contract as Record<string, unknown>).testResults = {
+        passed: 8,
+        failed: 2,
+        coverage: 95,
+      };
+    });
+
+    await dispatchTask(
+      makeTask({ scope: 'per-story' }),
+      'implement',
+      '5-1-foo',
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    expect(mockWriteState).toHaveBeenCalledTimes(1);
+    const writtenState = mockWriteState.mock.calls[0][0];
+    expect(writtenState.session_flags.tests_passed).toBe(false);
+    expect(writtenState.session_flags.coverage_met).toBe(true);
+  });
+
+  it('AC#5: implement task with coverage < target does NOT set coverage_met', async () => {
+    mockWriteOutputContract.mockImplementation((contract: OutputContract) => {
+      (contract as Record<string, unknown>).testResults = {
+        passed: 10,
+        failed: 0,
+        coverage: 50,
+      };
+    });
+
+    await dispatchTask(
+      makeTask({ scope: 'per-story' }),
+      'implement',
+      '5-1-foo',
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    expect(mockWriteState).toHaveBeenCalledTimes(1);
+    const writtenState = mockWriteState.mock.calls[0][0];
+    expect(writtenState.session_flags.tests_passed).toBe(true);
+    expect(writtenState.session_flags.coverage_met).toBe(false);
+  });
+
+  it('AC#8: testResults.coverage = null does not set coverage_met', async () => {
+    mockWriteOutputContract.mockImplementation((contract: OutputContract) => {
+      (contract as Record<string, unknown>).testResults = {
+        passed: 10,
+        failed: 0,
+        coverage: null,
+      };
+    });
+
+    await dispatchTask(
+      makeTask({ scope: 'per-story' }),
+      'implement',
+      '5-1-foo',
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    expect(mockWriteState).toHaveBeenCalledTimes(1);
+    const writtenState = mockWriteState.mock.calls[0][0];
+    expect(writtenState.session_flags.tests_passed).toBe(true);
+    expect(writtenState.session_flags.coverage_met).toBe(false);
+  });
+
+  it('AC#7b: verify task with testResults still does not trigger flag propagation', async () => {
+    mockWriteOutputContract.mockImplementation((contract: OutputContract) => {
+      (contract as Record<string, unknown>).testResults = {
+        passed: 10,
+        failed: 0,
+        coverage: 95,
+      };
+    });
+
+    await dispatchTask(
+      makeTask({ scope: 'per-run', source_access: false }),
+      'verify',
+      PER_RUN_SENTINEL,
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    // verify task should NOT trigger flag propagation regardless of contract contents
+    expect(mockWriteState).not.toHaveBeenCalled();
+  });
+
+  it('AC#1,#2: both flags set in single state write when both conditions met', async () => {
+    mockWriteOutputContract.mockImplementation((contract: OutputContract) => {
+      (contract as Record<string, unknown>).testResults = {
+        passed: 15,
+        failed: 0,
+        coverage: 80, // exactly meets target
+      };
+    });
+
+    await dispatchTask(
+      makeTask({ scope: 'per-story' }),
+      'implement',
+      '5-1-foo',
+      makeDefinition(),
+      makeDefaultState(),
+      makeConfig(),
+    );
+
+    // Single write with both flags
+    expect(mockWriteState).toHaveBeenCalledTimes(1);
+    const writtenState = mockWriteState.mock.calls[0][0];
+    expect(writtenState.session_flags.tests_passed).toBe(true);
+    expect(writtenState.session_flags.coverage_met).toBe(true);
+  });
+
+  it('gracefully handles state file not found', async () => {
+    mockReadStateWithBody.mockImplementation(() => {
+      throw new Error('State file not found');
+    });
+
+    mockWriteOutputContract.mockImplementation((contract: OutputContract) => {
+      (contract as Record<string, unknown>).testResults = {
+        passed: 10,
+        failed: 0,
+        coverage: 95,
+      };
+    });
+
+    // Should not throw — flag propagation is best-effort
+    await expect(
+      dispatchTask(
+        makeTask({ scope: 'per-story' }),
+        'implement',
+        '5-1-foo',
+        makeDefinition(),
+        makeDefaultState(),
+        makeConfig(),
+      ),
+    ).resolves.not.toThrow();
+
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('flag propagation failed'),
+    );
   });
 });

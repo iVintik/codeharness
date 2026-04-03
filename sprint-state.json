@@ -806,9 +806,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "16-3-telemetry-writer",
+    "currentStory": "16-4-verify-flag-propagation",
     "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "lastAction": "Starting verification",
     "acProgress": null
   },
   "actionItems": []

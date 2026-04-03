@@ -1,7 +1,7 @@
 {
   "version": 2,
   "sprint": {
-    "total": 46,
+    "total": 64,
     "done": 47,
     "failed": 0,
     "blocked": 0,
@@ -507,7 +507,24 @@
         "failed": 0,
         "escalated": 0
       }
-    }
+    },
+    "16-1-hierarchical-flow-schema-parser": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "16-2-engine-handled-null-tasks": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "16-3-telemetry-writer": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "16-4-verify-flag-propagation": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "16-5-coverage-deduplication": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "16-6-story-flow-execution": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "17-1-worktree-manager": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "17-2-lane-pool": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "17-3-run-command-parallel-integration": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "18-1-merge-serialization-execution": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "18-2-merge-agent-conflict-resolution": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "18-3-cross-worktree-test-validation": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "19-1-epic-completion-detection": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "19-2-epic-flow-execution": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "20-1-lane-container-lane-components": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "20-2-summary-bar-merge-status": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null },
+    "20-3-lane-event-routing-activity-display": { "status": "backlog", "attempts": 0, "lastAttempt": null, "lastError": null, "proofPath": null, "acResults": null }
   },
   "retries": {
     "1-2-delete-ralph-loop-legacy-verification": 2,
@@ -604,10 +621,15 @@
       "storiesDone": 3
     },
     "epic-15": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 0
-    }
+      "storiesDone": 3
+    },
+    "epic-16": { "status": "backlog", "storiesTotal": 6, "storiesDone": 0 },
+    "epic-17": { "status": "backlog", "storiesTotal": 3, "storiesDone": 0 },
+    "epic-18": { "status": "backlog", "storiesTotal": 3, "storiesDone": 0 },
+    "epic-19": { "status": "backlog", "storiesTotal": 2, "storiesDone": 0 },
+    "epic-20": { "status": "backlog", "storiesTotal": 3, "storiesDone": 0 }
   },
   "session": {
     "active": false,

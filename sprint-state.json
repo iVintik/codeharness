@@ -390,9 +390,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "9-2-custom-workflow-creation",
-    "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

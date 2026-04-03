@@ -233,7 +233,7 @@ describe('merge-agent', () => {
       expect(result.resolved).toBe(true);
       expect(result.attempts).toBe(1);
       expect(result.escalated).toBe(false);
-      expect(result.testResults).toEqual({ passed: 10, failed: 0 });
+      expect(result.testResults).toEqual({ passed: 10, failed: 0, coverage: null });
       expect(result.resolvedFiles).toEqual(['src/index.ts', 'src/utils.ts']);
       expect(dispatchCalls).toHaveLength(1);
     });

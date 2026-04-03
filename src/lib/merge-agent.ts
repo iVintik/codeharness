@@ -11,12 +11,9 @@
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
 
 import type { AgentDriver } from './agents/types.js';
-
-const execAsync = promisify(exec);
+import { validateMerge, writeMergeTelemetry } from './cross-worktree-validator.js';
 
 // --- Interfaces ---
 
@@ -55,7 +52,7 @@ export interface ConflictResolutionResult {
   /** Human-readable escalation message with details for manual resolution. */
   escalationMessage?: string;
   /** Test suite results from the last successful validation. */
-  testResults?: { passed: number; failed: number; coverage?: number };
+  testResults?: { passed: number; failed: number; coverage: number | null };
   /** List of files that were resolved. */
   resolvedFiles?: string[];
 }
@@ -118,51 +115,6 @@ function buildEscalationMessage(ctx: MergeConflictContext): string {
   ].join('\n');
 }
 
-// --- Test Suite Runner ---
-
-/**
- * Run the test suite and parse results.
- * Returns pass/fail counts, coverage, and raw output for retry context.
- */
-async function runTestSuite(
-  testCommand: string,
-  cwd: string,
-): Promise<{ passed: number; failed: number; coverage?: number; output: string }> {
-  try {
-    const { stdout } = await execAsync(testCommand, {
-      cwd,
-      timeout: 300_000,
-    });
-    return { ...parseTestOutput(stdout), output: stdout };
-  } catch (err: unknown) {
-    const stdout = (err as { stdout?: string })?.stdout ?? '';
-    const result = parseTestOutput(stdout);
-    if (result.passed === 0 && result.failed === 0) {
-      return { passed: 0, failed: 1, output: stdout || 'Test command failed with no output' };
-    }
-    return { ...result, output: stdout };
-  }
-}
-
-/**
- * Parse test output to extract pass/fail counts and optional coverage.
- */
-function parseTestOutput(stdout: string): { passed: number; failed: number; coverage?: number } {
-  let passed = 0;
-  let failed = 0;
-  let coverage: number | undefined;
-
-  const passMatch = stdout.match(/(\d+)\s+passed/);
-  const failMatch = stdout.match(/(\d+)\s+failed/);
-  if (passMatch) passed = parseInt(passMatch[1], 10);
-  if (failMatch) failed = parseInt(failMatch[1], 10);
-
-  const covMatch = stdout.match(/All files[^|]*\|\s*([\d.]+)/);
-  if (covMatch) coverage = parseFloat(covMatch[1]);
-
-  return { passed, failed, ...(coverage !== undefined && { coverage }) };
-}
-
 // --- Main Entry Point ---
 
 /**
@@ -211,24 +163,32 @@ export async function resolveConflicts(ctx: MergeConflictContext): Promise<Confl
       continue;
     }
 
-    // Run test suite
-    const testResults = await runTestSuite(ctx.testCommand, ctx.cwd);
-    if (testResults.failed === 0 && testResults.passed > 0) {
+    // Run test suite via cross-worktree validator
+    // Telemetry: false during validation; write manually on success or last attempt
+    const isLastAttempt = attempt === MAX_ATTEMPTS;
+    const validationOpts = {
+      testCommand: ctx.testCommand,
+      cwd: ctx.cwd,
+      epicId: ctx.epicId,
+      writeTelemetry: false,
+    } as const;
+    const validation = await validateMerge(validationOpts);
+    if (validation.valid) {
+      writeMergeTelemetry({ ...validationOpts, writeTelemetry: true }, validation);
       return {
         resolved: true,
         attempts: attempt,
         escalated: false,
-        testResults: {
-          passed: testResults.passed,
-          failed: testResults.failed,
-          ...(testResults.coverage !== undefined && { coverage: testResults.coverage }),
-        },
+        testResults: validation.testResults,
         resolvedFiles: ctx.conflicts,
       };
     }
 
-    // Tests failed — revert and retry
-    lastTestFailure = testResults.output;
+    // Tests failed — write telemetry on last attempt, then revert and retry
+    if (isLastAttempt) {
+      writeMergeTelemetry({ ...validationOpts, writeTelemetry: true }, validation);
+    }
+    lastTestFailure = validation.output;
     try {
       execSync('git reset --hard HEAD~1', { cwd: ctx.cwd, timeout: 30_000 });
     } catch { // IGNORE: git reset failed after test failure — escalate on corrupted git state

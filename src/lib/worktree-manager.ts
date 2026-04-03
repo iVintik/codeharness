@@ -10,14 +10,12 @@
  * @see Story 18-2: Merge Agent for Conflict Resolution (onConflict callback)
  */
 
-import { exec, execSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 
 import type { ConflictResolutionResult } from './merge-agent.js';
-
-const execAsync = promisify(exec);
+import { validateMerge } from './cross-worktree-validator.js';
 
 /**
  * Partial conflict context that mergeWorktree can fill from its own state.
@@ -90,7 +88,7 @@ export interface MergeResult {
   /** List of conflicting file paths, when reason is 'conflict'. */
   conflicts?: string[];
   /** Test suite results from post-merge validation. */
-  testResults?: { passed: number; failed: number; coverage?: number };
+  testResults?: { passed: number; failed: number; coverage: number | null };
   /** Total wall-clock duration of the merge operation in milliseconds. */
   durationMs: number;
 }
@@ -397,9 +395,14 @@ export class WorktreeManager {
         };
       }
 
-      // Run test suite after successful merge
-      const testResults = await this.runTestSuite(testCommand);
-      if (testResults.failed > 0) {
+      // Run test suite after successful merge via cross-worktree validator
+      const validation = await validateMerge({
+        testCommand,
+        cwd: this.cwd,
+        epicId,
+        writeTelemetry: true,
+      });
+      if (!validation.valid) {
         // Revert merge on test failure
         try {
           this.execGit('git reset --hard HEAD~1');
@@ -408,7 +411,7 @@ export class WorktreeManager {
         return {
           success: false,
           reason: 'tests-failed',
-          testResults,
+          testResults: validation.testResults,
           durationMs: Date.now() - start,
         };
       }
@@ -417,7 +420,7 @@ export class WorktreeManager {
       this.cleanupWorktree(epicId);
       return {
         success: true,
-        testResults,
+        testResults: validation.testResults,
         durationMs: Date.now() - start,
       };
     } finally {
@@ -611,54 +614,6 @@ export class WorktreeManager {
       }
     } catch { // IGNORE: abort may fail if merge already resolved; main state is preserved
     }
-  }
-
-  /**
-   * Run the test suite and parse results from stdout.
-   * Uses async exec with a 5-minute timeout.
-   */
-  private async runTestSuite(
-    testCommand: string = 'npm test',
-  ): Promise<{ passed: number; failed: number; coverage?: number }> {
-    try {
-      const { stdout } = await execAsync(testCommand, {
-        cwd: this.cwd,
-        timeout: 300_000, // 5 minutes
-      });
-
-      return this.parseTestOutput(stdout);
-    } catch (err: unknown) {
-      // Test command failed (non-zero exit) — parse whatever output we got
-      const stdout = (err as { stdout?: string })?.stdout ?? '';
-      const result = this.parseTestOutput(stdout);
-      // If we couldn't parse anything, report 1 failure
-      if (result.passed === 0 && result.failed === 0) {
-        return { passed: 0, failed: 1 };
-      }
-      return result;
-    }
-  }
-
-  /**
-   * Parse test output to extract pass/fail counts and optional coverage.
-   * Supports common vitest/jest output patterns.
-   */
-  private parseTestOutput(stdout: string): { passed: number; failed: number; coverage?: number } {
-    let passed = 0;
-    let failed = 0;
-    let coverage: number | undefined;
-
-    // Match vitest/jest "Tests: X passed, Y failed" or "X passed" patterns
-    const passMatch = stdout.match(/(\d+)\s+passed/);
-    const failMatch = stdout.match(/(\d+)\s+failed/);
-    if (passMatch) passed = parseInt(passMatch[1], 10);
-    if (failMatch) failed = parseInt(failMatch[1], 10);
-
-    // Match coverage percentage patterns like "All files | 85.5"
-    const covMatch = stdout.match(/All files[^|]*\|\s*([\d.]+)/);
-    if (covMatch) coverage = parseFloat(covMatch[1]);
-
-    return { passed, failed, ...(coverage !== undefined && { coverage }) };
   }
 
   /**

@@ -620,7 +620,7 @@ describe('worktree-manager', () => {
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('tests-failed');
-      expect(result.testResults).toEqual({ passed: 3, failed: 2 });
+      expect(result.testResults).toEqual({ passed: 3, failed: 2, coverage: null });
       expect(result.durationMs).toBeGreaterThanOrEqual(0);
     });
   });
@@ -775,7 +775,7 @@ describe('worktree-manager', () => {
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('tests-failed');
-      expect(result.testResults).toEqual({ passed: 8, failed: 3 });
+      expect(result.testResults).toEqual({ passed: 8, failed: 3, coverage: null });
 
       // Verify revert was called
       const calls = mockExecSync.mock.calls.map((c: unknown[]) => c[0] as string);
@@ -1020,7 +1020,7 @@ describe('worktree-manager', () => {
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('tests-failed');
-      expect(result.testResults).toEqual({ passed: 5, failed: 1 });
+      expect(result.testResults).toEqual({ passed: 5, failed: 1, coverage: null });
     });
 
     it('handles test command with no parseable output (reports 1 failure)', async () => {
@@ -1040,7 +1040,7 @@ describe('worktree-manager', () => {
 
       expect(result.success).toBe(false);
       expect(result.reason).toBe('tests-failed');
-      expect(result.testResults).toEqual({ passed: 0, failed: 1 });
+      expect(result.testResults).toEqual({ passed: 0, failed: 1, coverage: null });
     });
 
     it('handles git reset --hard failure gracefully after test failure', async () => {
@@ -1071,7 +1071,7 @@ describe('worktree-manager', () => {
         resolved: true,
         attempts: 1,
         escalated: false,
-        testResults: { passed: 10, failed: 0 },
+        testResults: { passed: 10, failed: 0, coverage: null },
         resolvedFiles: ['src/a.ts'],
       });
 
@@ -1094,7 +1094,7 @@ describe('worktree-manager', () => {
 
       expect(onConflict).toHaveBeenCalledOnce();
       expect(result.success).toBe(true);
-      expect(result.testResults).toEqual({ passed: 10, failed: 0 });
+      expect(result.testResults).toEqual({ passed: 10, failed: 0, coverage: null });
     });
 
     it('does NOT invoke onConflict when no conflicts detected', async () => {

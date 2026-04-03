@@ -163,6 +163,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | worktree-manager.ts | Git worktree lifecycle — create/cleanup/list/orphan-detect for parallel epic execution in isolated working directories | `WorktreeManager`, `WorktreeInfo`, `WorktreeError`, `BRANCH_PREFIX`, `WORKTREE_BASE` |
 | lane-pool.ts | Lane pool scheduler — manages concurrent epic execution with Promise.race scheduling, lane lifecycle events, and configurable parallelism | `LanePool`, `LaneEvent`, `PoolResult`, `LaneStatus`, `EpicDescriptor`, `EpicResult`, `ExecuteEpicFn` |
 | merge-agent.ts | Merge conflict resolution via agent dispatch — 3-attempt retry loop with test validation, escalation on repeated failure | `resolveConflicts`, `buildConflictPrompt`, `MergeConflictContext`, `ConflictResolutionResult`, `OnConflictCallback`, `MergeConflictInfo` |
+| cross-worktree-validator.ts | Cross-worktree test validation — extracted test-run-after-merge logic with telemetry, used by worktree-manager and merge-agent | `validateMerge`, `writeMergeTelemetry`, `ValidateMergeOptions`, `ValidationResult` |
 
 ## Retry State Management
 
@@ -226,4 +227,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 76 library files + 4 shared test utility files across 28 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 77 library files + 4 shared test utility files across 28 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

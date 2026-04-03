@@ -46,6 +46,7 @@ export function CompletedTool({ entry }: { entry: CompletedToolEntry }) {
       <Text>{entry.name}</Text>
       <Text dimColor>{'] '}</Text>
       <Text dimColor>{argsSummary}</Text>
+      {entry.driver && <Text dimColor>{` (${entry.driver})`}</Text>}
     </Text>
   );
 }
@@ -66,13 +67,14 @@ export function CompletedTools({ tools }: { tools: CompletedToolEntry[] }) {
   );
 }
 
-export function ActiveTool({ name }: { name: string }) {
+export function ActiveTool({ name, driverName }: { name: string; driverName?: string | null }) {
   return (
     <Box>
       <Text color="yellow">{'⚡ '}</Text>
       <Text dimColor>{'['}</Text>
       <Text bold>{name}</Text>
       <Text dimColor>{'] '}</Text>
+      {driverName && <Text dimColor>{`(${driverName}) `}</Text>}
       <Spinner label="" />
     </Box>
   );
@@ -97,4 +99,12 @@ export function RetryNotice({ info }: { info: RetryInfo }) {
       {'ms)'}
     </Text>
   );
+}
+
+export function DriverCostSummary({ driverCosts }: { driverCosts: Record<string, number> }) {
+  if (!driverCosts) return null;
+  const entries = Object.entries(driverCosts).sort(([a], [b]) => a.localeCompare(b));
+  if (entries.length === 0) return null;
+  const parts = entries.map(([driver, cost]) => `${driver} $${cost.toFixed(2)}`).join(', ');
+  return <Text dimColor>{`Cost: ${parts}`}</Text>;
 }

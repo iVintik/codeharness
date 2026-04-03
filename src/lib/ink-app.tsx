@@ -9,7 +9,7 @@
 import React from 'react';
 import { Box, Static } from 'ink';
 import { Header, Separator, StoryBreakdown, type RendererState } from './ink-components.js';
-import { CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine } from './ink-activity-components.js';
+import { CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine, DriverCostSummary } from './ink-activity-components.js';
 import { WorkflowGraph } from './ink-workflow.js';
 
 export function App({ state }: { state: RendererState }) {
@@ -21,10 +21,11 @@ export function App({ state }: { state: RendererState }) {
       <Header info={state.sprintInfo} />
       <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} taskMeta={state.taskMeta} />
       <StoryBreakdown stories={state.stories} sprintInfo={state.sprintInfo} />
+      <DriverCostSummary driverCosts={state.driverCosts} />
       {state.stories.length > 0 && <Separator />}
       <Box flexDirection="column" paddingLeft={1}>
         <CompletedTools tools={state.completedTools} />
-        {state.activeTool && <ActiveTool name={state.activeTool.name} />}
+        {state.activeTool && <ActiveTool name={state.activeTool.name} driverName={state.activeDriverName} />}
         {state.lastThought && <LastThought text={state.lastThought} />}
         {state.retryInfo && <RetryNotice info={state.retryInfo} />}
       </Box>

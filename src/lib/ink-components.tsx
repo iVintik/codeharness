@@ -28,6 +28,7 @@ export interface SprintInfo {
 export interface CompletedToolEntry {
   name: string;
   args: string;
+  driver?: string;
 }
 
 export type StoryStatusValue = 'done' | 'in-progress' | 'pending' | 'failed' | 'blocked';
@@ -72,6 +73,8 @@ export interface RendererState {
   currentTaskName: string | null;
   taskStates: Record<string, TaskNodeState>;
   taskMeta: Record<string, TaskNodeMeta>;
+  activeDriverName: string | null;
+  driverCosts: Record<string, number>;
 }
 
 // --- Layout Components ---
@@ -207,7 +210,7 @@ export function StoryBreakdown({ stories, sprintInfo }: { stories: StoryStatusEn
 }
 
 // Re-export activity components so existing consumers don't break
-export { CompletedTool, CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine } from './ink-activity-components.js';
+export { CompletedTool, CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine, DriverCostSummary } from './ink-activity-components.js';
 
 // Re-export App from ink-app
 export { App } from './ink-app.js';

@@ -34,7 +34,7 @@ export interface RendererOptions {
 }
 
 export interface RendererHandle {
-  update(event: StreamEvent): void;
+  update(event: StreamEvent, driverName?: string): void;
   updateSprintState(state: SprintInfo | undefined): void;
   updateStories(stories: StoryStatusEntry[]): void;
   addMessage(msg: StoryMessage): void;
@@ -45,7 +45,7 @@ export interface RendererHandle {
 // --- No-op handle for quiet mode ---
 
 const noopHandle: RendererHandle = {
-  update() {},
+  update(_event: StreamEvent, _driverName?: string) {},
   updateSprintState() {},
   updateStories() {},
   addMessage() {},
@@ -84,6 +84,8 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     currentTaskName: null,
     taskStates: {},
     taskMeta: {},
+    activeDriverName: null,
+    driverCosts: {},
   };
 
   let cleaned = false;
@@ -136,7 +138,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   process.on('SIGINT', onSigint);
   process.on('SIGTERM', onSigterm);
 
-  function update(event: StreamEvent): void {
+  function update(event: StreamEvent, driverName?: string): void {
     if (cleaned) return;
 
     switch (event.type) {
@@ -146,6 +148,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
           const entry: CompletedToolEntry = {
             name: state.activeTool.name,
             args: state.activeToolArgs,
+            driver: state.activeDriverName ?? undefined,
           };
           const updated = [...state.completedTools, entry];
           state.completedTools = updated.length > MAX_COMPLETED_TOOLS
@@ -154,6 +157,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
         }
         state.activeTool = { name: event.name };
         state.activeToolArgs = '';
+        state.activeDriverName = driverName ?? null;
         state.lastThought = null;
         state.retryInfo = null;
         break;
@@ -178,6 +182,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
           const entry: CompletedToolEntry = {
             name: state.activeTool.name,
             args: state.activeToolArgs,
+            driver: state.activeDriverName ?? undefined,
           };
           const updated = [...state.completedTools, entry];
           // Bound the list to prevent unbounded memory growth in long sessions
@@ -186,6 +191,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
             : updated;
           state.activeTool = null;
           state.activeToolArgs = '';
+          state.activeDriverName = null;
         }
         break;
 
@@ -204,6 +210,13 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
           state.sprintInfo = {
             ...state.sprintInfo,
             totalCost: (state.sprintInfo.totalCost ?? 0) + event.cost,
+          };
+        }
+        // Accumulate per-driver cost
+        if (event.cost > 0 && driverName) {
+          state.driverCosts = {
+            ...state.driverCosts,
+            [driverName]: (state.driverCosts[driverName] ?? 0) + event.cost,
           };
         }
         break;

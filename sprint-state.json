@@ -469,12 +469,16 @@
       }
     },
     "14-3-activity-display-driver-integration": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-03T12:18:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/14-3-activity-display-driver-integration-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "15-1-plugin-pass-through-configuration": {
       "status": "backlog",

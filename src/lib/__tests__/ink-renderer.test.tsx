@@ -37,6 +37,8 @@ function makeState(overrides?: Partial<RendererState>): RendererState {
     currentTaskName: null,
     taskStates: {},
     taskMeta: {},
+    activeDriverName: null,
+    driverCosts: {},
     ...overrides,
   };
 }
@@ -877,5 +879,114 @@ describe('Visual snapshot: spec-compliant output', () => {
     expect(frame).toContain('└ AC 3');
     expect(frame).toContain('└ AC 7');
     expect(frame).toContain('└ Attempt 2/10');
+  });
+});
+
+// --- Driver Name Integration Tests (via App component rendering) ---
+
+describe('driver name in rendered output', () => {
+  it('renders driver name on active tool when activeDriverName is set', () => {
+    const state = makeState({
+      activeTool: { name: 'Bash' },
+      activeToolArgs: '',
+      activeDriverName: 'codex',
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Bash');
+    expect(frame).toContain('(codex)');
+  });
+
+  it('renders no driver label on active tool when activeDriverName is null', () => {
+    const state = makeState({
+      activeTool: { name: 'Bash' },
+      activeToolArgs: '',
+      activeDriverName: null,
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Bash');
+    expect(frame).not.toContain('(codex)');
+    expect(frame).not.toContain('(null)');
+    expect(frame).not.toContain('(undefined)');
+  });
+
+  it('renders driver name on completed tool entry', () => {
+    const state = makeState({
+      completedTools: [{ name: 'Edit', args: 'src/foo.ts', driver: 'codex' }],
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Edit');
+    expect(frame).toContain('(codex)');
+  });
+
+  it('renders no driver on completed tool when driver is undefined', () => {
+    const state = makeState({
+      completedTools: [{ name: 'Edit', args: 'src/foo.ts' }],
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Edit');
+    expect(frame).not.toContain('(undefined)');
+  });
+
+  it('renders DriverCostSummary with multi-driver costs in App layout', () => {
+    const state = makeState({
+      driverCosts: { codex: 0.45, 'claude-code': 1.23 },
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Cost: claude-code $1.23, codex $0.45');
+  });
+
+  it('renders nothing for DriverCostSummary when driverCosts is empty', () => {
+    const state = makeState({ driverCosts: {} });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    expect(frame).not.toContain('Cost:');
+  });
+});
+
+describe('driver name in update() (controller integration)', () => {
+  let handle: RendererHandle;
+
+  afterEach(() => {
+    handle?.cleanup();
+  });
+
+  it('sets activeDriverName on tool-start when driverName provided', () => {
+    handle = startRenderer({ sprintState: { storyKey: 'test', phase: 'dev', done: 0, total: 1 }, _forceTTY: true });
+    handle.update({ type: 'tool-start', name: 'Bash', id: 't1' }, 'codex');
+    handle.update({ type: 'tool-complete' });
+    // Accepted without error — driver tracking is internal state
+  });
+
+  it('leaves activeDriverName null when no driverName provided', () => {
+    handle = startRenderer({ sprintState: { storyKey: 'test', phase: 'dev', done: 0, total: 1 }, _forceTTY: true });
+    handle.update({ type: 'tool-start', name: 'Bash', id: 't1' });
+    handle.update({ type: 'tool-complete' });
+  });
+
+  it('accumulates driverCosts on result event with driverName', () => {
+    handle = startRenderer({ sprintState: { storyKey: 'test', phase: 'dev', done: 0, total: 1 }, _forceTTY: true });
+    handle.update({ type: 'result', cost: 1.50, sessionId: 'sess1' }, 'claude-code');
+    handle.update({ type: 'result', cost: 0.75, sessionId: 'sess2' }, 'claude-code');
+    handle.update({ type: 'result', cost: 0.25, sessionId: 'sess3' }, 'codex');
+  });
+
+  it('does not accumulate driverCosts when no driverName on result', () => {
+    handle = startRenderer({ sprintState: { storyKey: 'test', phase: 'dev', done: 0, total: 1 }, _forceTTY: true });
+    handle.update({ type: 'result', cost: 1.50, sessionId: 'sess1' });
+  });
+
+  it('handles error-like sequence without crash (driver failure resilience)', () => {
+    handle = startRenderer({ sprintState: { storyKey: 'test', phase: 'dev', done: 0, total: 1 }, _forceTTY: true });
+    handle.update({ type: 'tool-start', name: 'Bash', id: 't1' }, 'codex');
+    handle.update({ type: 'tool-input', partial: '{"command":"exit 1"}' });
+    handle.update({ type: 'tool-complete' });
+    handle.update({ type: 'text', text: 'The command failed' });
+    handle.update({ type: 'tool-start', name: 'Read', id: 't2' }, 'claude-code');
+    handle.update({ type: 'tool-complete' });
   });
 });

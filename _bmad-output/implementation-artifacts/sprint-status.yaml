@@ -86,10 +86,10 @@ development_status:
   13-3-cross-framework-workflow-execution: done
 
   # Epic 14
-  epic-14: backlog
+  epic-14: done
   14-1-workflowgraph-component: done
   14-2-task-status-driver-labels: done
-  14-3-activity-display-driver-integration: backlog
+  14-3-activity-display-driver-integration: done
 
   # Epic 15
   epic-15: backlog

@@ -463,16 +463,17 @@ describe('executeWorkflow — health check integration', () => {
     mockRecordTraceId.mockImplementation((_, s) => s);
     mockRecordSessionId.mockImplementation((_, __, s) => s);
 
-    // No work items (empty sprint status)
-    mockExistsSync.mockReturnValue(false);
+    // Provide a story so the epic loop has something to process
+    mockExistsSync.mockReturnValue(true);
+    mockParse.mockReturnValue({ development_status: { '1-1-test': 'backlog' } });
 
     const config: EngineConfig = {
       workflow: {
         tasks: { implement: makeTask({ driver: 'claude-code' }) },
         flow: ['implement'],
         execution: defaultExecution,
-        storyFlow: [],
-        epicFlow: ['story_flow', 'implement'],
+        storyFlow: ['implement'],
+        epicFlow: ['story_flow'],
       },
       agents: { dev: { name: 'dev', model: 'test', instructions: '', disallowedTools: [], bare: true } },
       sprintStatusPath: '/tmp/sprint-status.yaml',

@@ -888,7 +888,7 @@ describe('executeWorkflow', () => {
     const result = await executeWorkflow(config);
 
     expect(result.success).toBe(true);
-    // implement dispatched for each story, then verify once
+    // story_flow: implement for each story, then epic_flow: verify once per epic
     expect(callOrder).toEqual([
       'Implement story 3-1-foo',
       'Implement story 3-2-bar',
@@ -2271,7 +2271,7 @@ describe('crash recovery & resume', () => {
         phase: 'executing',
         started: '2026-04-03T00:00:00Z',
         tasks_completed: [
-          { task_name: 'verify', story_key: '__run__', completed_at: '2026-04-03T00:00:00Z' },
+          { task_name: 'verify', story_key: '__epic_5__', completed_at: '2026-04-03T00:00:00Z' },
         ],
       }),
     );
@@ -2280,7 +2280,7 @@ describe('crash recovery & resume', () => {
       workflow: makeWorkflow({
         tasks: { verify: makeTask({ source_access: false }) },
         flow: ['verify'],
-      epicTasks: ['verify'],
+        epicTasks: ['verify'],
       }),
     });
 

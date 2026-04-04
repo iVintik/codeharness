@@ -168,7 +168,7 @@ export function StoryContext({ entries }: { entries: StoryContextEntry[] }) {
     <Box flexDirection="column">
       {entries.map((e, i) => {
         if (e.role === 'prev') return <Text key={i}><Text color="green">{`  Prev: ${e.key} \u2713`}</Text></Text>;
-        if (e.role === 'current') return <Text key={i}><Text color="cyan">{`  This: ${e.key} \u25C6 ${e.task ?? ''}`}</Text></Text>;
+        if (e.role === 'current') return <Text key={i}><Text color="cyan">{`  This: ${e.key}`}</Text></Text>;
         return <Text key={i}><Text dimColor>{`  Next: ${e.key}`}</Text></Text>;
       })}
     </Box>

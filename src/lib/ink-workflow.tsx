@@ -53,21 +53,34 @@ export function formatElapsed(ms: number | null | undefined): string {
   return `${seconds}s`;
 }
 
-/** Render a single task name with its status indicator. */
-function TaskNode({ name, status, spinnerFrame }: { name: string; status: TaskNodeState | undefined; spinnerFrame?: number }) {
+/** Shorten driver/model to a compact label. */
+function driverLabel(driver?: string): string {
+  if (!driver) return '';
+  if (driver.includes('opus')) return 'opus';
+  if (driver.includes('sonnet')) return 'snnt';
+  if (driver.includes('haiku')) return 'haiku';
+  if (driver === 'codex' || driver === 'codex-mini') return 'cdx';
+  if (driver === 'claude-code') return 'cc';
+  if (driver === 'opencode') return 'oc';
+  return driver.slice(0, 4);
+}
+
+/** Render a single task name with its status indicator and optional driver tag. */
+function TaskNode({ name, status, spinnerFrame, driver }: { name: string; status: TaskNodeState | undefined; spinnerFrame?: number; driver?: string }) {
   const s = status ?? 'pending';
+  const tag = driver ? ` [${driverLabel(driver)}]` : '';
   switch (s) {
     case 'done':
-      return <Text color="green">{name} ✓</Text>;
+      return <Text color="green">{name}<Text dimColor>{tag}</Text> ✓</Text>;
     case 'active': {
       const frame = SPINNER_FRAMES[(spinnerFrame ?? 0) % SPINNER_FRAMES.length];
-      return <Text color="cyan">{frame} {name}</Text>;
+      return <Text color="cyan">{frame} {name}<Text dimColor>{tag}</Text></Text>;
     }
     case 'failed':
-      return <Text color="red">{name} ✗</Text>;
+      return <Text color="red">{name}<Text dimColor>{tag}</Text> ✗</Text>;
     case 'pending':
     default:
-      return <Text dimColor>{name}</Text>;
+      return <Text dimColor>{name}{tag}</Text>;
   }
 }
 
@@ -130,7 +143,7 @@ export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: Workf
           loopNodes.push(<Text key={`loop-arrow-${i}-${j}`}>{' → '}</Text>);
         }
         loopNodes.push(
-          <TaskNode key={`loop-task-${i}-${j}`} name={step.loop[j]} status={taskStates[step.loop[j]]} spinnerFrame={spinnerFrame} />
+          <TaskNode key={`loop-task-${i}-${j}`} name={step.loop[j]} status={taskStates[step.loop[j]]} spinnerFrame={spinnerFrame} driver={meta[step.loop[j]]?.driver} />
         );
       }
       elements.push(
@@ -142,7 +155,7 @@ export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: Workf
       );
     } else {
       elements.push(
-        <TaskNode key={`task-${i}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} />
+        <TaskNode key={`task-${i}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
       );
     }
   }

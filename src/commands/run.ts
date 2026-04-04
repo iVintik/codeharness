@@ -281,7 +281,8 @@ export function registerRunCommand(program: Command): void {
       // Initialize all tasks as pending with driver info
       for (const [tn, task] of Object.entries(parsedWorkflow.tasks)) {
         taskStates[tn] = 'pending';
-        taskMeta[tn] = { driver: task.driver ?? 'claude-code' };
+        // Use model name for label (more informative than driver name)
+        taskMeta[tn] = { driver: task.model ?? task.driver ?? 'claude-code' };
       }
       // Build initial story list from sprint status (Record<string, string>: key → status)
       const storyEntries: Array<{ key: string; status: 'done' | 'in-progress' | 'pending' | 'failed' }> = [];

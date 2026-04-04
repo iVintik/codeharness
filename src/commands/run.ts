@@ -224,23 +224,40 @@ export function registerRunCommand(program: Command): void {
         },
       });
 
-      // Ctrl+C handler: signal abort, let engine save state, then cleanup
+      // Ctrl+C handler: cleanup TUI, signal abort, let engine save state
       let interrupted = false;
       const onInterrupt = () => {
         if (interrupted) {
           // Second Ctrl+C: force exit
-          renderer.cleanup();
           process.exit(1);
         }
         interrupted = true;
+        renderer.cleanup(); // Unmount Ink first so terminal is restored
         abortController.abort();
+        info('Interrupted — waiting for current task to finish...', outputOpts);
       };
       process.on('SIGINT', onInterrupt);
       process.on('SIGTERM', onInterrupt);
 
       // 7b. Build TUI event bridge — tracks cumulative state across dispatches
+      const sessionStartMs = Date.now();
       let totalCostUsd = 0;
       let storiesDone = counts.done;
+      let currentStoryKey = '';
+      let currentTaskName = '';
+
+      // Periodic header refresh (elapsed time, story status) — like the old 5s interval
+      const headerRefresh = setInterval(() => {
+        if (interrupted) return;
+        renderer.updateSprintState({
+          storyKey: currentStoryKey,
+          phase: currentTaskName,
+          done: storiesDone,
+          total: counts.total,
+          totalCost: totalCostUsd,
+          elapsed: formatElapsed(Date.now() - sessionStartMs),
+        });
+      }, 2_000);
       const taskStates: Record<string, 'pending' | 'active' | 'done' | 'failed'> = {};
       const taskMeta: Record<string, { driver?: string; costUsd?: number | null; elapsedMs?: number | null }> = {};
       // Initialize all tasks as pending with driver info
@@ -264,6 +281,8 @@ export function registerRunCommand(program: Command): void {
           renderer.update(event.streamEvent, event.driverName);
         }
         if (event.type === 'dispatch-start') {
+          currentStoryKey = event.storyKey;
+          currentTaskName = event.taskName;
           // Update header with current story/task
           renderer.updateSprintState({
             storyKey: event.storyKey,
@@ -271,6 +290,7 @@ export function registerRunCommand(program: Command): void {
             done: storiesDone,
             total: counts.total,
             totalCost: totalCostUsd,
+            elapsed: formatElapsed(Date.now() - sessionStartMs),
           });
           // Mark current task active in workflow graph
           taskStates[event.taskName] = 'active';
@@ -423,6 +443,7 @@ export function registerRunCommand(program: Command): void {
         // --- Sequential execution path (AC #8) — existing single-engine behavior ---
         try {
           const result = await executeWorkflow(config);
+          clearInterval(headerRefresh);
           process.removeListener('SIGINT', onInterrupt);
           process.removeListener('SIGTERM', onInterrupt);
           renderer.cleanup();
@@ -440,6 +461,7 @@ export function registerRunCommand(program: Command): void {
             process.exitCode = 1;
           }
         } catch (err: unknown) {
+          clearInterval(headerRefresh);
           renderer.cleanup();
           const msg = err instanceof Error ? err.message : String(err);
           fail(`Workflow engine error: ${msg}`, outputOpts);

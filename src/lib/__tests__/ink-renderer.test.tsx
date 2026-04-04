@@ -692,28 +692,18 @@ describe('startRenderer', () => {
   });
 
   describe('signal handling (AC #9)', () => {
-    it('cleans up and re-raises SIGINT', () => {
+    it('cleans up on SIGINT without re-raising (caller handles abort)', () => {
       handle = startRenderer({ _forceTTY: true });
-      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
-      try {
-        process.emit('SIGINT');
-        expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGINT');
-        handle.update({ type: 'text', text: 'should be ignored' });
-      } finally {
-        killSpy.mockRestore();
-      }
+      process.emit('SIGINT');
+      // After SIGINT, updates should be no-ops (cleaned up)
+      handle.update({ type: 'text', text: 'should be ignored' });
       handle = null;
     });
 
-    it('cleans up and re-raises SIGTERM', () => {
+    it('cleans up on SIGTERM without re-raising (caller handles abort)', () => {
       handle = startRenderer({ _forceTTY: true });
-      const killSpy = vi.spyOn(process, 'kill').mockImplementation(() => true);
-      try {
-        process.emit('SIGTERM');
-        expect(killSpy).toHaveBeenCalledWith(process.pid, 'SIGTERM');
-      } finally {
-        killSpy.mockRestore();
-      }
+      process.emit('SIGTERM');
+      handle.update({ type: 'text', text: 'should be ignored' });
       handle = null;
     });
   });

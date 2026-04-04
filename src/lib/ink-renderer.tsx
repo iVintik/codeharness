@@ -143,8 +143,16 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     }
   }
 
-  function onSigint() { cleanupFull(); process.kill(process.pid, 'SIGINT'); }
-  function onSigterm() { cleanupFull(); process.kill(process.pid, 'SIGTERM'); }
+  // Heartbeat: periodic re-renders for spinner animation even when no events flow.
+  // Runs every 200ms (~5fps) — spinner frame derives from Date.now() so it animates.
+  const heartbeat = setInterval(() => {
+    if (!cleaned) rerender();
+  }, 200);
+
+  // SIGINT/SIGTERM: cleanup Ink and stop heartbeat, but do NOT re-send signal.
+  // The caller (run.ts) handles abort signaling — Ink just needs to unmount cleanly.
+  function onSigint() { cleanupFull(); }
+  function onSigterm() { cleanupFull(); }
   process.on('SIGINT', onSigint);
   process.on('SIGTERM', onSigterm);
 
@@ -454,8 +462,9 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   function cleanupFull() {
     if (cleaned) return;
     cleaned = true;
-    try { inkInstance.unmount(); } catch { /* may already be unmounted */ }
-    try { inkInstance.cleanup(); } catch { /* ignore */ }
+    clearInterval(heartbeat);
+    try { inkInstance.unmount(); } catch { /* IGNORE: may already be unmounted */ }
+    try { inkInstance.cleanup(); } catch { /* IGNORE: cleanup error */ }
     process.removeListener('SIGINT', onSigint);
     process.removeListener('SIGTERM', onSigterm);
   }

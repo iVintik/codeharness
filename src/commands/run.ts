@@ -391,18 +391,18 @@ export function registerRunCommand(program: Command): void {
             totalCost: totalCostUsd,
           });
 
-          // Story completes when all story_flow tasks finish for it
-          if (storyFlowTasks.has(event.taskName)) {
-            const allStoryDone = [...storyFlowTasks].every(tn => taskStates[tn] === 'done');
-            if (allStoryDone) {
-              storiesDone++;
-              updateStoryStatus(event.storyKey, 'done');
-              const idx = storyEntries.findIndex(s => s.key === event.storyKey);
-              if (idx >= 0) {
-                storyEntries[idx] = { ...storyEntries[idx], status: 'done' };
-                renderer.updateStories([...storyEntries]);
+          // Epic-level verify completion → mark all epic stories as done
+          if (event.taskName === 'verify' && event.storyKey.startsWith('__epic_')) {
+            const epicId = event.storyKey.replace('__epic_', '').replace('__', '');
+            for (let i = 0; i < storyEntries.length; i++) {
+              const se = storyEntries[i];
+              if (se.status === 'in-progress' && se.key.startsWith(`${epicId}-`)) {
+                storiesDone++;
+                updateStoryStatus(se.key, 'done');
+                storyEntries[i] = { ...se, status: 'done' };
               }
             }
+            renderer.updateStories([...storyEntries]);
           }
         }
         if (event.type === 'dispatch-error') {

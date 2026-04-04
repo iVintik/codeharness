@@ -1213,7 +1213,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   // Log resume from previous error state
   if (state.phase === 'error' || state.phase === 'failed') {
     const errorCount = state.tasks_completed.filter(t => t.error).length;
-    info(`Resuming from ${state.phase} state — ${errorCount} previous error(s), retrying failed tasks`);
+    if (!config.onEvent) info(`Resuming from ${state.phase} state — ${errorCount} previous error(s), retrying failed tasks`);
   }
 
   state = {
@@ -1278,14 +1278,18 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   for (const [epicId, epicItems] of epicGroups) {
     if (halted) break;
     if (config.abortSignal?.aborted) {
-      info('Execution interrupted — saving state');
+      if (!config.onEvent) info('Execution interrupted — saving state');
       state = { ...state, phase: 'interrupted' };
       writeWorkflowState(state, projectDir);
       halted = true;
       break;
     }
 
-    info(`[epic-${epicId}] Starting epic with ${epicItems.length} stories`);
+    if (config.onEvent) {
+      config.onEvent({ type: 'dispatch-start', taskName: 'story_flow', storyKey: `__epic_${epicId}__` });
+    } else {
+      info(`[epic-${epicId}] Starting epic with ${epicItems.length} stories`);
+    }
 
     for (const step of config.workflow.epicFlow) {
       if (halted) break;
@@ -1391,7 +1395,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
     }
 
     if (!halted) {
-      info(`[epic-${epicId}] Epic completed`);
+      if (!config.onEvent) info(`[epic-${epicId}] Epic completed`);
     }
   }
 

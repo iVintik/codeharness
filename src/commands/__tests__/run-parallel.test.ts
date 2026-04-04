@@ -110,6 +110,9 @@ vi.mock('../../lib/ink-renderer.js', () => ({
     updateSprintState: vi.fn(),
     updateStories: vi.fn(),
     addMessage: vi.fn(),
+    updateWorkflowState: vi.fn(),
+    processLaneEvent: vi.fn(),
+    updateMergeState: vi.fn(),
     cleanup: vi.fn(),
   })),
 }));

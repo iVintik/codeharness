@@ -316,6 +316,8 @@ export function registerRunCommand(program: Command): void {
         else if (status === 'failed') storyEntries.push({ key, status: 'failed' });
       }
       renderer.updateStories(storyEntries);
+      // Initial workflow graph with all tasks pending and model labels
+      renderer.updateWorkflowState(parsedWorkflow.flow, null, { ...taskStates }, { ...taskMeta });
 
       const onEvent = (event: EngineEvent): void => {
         if (event.type === 'stream-event' && event.streamEvent) {

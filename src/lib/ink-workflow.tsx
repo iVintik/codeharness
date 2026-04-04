@@ -164,43 +164,29 @@ export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: Workf
       );
     }
 
-    // Post-loop tasks (e.g., retro): only show if loop is complete
-    const loopDone = loopBlock.loop.every(t => (taskStates[`loop:${t}`] ?? taskStates[t]) === 'done');
-    if (loopDone) {
-      let afterLoop = false;
-      for (const step of flow) {
-        if (afterLoop && typeof step === 'string') {
-          elements.push(<Text key={`post-a-${step}`}>{' → '}</Text>);
-          elements.push(
-            <TaskNode key={`post-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
-          );
-        }
-        if (isLoopBlock(step)) afterLoop = true;
-      }
-    }
+    // Post-loop tasks (retro) not shown — they're per-epic, not per-story
 
     return <Box flexDirection="column"><Text>  {elements}</Text></Box>;
   }
 
-  // --- Pre-loop: show only pre-loop tasks up to current + next ---
+  // --- Pre-loop: show ALL pre-loop per-story tasks, no loop, no retro ---
   const elements: React.ReactNode[] = [];
-  let passedCurrent = false;
 
   for (const step of flow) {
     if (isLoopBlock(step)) break; // Don't show loop before entering
+    if (typeof step !== 'string') continue;
 
-    if (typeof step === 'string') {
-      if (elements.length > 0) {
-        elements.push(<Text key={`a-${step}`}>{' → '}</Text>);
-      }
-      elements.push(
-        <TaskNode key={`t-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
-      );
+    // Skip per-epic/per-run tasks (retro) — not part of story pipeline
+    // Heuristic: if task scope is per-epic, skip. We check via meta or taskStates presence.
+    // Since we can't access task scope here, skip known post-loop tasks by position:
+    // they appear after the loop block, which we already break on above.
 
-      if (step === currentTask) passedCurrent = true;
-      // Show one step after current, then stop
-      if (passedCurrent && step !== currentTask) break;
+    if (elements.length > 0) {
+      elements.push(<Text key={`a-${step}`}>{' → '}</Text>);
     }
+    elements.push(
+      <TaskNode key={`t-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
+    );
   }
 
   return <Box flexDirection="column"><Text>  {elements}</Text></Box>;

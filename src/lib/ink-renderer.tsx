@@ -135,8 +135,8 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   const onQuit = options?.onQuit;
   const inkInstance = inkRender(<App state={state} onCycleLane={() => cycleLane()} onQuit={onQuit ? () => onQuit() : undefined} />, {
     exitOnCtrlC: false,
-    patchConsole: !options?._forceTTY,
-    maxFps: 15,
+    patchConsole: false, // Disable console patching to prevent flicker
+    maxFps: 10,
   });
 
   function rerender() {
@@ -148,10 +148,10 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   }
 
   // Heartbeat: periodic re-renders for spinner animation even when no events flow.
-  // Runs every 200ms (~5fps) — spinner frame derives from Date.now() so it animates.
+  // Runs every 500ms — spinner frame derives from Date.now() so it still animates.
   const heartbeat = setInterval(() => {
     if (!cleaned) rerender();
-  }, 200);
+  }, 500);
 
   // SIGINT/SIGTERM: cleanup Ink and stop heartbeat, but do NOT re-send signal.
   // The caller (run.ts) handles abort signaling — Ink just needs to unmount cleanly.

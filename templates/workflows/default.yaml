@@ -1,4 +1,10 @@
 tasks:
+  create-story:
+    agent: story-creator
+    scope: per-story
+    session: fresh
+    source_access: true
+    model: claude-opus-4-6-20250514
   implement:
     agent: dev
     scope: per-story
@@ -31,6 +37,7 @@ tasks:
     model: claude-opus-4-6-20250514
 
 flow:
+  - create-story
   - implement
   - review
   - verify

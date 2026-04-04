@@ -12,6 +12,8 @@ export interface DependencySpec {
   installCommands: InstallCommand[];
   checkCommand: InstallCommand;
   critical: boolean;
+  /** If set, only check/install when at least one of these stacks is detected. */
+  stacks?: string[];
 }
 
 export interface DependencyResult {
@@ -27,8 +29,10 @@ export const DEPENDENCY_REGISTRY: readonly DependencySpec[] = [
     name: 'showboat',
     displayName: 'Showboat',
     installCommands: [
-      { cmd: 'pip', args: ['install', 'showboat'] },
+      { cmd: 'npx', args: ['showboat', '--version'] },
+      { cmd: 'uvx', args: ['install', 'showboat'] },
       { cmd: 'pipx', args: ['install', 'showboat'] },
+      { cmd: 'brew', args: ['install', 'showboat'] },
     ],
     checkCommand: { cmd: 'showboat', args: ['--version'] },
     critical: false,
@@ -41,23 +45,15 @@ export const DEPENDENCY_REGISTRY: readonly DependencySpec[] = [
     ],
     checkCommand: { cmd: 'agent-browser', args: ['--version'] },
     critical: false,
-  },
-  {
-    name: 'beads',
-    displayName: 'beads',
-    installCommands: [
-      { cmd: 'pip', args: ['install', 'beads'] },
-      { cmd: 'pipx', args: ['install', 'beads'] },
-    ],
-    checkCommand: { cmd: 'bd', args: ['--version'] },
-    critical: false,
+    stacks: ['nodejs', 'python'],
   },
   {
     name: 'semgrep',
     displayName: 'Semgrep',
     installCommands: [
       { cmd: 'pipx', args: ['install', 'semgrep'] },
-      { cmd: 'pip', args: ['install', 'semgrep'] },
+      { cmd: 'uvx', args: ['install', 'semgrep'] },
+      { cmd: 'brew', args: ['install', 'semgrep'] },
     ],
     checkCommand: { cmd: 'semgrep', args: ['--version'] },
     critical: false,
@@ -78,6 +74,7 @@ export const DEPENDENCY_REGISTRY: readonly DependencySpec[] = [
     installCommands: [{ cmd: 'cargo', args: ['install', 'cargo-tarpaulin'] }],
     checkCommand: { cmd: 'cargo', args: ['tarpaulin', '--version'] },
     critical: false,
+    stacks: ['rust'],
   },
 ];
 
@@ -86,8 +83,7 @@ export function checkInstalled(spec: DependencySpec): { installed: boolean; vers
     const output = execFileSync(spec.checkCommand.cmd, spec.checkCommand.args, { stdio: 'pipe', timeout: 15_000 }).toString().trim();
     const version = parseVersion(output);
     return { installed: true, version };
-  } catch {
-    // IGNORE: dependency check command failed, not installed
+  } catch { // IGNORE: dependency check command failed, not installed
     return { installed: false, version: null };
   }
 }
@@ -124,8 +120,7 @@ export function installDependency(spec: DependencySpec): DependencyResult {
           version: postCheck.version,
         };
       }
-    } catch {
-      // IGNORE: install command failed, try next fallback
+    } catch { // IGNORE: install command failed, try next fallback
       continue;
     }
   }
@@ -141,20 +136,57 @@ export function installDependency(spec: DependencySpec): DependencyResult {
   };
 }
 
-export function installAllDependencies(opts: { json?: boolean }): DependencyResult[] {
+/**
+ * Filter registry to only deps relevant for the given stacks.
+ * Deps with no `stacks` field are always included.
+ */
+export function filterDepsForStacks(stacks: string[]): DependencySpec[] {
+  return DEPENDENCY_REGISTRY.filter(spec => {
+    if (!spec.stacks) return true;
+    return spec.stacks.some(s => stacks.includes(s));
+  });
+}
+
+/**
+ * Check all deps in parallel, then install missing ones.
+ * Accepts optional stacks to filter conditional deps.
+ */
+export function installAllDependencies(opts: { json?: boolean; stacks?: string[] }): DependencyResult[] {
+  const specs = opts.stacks ? filterDepsForStacks(opts.stacks) : [...DEPENDENCY_REGISTRY];
   const results: DependencyResult[] = [];
 
-  for (const spec of DEPENDENCY_REGISTRY) {
-    const result = installDependency(spec);
+  // Phase 1: check all in batch (sync but fast — just version checks)
+  const checks = specs.map(spec => ({ spec, ...checkInstalled(spec) }));
+
+  // Phase 2: report already-installed, collect missing
+  const missing: DependencySpec[] = [];
+  for (const { spec, installed, version } of checks) {
+    if (installed) {
+      const result: DependencyResult = {
+        name: spec.name,
+        displayName: spec.displayName,
+        status: 'already-installed',
+        version,
+      };
+      results.push(result);
+      if (!opts.json) {
+        const versionStr = version ? ` (v${version})` : '';
+        ok(`${spec.displayName}: already installed${versionStr}`);
+      }
+    } else {
+      missing.push(spec);
+    }
+  }
+
+  // Phase 3: install missing deps
+  for (const spec of missing) {
+    const result = installMissing(spec);
     results.push(result);
 
     if (!opts.json) {
       if (result.status === 'installed') {
         const versionStr = result.version ? ` (v${result.version})` : '';
         ok(`${spec.displayName}: installed${versionStr}`);
-      } else if (result.status === 'already-installed') {
-        const versionStr = result.version ? ` (v${result.version})` : '';
-        ok(`${spec.displayName}: already installed${versionStr}`);
       } else if (result.status === 'failed') {
         failOutput(`${spec.displayName}: install failed. ${result.error ?? ''}`);
         if (!spec.critical) {
@@ -169,6 +201,35 @@ export function installAllDependencies(opts: { json?: boolean }): DependencyResu
   }
 
   return results;
+}
+
+/** Try to install a dep that's already confirmed missing. */
+function installMissing(spec: DependencySpec): DependencyResult {
+  for (const installCmd of spec.installCommands) {
+    try {
+      execFileSync(installCmd.cmd, installCmd.args, { stdio: 'pipe', timeout: 300_000 });
+      const postCheck = checkInstalled(spec);
+      if (postCheck.installed) {
+        return {
+          name: spec.name,
+          displayName: spec.displayName,
+          status: 'installed',
+          version: postCheck.version,
+        };
+      }
+    } catch { // IGNORE: install command failed, try next fallback
+      continue;
+    }
+  }
+
+  const remedy = spec.installCommands.map(c => [c.cmd, ...c.args].join(' ')).join(' or ');
+  return {
+    name: spec.name,
+    displayName: spec.displayName,
+    status: 'failed',
+    version: null,
+    error: `Install failed. Try: ${remedy}`,
+  };
 }
 
 export class CriticalDependencyError extends Error {

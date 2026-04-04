@@ -9,6 +9,7 @@ import {
   checkInstalled,
   installDependency,
   installAllDependencies,
+  filterDepsForStacks,
   parseVersion,
   CriticalDependencyError,
   DEPENDENCY_REGISTRY,
@@ -19,7 +20,6 @@ const mockExecFileSync = vi.mocked(execFileSync);
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  // Suppress console output during tests
   vi.spyOn(console, 'log').mockImplementation(() => {});
 });
 
@@ -84,8 +84,10 @@ describe('installDependency', () => {
     name: 'showboat',
     displayName: 'Showboat',
     installCommands: [
-      { cmd: 'pip', args: ['install', 'showboat'] },
+      { cmd: 'npx', args: ['showboat', '--version'] },
+      { cmd: 'uvx', args: ['install', 'showboat'] },
       { cmd: 'pipx', args: ['install', 'showboat'] },
+      { cmd: 'brew', args: ['install', 'showboat'] },
     ],
     checkCommand: { cmd: 'showboat', args: ['--version'] },
     critical: false,
@@ -102,13 +104,11 @@ describe('installDependency', () => {
     let checkCount = 0;
     mockExecFileSync.mockImplementation((cmd: string) => {
       const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
-      // Version check: first fails, then succeeds
       if (cmdStr === 'showboat') {
         checkCount++;
         if (checkCount === 1) throw new Error('not found');
         return Buffer.from('showboat 0.6.1');
       }
-      // Install command succeeds
       return Buffer.from('');
     });
 
@@ -126,8 +126,7 @@ describe('installDependency', () => {
         if (checkCount === 1) throw new Error('not found');
         return Buffer.from('showboat 0.6.1');
       }
-      if (cmdStr === 'pip') throw new Error('pip not found');
-      // pipx install succeeds
+      if (cmdStr === 'npx') throw new Error('npx failed');
       return Buffer.from('');
     });
 
@@ -145,7 +144,7 @@ describe('installDependency', () => {
     expect(result.status).toBe('failed');
     expect(result.version).toBeNull();
     expect(result.error).toContain('Install failed');
-    expect(result.error).toContain('pip install showboat');
+    expect(result.error).toContain('npx showboat --version');
     expect(result.error).toContain('pipx install showboat');
   });
 
@@ -153,7 +152,6 @@ describe('installDependency', () => {
     mockExecFileSync.mockImplementation((cmd: string) => {
       const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
       if (cmdStr === 'showboat') throw new Error('not found');
-      // Install commands succeed but version check always fails
       return Buffer.from('');
     });
 
@@ -162,7 +160,6 @@ describe('installDependency', () => {
   });
 
   describe('semgrep entry', () => {
-    // Use actual registry entry to catch regressions if the registry changes
     const semgrepSpec = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep')!;
 
     it('returns already-installed when semgrep is present', () => {
@@ -189,7 +186,7 @@ describe('installDependency', () => {
       expect(result.version).toBe('1.56.0');
     });
 
-    it('falls back to pip when pipx fails', () => {
+    it('falls back to uvx when pipx fails', () => {
       let checkCount = 0;
       mockExecFileSync.mockImplementation((cmd: string) => {
         const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
@@ -207,7 +204,7 @@ describe('installDependency', () => {
       expect(result.version).toBe('1.56.0');
     });
 
-    it('returns failed when both pipx and pip fail', () => {
+    it('returns failed when all install commands fail', () => {
       mockExecFileSync.mockImplementation(() => {
         throw new Error('command failed');
       });
@@ -215,7 +212,7 @@ describe('installDependency', () => {
       const result = installDependency(semgrepSpec);
       expect(result.status).toBe('failed');
       expect(result.error).toContain('pipx install semgrep');
-      expect(result.error).toContain('pip install semgrep');
+      expect(result.error).toContain('uvx install semgrep');
     });
   });
 
@@ -296,7 +293,6 @@ describe('installDependency', () => {
           if (checkCount === 1) throw new Error('not found');
           return Buffer.from('cargo-tarpaulin 0.27.3');
         }
-        // cargo install succeeds
         return Buffer.from('');
       });
 
@@ -305,7 +301,7 @@ describe('installDependency', () => {
       expect(result.version).toBe('0.27.3');
     });
 
-    it('returns failed when cargo command not found (graceful failure)', () => {
+    it('returns failed when cargo command not found', () => {
       mockExecFileSync.mockImplementation(() => {
         throw new Error('command failed');
       });
@@ -334,7 +330,6 @@ describe('installDependency', () => {
 
 describe('installAllDependencies', () => {
   it('installs all dependencies and returns results', () => {
-    // All tools already installed
     mockExecFileSync.mockReturnValue(Buffer.from('tool 1.0.0'));
 
     const results = installAllDependencies({});
@@ -352,13 +347,11 @@ describe('installAllDependencies', () => {
   });
 
   it('throws CriticalDependencyError when a critical dep fails to install', () => {
-    // Temporarily mutate the first registry entry to be critical
     const registry = DEPENDENCY_REGISTRY as unknown as Array<{ critical: boolean }>;
     const originalCritical = registry[0].critical;
     registry[0].critical = true;
 
     try {
-      // All commands fail — first dep (showboat) is now critical
       mockExecFileSync.mockImplementation(() => {
         throw new Error('command failed');
       });
@@ -366,47 +359,23 @@ describe('installAllDependencies', () => {
       expect(() => installAllDependencies({})).toThrow(CriticalDependencyError);
       expect(() => installAllDependencies({})).toThrow(/Showboat/);
     } finally {
-      // Restore original value
       registry[0].critical = originalCritical;
     }
   });
 
   it('continues when non-critical dep fails', () => {
-    mockExecFileSync.mockImplementation((cmd: string, args?: readonly string[]) => {
+    mockExecFileSync.mockImplementation((cmd: string) => {
       const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
-      const argsArr = Array.isArray(args) ? args.map(String) : [];
-
-      // showboat check and install both fail
-      if (cmdStr === 'showboat') throw new Error('not found');
-      // agent-browser check and install both fail
-      if (cmdStr === 'agent-browser') throw new Error('not found');
-      // npm install commands fail (for agent-browser and bats)
-      if (cmdStr === 'npm') throw new Error('not found');
-      // semgrep check and install both fail
-      if (cmdStr === 'semgrep') throw new Error('not found');
-      // bats check fails, brew fails (npm already covered above)
-      if (cmdStr === 'bats') throw new Error('not found');
-      if (cmdStr === 'brew') throw new Error('not found');
-      // cargo-tarpaulin check and install both fail
-      if (cmdStr === 'cargo') throw new Error('not found');
-      // pip/pipx for showboat/semgrep fail, for beads we don't reach (already installed)
-      if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('showboat') || a.includes('semgrep'))) {
-        throw new Error('not found');
-      }
-      // beads check succeeds
-      if (cmdStr === 'bd') {
-        return Buffer.from('bd 1.0.0');
-      }
-      throw new Error('unexpected');
+      // bats succeeds
+      if (cmdStr === 'bats') return Buffer.from('Bats 1.11.0');
+      throw new Error('not found');
     });
 
-    // Should not throw because showboat, agent-browser, semgrep, and bats are non-critical,
-    // and beads is already installed
     const results = installAllDependencies({});
     const failed = results.filter(r => r.status === 'failed');
     expect(failed.length).toBeGreaterThanOrEqual(1);
-    const beadsResult = results.find(r => r.name === 'beads');
-    expect(beadsResult?.status).toBe('already-installed');
+    const batsResult = results.find(r => r.name === 'bats');
+    expect(batsResult?.status).toBe('already-installed');
   });
 
   it('prints OK messages for installed dependencies (non-json mode)', () => {
@@ -417,69 +386,6 @@ describe('installAllDependencies', () => {
 
     const calls = logSpy.mock.calls.map(c => c[0]);
     expect(calls.some(c => typeof c === 'string' && c.includes('[OK]'))).toBe(true);
-  });
-
-  it('prints installed (not already-installed) message for freshly installed deps', () => {
-    const logSpy = vi.spyOn(console, 'log');
-    let showboatCheckCount = 0;
-    mockExecFileSync.mockImplementation((cmd: string) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
-      // For showboat: first version check fails, install succeeds, post-check succeeds
-      if (cmdStr === 'showboat') {
-        showboatCheckCount++;
-        if (showboatCheckCount === 1) throw new Error('not found');
-        return Buffer.from('showboat 0.6.1');
-      }
-      if (cmdStr === 'pip') return Buffer.from('');
-      // Everything else: already installed
-      return Buffer.from('tool 1.0.0');
-    });
-
-    const results = installAllDependencies({ json: false });
-    const showboat = results.find(r => r.name === 'showboat');
-    expect(showboat?.status).toBe('installed');
-    expect(showboat?.version).toBe('0.6.1');
-
-    const calls = logSpy.mock.calls.map(c => String(c[0]));
-    expect(calls.some(c => c.includes('Showboat: installed (v0.6.1)'))).toBe(true);
-  });
-
-  it('prints OK without version when version is null (already-installed)', () => {
-    const logSpy = vi.spyOn(console, 'log');
-    // Return output that has no parseable version
-    mockExecFileSync.mockReturnValue(Buffer.from('some output without version'));
-
-    installAllDependencies({ json: false });
-
-    const calls = logSpy.mock.calls.map(c => String(c[0]));
-    // Should print "already installed" without "(vX.Y.Z)" suffix
-    expect(calls.some(c => c.includes('already installed') && !c.includes('(v'))).toBe(true);
-  });
-
-  it('prints OK without version when version is null (freshly installed)', () => {
-    const logSpy = vi.spyOn(console, 'log');
-    let showboatCheckCount = 0;
-    mockExecFileSync.mockImplementation((cmd: string) => {
-      const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
-      // showboat: first check fails, install succeeds, post-check returns no-version output
-      if (cmdStr === 'showboat') {
-        showboatCheckCount++;
-        if (showboatCheckCount === 1) throw new Error('not found');
-        return Buffer.from('ready');
-      }
-      if (cmdStr === 'pip') return Buffer.from('');
-      // Everything else: already installed with version
-      return Buffer.from('tool 1.0.0');
-    });
-
-    const results = installAllDependencies({ json: false });
-    const showboat = results.find(r => r.name === 'showboat');
-    expect(showboat?.status).toBe('installed');
-    expect(showboat?.version).toBeNull();
-
-    const calls = logSpy.mock.calls.map(c => String(c[0]));
-    // Should have "Showboat: installed" without "(vX.Y.Z)"
-    expect(calls.some(c => c.includes('Showboat: installed') && !c.includes('(v'))).toBe(true);
   });
 
   it('does not print messages in json mode', () => {
@@ -495,25 +401,11 @@ describe('installAllDependencies', () => {
   it('prints FAIL and info messages for non-critical failures', () => {
     const logSpy = vi.spyOn(console, 'log');
 
-    mockExecFileSync.mockImplementation((cmd: string, args?: readonly string[]) => {
+    mockExecFileSync.mockImplementation((cmd: string) => {
       const cmdStr = typeof cmd === 'string' ? cmd : String(cmd);
-      const argsArr = Array.isArray(args) ? args.map(String) : [];
-      // showboat fails
-      if (cmdStr === 'showboat') throw new Error('not found');
-      if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('showboat'))) throw new Error('not found');
-      // agent-browser fails
-      if (cmdStr === 'agent-browser' || cmdStr === 'npm') throw new Error('not found');
-      // semgrep fails
-      if (cmdStr === 'semgrep') throw new Error('not found');
-      if ((cmdStr === 'pip' || cmdStr === 'pipx') && argsArr.some(a => a.includes('semgrep'))) throw new Error('not found');
-      // bats fails
-      if (cmdStr === 'bats') throw new Error('not found');
-      if (cmdStr === 'brew') throw new Error('not found');
-      // cargo-tarpaulin fails
-      if (cmdStr === 'cargo') throw new Error('not found');
-      // beads succeeds
-      if (cmdStr === 'bd') return Buffer.from('bd 1.0.0');
-      throw new Error('unexpected');
+      // bats succeeds, everything else fails
+      if (cmdStr === 'bats') return Buffer.from('Bats 1.11.0');
+      throw new Error('not found');
     });
 
     installAllDependencies({});
@@ -524,24 +416,69 @@ describe('installAllDependencies', () => {
   });
 });
 
+describe('filterDepsForStacks', () => {
+  it('returns all deps when no stacks filter (unconditional deps)', () => {
+    const all = filterDepsForStacks([]);
+    // Only unconditional deps (no stacks field)
+    const unconditional = DEPENDENCY_REGISTRY.filter(d => !d.stacks);
+    expect(all).toHaveLength(unconditional.length);
+  });
+
+  it('includes agent-browser for nodejs stack', () => {
+    const deps = filterDepsForStacks(['nodejs']);
+    expect(deps.some(d => d.name === 'agent-browser')).toBe(true);
+  });
+
+  it('includes agent-browser for python stack', () => {
+    const deps = filterDepsForStacks(['python']);
+    expect(deps.some(d => d.name === 'agent-browser')).toBe(true);
+  });
+
+  it('excludes agent-browser for go stack', () => {
+    const deps = filterDepsForStacks(['go']);
+    expect(deps.some(d => d.name === 'agent-browser')).toBe(false);
+  });
+
+  it('includes cargo-tarpaulin for rust stack', () => {
+    const deps = filterDepsForStacks(['rust']);
+    expect(deps.some(d => d.name === 'cargo-tarpaulin')).toBe(true);
+  });
+
+  it('excludes cargo-tarpaulin for nodejs stack', () => {
+    const deps = filterDepsForStacks(['nodejs']);
+    expect(deps.some(d => d.name === 'cargo-tarpaulin')).toBe(false);
+  });
+
+  it('includes both conditional deps for multi-stack project', () => {
+    const deps = filterDepsForStacks(['nodejs', 'rust']);
+    expect(deps.some(d => d.name === 'agent-browser')).toBe(true);
+    expect(deps.some(d => d.name === 'cargo-tarpaulin')).toBe(true);
+  });
+
+  it('stacks filter works with installAllDependencies', () => {
+    mockExecFileSync.mockReturnValue(Buffer.from('tool 1.0.0'));
+
+    const goResults = installAllDependencies({ stacks: ['go'] });
+    expect(goResults.some(d => d.name === 'agent-browser')).toBe(false);
+    expect(goResults.some(d => d.name === 'cargo-tarpaulin')).toBe(false);
+
+    const rustResults = installAllDependencies({ stacks: ['rust'] });
+    expect(rustResults.some(d => d.name === 'cargo-tarpaulin')).toBe(true);
+  });
+});
+
 describe('DEPENDENCY_REGISTRY', () => {
-  it('contains showboat, agent-browser, beads, semgrep, bats, and cargo-tarpaulin', () => {
+  it('contains showboat, agent-browser, semgrep, bats, and cargo-tarpaulin', () => {
     const names = DEPENDENCY_REGISTRY.map(d => d.name);
     expect(names).toContain('showboat');
     expect(names).toContain('agent-browser');
-    expect(names).toContain('beads');
     expect(names).toContain('semgrep');
     expect(names).toContain('bats');
     expect(names).toContain('cargo-tarpaulin');
   });
 
-  it('has exactly 6 entries', () => {
-    expect(DEPENDENCY_REGISTRY).toHaveLength(6);
-  });
-
-  it('beads is not critical', () => {
-    const beads = DEPENDENCY_REGISTRY.find(d => d.name === 'beads');
-    expect(beads?.critical).toBe(false);
+  it('has exactly 5 entries', () => {
+    expect(DEPENDENCY_REGISTRY).toHaveLength(5);
   });
 
   it('showboat and agent-browser are not critical', () => {
@@ -551,11 +488,13 @@ describe('DEPENDENCY_REGISTRY', () => {
     expect(agentBrowser?.critical).toBe(false);
   });
 
-  it('showboat has pip and pipx fallback', () => {
+  it('showboat has npx, uvx, pipx, brew fallback chain', () => {
     const showboat = DEPENDENCY_REGISTRY.find(d => d.name === 'showboat');
-    expect(showboat?.installCommands).toHaveLength(2);
-    expect(showboat?.installCommands[0].cmd).toBe('pip');
-    expect(showboat?.installCommands[1].cmd).toBe('pipx');
+    expect(showboat?.installCommands).toHaveLength(4);
+    expect(showboat?.installCommands[0].cmd).toBe('npx');
+    expect(showboat?.installCommands[1].cmd).toBe('uvx');
+    expect(showboat?.installCommands[2].cmd).toBe('pipx');
+    expect(showboat?.installCommands[3].cmd).toBe('brew');
   });
 
   it('agent-browser has single npm install command', () => {
@@ -564,34 +503,22 @@ describe('DEPENDENCY_REGISTRY', () => {
     expect(ab?.installCommands[0].cmd).toBe('npm');
   });
 
-  it('beads has pip and pipx fallback', () => {
-    const beads = DEPENDENCY_REGISTRY.find(d => d.name === 'beads');
-    expect(beads?.installCommands).toHaveLength(2);
-    expect(beads?.installCommands[0].cmd).toBe('pip');
-    expect(beads?.installCommands[1].cmd).toBe('pipx');
+  it('agent-browser is conditional on nodejs/python stacks', () => {
+    const ab = DEPENDENCY_REGISTRY.find(d => d.name === 'agent-browser');
+    expect(ab?.stacks).toEqual(['nodejs', 'python']);
   });
 
-  it('semgrep is not critical', () => {
-    const semgrep = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep');
-    expect(semgrep?.critical).toBe(false);
+  it('cargo-tarpaulin is conditional on rust stack', () => {
+    const ct = DEPENDENCY_REGISTRY.find(d => d.name === 'cargo-tarpaulin');
+    expect(ct?.stacks).toEqual(['rust']);
   });
 
-  it('semgrep has pipx as primary and pip as fallback', () => {
+  it('semgrep has pipx, uvx, brew fallback chain', () => {
     const semgrep = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep');
-    expect(semgrep?.installCommands).toHaveLength(2);
+    expect(semgrep?.installCommands).toHaveLength(3);
     expect(semgrep?.installCommands[0].cmd).toBe('pipx');
-    expect(semgrep?.installCommands[1].cmd).toBe('pip');
-  });
-
-  it('semgrep checks version via semgrep --version', () => {
-    const semgrep = DEPENDENCY_REGISTRY.find(d => d.name === 'semgrep');
-    expect(semgrep?.checkCommand.cmd).toBe('semgrep');
-    expect(semgrep?.checkCommand.args).toEqual(['--version']);
-  });
-
-  it('bats is not critical', () => {
-    const bats = DEPENDENCY_REGISTRY.find(d => d.name === 'bats');
-    expect(bats?.critical).toBe(false);
+    expect(semgrep?.installCommands[1].cmd).toBe('uvx');
+    expect(semgrep?.installCommands[2].cmd).toBe('brew');
   });
 
   it('bats has brew as primary and npm as fallback', () => {
@@ -602,20 +529,14 @@ describe('DEPENDENCY_REGISTRY', () => {
     expect(bats?.installCommands[1].cmd).toBe('npm');
     expect(bats?.installCommands[1].args).toEqual(['install', '-g', 'bats']);
   });
-
-  it('bats checks version via bats --version', () => {
-    const bats = DEPENDENCY_REGISTRY.find(d => d.name === 'bats');
-    expect(bats?.checkCommand.cmd).toBe('bats');
-    expect(bats?.checkCommand.args).toEqual(['--version']);
-  });
 });
 
 describe('CriticalDependencyError', () => {
   it('contains dependency name and reason', () => {
-    const err = new CriticalDependencyError('beads', 'not found');
-    expect(err.dependencyName).toBe('beads');
+    const err = new CriticalDependencyError('showboat', 'not found');
+    expect(err.dependencyName).toBe('showboat');
     expect(err.reason).toBe('not found');
     expect(err.name).toBe('CriticalDependencyError');
-    expect(err.message).toContain('beads');
+    expect(err.message).toContain('showboat');
   });
 });

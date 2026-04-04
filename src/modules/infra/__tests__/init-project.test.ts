@@ -38,11 +38,20 @@ vi.mock('../../../lib/deps.js', () => ({
     { name: 'showboat', displayName: 'Showboat', status: 'already-installed', version: '0.6.1' },
   ]),
   checkInstalled: vi.fn(() => ({ installed: true, version: '1.0.0' })),
+  filterDepsForStacks: vi.fn(() => [
+    {
+      name: 'showboat',
+      displayName: 'Showboat',
+      installCommands: [{ cmd: 'npx', args: ['showboat', '--version'] }],
+      checkCommand: { cmd: 'showboat', args: ['--version'] },
+      critical: false,
+    },
+  ]),
   DEPENDENCY_REGISTRY: [
     {
       name: 'showboat',
       displayName: 'Showboat',
-      installCommands: [{ cmd: 'pip', args: ['install', 'showboat'] }],
+      installCommands: [{ cmd: 'npx', args: ['showboat', '--version'] }],
       checkCommand: { cmd: 'showboat', args: ['--version'] },
       critical: false,
     },
@@ -167,7 +176,7 @@ describe('initProject — fresh init', () => {
     expect(state.stack).toBe('nodejs');
   });
 
-  it('includes beads result (skipped since beads removed)', async () => {
+  it('includes beads result as skipped (removed)', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     const result = await initProject({
       projectDir: testDir,
@@ -177,8 +186,8 @@ describe('initProject — fresh init', () => {
       observability: false,
     });
     if (result.success) {
-      expect(result.data.beads).toBeDefined();
-      expect(result.data.beads!.status).toBe('skipped');
+      // beads was removed — init still sets a skipped stub for backward compat
+      expect(result.data.beads).toEqual({ status: 'skipped', message: 'beads removed' });
     }
   });
 

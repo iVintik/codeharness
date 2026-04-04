@@ -39,64 +39,47 @@ Note: Observability is always enabled (mandatory). There is no opt-out.
 
 ## Step 3: Dependency Check
 
-Check that all required external tools are available. **If Docker is missing, halt immediately.** Other tools can be auto-installed.
+The CLI handles dependency checking and installation via `codeharness init`. Do NOT run dependency checks manually via bash — let the CLI do it.
 
-### Required Dependencies
+### How it works
 
-1. **Docker** (recommended, graceful degradation if missing):
-   - Run: `docker info` (suppress output, check exit code)
-   - If missing:
-     ```
-     [WARN] Docker not available — observability will use remote mode
-     [INFO] → Install Docker: https://docs.docker.com/engine/install/
-     [INFO] → Or use remote endpoints: codeharness init --otel-endpoint <url>
-     ```
-   - Init continues — observability is deferred until Docker or remote endpoint is configured.
+1. **Docker** is checked first — if missing, observability degrades to remote mode
+2. **All other deps** are checked in batch (fast version checks), then missing ones are installed with fallback chains
+3. **Stack-conditional deps** are only checked when relevant:
+   - `agent-browser`: only for nodejs/python projects (frontend UI verification)
+   - `cargo-tarpaulin`: only for rust projects (coverage)
+4. **Install fallback order** for Python tools: `uvx` → `pipx` → `brew` (never `pip install` into system Python)
 
-2. **Showboat** (auto-installable):
-   - Run: `which showboat` or `showboat --version`
-   - If missing: auto-install via `uvx install showboat`
-   - If install fails:
-     ```
-     [FAIL] Showboat installation failed.
+### Dependencies
 
-     Showboat captures reproducible verification evidence.
-     Without it, the harness cannot produce proof documents.
+| Tool | Purpose | Install fallbacks | Conditional |
+|------|---------|------------------|-------------|
+| Docker | Observability stack | manual | no |
+| Showboat | Proof documents | npx, uvx, pipx, brew | no |
+| Semgrep | Static analysis | pipx, uvx, brew | no |
+| BATS | Integration tests | brew, npm | no |
+| agent-browser | UI verification | npm | nodejs, python |
+| cargo-tarpaulin | Rust coverage | cargo | rust |
 
-     → Install manually: pip install showboat
-     → Or: uvx install showboat
-     ```
-   - If present: `[OK] Showboat: installed`
+### What NOT to do
 
-3. **agent-browser** (auto-installable, only if frontend enforcement enabled):
-   - Run: `which agent-browser` or `agent-browser --version`
-   - If missing: auto-install via `npm install -g agent-browser`
-   - If install fails:
-     ```
-     [WARN] agent-browser not installed. UI verification will be skipped.
-
-     → Install manually: npm install -g agent-browser
-     ```
-   - If present: `[OK] agent-browser: installed`
-
-4. **OTLP packages** (auto-installable, always installed — observability is mandatory):
-   - For Node.js: check if `@opentelemetry/auto-instrumentations-node` is in devDependencies
-     - If missing: `npm install --save-dev @opentelemetry/auto-instrumentations-node @opentelemetry/exporter-metrics-otlp-http @opentelemetry/exporter-logs-otlp-http @opentelemetry/exporter-trace-otlp-http`
-   - For Python: check if `opentelemetry-distro` is installed
-     - If missing: `pip install opentelemetry-distro opentelemetry-exporter-otlp`
-   - If present: `[OK] OTLP instrumentation: installed`
+- Do NOT try to install tools into the project's `.venv` — use system-level installers
+- Do NOT use `pip install` directly — it may hit the wrong Python or require sudo
+- Do NOT install OTLP packages manually — the CLI's `instrumentProject` handles this per-stack
+- Do NOT check deps one at a time with serial bash calls — the CLI batches checks
 
 ### Dependency Report
 
-After all checks, output a summary:
+After all checks, the CLI outputs a summary:
 ```
-[OK] Docker: running
-[OK] Showboat: installed
-[OK] agent-browser: installed
-[OK] OTLP instrumentation: installed
+[OK] Showboat: already installed (v0.6.1)
+[OK] Semgrep: already installed (v1.56.0)
+[OK] BATS: already installed (v1.11.0)
+[FAIL] agent-browser: install failed. Try: npm install -g @anthropic/agent-browser
+[INFO] agent-browser is optional — continuing without it
 ```
 
-If any required dependency failed, do not proceed to the next step.
+Non-critical failures do not block init.
 
 ## Step 3.5: Observability Stack
 

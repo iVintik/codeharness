@@ -46,14 +46,13 @@ vi.mock('../../lib/deps.js', () => ({
   installAllDependencies: vi.fn(() => [
     { name: 'showboat', displayName: 'Showboat', status: 'already-installed', version: '0.6.1' },
     { name: 'agent-browser', displayName: 'agent-browser', status: 'already-installed', version: '1.0.0' },
-    { name: 'beads', displayName: 'beads', status: 'already-installed', version: '2.0.0' },
   ]),
   checkInstalled: vi.fn(() => ({ installed: true, version: '1.0.0' })),
-  DEPENDENCY_REGISTRY: [
+  filterDepsForStacks: vi.fn(() => [
     {
       name: 'showboat',
       displayName: 'Showboat',
-      installCommands: [{ cmd: 'pip', args: ['install', 'showboat'] }],
+      installCommands: [{ cmd: 'npx', args: ['showboat', '--version'] }],
       checkCommand: { cmd: 'showboat', args: ['--version'] },
       critical: false,
     },
@@ -63,13 +62,24 @@ vi.mock('../../lib/deps.js', () => ({
       installCommands: [{ cmd: 'npm', args: ['install', '-g', '@anthropic/agent-browser'] }],
       checkCommand: { cmd: 'agent-browser', args: ['--version'] },
       critical: false,
+      stacks: ['nodejs', 'python'],
+    },
+  ]),
+  DEPENDENCY_REGISTRY: [
+    {
+      name: 'showboat',
+      displayName: 'Showboat',
+      installCommands: [{ cmd: 'npx', args: ['showboat', '--version'] }],
+      checkCommand: { cmd: 'showboat', args: ['--version'] },
+      critical: false,
     },
     {
-      name: 'beads',
-      displayName: 'beads',
-      installCommands: [{ cmd: 'pip', args: ['install', 'beads'] }],
-      checkCommand: { cmd: 'bd', args: ['--version'] },
+      name: 'agent-browser',
+      displayName: 'agent-browser',
+      installCommands: [{ cmd: 'npm', args: ['install', '-g', '@anthropic/agent-browser'] }],
+      checkCommand: { cmd: 'agent-browser', args: ['--version'] },
       critical: false,
+      stacks: ['nodejs', 'python'],
     },
   ],
   CriticalDependencyError: class CriticalDependencyError extends Error {
@@ -522,7 +532,7 @@ describe('init command — idempotent re-run', () => {
     const { stdout } = await runCli(['init']);
     expect(stdout).toContain('Showboat: already installed');
     expect(stdout).toContain('agent-browser: already installed');
-    expect(stdout).toContain('beads: already installed');
+    expect(stdout).toContain('Showboat: already installed');
   });
 
   it('includes dependencies in JSON re-run output', async () => {
@@ -537,7 +547,7 @@ describe('init command — idempotent re-run', () => {
     const parsed = JSON.parse(jsonLine!);
 
     expect(parsed.dependencies).toBeDefined();
-    expect(parsed.dependencies).toHaveLength(3);
+    expect(parsed.dependencies).toHaveLength(2);
     expect(parsed.dependencies[0].status).toBe('already-installed');
   });
 
@@ -754,7 +764,7 @@ describe('init command — dependency install', () => {
   it('halts init when critical dependency fails', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockInstallAllDependencies.mockImplementation(() => {
-      throw new CriticalDependencyError('beads', 'Install failed');
+      throw new CriticalDependencyError('showboat', 'Install failed');
     });
 
     const { stdout, exitCode } = await runCli(['init']);
@@ -765,7 +775,7 @@ describe('init command — dependency install', () => {
   it('halts init with JSON output when critical dependency fails', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mockInstallAllDependencies.mockImplementation(() => {
-      throw new CriticalDependencyError('beads', 'Install failed');
+      throw new CriticalDependencyError('showboat', 'Install failed');
     });
 
     const { stdout, exitCode } = await runCli(['--json', 'init']);
@@ -774,7 +784,7 @@ describe('init command — dependency install', () => {
     expect(jsonLine).toBeDefined();
     const parsed = JSON.parse(jsonLine!);
     expect(parsed.status).toBe('fail');
-    expect(parsed.error).toContain('beads');
+    expect(parsed.error).toContain('showboat');
     // When init aborts before reaching documentation scaffold, readme should be 'skipped'
     expect(parsed.documentation.readme).toBe('skipped');
   });
@@ -784,8 +794,7 @@ describe('init command — dependency install', () => {
     mockInstallAllDependencies.mockReturnValue([
       { name: 'showboat', displayName: 'Showboat', status: 'failed', version: null, error: 'not found' },
       { name: 'agent-browser', displayName: 'agent-browser', status: 'already-installed', version: '1.0.0' },
-      { name: 'beads', displayName: 'beads', status: 'already-installed', version: '2.0.0' },
-    ]);
+      ]);
 
     const { exitCode } = await runCli(['init']);
     expect(exitCode).toBeUndefined();
@@ -826,8 +835,7 @@ describe('init command — dependency install', () => {
     mockInstallAllDependencies.mockReturnValue([
       { name: 'showboat', displayName: 'Showboat', status: 'already-installed', version: '0.6.1' },
       { name: 'agent-browser', displayName: 'agent-browser', status: 'already-installed', version: '1.0.0' },
-      { name: 'beads', displayName: 'beads', status: 'already-installed', version: '2.0.0' },
-    ]);
+      ]);
   });
 });
 

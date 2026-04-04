@@ -5,11 +5,20 @@ vi.mock('../../../lib/deps.js', () => ({
     { name: 'showboat', displayName: 'Showboat', status: 'already-installed', version: '0.6.1' },
   ]),
   checkInstalled: vi.fn(() => ({ installed: true, version: '1.0.0' })),
+  filterDepsForStacks: vi.fn(() => [
+    {
+      name: 'showboat',
+      displayName: 'Showboat',
+      installCommands: [{ cmd: 'npx', args: ['showboat', '--version'] }],
+      checkCommand: { cmd: 'showboat', args: ['--version'] },
+      critical: false,
+    },
+  ]),
   DEPENDENCY_REGISTRY: [
     {
       name: 'showboat',
       displayName: 'Showboat',
-      installCommands: [{ cmd: 'pip', args: ['install', 'showboat'] }],
+      installCommands: [{ cmd: 'npx', args: ['showboat', '--version'] }],
       checkCommand: { cmd: 'showboat', args: ['--version'] },
       critical: false,
     },
@@ -51,9 +60,9 @@ describe('installDeps', () => {
     }
   });
 
-  it('passes json flag to installAllDependencies', () => {
-    installDeps({ isJson: true });
-    expect(mockInstallAll).toHaveBeenCalledWith({ json: true });
+  it('passes json flag and stacks to installAllDependencies', () => {
+    installDeps({ isJson: true, stacks: ['nodejs'] });
+    expect(mockInstallAll).toHaveBeenCalledWith({ json: true, stacks: ['nodejs'] });
   });
 
   it('returns fail for CriticalDependencyError', () => {

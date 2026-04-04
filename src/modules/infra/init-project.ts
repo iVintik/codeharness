@@ -127,7 +127,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   }
 
   // --- Dependency install ---
-  const depResult = installDeps({ isJson });
+  const depResult = installDeps({ isJson, stacks: result.stacks });
   if (!isOk(depResult)) {
     result.status = 'fail'; result.error = depResult.error;
     if (isJson) { jsonOutput(result as unknown as Record<string, unknown>); } else { info('Critical dependency failed — aborting init'); }
@@ -268,7 +268,7 @@ function handleRerun(opts: InitOptions, result: InitResult): Result<InitResult> 
       result.workflow = { status: 'created', path: workflowRelPath };
       if (!isJson) okOutput(`Workflow: ${workflowRelPath} created`);
     }
-    result.dependencies = verifyDeps(isJson);
+    result.dependencies = verifyDeps(isJson, result.stacks);
     result.docker = existingState.docker
       ? { compose_file: existingState.docker.compose_file, stack_running: existingState.docker.stack_running, services: [], ports: existingState.docker.ports }
       : null;

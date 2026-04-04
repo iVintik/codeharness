@@ -4,20 +4,38 @@ tasks:
     scope: per-story
     session: fresh
     source_access: true
+    model: claude-sonnet-4-6-20250514
+  review:
+    agent: reviewer
+    scope: per-story
+    session: fresh
+    source_access: true
+    driver: codex
   verify:
     agent: evaluator
-    scope: per-run
+    scope: per-story
     session: fresh
     source_access: false
+    driver: codex
   retry:
     agent: dev
     scope: per-story
     session: fresh
     source_access: true
+    model: claude-sonnet-4-6-20250514
+  retro:
+    agent: retro
+    scope: per-epic
+    session: fresh
+    source_access: true
+    model: claude-opus-4-6-20250514
 
 flow:
   - implement
+  - review
   - verify
   - loop:
       - retry
+      - review
       - verify
+  - retro

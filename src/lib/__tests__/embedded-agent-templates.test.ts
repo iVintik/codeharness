@@ -16,6 +16,8 @@ const EXPECTED_AGENTS = [
   'ux-designer',
   'tech-writer',
   'evaluator',
+  'reviewer',
+  'retro',
 ];
 
 /** Cache parsed agents to avoid redundant fs reads across test groups */
@@ -37,9 +39,9 @@ describe('embedded agent templates', () => {
       expect(fs.existsSync(TEMPLATES_DIR)).toBe(true);
     });
 
-    it('contains exactly 9 YAML files', () => {
+    it('contains exactly 11 YAML files', () => {
       const files = fs.readdirSync(TEMPLATES_DIR).filter((f) => f.endsWith('.yaml'));
-      expect(files).toHaveLength(9);
+      expect(files).toHaveLength(11);
     });
 
     it.each(EXPECTED_AGENTS)('%s.yaml exists', (name) => {
@@ -128,7 +130,7 @@ describe('embedded agent templates', () => {
   });
 
   describe('BMAD derivation format (AC #6)', () => {
-    const bmadDerived = EXPECTED_AGENTS.filter((n) => n !== 'evaluator');
+    const bmadDerived = EXPECTED_AGENTS.filter((n) => !['evaluator', 'reviewer', 'retro'].includes(n));
 
     it.each(bmadDerived)('%s.yaml uses flat codeharness format (no agent: wrapper)', (name) => {
       const agent = loadAgent(name);
@@ -161,7 +163,7 @@ describe('embedded agent templates', () => {
       'tech-writer': path.join(BMAD_AGENTS_DIR, 'tech-writer/tech-writer.agent.yaml'),
     };
 
-    const bmadDerived = EXPECTED_AGENTS.filter((n) => n !== 'evaluator');
+    const bmadDerived = EXPECTED_AGENTS.filter((n) => !['evaluator', 'reviewer', 'retro'].includes(n));
 
     it.each(bmadDerived)('%s.yaml persona.identity derives from BMAD persona.identity', (name) => {
       const template = loadAgent(name);

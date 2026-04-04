@@ -34,12 +34,14 @@ describe('default embedded workflow', () => {
       workflow = parseWorkflow(defaultWorkflowPath);
     });
 
-    it('defines exactly three tasks: implement, verify, and retry', () => {
+    it('defines five tasks: implement, review, verify, retry, and retro', () => {
       const taskNames = Object.keys(workflow.tasks);
-      expect(taskNames).toHaveLength(3);
+      expect(taskNames).toHaveLength(5);
       expect(taskNames).toContain('implement');
+      expect(taskNames).toContain('review');
       expect(taskNames).toContain('verify');
       expect(taskNames).toContain('retry');
+      expect(taskNames).toContain('retro');
     });
 
     it('implement task has correct properties', () => {
@@ -48,35 +50,57 @@ describe('default embedded workflow', () => {
       expect(task.scope).toBe('per-story');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
+      expect(task.model).toBe('claude-sonnet-4-6-20250514');
     });
 
-    it('verify task has source_access false and scope per-run (AC #5)', () => {
+    it('review task uses codex driver', () => {
+      const task = workflow.tasks.review;
+      expect(task.agent).toBe('reviewer');
+      expect(task.scope).toBe('per-story');
+      expect(task.source_access).toBe(true);
+      expect(task.driver).toBe('codex');
+    });
+
+    it('verify task has source_access false and scope per-story', () => {
       const task = workflow.tasks.verify;
       expect(task.agent).toBe('evaluator');
-      expect(task.scope).toBe('per-run');
+      expect(task.scope).toBe('per-story');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(false);
+      expect(task.driver).toBe('codex');
     });
 
-    it('retry task has source_access true and scope per-story (AC #6)', () => {
+    it('retry task has source_access true and scope per-story', () => {
       const task = workflow.tasks.retry;
       expect(task.agent).toBe('dev');
       expect(task.scope).toBe('per-story');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
+      expect(task.model).toBe('claude-sonnet-4-6-20250514');
+    });
+
+    it('retro task runs per-epic with opus model', () => {
+      const task = workflow.tasks.retro;
+      expect(task.agent).toBe('retro');
+      expect(task.scope).toBe('per-epic');
+      expect(task.source_access).toBe(true);
+      expect(task.model).toBe('claude-opus-4-6-20250514');
     });
   });
 
   describe('flow structure (AC #3)', () => {
-    it('flow order is implement, verify, then loop:[retry, verify]', () => {
+    it('flow order is implement, review, verify, loop:[retry, review, verify], retro', () => {
       const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.flow).toHaveLength(3);
+      expect(workflow.flow).toHaveLength(5);
       expect(workflow.flow[0]).toBe('implement');
-      expect(workflow.flow[1]).toBe('verify');
+      expect(workflow.flow[1]).toBe('review');
+      expect(workflow.flow[2]).toBe('verify');
 
-      const loopStep = workflow.flow[2] as LoopBlock;
+      const loopStep = workflow.flow[3] as LoopBlock;
       expect(loopStep).toHaveProperty('loop');
-      expect(loopStep.loop).toEqual(['retry', 'verify']);
+      expect(loopStep.loop).toEqual(['retry', 'review', 'verify']);
+
+      expect(workflow.flow[4]).toBe('retro');
     });
   });
 

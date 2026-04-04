@@ -218,13 +218,13 @@ export class CodexDriver implements AgentDriver {
       );
     }
 
-    // Build CLI args
-    const args: string[] = [];
+    // Build CLI args — use `codex exec` for non-interactive dispatch
+    const args: string[] = ['exec'];
     if (opts.model) {
       args.push('--model', opts.model);
     }
     if (opts.cwd) {
-      args.push('--cwd', opts.cwd);
+      args.push('--cd', opts.cwd);
     }
     args.push(opts.prompt);
 

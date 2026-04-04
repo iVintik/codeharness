@@ -11,7 +11,7 @@ tasks:
     session: fresh
     source_access: true
     model: claude-sonnet-4-6
-  review:
+  check:
     agent: reviewer
     scope: per-story
     session: fresh
@@ -39,10 +39,10 @@ tasks:
 flow:
   - create-story
   - implement
-  - review
+  - check
   - verify
   - loop:
       - retry
-      - review
+      - check
       - verify
   - retro

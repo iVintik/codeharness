@@ -147,70 +147,9 @@ export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: Workf
     }
   }
 
-  // Row 2 & 3: driver labels and cost/time (only when meta is present)
-  let driverRow: React.ReactNode | null = null;
-  let costRow: React.ReactNode | null = null;
-
-  if (showMeta) {
-    const taskNames = collectTaskNames(flow);
-    const driverParts: string[] = [];
-    const costParts: string[] = [];
-    let hasAnyCost = false;
-
-    for (const name of taskNames) {
-      const m = meta[name];
-      const driver = m?.driver ?? '';
-      driverParts.push(driver);
-
-      const state = taskStates[name];
-      if (state === 'done') {
-        const costStr = formatCost(m?.costUsd);
-        const timeStr = formatElapsed(m?.elapsedMs);
-        costParts.push(`${costStr} / ${timeStr}`);
-        hasAnyCost = true;
-      } else {
-        costParts.push('');
-      }
-    }
-
-    // Build driver row: pad each label to match the task name width in row 1
-    const hasSomeDriver = driverParts.some(d => d.length > 0);
-    if (hasSomeDriver) {
-      const driverLabels: React.ReactNode[] = [];
-      for (let idx = 0; idx < taskNames.length; idx++) {
-        if (idx > 0) {
-          // Spacing to align under arrows — match ' → ' visual width (3 cols)
-          driverLabels.push(<Text key={`drv-sep-${idx}`}>{'   '}</Text>);
-        }
-        driverLabels.push(
-          <Text key={`drv-${idx}`} dimColor>{driverParts[idx] || ' '}</Text>
-        );
-      }
-      driverRow = <Text>  {driverLabels}</Text>;
-    }
-
-    // Build cost row
-    if (hasAnyCost) {
-      const costLabels: React.ReactNode[] = [];
-      for (let idx = 0; idx < taskNames.length; idx++) {
-        if (idx > 0) {
-          costLabels.push(<Text key={`cost-sep-${idx}`}>{'   '}</Text>);
-        }
-        costLabels.push(
-          <Text key={`cost-${idx}`} dimColor>{costParts[idx] || ' '}</Text>
-        );
-      }
-      costRow = <Text>  {costLabels}</Text>;
-    }
-  }
-
   return (
     <Box flexDirection="column">
-      <Text>{'━'.repeat(termWidth())}</Text>
       <Text>  {elements}</Text>
-      {driverRow}
-      {costRow}
-      <Text>{'━'.repeat(termWidth())}</Text>
     </Box>
   );
 }

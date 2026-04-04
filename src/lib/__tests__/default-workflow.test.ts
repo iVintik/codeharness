@@ -39,7 +39,7 @@ describe('default embedded workflow', () => {
       expect(taskNames).toHaveLength(6);
       expect(taskNames).toContain('create-story');
       expect(taskNames).toContain('implement');
-      expect(taskNames).toContain('review');
+      expect(taskNames).toContain('check');
       expect(taskNames).toContain('verify');
       expect(taskNames).toContain('retry');
       expect(taskNames).toContain('retro');
@@ -62,8 +62,8 @@ describe('default embedded workflow', () => {
       expect(task.model).toBe('claude-sonnet-4-6');
     });
 
-    it('review task uses codex driver', () => {
-      const task = workflow.tasks.review;
+    it('check task uses codex driver', () => {
+      const task = workflow.tasks.check;
       expect(task.agent).toBe('reviewer');
       expect(task.scope).toBe('per-story');
       expect(task.source_access).toBe(true);
@@ -103,12 +103,12 @@ describe('default embedded workflow', () => {
       expect(workflow.flow).toHaveLength(6);
       expect(workflow.flow[0]).toBe('create-story');
       expect(workflow.flow[1]).toBe('implement');
-      expect(workflow.flow[2]).toBe('review');
+      expect(workflow.flow[2]).toBe('check');
       expect(workflow.flow[3]).toBe('verify');
 
       const loopStep = workflow.flow[4] as LoopBlock;
       expect(loopStep).toHaveProperty('loop');
-      expect(loopStep.loop).toEqual(['retry', 'review', 'verify']);
+      expect(loopStep.loop).toEqual(['retry', 'check', 'verify']);
 
       expect(workflow.flow[5]).toBe('retro');
     });

@@ -644,7 +644,7 @@ describe('CodexDriver', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'codex',
-        ['--model', 'codex-mini', '--cwd', '/my/project', 'hello'],
+        ['exec', '--model', 'codex-mini', '--cd', '/my/project', 'hello'],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });
@@ -685,7 +685,7 @@ describe('CodexDriver', () => {
   });
 
   describe('dispatch — no model or cwd in opts', () => {
-    it('does not pass --model or --cwd when opts omit them', async () => {
+    it('does not pass --model or --cd when opts omit them', async () => {
       const { proc } = createMockProcess(
         ['{"type":"result","cost_usd":0.01,"session_id":"s"}'],
         0,
@@ -698,7 +698,7 @@ describe('CodexDriver', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'codex',
-        ['hello'],
+        ['exec', 'hello'],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });

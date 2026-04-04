@@ -169,127 +169,34 @@ describe('WorkflowGraph component', () => {
     expect(frame).toContain('implement');
     expect(frame).toContain('verify');
     expect(frame).toContain('deploy');
-    // Separator lines
-    expect(frame).toContain('━');
+    // No separator lines (removed in layout redesign)
+    expect(frame).not.toContain('━');
   });
 
-  // --- Driver label tests (AC #5) ---
+  // --- Driver/cost rows removed (layout redesign) ---
 
-  it('renders driver label below task name when taskMeta is provided', () => {
+  it('does not render driver or cost rows (removed for compact layout)', () => {
     const flow: FlowStep[] = ['implement', 'verify'];
     const taskStates: Record<string, TaskNodeState> = {
       'implement': 'done',
       'verify': 'active',
     };
     const taskMeta: Record<string, TaskNodeMeta> = {
-      'implement': { driver: 'claude-code' },
+      'implement': { driver: 'claude-code', costUsd: 0.42, elapsedMs: 240000 },
       'verify': { driver: 'codex' },
     };
     const { lastFrame } = render(
       <WorkflowGraph flow={flow} currentTask="verify" taskStates={taskStates} taskMeta={taskMeta} />
     );
     const frame = lastFrame()!;
-    expect(frame).toContain('claude-code');
-    expect(frame).toContain('codex');
-  });
-
-  // --- Cost/time tests (AC #6, #7) ---
-
-  it('renders cost and elapsed time for completed tasks', () => {
-    const flow: FlowStep[] = ['implement'];
-    const taskStates: Record<string, TaskNodeState> = {
-      'implement': 'done',
-    };
-    const taskMeta: Record<string, TaskNodeMeta> = {
-      'implement': { driver: 'claude-code', costUsd: 0.42, elapsedMs: 240000 },
-    };
-    const { lastFrame } = render(
-      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} taskMeta={taskMeta} />
-    );
-    const frame = lastFrame()!;
-    expect(frame).toContain('$0.42');
-    expect(frame).toContain('4m');
-  });
-
-  it('renders ... for null cost and normal elapsed time', () => {
-    const flow: FlowStep[] = ['implement'];
-    const taskStates: Record<string, TaskNodeState> = {
-      'implement': 'done',
-    };
-    const taskMeta: Record<string, TaskNodeMeta> = {
-      'implement': { driver: 'codex', costUsd: null, elapsedMs: 120000 },
-    };
-    const { lastFrame } = render(
-      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} taskMeta={taskMeta} />
-    );
-    const frame = lastFrame()!;
-    expect(frame).toContain('...');
-    expect(frame).toContain('2m');
-    // Should NOT show $0.00
-    expect(frame).not.toContain('$0.00');
-  });
-
-  it('does not render cost row for non-completed tasks', () => {
-    const flow: FlowStep[] = ['implement'];
-    const taskStates: Record<string, TaskNodeState> = {
-      'implement': 'active',
-    };
-    const taskMeta: Record<string, TaskNodeMeta> = {
-      'implement': { driver: 'claude-code', costUsd: 0.42, elapsedMs: 240000 },
-    };
-    const { lastFrame } = render(
-      <WorkflowGraph flow={flow} currentTask="implement" taskStates={taskStates} taskMeta={taskMeta} />
-    );
-    const frame = lastFrame()!;
-    // Driver should still show
-    expect(frame).toContain('claude-code');
-    // Cost should NOT show for active tasks
+    // Task names present
+    expect(frame).toContain('implement');
+    expect(frame).toContain('verify');
+    // Driver and cost rows NOT rendered
+    expect(frame).not.toContain('claude-code');
+    expect(frame).not.toContain('codex');
     expect(frame).not.toContain('$0.42');
-  });
-
-  // --- taskMeta prop acceptance test (AC #9) ---
-
-  it('accepts taskMeta prop and influences rendering', () => {
-    const flow: FlowStep[] = ['implement', 'verify'];
-    const taskStates: Record<string, TaskNodeState> = {
-      'implement': 'done',
-      'verify': 'pending',
-    };
-    const taskMeta: Record<string, TaskNodeMeta> = {
-      'implement': { driver: 'opencode', costUsd: 1.23, elapsedMs: 45000 },
-    };
-    const { lastFrame } = render(
-      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} taskMeta={taskMeta} />
-    );
-    const frame = lastFrame()!;
-    expect(frame).toContain('opencode');
-    expect(frame).toContain('$1.23');
-    expect(frame).toContain('45s');
-  });
-
-  // --- Driver labels in loop blocks (AC #5 with loops) ---
-
-  it('renders driver labels for tasks inside loop blocks', () => {
-    const flow: FlowStep[] = ['create-story', { loop: ['implement', 'verify'] }];
-    const taskStates: Record<string, TaskNodeState> = {
-      'create-story': 'done',
-      'implement': 'done',
-      'verify': 'active',
-    };
-    const taskMeta: Record<string, TaskNodeMeta> = {
-      'create-story': { driver: 'claude-code' },
-      'implement': { driver: 'codex', costUsd: 0.50, elapsedMs: 180000 },
-      'verify': { driver: 'opencode' },
-    };
-    const { lastFrame } = render(
-      <WorkflowGraph flow={flow} currentTask="verify" taskStates={taskStates} taskMeta={taskMeta} />
-    );
-    const frame = lastFrame()!;
-    expect(frame).toContain('claude-code');
-    expect(frame).toContain('codex');
-    expect(frame).toContain('opencode');
-    expect(frame).toContain('$0.50');
-    expect(frame).toContain('3m');
+    expect(frame).not.toContain('4m');
   });
 
   // --- Backward compatibility: no taskMeta renders identically to single-line ---

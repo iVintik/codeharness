@@ -5,104 +5,10 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { warn } from '../../lib/output.js';
-import type { ParsedAC, Verifiability, VerificationStrategy, VerificationTier, ObservabilityGapResult, ObservabilityGapEntry } from './types.js';
-import { LEGACY_TIER_MAP, TIER_HIERARCHY } from './types.js';
+import type { ParsedAC, ObservabilityGapResult, ObservabilityGapEntry } from './types.js';
 import {
   UI_KEYWORDS, API_KEYWORDS, DB_KEYWORDS,
-  INTEGRATION_KEYWORDS, ESCALATE_KEYWORDS,
-  TEST_PROVABLE_KEYWORDS, RUNTIME_PROVABLE_KEYWORDS,
-  ENVIRONMENT_PROVABLE_KEYWORDS, ESCALATE_TIER_KEYWORDS,
 } from './parser-keywords.js';
-
-// Re-export for backward compat (INTEGRATION_KEYWORDS was previously exported from parser.ts)
-export { INTEGRATION_KEYWORDS } from './parser-keywords.js';
-
-// ─── Verifiability Classification ───────────────────────────────────────────
-
-/**
- * Classifies whether an AC can be verified in a CLI subprocess or requires
- * integration testing. Checks description against integration keywords
- * (case-insensitive). Falls back to 'cli-verifiable'.
- *
- * @deprecated Use `classifyTier()` instead. Will be removed in a future release.
- */
-export function classifyVerifiability(description: string): Verifiability {
-  const lower = description.toLowerCase();
-
-  for (const kw of INTEGRATION_KEYWORDS) {
-    if (lower.includes(kw)) return 'integration-required';
-  }
-
-  return 'cli-verifiable';
-}
-
-// ─── Verification Strategy ─────────────────────────────────────────────────
-
-/**
- * Determines the best verification strategy for an AC.
- *
- * Docker is the DEFAULT — it's the safest approach because it runs in an
- * isolated container that can't corrupt the host environment.
- *
- * cli-direct is the fallback when Docker is unavailable (checked at runtime).
- * escalate is the last resort for things that truly can't be automated.
- *
- * @deprecated Use `classifyTier()` instead. Will be removed in a future release.
- */
-export function classifyStrategy(description: string): VerificationStrategy {
-  const lower = description.toLowerCase();
-
-  // Check for true escalation first (very rare)
-  for (const kw of ESCALATE_KEYWORDS) {
-    if (lower.includes(kw)) return 'escalate';
-  }
-
-  // Default: Docker for everything
-  return 'docker';
-}
-
-// ─── Tier Classification ─────────────────────────────────────────────────────
-
-/**
- * Classifies an AC description into a VerificationTier based on keyword matching.
- * Priority: escalate > environment-provable > runtime-provable > test-provable (default).
- */
-export function classifyTier(description: string): VerificationTier {
-  const lower = description.toLowerCase();
-  // Check highest priority first
-  for (const kw of ESCALATE_TIER_KEYWORDS) {
-    if (lower.includes(kw)) return 'escalate';
-  }
-  for (const kw of ENVIRONMENT_PROVABLE_KEYWORDS) {
-    if (lower.includes(kw)) return 'environment-provable';
-  }
-  for (const kw of RUNTIME_PROVABLE_KEYWORDS) {
-    if (lower.includes(kw)) return 'runtime-provable';
-  }
-  // Default: test-provable
-  return 'test-provable';
-}
-
-// ─── Verification Tag Parsing ───────────────────────────────────────────────
-
-const VERIFICATION_TAG_PATTERN = /<!--\s*verification:\s*(cli-verifiable|integration-required|unit-testable|black-box|test-provable|runtime-provable|environment-provable|escalate)\s*-->/;
-
-/**
- * Parses a `<!-- verification: ... -->` HTML comment tag from a string.
- * Accepts both legacy values (cli-verifiable, integration-required) and
- * new VerificationTier values (test-provable, runtime-provable, etc.).
- * Legacy values are mapped to VerificationTier via LEGACY_TIER_MAP.
- * Returns a VerificationTier if found, or null.
- */
-export function parseVerificationTag(text: string): VerificationTier | null {
-  const match = VERIFICATION_TAG_PATTERN.exec(text);
-  if (!match) return null;
-  const raw = match[1];
-  // Map legacy values to new tiers; validate result is a known tier
-  const mapped = LEGACY_TIER_MAP[raw] ?? raw;
-  if (!TIER_HIERARCHY.includes(mapped as VerificationTier)) return null;
-  return mapped as VerificationTier;
-}
 
 // ─── Classification ─────────────────────────────────────────────────────────
 
@@ -182,17 +88,10 @@ export function parseStoryACs(storyFilePath: string): ParsedAC[] {
     if (currentId !== null && currentDesc.length > 0) {
       const description = currentDesc.join(' ').trim();
       if (description) {
-        const tag = parseVerificationTag(description);
-        const tier: VerificationTier = tag ?? classifyTier(description);
-        const verifiability = classifyVerifiability(description); // deprecated, kept for compat
-        const strategy = classifyStrategy(description); // deprecated, kept for compat
         acs.push({
           id: currentId,
           description,
           type: classifyAC(description),
-          verifiability,
-          strategy,
-          tier,
         });
       } else {
         warn(`Skipping malformed AC #${currentId}: empty description`);

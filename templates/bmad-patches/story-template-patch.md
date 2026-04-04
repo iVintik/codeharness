@@ -4,9 +4,9 @@
 
 Before this story can be marked complete, the following must be verified:
 
-- [ ] All acceptance criteria verified via Showboat proof document
-- [ ] Showboat proof at `verification/{story-id}-proof.md`
-- [ ] `showboat verify` passes (evidence is reproducible)
+- [ ] All acceptance criteria verified via Docker-based blind verification
+- [ ] Proof document at `verification/{story-id}-proof.md`
+- [ ] Evidence is reproducible
 
 ## Documentation Requirements
 

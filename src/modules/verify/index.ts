@@ -25,9 +25,6 @@ export type {
   ObservabilityGapResult,
   ObservabilityGapEntry,
   ParsedAC,
-  Verifiability,
-  VerificationTier,
-  VerificationStrategy,
   ProjectType,
   PreconditionResult,
   ShowboatVerifyResult,
@@ -40,8 +37,6 @@ export type {
   BuildResult,
   CheckResult,
 } from './types.js';
-
-export { TIER_HIERARCHY, maxTier, LEGACY_TIER_MAP } from './types.js';
 
 // Re-export browser verifier
 export { BrowserVerifier } from './browser.js';
@@ -59,12 +54,7 @@ export {
 export {
   parseStoryACs,
   classifyAC,
-  classifyVerifiability,
-  classifyStrategy,
-  classifyTier,
-  parseVerificationTag,
   parseObservabilityGaps,
-  INTEGRATION_KEYWORDS,
 } from './parser.js';
 
 // Re-export proof functions
@@ -84,8 +74,6 @@ export {
   REGRESSION_ACS,
   ACTION_ITEM_ACS,
   getACsByCategory,
-  getTestProvableACs,
-  getEnvironmentProvableACs,
   getCliVerifiableACs,
   getIntegrationRequiredACs,
   getACById,

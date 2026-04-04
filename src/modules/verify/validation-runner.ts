@@ -98,17 +98,11 @@ export function createValidationSprint(): Result<ValidationSprintResult> {
 
 /**
  * Execute a single validation AC (AC 3, 6, 7).
- * Test-provable (cli): spawns command, captures output, checks exit code.
- * Environment-provable (integration): returns blocked immediately.
+ * CLI ACs: spawns command, captures output, checks exit code.
+ * Integration ACs: returns blocked immediately (require running environment).
  */
 export function executeValidationAC(ac: ValidationAC): Result<ValidationACResult> {
   try {
-    /**
-     * Tier mapping: `verificationMethod === 'integration'` in ValidationAC corresponds
-     * to the `environment-provable` VerificationTier. Similarly, `'cli'` corresponds
-     * to `test-provable`. The blocked result below is returned because environment-provable
-     * ACs require a running integration environment and cannot be verified via CLI alone.
-     */
     if (ac.verificationMethod === 'integration') {
       return ok({
         acId: ac.id,

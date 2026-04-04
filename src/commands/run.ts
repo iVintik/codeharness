@@ -339,10 +339,15 @@ export function registerRunCommand(program: Command): void {
           const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName) && taskStates[event.taskName] === 'done';
           const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
 
-          const epicId = extractEpicId(event.storyKey);
+          const epicId = event.storyKey.startsWith('__epic_')
+            ? event.storyKey.replace('__epic_', '').replace('__', '')
+            : extractEpicId(event.storyKey);
+          const displayStoryKey = event.storyKey.startsWith('__epic_')
+            ? `Epic ${epicId}`
+            : event.storyKey;
           const epic = epicData[epicId];
           renderer.updateSprintState({
-            storyKey: event.storyKey,
+            storyKey: displayStoryKey,
             phase: event.taskName,
             done: storiesDone,
             total: counts.total,

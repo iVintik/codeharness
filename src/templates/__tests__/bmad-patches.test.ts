@@ -141,7 +141,7 @@ describe('per-role directory loading', () => {
     expect(reviewContent).toContain('Proof Quality Checks');
 
     const verifyContent = storyVerificationPatch();
-    expect(verifyContent).toContain('Verification Tags');
+    expect(verifyContent).toContain('Verification Requirements');
 
     const sprintContent = sprintBeadsPatch();
     expect(sprintContent).toContain('Pre-Planning Checks');

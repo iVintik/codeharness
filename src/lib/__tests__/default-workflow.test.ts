@@ -36,13 +36,14 @@ describe('default embedded workflow', () => {
       workflow = parseWorkflow(defaultWorkflowPath);
     });
 
-    it('defines seven tasks: create-story, implement, check, review, verify, retry, and retro', () => {
+    it('defines eight tasks: create-story, implement, check, review, document, verify, retry, and retro', () => {
       const taskNames = Object.keys(workflow.tasks);
-      expect(taskNames).toHaveLength(7);
+      expect(taskNames).toHaveLength(8);
       expect(taskNames).toContain('create-story');
       expect(taskNames).toContain('implement');
       expect(taskNames).toContain('check');
       expect(taskNames).toContain('review');
+      expect(taskNames).toContain('document');
       expect(taskNames).toContain('verify');
       expect(taskNames).toContain('retry');
       expect(taskNames).toContain('retro');
@@ -102,16 +103,17 @@ describe('default embedded workflow', () => {
   });
 
   describe('flow structure (AC #3)', () => {
-    it('storyFlow: create-story, implement, check, review', () => {
+    it('storyFlow: create-story, implement, check, review, document', () => {
       const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.storyFlow).toHaveLength(4);
+      expect(workflow.storyFlow).toHaveLength(5);
       expect(workflow.storyFlow[0]).toBe('create-story');
       expect(workflow.storyFlow[1]).toBe('implement');
       expect(workflow.storyFlow[2]).toBe('check');
       expect(workflow.storyFlow[3]).toBe('review');
+      expect(workflow.storyFlow[4]).toBe('document');
     });
 
-    it('epicFlow: story_flow, verify, loop:[retry, check, review, verify], retro', () => {
+    it('epicFlow: story_flow, verify, loop:[retry, check, review, document, verify], retro', () => {
       const workflow = parseWorkflow(defaultWorkflowPath);
       expect(workflow.epicFlow).toHaveLength(4);
       expect(workflow.epicFlow[0]).toBe('story_flow');
@@ -119,7 +121,7 @@ describe('default embedded workflow', () => {
 
       const loopStep = workflow.epicFlow[2] as LoopBlock;
       expect(loopStep).toHaveProperty('loop');
-      expect(loopStep.loop).toEqual(['retry', 'check', 'review', 'verify']);
+      expect(loopStep.loop).toEqual(['retry', 'check', 'review', 'document', 'verify']);
 
       expect(workflow.epicFlow[3]).toBe('retro');
     });

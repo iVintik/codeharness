@@ -43,8 +43,8 @@ If any file is below the floor, write tests for that file before committing — 
 
 Before marking a story complete:
 
-1. Showboat proof document must exist at `verification/{story-id}-proof.md`
-2. `showboat verify` must pass (evidence is reproducible)
+1. Proof document must exist at `verification/{story-id}-proof.md`
+2. Evidence must be reproducible
 3. All tests must pass
 4. Coverage must be >= 90% overall, >= 80% per file
 

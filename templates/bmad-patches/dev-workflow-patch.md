@@ -20,7 +20,7 @@ During implementation, the agent MUST:
 - All tests must pass before proceeding to verification
 
 ### Verification
-- Run `/harness-verify` to produce Showboat proof document
+- Run `/harness-verify` to produce proof document
 - Do NOT mark story complete without passing verification
 
 <!-- CODEHARNESS-PATCH-END:dev-workflow-enforcement -->

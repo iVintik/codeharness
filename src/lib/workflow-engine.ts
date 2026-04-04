@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
 import { warn, info } from './output.js';
@@ -504,6 +504,7 @@ async function dispatchTaskWithResult(
   config: EngineConfig,
   customPrompt?: string,
   previousOutputContract?: OutputContract,
+  storyFiles?: string[],
 ): Promise<{ updatedState: WorkflowState; output: string; contract: OutputContract | null }> {
   const projectDir = config.projectDir ?? process.cwd();
 
@@ -531,7 +532,7 @@ async function dispatchTaskWithResult(
 
   if (task.source_access === false) {
     try {
-      workspace = await createIsolatedWorkspace({ runId: config.runId, storyFiles: [] });
+      workspace = await createIsolatedWorkspace({ runId: config.runId, storyFiles: storyFiles ?? [] });
       cwd = workspace?.toDispatchOptions()?.cwd ?? projectDir;
     } catch { // IGNORE: workspace creation may fail in test/CI environments
       cwd = projectDir;
@@ -1373,8 +1374,29 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
       const epicSentinel = `__epic_${epicId}__`;
       if (isTaskCompleted(state, taskName, epicSentinel)) continue;
 
+      // Collect verification guides for blind tasks (source_access: false)
+      let guideFiles: string[] = [];
+      if (task.source_access === false) {
+        const guidesDir = join(projectDir, '.codeharness', 'verify-guides');
+        try {
+          mkdirSync(guidesDir, { recursive: true });
+          for (const item of epicItems) {
+            const contractPath = join(projectDir, '.codeharness', 'contracts', `document-${item.key}.json`);
+            if (existsSync(contractPath)) {
+              const contractData = JSON.parse(readFileSync(contractPath, 'utf-8')) as { output?: string };
+              if (contractData.output) {
+                const guidePath = join(guidesDir, `${item.key}-guide.md`);
+                writeFileSync(guidePath, contractData.output, 'utf-8');
+                guideFiles.push(guidePath);
+              }
+            }
+          }
+        } catch { // IGNORE: guide collection failure — workspace will have fewer guides
+        }
+      }
+
       try {
-        const dr = await dispatchTaskWithResult(task, taskName, epicSentinel, definition, state, config, undefined, lastOutputContract ?? undefined);
+        const dr = await dispatchTaskWithResult(task, taskName, epicSentinel, definition, state, config, undefined, lastOutputContract ?? undefined, guideFiles);
         state = dr.updatedState;
         lastOutputContract = dr.contract;
         propagateVerifyFlags(taskName, dr.contract, projectDir);
@@ -1391,6 +1413,12 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
         state = recordErrorInState(state, taskName, epicSentinel, engineError);
         writeWorkflowState(state, projectDir);
         if (err instanceof DispatchError && HALT_ERROR_CODES.has(err.code)) { halted = true; }
+      } finally {
+        // Clean up verify guides after dispatch
+        if (guideFiles.length > 0) {
+          const guidesDir = join(projectDir, '.codeharness', 'verify-guides');
+          try { rmSync(guidesDir, { recursive: true, force: true }); } catch { /* IGNORE: cleanup best-effort */ }
+        }
       }
     }
 

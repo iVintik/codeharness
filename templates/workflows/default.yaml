@@ -19,6 +19,11 @@ tasks:
     session: fresh
     source_access: true
     driver: codex
+  document:
+    agent: documenter
+    session: fresh
+    source_access: true
+    model: claude-opus-4-6
   verify:
     agent: evaluator
     session: fresh
@@ -40,6 +45,7 @@ story_flow:
   - implement
   - check
   - review
+  - document
 
 epic_flow:
   - story_flow
@@ -48,5 +54,6 @@ epic_flow:
       - retry
       - check
       - review
+      - document
       - verify
   - retro

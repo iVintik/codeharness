@@ -18,11 +18,7 @@ export interface ValidationACResult {
   readonly output: string;
   /** Execution duration in milliseconds (0 for blocked) */
   readonly durationMs: number;
-  /**
-   * Reason for blocked status (e.g. 'integration-required', 'retry-exhausted').
-   * Note: 'integration-required' is a status reason string, not a tier name.
-   * The corresponding verification tier is `environment-provable`.
-   */
+  /** Reason for blocked status (e.g. 'integration-required', 'retry-exhausted'). */
   readonly reason?: string;
 }
 
@@ -56,11 +52,7 @@ export interface ValidationProgress {
   readonly passed: number;
   /** Number that failed (still actionable) */
   readonly failed: number;
-  /**
-   * Number blocked (integration-required or retry-exhausted).
-   * Note: 'integration-required' maps to the `environment-provable` verification tier;
-   * 'retry-exhausted' is a status reason unrelated to tier classification.
-   */
+  /** Number blocked (integration-required or retry-exhausted). */
   readonly blocked: number;
   /** Number remaining in backlog */
   readonly remaining: number;

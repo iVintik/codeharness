@@ -16,8 +16,8 @@ In addition to standard code review, verify:
 - [ ] Test coverage report is present
 
 ### Verification
-- [ ] Showboat proof document exists at `verification/{story-id}-proof.md`
+- [ ] Proof document exists at `verification/{story-id}-proof.md`
 - [ ] Proof document covers all acceptance criteria
-- [ ] `showboat verify` passes
+- [ ] Evidence is reproducible
 
 <!-- CODEHARNESS-PATCH-END:code-review-harness -->

@@ -20,7 +20,7 @@ quality trends, and mandatory concrete action items with owners.
 
 - Did the verifier hang on permissions? (check for `--allowedTools` issues)
 - Did stories get stuck in verify→dev loops? (check `attempts` counter)
-- Were stories assigned the wrong verification tier?
+- Were stories assigned the wrong verification method?
 - Did the verify parser correctly detect `[FAIL]` verdicts?
 
 ### Documentation Health

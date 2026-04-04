@@ -131,11 +131,15 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
   let cleaned = false;
 
+  // Clear screen before mounting to prevent scrollback to pre-TUI output
+  // Using \x1B[2J (clear screen) + \x1B[H (cursor home) — safe for tmux/screen
+  process.stdout.write('\x1B[2J\x1B[H');
+
   // Mount Ink with performance options
   const onQuit = options?.onQuit;
   const inkInstance = inkRender(<App state={state} onCycleLane={() => cycleLane()} onQuit={onQuit ? () => onQuit() : undefined} />, {
     exitOnCtrlC: false,
-    patchConsole: false, // Disable console patching to prevent flicker
+    patchConsole: !options?._forceTTY,
     maxFps: 10,
   });
 

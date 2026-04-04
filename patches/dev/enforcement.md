@@ -3,8 +3,8 @@
 Dev agents repeatedly shipped code without reading module conventions (AGENTS.md),
 skipped observability checks, and produced features that could not be verified
 from outside the source tree. This patch enforces architecture awareness,
-observability validation, documentation hygiene, test coverage gates, and
-verification tier awareness — all operational failures observed in prior sprints.
+observability validation, documentation hygiene, and test coverage gates
+— all operational failures observed in prior sprints.
 (FR33, FR34, NFR20)
 
 ## Codeharness Development Enforcement
@@ -35,23 +35,14 @@ After running tests, verify telemetry is flowing:
 - Coverage gate: 100% of new/changed code
 - Run `npm test` / `pytest` and verify no regressions
 
-### Verification Tier Awareness
+### Verification Readiness
 
-Write code that can be verified at the appropriate tier. The four verification tiers determine what evidence is needed to prove an AC works:
+Write code that can be verified via Docker-based blind verification. Ask yourself:
+- Are my functions testable and my outputs greppable?
+- Can I run the CLI/server and verify output?
+- Does `docker exec` work? Are logs flowing to the observability stack?
 
-- **`test-provable`** — Code must be testable via `npm test` / `npm run build`. Ensure functions have test coverage, outputs are greppable, and build artifacts are inspectable. No running app required.
-- **`runtime-provable`** — Code must be exercisable via CLI or local server. Ensure the binary/CLI produces verifiable stdout, exit codes, or HTTP responses without needing Docker.
-- **`environment-provable`** — Code must work in a Docker verification environment. Ensure the Dockerfile is current, services start correctly, and `docker exec` can exercise the feature. Observability queries should return expected log/trace events.
-- **`escalate`** — Reserved for ACs that genuinely cannot be automated (physical hardware, paid external APIs). This is rare — exhaust all automated approaches first.
-
-Ask yourself:
-- What tier is this story tagged with?
-- Does my implementation produce the evidence that tier requires?
-- If `test-provable`: are my functions testable and my outputs greppable?
-- If `runtime-provable`: can I run the CLI/server and verify output locally?
-- If `environment-provable`: does `docker exec` work? Are logs flowing to the observability stack?
-
-If the answer is "no", the feature has a testability gap — fix the code to be verifiable at the appropriate tier.
+If the answer is "no", the feature has a testability gap — fix the code to be verifiable.
 
 ### Dockerfile Maintenance
 

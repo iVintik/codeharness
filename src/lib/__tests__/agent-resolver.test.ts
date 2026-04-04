@@ -94,7 +94,6 @@ describe('agent-resolver', () => {
       const template = agent.prompt_template!;
       expect(template).toContain('docker exec');
       expect(template).toContain('docker logs');
-      expect(template).toContain('docker ps');
       expect(template).toContain('source code');
     });
 

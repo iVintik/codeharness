@@ -31,30 +31,14 @@ export function getACsByCategory(category: AcCategory): readonly ValidationAC[] 
   return VALIDATION_ACS.filter(ac => ac.category === category);
 }
 
-/**
- * Get all test-provable ACs (verificationMethod === 'cli').
- * These ACs correspond to the `test-provable` verification tier.
- */
-export function getTestProvableACs(): readonly ValidationAC[] {
+/** Get all CLI-verifiable ACs (verificationMethod === 'cli'). */
+export function getCliVerifiableACs(): readonly ValidationAC[] {
   return VALIDATION_ACS.filter(ac => ac.verificationMethod === 'cli');
 }
 
-/**
- * Get all environment-provable ACs (verificationMethod === 'integration').
- * These ACs correspond to the `environment-provable` verification tier.
- */
-export function getEnvironmentProvableACs(): readonly ValidationAC[] {
-  return VALIDATION_ACS.filter(ac => ac.verificationMethod === 'integration');
-}
-
-/** @deprecated Use `getTestProvableACs()` instead. */
-export function getCliVerifiableACs(): readonly ValidationAC[] {
-  return getTestProvableACs();
-}
-
-/** @deprecated Use `getEnvironmentProvableACs()` instead. */
+/** Get all integration-required ACs (verificationMethod === 'integration'). */
 export function getIntegrationRequiredACs(): readonly ValidationAC[] {
-  return getEnvironmentProvableACs();
+  return VALIDATION_ACS.filter(ac => ac.verificationMethod === 'integration');
 }
 
 /** Get a single AC by ID */

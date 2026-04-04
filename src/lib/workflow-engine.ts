@@ -254,7 +254,7 @@ export function isLoopTaskCompleted(
  * Stories are extracted from the `development_status` section of sprint-status.yaml.
  * Issues are extracted from the `issues` array of issues.yaml.
  *
- * Only items with status `backlog` or `ready-for-dev` are included.
+ * Items with status `backlog`, `ready-for-dev`, or `in-progress` are included.
  * Epic keys (`epic-*`) and retrospective keys (`*-retrospective`) are excluded.
  *
  * If issues.yaml does not exist, returns only stories (no error).
@@ -291,7 +291,7 @@ export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): Wo
           if (key.endsWith('-retrospective')) continue;
 
           // Only include backlog or ready-for-dev
-          if (status === 'backlog' || status === 'ready-for-dev') {
+          if (status === 'backlog' || status === 'ready-for-dev' || status === 'in-progress') {
             items.push({ key, source: 'sprint' });
           }
         }
@@ -325,7 +325,7 @@ export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): Wo
         for (const issue of issuesList) {
           if (issue && typeof issue === 'object') {
             const status = issue.status as string | undefined;
-            if (status === 'backlog' || status === 'ready-for-dev') {
+            if (status === 'backlog' || status === 'ready-for-dev' || status === 'in-progress') {
               items.push({
                 key: issue.id as string,
                 title: issue.title as string | undefined,

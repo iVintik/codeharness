@@ -12,8 +12,9 @@ import { executeWorkflow } from '../lib/workflow-engine.js';
 import { readWorkflowState, writeWorkflowState } from '../lib/workflow-state.js';
 import { WorktreeManager } from '../lib/worktree-manager.js';
 import { LanePool } from '../lib/lane-pool.js';
+import { startRenderer } from '../lib/ink-renderer.js';
 import type { EpicDescriptor, ExecuteEpicFn, LaneEvent } from '../lib/lane-pool.js';
-import type { EngineConfig } from '../lib/workflow-engine.js';
+import type { EngineConfig, EngineEvent } from '../lib/workflow-engine.js';
 import type { SubagentDefinition } from '../lib/agent-resolver.js';
 import type { SprintState } from '../types/state.js';
 
@@ -210,7 +211,52 @@ export function registerRunCommand(program: Command): void {
         }
       }
 
-      // 7. Build EngineConfig and execute
+      // 7. Start TUI renderer
+      const renderer = startRenderer({
+        quiet: !!options.quiet || isJson,
+        sprintState: {
+          storyKey: '',
+          phase: 'executing',
+          done: counts.done,
+          total: counts.total,
+          totalCost: 0,
+        },
+      });
+
+      // 7b. Build EngineConfig with TUI event bridge
+      const onEvent = (event: EngineEvent): void => {
+        if (event.type === 'stream-event' && event.streamEvent) {
+          renderer.update(event.streamEvent, event.driverName);
+        }
+        if (event.type === 'dispatch-start') {
+          renderer.updateSprintState({
+            storyKey: event.storyKey,
+            phase: `${event.taskName}`,
+            done: counts.done,
+            total: counts.total,
+          });
+          renderer.updateWorkflowState(
+            parsedWorkflow.flow,
+            event.taskName,
+            { [event.taskName]: 'active' },
+          );
+        }
+        if (event.type === 'dispatch-end') {
+          renderer.updateWorkflowState(
+            parsedWorkflow.flow,
+            event.taskName,
+            { [event.taskName]: 'done' },
+          );
+        }
+        if (event.type === 'dispatch-error') {
+          renderer.addMessage({
+            type: 'fail',
+            key: event.storyKey,
+            message: `[${event.taskName}] ${event.error?.message ?? 'unknown error'}`,
+          });
+        }
+      };
+
       const config: EngineConfig = {
         workflow: parsedWorkflow,
         agents,
@@ -219,6 +265,7 @@ export function registerRunCommand(program: Command): void {
         runId: `run-${Date.now()}`,
         projectDir,
         maxIterations,
+        onEvent,
       };
 
       // 8. Branch: parallel vs sequential execution
@@ -319,6 +366,7 @@ export function registerRunCommand(program: Command): void {
         // --- Sequential execution path (AC #8) — existing single-engine behavior ---
         try {
           const result = await executeWorkflow(config);
+          renderer.cleanup();
 
           if (result.success) {
             ok(`Workflow completed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed in ${formatElapsed(result.durationMs)}`, outputOpts);
@@ -330,6 +378,7 @@ export function registerRunCommand(program: Command): void {
             process.exitCode = 1;
           }
         } catch (err: unknown) {
+          renderer.cleanup();
           const msg = err instanceof Error ? err.message : String(err);
           fail(`Workflow engine error: ${msg}`, outputOpts);
           process.exitCode = 1;

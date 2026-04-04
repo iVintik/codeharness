@@ -39,6 +39,23 @@ export { parseVerdict } from './verdict-parser.js';
 /**
  * Configuration for the workflow engine.
  */
+/** Event emitted by the engine during execution for TUI/logging. */
+export interface EngineEvent {
+  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip';
+  taskName: string;
+  storyKey: string;
+  driverName?: string;
+  model?: string;
+  /** StreamEvent from the driver (only for type: 'stream-event'). */
+  streamEvent?: StreamEvent;
+  /** Error details (only for type: 'dispatch-error'). */
+  error?: { code: string; message: string };
+  /** Elapsed time in ms (only for type: 'dispatch-end'). */
+  elapsedMs?: number;
+  /** Cost in USD (only for type: 'dispatch-end'). */
+  costUsd?: number;
+}
+
 export interface EngineConfig {
   /** The resolved workflow with tasks and flow steps. */
   workflow: ResolvedWorkflow;
@@ -54,6 +71,8 @@ export interface EngineConfig {
   projectDir?: string;
   /** Maximum loop iterations before termination. Defaults to 5. */
   maxIterations?: number;
+  /** Optional callback for engine events (TUI, logging). */
+  onEvent?: (event: EngineEvent) => void;
 }
 
 /**
@@ -547,7 +566,12 @@ async function dispatchTaskWithResult(
   };
 
   // 9. Dispatch through the driver and consume AsyncIterable<StreamEvent>
-  info(`[${taskName}] ${storyKey} — dispatching via ${driverName} (model: ${model})...`);
+  const emit = config.onEvent;
+  if (emit) {
+    emit({ type: 'dispatch-start', taskName, storyKey, driverName, model });
+  } else {
+    info(`[${taskName}] ${storyKey} — dispatching via ${driverName} (model: ${model})...`);
+  }
   let output = '';
   let resultSessionId = '';
   let cost = 0;
@@ -563,6 +587,10 @@ async function dispatchTaskWithResult(
 
   try {
     for await (const event of driver.dispatch(dispatchOpts)) {
+      // Emit stream event to TUI
+      if (emit) {
+        emit({ type: 'stream-event', taskName, storyKey, driverName, streamEvent: event });
+      }
       if (event.type === 'text') {
         output += event.text;
       }
@@ -605,8 +633,13 @@ async function dispatchTaskWithResult(
     }
   }
 
-  const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
-  info(`[${taskName}] ${storyKey} — done (${elapsed}s, cost: $${cost.toFixed(4)})`);
+  const elapsedMs = Date.now() - startMs;
+  if (emit) {
+    emit({ type: 'dispatch-end', taskName, storyKey, driverName, elapsedMs, costUsd: cost });
+  } else {
+    const elapsed = (elapsedMs / 1000).toFixed(1);
+    info(`[${taskName}] ${storyKey} — done (${elapsed}s, cost: $${cost.toFixed(4)})`);
+  }
 
   // 10. If the driver reported an error in the result event, throw DispatchError
   if (errorEvent) {
@@ -1333,7 +1366,11 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
       } catch (err: unknown) {
         const engineError = handleDispatchError(err, taskName, PER_RUN_SENTINEL);
         errors.push(engineError);
-        warn(`[${taskName}] ${PER_RUN_SENTINEL} — ERROR: [${engineError.code}] ${engineError.message}`);
+        if (config.onEvent) {
+          config.onEvent({ type: 'dispatch-error', taskName, storyKey: PER_RUN_SENTINEL, error: { code: engineError.code, message: engineError.message } });
+        } else {
+          warn(`[${taskName}] ${PER_RUN_SENTINEL} — ERROR: [${engineError.code}] ${engineError.message}`);
+        }
 
         // Record error checkpoint in state (AC #13)
         state = recordErrorInState(state, taskName, PER_RUN_SENTINEL, engineError);
@@ -1367,7 +1404,11 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
         } catch (err: unknown) {
           const engineError = handleDispatchError(err, taskName, item.key);
           errors.push(engineError);
-          warn(`[${taskName}] ${item.key} — ERROR: [${engineError.code}] ${engineError.message}`);
+          if (config.onEvent) {
+            config.onEvent({ type: 'dispatch-error', taskName, storyKey: item.key, error: { code: engineError.code, message: engineError.message } });
+          } else {
+            warn(`[${taskName}] ${item.key} — ERROR: [${engineError.code}] ${engineError.message}`);
+          }
 
           // Record error checkpoint in state (AC #13)
           state = recordErrorInState(state, taskName, item.key, engineError);

@@ -103,19 +103,15 @@ describe('capability-check — checkCapabilityConflicts', () => {
     expect(warnings).toHaveLength(0);
   });
 
-  it('generates routing hint when driver costs >2x cheapest capable', () => {
+  it('no cost routing hints (cost advisories removed)', () => {
     registerDriver(createMockDriver('codex', { supportsPlugins: false, costTier: 1 }));
     registerDriver(createMockDriver('claude-code', { supportsPlugins: true, costTier: 3 }));
-    // Task with no plugins — codex can handle it, and costs 3x less
     const workflow = makeWorkflow({
       implement: { driver: 'claude-code' },
     });
     const warnings = checkCapabilityConflicts(workflow);
     const advisories = warnings.filter(w => w.capability === 'costTier');
-    expect(advisories).toHaveLength(1);
-    expect(advisories[0].message).toContain('Advisory');
-    expect(advisories[0].message).toContain('codex');
-    expect(advisories[0].message).toContain('lower cost');
+    expect(advisories).toHaveLength(0);
   });
 
   it('no routing hint when driver is cheapest capable', () => {
@@ -188,7 +184,7 @@ describe('capability-check — checkCapabilityConflicts', () => {
     expect(conflicts).toHaveLength(0);
   });
 
-  it('handles multiple tasks with different issues', () => {
+  it('handles multiple tasks — only plugin conflicts reported', () => {
     registerDriver(createMockDriver('codex', { supportsPlugins: false, costTier: 1 }));
     registerDriver(createMockDriver('claude-code', { supportsPlugins: true, costTier: 3 }));
     const workflow = makeWorkflow({
@@ -196,10 +192,9 @@ describe('capability-check — checkCapabilityConflicts', () => {
       task2: { driver: 'claude-code' },
     });
     const warnings = checkCapabilityConflicts(workflow);
-    // task1: plugin conflict on codex
-    // task2: cost advisory (claude-code costTier 3 > 2*1)
-    expect(warnings.length).toBeGreaterThanOrEqual(2);
-    expect(warnings.some(w => w.taskName === 'task1' && w.capability === 'supportsPlugins')).toBe(true);
-    expect(warnings.some(w => w.taskName === 'task2' && w.capability === 'costTier')).toBe(true);
+    // task1: plugin conflict on codex; task2: no warnings (cost advisories removed)
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].taskName).toBe('task1');
+    expect(warnings[0].capability).toBe('supportsPlugins');
   });
 });

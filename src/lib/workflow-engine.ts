@@ -73,6 +73,8 @@ export interface EngineConfig {
   maxIterations?: number;
   /** Optional callback for engine events (TUI, logging). */
   onEvent?: (event: EngineEvent) => void;
+  /** Optional abort signal for graceful shutdown. */
+  abortSignal?: AbortSignal;
 }
 
 /**
@@ -1254,6 +1256,13 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   let accumulatedCostUsd = 0;
   for (const step of config.workflow.storyFlow) {
     if (halted) break;
+    if (config.abortSignal?.aborted) {
+      info('Execution interrupted — saving state');
+      state = { ...state, phase: 'interrupted' };
+      writeWorkflowState(state, projectDir);
+      halted = true;
+      break;
+    }
 
     // Execute loop blocks
     if (isLoopBlock(step)) {
@@ -1384,6 +1393,10 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
     } else {
       // Per-story: dispatch once per work item
       for (const item of workItems) {
+        if (config.abortSignal?.aborted) {
+          halted = true;
+          break;
+        }
         processedStories.add(item.key);
 
         // Skip if already completed (crash recovery — AC #1, #2, #7)
@@ -1426,8 +1439,10 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
     }
   }
 
-  // 4. Set final phase if no errors and phase not already set by loop termination
-  if (errors.length === 0 && state.phase !== 'max-iterations' && state.phase !== 'circuit-breaker') {
+  // 4. Set final phase if no errors and phase not already set by loop/interrupt
+  if (state.phase === 'interrupted') {
+    // Already written by abort handler — don't overwrite
+  } else if (errors.length === 0 && state.phase !== 'max-iterations' && state.phase !== 'circuit-breaker') {
     state = { ...state, phase: 'completed' };
     writeWorkflowState(state, projectDir);
   }
@@ -1435,7 +1450,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   // 5. Return result
   const loopTerminated = state.phase === 'max-iterations' || state.phase === 'circuit-breaker';
   return {
-    success: errors.length === 0 && !loopTerminated,
+    success: errors.length === 0 && !loopTerminated && state.phase !== 'interrupted',
     tasksCompleted,
     storiesProcessed: processedStories.size,
     errors,

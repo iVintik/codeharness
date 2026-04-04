@@ -211,7 +211,8 @@ export function registerRunCommand(program: Command): void {
         }
       }
 
-      // 7. Start TUI renderer
+      // 7. Start TUI renderer and abort controller for graceful shutdown
+      const abortController = new AbortController();
       const renderer = startRenderer({
         quiet: !!options.quiet || isJson,
         sprintState: {
@@ -222,6 +223,20 @@ export function registerRunCommand(program: Command): void {
           totalCost: 0,
         },
       });
+
+      // Ctrl+C handler: signal abort, let engine save state, then cleanup
+      let interrupted = false;
+      const onInterrupt = () => {
+        if (interrupted) {
+          // Second Ctrl+C: force exit
+          renderer.cleanup();
+          process.exit(1);
+        }
+        interrupted = true;
+        abortController.abort();
+      };
+      process.on('SIGINT', onInterrupt);
+      process.on('SIGTERM', onInterrupt);
 
       // 7b. Build TUI event bridge — tracks cumulative state across dispatches
       let totalCostUsd = 0;
@@ -305,6 +320,7 @@ export function registerRunCommand(program: Command): void {
         issuesPath: join(projectDir, '.codeharness', 'issues.yaml'),
         runId: `run-${Date.now()}`,
         projectDir,
+        abortSignal: abortController.signal,
         maxIterations,
         onEvent,
       };
@@ -407,9 +423,14 @@ export function registerRunCommand(program: Command): void {
         // --- Sequential execution path (AC #8) — existing single-engine behavior ---
         try {
           const result = await executeWorkflow(config);
+          process.removeListener('SIGINT', onInterrupt);
+          process.removeListener('SIGTERM', onInterrupt);
           renderer.cleanup();
 
-          if (result.success) {
+          if (interrupted) {
+            info(`Interrupted — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed. State saved — run again to resume.`, outputOpts);
+            process.exitCode = 130;
+          } else if (result.success) {
             ok(`Workflow completed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed in ${formatElapsed(result.durationMs)}`, outputOpts);
           } else {
             fail(`Workflow failed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, ${result.errors.length} error(s) in ${formatElapsed(result.durationMs)}`, outputOpts);

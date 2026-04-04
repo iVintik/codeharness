@@ -1095,3 +1095,169 @@ Bash and Read dominate — expected for a test-heavy workflow. Agent tool cost (
 ---
 
 *Session 8 retrospective generated 2026-04-04T07:15:00Z*
+
+---
+
+# Session 9 Retrospective — 2026-04-04
+
+**Generated:** 2026-04-04T07:30:00Z
+**Session type:** Verification-only (quick session)
+
+---
+
+## 1. Session Summary
+
+### Stories Attempted This Session
+
+| Story | Entry Status | Exit Status | Outcome |
+|-------|-------------|-------------|---------|
+| 20-3-lane-event-routing-activity-display | verifying | done | ALL_PASS 12/12 ACs, Tier C runtime-provable |
+
+### Epic Completion
+
+- **Epic 20 (Multi-Lane UI):** All 3 stories (20-1, 20-2, 20-3) now done. Epic marked complete.
+- **Sprint totals:** 95 stories done across 20 epics. All epics complete.
+
+### Session Velocity
+
+This was a minimal session. Story 20-3 had all code, tests, and proof document already in place from session 8. Only `codeharness verify` validation was needed — a Tier A quick-win pattern.
+
+---
+
+## 2. Issues Analysis
+
+### From Session 8 Issues Log (20-3 verification)
+
+**Category: Verification Gaps (2 issues)**
+- AC #12 performance test uses 10s threshold for 200 events. Actual overhead ~3.6ms/event including Ink re-rendering. True 15 FPS verification requires interactive terminal — accepted as runtime-provable.
+- AC #4 Ctrl+L tested via unit tests (cycleLane + pinned lane). True interactive keyboard verification would need running terminal. useInput hook wiring confirmed in code.
+
+**Category: Pre-existing Infrastructure Noise (2 issues)**
+- 8 pre-existing lint errors (unused-variable warnings in verify module files, not story-related).
+- BATS tests `validate_epic_docs.sh` and `verify_gates.sh` exit code 127 — pre-existing, unrelated.
+
+**Category: Redundant Operations (1 issue)**
+- Verification subagent ran vitest 3 times on the same test file and `npm test` twice. Could have been 1 of each. Contributed to inflated verify phase cost.
+
+### Cumulative Session Issues (Sessions 1-9)
+
+Across all sessions today, the session issues log reveals recurring patterns:
+
+| Category | Count | Examples |
+|----------|-------|---------|
+| Shell injection / security fixes (HIGH) | 3 | testCommand param, branch names, false-positive test parsing |
+| Missing test coverage (HIGH) | 3 | ink-app integration, Ctrl+L cycling, resolving merge status |
+| Type safety / cast fixes (MEDIUM) | 5 | coverage undefined vs null, VALID_TRANSITIONS key type, driver undefined-as-never |
+| Missing IGNORE comments (MEDIUM) | 3 | catch blocks without suppression comments |
+| Redundant test runs | 6 | npm test ran 4x in 18-1 verify, vitest 3x in 20-3 verify |
+| Config path confusion | 3 | `_bmad/bmm/config.yaml` vs `_bmad/config.yaml` |
+| AGENTS.md stale | 2 | Missing new files in `src/lib` AGENTS.md |
+| Proof format issues | 2 | `### AC` vs `## AC`, `Result` vs `Verdict` |
+| LOW unfixed tech debt | 14 | parseTestOutput duplication, truncate edge case, no mutex timeout, etc. |
+
+---
+
+## 3. Cost Analysis
+
+### Overall Sprint Cost
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $405.61 |
+| Total API calls | 3,063 |
+| Average cost per story | $3.62 (95 stories) |
+| Stories completed today (sessions 1-9) | ~15 stories across epics 17-20 |
+
+### Cost by Phase
+
+| Phase | Cost | % | Analysis |
+|-------|------|---|----------|
+| verify | $183.71 | 45.3% | Largest cost center. Subagents run tests 2-4x redundantly. |
+| orchestrator | $71.89 | 17.7% | Coordination overhead — reads sprint state, dispatches subagents. |
+| create-story | $43.81 | 10.8% | Reads many files for context gathering. Reasonable. |
+| code-review | $38.57 | 9.5% | Valuable — caught 3 HIGH security issues, 5+ MEDIUM bugs. |
+| dev-story | $38.42 | 9.5% | Actual implementation. Efficient relative to value produced. |
+| retro | $29.21 | 7.2% | 7 retro sessions today — high overhead for retrospective generation. |
+
+### Cost by Token Type
+
+Cache reads dominate at 62% ($250.03) — expected for long-context conversations. Cache writes at 22% ($90.50) reflect context accumulation. Output at 16% ($64.90) is the actual generation cost.
+
+### Subagent-Level Token Breakdown (from session issues log)
+
+Aggregated tool calls across all logged subagents this sprint:
+
+| Subagent Phase | Total Tool Calls | Top Tools | Waste Patterns |
+|----------------|-----------------|-----------|----------------|
+| create-story | ~126 | Read (61), Glob (25), Grep (19) | Extra globs for config path |
+| dev-story | ~169 | Edit (59), Read (51), Bash (44) | Chunked reads of large test files |
+| code-review | ~170 | Bash (61), Read (58), Edit (46) | Duplicate coverage runs |
+| verification | ~69 | Bash (45), Read (12), Grep (9) | Redundant test executions (3-4x) |
+
+**Most wasteful patterns:**
+1. **Verification test redundancy:** 18-1 verification ran `npm test` 4 times. 20-3 verification ran vitest 3x on the same file. Estimated waste: 15-20% of verify phase cost (~$27-$37).
+2. **Chunked file reads:** `worktree-manager.test.ts` read 4x in 18-3 dev due to token limits. Smaller test files would reduce this.
+3. **Config path confusion:** 3 subagents wasted a glob cycle looking for `_bmad/bmm/config.yaml` before finding `_bmad/config.yaml`.
+4. **`unknown` cost bucket:** $61.65 (15.2%) attributed to no specific story — likely orchestrator overhead, retros, and sprint-planning calls.
+
+### Cost Optimization Opportunities
+
+| Opportunity | Est. Savings | Effort |
+|-------------|-------------|--------|
+| Cap verification test runs to 2 max | ~$30/sprint | Harness config change |
+| Fix config.yaml path or add symlink | ~$1-2/sprint | Trivial |
+| Split large test files (>500 lines) | ~$5-10/sprint | Medium refactor |
+| Better `unknown` cost attribution | Visibility only | Tooling improvement |
+| Reduce retro frequency (batch per N sessions) | ~$10-15/sprint | Process change |
+
+---
+
+## 4. What Went Well
+
+1. **Quick verification turnaround.** Story 20-3 was already fully implemented and tested — verification was a single `codeharness verify` call. Tier A quick-win pattern works.
+2. **Epic 20 completed.** All 3 stories (lane container, summary bar, lane event routing) done. Multi-lane UI is feature-complete.
+3. **Code review ROI.** Across today's sessions, code review caught 3 HIGH security issues (shell injection x2, false-positive test parsing), multiple MEDIUM type-safety bugs, and missing test coverage. Cost of review (~$38) prevented production bugs worth far more.
+4. **All 20 epics complete.** 95 stories across 20 epics, all verified and done. Full sprint delivered.
+5. **Session issues log quality.** Every subagent reported issues with token breakdowns, enabling this analysis. The log discipline paid off.
+
+---
+
+## 5. What Went Wrong
+
+1. **Verification phase cost bloat.** 45.3% of total sprint cost is verification — almost half the budget. Subagents run the same tests repeatedly to extract different output fragments rather than capturing everything in one run.
+2. **14 LOW unfixed tech debt items accumulated.** Each is individually minor but they compound: duplicated `parseTestOutput`, no mutex timeout, `promoteActiveTool` duck-typing, `ink-renderer.tsx` at 552 lines exceeding NFR, etc.
+3. **Pre-existing BATS failures.** Exit code 127 from `validate_epic_docs.sh` and `verify_gates.sh` creates noise in every verification run. Still unfixed after being flagged in session 1.
+4. **Proof format inconsistencies.** Two stories had format issues (`### AC` vs `## AC`, `Result` vs `Verdict`). The verifier template should enforce this, not rely on subagents remembering.
+
+---
+
+## 6. Lessons Learned
+
+### Patterns to Repeat
+- **Tier A quick-win verification:** When proof already exists and passes, don't re-run the full pipeline. Single `codeharness verify` call is sufficient.
+- **Code review as gatekeeper:** HIGH findings (shell injection, false positives) justify the 9.5% cost.
+- **Session issues log with token reports:** Enables data-driven retrospectives. Keep this discipline.
+
+### Patterns to Avoid
+- **Running tests N times in verification:** Capture stdout+stderr in one run, parse from the saved output. Don't re-run to get different views.
+- **Accumulating LOW tech debt without tracking:** 14 items across 9 sessions. Need a backlog mechanism or dedicated cleanup sprint.
+- **Ignoring BATS failures:** They add noise and cost to every verification. Fix or disable.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Cap verification subagent test executions to 2 max (save output, reparse) | HIGH | harness config |
+| 2 | Create tech debt backlog from 14 accumulated LOW items | HIGH | next sprint planning |
+| 3 | Fix or disable broken BATS tests (validate_epic_docs, verify_gates) | MEDIUM | backlog |
+| 4 | Enforce proof format via template validation (## AC, **Verdict:**, **Tier:**) | MEDIUM | harness improvement |
+| 5 | Add symlink `_bmad/bmm/config.yaml` -> `_bmad/config.yaml` | LOW | trivial fix |
+| 6 | Investigate $61.65 `unknown` cost bucket for better attribution | LOW | tooling |
+| 7 | Consider batching retros (1 per 3 sessions instead of per-session) to reduce 7.2% retro cost | LOW | process |
+| 8 | Split `ink-renderer.tsx` (552 lines) to meet 300-line NFR | MEDIUM | next sprint |
+
+---
+
+*Session 9 retrospective generated 2026-04-04T07:30:00Z*

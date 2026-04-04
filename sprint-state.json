@@ -851,9 +851,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "20-3-lane-event-routing-activity-display",
-    "currentPhase": "verify",
-    "lastAction": "ALL_PASS 12/12 — marking done",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

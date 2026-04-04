@@ -295,6 +295,13 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     // Single-lane mode (no laneId) — behave exactly as before
     switch (event.type) {
       case 'tool-start':
+        // Promote current thought to log before clearing
+        if (state.lastThought) {
+          const textEntry: CompletedToolEntry = { name: '', args: state.lastThought, isText: true };
+          const updated = [...state.completedTools, textEntry];
+          state.completedTools = updated.length > MAX_COMPLETED_TOOLS
+            ? updated.slice(updated.length - MAX_COMPLETED_TOOLS) : updated;
+        }
         promoteActiveTool(false);
         state.activeTool = { name: event.name };
         state.activeToolArgs = '';

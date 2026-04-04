@@ -372,6 +372,11 @@ export function registerRunCommand(program: Command): void {
               renderer.updateStories([...storyEntries]);
             }
           }
+          // During epic phase, show epic's stories as context
+          if (isEpicTask) {
+            const epicStories = storyEntries.filter(s => s.key.startsWith(`${epicId}-`));
+            renderer.updateStories([...storyEntries]);
+          }
         }
         if (event.type === 'dispatch-end') {
           totalCostUsd += event.costUsd ?? 0;

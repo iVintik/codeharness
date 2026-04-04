@@ -551,18 +551,33 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     const ctx: import('./ink-components.js').StoryContextEntry[] = [];
     const currentStory = currentKey ?? '';
     const currentTask = state.currentTaskName ?? '';
-    let foundCurrent = false;
-    let prevKey: string | null = null;
-    for (const s of updatedStories) {
-      if (s.key === currentStory) {
-        if (prevKey) ctx.push({ key: prevKey, role: 'prev' });
-        ctx.push({ key: s.key, role: 'current', task: currentTask });
-        foundCurrent = true;
-      } else if (foundCurrent && s.status === 'pending') {
-        ctx.push({ key: s.key, role: 'next' });
-        break;
-      } else if (s.status === 'done') {
-        prevKey = s.key;
+
+    // Epic phase: "Epic N" → show the epic's stories as context
+    const epicMatch = currentStory.match(/^Epic (\d+)/);
+    if (epicMatch) {
+      const epicPrefix = `${epicMatch[1]}-`;
+      const epicStories = updatedStories.filter(s => s.key.startsWith(epicPrefix));
+      // Show last done story, first in-progress, first pending
+      const lastDone = [...epicStories].reverse().find(s => s.status === 'done' || s.status === 'in-progress');
+      if (lastDone) ctx.push({ key: lastDone.key, role: 'prev' });
+      // All in-progress stories are "current" for epic verification
+      const ipStory = epicStories.find(s => s.status === 'in-progress');
+      if (ipStory) ctx.push({ key: `${epicStories.length} stories in epic`, role: 'current' });
+    } else {
+      // Story phase: normal prev/current/next
+      let foundCurrent = false;
+      let prevKey: string | null = null;
+      for (const s of updatedStories) {
+        if (s.key === currentStory) {
+          if (prevKey) ctx.push({ key: prevKey, role: 'prev' });
+          ctx.push({ key: s.key, role: 'current' });
+          foundCurrent = true;
+        } else if (foundCurrent && (s.status === 'pending' || s.status === 'in-progress')) {
+          ctx.push({ key: s.key, role: 'next' });
+          break;
+        } else if (s.status === 'done' || s.status === 'in-progress') {
+          prevKey = s.key;
+        }
       }
     }
     state.storyContext = ctx;

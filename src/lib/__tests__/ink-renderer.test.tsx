@@ -814,8 +814,9 @@ describe('Visual snapshot: spec-compliant output', () => {
     expect(frame).not.toContain('Story:');
     expect(frame).not.toContain('Phase:');
 
-    // ProgressBar shows done/total
-    expect(frame).toContain('18/65');
+    // ProgressBar shows progress with verified count
+    expect(frame).toContain('18 verified');
+    expect(frame).toContain('65');
 
     // No Ink Box border artifacts
     expect(frame).not.toContain('╭');

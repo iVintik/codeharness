@@ -78,8 +78,8 @@ export function App({ state, onCycleLane, onQuit }: { state: RendererState; onCy
       ) : (
         <>
           <Separator />
-          <ProgressBar done={state.sprintInfo?.done ?? 0} total={state.sprintInfo?.total ?? 0} />
-          <EpicInfo info={state.sprintInfo} />
+          <ProgressBar done={state.sprintInfo?.done ?? 0} total={state.sprintInfo?.total ?? 0} inProgress={state.stories.filter(s => s.status === 'in-progress').length} />
+          <EpicInfo info={state.sprintInfo} stories={state.stories} />
           <StoryContext entries={state.storyContext ?? []} />
           <Separator />
           <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} />

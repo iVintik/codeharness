@@ -141,23 +141,42 @@ export function Header({ info, laneCount }: { info: SprintInfo | null; laneCount
   return <Text>{left}{' '.repeat(pad)}<Text dimColor>{right}</Text></Text>;
 }
 
-/** Progress bar with fraction and percentage. */
-export function ProgressBar({ done, total }: { done: number; total: number }) {
-  const width = Math.max(10, (process.stdout.columns || 80) - 30);
-  const pct = total > 0 ? done / total : 0;
-  const filled = Math.round(width * pct);
-  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(width - filled);
-  const pctStr = total > 0 ? `${Math.round(pct * 100)}%` : '0%';
-  return <Text>{'Progress: '}<Text color="green">{bar}</Text>{` ${done}/${total} stories (${pctStr})`}</Text>;
+/** Progress bar with verified (green) and in-progress (yellow) segments. */
+export function ProgressBar({ done, total, inProgress }: { done: number; total: number; inProgress?: number }) {
+  const width = Math.max(10, (process.stdout.columns || 80) - 40);
+  const ip = inProgress ?? 0;
+  const donePct = total > 0 ? done / total : 0;
+  const ipPct = total > 0 ? ip / total : 0;
+  const doneFilled = Math.round(width * donePct);
+  const ipFilled = Math.round(width * ipPct);
+  const empty = Math.max(0, width - doneFilled - ipFilled);
+  const pctStr = total > 0 ? `${Math.round((done + ip) * 100 / total)}%` : '0%';
+  const label = ip > 0 ? `${done} verified + ${ip} in progress / ${total} (${pctStr})` : `${done}/${total} stories (${pctStr})`;
+  return (
+    <Text>
+      {'Progress: '}
+      <Text color="green">{'\u2588'.repeat(doneFilled)}</Text>
+      <Text color="yellow">{'\u2588'.repeat(ipFilled)}</Text>
+      <Text>{'\u2591'.repeat(empty)}</Text>
+      {` ${label}`}
+    </Text>
+  );
 }
 
 /** Epic context: name and progress within current epic. */
-export function EpicInfo({ info }: { info: SprintInfo | null }) {
+export function EpicInfo({ info, stories }: { info: SprintInfo | null; stories?: Array<{ key: string; status: string }> }) {
   if (!info?.epicId) return null;
   const title = info.epicTitle ?? `Epic ${info.epicId}`;
-  const progress = info.epicStoriesTotal
-    ? ` \u2014 ${info.epicStoriesDone ?? 0}/${info.epicStoriesTotal} stories done`
-    : '';
+  // Count in-progress stories for this epic from the stories array
+  const epicPrefix = `${info.epicId}-`;
+  const epicStories = stories?.filter(s => s.key.startsWith(epicPrefix)) ?? [];
+  const ipCount = epicStories.filter(s => s.status === 'in-progress').length;
+  const doneCount = info.epicStoriesDone ?? 0;
+  const totalCount = info.epicStoriesTotal ?? epicStories.length;
+  const progressParts: string[] = [];
+  if (doneCount > 0) progressParts.push(`${doneCount} verified`);
+  if (ipCount > 0) progressParts.push(`${ipCount} implemented`);
+  const progress = totalCount > 0 ? ` \u2014 ${progressParts.join(', ')} / ${totalCount} stories` : '';
   return <Text><Text bold>{`Epic ${info.epicId}: ${title}`}</Text><Text dimColor>{progress}</Text></Text>;
 }
 

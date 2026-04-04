@@ -143,21 +143,20 @@ export function Header({ info, laneCount }: { info: SprintInfo | null; laneCount
 
 /** Progress bar with verified (green) and in-progress (yellow) segments. */
 export function ProgressBar({ done, total, inProgress }: { done: number; total: number; inProgress?: number }) {
-  const width = Math.max(10, (process.stdout.columns || 80) - 40);
   const ip = inProgress ?? 0;
-  const donePct = total > 0 ? done / total : 0;
-  const ipPct = total > 0 ? ip / total : 0;
-  const doneFilled = Math.round(width * donePct);
-  const ipFilled = Math.round(width * ipPct);
-  const empty = Math.max(0, width - doneFilled - ipFilled);
-  const pctStr = total > 0 ? `${Math.round((done + ip) * 100 / total)}%` : '0%';
-  const label = ip > 0 ? `${done} verified + ${ip} in progress / ${total} (${pctStr})` : `${done}/${total} stories (${pctStr})`;
+  const labelParts: string[] = [];
+  if (done > 0) labelParts.push(`${done}✓`);
+  if (ip > 0) labelParts.push(`${ip}⚡`);
+  const label = `${labelParts.join(' ')} / ${total}`;
+  const barWidth = Math.max(8, (process.stdout.columns || 80) - label.length - 4);
+  const doneFilled = total > 0 ? Math.round(barWidth * done / total) : 0;
+  const ipFilled = total > 0 ? Math.round(barWidth * ip / total) : 0;
+  const empty = Math.max(0, barWidth - doneFilled - ipFilled);
   return (
     <Text>
-      {'Progress: '}
       <Text color="green">{'\u2588'.repeat(doneFilled)}</Text>
       <Text color="yellow">{'\u2588'.repeat(ipFilled)}</Text>
-      <Text>{'\u2591'.repeat(empty)}</Text>
+      <Text dimColor>{'\u2591'.repeat(empty)}</Text>
       {` ${label}`}
     </Text>
   );

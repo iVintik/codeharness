@@ -76,14 +76,52 @@ function classifyError(err: unknown): ErrorCategory {
 // --- SDK Message to StreamEvent mapping ---
 
 /**
- * Map an SDK message object to a StreamEvent, or return null if unrecognized.
+ * Map an SDK message object to StreamEvent(s), or return empty array if unrecognized.
+ *
+ * The SDK emits two different message formats:
+ * 1. `stream_event` — low-level streaming (content_block_start/delta/stop)
+ * 2. `assistant` — high-level turn messages with content arrays
+ *
+ * Both are mapped to the same StreamEvent types for the TUI.
  */
-function mapSdkMessage(message: Record<string, unknown>): StreamEvent | null {
+function mapSdkMessages(message: Record<string, unknown>): StreamEvent[] {
   const type = message.type as string | undefined;
+  const events: StreamEvent[] = [];
 
+  // --- High-level assistant messages (SDK default format) ---
+  if (type === 'assistant') {
+    const msg = message.message as Record<string, unknown> | undefined;
+    if (!msg) return events;
+    const content = msg.content as Array<Record<string, unknown>> | undefined;
+    if (!Array.isArray(content)) return events;
+
+    for (const block of content) {
+      if (block.type === 'tool_use') {
+        const name = block.name;
+        const id = block.id;
+        const input = block.input;
+        if (typeof name === 'string') {
+          events.push({ type: 'tool-start', name, id: typeof id === 'string' ? id : '' });
+          if (input != null) {
+            events.push({ type: 'tool-input', partial: typeof input === 'string' ? input : JSON.stringify(input) });
+          }
+          events.push({ type: 'tool-complete' });
+        }
+      } else if (block.type === 'text') {
+        const text = block.text;
+        if (typeof text === 'string' && text.length > 0) {
+          events.push({ type: 'text', text });
+        }
+      }
+      // 'thinking' blocks are intentionally skipped — not shown in TUI
+    }
+    return events;
+  }
+
+  // --- Low-level streaming events (when SDK uses verbose streaming) ---
   if (type === 'stream_event') {
     const event = message.event as Record<string, unknown> | undefined;
-    if (!event || typeof event !== 'object') return null;
+    if (!event || typeof event !== 'object') return events;
 
     const eventType = event.type as string | undefined;
 
@@ -93,56 +131,46 @@ function mapSdkMessage(message: Record<string, unknown>): StreamEvent | null {
         const name = contentBlock.name;
         const id = contentBlock.id;
         if (typeof name === 'string' && typeof id === 'string') {
-          return { type: 'tool-start', name, id };
+          events.push({ type: 'tool-start', name, id });
         }
       }
-      return null;
+      return events;
     }
 
     if (eventType === 'content_block_delta') {
       const delta = event.delta as Record<string, unknown> | undefined;
-      if (!delta) return null;
-
-      if (delta.type === 'input_json_delta') {
-        const partialJson = delta.partial_json;
-        if (typeof partialJson === 'string') {
-          return { type: 'tool-input', partial: partialJson };
-        }
-        return null;
+      if (!delta) return events;
+      if (delta.type === 'input_json_delta' && typeof delta.partial_json === 'string') {
+        events.push({ type: 'tool-input', partial: delta.partial_json });
+      } else if (delta.type === 'text_delta' && typeof delta.text === 'string') {
+        events.push({ type: 'text', text: delta.text });
       }
-
-      if (delta.type === 'text_delta') {
-        const text = delta.text;
-        if (typeof text === 'string') {
-          return { type: 'text', text };
-        }
-        return null;
-      }
-
-      return null;
+      return events;
     }
 
     if (eventType === 'content_block_stop') {
-      return { type: 'tool-complete' };
+      events.push({ type: 'tool-complete' });
+      return events;
     }
 
-    return null;
+    return events;
   }
 
+  // --- System messages ---
   if (type === 'system') {
     const subtype = message.subtype as string | undefined;
     if (subtype === 'api_retry') {
       const attempt = message.attempt;
       const delay = message.retry_delay_ms;
       if (typeof attempt === 'number' && typeof delay === 'number') {
-        return { type: 'retry', attempt, delay };
+        events.push({ type: 'retry', attempt, delay });
       }
     }
-    return null;
+    return events;
   }
 
   // 'result' type is handled separately in dispatch() to capture cost
-  return null;
+  return events;
 }
 
 // --- Driver Implementation ---
@@ -232,8 +260,7 @@ export class ClaudeCodeDriver implements AgentDriver {
         }
 
         // Map other SDK messages to StreamEvents
-        const streamEvent = mapSdkMessage(msg);
-        if (streamEvent) {
+        for (const streamEvent of mapSdkMessages(msg)) {
           yield streamEvent;
         }
       }

@@ -73,16 +73,10 @@ prompt_template: |
 
   ## Verdict
 
-  At the END of your review output, include a verdict JSON on its own line:
-  ```json
-  {"verdict": "pass"}
-  ```
-  or if there are blocking issues:
-  ```json
-  {"verdict": "fail", "issues": ["blocking issue 1", "blocking issue 2"]}
-  ```
+  Your response MUST include `<verdict>pass</verdict>` or `<verdict>fail</verdict>`.
+  If fail, also include `<issues>blocking issue descriptions</issues>`.
 
-  This verdict determines whether the implementation proceeds or requires fixes.
+  These XML tags are machine-parsed and determine whether the implementation proceeds or requires fixes.
 
   ## Output Location
 

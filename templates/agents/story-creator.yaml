@@ -49,5 +49,7 @@ prompt_template: |
 
   ## Output
 
+  Wrap your story spec in `<story-spec>...</story-spec>` tags. This is machine-parsed.
+
   Write the story file to the implementation artifacts directory following the project's naming convention.
   Mark the story as `ready-for-dev` in the sprint status.

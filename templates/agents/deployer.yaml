@@ -22,7 +22,7 @@ prompt_template: |
 
   1. Check for Docker configuration:
      - Look for `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `Dockerfile`
-     - If NONE found, output: `{"status": "no-docker", "message": "No Docker configuration found in project"}`
+     - If NONE found, output a deploy-report with status no-docker (see Output section below)
      - STOP here if no Docker config exists
 
   2. Check for already-running containers:
@@ -34,24 +34,22 @@ prompt_template: |
      - Wait for containers to start (max 60 seconds)
      - Check health endpoints if defined
 
-  4. Output deploy report as JSON:
-     ```json
-     {
-       "status": "running",
-       "containers": [
-         {"name": "container-name", "image": "image:tag", "status": "healthy", "ports": ["8000:8000"]}
-       ],
-       "urls": {
-         "api": "http://localhost:8000",
-         "web": "http://localhost:3000"
-       },
-       "credentials": {
-         "db_url": "postgresql://...",
-         "api_key": "..."
-       },
-       "health": "healthy"
-     }
-     ```
+  4. Wrap your deploy report in `<deploy-report>...</deploy-report>` tags. Include: status, container names, URLs, ports, credentials, health.
+
+     Example:
+     <deploy-report>
+     status: running
+     containers: container-name (image:tag, healthy, 8000:8000)
+     urls: api=http://localhost:8000, web=http://localhost:3000
+     credentials: db_url=postgresql://..., api_key=...
+     health: healthy
+     </deploy-report>
+
+     If no Docker config exists, output:
+     <deploy-report>
+     status: no-docker
+     message: No Docker configuration found in project
+     </deploy-report>
 
   ## Important
 

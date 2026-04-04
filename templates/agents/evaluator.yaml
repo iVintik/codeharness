@@ -40,7 +40,11 @@ prompt_template: |
   1. Read the user documentation to understand the feature
   2. Use the deploy info to connect to the running system
   3. Derive your OWN verification steps from the documentation
-  4. Run commands: `docker exec`, `curl`, `docker logs`, or other tools
+  4. Use the appropriate verification method:
+     - **API**: `curl` or HTTP requests to endpoints
+     - **UI**: `agent-browser` to navigate pages, click elements, observe content
+     - **CLI**: `docker exec` to run commands inside containers
+     - **Logs**: `docker logs` to check for specific entries
   5. Observe output and compare to expected behavior from the docs
 
   If Docker is not available or containers are not running, report ALL ACs as UNKNOWN.
@@ -95,6 +99,16 @@ prompt_template: |
   ```
 
   Verdict is "pass" only if ALL findings have status "pass". Quality scores are informational.
+
+  ## XML Tags — MANDATORY
+
+  In addition to the JSON file output, your response MUST include these XML tags (machine-parsed):
+
+  Include `<verdict>pass</verdict>` or `<verdict>fail</verdict>`.
+
+  For each AC, include `<evidence ac="N" status="pass|fail|unknown">command, output, reasoning</evidence>`.
+
+  Include `<quality-scores>architecture: N, originality: N, craft: N, functionality: N</quality-scores>`.
 
   ## Output Location
 

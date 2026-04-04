@@ -22,7 +22,7 @@ import { createIsolatedWorkspace } from './source-isolation.js';
 import { generateTraceId, formatTracePrompt, recordTraceId } from './trace-id.js';
 import { resolveSessionId, recordSessionId } from './session-manager.js';
 import type { SessionLookupKey } from './session-manager.js';
-import { parseVerdict, parseSimpleVerdict, VerdictParseError } from './verdict-parser.js';
+import { parseVerdict, parseVerdictTag, extractTag, VerdictParseError } from './verdict-parser.js';
 import type { EvaluatorVerdict } from './verdict-parser.js';
 import { evaluateProgress } from './circuit-breaker.js';
 import { getNullTask, listNullTasks } from './null-task-registry.js';
@@ -544,14 +544,14 @@ async function dispatchTaskWithResult(
   // 7. Construct prompt — task-aware
   const isEpicSentinel = storyKey.startsWith('__epic_') || storyKey === PER_RUN_SENTINEL;
   const TASK_PROMPTS: Record<string, (key: string) => string> = {
-    'create-story': (key) => `Create or revise the story spec for ${key}. Read the epic definitions and architecture docs. If previous feedback is provided (from AC negotiation or review), revise the story to address that feedback. Write a complete story file with acceptance criteria, tasks, and dev notes.`,
-    'negotiate-acs': (key) => `Review the ACs in story ${key} for testability. Can each AC be verified by a blind QA agent with only Docker access and user documentation? Your response MUST end with exactly one JSON line: {"verdict": "pass"} or {"verdict": "fail", "issues": ["..."]}`,
+    'create-story': (key) => `Create or revise the story spec for ${key}. Read the epic definitions and architecture docs. If previous feedback is provided (from AC negotiation or review), revise the story to address that feedback. Write a complete story file with acceptance criteria, tasks, and dev notes. Wrap output in <story-spec>...</story-spec> tags.`,
+    'negotiate-acs': (key) => `Review the ACs in story ${key} for testability. Can each AC be verified by a blind QA agent with only Docker access and user documentation? Include <verdict>pass</verdict> or <verdict>fail</verdict> in your response. If fail, include <issues>...</issues> with specific feedback per AC.`,
     'implement': (key) => `Implement story ${key}`,
-    'check': (key) => `Run automated checks for story ${key}. Execute the project's test suite, linter, and coverage tool. Report pass/fail results.`,
-    'review': (key) => `Review the implementation of story ${key}. Check for correctness, security issues, architecture violations, and AC coverage. Output a verdict JSON at the end.`,
-    'document': (key) => `Write user documentation for story ${key}. Describe what was built and how to use it from a user's perspective. No source code — describe features, UI pages, API endpoints, CLI commands, and expected behavior.`,
-    'deploy': () => `Provision the Docker environment for this project. Check for docker-compose.yml, start containers, verify health. Output a deploy report JSON with container names, URLs, credentials, and health status.`,
-    'verify': () => `Verify the epic's stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps from the documentation, connect using deploy info, run commands, and observe output. Also score subjective quality on 4 dimensions.`,
+    'check': (key) => `Run automated checks for story ${key}. Execute the project's test suite, linter, and coverage tool. Include <verdict>pass</verdict> or <verdict>fail</verdict> in your response.`,
+    'review': (key) => `Review the implementation of story ${key}. Check for correctness, security issues, architecture violations, and AC coverage. Include <verdict>pass</verdict> or <verdict>fail</verdict> in your response. If fail, include <issues>...</issues>.`,
+    'document': (key) => `Write user documentation for story ${key}. Describe what was built and how to use it from a user's perspective. No source code. Wrap documentation in <user-docs>...</user-docs> tags.`,
+    'deploy': () => `Provision the Docker environment for this project. Check for docker-compose.yml, start containers, verify health. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`,
+    'verify': () => `Verify the epic's stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps, run commands, observe output. Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`,
     'retro': () => `Run a retrospective for this epic. Analyze what worked, what failed, patterns, and action items for next epic.`,
   };
 
@@ -1039,14 +1039,13 @@ export async function executeLoopBlock(
             // If not a VerdictParseError or not retryable, try simple verdict
           }
 
-          // Fallback: lightweight verdict for non-evaluator tasks (negotiator, reviewer)
+          // Fallback: XML verdict tag for non-evaluator tasks (negotiator, reviewer)
           if (!verdict) {
-            const simple = parseSimpleVerdict(dispatchResult.output);
-            if (simple) {
-              // Synthesize a minimal EvaluatorVerdict from the simple verdict
+            const tagged = parseVerdictTag(dispatchResult.output);
+            if (tagged) {
               verdict = {
-                verdict: simple.verdict,
-                score: { passed: simple.verdict === 'pass' ? 1 : 0, failed: simple.verdict === 'fail' ? 1 : 0, unknown: 0, total: 1 },
+                verdict: tagged.verdict,
+                score: { passed: tagged.verdict === 'pass' ? 1 : 0, failed: tagged.verdict === 'fail' ? 1 : 0, unknown: 0, total: 1 },
                 findings: [],
               };
             }
@@ -1426,25 +1425,27 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
         const guidesDir = join(projectDir, '.codeharness', 'verify-guides');
         try {
           mkdirSync(guidesDir, { recursive: true });
-          // Collect document (user docs) contracts for each story
+          // Collect document (user docs) contracts — extract <user-docs> tag
           for (const item of epicItems) {
             const contractPath = join(projectDir, '.codeharness', 'contracts', `document-${item.key}.json`);
             if (existsSync(contractPath)) {
               const contractData = JSON.parse(readFileSync(contractPath, 'utf-8')) as { output?: string };
-              if (contractData.output) {
+              const docs = contractData.output ? extractTag(contractData.output, 'user-docs') ?? contractData.output : null;
+              if (docs) {
                 const guidePath = join(guidesDir, `${item.key}-guide.md`);
-                writeFileSync(guidePath, contractData.output, 'utf-8');
+                writeFileSync(guidePath, docs, 'utf-8');
                 guideFiles.push(guidePath);
               }
             }
           }
-          // Collect deploy contract for this epic
+          // Collect deploy contract — extract <deploy-report> tag
           const deployContractPath = join(projectDir, '.codeharness', 'contracts', `deploy-${epicSentinel}.json`);
           if (existsSync(deployContractPath)) {
             const deployData = JSON.parse(readFileSync(deployContractPath, 'utf-8')) as { output?: string };
-            if (deployData.output) {
+            const report = deployData.output ? extractTag(deployData.output, 'deploy-report') ?? deployData.output : null;
+            if (report) {
               const deployPath = join(guidesDir, 'deploy-info.md');
-              writeFileSync(deployPath, deployData.output, 'utf-8');
+              writeFileSync(deployPath, report, 'utf-8');
               guideFiles.push(deployPath);
             }
           }

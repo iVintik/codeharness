@@ -173,28 +173,35 @@ export function parseVerdict(output: string): EvaluatorVerdict {
 }
 
 /**
- * Lightweight verdict parser for non-evaluator loop tasks (negotiator, reviewer).
+ * Parse a verdict from XML tags in agent output.
  *
- * Extracts a simple `{ "verdict": "pass"|"fail" }` from anywhere in the output.
- * Does NOT require the full EvaluatorVerdict schema. Returns null if no verdict
- * JSON is found — the caller decides how to handle (typically: treat as "no verdict").
+ * Expects: `<verdict>pass</verdict>` or `<verdict>fail</verdict>`
+ * Optionally: `<issues>...</issues>` when verdict is fail.
+ *
+ * One regex, no fallbacks, no workarounds.
  */
-export function parseSimpleVerdict(output: string): { verdict: 'pass' | 'fail' } | null {
-  // Find ALL JSON objects with verdict field, take the LAST one (agents put verdict at end)
-  const jsonPattern = /\{[^{}]*"verdict"\s*:\s*"(pass|fail)"[^{}]*\}/g;
-  let lastMatch: RegExpExecArray | null = null;
-  let m: RegExpExecArray | null;
-  while ((m = jsonPattern.exec(output)) !== null) {
-    lastMatch = m;
-  }
-  if (!lastMatch) return null;
+export function parseVerdictTag(output: string): { verdict: 'pass' | 'fail'; issues?: string } | null {
+  const match = /<verdict>(pass|fail)<\/verdict>/i.exec(output);
+  if (!match) return null;
 
-  try {
-    const parsed = JSON.parse(lastMatch[0]) as { verdict?: string };
-    if (parsed.verdict === 'pass' || parsed.verdict === 'fail') {
-      return { verdict: parsed.verdict };
-    }
-  } catch { // IGNORE: malformed JSON match — return null
-  }
-  return null;
+  const verdict = match[1].toLowerCase() as 'pass' | 'fail';
+  const issuesMatch = /<issues>([\s\S]*?)<\/issues>/i.exec(output);
+
+  return {
+    verdict,
+    ...(issuesMatch ? { issues: issuesMatch[1].trim() } : {}),
+  };
 }
+
+/**
+ * Extract content from an XML tag in agent output.
+ *
+ * E.g., extractTag(output, 'user-docs') extracts content between
+ * `<user-docs>` and `</user-docs>`. Returns null if tag not found.
+ */
+export function extractTag(output: string, tag: string): string | null {
+  const pattern = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, 'i');
+  const match = pattern.exec(output);
+  return match ? match[1].trim() : null;
+}
+

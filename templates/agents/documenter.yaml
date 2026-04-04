@@ -65,3 +65,7 @@ prompt_template: |
   - Describe observable behavior, not internal logic
   - If a feature has no external interface (internal-only), describe how it affects
     other features that DO have external interfaces
+
+  ## Output — MANDATORY FORMAT
+
+  Wrap your entire documentation in `<user-docs>...</user-docs>` tags. This is machine-parsed.

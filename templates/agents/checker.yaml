@@ -60,6 +60,8 @@ prompt_template: |
 
   Verdict is "pass" only if ALL checks pass.
 
+  Your response MUST include `<verdict>pass</verdict>` or `<verdict>fail</verdict>`.
+
   ## Output Location
 
   Write results to ./verdict/check.json

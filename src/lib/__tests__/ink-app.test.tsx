@@ -4,6 +4,8 @@ import React from 'react';
 import { App } from '../ink-app.js';
 import type { RendererState } from '../ink-components.js';
 import type { LaneData } from '../ink-lane-container.js';
+import type { SummaryBarProps } from '../ink-summary-bar.js';
+import type { MergeState } from '../ink-merge-status.js';
 
 function makeState(overrides?: Partial<RendererState>): RendererState {
   return {
@@ -156,5 +158,149 @@ describe('App component', () => {
     // Empty lanes = single-lane layout
     expect(frame).toContain('Story: 10-3');
     expect(frame).not.toContain('Lane 1:');
+  });
+
+  it('renders SummaryBar and MergeStatus when laneCount > 1 (AC #11)', () => {
+    const summaryBar: SummaryBarProps = {
+      doneStories: ['10-1', '10-2'],
+      mergingEpic: { epicId: 'epic-14', status: 'in-progress' },
+      pendingEpics: ['epic-11', 'epic-12'],
+    };
+    const mergeState: MergeState = {
+      epicId: 'epic-14',
+      outcome: 'clean',
+      conflictCount: 0,
+    };
+    const state = makeState({
+      sprintInfo: {
+        storyKey: '10-3',
+        phase: 'dev',
+        done: 2,
+        total: 5,
+      },
+      lanes: [
+        makeLane({ epicId: '10' }),
+        makeLane({ epicId: '14' }),
+      ],
+      summaryBar,
+      mergeState,
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    // SummaryBar should be visible
+    expect(frame).toContain('Done:');
+    expect(frame).toContain('10-1');
+    expect(frame).toContain('Merging:');
+    expect(frame).toContain('epic-14');
+    expect(frame).toContain('Pending:');
+    // MergeStatus should be visible
+    expect(frame).toContain('[OK] Merge epic-14');
+  });
+
+  it('does NOT render SummaryBar or MergeStatus when laneCount <= 1 (AC #12)', () => {
+    const summaryBar: SummaryBarProps = {
+      doneStories: ['10-1'],
+      mergingEpic: null,
+      pendingEpics: [],
+    };
+    const mergeState: MergeState = {
+      epicId: 'epic-14',
+      outcome: 'clean',
+      conflictCount: 0,
+    };
+    const state = makeState({
+      sprintInfo: {
+        storyKey: '10-3',
+        phase: 'dev',
+        done: 2,
+        total: 5,
+      },
+      lanes: [makeLane()],
+      summaryBar,
+      mergeState,
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    // Single-lane mode: SummaryBar and MergeStatus should NOT render
+    expect(frame).not.toContain('[OK] Merge');
+    // The summary bar "Done:" with checkmarks should not appear
+    // (StoryBreakdown may use "Done:" in single-lane mode, but not the SummaryBar format)
+    expect(frame).not.toContain('Pending:');
+  });
+
+  it('does NOT render SummaryBar or MergeStatus with no lanes (AC #12)', () => {
+    const state = makeState({
+      sprintInfo: {
+        storyKey: '10-3',
+        phase: 'dev',
+        done: 2,
+        total: 5,
+      },
+      summaryBar: {
+        doneStories: ['10-1'],
+        mergingEpic: null,
+        pendingEpics: ['epic-12'],
+      },
+      mergeState: {
+        epicId: 'epic-14',
+        outcome: 'clean',
+        conflictCount: 0,
+      },
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    expect(frame).not.toContain('[OK] Merge');
+    expect(frame).not.toContain('Pending:');
+  });
+
+  it('renders separator after SummaryBar/MergeStatus in multi-lane mode even without stories', () => {
+    const state = makeState({
+      sprintInfo: {
+        storyKey: '10-3',
+        phase: 'dev',
+        done: 2,
+        total: 5,
+      },
+      stories: [],
+      lanes: [
+        makeLane({ epicId: '10' }),
+        makeLane({ epicId: '14' }),
+      ],
+      summaryBar: {
+        doneStories: ['10-1'],
+        mergingEpic: null,
+        pendingEpics: [],
+      },
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    // Should have separator characters (━) after the summary section
+    expect(frame).toContain('\u2501');
+    expect(frame).toContain('Done:');
+  });
+
+  it('renders SummaryBar without MergeStatus when mergeState is absent', () => {
+    const state = makeState({
+      sprintInfo: {
+        storyKey: '10-3',
+        phase: 'dev',
+        done: 2,
+        total: 5,
+      },
+      lanes: [
+        makeLane({ epicId: '10' }),
+        makeLane({ epicId: '14' }),
+      ],
+      summaryBar: {
+        doneStories: ['10-1'],
+        mergingEpic: null,
+        pendingEpics: ['epic-12'],
+      },
+    });
+    const { lastFrame } = render(<App state={state} />);
+    const frame = lastFrame()!;
+    expect(frame).toContain('Done:');
+    expect(frame).toContain('Pending:');
+    expect(frame).not.toContain('[OK] Merge');
   });
 });

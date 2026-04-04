@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 64,
-    "done": 53,
+    "done": 54,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -641,15 +641,19 @@
       }
     },
     "20-1-lane-container-lane-components": {
-      "status": "verifying",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T02:42:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/20-1-lane-container-lane-components-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "20-2-summary-bar-merge-status": {
-      "status": "backlog",
+      "status": "verifying",
       "attempts": 0,
       "lastAttempt": null,
       "lastError": null,
@@ -817,7 +821,7 @@
     "epic-20": {
       "status": "in-progress",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 1
     }
   },
   "session": {
@@ -839,7 +843,7 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "20-1-lane-container-lane-components",
+    "currentStory": "20-2-summary-bar-merge-status",
     "currentPhase": "verify",
     "lastAction": "Starting test-provable verification",
     "acProgress": null

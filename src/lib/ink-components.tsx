@@ -82,6 +82,10 @@ export interface RendererState {
   driverCosts: Record<string, number>;
   /** Multi-lane data for parallel execution TUI. */
   lanes?: import('./ink-lane-container.js').LaneData[];
+  /** Summary bar data for multi-lane sprint overview. */
+  summaryBar?: import('./ink-summary-bar.js').SummaryBarProps;
+  /** Merge status data for detailed merge progress display. */
+  mergeState?: import('./ink-merge-status.js').MergeState | null;
 }
 
 // --- Layout Components ---

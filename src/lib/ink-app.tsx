@@ -13,6 +13,8 @@ import { CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine,
 import { WorkflowGraph } from './ink-workflow.js';
 import { LaneContainer } from './ink-lane-container.js';
 import type { LaneData } from './ink-lane-container.js';
+import { SummaryBar } from './ink-summary-bar.js';
+import { MergeStatus } from './ink-merge-status.js';
 
 export function App({ state }: { state: RendererState }) {
   const lanes: LaneData[] | undefined = state.lanes;
@@ -34,7 +36,19 @@ export function App({ state }: { state: RendererState }) {
           <DriverCostSummary driverCosts={state.driverCosts} />
         </>
       )}
-      {state.stories.length > 0 && <Separator />}
+      {laneCount > 1 && state.summaryBar && (
+        <>
+          <Separator />
+          <SummaryBar {...state.summaryBar} />
+        </>
+      )}
+      {laneCount > 1 && state.mergeState && (
+        <>
+          <Separator />
+          <MergeStatus mergeState={state.mergeState} />
+        </>
+      )}
+      {(state.stories.length > 0 || (laneCount > 1 && (state.summaryBar || state.mergeState))) && <Separator />}
       <Box flexDirection="column" paddingLeft={1}>
         <CompletedTools tools={state.completedTools} />
         {state.activeTool && <ActiveTool name={state.activeTool.name} driverName={state.activeDriverName} />}

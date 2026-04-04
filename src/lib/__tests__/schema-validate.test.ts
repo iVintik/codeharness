@@ -10,7 +10,8 @@ function minimalValidWorkflow() {
         agent: 'dev',
       },
     },
-    flow: ['implement'],
+    story_flow: ['implement'],
+    epic_flow: ['story_flow'],
   };
 }
 
@@ -19,7 +20,6 @@ function fullValidWorkflow() {
     tasks: {
       implement: {
         agent: 'dev',
-        scope: 'per-story',
         session: 'fresh',
         source_access: true,
         prompt_template: 'Implement story {{story_key}}',
@@ -29,19 +29,18 @@ function fullValidWorkflow() {
       },
       verify: {
         agent: 'evaluator',
-        scope: 'per-run',
         session: 'continue',
         source_access: false,
       },
       retry: {
         agent: 'dev',
-        scope: 'per-story',
         session: 'fresh',
         source_access: true,
         prompt_template: 'Fix failures: {{findings}}',
       },
     },
-    flow: ['implement', 'verify', { loop: ['retry', 'verify'] }],
+    story_flow: ['implement', { loop: ['retry', 'verify'] }],
+    epic_flow: ['story_flow', 'verify'],
   };
 }
 
@@ -62,22 +61,23 @@ describe('validateWorkflowSchema', () => {
     });
 
     it('accepts empty tasks object', () => {
-      const result = validateWorkflowSchema({ tasks: {}, flow: [] });
+      const result = validateWorkflowSchema({ tasks: {}, story_flow: [], epic_flow: [] });
       expect(result.valid).toBe(true);
     });
 
     it('accepts empty flow array', () => {
-      const result = validateWorkflowSchema({ tasks: {}, flow: [] });
+      const result = validateWorkflowSchema({ tasks: {}, story_flow: [], epic_flow: [] });
       expect(result.valid).toBe(true);
     });
 
-    it('accepts a loop block in flow (AC #6)', () => {
+    it('accepts a loop block in story_flow (AC #6)', () => {
       const workflow = {
         tasks: {
           retry: { agent: 'dev' },
           verify: { agent: 'evaluator' },
         },
-        flow: [{ loop: ['retry', 'verify'] }],
+        story_flow: [{ loop: ['retry', 'verify'] }],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(true);
@@ -96,24 +96,25 @@ describe('validateWorkflowSchema', () => {
 
   describe('missing required fields', () => {
     it('rejects missing tasks field (AC #2)', () => {
-      const result = validateWorkflowSchema({ flow: ['implement'] });
+      const result = validateWorkflowSchema({ story_flow: ['implement'], epic_flow: ['story_flow'] });
       expect(result.valid).toBe(false);
       expect(result.errors.some((e) => e.message.includes('tasks'))).toBe(true);
       expect(result.errors.some((e) => e.keyword === 'required')).toBe(true);
     });
 
-    it('accepts tasks-only at schema level (flow/story_flow enforced in parser)', () => {
-      // Schema no longer requires flow — mutual exclusivity enforced in validateAndResolve
+    it('rejects missing story_flow and epic_flow (schema requires them)', () => {
       const result = validateWorkflowSchema({ tasks: {} });
-      expect(result.valid).toBe(true);
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.message.includes('story_flow'))).toBe(true);
     });
 
     it('rejects missing agent in task (AC #7)', () => {
       const workflow = {
         tasks: {
-          implement: { scope: 'per-story' },
+          implement: { session: 'fresh' },
         },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
@@ -122,17 +123,17 @@ describe('validateWorkflowSchema', () => {
   });
 
   describe('invalid enum values', () => {
-    it('rejects invalid scope value (AC #4)', () => {
+    it('rejects unknown task fields as additionalProperties (AC #4)', () => {
       const workflow = {
         tasks: {
-          implement: { agent: 'dev', scope: 'invalid-scope' },
+          implement: { agent: 'dev', scope: 'per-story' },
         },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.keyword === 'enum')).toBe(true);
-      expect(result.errors.some((e) => e.path.includes('scope'))).toBe(true);
+      expect(result.errors.some((e) => e.keyword === 'additionalProperties')).toBe(true);
     });
 
     it('rejects invalid session value (AC #5)', () => {
@@ -140,7 +141,8 @@ describe('validateWorkflowSchema', () => {
         tasks: {
           implement: { agent: 'dev', session: 'invalid-session' },
         },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
@@ -155,7 +157,8 @@ describe('validateWorkflowSchema', () => {
         tasks: {
           implement: { agent: 'dev', source_access: 'yes' },
         },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
@@ -167,7 +170,8 @@ describe('validateWorkflowSchema', () => {
         tasks: {
           implement: { agent: 'dev', max_budget_usd: 'five' },
         },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
@@ -176,10 +180,11 @@ describe('validateWorkflowSchema', () => {
   });
 
   describe('flow validation', () => {
-    it('rejects invalid flow item types', () => {
+    it('rejects invalid story_flow item types', () => {
       const workflow = {
         tasks: { implement: { agent: 'dev' } },
-        flow: [123],
+        story_flow: [123],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
@@ -188,7 +193,8 @@ describe('validateWorkflowSchema', () => {
     it('rejects loop with empty array', () => {
       const workflow = {
         tasks: { retry: { agent: 'dev' } },
-        flow: [{ loop: [] }],
+        story_flow: [{ loop: [] }],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
@@ -197,16 +203,18 @@ describe('validateWorkflowSchema', () => {
     it('rejects loop with non-string items', () => {
       const workflow = {
         tasks: { retry: { agent: 'dev' } },
-        flow: [{ loop: [123] }],
+        story_flow: [{ loop: [123] }],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
     });
 
-    it('rejects flow object with unknown properties', () => {
+    it('rejects story_flow object with unknown properties', () => {
       const workflow = {
         tasks: { implement: { agent: 'dev' } },
-        flow: [{ loop: ['implement'], extra: true }],
+        story_flow: [{ loop: ['implement'], extra: true }],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);
@@ -217,7 +225,8 @@ describe('validateWorkflowSchema', () => {
     it('rejects unknown top-level properties', () => {
       const workflow = {
         tasks: {},
-        flow: [],
+        story_flow: [],
+        epic_flow: [],
         extra: 'nope',
       };
       const result = validateWorkflowSchema(workflow);
@@ -230,7 +239,8 @@ describe('validateWorkflowSchema', () => {
         tasks: {
           implement: { agent: 'dev', unknown_field: true },
         },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(workflow);
       expect(result.valid).toBe(false);

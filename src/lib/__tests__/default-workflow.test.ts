@@ -11,10 +11,11 @@ describe('default embedded workflow', () => {
       expect(existsSync(defaultWorkflowPath)).toBe(true);
     });
 
-    it('contains tasks and flow top-level keys', () => {
+    it('contains tasks and story_flow/epic_flow top-level keys', () => {
       const raw = readFileSync(defaultWorkflowPath, 'utf-8');
       expect(raw).toContain('tasks:');
-      expect(raw).toContain('flow:');
+      expect(raw).toContain('story_flow:');
+      expect(raw).toContain('epic_flow:');
     });
   });
 
@@ -23,7 +24,8 @@ describe('default embedded workflow', () => {
       const result = parseWorkflow(defaultWorkflowPath);
       expect(result).toBeDefined();
       expect(result.tasks).toBeDefined();
-      expect(result.flow).toBeDefined();
+      expect(result.storyFlow).toBeDefined();
+      expect(result.epicFlow).toBeDefined();
     });
   });
 
@@ -49,7 +51,6 @@ describe('default embedded workflow', () => {
     it('create-story task uses opus model', () => {
       const task = workflow.tasks['create-story'];
       expect(task.agent).toBe('story-creator');
-      expect(task.scope).toBe('per-story');
       expect(task.source_access).toBe(true);
       expect(task.model).toBe('claude-opus-4-6');
     });
@@ -57,7 +58,6 @@ describe('default embedded workflow', () => {
     it('implement task uses sonnet model', () => {
       const task = workflow.tasks.implement;
       expect(task.agent).toBe('dev');
-      expect(task.scope).toBe('per-story');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
       expect(task.model).toBe('claude-sonnet-4-6');
@@ -66,7 +66,6 @@ describe('default embedded workflow', () => {
     it('check task uses checker agent with codex driver', () => {
       const task = workflow.tasks.check;
       expect(task.agent).toBe('checker');
-      expect(task.scope).toBe('per-story');
       expect(task.source_access).toBe(true);
       expect(task.driver).toBe('codex');
     });
@@ -74,15 +73,13 @@ describe('default embedded workflow', () => {
     it('review task uses reviewer agent with codex driver', () => {
       const task = workflow.tasks.review;
       expect(task.agent).toBe('reviewer');
-      expect(task.scope).toBe('per-story');
       expect(task.source_access).toBe(true);
       expect(task.driver).toBe('codex');
     });
 
-    it('verify task has source_access false and scope per-story', () => {
+    it('verify task has source_access false', () => {
       const task = workflow.tasks.verify;
       expect(task.agent).toBe('evaluator');
-      expect(task.scope).toBe('per-story');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(false);
       expect(task.driver).toBe('codex');
@@ -91,36 +88,45 @@ describe('default embedded workflow', () => {
     it('retry task uses sonnet model', () => {
       const task = workflow.tasks.retry;
       expect(task.agent).toBe('dev');
-      expect(task.scope).toBe('per-story');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
       expect(task.model).toBe('claude-sonnet-4-6');
     });
 
-    it('retro task runs per-epic with opus model', () => {
+    it('retro task uses opus model', () => {
       const task = workflow.tasks.retro;
       expect(task.agent).toBe('retro');
-      expect(task.scope).toBe('per-epic');
       expect(task.source_access).toBe(true);
       expect(task.model).toBe('claude-opus-4-6');
     });
   });
 
   describe('flow structure (AC #3)', () => {
-    it('flow: create-story, implement, check, review, verify, loop:[retry, check, review, verify], retro', () => {
+    it('storyFlow: create-story, implement, check, review', () => {
       const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.flow).toHaveLength(7);
-      expect(workflow.flow[0]).toBe('create-story');
-      expect(workflow.flow[1]).toBe('implement');
-      expect(workflow.flow[2]).toBe('check');
-      expect(workflow.flow[3]).toBe('review');
-      expect(workflow.flow[4]).toBe('verify');
+      expect(workflow.storyFlow).toHaveLength(4);
+      expect(workflow.storyFlow[0]).toBe('create-story');
+      expect(workflow.storyFlow[1]).toBe('implement');
+      expect(workflow.storyFlow[2]).toBe('check');
+      expect(workflow.storyFlow[3]).toBe('review');
+    });
 
-      const loopStep = workflow.flow[5] as LoopBlock;
+    it('epicFlow: story_flow, verify, loop:[retry, check, review, verify], retro', () => {
+      const workflow = parseWorkflow(defaultWorkflowPath);
+      expect(workflow.epicFlow).toHaveLength(4);
+      expect(workflow.epicFlow[0]).toBe('story_flow');
+      expect(workflow.epicFlow[1]).toBe('verify');
+
+      const loopStep = workflow.epicFlow[2] as LoopBlock;
       expect(loopStep).toHaveProperty('loop');
       expect(loopStep.loop).toEqual(['retry', 'check', 'review', 'verify']);
 
-      expect(workflow.flow[6]).toBe('retro');
+      expect(workflow.epicFlow[3]).toBe('retro');
+    });
+
+    it('flow (deprecated compat) equals storyFlow', () => {
+      const workflow = parseWorkflow(defaultWorkflowPath);
+      expect(workflow.flow).toEqual(workflow.storyFlow);
     });
   });
 

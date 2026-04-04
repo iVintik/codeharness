@@ -132,14 +132,13 @@ function makeWorkflow(partial: { tasks: Record<string, ResolvedTask>; flow: (str
     ...partial,
     execution: defaultExecution,
     storyFlow: partial.flow,
-    epicFlow: [],
+    epicFlow: ['story_flow'],
   };
 }
 
 function makeTask(overrides?: Partial<ResolvedTask>): ResolvedTask {
   return {
     agent: 'dev',
-    scope: 'per-story',
     session: 'fresh',
     source_access: true,
     ...overrides,
@@ -468,10 +467,13 @@ describe('executeWorkflow — health check integration', () => {
     mockExistsSync.mockReturnValue(false);
 
     const config: EngineConfig = {
-      workflow: makeWorkflow({
-        tasks: { implement: makeTask({ driver: 'claude-code', scope: 'per-run' }) },
+      workflow: {
+        tasks: { implement: makeTask({ driver: 'claude-code' }) },
         flow: ['implement'],
-      }),
+        execution: defaultExecution,
+        storyFlow: [],
+        epicFlow: ['story_flow', 'implement'],
+      },
       agents: { dev: { name: 'dev', model: 'test', instructions: '', disallowedTools: [], bare: true } },
       sprintStatusPath: '/tmp/sprint-status.yaml',
       runId: 'test-run',
@@ -482,7 +484,7 @@ describe('executeWorkflow — health check integration', () => {
 
     // Health check should have been called
     expect(healthyDriver.healthCheck).toHaveBeenCalledOnce();
-    // Workflow should have proceeded (dispatch was called for per-run task)
+    // Workflow should have proceeded (dispatch was called for epic-level task)
     expect(healthyDriver.dispatch).toHaveBeenCalled();
     expect(result.success).toBe(true);
   });

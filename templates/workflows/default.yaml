@@ -1,52 +1,48 @@
 tasks:
   create-story:
     agent: story-creator
-    scope: per-story
     session: fresh
     source_access: true
     model: claude-opus-4-6
   implement:
     agent: dev
-    scope: per-story
     session: fresh
     source_access: true
     model: claude-sonnet-4-6
   check:
     agent: checker
-    scope: per-story
     session: fresh
     source_access: true
     driver: codex
   review:
     agent: reviewer
-    scope: per-story
     session: fresh
     source_access: true
     driver: codex
   verify:
     agent: evaluator
-    scope: per-story
     session: fresh
     source_access: false
     driver: codex
   retry:
     agent: dev
-    scope: per-story
     session: fresh
     source_access: true
     model: claude-sonnet-4-6
   retro:
     agent: retro
-    scope: per-epic
     session: fresh
     source_access: true
     model: claude-opus-4-6
 
-flow:
+story_flow:
   - create-story
   - implement
   - check
   - review
+
+epic_flow:
+  - story_flow
   - verify
   - loop:
       - retry

@@ -56,7 +56,7 @@ const {
       storyFlow: string[];
       epicFlow: string[];
     } => ({
-      tasks: { implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true } },
+      tasks: { implement: { agent: 'dev', session: 'fresh', source_access: true } },
       flow: ['implement'],
       execution: { epic_strategy: 'sequential', max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', story_strategy: 'sequential' },
       storyFlow: ['implement'],
@@ -253,7 +253,7 @@ describe('run command — parallel execution (Story 17.3)', () => {
 
   function mockParallelWorkflow(maxParallel = 2) {
     resolveWorkflowMock.mockReturnValue({
-      tasks: { implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true } },
+      tasks: { implement: { agent: 'dev', session: 'fresh', source_access: true } },
       flow: ['implement'],
       execution: { epic_strategy: 'parallel', max_parallel: maxParallel, isolation: 'none', merge_strategy: 'merge-commit', story_strategy: 'sequential' },
       storyFlow: ['implement'],
@@ -263,7 +263,7 @@ describe('run command — parallel execution (Story 17.3)', () => {
 
   function mockSequentialWorkflow() {
     resolveWorkflowMock.mockReturnValue({
-      tasks: { implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true } },
+      tasks: { implement: { agent: 'dev', session: 'fresh', source_access: true } },
       flow: ['implement'],
       execution: { epic_strategy: 'sequential', max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', story_strategy: 'sequential' },
       storyFlow: ['implement'],
@@ -417,7 +417,7 @@ describe('run command — parallel execution (Story 17.3)', () => {
       mockPaths({ '.claude': true });
       readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
       resolveWorkflowMock.mockReturnValue({
-        tasks: { implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true } },
+        tasks: { implement: { agent: 'dev', session: 'fresh', source_access: true } },
         flow: ['implement'],
         storyFlow: ['implement'],
         epicFlow: [],
@@ -608,7 +608,7 @@ describe('run command — parallel execution (Story 17.3)', () => {
       readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
       // isolation: 'none' but epic_strategy: 'parallel'
       resolveWorkflowMock.mockReturnValue({
-        tasks: { implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true } },
+        tasks: { implement: { agent: 'dev', session: 'fresh', source_access: true } },
         flow: ['implement'],
         execution: { epic_strategy: 'parallel', max_parallel: 2, isolation: 'none', merge_strategy: 'merge-commit', story_strategy: 'sequential' },
         storyFlow: ['implement'],

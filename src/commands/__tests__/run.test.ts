@@ -44,13 +44,13 @@ const {
     cleanupContainersMock: vi.fn((): { success: boolean; data?: { containersRemoved: number; names: string[] }; error?: string } => ({ success: true, data: { containersRemoved: 0, names: [] } })),
     parseWorkflowMock: vi.fn(() => ({
       tasks: {
-        implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
+        implement: { agent: 'dev', session: 'fresh', source_access: true },
       },
       flow: ['implement'],
     })),
     resolveWorkflowMock: vi.fn(() => ({
       tasks: {
-        implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
+        implement: { agent: 'dev', session: 'fresh', source_access: true },
       },
       flow: ['implement'],
     })),
@@ -161,14 +161,14 @@ describe('run command', () => {
     parseWorkflowMock.mockReset();
     parseWorkflowMock.mockReturnValue({
       tasks: {
-        implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
+        implement: { agent: 'dev', session: 'fresh', source_access: true },
       },
       flow: ['implement'],
     });
     resolveWorkflowMock.mockReset();
     resolveWorkflowMock.mockReturnValue({
       tasks: {
-        implement: { agent: 'dev', scope: 'per-story', session: 'fresh', source_access: true },
+        implement: { agent: 'dev', session: 'fresh', source_access: true },
       },
       flow: ['implement'],
     });

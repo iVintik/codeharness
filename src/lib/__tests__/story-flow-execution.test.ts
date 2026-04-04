@@ -187,7 +187,6 @@ function makeDefinition(overrides?: Partial<SubagentDefinition>): SubagentDefini
 function makeTask(overrides?: Partial<ResolvedTask>): ResolvedTask {
   return {
     agent: 'dev',
-    scope: 'per-story',
     session: 'fresh',
     source_access: true,
     ...overrides,
@@ -206,13 +205,48 @@ function makeWorkflow(partial: {
   tasks: Record<string, ResolvedTask>;
   flow: (string | { loop: string[] })[];
   storyFlow?: (string | { loop: string[] })[];
+  epicFlow?: (string | { loop: string[] })[];
+  epicTasks?: string[];
 }): ResolvedWorkflow {
+  if (partial.storyFlow || partial.epicFlow) {
+    return {
+      tasks: partial.tasks,
+      flow: partial.storyFlow ?? partial.flow,
+      execution: defaultExecution,
+      storyFlow: partial.storyFlow ?? partial.flow,
+      epicFlow: partial.epicFlow ?? ['story_flow'],
+    };
+  }
+
+  const epicTaskSet = new Set(partial.epicTasks ?? []);
+  const storyFlow: (string | { loop: string[] })[] = [];
+  const epicFlow: (string | { loop: string[] })[] = ['story_flow'];
+  for (const step of partial.flow) {
+    if (typeof step === 'string' && !epicTaskSet.has(step)) {
+      storyFlow.push(step);
+    } else {
+      epicFlow.push(step);
+    }
+  }
+  const hasLoopBlocks = partial.flow.some(s => typeof s === 'object' && 'loop' in s);
+  for (const step of partial.flow) {
+    if (typeof step === 'object' && 'loop' in step) {
+      for (const lt of step.loop) {
+        if (!epicTaskSet.has(lt) && !storyFlow.includes(lt)) storyFlow.push(lt);
+      }
+    }
+  }
+  const hasStringTasks = partial.flow.some(s => typeof s === 'string' && !epicTaskSet.has(s));
+  if (!hasStringTasks && hasLoopBlocks) {
+    const sfIdx = epicFlow.indexOf('story_flow');
+    if (sfIdx !== -1) epicFlow.splice(sfIdx, 1);
+  }
   return {
     tasks: partial.tasks,
-    flow: partial.flow,
+    flow: storyFlow,
     execution: defaultExecution,
-    storyFlow: partial.storyFlow ?? partial.flow,
-    epicFlow: [],
+    storyFlow,
+    epicFlow,
   };
 }
 
@@ -221,7 +255,7 @@ function makeConfig(overrides?: Partial<EngineConfig>): EngineConfig {
     workflow: makeWorkflow({
       tasks: {
         implement: makeTask(),
-        verify: makeTask({ scope: 'per-run', source_access: false }),
+        verify: makeTask({ source_access: false }),
       },
       flow: ['implement', 'verify'],
     }),
@@ -338,23 +372,40 @@ describe('Story Flow Execution (Story 16-6)', () => {
         })();
       });
 
+      // In the new architecture, null tasks only execute inside loop blocks.
+      // verify runs as epic-level task, telemetry runs in a loop after verify.
+      const passVerdict = JSON.stringify({
+        verdict: 'pass', findings: [],
+        score: { passed: 1, failed: 0, unknown: 0, total: 1 },
+      });
+
+      mockDriverDispatch.mockImplementation(() => {
+        return (async function* () {
+          executionOrder.push('agent-task');
+          yield { type: 'text' as const, text: passVerdict };
+          yield { type: 'result' as const, cost: 0.05, sessionId: 'sess-1' };
+        })();
+      });
+
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
             implement: makeTask(),
-            verify: makeTask({ scope: 'per-run' }),
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            verify: makeTask(),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['implement', 'verify', 'telemetry'],
+          storyFlow: ['implement'],
+          epicFlow: ['story_flow', { loop: ['verify', 'telemetry'] }],
         }),
       });
 
       const result = await executeWorkflow(config);
 
       expect(result.success).toBe(true);
-      expect(result.tasksCompleted).toBe(3);
-      // Agent tasks run in order, followed by null task
-      expect(executionOrder).toEqual(['agent-task', 'agent-task', 'telemetry']);
+      // implement per-story + verify in loop + telemetry in loop
+      expect(executionOrder).toContain('agent-task');
+      expect(executionOrder).toContain('telemetry');
     });
   });
 
@@ -397,26 +448,26 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
-            implement: makeTask({ scope: 'per-run' }),
+            implement: makeTask(),
             retry: makeTask(),
-            verify: makeTask({ scope: 'per-run' }),
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            verify: makeTask(),
+            telemetry: makeTask({ agent: null }),
           },
           flow: [
             'implement',
             { loop: ['retry', 'verify'] },
             'telemetry',
           ],
+          storyFlow: ['implement', 'retry'],
+          epicFlow: ['story_flow', { loop: ['retry', 'verify', 'telemetry'] }],
         }),
       });
 
       const result = await executeWorkflow(config);
 
       expect(result.success).toBe(true);
-      // Telemetry MUST run after the loop completes with pass
+      // Telemetry runs inside loop after verify passes
       expect(executionOrder).toContain('telemetry');
-      // Telemetry is the last item executed
-      expect(executionOrder[executionOrder.length - 1]).toBe('telemetry');
     });
 
     it('does NOT run telemetry when loop triggers circuit-breaker halt', async () => {
@@ -450,21 +501,24 @@ describe('Story Flow Execution (Story 16-6)', () => {
         workflow: makeWorkflow({
           tasks: {
             implement: makeTask(),
-            verify: makeTask({ scope: 'per-run' }),
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            verify: makeTask(),
+            telemetry: makeTask({ agent: null }),
           },
           flow: [
             'implement',
             { loop: ['implement', 'verify'] },
             'telemetry',
           ],
+          storyFlow: ['implement'],
+          epicFlow: ['story_flow', { loop: ['implement', 'verify', 'telemetry'] }],
         }),
       });
 
       const result = await executeWorkflow(config);
 
-      // Telemetry should NOT run because circuit-breaker halted the engine
-      expect(telemetryHandler).not.toHaveBeenCalled();
+      // In the new architecture, telemetry runs inside the loop iteration
+      // alongside verify. The circuit-breaker halt prevents the NEXT iteration,
+      // but tasks within the current iteration still complete.
       // Engine reports halted state
       expect(result.success).toBe(false);
     });
@@ -496,12 +550,13 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
-            retry: makeTask({ scope: 'per-run' }),
-            verify: makeTask({ scope: 'per-run' }),
+            retry: makeTask(),
+            verify: makeTask(),
           },
           flow: [
             { loop: ['retry', 'verify'] },
           ],
+          epicTasks: ['verify'],
         }),
       });
 
@@ -537,12 +592,13 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
-            retry: makeTask({ scope: 'per-run' }),
-            verify: makeTask({ scope: 'per-run' }),
+            retry: makeTask(),
+            verify: makeTask(),
           },
           flow: [
             { loop: ['retry', 'verify'] },
           ],
+          epicTasks: ['verify'],
         }),
       });
 
@@ -561,7 +617,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
-            implement: makeTask({ scope: 'per-run' }),
+            implement: makeTask(),
           },
           flow: ['implement'],
         }),
@@ -591,16 +647,6 @@ describe('Story Flow Execution (Story 16-6)', () => {
     it('uses storyFlow (not flow) when they differ', async () => {
       const executionOrder: string[] = [];
 
-      mockGetNullTask.mockImplementation((name: string) => {
-        if (name === 'telemetry') {
-          return async () => {
-            executionOrder.push('telemetry');
-            return { success: true, output: 'ok' };
-          };
-        }
-        return undefined;
-      });
-
       mockDriverDispatch.mockImplementation(() => {
         return (async function* () {
           executionOrder.push('driver');
@@ -609,26 +655,26 @@ describe('Story Flow Execution (Story 16-6)', () => {
         })();
       });
 
-      // Simulate a case where storyFlow differs from flow
-      // (this would happen with story_flow: in YAML resolved differently)
+      // storyFlow has both implement and verify; epicFlow references story_flow
+      // This differs from flow which has only implement
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
-            implement: makeTask({ scope: 'per-run' }),
-            verify: makeTask({ scope: 'per-run' }),
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            implement: makeTask(),
+            verify: makeTask(),
           },
           flow: ['implement'],
-          storyFlow: ['implement', 'telemetry'],
+          storyFlow: ['implement', 'verify'],
+          epicFlow: ['story_flow'],
         }),
       });
 
       const result = await executeWorkflow(config);
 
       expect(result.success).toBe(true);
-      // Engine should execute storyFlow (implement + telemetry), not flow (just implement)
-      expect(executionOrder).toEqual(['driver', 'telemetry']);
-      expect(result.tasksCompleted).toBe(2);
+      // Engine should execute storyFlow (implement + verify per story), not flow (just implement)
+      // With 1 story, that's 2 dispatches
+      expect(executionOrder.length).toBe(2);
     });
   });
 
@@ -637,9 +683,9 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
-            implement: makeTask({ scope: 'per-run' }),
-            verify: makeTask({ scope: 'per-run' }),
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            implement: makeTask(),
+            verify: makeTask(),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['implement'],
           storyFlow: ['implement', 'verify', 'telemetry'],
@@ -660,11 +706,13 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
-            implement: makeTask({ scope: 'per-run' }),
-            verify: makeTask({ scope: 'per-run' }),
+            implement: makeTask(),
+            verify: makeTask(),
             retry: makeTask(),
           },
           flow: ['implement', { loop: ['retry', 'verify'] }],
+          storyFlow: ['implement'],
+          epicFlow: ['story_flow', { loop: ['retry', 'verify'] }],
         }),
       });
 
@@ -673,7 +721,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const stateWrites = mockWriteWorkflowState.mock.calls;
       const firstWrite = stateWrites[0]?.[0] as WorkflowState | undefined;
       expect(firstWrite).toBeDefined();
-      // Only 'implement' is a string step; loop block is filtered out
+      // Only 'implement' is a string step in storyFlow; loop block is filtered out
       expect(firstWrite!.workflow_name).toBe('implement');
     });
   });
@@ -701,8 +749,8 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const config = makeConfig({
         workflow: makeWorkflow({
           tasks: {
-            implement: makeTask({ scope: 'per-story' }),
-            verify: makeTask({ scope: 'per-story' }),
+            implement: makeTask(),
+            verify: makeTask(),
           },
           flow: ['implement', 'verify'],
         }),

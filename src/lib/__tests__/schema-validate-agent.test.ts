@@ -388,7 +388,8 @@ describe('validateAgentSchema', () => {
     it('existing workflow schema validation still works (AC #8)', () => {
       const validWorkflow = {
         tasks: { implement: { agent: 'dev' } },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
       };
       const result = validateWorkflowSchema(validWorkflow);
       expect(result.valid).toBe(true);

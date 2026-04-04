@@ -4,7 +4,7 @@
   "title": "Codeharness Workflow",
   "description": "Schema for codeharness workflow YAML files",
   "type": "object",
-  "required": ["tasks"],
+  "required": ["tasks", "story_flow", "epic_flow"],
   "properties": {
     "tasks": {
       "type": "object",
@@ -105,12 +105,6 @@
             { "type": "null" }
           ],
           "description": "Agent identifier for this task (null for engine-handled tasks)"
-        },
-        "scope": {
-          "type": "string",
-          "enum": ["per-story", "per-run", "per-epic"],
-          "default": "per-story",
-          "description": "Execution scope — per-story, per-run, or per-epic"
         },
         "session": {
           "type": "string",

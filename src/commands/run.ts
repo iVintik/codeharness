@@ -418,7 +418,6 @@ export function registerRunCommand(program: Command): void {
         runId: `run-${Date.now()}`,
         projectDir,
         abortSignal: abortController.signal,
-        storyPipeline: true,
         maxIterations,
         onEvent,
       };

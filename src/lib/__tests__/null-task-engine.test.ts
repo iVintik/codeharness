@@ -194,7 +194,6 @@ function makeDefinition(overrides?: Partial<SubagentDefinition>): SubagentDefini
 function makeTask(overrides?: Partial<ResolvedTask>): ResolvedTask {
   return {
     agent: 'dev',
-    scope: 'per-story',
     session: 'fresh',
     source_access: true,
     ...overrides,
@@ -209,21 +208,84 @@ const defaultExecution: ExecutionConfig = {
   story_strategy: 'sequential',
 };
 
-function makeWorkflow(partial: { tasks: Record<string, ResolvedTask>; flow: (string | { loop: string[] })[] }): ResolvedWorkflow {
+function makeWorkflow(partial: {
+  tasks: Record<string, ResolvedTask>;
+  flow: (string | { loop: string[] })[];
+  epicTasks?: string[];
+}): ResolvedWorkflow {
+  const epicTaskSet = new Set(partial.epicTasks ?? []);
+  const storyFlow: (string | { loop: string[] })[] = [];
+  const epicFlow: (string | { loop: string[] })[] = ['story_flow'];
+  for (const step of partial.flow) {
+    if (typeof step === 'string' && !epicTaskSet.has(step)) {
+      storyFlow.push(step);
+    } else {
+      epicFlow.push(step);
+    }
+  }
+  // Add non-epic loop tasks to storyFlow for storyFlowTasks set
+  const hasLoopBlocks = partial.flow.some(s => typeof s === 'object' && 'loop' in s);
+  for (const step of partial.flow) {
+    if (typeof step === 'object' && 'loop' in step) {
+      for (const lt of step.loop) {
+        if (!epicTaskSet.has(lt) && !storyFlow.includes(lt)) storyFlow.push(lt);
+      }
+    }
+  }
+  const hasStringTasks = partial.flow.some(s => typeof s === 'string' && !epicTaskSet.has(s));
+  if (!hasStringTasks && hasLoopBlocks) {
+    const sfIdx = epicFlow.indexOf('story_flow');
+    if (sfIdx !== -1) epicFlow.splice(sfIdx, 1);
+  }
   return {
-    ...partial,
+    tasks: partial.tasks,
+    flow: storyFlow,
     execution: defaultExecution,
-    storyFlow: partial.flow,
-    epicFlow: [],
+    storyFlow,
+    epicFlow,
+  };
+}
+
+function makeNullTaskWorkflow(partial: {
+  tasks: Record<string, ResolvedTask>;
+  flow: (string | { loop: string[] })[];
+  /** Task names that run per-story (appear in storyFlowTasks set). Default: all tasks. */
+  storyTasks?: string[];
+}): ResolvedWorkflow {
+  // For null task tests: wrap all string tasks in a single loop block so null tasks execute.
+  // The engine only executes null tasks inside loop blocks.
+  const stringTasks = partial.flow.filter((s): s is string => typeof s === 'string');
+  const loopBlocks = partial.flow.filter((s): s is { loop: string[] } => typeof s === 'object' && 'loop' in s);
+  const allLoopTasks = loopBlocks.flatMap(b => b.loop);
+  const allTaskNames = [...stringTasks, ...allLoopTasks];
+
+  // storyFlowTasks: all tasks by default (unless storyTasks is explicitly provided)
+  const storyFlow = partial.storyTasks ?? allTaskNames;
+
+  // epicFlow: story_flow + loop containing all string tasks + any explicit loop blocks
+  const epicFlowSteps: (string | { loop: string[] })[] = ['story_flow'];
+  if (stringTasks.length > 0) {
+    epicFlowSteps.push({ loop: stringTasks });
+  }
+  for (const lb of loopBlocks) {
+    epicFlowSteps.push(lb);
+  }
+
+  return {
+    tasks: partial.tasks,
+    flow: storyFlow as (string | { loop: string[] })[],
+    execution: defaultExecution,
+    storyFlow: storyFlow as (string | { loop: string[] })[],
+    epicFlow: epicFlowSteps,
   };
 }
 
 function makeConfig(overrides?: Partial<EngineConfig>): EngineConfig {
   return {
-    workflow: makeWorkflow({
+    workflow: makeNullTaskWorkflow({
       tasks: {
         implement: makeTask(),
-        telemetry: makeTask({ agent: null, scope: 'per-story' }),
+        telemetry: makeTask({ agent: null }),
       },
       flow: ['implement', 'telemetry'],
     }),
@@ -233,6 +295,7 @@ function makeConfig(overrides?: Partial<EngineConfig>): EngineConfig {
     sprintStatusPath: '/project/sprint-status.yaml',
     runId: 'run-001',
     projectDir: '/project',
+    maxIterations: 1,
     ...overrides,
   };
 }
@@ -311,18 +374,20 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
   describe('AC #1: engine skips driver dispatch for agent: null tasks', () => {
     it('does not call getDriver or driver.dispatch for null tasks', async () => {
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
+          storyTasks: [],
         }),
         agents: {},
       });
 
       const result = await executeWorkflow(config);
 
-      expect(result.success).toBe(true);
+      // Null-task-only loop exits with max-iterations (no pass verdict)
+      // but the null task itself was executed
       expect(result.tasksCompleted).toBe(1);
       // getDriver is called during health check, but NOT for our null task dispatch
       expect(mockDriverDispatch).not.toHaveBeenCalled();
@@ -332,9 +397,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
   describe('AC #2: registry returns handler or undefined', () => {
     it('engine calls getNullTask to look up handler', async () => {
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
         }),
@@ -366,9 +431,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-story' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
         }),
@@ -390,9 +455,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
   describe('AC #4: TaskCheckpoint written after null task completion', () => {
     it('writes checkpoint to workflow state', async () => {
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
         }),
@@ -422,9 +487,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       mockListNullTasks.mockReturnValue(['telemetry']);
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            unknown_task: makeTask({ agent: null, scope: 'per-run' }),
+            unknown_task: makeTask({ agent: null }),
           },
           flow: ['unknown_task'],
         }),
@@ -464,10 +529,10 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            implement: makeTask({ agent: 'dev', scope: 'per-story' }),
-            telemetry: makeTask({ agent: null, scope: 'per-story' }),
+            implement: makeTask({ agent: 'dev' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['implement', 'telemetry'],
         }),
@@ -481,8 +546,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
 
       const result = await executeWorkflow(config);
 
-      expect(result.success).toBe(true);
-      // implement runs first, then telemetry
+      // implement runs first, then telemetry (in loop iteration)
       expect(executionOrder[0]).toBe('implement');
       expect(executionOrder[1]).toBe('telemetry');
     });
@@ -508,10 +572,10 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
-            'after-telemetry': makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
+            'after-telemetry': makeTask({ agent: null }),
           },
           flow: ['telemetry', 'after-telemetry'],
         }),
@@ -538,18 +602,19 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       }));
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
+          storyTasks: [],
         }),
         agents: {},
       });
 
       const result = await executeWorkflow(config);
 
-      expect(result.success).toBe(true);
+      // All tasks skipped (already completed) — loop hits max-iterations
       expect(result.tasksCompleted).toBe(0); // skipped
       expect(mockGetNullTask).not.toHaveBeenCalled();
     });
@@ -577,9 +642,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-story' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
         }),
@@ -588,7 +653,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
 
       const result = await executeWorkflow(config);
 
-      expect(result.success).toBe(true);
+      // Null tasks execute per-story in loop
       expect(storyKeys).toContain('story-a');
       expect(storyKeys).toContain('story-b');
       expect(storyKeys).toHaveLength(2);
@@ -609,18 +674,19 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
+          storyTasks: [],
         }),
         agents: {},
       });
 
       const result = await executeWorkflow(config);
 
-      expect(result.success).toBe(true);
+      // Null task ran once with __run__ sentinel
       expect(storyKeys).toEqual(['__run__']);
     });
   });
@@ -658,9 +724,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       const loopBlock = { loop: ['telemetry'] };
       const state = makeDefaultState({ started: '2026-04-03T00:00:00.000Z' });
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: [loopBlock],
         }),
@@ -688,9 +754,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
         }),
@@ -718,9 +784,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
         }),
@@ -745,11 +811,12 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
+          storyTasks: [],
         }),
         agents: {},
       });
@@ -790,9 +857,9 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            telemetry: makeTask({ agent: null, scope: 'per-run' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['telemetry'],
         }),
@@ -835,10 +902,10 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const config = makeConfig({
-        workflow: makeWorkflow({
+        workflow: makeNullTaskWorkflow({
           tasks: {
-            implement: makeTask({ agent: 'dev', scope: 'per-story' }),
-            telemetry: makeTask({ agent: null, scope: 'per-story' }),
+            implement: makeTask({ agent: 'dev' }),
+            telemetry: makeTask({ agent: null }),
           },
           flow: ['implement', 'telemetry'],
         }),

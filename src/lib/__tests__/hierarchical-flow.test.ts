@@ -36,7 +36,6 @@ function writeYaml(filename: string, content: string): string {
 function makeTask(overrides?: Partial<ResolvedTask>): ResolvedTask {
   return {
     agent: 'dev',
-    scope: 'per-story',
     session: 'fresh',
     source_access: true,
     ...overrides,
@@ -50,7 +49,8 @@ describe('workflow.schema.json — hierarchical extensions', () => {
     it('accepts a valid execution section with all properties', () => {
       const result = validateWorkflowSchema({
         tasks: { implement: { agent: 'dev' } },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
         execution: {
           max_parallel: 4,
           isolation: 'worktree',
@@ -65,7 +65,8 @@ describe('workflow.schema.json — hierarchical extensions', () => {
     it('accepts execution with partial properties (defaults apply)', () => {
       const result = validateWorkflowSchema({
         tasks: { implement: { agent: 'dev' } },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
         execution: { max_parallel: 2 },
       });
       expect(result.valid).toBe(true);
@@ -74,7 +75,8 @@ describe('workflow.schema.json — hierarchical extensions', () => {
     it('accepts empty execution object', () => {
       const result = validateWorkflowSchema({
         tasks: { implement: { agent: 'dev' } },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
         execution: {},
       });
       expect(result.valid).toBe(true);
@@ -83,7 +85,8 @@ describe('workflow.schema.json — hierarchical extensions', () => {
     it('rejects invalid isolation value', () => {
       const result = validateWorkflowSchema({
         tasks: { implement: { agent: 'dev' } },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
         execution: { isolation: 'docker' },
       });
       expect(result.valid).toBe(false);
@@ -92,7 +95,8 @@ describe('workflow.schema.json — hierarchical extensions', () => {
     it('rejects invalid epic_strategy value', () => {
       const result = validateWorkflowSchema({
         tasks: { implement: { agent: 'dev' } },
-        flow: ['implement'],
+        story_flow: ['implement'],
+        epic_flow: ['story_flow'],
         execution: { epic_strategy: 'random' },
       });
       expect(result.valid).toBe(false);
@@ -104,6 +108,7 @@ describe('workflow.schema.json — hierarchical extensions', () => {
       const result = validateWorkflowSchema({
         tasks: { implement: { agent: 'dev' }, verify: { agent: 'qa' } },
         story_flow: ['implement', 'verify'],
+        epic_flow: ['story_flow'],
       });
       expect(result.valid).toBe(true);
     });
@@ -112,6 +117,7 @@ describe('workflow.schema.json — hierarchical extensions', () => {
       const result = validateWorkflowSchema({
         tasks: { implement: { agent: 'dev' }, retry: { agent: 'dev' } },
         story_flow: ['implement', { loop: ['retry'] }],
+        epic_flow: ['story_flow'],
       });
       expect(result.valid).toBe(true);
     });
@@ -141,17 +147,19 @@ describe('workflow.schema.json — hierarchical extensions', () => {
     it('accepts agent: null in task definition', () => {
       const result = validateWorkflowSchema({
         tasks: { merge: { agent: null } },
-        flow: ['merge'],
+        story_flow: ['merge'],
+        epic_flow: ['story_flow'],
       });
       expect(result.valid).toBe(true);
     });
   });
 
-  describe('scope: per-epic (AC #11)', () => {
-    it('accepts scope: per-epic in task definition', () => {
+  describe('task definition without scope (AC #11)', () => {
+    it('accepts task without scope field', () => {
       const result = validateWorkflowSchema({
-        tasks: { plan: { agent: 'pm', scope: 'per-epic' } },
-        flow: ['plan'],
+        tasks: { plan: { agent: 'pm' } },
+        story_flow: ['plan'],
+        epic_flow: ['story_flow'],
       });
       expect(result.valid).toBe(true);
     });
@@ -161,17 +169,18 @@ describe('workflow.schema.json — hierarchical extensions', () => {
 // --- resolveHierarchicalFlow tests (AC #5, #9) ---
 
 describe('resolveHierarchicalFlow', () => {
-  it('normalizes flow to storyFlow when no story_flow present (AC #5)', () => {
+  it('resolves story_flow and epic_flow (AC #5)', () => {
     const tasks = { implement: makeTask(), verify: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' }, verify: { agent: 'dev' } },
-      flow: ['implement', 'verify'],
+      story_flow: ['implement', 'verify'],
+      epic_flow: ['story_flow'],
     };
 
     const result = resolveHierarchicalFlow(parsed, tasks);
 
     expect(result.storyFlow).toEqual(['implement', 'verify']);
-    expect(result.epicFlow).toEqual([]);
+    expect(result.epicFlow).toEqual(['story_flow']);
     expect(result.tasks).toBe(tasks);
   });
 
@@ -180,6 +189,7 @@ describe('resolveHierarchicalFlow', () => {
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
       story_flow: ['implement'],
+      epic_flow: ['story_flow'],
     };
 
     const result = resolveHierarchicalFlow(parsed, tasks);
@@ -191,7 +201,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
     };
 
     const result = resolveHierarchicalFlow(parsed, tasks);
@@ -203,7 +214,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: { max_parallel: 4, isolation: 'worktree' as const },
     };
 
@@ -216,24 +228,25 @@ describe('resolveHierarchicalFlow', () => {
     expect(result.execution.story_strategy).toBe('sequential');
   });
 
-  it('resolves epic_flow when present', () => {
+  it('resolves epic_flow with additional tasks', () => {
     const tasks = { plan: makeTask() };
     const parsed = {
       tasks: { plan: { agent: 'pm' } },
       story_flow: ['plan'],
-      epic_flow: ['plan', 'merge', 'validate'],
+      epic_flow: ['plan', 'story_flow', 'merge', 'validate'],
     };
 
     const result = resolveHierarchicalFlow(parsed, tasks);
 
-    expect(result.epicFlow).toEqual(['plan', 'merge', 'validate']);
+    expect(result.epicFlow).toEqual(['plan', 'story_flow', 'merge', 'validate']);
   });
 
-  it('normalizes flow with loop blocks correctly', () => {
+  it('normalizes story_flow with loop blocks correctly', () => {
     const tasks = { implement: makeTask(), retry: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' }, retry: { agent: 'dev' } },
-      flow: ['implement', { loop: ['retry', 'implement'] }],
+      story_flow: ['implement', { loop: ['retry', 'implement'] }],
+      epic_flow: ['story_flow'],
     };
 
     const result = resolveHierarchicalFlow(parsed, tasks);
@@ -241,25 +254,46 @@ describe('resolveHierarchicalFlow', () => {
     expect(result.storyFlow).toEqual(['implement', { loop: ['retry', 'implement'] }]);
   });
 
-  it('rejects coexistence of flow and story_flow (AC #9)', () => {
+  it('rejects missing story_flow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      epic_flow: ['story_flow'],
+    };
+
+    expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(HierarchicalFlowError);
+    expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(/story_flow/);
+  });
+
+  it('rejects missing epic_flow', () => {
+    const tasks = { implement: makeTask() };
+    const parsed = {
+      tasks: { implement: { agent: 'dev' } },
       story_flow: ['implement'],
     };
 
     expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(HierarchicalFlowError);
-    expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(
-      /Cannot have both.*flow.*story_flow|both.*flow.*story_flow/i
-    );
+    expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(/epic_flow/);
+  });
+
+  it('rejects epic_flow without story_flow reference', () => {
+    const tasks = { implement: makeTask() };
+    const parsed = {
+      tasks: { implement: { agent: 'dev' } },
+      story_flow: ['implement'],
+      epic_flow: ['implement'],
+    };
+
+    expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(HierarchicalFlowError);
+    expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(/story_flow/);
   });
 
   it('rejects invalid max_parallel (non-integer)', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: { max_parallel: 2.5 },
     };
 
@@ -271,7 +305,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: { max_parallel: 0 },
     };
 
@@ -282,7 +317,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: { max_parallel: 'many' },
     };
 
@@ -293,7 +329,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: { isolation: 'docker' },
     };
 
@@ -305,7 +342,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: { merge_strategy: 'squash' },
     };
 
@@ -317,7 +355,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: { epic_strategy: 'random' },
     };
 
@@ -329,7 +368,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: { story_strategy: 'random' },
     };
 
@@ -337,22 +377,24 @@ describe('resolveHierarchicalFlow', () => {
     expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(/story_strategy/);
   });
 
-  it('rejects non-array flow value', () => {
+  it('rejects non-array story_flow value', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: 'implement',
+      story_flow: 'implement',
+      epic_flow: ['story_flow'],
     };
 
     expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(HierarchicalFlowError);
     expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(/array/);
   });
 
-  it('rejects invalid flow step (number)', () => {
+  it('rejects invalid story_flow step (number)', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement', 42],
+      story_flow: ['implement', 42],
+      epic_flow: ['story_flow'],
     };
 
     expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(HierarchicalFlowError);
@@ -363,7 +405,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement', { loop: 'not-an-array' }],
+      story_flow: ['implement', { loop: 'not-an-array' }],
+      epic_flow: ['story_flow'],
     };
 
     expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(HierarchicalFlowError);
@@ -374,7 +417,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement', { loop: [42] }],
+      story_flow: ['implement', { loop: [42] }],
+      epic_flow: ['story_flow'],
     };
 
     expect(() => resolveHierarchicalFlow(parsed, tasks)).toThrow(HierarchicalFlowError);
@@ -385,7 +429,8 @@ describe('resolveHierarchicalFlow', () => {
     const tasks = { implement: makeTask() };
     const parsed = {
       tasks: { implement: { agent: 'dev' } },
-      flow: ['implement'],
+      story_flow: ['implement'],
+      epic_flow: ['story_flow'],
       execution: 'invalid',
     };
 
@@ -398,25 +443,26 @@ describe('resolveHierarchicalFlow', () => {
 
 describe('parseWorkflow — hierarchical flow integration', () => {
   describe('backward compatibility (AC #4)', () => {
-    it('parses existing workflow with only flow: identically to before', () => {
+    it('parses existing workflow with story_flow and epic_flow', () => {
       const filePath = writeYaml('legacy.yaml', `
 tasks:
   implement:
     agent: dev
   verify:
     agent: evaluator
-    scope: per-run
-flow:
+story_flow:
   - implement
   - verify
+epic_flow:
+  - story_flow
 `);
       const result = parseWorkflow(filePath);
 
-      // Backward compat: flow field still populated
+      // flow field populated from storyFlow for backward compat
       expect(result.flow).toEqual(['implement', 'verify']);
       // New hierarchical fields
       expect(result.storyFlow).toEqual(['implement', 'verify']);
-      expect(result.epicFlow).toEqual([]);
+      expect(result.epicFlow).toEqual(['story_flow']);
       expect(result.execution).toEqual(EXECUTION_DEFAULTS);
     });
   });
@@ -431,7 +477,6 @@ tasks:
     agent: evaluator
   plan:
     agent: pm
-    scope: per-epic
 execution:
   max_parallel: 4
   isolation: worktree
@@ -443,6 +488,7 @@ story_flow:
   - verify
 epic_flow:
   - plan
+  - story_flow
   - merge
   - validate
 `);
@@ -456,7 +502,7 @@ epic_flow:
         story_strategy: 'parallel',
       });
       expect(result.storyFlow).toEqual(['implement', 'verify']);
-      expect(result.epicFlow).toEqual(['plan', 'merge', 'validate']);
+      expect(result.epicFlow).toEqual(['plan', 'story_flow', 'merge', 'validate']);
       // flow is populated from storyFlow for backward compat
       expect(result.flow).toEqual(['implement', 'verify']);
     });
@@ -471,6 +517,8 @@ tasks:
 story_flow:
   - implement
   - nonexistent_task
+epic_flow:
+  - story_flow
 `);
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
       expect(() => parseWorkflow(filePath)).toThrow(/nonexistent_task/);
@@ -485,6 +533,8 @@ story_flow:
   - implement
   - loop:
       - missing_loop_task
+epic_flow:
+  - story_flow
 `);
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
       expect(() => parseWorkflow(filePath)).toThrow(/missing_loop_task/);
@@ -500,6 +550,7 @@ tasks:
 story_flow:
   - implement
 epic_flow:
+  - story_flow
   - merge
   - unknown_epic_task
 `);
@@ -515,6 +566,7 @@ tasks:
 story_flow:
   - implement
 epic_flow:
+  - story_flow
   - merge
   - loop:
       - unknown_loop_task
@@ -531,16 +583,17 @@ tasks:
 story_flow:
   - implement
 epic_flow:
+  - story_flow
   - merge
   - validate
 `);
       const result = parseWorkflow(filePath);
-      expect(result.epicFlow).toEqual(['merge', 'validate']);
+      expect(result.epicFlow).toEqual(['story_flow', 'merge', 'validate']);
     });
   });
 
   describe('flow + story_flow coexistence (AC #9)', () => {
-    it('rejects workflow with both flow: and story_flow:', () => {
+    it('accepts workflow with both flow: and story_flow: (flow is legacy/ignored)', () => {
       const filePath = writeYaml('both-flows.yaml', `
 tasks:
   implement:
@@ -549,9 +602,12 @@ flow:
   - implement
 story_flow:
   - implement
+epic_flow:
+  - story_flow
 `);
-      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
-      expect(() => parseWorkflow(filePath)).toThrow(/both.*flow.*story_flow|Cannot have both/i);
+      const result = parseWorkflow(filePath);
+      // story_flow takes precedence; flow is legacy
+      expect(result.storyFlow).toEqual(['implement']);
     });
   });
 
@@ -561,26 +617,29 @@ story_flow:
 tasks:
   merge_step:
     agent: null
-flow:
+story_flow:
   - merge_step
+epic_flow:
+  - story_flow
 `);
       const result = parseWorkflow(filePath);
       expect(result.tasks.merge_step.agent).toBeNull();
     });
   });
 
-  describe('scope: per-epic (AC #11)', () => {
-    it('parses task with scope: per-epic', () => {
-      const filePath = writeYaml('per-epic.yaml', `
+  describe('task without scope (AC #11)', () => {
+    it('parses task without scope field', () => {
+      const filePath = writeYaml('no-scope.yaml', `
 tasks:
   plan:
     agent: pm
-    scope: per-epic
-flow:
+story_flow:
   - plan
+epic_flow:
+  - story_flow
 `);
       const result = parseWorkflow(filePath);
-      expect(result.tasks.plan.scope).toBe('per-epic');
+      expect(result.tasks.plan.agent).toBe('pm');
     });
   });
 
@@ -590,8 +649,10 @@ flow:
 tasks:
   implement:
     agent: dev
-flow:
+story_flow:
   - implement
+epic_flow:
+  - story_flow
 `);
       const result = parseWorkflow(filePath);
 

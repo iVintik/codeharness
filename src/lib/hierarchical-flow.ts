@@ -19,8 +19,8 @@ export interface HierarchicalFlow {
 
 // --- Constants ---
 
-/** Built-in epic flow task names that do not need entries in `tasks:`. */
-export const BUILTIN_EPIC_FLOW_TASKS = new Set(['merge', 'validate']);
+/** Built-in epic flow step names that do not need entries in `tasks:`. */
+export const BUILTIN_EPIC_FLOW_TASKS = new Set(['merge', 'validate', 'story_flow']);
 
 /** Default execution configuration values. */
 export const EXECUTION_DEFAULTS: ExecutionConfig = {
@@ -40,41 +40,43 @@ const VALID_STORY_STRATEGY = new Set<string>(['sequential', 'parallel']);
 // --- Resolution ---
 
 /**
- * Resolve a parsed workflow YAML object into a HierarchicalFlow.
+ * Resolve a parsed workflow YAML into a HierarchicalFlow.
  *
- * Handles three cases:
- * 1. Legacy: only `flow` present → normalized to `storyFlow`
- * 2. Hierarchical: `story_flow` (and optionally `epic_flow`, `execution`) present
- * 3. Conflict: both `flow` and `story_flow` → rejected with error
- *
- * This is a pure parsing/normalization function with no side effects.
+ * Requires `story_flow` and `epic_flow`. The `epic_flow` must contain
+ * exactly one `story_flow` reference that marks where per-story
+ * iteration happens within the epic pipeline.
  */
 export function resolveHierarchicalFlow(
   parsed: Record<string, unknown>,
   resolvedTasks: Record<string, ResolvedTask>,
 ): HierarchicalFlow {
-  const hasFlow = 'flow' in parsed && parsed.flow !== undefined;
   const hasStoryFlow = 'story_flow' in parsed && parsed.story_flow !== undefined;
+  const hasEpicFlow = 'epic_flow' in parsed && parsed.epic_flow !== undefined;
 
-  // Reject coexistence of flow and story_flow
-  if (hasFlow && hasStoryFlow) {
-    throw new HierarchicalFlowError(
-      'Workflow cannot have both "flow" and "story_flow" — use "story_flow" for hierarchical workflows or "flow" for legacy mode',
-    );
+  if (!hasStoryFlow) {
+    throw new HierarchicalFlowError('Workflow must define "story_flow"');
+  }
+  if (!hasEpicFlow) {
+    throw new HierarchicalFlowError('Workflow must define "epic_flow"');
   }
 
-  // Resolve execution config with defaults and validation
+  // Resolve execution config
   const rawExecution = (parsed.execution != null && typeof parsed.execution === 'object')
     ? parsed.execution as Record<string, unknown>
     : {};
   const execution = resolveExecutionConfig(rawExecution);
 
-  // Resolve story flow
-  const rawStoryFlow = hasStoryFlow ? parsed.story_flow : parsed.flow;
-  const storyFlow: FlowStep[] = normalizeFlowArray(rawStoryFlow);
-
-  // Resolve epic flow
+  const storyFlow: FlowStep[] = normalizeFlowArray(parsed.story_flow);
   const epicFlow: FlowStep[] = normalizeFlowArray(parsed.epic_flow);
+
+  // Validate story_flow reference exists in epic_flow
+  const storyFlowRefs = epicFlow.filter(s => s === 'story_flow');
+  if (storyFlowRefs.length === 0) {
+    throw new HierarchicalFlowError('epic_flow must contain a "story_flow" reference');
+  }
+  if (storyFlowRefs.length > 1) {
+    throw new HierarchicalFlowError('epic_flow must contain exactly one "story_flow" reference');
+  }
 
   return {
     execution,

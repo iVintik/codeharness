@@ -25,7 +25,6 @@ const TEMPLATES_DIR = resolve(getPackageRoot(), 'templates/workflows');
 
 export interface ResolvedTask {
   agent: string | null;
-  scope: 'per-story' | 'per-run' | 'per-epic';
   session: 'fresh' | 'continue';
   source_access: boolean;
   prompt_template?: string;
@@ -45,13 +44,14 @@ export type FlowStep = string | LoopBlock;
 
 export interface ResolvedWorkflow {
   tasks: Record<string, ResolvedTask>;
-  flow: FlowStep[];
+  /** Story-level flow — runs for each story in the epic. */
+  storyFlow: FlowStep[];
+  /** Epic-level flow — runs once per epic. Contains 'story_flow' reference. */
+  epicFlow: FlowStep[];
   /** Execution configuration (parallel, isolation, merge strategy). */
   execution: ExecutionConfig;
-  /** Story-level flow steps (normalized from `flow` or `story_flow`). */
-  storyFlow: FlowStep[];
-  /** Epic-level flow steps (empty if not defined). */
-  epicFlow: FlowStep[];
+  /** @deprecated Flat flow for backward compat. Use storyFlow/epicFlow. */
+  flow: FlowStep[];
 }
 
 // --- Error Class ---
@@ -175,32 +175,28 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
     execution?: Record<string, unknown>;
   };
 
-  // Check for flow/story_flow coexistence (before referential integrity)
-  const hasFlow = 'flow' in data && data.flow !== undefined;
+  // Require story_flow and epic_flow
   const hasStoryFlow = 'story_flow' in data && data.story_flow !== undefined;
-  if (hasFlow && hasStoryFlow) {
-    throw new WorkflowParseError(
-      'Workflow cannot have both "flow" and "story_flow" — use "story_flow" for hierarchical workflows or "flow" for legacy mode',
-      [{ path: '/', message: 'Cannot have both "flow" and "story_flow"' }],
-    );
+  const hasEpicFlow = 'epic_flow' in data && data.epic_flow !== undefined;
+  if (!hasStoryFlow) {
+    throw new WorkflowParseError('Workflow must define "story_flow"', [{ path: '/', message: 'Missing "story_flow"' }]);
+  }
+  if (!hasEpicFlow) {
+    throw new WorkflowParseError('Workflow must define "epic_flow"', [{ path: '/', message: 'Missing "epic_flow"' }]);
   }
 
-  // Determine the effective story flow for referential integrity checks
-  const effectiveStoryFlow: unknown[] = (hasStoryFlow ? data.story_flow : data.flow) ?? [];
+  const effectiveStoryFlow: unknown[] = data.story_flow ?? [];
   const effectiveEpicFlow: unknown[] = data.epic_flow ?? [];
 
   // Referential integrity check — collect all errors before throwing
   const taskNames = new Set(Object.keys(data.tasks));
   const allErrors: Array<{ path: string; message: string }> = [];
 
-  // 1. Story flow (or legacy flow) task reference validation
-  const storyFlowLabel = hasStoryFlow ? 'story_flow' : 'flow';
-  validateFlowReferences(effectiveStoryFlow, taskNames, storyFlowLabel, allErrors, false);
+  // 1. Story flow task reference validation
+  validateFlowReferences(effectiveStoryFlow, taskNames, 'story_flow', allErrors, false);
 
-  // 2. Epic flow task reference validation (with built-in whitelist)
-  if (effectiveEpicFlow.length > 0) {
-    validateFlowReferences(effectiveEpicFlow, taskNames, 'epic_flow', allErrors, true);
-  }
+  // 2. Epic flow task reference validation (with built-in whitelist for 'story_flow')
+  validateFlowReferences(effectiveEpicFlow, taskNames, 'epic_flow', allErrors, true);
 
   // 3. Driver and agent referential integrity check
   validateReferentialIntegrity(data, allErrors);
@@ -215,7 +211,6 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
   for (const [taskName, task] of Object.entries(data.tasks)) {
     const resolved: ResolvedTask = {
       agent: task.agent as string | null,
-      scope: (task.scope as ResolvedTask['scope']) ?? 'per-story',
       session: (task.session as ResolvedTask['session']) ?? 'fresh',
       source_access: (task.source_access as boolean) ?? true,
     };
@@ -254,15 +249,12 @@ function validateAndResolve(parsed: unknown): ResolvedWorkflow {
     throw err;
   }
 
-  // Build resolved flow for backward compat (storyFlow is the primary flow)
-  const resolvedFlow: FlowStep[] = hierarchical.storyFlow;
-
   return {
     tasks: resolvedTasks,
-    flow: resolvedFlow,
-    execution: hierarchical.execution,
     storyFlow: hierarchical.storyFlow,
     epicFlow: hierarchical.epicFlow,
+    execution: hierarchical.execution,
+    flow: hierarchical.storyFlow, // deprecated compat
   };
 }
 

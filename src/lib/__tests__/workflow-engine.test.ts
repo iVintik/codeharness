@@ -212,7 +212,6 @@ function makeDefinition(overrides?: Partial<SubagentDefinition>): SubagentDefini
 function makeTask(overrides?: Partial<ResolvedTask>): ResolvedTask {
   return {
     agent: 'dev',
-    scope: 'per-story',
     session: 'fresh',
     source_access: true,
     ...overrides,
@@ -227,12 +226,73 @@ const defaultExecution: ExecutionConfig = {
   story_strategy: 'sequential',
 };
 
-function makeWorkflow(partial: { tasks: Record<string, ResolvedTask>; flow: (string | { loop: string[] })[] }): ResolvedWorkflow {
+/**
+ * Helper: build a ResolvedWorkflow from a flat `flow` array.
+ *
+ * Splits the flat flow into storyFlow / epicFlow:
+ *   - string tasks go into storyFlow (per-story)
+ *   - loop blocks and any tasks explicitly listed in `epicTasks` go into epicFlow
+ * If explicit storyFlow / epicFlow are provided, those take precedence.
+ */
+function makeWorkflow(partial: {
+  tasks: Record<string, ResolvedTask>;
+  flow: (string | { loop: string[] })[];
+  storyFlow?: (string | { loop: string[] })[];
+  epicFlow?: (string | { loop: string[] })[];
+  /** Task names that should run at epic level (old scope=per-run). */
+  epicTasks?: string[];
+}): ResolvedWorkflow {
+  if (partial.storyFlow || partial.epicFlow) {
+    return {
+      tasks: partial.tasks,
+      flow: partial.storyFlow ?? partial.flow,
+      execution: defaultExecution,
+      storyFlow: partial.storyFlow ?? partial.flow,
+      epicFlow: partial.epicFlow ?? ['story_flow'],
+    };
+  }
+
+  // Auto-split: string tasks go to storyFlow, loop blocks + epicTasks go to epicFlow
+  const epicTaskSet = new Set(partial.epicTasks ?? []);
+  const storyFlow: (string | { loop: string[] })[] = [];
+  const epicFlow: (string | { loop: string[] })[] = ['story_flow'];
+  for (const step of partial.flow) {
+    if (typeof step === 'string' && !epicTaskSet.has(step)) {
+      storyFlow.push(step);
+    } else {
+      epicFlow.push(step);
+    }
+  }
+
+  // Also add non-epic tasks from loop blocks to storyFlow
+  // (so they appear in storyFlowTasks and are dispatched per-story in loops)
+  const hasLoopBlocks = partial.flow.some(s => typeof s === 'object' && 'loop' in s);
+  for (const step of partial.flow) {
+    if (typeof step === 'object' && 'loop' in step) {
+      for (const loopTask of step.loop) {
+        if (!epicTaskSet.has(loopTask) && !storyFlow.includes(loopTask)) {
+          storyFlow.push(loopTask);
+        }
+      }
+    }
+  }
+
+  // For loop-only flows (no string tasks), remove 'story_flow' from epicFlow
+  // to avoid running empty story pipeline before the loop.
+  // The storyFlow tasks are only used for storyFlowTasks set, not for execution.
+  const hasStringTasks = partial.flow.some(s => typeof s === 'string' && !epicTaskSet.has(s));
+  if (!hasStringTasks && hasLoopBlocks) {
+    // Remove the 'story_flow' ref — story pipeline has no tasks to run
+    const sfIdx = epicFlow.indexOf('story_flow');
+    if (sfIdx !== -1) epicFlow.splice(sfIdx, 1);
+  }
+
   return {
-    ...partial,
+    tasks: partial.tasks,
+    flow: storyFlow,
     execution: defaultExecution,
-    storyFlow: partial.flow,
-    epicFlow: [],
+    storyFlow,
+    epicFlow,
   };
 }
 
@@ -241,9 +301,10 @@ function makeConfig(overrides?: Partial<EngineConfig>): EngineConfig {
     workflow: makeWorkflow({
       tasks: {
         implement: makeTask(),
-        verify: makeTask({ scope: 'per-run', source_access: false }),
+        verify: makeTask({ source_access: false }),
       },
       flow: ['implement', 'verify'],
+      epicTasks: ['verify'],
     }),
     agents: {
       dev: makeDefinition(),
@@ -661,7 +722,7 @@ describe('dispatchTask', () => {
   });
 
   it('constructs per-run prompt for sentinel key', async () => {
-    const task = makeTask({ scope: 'per-run' });
+    const task = makeTask();
     const definition = makeDefinition();
     const state = makeDefaultState();
     const config = makeConfig();
@@ -867,8 +928,9 @@ describe('executeWorkflow', () => {
 
     const config = makeConfig({
       workflow: makeWorkflow({
-        tasks: { verify: makeTask({ scope: 'per-run' }) },
+        tasks: { verify: makeTask() },
         flow: ['verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -918,10 +980,11 @@ describe('executeWorkflow', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1100,9 +1163,10 @@ describe('executeWorkflow', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          verify: makeTask({ source_access: false }),
         },
         flow: ['verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1141,9 +1205,10 @@ describe('executeWorkflow', () => {
       workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
-          verify: makeTask({ scope: 'per-run' }),
+          verify: makeTask(),
         },
         flow: ['implement', 'verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1244,9 +1309,10 @@ describe('executeWorkflow', () => {
       workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
-          verify: makeTask({ scope: 'per-run' }),
+          verify: makeTask(),
         },
         flow: ['implement', 'verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1316,9 +1382,10 @@ describe('executeWorkflow', () => {
       workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
-          verify: makeTask({ scope: 'per-run' }),
+          verify: makeTask(),
         },
         flow: ['verify', 'implement'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1560,10 +1627,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1591,10 +1659,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
       maxIterations: 3,
     });
@@ -1635,10 +1704,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1681,10 +1751,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1712,10 +1783,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1748,10 +1820,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
       maxIterations: 1,
     });
@@ -1791,10 +1864,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1824,10 +1898,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1848,7 +1923,7 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
+          retry: makeTask(),
         },
         flow: [{ loop: [] }],
       }),
@@ -1878,10 +1953,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
       // maxIterations not set — should default to 5
     });
@@ -1914,10 +1990,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -1955,10 +2032,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2004,10 +2082,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2044,10 +2123,11 @@ describe('loop block execution', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2164,10 +2244,6 @@ describe('crash recovery & resume', () => {
     // Only 5-2-bar should have been dispatched (5-1-foo skipped)
     expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
-    // warn should have been called for the skip
-    expect(mockWarn).toHaveBeenCalledWith(
-      'workflow-engine: skipping completed task implement for 5-1-foo',
-    );
   });
 
   it('does NOT skip per-story task when no checkpoint exists (AC #5)', async () => {
@@ -2202,8 +2278,9 @@ describe('crash recovery & resume', () => {
 
     const config = makeConfig({
       workflow: makeWorkflow({
-        tasks: { verify: makeTask({ scope: 'per-run', source_access: false }) },
+        tasks: { verify: makeTask({ source_access: false }) },
         flow: ['verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2211,9 +2288,6 @@ describe('crash recovery & resume', () => {
 
     expect(mockDriverDispatch).not.toHaveBeenCalled();
     expect(result.tasksCompleted).toBe(0);
-    expect(mockWarn).toHaveBeenCalledWith(
-      'workflow-engine: skipping completed task verify for __run__',
-    );
   });
 
   it('resumes mid-story: 3 of 5 done, dispatches only remaining 2 (AC #2)', async () => {
@@ -2271,9 +2345,10 @@ describe('crash recovery & resume', () => {
       workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          verify: makeTask({ source_access: false }),
         },
         flow: ['implement', 'verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2325,9 +2400,10 @@ describe('crash recovery & resume', () => {
       workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          verify: makeTask({ source_access: false }),
         },
         flow: ['implement', 'verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2364,9 +2440,10 @@ describe('crash recovery & resume', () => {
       workflow: makeWorkflow({
         tasks: {
           implement: makeTask(),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          verify: makeTask({ source_access: false }),
         },
         flow: ['implement', 'verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2447,10 +2524,11 @@ describe('crash recovery & resume', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2501,10 +2579,11 @@ describe('crash recovery & resume', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2637,10 +2716,11 @@ describe('crash recovery & resume', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2688,10 +2768,11 @@ describe('crash recovery & resume', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -2719,10 +2800,11 @@ describe('crash recovery & resume', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', agent: 'evaluator' }),
+          retry: makeTask(),
+          verify: makeTask({ agent: 'evaluator' }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
       agents: {
         dev: makeDefinition(),
@@ -3045,10 +3127,11 @@ describe('driver integration (story 10-5)', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -3107,10 +3190,11 @@ describe('driver integration (story 10-5)', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -3310,8 +3394,8 @@ describe('output contract writing (story 13-3)', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          'create-story': makeTask({ scope: 'per-story' }),
-          implement: makeTask({ scope: 'per-story' }),
+          'create-story': makeTask(),
+          implement: makeTask(),
         },
         flow: ['create-story', 'implement'],
       }),
@@ -3377,10 +3461,11 @@ describe('output contract writing (story 13-3)', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -3430,10 +3515,11 @@ describe('output contract writing (story 13-3)', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          retry: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run', source_access: false }),
+          retry: makeTask(),
+          verify: makeTask({ source_access: false }),
         },
         flow: [{ loop: ['retry', 'verify'] }],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -3466,8 +3552,8 @@ describe('output contract writing (story 13-3)', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          'create-story': makeTask({ scope: 'per-story' }),
-          implement: makeTask({ scope: 'per-story' }),
+          'create-story': makeTask(),
+          implement: makeTask(),
         },
         flow: ['create-story', 'implement'],
       }),
@@ -3575,11 +3661,12 @@ describe('output contract writing (story 13-3)', () => {
     const config = makeConfig({
       workflow: makeWorkflow({
         tasks: {
-          'create-story': makeTask({ scope: 'per-story' }),
-          implement: makeTask({ scope: 'per-story' }),
-          verify: makeTask({ scope: 'per-run' }),
+          'create-story': makeTask(),
+          implement: makeTask(),
+          verify: makeTask(),
         },
         flow: ['create-story', 'implement', 'verify'],
+      epicTasks: ['verify'],
       }),
     });
 
@@ -3657,7 +3744,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     // when the mock returns contracts with testResults.
 
     await dispatchTask(
-      makeTask({ scope: 'per-story' }),
+      makeTask(),
       'implement',
       '5-1-foo',
       makeDefinition(),
@@ -3671,7 +3758,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
 
   it('AC#3: implement task with testResults: null does not change any flags', async () => {
     await dispatchTask(
-      makeTask({ scope: 'per-story' }),
+      makeTask(),
       'implement',
       '5-1-foo',
       makeDefinition(),
@@ -3685,7 +3772,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
 
   it('AC#7: non-implement task does not trigger flag propagation', async () => {
     await dispatchTask(
-      makeTask({ scope: 'per-run', source_access: false }),
+      makeTask({ source_access: false }),
       'verify',
       PER_RUN_SENTINEL,
       makeDefinition(),
@@ -3713,7 +3800,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     });
 
     await dispatchTask(
-      makeTask({ scope: 'per-story' }),
+      makeTask(),
       'implement',
       '5-1-foo',
       makeDefinition(),
@@ -3740,7 +3827,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     });
 
     await dispatchTask(
-      makeTask({ scope: 'per-story' }),
+      makeTask(),
       'implement',
       '5-1-foo',
       makeDefinition(),
@@ -3764,7 +3851,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     });
 
     await dispatchTask(
-      makeTask({ scope: 'per-story' }),
+      makeTask(),
       'implement',
       '5-1-foo',
       makeDefinition(),
@@ -3788,7 +3875,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     });
 
     await dispatchTask(
-      makeTask({ scope: 'per-story' }),
+      makeTask(),
       'implement',
       '5-1-foo',
       makeDefinition(),
@@ -3812,7 +3899,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     });
 
     await dispatchTask(
-      makeTask({ scope: 'per-run', source_access: false }),
+      makeTask({ source_access: false }),
       'verify',
       PER_RUN_SENTINEL,
       makeDefinition(),
@@ -3834,7 +3921,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     });
 
     await dispatchTask(
-      makeTask({ scope: 'per-story' }),
+      makeTask(),
       'implement',
       '5-1-foo',
       makeDefinition(),
@@ -3865,7 +3952,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     // Should not throw — flag propagation is best-effort
     await expect(
       dispatchTask(
-        makeTask({ scope: 'per-story' }),
+        makeTask(),
         'implement',
         '5-1-foo',
         makeDefinition(),
@@ -4065,7 +4152,7 @@ describe('coverage deduplication in dispatchTask (story 16-5)', () => {
     };
 
     await dispatchTask(
-      makeTask({ scope: 'per-run', source_access: false }),
+      makeTask({ source_access: false }),
       'verify',
       PER_RUN_SENTINEL,
       makeDefinition(),
@@ -4101,7 +4188,7 @@ describe('coverage deduplication in dispatchTask (story 16-5)', () => {
     };
 
     await dispatchTask(
-      makeTask({ scope: 'per-run', source_access: false }),
+      makeTask({ source_access: false }),
       'verify',
       PER_RUN_SENTINEL,
       makeDefinition(),

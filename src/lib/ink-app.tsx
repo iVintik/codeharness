@@ -52,8 +52,10 @@ export function App({ state, onCycleLane, onQuit }: { state: RendererState; onCy
 
   // Compute available height for activity section (adapts to terminal)
   const termRows = process.stdout.rows || 24;
-  // Fixed sections: header(1) + separator(1) + progress(1) + epic(1) + storyContext(3) + separator(1) + workflow(1) + separator(1) = ~10
-  const fixedHeight = 10;
+  // Fixed: header(1) + sep(1) + progress(1) + epic(1) + storyCtx(3) + sep(1) + workflow(1) + sep(1) = 10
+  // Plus: static messages above viewport + 2 lines buffer for Ink overhead
+  const staticLines = state.messages.length;
+  const fixedHeight = 10 + staticLines + 2;
   const availableHeight = Math.max(3, termRows - fixedHeight);
 
   return (

@@ -177,6 +177,7 @@ function makeDriverStream(output: string, sessionId: string, opts?: { error?: st
  * Helper: create an async iterable that throws an error (for testing dispatch failures).
  */
 function makeDriverStreamError(err: unknown) {
+  // eslint-disable-next-line require-yield
   return (async function* () {
     throw err;
   })();

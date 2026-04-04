@@ -1,3 +1,4 @@
+/* eslint-disable require-yield */
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import type { AgentDriver, DispatchOpts, DriverCapabilities, DriverHealth } from '../agents/types.js';
 import type { StreamEvent } from '../agents/stream-parser.js';

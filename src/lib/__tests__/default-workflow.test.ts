@@ -36,14 +36,16 @@ describe('default embedded workflow', () => {
       workflow = parseWorkflow(defaultWorkflowPath);
     });
 
-    it('defines eight tasks: create-story, implement, check, review, document, verify, retry, and retro', () => {
+    it('defines ten tasks: create-story, negotiate-acs, implement, check, review, document, deploy, verify, retry, and retro', () => {
       const taskNames = Object.keys(workflow.tasks);
-      expect(taskNames).toHaveLength(8);
+      expect(taskNames).toHaveLength(10);
       expect(taskNames).toContain('create-story');
+      expect(taskNames).toContain('negotiate-acs');
       expect(taskNames).toContain('implement');
       expect(taskNames).toContain('check');
       expect(taskNames).toContain('review');
       expect(taskNames).toContain('document');
+      expect(taskNames).toContain('deploy');
       expect(taskNames).toContain('verify');
       expect(taskNames).toContain('retry');
       expect(taskNames).toContain('retro');
@@ -103,27 +105,39 @@ describe('default embedded workflow', () => {
   });
 
   describe('flow structure (AC #3)', () => {
-    it('storyFlow: create-story, implement, check, review, document', () => {
+    it('storyFlow: create-story, negotiate-acs, loop, implement, check, review, loop, document', () => {
       const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.storyFlow).toHaveLength(5);
+      expect(workflow.storyFlow).toHaveLength(8);
       expect(workflow.storyFlow[0]).toBe('create-story');
-      expect(workflow.storyFlow[1]).toBe('implement');
-      expect(workflow.storyFlow[2]).toBe('check');
-      expect(workflow.storyFlow[3]).toBe('review');
-      expect(workflow.storyFlow[4]).toBe('document');
+      expect(workflow.storyFlow[1]).toBe('negotiate-acs');
+
+      const storyLoop1 = workflow.storyFlow[2] as LoopBlock;
+      expect(storyLoop1).toHaveProperty('loop');
+      expect(storyLoop1.loop).toEqual(['create-story', 'negotiate-acs']);
+
+      expect(workflow.storyFlow[3]).toBe('implement');
+      expect(workflow.storyFlow[4]).toBe('check');
+      expect(workflow.storyFlow[5]).toBe('review');
+
+      const storyLoop2 = workflow.storyFlow[6] as LoopBlock;
+      expect(storyLoop2).toHaveProperty('loop');
+      expect(storyLoop2.loop).toEqual(['retry', 'check', 'review']);
+
+      expect(workflow.storyFlow[7]).toBe('document');
     });
 
-    it('epicFlow: story_flow, verify, loop:[retry, check, review, document, verify], retro', () => {
+    it('epicFlow: story_flow, deploy, verify, loop:[retry, document, deploy, verify], retro', () => {
       const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.epicFlow).toHaveLength(4);
+      expect(workflow.epicFlow).toHaveLength(5);
       expect(workflow.epicFlow[0]).toBe('story_flow');
-      expect(workflow.epicFlow[1]).toBe('verify');
+      expect(workflow.epicFlow[1]).toBe('deploy');
+      expect(workflow.epicFlow[2]).toBe('verify');
 
-      const loopStep = workflow.epicFlow[2] as LoopBlock;
+      const loopStep = workflow.epicFlow[3] as LoopBlock;
       expect(loopStep).toHaveProperty('loop');
-      expect(loopStep.loop).toEqual(['retry', 'check', 'review', 'document', 'verify']);
+      expect(loopStep.loop).toEqual(['retry', 'document', 'deploy', 'verify']);
 
-      expect(workflow.epicFlow[3]).toBe('retro');
+      expect(workflow.epicFlow[4]).toBe('retro');
     });
 
     it('flow (deprecated compat) equals storyFlow', () => {

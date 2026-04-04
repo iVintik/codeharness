@@ -4,6 +4,11 @@ tasks:
     session: fresh
     source_access: true
     model: claude-opus-4-6
+  negotiate-acs:
+    agent: negotiator
+    session: fresh
+    source_access: true
+    model: claude-sonnet-4-6
   implement:
     agent: dev
     session: fresh
@@ -24,6 +29,11 @@ tasks:
     session: fresh
     source_access: true
     model: claude-opus-4-6
+  deploy:
+    agent: deployer
+    session: fresh
+    source_access: true
+    model: claude-sonnet-4-6
   verify:
     agent: evaluator
     session: fresh
@@ -42,18 +52,26 @@ tasks:
 
 story_flow:
   - create-story
+  - negotiate-acs
+  - loop:
+      - create-story
+      - negotiate-acs
   - implement
   - check
   - review
-  - document
-
-epic_flow:
-  - story_flow
-  - verify
   - loop:
       - retry
       - check
       - review
+  - document
+
+epic_flow:
+  - story_flow
+  - deploy
+  - verify
+  - loop:
+      - retry
       - document
+      - deploy
       - verify
   - retro

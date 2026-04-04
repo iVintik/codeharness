@@ -171,3 +171,26 @@ export function parseVerdict(output: string): EvaluatorVerdict {
 
   return verdict;
 }
+
+/**
+ * Lightweight verdict parser for non-evaluator loop tasks (negotiator, reviewer).
+ *
+ * Extracts a simple `{ "verdict": "pass"|"fail" }` from anywhere in the output.
+ * Does NOT require the full EvaluatorVerdict schema. Returns null if no verdict
+ * JSON is found — the caller decides how to handle (typically: treat as "no verdict").
+ */
+export function parseSimpleVerdict(output: string): { verdict: 'pass' | 'fail' } | null {
+  // Try to find a JSON object containing a verdict field anywhere in the output
+  const jsonPattern = /\{[^{}]*"verdict"\s*:\s*"(pass|fail)"[^{}]*\}/;
+  const match = jsonPattern.exec(output);
+  if (!match) return null;
+
+  try {
+    const parsed = JSON.parse(match[0]) as { verdict?: string };
+    if (parsed.verdict === 'pass' || parsed.verdict === 'fail') {
+      return { verdict: parsed.verdict };
+    }
+  } catch { // IGNORE: malformed JSON match — return null
+  }
+  return null;
+}

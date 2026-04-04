@@ -74,7 +74,6 @@ describe('agent-resolver', () => {
       const agent = loadEmbeddedAgent('evaluator');
       const template = agent.prompt_template!;
       expect(template).toContain('broken');
-      expect(template).toContain('benefit of the doubt');
       expect(template).toContain('UNKNOWN');
     });
 
@@ -109,11 +108,11 @@ describe('agent-resolver', () => {
       expect(template).toContain('./story-files/');
     });
 
-    it('evaluator.yaml prompt_template instructs re-verification from scratch (AC #1, story 6-3)', () => {
+    it('evaluator.yaml prompt_template includes Docker-based verification and quality_scores (AC #1, story 6-3)', () => {
       const agent = loadEmbeddedAgent('evaluator');
       const template = agent.prompt_template!;
-      expect(template).toContain('scratch');
-      expect(template).toContain('cache');
+      expect(template).toContain('Docker');
+      expect(template).toContain('quality_scores');
     });
 
     it('throws AgentResolveError for non-existent embedded agent', () => {

@@ -731,7 +731,7 @@ describe('dispatchTask', () => {
 
     expect(mockDriverDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        prompt: 'Execute task "verify" for the current run.',
+        prompt: 'Verify the epic\'s stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps from the documentation, connect using deploy info, run commands, and observe output. Also score subjective quality on 4 dimensions.',
       }),
     );
   });
@@ -892,7 +892,7 @@ describe('executeWorkflow', () => {
     expect(callOrder).toEqual([
       'Implement story 3-1-foo',
       'Implement story 3-2-bar',
-      'Execute task "verify" for the current run.',
+      'Verify the epic\'s stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps from the documentation, connect using deploy info, run commands, and observe output. Also score subjective quality on 4 dimensions.',
     ]);
   });
 
@@ -963,7 +963,7 @@ describe('executeWorkflow', () => {
   it('executes loop blocks instead of skipping them', async () => {
     // Loop with retry (per-story) + verify (per-run) — verify returns pass on first try
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         return makeDriverStream(JSON.stringify({
           verdict: 'pass',
           score: { passed: 1, failed: 0, unknown: 0, total: 1 },
@@ -1614,7 +1614,7 @@ describe('loop block execution', () => {
 
   it('terminates loop when verdict is pass (AC #2)', async () => {
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         return makeDriverStream(makePassVerdict(), 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
@@ -1645,7 +1645,7 @@ describe('loop block execution', () => {
     // Verify always fails but with increasing passed count to avoid circuit breaker
     let iterCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         iterCount++;
         return makeDriverStream(makeProgressingFailVerdict(iterCount), 'sess-v');
       }
@@ -1684,7 +1684,7 @@ describe('loop block execution', () => {
     let dispatchCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       dispatchCount++;
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         // Return the same fail verdict every time → stagnation (passed=1 each iteration)
         return makeDriverStream(makeFailVerdict(), 'sess-v');
       }
@@ -1734,7 +1734,7 @@ describe('loop block execution', () => {
       callCount++;
       dispatches.push(opts.prompt);
 
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         // First verify: fail, second verify: pass
         if (callCount <= 2) {
           return makeDriverStream(makeFailVerdict(), 'sess-v');
@@ -1770,7 +1770,7 @@ describe('loop block execution', () => {
 
   it('parses verdict from DispatchResult.output (AC #6)', async () => {
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         return makeDriverStream(makePassVerdict(), 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
@@ -1803,7 +1803,7 @@ describe('loop block execution', () => {
 
   it('records all-UNKNOWN score when verdict parsing fails (AC #6)', async () => {
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         // Return non-JSON output
         return makeDriverStream('not a json verdict', 'sess-v');
       }
@@ -1846,7 +1846,7 @@ describe('loop block execution', () => {
     let evalCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       callCount++;
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         evalCount++;
         // Fail twice with increasing passed count (avoid circuit breaker), pass on third
         if (callCount <= 4) { // calls 1-2 = iter1 (retry+verify), calls 3-4 = iter2
@@ -1938,7 +1938,7 @@ describe('loop block execution', () => {
   it('uses default maxIterations of 5 when not specified', async () => {
     let evalCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         evalCount++;
         // Increasing passed count to avoid circuit breaker stagnation detection
         return makeDriverStream(makeProgressingFailVerdict(evalCount), 'sess-v');
@@ -1973,7 +1973,7 @@ describe('loop block execution', () => {
     let callCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       callCount++;
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         // Fail first, pass second
         if (callCount <= 2) {
           return makeDriverStream(makeFailVerdict(), 'sess-v');
@@ -2105,7 +2105,7 @@ describe('loop block execution', () => {
 
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       callCount++;
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         if (callCount <= 2) {
           // First verify: non-halt error
           return makeDriverStreamError(new DispatchError('bad response', 'UNKNOWN', 'dev', new Error('inner')));
@@ -2511,7 +2511,7 @@ describe('crash recovery & resume', () => {
 
     // verify returns pass so loop terminates
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         return makeDriverStream(JSON.stringify({
           verdict: 'pass',
           score: { passed: 2, failed: 0, unknown: 0, total: 2 },
@@ -2566,7 +2566,7 @@ describe('crash recovery & resume', () => {
 
     // Pass on next verify
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         return makeDriverStream(JSON.stringify({
           verdict: 'pass',
           score: { passed: 2, failed: 0, unknown: 0, total: 2 },
@@ -2755,7 +2755,7 @@ describe('crash recovery & resume', () => {
     });
 
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         return makeDriverStream(JSON.stringify({
           verdict: 'pass',
           score: { passed: 1, failed: 0, unknown: 0, total: 1 },
@@ -3110,7 +3110,7 @@ describe('driver integration (story 10-5)', () => {
     const dispatches: string[] = [];
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       dispatches.push(opts.prompt);
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         return makeDriverStream(JSON.stringify({
           verdict: 'pass',
           score: { passed: 1, failed: 0, unknown: 0, total: 1 },
@@ -3142,8 +3142,8 @@ describe('driver integration (story 10-5)', () => {
     expect(mockGetDriver).toHaveBeenCalledTimes(3);
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     // Verify prompts are correct
-    expect(dispatches[0]).toBe('Implement story 3-1-foo');
-    expect(dispatches[1]).toBe('Execute task "verify" for the current run.');
+    expect(dispatches[0]).toBe('Execute task "retry" for story 3-1-foo');
+    expect(dispatches[1]).toBe('Verify the epic\'s stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps from the documentation, connect using deploy info, run commands, and observe output. Also score subjective quality on 4 dimensions.');
   });
 
   it('retry prompts from evaluator findings pass through DispatchOpts.prompt (AC #9)', async () => {
@@ -3153,7 +3153,7 @@ describe('driver integration (story 10-5)', () => {
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       callCount++;
       dispatches.push(opts.prompt);
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         if (callCount <= 2) {
           return makeDriverStream(JSON.stringify({
             verdict: 'fail',
@@ -3444,7 +3444,7 @@ describe('output contract writing (story 13-3)', () => {
 
     // First verify call: pass verdict so loop exits
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         return makeDriverStream(JSON.stringify({
           verdict: 'pass',
           score: { passed: 1, failed: 0, unknown: 0, total: 1 },
@@ -3475,7 +3475,7 @@ describe('output contract writing (story 13-3)', () => {
     // verify should get the contract from retry
     expect(contractCalls.length).toBeGreaterThanOrEqual(2);
     // verify's contract should be from retry task
-    const verifyCall = contractCalls.find((c) => c.prompt.includes('Execute task'));
+    const verifyCall = contractCalls.find((c) => c.prompt.includes('Verify the epic'));
     expect(verifyCall).toBeDefined();
     expect(verifyCall!.contract).not.toBeNull();
     expect(verifyCall!.contract?.taskName).toBe('retry');
@@ -3490,7 +3490,7 @@ describe('output contract writing (story 13-3)', () => {
 
     let verifyCallCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Execute task')) {
+      if (opts.prompt.includes('Verify the epic')) {
         verifyCallCount++;
         if (verifyCallCount === 1) {
           return makeDriverStream(JSON.stringify({

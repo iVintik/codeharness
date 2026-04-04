@@ -71,6 +71,19 @@ prompt_template: |
 
   Verdict is "pass" only if `blocking` is empty and all ACs are "covered".
 
+  ## Verdict
+
+  At the END of your review output, include a verdict JSON on its own line:
+  ```json
+  {"verdict": "pass"}
+  ```
+  or if there are blocking issues:
+  ```json
+  {"verdict": "fail", "issues": ["blocking issue 1", "blocking issue 2"]}
+  ```
+
+  This verdict determines whether the implementation proceeds or requires fixes.
+
   ## Output Location
 
   Write your review JSON to ./verdict/review.json

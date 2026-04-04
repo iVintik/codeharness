@@ -22,7 +22,7 @@ import { createIsolatedWorkspace } from './source-isolation.js';
 import { generateTraceId, formatTracePrompt, recordTraceId } from './trace-id.js';
 import { resolveSessionId, recordSessionId } from './session-manager.js';
 import type { SessionLookupKey } from './session-manager.js';
-import { parseVerdict, VerdictParseError } from './verdict-parser.js';
+import { parseVerdict, parseSimpleVerdict, VerdictParseError } from './verdict-parser.js';
 import type { EvaluatorVerdict } from './verdict-parser.js';
 import { evaluateProgress } from './circuit-breaker.js';
 import { getNullTask, listNullTasks } from './null-task-registry.js';
@@ -543,21 +543,27 @@ async function dispatchTaskWithResult(
 
   // 7. Construct prompt — task-aware
   const isEpicSentinel = storyKey.startsWith('__epic_') || storyKey === PER_RUN_SENTINEL;
+  const TASK_PROMPTS: Record<string, (key: string) => string> = {
+    'create-story': (key) => `Create the story spec for ${key}. Read the epic definitions and architecture docs, then write a complete story file with acceptance criteria, tasks, and dev notes.`,
+    'negotiate-acs': (key) => `Review the ACs in story ${key} for testability. Can each AC be verified by a blind QA agent with only Docker access and user documentation? Output a verdict JSON.`,
+    'implement': (key) => `Implement story ${key}`,
+    'check': (key) => `Run automated checks for story ${key}. Execute the project's test suite, linter, and coverage tool. Report pass/fail results.`,
+    'review': (key) => `Review the implementation of story ${key}. Check for correctness, security issues, architecture violations, and AC coverage. Output a verdict JSON at the end.`,
+    'document': (key) => `Write user documentation for story ${key}. Describe what was built and how to use it from a user's perspective. No source code — describe features, UI pages, API endpoints, CLI commands, and expected behavior.`,
+    'deploy': () => `Provision the Docker environment for this project. Check for docker-compose.yml, start containers, verify health. Output a deploy report JSON with container names, URLs, credentials, and health status.`,
+    'verify': () => `Verify the epic's stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps from the documentation, connect using deploy info, run commands, and observe output. Also score subjective quality on 4 dimensions.`,
+    'retro': () => `Run a retrospective for this epic. Analyze what worked, what failed, patterns, and action items for next epic.`,
+  };
+
   let basePrompt: string;
   if (customPrompt) {
     basePrompt = customPrompt;
-  } else if (isEpicSentinel) {
-    basePrompt = `Execute task "${taskName}" for the current run.`;
-  } else if (taskName === 'document') {
-    basePrompt = `Write a verification guide for story ${storyKey}. Read the story spec at _bmad-output/implementation-artifacts/${storyKey}.md and the implementation source. Then write a guide with exact docker exec/curl commands for each AC that a blind QA agent can run to verify the story works.`;
-  } else if (taskName === 'create-story') {
-    basePrompt = `Create the story spec for ${storyKey}. Read the epic definitions and architecture docs, then write a complete story file with acceptance criteria, tasks, and dev notes.`;
-  } else if (taskName === 'review') {
-    basePrompt = `Review the implementation of story ${storyKey}. Check for correctness, security issues, architecture violations, and AC coverage.`;
-  } else if (taskName === 'check') {
-    basePrompt = `Run automated checks for story ${storyKey}. Execute the project's test suite, linter, and coverage tool. Report pass/fail results.`;
+  } else if (isEpicSentinel && TASK_PROMPTS[taskName]) {
+    basePrompt = TASK_PROMPTS[taskName](storyKey);
+  } else if (TASK_PROMPTS[taskName]) {
+    basePrompt = TASK_PROMPTS[taskName](storyKey);
   } else {
-    basePrompt = `Implement story ${storyKey}`;
+    basePrompt = `Execute task "${taskName}" for story ${storyKey}`;
   }
 
   // 7b. Inject previous task's output contract context into the prompt (story 13-2)
@@ -1030,7 +1036,20 @@ export async function executeLoopBlock(
                 );
               }
             }
-            // If not a VerdictParseError or not retryable, verdict stays null
+            // If not a VerdictParseError or not retryable, try simple verdict
+          }
+
+          // Fallback: lightweight verdict for non-evaluator tasks (negotiator, reviewer)
+          if (!verdict) {
+            const simple = parseSimpleVerdict(dispatchResult.output);
+            if (simple) {
+              // Synthesize a minimal EvaluatorVerdict from the simple verdict
+              verdict = {
+                verdict: simple.verdict,
+                score: { passed: simple.verdict === 'pass' ? 1 : 0, failed: simple.verdict === 'fail' ? 1 : 0, unknown: 0, total: 1 },
+                findings: [],
+              };
+            }
           }
           lastVerdict = verdict;
 
@@ -1328,6 +1347,21 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
 
           for (const storyStep of config.workflow.storyFlow) {
             if (halted || config.abortSignal?.aborted) { halted = true; break; }
+
+            // Generic loop support — works at any flow level
+            if (isLoopBlock(storyStep)) {
+              const loopResult = await executeLoopBlock(
+                storyStep, state, config, [item], lastOutputContract, storyFlowTasks,
+              );
+              state = loopResult.state;
+              errors.push(...loopResult.errors);
+              tasksCompleted += loopResult.tasksCompleted;
+              lastOutputContract = loopResult.lastContract;
+              if (loopResult.halted || state.phase === 'max-iterations' || state.phase === 'circuit-breaker') {
+                halted = true; break;
+              }
+              continue;
+            }
             if (typeof storyStep !== 'string') continue;
 
             const taskName = storyStep;
@@ -1386,12 +1420,13 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
       const epicSentinel = `__epic_${epicId}__`;
       if (isTaskCompleted(state, taskName, epicSentinel)) continue;
 
-      // Collect verification guides for blind tasks (source_access: false)
+      // Collect user docs + deploy info for blind tasks (source_access: false)
       let guideFiles: string[] = [];
       if (task.source_access === false) {
         const guidesDir = join(projectDir, '.codeharness', 'verify-guides');
         try {
           mkdirSync(guidesDir, { recursive: true });
+          // Collect document (user docs) contracts for each story
           for (const item of epicItems) {
             const contractPath = join(projectDir, '.codeharness', 'contracts', `document-${item.key}.json`);
             if (existsSync(contractPath)) {
@@ -1401,6 +1436,16 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
                 writeFileSync(guidePath, contractData.output, 'utf-8');
                 guideFiles.push(guidePath);
               }
+            }
+          }
+          // Collect deploy contract for this epic
+          const deployContractPath = join(projectDir, '.codeharness', 'contracts', `deploy-${epicSentinel}.json`);
+          if (existsSync(deployContractPath)) {
+            const deployData = JSON.parse(readFileSync(deployContractPath, 'utf-8')) as { output?: string };
+            if (deployData.output) {
+              const deployPath = join(guidesDir, 'deploy-info.md');
+              writeFileSync(deployPath, deployData.output, 'utf-8');
+              guideFiles.push(deployPath);
             }
           }
         } catch { // IGNORE: guide collection failure — workspace will have fewer guides

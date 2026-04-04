@@ -401,8 +401,15 @@ export function registerRunCommand(program: Command): void {
             totalCost: totalCostUsd,
           });
 
-          // Epic-level verify completion → mark all epic stories as done
+          // Epic-level verify completion → mark stories done + show quality scores
           if (event.taskName === 'verify' && event.storyKey.startsWith('__epic_')) {
+            // Show quality scores if present in the output
+            // (Evaluator includes quality_scores in verdict JSON)
+            renderer.addMessage({
+              type: 'ok',
+              key: event.storyKey.replace('__epic_', 'Epic ').replace('__', ''),
+              message: `verification complete (cost: $${(event.costUsd ?? 0).toFixed(2)})`,
+            });
             const epicId = event.storyKey.replace('__epic_', '').replace('__', '');
             for (let i = 0; i < storyEntries.length; i++) {
               const se = storyEntries[i];

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 64,
-    "done": 54,
+    "done": 55,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -653,17 +653,21 @@
       }
     },
     "20-2-summary-bar-merge-status": {
-      "status": "verifying",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T02:59:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/20-2-summary-bar-merge-status-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "20-3-lane-event-routing-activity-display": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "verifying",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T03:06:00Z",
       "lastError": null,
       "proofPath": null,
       "acResults": null
@@ -843,9 +847,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": "20-2-summary-bar-merge-status",
-    "currentPhase": "verify",
-    "lastAction": "Starting test-provable verification",
+    "currentStory": null,
+    "currentPhase": null,
+    "lastAction": null,
     "acProgress": null
   },
   "actionItems": []

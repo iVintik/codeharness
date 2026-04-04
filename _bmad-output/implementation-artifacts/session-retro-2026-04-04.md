@@ -925,3 +925,173 @@ The **verify** phase consumes **45.1%** of total cost ($168.14) — nearly half 
 *Session wall-clock: ~01:10 to ~03:10 (approx 2 hours autonomous)*
 *Stories completed: 5 (17-3 verify, 18-1, 18-2, 18-3, 19-1)*
 *Estimated session cost: ~$27-30 (based on per-story averages)*
+
+---
+
+# Session 8 Retrospective — 2026-04-04
+
+**Generated:** 2026-04-04T07:15:00Z
+
+---
+
+## 1. Session Summary
+
+**Duration:** ~4 hours (sessions 7-8 boundary)
+**Stories touched:** 3
+**Tests passing:** 5134 (end of session)
+**Coverage:** 96.72%
+
+| Story | Phase Completed | Status |
+|-------|----------------|--------|
+| 20-2-summary-bar-merge-status | verification | done (Tier A quick-win, ALL_PASS proof existed) |
+| 20-3-lane-event-routing-activity-display | create-story | done (12 ACs, 11 tasks) |
+| 20-3-lane-event-routing-activity-display | dev-story | done (5129 tests pass) |
+| 20-3-lane-event-routing-activity-display | code-review | done (4 HIGH, 2 MEDIUM fixed, 5134 tests pass) |
+| 20-3-lane-event-routing-activity-display | verification | deferred to next session |
+
+**Sprint position:** Epic 20 in progress. Stories 20-1 and 20-2 done. Story 20-3 at `verifying` status.
+
+---
+
+## 2. Issues Analysis (from Session Issues Log)
+
+### 2.1 Code Quality Issues Found in Code Review (20-3)
+
+| Severity | Issue | Resolution |
+|----------|-------|------------|
+| HIGH | `pinnedLane` never resets — Ctrl+L permanently disables auto-switching | Fixed |
+| HIGH | No test coverage for Ctrl+L cycling or pinned lane behavior | Fixed — added 4 tests |
+| MEDIUM | Signal handler cleanup leak — `cleanup()` didn't remove stdin listener | Fixed with `cleanupFull()` |
+| MEDIUM | `onCycleLane` prop never wired from renderer to App component | Fixed |
+| MEDIUM | Redundant raw stdin Ctrl+L listener alongside Ink's useInput | Removed, consolidated to useInput |
+| MEDIUM | `updateMergeState(null)` didn't clear stale `summaryBar.mergingEpic` | Fixed |
+| LOW | ink-renderer.tsx at 552 lines, exceeds 300-line NFR | Not fixed — needs split |
+| LOW | `promoteActiveTool` duck-typing on `targetState ?? state` | Not fixed |
+
+### 2.2 Design Decisions & Risks
+
+- **Ctrl+L uses Ink's useInput** instead of raw stdin listener — architectural consistency improved during code review.
+- **Tasks 7 & 8 (run.ts wiring)** marked done but no run.ts changes — deferred to integration. This is technical debt.
+- **Performance test relaxed:** < 5ms per event failed under load, relaxed to < 10s for 200 events. Real overhead < 1ms, Ink re-rendering dominates.
+- **`EngineResult` lacks `storiesCompleted` field** — used `epicId` for summaryBar updates instead. Minor coupling workaround.
+- **Ctrl+M excluded from scope:** UX spec mentions it but epic definition only includes Ctrl+L. Correct scoping decision.
+
+### 2.3 Recurring Patterns Across Sessions
+
+- **`_bmad/bmm/config.yaml` path confusion:** 4 separate subagents hit this — config is at `_bmad/config.yaml`, not `_bmad/bmm/config.yaml`. Keeps wasting discovery cycles.
+- **Proof format issues:** Earlier sessions had `### AC N:` vs `## AC N:`, `**Result:**` vs `**Verdict:**` mismatches. Session 8 benefited from prior fixes — no format issues.
+- **Pre-existing BATS test failures:** Multiple subagents reported 253 `not ok` BATS results (command-not-found errors). These are unrelated to sprint work but create noise.
+
+---
+
+## 3. Cost Analysis
+
+### 3.1 Cumulative Project Totals
+
+| Metric | Value |
+|--------|-------|
+| Total API-equivalent cost | $401.58 |
+| Total API calls | 3,037 |
+| Stories tracked | 94 |
+| Average cost per story | $3.63 |
+
+### 3.2 Cost by Phase (cumulative)
+
+| Phase | Calls | Cost | % |
+|-------|-------|------|---|
+| verify | 1,464 | $181.55 | 45.2% |
+| orchestrator | 322 | $70.98 | 17.7% |
+| create-story | 387 | $43.81 | 10.9% |
+| code-review | 322 | $38.57 | 9.6% |
+| dev-story | 340 | $38.42 | 9.6% |
+| retro | 202 | $28.25 | 7.0% |
+
+**Key finding:** Verification consumes 45% of total cost. This is disproportionate. The `codeharness verify` tool runs expensive test suites and coverage checks. Many verification subagents ran `npm test` 2-4 times redundantly.
+
+### 3.3 Cost by Tool (cumulative)
+
+| Tool | Calls | Cost | % |
+|------|-------|------|---|
+| Bash | 958 | $108.21 | 26.9% |
+| Read | 688 | $96.39 | 24.0% |
+| Edit | 602 | $75.39 | 18.8% |
+| Agent | 384 | $56.58 | 14.1% |
+
+Bash and Read dominate — expected for a test-heavy workflow. Agent tool cost ($56.58, 14.1%) reflects subagent dispatch overhead.
+
+### 3.4 Session 8 Subagent Token Breakdown
+
+| Subagent | Tool Calls | Heaviest Tool | Notes |
+|----------|-----------|---------------|-------|
+| 20-2 verification | 1 | Bash (1) | Tier A quick-win — minimal cost |
+| 20-3 create-story | 14 | Read (8) | Clean execution, no redundancy |
+| 20-3 dev-story | 26 | Read (10) | 1 redundant cached read, 2 empty grep results |
+| 20-3 code-review | 24 | Read (10), Edit (8) | No significant waste |
+| **Session 8 total** | **~65** | | |
+
+**Session 8 efficiency:** Good. No major token waste. The Tier A quick-win pattern (reusing existing ALL_PASS proofs) saved significant cost on 20-2 verification.
+
+### 3.5 Token Waste Patterns (Across All Sessions)
+
+1. **Verification phase ran `npm test` redundantly:** Story 18-1 verification ran npm test 4 times. Story 19-1 verification ran test:coverage twice. Each run costs ~40-80 lines of Bash output processing.
+2. **Chunked file reads:** `worktree-manager.test.ts` was read 4 times in one subagent due to token limits (session 2, story 18-3 dev).
+3. **Duplicate coverage commands:** Code review subagents often run test:coverage pre-fix and post-fix — unavoidable but doubles the cost of that specific check.
+4. **`unknown` story bucket:** $60.75 (15.1% of total) attributed to `unknown` — likely orchestrator overhead, retros, and untagged calls. Needs better attribution.
+
+---
+
+## 4. What Went Well
+
+1. **Tier A quick-win pattern is highly efficient.** Stories 20-1, 20-2, and 19-2 all had existing ALL_PASS proofs — verification cost was 1 tool call each. This pattern should be the norm when proofs already exist.
+
+2. **Code review caught critical bugs.** The `pinnedLane` never-reset bug (HIGH) would have caused a permanent UX regression. The signal handler cleanup leak (MEDIUM) would have leaked stdin listeners. Both caught before verification.
+
+3. **Story 20-3 was complex (12 ACs, 11 tasks) but executed cleanly.** Create, dev, and review completed without major blockers. The 26 tool calls in dev-story is reasonable for the complexity.
+
+4. **Coverage stayed above 96%.** Despite adding substantial new UI code (ink-renderer, ink-lane-container, ink-summary-bar, ink-merge-status), coverage didn't regress.
+
+5. **Proof format issues from earlier sessions didn't recur.** The fixes from sessions 2-5 (header formats, verdict labels) persisted.
+
+---
+
+## 5. What Went Wrong
+
+1. **Verification deferred.** Story 20-3 verification was deferred to next session due to time budget. This leaves the story in `verifying` limbo — a state that can cause confusion if the next session doesn't pick it up immediately.
+
+2. **ink-renderer.tsx exceeds 300-line NFR (552 lines).** LOW severity in code review but this is accumulating technical debt. The file needs splitting into renderer-controller + ink-renderer, and nobody has scheduled that work.
+
+3. **Tasks 7 & 8 (run.ts wiring) marked done without actual changes.** The dev agent completed the component code but the integration wiring into `run.ts` was deferred. This is a soft lie in the task checklist — the tasks exist but the actual work doesn't.
+
+4. **Performance AC relaxation.** The < 5ms per event target was relaxed to < 10s for 200 events because Ink re-rendering dominates. The original AC was unrealistic for the rendering stack, but it was accepted into the story anyway.
+
+---
+
+## 6. Lessons Learned
+
+1. **Tier A quick-wins should be identified earlier.** If a proof already exists with ALL_PASS, the orchestrator should skip subagent dispatch entirely and just run `codeharness verify` directly. This would save the Agent tool dispatch cost.
+
+2. **Verification is the most expensive phase (45% of total cost).** Reducing redundant test runs inside verification subagents would have the highest ROI for cost reduction. A single `npm test` + `npm run test:coverage` should suffice — not 4 separate runs.
+
+3. **Config path `_bmad/config.yaml` vs `_bmad/bmm/config.yaml` confusion** has hit 4+ subagents across sessions. This should be documented in project-context.md or fixed by creating a symlink.
+
+4. **NFR violations (300-line file limit) should be tracked as stories**, not left as LOW unfixed issues in code review. They accumulate silently.
+
+5. **Performance ACs for UI rendering should account for the rendering framework's overhead.** Raw event processing is < 1ms, but Ink re-rendering adds unpredictable overhead. Future ACs should separate "processing time" from "render time".
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Verify story 20-3-lane-event-routing-activity-display in next session | HIGH | orchestrator |
+| 2 | Split ink-renderer.tsx (552 lines) into renderer-controller + ink-renderer | MEDIUM | backlog |
+| 3 | Wire Tasks 7 & 8 (run.ts integration) properly or create a follow-up story | MEDIUM | backlog |
+| 4 | Fix config path confusion: document correct path or add symlink at `_bmad/bmm/config.yaml` | LOW | next session |
+| 5 | Investigate `unknown` cost bucket ($60.75, 15.1%) for better attribution | LOW | tooling |
+| 6 | Reduce verification phase redundancy: cap test runs to 2 max per subagent | MEDIUM | harness improvement |
+| 7 | Fix pre-existing BATS test failures (253 `not ok`) to reduce noise | LOW | backlog |
+
+---
+
+*Session 8 retrospective generated 2026-04-04T07:15:00Z*

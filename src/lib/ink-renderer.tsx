@@ -1,6 +1,10 @@
 /**
  * Ink Terminal Renderer — live terminal UI for Claude activity display.
  * Exports startRenderer() which returns a RendererHandle for feeding events.
+ *
+ * Multi-lane support (story 20-3): when laneId is provided to update(),
+ * events are routed to per-lane state. The activity section shows the
+ * most recently active lane's events.
  */
 
 import React from 'react';
@@ -18,6 +22,8 @@ import {
   type TaskNodeMeta,
 } from './ink-components.js';
 import type { FlowStep } from './workflow-parser.js';
+import type { LaneEvent } from './lane-pool.js';
+import type { MergeState } from './ink-merge-status.js';
 
 // --- Public Types ---
 
@@ -28,25 +34,47 @@ export interface RendererOptions {
   _forceTTY?: boolean;
 }
 
+/**
+ * Per-lane activity state tracked by the renderer controller.
+ */
+export interface LaneActivityState {
+  completedTools: CompletedToolEntry[];
+  activeTool: { name: string } | null;
+  activeToolArgs: string;
+  lastThought: string | null;
+  retryInfo: RetryInfo | null;
+  activeDriverName: string | null;
+  status: 'active' | 'completed' | 'failed';
+  lastActivityTime: number;
+}
+
 export interface RendererHandle {
-  update(event: StreamEvent, driverName?: string): void;
+  update(event: StreamEvent, driverName?: string, laneId?: string): void;
   updateSprintState(state: SprintInfo | undefined): void;
   updateStories(stories: StoryStatusEntry[]): void;
   addMessage(msg: StoryMessage): void;
   updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>, taskMeta?: Record<string, TaskNodeMeta>): void;
+  processLaneEvent(event: LaneEvent): void;
+  updateMergeState(mergeState: MergeState | null): void;
   cleanup(): void;
   /** @internal Expose state for testing. Not part of the public API. */
   _getState?(): RendererState;
+  /** @internal Expose lane states for testing. */
+  _getLaneStates?(): Map<string, LaneActivityState>;
+  /** @internal Expose cycleLane for testing. */
+  _cycleLane?(): void;
 }
 
 // --- No-op handle for quiet mode ---
 
 const noopHandle: RendererHandle = {
-  update(_event: StreamEvent, _driverName?: string) {},
+  update(_event: StreamEvent, _driverName?: string, _laneId?: string) {},
   updateSprintState() {},
   updateStories() {},
   addMessage() {},
   updateWorkflowState() {},
+  processLaneEvent() {},
+  updateMergeState() {},
   cleanup() {},
 };
 
@@ -83,7 +111,14 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     taskMeta: {},
     activeDriverName: null,
     driverCosts: {},
+    activeLaneId: null,
+    laneCount: 0,
   };
+
+  // Per-lane state map (multi-lane mode)
+  const laneStates = new Map<string, LaneActivityState>();
+  // Whether user has pinned a lane via Ctrl+L
+  let pinnedLane = false;
 
   // Per-story cost tracking (not part of RendererState — internal to controller)
   let currentStoryCosts: Record<string, number> = {};
@@ -94,7 +129,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   let cleaned = false;
 
   // Mount Ink with performance options
-  const inkInstance = inkRender(<App state={state} />, {
+  const inkInstance = inkRender(<App state={state} onCycleLane={() => cycleLane()} />, {
     exitOnCtrlC: false,
     patchConsole: !options?._forceTTY,
     maxFps: 15,
@@ -104,43 +139,151 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     if (!cleaned) {
       // Create a new state object reference to trigger React re-render
       state = { ...state };
-      inkInstance.rerender(<App state={state} />);
+      inkInstance.rerender(<App state={state} onCycleLane={() => cycleLane()} />);
     }
   }
 
-  function cleanup() {
-    if (cleaned) return;
-    cleaned = true;
-    try { inkInstance.unmount(); } catch { /* may already be unmounted */ }
-    try { inkInstance.cleanup(); } catch { /* ignore */ }
-    process.removeListener('SIGINT', onSigint);
-    process.removeListener('SIGTERM', onSigterm);
-  }
-
-  function onSigint() { cleanup(); process.kill(process.pid, 'SIGINT'); }
-  function onSigterm() { cleanup(); process.kill(process.pid, 'SIGTERM'); }
+  function onSigint() { cleanupFull(); process.kill(process.pid, 'SIGINT'); }
+  function onSigterm() { cleanupFull(); process.kill(process.pid, 'SIGTERM'); }
   process.on('SIGINT', onSigint);
   process.on('SIGTERM', onSigterm);
 
   /** Promote active tool to completed list, bounded to MAX_COMPLETED_TOOLS. */
-  function promoteActiveTool(clearActive: boolean) {
-    if (!state.activeTool) return;
+  function promoteActiveTool(clearActive: boolean, targetState?: LaneActivityState) {
+    const s = targetState ?? state;
+    if (!s.activeTool) return;
     const entry: CompletedToolEntry = {
-      name: state.activeTool.name, args: state.activeToolArgs,
-      driver: state.activeDriverName ?? undefined,
+      name: s.activeTool.name, args: s.activeToolArgs,
+      driver: s.activeDriverName ?? undefined,
     };
-    const updated = [...state.completedTools, entry];
-    state.completedTools = updated.length > MAX_COMPLETED_TOOLS
+    const updated = [...s.completedTools, entry];
+    s.completedTools = updated.length > MAX_COMPLETED_TOOLS
       ? updated.slice(updated.length - MAX_COMPLETED_TOOLS) : updated;
-    if (clearActive) { state.activeTool = null; state.activeToolArgs = ''; state.activeDriverName = null; }
+    if (clearActive) { s.activeTool = null; s.activeToolArgs = ''; s.activeDriverName = null; }
   }
 
-  function update(event: StreamEvent, driverName?: string): void {
+  /** Copy a lane's activity state to top-level RendererState fields for display. */
+  function copyLaneToDisplay(laneId: string) {
+    const ls = laneStates.get(laneId);
+    if (!ls) return;
+    state.completedTools = [...ls.completedTools];
+    state.activeTool = ls.activeTool ? { ...ls.activeTool } : null;
+    state.activeToolArgs = ls.activeToolArgs;
+    state.lastThought = ls.lastThought;
+    state.retryInfo = ls.retryInfo ? { ...ls.retryInfo } : null;
+    state.activeDriverName = ls.activeDriverName;
+    state.activeLaneId = laneId;
+  }
+
+  /** Get or create lane state for a laneId. */
+  function getOrCreateLaneState(laneId: string): LaneActivityState {
+    let ls = laneStates.get(laneId);
+    if (!ls) {
+      ls = {
+        completedTools: [],
+        activeTool: null,
+        activeToolArgs: '',
+        lastThought: null,
+        retryInfo: null,
+        activeDriverName: null,
+        status: 'active',
+        lastActivityTime: Date.now(),
+      };
+      laneStates.set(laneId, ls);
+    }
+    return ls;
+  }
+
+  /** Get list of active lane IDs for Ctrl+L cycling. */
+  function getActiveLaneIds(): string[] {
+    const ids: string[] = [];
+    for (const [id, ls] of laneStates) {
+      if (ls.status === 'active') ids.push(id);
+    }
+    return ids;
+  }
+
+  function update(event: StreamEvent, driverName?: string, laneId?: string): void {
     if (cleaned) return;
 
+    // When laneId is provided, route to per-lane state
+    if (laneId) {
+      const ls = getOrCreateLaneState(laneId);
+      ls.lastActivityTime = Date.now();
+
+      switch (event.type) {
+        case 'tool-start':
+          promoteActiveTool(false, ls);
+          ls.activeTool = { name: event.name };
+          ls.activeToolArgs = '';
+          ls.activeDriverName = driverName ?? null;
+          ls.lastThought = null;
+          ls.retryInfo = null;
+          break;
+
+        case 'tool-input':
+          ls.activeToolArgs += event.partial;
+          // Skip rerender for tool-input (same as single-lane)
+          return;
+
+        case 'tool-complete':
+          if (ls.activeTool) {
+            if (['Agent', 'Skill'].includes(ls.activeTool.name)) break;
+            promoteActiveTool(true, ls);
+          }
+          break;
+
+        case 'text':
+          ls.lastThought = event.text;
+          ls.retryInfo = null;
+          break;
+
+        case 'retry':
+          ls.retryInfo = { attempt: event.attempt, delay: event.delay };
+          break;
+
+        case 'result':
+          if (event.cost > 0 && state.sprintInfo) {
+            state.sprintInfo = {
+              ...state.sprintInfo,
+              totalCost: (state.sprintInfo.totalCost ?? 0) + event.cost,
+            };
+          }
+          if (event.cost > 0 && driverName) {
+            state.driverCosts = {
+              ...state.driverCosts,
+              [driverName]: (state.driverCosts[driverName] ?? 0) + event.cost,
+            };
+            currentStoryCosts = {
+              ...currentStoryCosts,
+              [driverName]: (currentStoryCosts[driverName] ?? 0) + event.cost,
+            };
+          }
+          break;
+      }
+
+      // Auto-switch to most recently active lane (unless user pinned)
+      if (!pinnedLane && state.activeLaneId !== laneId) {
+        state.activeLaneId = laneId;
+      }
+      // Reset pin when a new event arrives from a different lane (AC #4)
+      if (pinnedLane && state.activeLaneId !== laneId) {
+        pinnedLane = false;
+      }
+      // If this is the displayed lane, copy to top-level
+      if (state.activeLaneId === laneId) {
+        copyLaneToDisplay(laneId);
+      }
+
+      state.laneCount = laneStates.size;
+      rerender();
+      return;
+    }
+
+    // Single-lane mode (no laneId) — behave exactly as before
     switch (event.type) {
       case 'tool-start':
-        promoteActiveTool(false); // promote any lingering long-running tool
+        promoteActiveTool(false);
         state.activeTool = { name: event.name };
         state.activeToolArgs = '';
         state.activeDriverName = driverName ?? null;
@@ -150,11 +293,9 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
       case 'tool-input':
         state.activeToolArgs += event.partial;
-        return; // Skip rerender — args only shown on completion
+        return; // Skip rerender
 
       case 'tool-complete':
-        // Only promote if there's an active tool (parser emits tool-complete for text blocks too).
-        // Long-running tools (Agent, Skill) stay active until next tool-start.
         if (state.activeTool) {
           if (['Agent', 'Skill'].includes(state.activeTool.name)) break;
           promoteActiveTool(true);
@@ -171,20 +312,17 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
         break;
 
       case 'result':
-        // Accumulate cost from result events (AC #7)
         if (event.cost > 0 && state.sprintInfo) {
           state.sprintInfo = {
             ...state.sprintInfo,
             totalCost: (state.sprintInfo.totalCost ?? 0) + event.cost,
           };
         }
-        // Accumulate per-driver cost (run-level)
         if (event.cost > 0 && driverName) {
           state.driverCosts = {
             ...state.driverCosts,
             [driverName]: (state.driverCosts[driverName] ?? 0) + event.cost,
           };
-          // Accumulate per-story cost
           currentStoryCosts = {
             ...currentStoryCosts,
             [driverName]: (currentStoryCosts[driverName] ?? 0) + event.cost,
@@ -196,11 +334,135 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     rerender();
   }
 
+  function processLaneEvent(event: LaneEvent): void {
+    if (cleaned) return;
+
+    switch (event.type) {
+      case 'lane-started': {
+        const ls = getOrCreateLaneState(event.epicId);
+        ls.status = 'active';
+        ls.lastActivityTime = Date.now();
+        // If this is the first lane, set it as active display
+        if (state.activeLaneId == null) {
+          state.activeLaneId = event.epicId;
+          copyLaneToDisplay(event.epicId);
+        }
+        state.laneCount = laneStates.size;
+        break;
+      }
+
+      case 'lane-completed': {
+        const ls = laneStates.get(event.epicId);
+        if (ls) {
+          ls.status = 'completed';
+        }
+        // Update summaryBar: mark epic as done, remove from pending
+        if (state.summaryBar) {
+          const epicId = event.epicId;
+          const newDone = [...state.summaryBar.doneStories];
+          if (!newDone.includes(epicId)) newDone.push(epicId);
+          const newPending = state.summaryBar.pendingEpics.filter(e => e !== epicId);
+          state.summaryBar = {
+            ...state.summaryBar,
+            doneStories: newDone,
+            pendingEpics: newPending,
+          };
+        }
+        state.laneCount = laneStates.size;
+        break;
+      }
+
+      case 'lane-failed': {
+        const ls = laneStates.get(event.epicId);
+        if (ls) {
+          ls.status = 'failed';
+        } else {
+          // Defensive: create lane state for unknown laneId
+          const newLs = getOrCreateLaneState(event.epicId);
+          newLs.status = 'failed';
+        }
+        // Do NOT freeze TUI — continue rendering other lanes (NFR6)
+        // If the failed lane was active, switch to next active lane
+        if (state.activeLaneId === event.epicId) {
+          const activeIds = getActiveLaneIds();
+          if (activeIds.length > 0) {
+            state.activeLaneId = activeIds[0];
+            copyLaneToDisplay(activeIds[0]);
+          }
+        }
+        state.laneCount = laneStates.size;
+        break;
+      }
+
+      case 'epic-queued': {
+        // Update summaryBar pendingEpics
+        if (state.summaryBar) {
+          if (!state.summaryBar.pendingEpics.includes(event.epicId)) {
+            state.summaryBar = {
+              ...state.summaryBar,
+              pendingEpics: [...state.summaryBar.pendingEpics, event.epicId],
+            };
+          }
+        }
+        break;
+      }
+    }
+
+    rerender();
+  }
+
+  function updateMergeState(mergeState: MergeState | null): void {
+    if (cleaned) return;
+    state.mergeState = mergeState;
+    // Clear summaryBar mergingEpic when mergeState is null
+    if (state.summaryBar && !mergeState) {
+      state.summaryBar = { ...state.summaryBar, mergingEpic: null };
+    }
+    // Also update summaryBar mergingEpic
+    if (state.summaryBar && mergeState) {
+      const mergingStatus = mergeState.outcome === 'clean' || mergeState.outcome === 'resolved'
+        ? 'complete' as const
+        : mergeState.outcome === 'escalated'
+          ? 'complete' as const
+          : 'in-progress' as const;
+      state.summaryBar = {
+        ...state.summaryBar,
+        mergingEpic: {
+          epicId: mergeState.epicId,
+          status: mergingStatus,
+          conflictCount: mergeState.conflictCount,
+        },
+      };
+    }
+    rerender();
+  }
+
+  /** Cycle to the next active lane (Ctrl+L). */
+  function cycleLane(): void {
+    if (cleaned) return;
+    const activeIds = getActiveLaneIds();
+    if (activeIds.length <= 1) return; // Nothing to cycle to
+
+    const currentIndex = state.activeLaneId ? activeIds.indexOf(state.activeLaneId) : -1;
+    const nextIndex = (currentIndex + 1) % activeIds.length;
+    state.activeLaneId = activeIds[nextIndex];
+    copyLaneToDisplay(activeIds[nextIndex]);
+    pinnedLane = true;
+    rerender();
+  }
+
+  function cleanupFull() {
+    if (cleaned) return;
+    cleaned = true;
+    try { inkInstance.unmount(); } catch { /* may already be unmounted */ }
+    try { inkInstance.cleanup(); } catch { /* ignore */ }
+    process.removeListener('SIGINT', onSigint);
+    process.removeListener('SIGTERM', onSigterm);
+  }
+
   function updateSprintState(sprintState: SprintInfo | undefined): void {
     if (cleaned) return;
     if (sprintState && state.sprintInfo) {
-      // Preserve accumulated fields (totalCost, acProgress, currentCommand)
-      // that are set by event handlers but not by the polling caller.
       state.sprintInfo = {
         ...sprintState,
         totalCost: sprintState.totalCost ?? state.sprintInfo.totalCost,
@@ -211,7 +473,6 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
       state.sprintInfo = sprintState ?? null;
     }
 
-    // When story key changes, freeze current costs for the old story
     const newKey = state.sprintInfo?.storyKey ?? null;
     if (newKey && lastStoryKey && newKey !== lastStoryKey) {
       if (Object.keys(currentStoryCosts).length > 0) {
@@ -229,18 +490,14 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   function updateStories(stories: StoryStatusEntry[]): void {
     if (cleaned) return;
     const currentKey = state.sprintInfo?.storyKey ?? null;
-    // Snapshot per-story costs onto done stories (immutable — don't mutate caller objects).
-    // Check both pendingStoryCosts (from prior stories) and currentStoryCosts (active story).
     const hasCurrentCosts = Object.keys(currentStoryCosts).length > 0;
     const updatedStories = stories.map(s => {
       if (s.status !== 'done' || s.costByDriver) return s;
-      // Check pending costs first (costs frozen when story key changed)
       const pending = pendingStoryCosts.get(s.key);
       if (pending) {
         pendingStoryCosts.delete(s.key);
         return { ...s, costByDriver: pending };
       }
-      // Check current costs (story completing without key change)
       if (hasCurrentCosts && s.key === (lastStoryKey ?? currentKey)) {
         const snap = { ...currentStoryCosts };
         currentStoryCosts = {};
@@ -248,7 +505,6 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
       }
       return s;
     });
-    // Track story key changes for per-story cost reset
     if (currentKey && currentKey !== lastStoryKey) {
       if (lastStoryKey && Object.keys(currentStoryCosts).length > 0) {
         pendingStoryCosts.set(lastStoryKey, { ...currentStoryCosts });
@@ -277,7 +533,19 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     rerender();
   }
 
-  return { update, updateSprintState, updateStories, addMessage, updateWorkflowState, cleanup, _getState: () => state };
+  return {
+    update,
+    updateSprintState,
+    updateStories,
+    addMessage,
+    updateWorkflowState,
+    processLaneEvent,
+    updateMergeState,
+    cleanup: cleanupFull,
+    _getState: () => state,
+    _getLaneStates: () => laneStates,
+    _cycleLane: () => cycleLane(),
+  };
 }
 
 // Re-export types that consumers may need

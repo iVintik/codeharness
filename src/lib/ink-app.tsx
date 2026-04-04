@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import { Box, Static } from 'ink';
+import { Box, Static, Text, useInput } from 'ink';
 import { Header, Separator, StoryBreakdown, type RendererState } from './ink-components.js';
 import { CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine, DriverCostSummary } from './ink-activity-components.js';
 import { WorkflowGraph } from './ink-workflow.js';
@@ -16,10 +16,37 @@ import type { LaneData } from './ink-lane-container.js';
 import { SummaryBar } from './ink-summary-bar.js';
 import { MergeStatus } from './ink-merge-status.js';
 
-export function App({ state }: { state: RendererState }) {
+// --- Lane Activity Header ---
+
+/**
+ * Shows which lane's activity is currently displayed in the activity section.
+ * Only renders when laneCount > 1 (multi-lane mode).
+ */
+export function LaneActivityHeader({ activeLaneId, laneCount }: { activeLaneId: string | null; laneCount: number }) {
+  if (laneCount <= 1 || !activeLaneId) return null;
+  return (
+    <Text>
+      <Text color="cyan">{`[Lane ${activeLaneId} \u25B8]`}</Text>
+    </Text>
+  );
+}
+
+// --- App Component ---
+
+export function App({ state, onCycleLane }: { state: RendererState; onCycleLane?: () => void }) {
   const lanes: LaneData[] | undefined = state.lanes;
   const laneCount = lanes?.length ?? 0;
   const terminalWidth = process.stdout.columns || 80;
+
+  // Ctrl+L handler for cycling lanes (only active in multi-lane mode)
+  // isActive guards against non-TTY environments (e.g., tests)
+  useInput((_input, key) => {
+    if (key.ctrl && _input === 'l' && onCycleLane && laneCount > 1) {
+      onCycleLane();
+    }
+  }, { isActive: typeof process.stdin.setRawMode === 'function' });
+
+  const activeLaneCount = state.laneCount ?? 0;
 
   return (
     <Box flexDirection="column">
@@ -50,6 +77,7 @@ export function App({ state }: { state: RendererState }) {
       )}
       {(state.stories.length > 0 || (laneCount > 1 && (state.summaryBar || state.mergeState))) && <Separator />}
       <Box flexDirection="column" paddingLeft={1}>
+        <LaneActivityHeader activeLaneId={state.activeLaneId ?? null} laneCount={activeLaneCount} />
         <CompletedTools tools={state.completedTools} />
         {state.activeTool && <ActiveTool name={state.activeTool.name} driverName={state.activeDriverName} />}
         {state.lastThought && <LastThought text={state.lastThought} />}

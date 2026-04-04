@@ -86,6 +86,10 @@ export interface RendererState {
   summaryBar?: import('./ink-summary-bar.js').SummaryBarProps;
   /** Merge status data for detailed merge progress display. */
   mergeState?: import('./ink-merge-status.js').MergeState | null;
+  /** ID of the lane whose activity is currently displayed (multi-lane mode). */
+  activeLaneId?: string | null;
+  /** Total number of active lanes (for lane indicator display). */
+  laneCount?: number;
 }
 
 // --- Layout Components ---

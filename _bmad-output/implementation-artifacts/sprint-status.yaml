@@ -124,7 +124,7 @@ development_status:
   19-2-epic-flow-execution: done
 
   # Epic 20
-  epic-20: backlog
+  epic-20: done
   20-1-lane-container-lane-components: done
   20-2-summary-bar-merge-status: done
-  20-3-lane-event-routing-activity-display: backlog
+  20-3-lane-event-routing-activity-display: done

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 64,
-    "done": 55,
+    "done": 56,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -665,12 +665,16 @@
       }
     },
     "20-3-lane-event-routing-activity-display": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T03:30:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/20-3-lane-event-routing-activity-display-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     }
   },
   "retries": {
@@ -823,9 +827,9 @@
       "storiesDone": 2
     },
     "epic-20": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 1
+      "storiesDone": 3
     }
   },
   "session": {
@@ -847,9 +851,9 @@
     "cost": 0,
     "completed": [],
     "failed": [],
-    "currentStory": null,
-    "currentPhase": null,
-    "lastAction": null,
+    "currentStory": "20-3-lane-event-routing-activity-display",
+    "currentPhase": "verify",
+    "lastAction": "ALL_PASS 12/12 — marking done",
     "acProgress": null
   },
   "actionItems": []

@@ -643,7 +643,7 @@ describe('CodexDriver', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'codex',
-        ['exec', '--json', '--model', 'codex-mini', '--cd', '/my/project', 'hello'],
+        ['exec', '--json', '--full-auto', '--model', 'codex-mini', '--cd', '/my/project', 'hello'],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });
@@ -697,7 +697,7 @@ describe('CodexDriver', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'codex',
-        ['exec', '--json', 'hello'],
+        ['exec', '--json', '--full-auto', 'hello'],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });

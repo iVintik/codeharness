@@ -155,13 +155,17 @@ export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: Workf
     for (let j = 0; j < loopBlock.loop.length; j++) {
       if (j > 0) elements.push(<Text key={`la-${j}`}>{' → '}</Text>);
       const tn = loopBlock.loop[j];
+      // Use loop-prefixed key if available, fall back to bare name
+      const loopKey = `loop:${tn}`;
+      const status = taskStates[loopKey] ?? taskStates[tn];
+      const driver = meta[loopKey]?.driver ?? meta[tn]?.driver;
       elements.push(
-        <TaskNode key={`lt-${j}`} name={tn} status={taskStates[tn]} spinnerFrame={spinnerFrame} driver={meta[tn]?.driver} />
+        <TaskNode key={`lt-${j}`} name={tn} status={status} spinnerFrame={spinnerFrame} driver={driver} />
       );
     }
 
     // Post-loop tasks (e.g., retro): only show if loop is complete
-    const loopDone = loopBlock.loop.every(t => taskStates[t] === 'done');
+    const loopDone = loopBlock.loop.every(t => (taskStates[`loop:${t}`] ?? taskStates[t]) === 'done');
     if (loopDone) {
       let afterLoop = false;
       for (const step of flow) {

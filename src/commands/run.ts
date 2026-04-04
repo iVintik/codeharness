@@ -276,13 +276,35 @@ export function registerRunCommand(program: Command): void {
         }
       }
 
+      // Track task states with flow-position awareness.
+      // Pre-loop tasks use their name directly. Loop tasks use 'loop:taskName'.
+      // This prevents loop iterations from overwriting pre-loop completion status.
+      const preLoopTasks = new Set<string>();
+      const loopTasks = new Set<string>();
+      for (const step of parsedWorkflow.flow) {
+        if (typeof step === 'string') {
+          preLoopTasks.add(step);
+        } else if (typeof step === 'object' && 'loop' in step) {
+          for (const lt of (step as { loop: string[] }).loop) loopTasks.add(lt);
+        }
+      }
+      // Post-loop tasks (like retro) are treated as pre-loop for state purposes
+      let pastLoop = false;
+      for (const step of parsedWorkflow.flow) {
+        if (typeof step === 'object' && 'loop' in step) { pastLoop = true; continue; }
+        if (pastLoop && typeof step === 'string') preLoopTasks.add(step);
+      }
+
+      let inLoop = false; // tracks whether engine is inside the loop
       const taskStates: Record<string, 'pending' | 'active' | 'done' | 'failed'> = {};
       const taskMeta: Record<string, { driver?: string; costUsd?: number | null; elapsedMs?: number | null }> = {};
-      // Initialize all tasks as pending with driver info
+      // Initialize all flow positions as pending
       for (const [tn, task] of Object.entries(parsedWorkflow.tasks)) {
         taskStates[tn] = 'pending';
-        // Use model name for label (more informative than driver name)
-        taskMeta[tn] = { driver: task.model ?? task.driver ?? 'claude-code' };
+        if (loopTasks.has(tn)) taskStates[`loop:${tn}`] = 'pending';
+        const driverLabel = task.model ?? task.driver ?? 'claude-code';
+        taskMeta[tn] = { driver: driverLabel };
+        if (loopTasks.has(tn)) taskMeta[`loop:${tn}`] = { driver: driverLabel };
       }
       // Build initial story list from sprint status (Record<string, string>: key → status)
       const storyEntries: Array<{ key: string; status: 'done' | 'in-progress' | 'pending' | 'failed' }> = [];
@@ -300,8 +322,20 @@ export function registerRunCommand(program: Command): void {
           renderer.update(event.streamEvent, event.driverName);
         }
         if (event.type === 'dispatch-start') {
+          // Detect new story: reset all task states for fresh pipeline display
+          if (event.storyKey !== currentStoryKey && preLoopTasks.has(event.taskName)) {
+            inLoop = false;
+            for (const tn of Object.keys(taskStates)) {
+              taskStates[tn] = 'pending';
+            }
+          }
           currentStoryKey = event.storyKey;
           currentTaskName = event.taskName;
+          // Detect loop entry: if task is in loopTasks and pre-loop version is done
+          if (loopTasks.has(event.taskName) && taskStates[event.taskName] === 'done') {
+            inLoop = true;
+          }
+          const stateKey = inLoop && loopTasks.has(event.taskName) ? `loop:${event.taskName}` : event.taskName;
           const epicId = extractEpicId(event.storyKey);
           const epic = epicData[epicId];
           renderer.updateSprintState({
@@ -315,8 +349,7 @@ export function registerRunCommand(program: Command): void {
             epicStoriesDone: epic?.storiesDone ?? 0,
             epicStoriesTotal: epic?.storiesTotal ?? 0,
           });
-          // Mark current task active in workflow graph
-          taskStates[event.taskName] = 'active';
+          taskStates[stateKey] = 'active';
           renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
           // Mark story as in-progress
           const idx = storyEntries.findIndex(s => s.key === event.storyKey);
@@ -326,14 +359,13 @@ export function registerRunCommand(program: Command): void {
           }
         }
         if (event.type === 'dispatch-end') {
-          // Accumulate cost
           totalCostUsd += event.costUsd ?? 0;
-          // Mark task done in workflow graph with cost/time
-          taskStates[event.taskName] = 'done';
-          taskMeta[event.taskName] = {
-            ...taskMeta[event.taskName],
-            costUsd: (taskMeta[event.taskName]?.costUsd ?? 0) + (event.costUsd ?? 0),
-            elapsedMs: (taskMeta[event.taskName]?.elapsedMs ?? 0) + (event.elapsedMs ?? 0),
+          const stateKey = inLoop && loopTasks.has(event.taskName) ? `loop:${event.taskName}` : event.taskName;
+          taskStates[stateKey] = 'done';
+          taskMeta[stateKey] = {
+            ...taskMeta[stateKey],
+            costUsd: (taskMeta[stateKey]?.costUsd ?? 0) + (event.costUsd ?? 0),
+            elapsedMs: (taskMeta[stateKey]?.elapsedMs ?? 0) + (event.elapsedMs ?? 0),
           };
           renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
           // Update header cost
@@ -346,7 +378,8 @@ export function registerRunCommand(program: Command): void {
           });
         }
         if (event.type === 'dispatch-error') {
-          taskStates[event.taskName] = 'failed';
+          const stateKey = inLoop && loopTasks.has(event.taskName) ? `loop:${event.taskName}` : event.taskName;
+          taskStates[stateKey] = 'failed';
           renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
           renderer.addMessage({
             type: 'fail',

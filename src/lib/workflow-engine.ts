@@ -541,12 +541,24 @@ async function dispatchTaskWithResult(
     cwd = projectDir;
   }
 
-  // 7. Construct prompt
+  // 7. Construct prompt — task-aware
   const isEpicSentinel = storyKey.startsWith('__epic_') || storyKey === PER_RUN_SENTINEL;
-  const basePrompt = customPrompt
-    ?? (isEpicSentinel
-      ? `Execute task "${taskName}" for the current run.`
-      : `Implement story ${storyKey}`);
+  let basePrompt: string;
+  if (customPrompt) {
+    basePrompt = customPrompt;
+  } else if (isEpicSentinel) {
+    basePrompt = `Execute task "${taskName}" for the current run.`;
+  } else if (taskName === 'document') {
+    basePrompt = `Write a verification guide for story ${storyKey}. Read the story spec at _bmad-output/implementation-artifacts/${storyKey}.md and the implementation source. Then write a guide with exact docker exec/curl commands for each AC that a blind QA agent can run to verify the story works.`;
+  } else if (taskName === 'create-story') {
+    basePrompt = `Create the story spec for ${storyKey}. Read the epic definitions and architecture docs, then write a complete story file with acceptance criteria, tasks, and dev notes.`;
+  } else if (taskName === 'review') {
+    basePrompt = `Review the implementation of story ${storyKey}. Check for correctness, security issues, architecture violations, and AC coverage.`;
+  } else if (taskName === 'check') {
+    basePrompt = `Run automated checks for story ${storyKey}. Execute the project's test suite, linter, and coverage tool. Report pass/fail results.`;
+  } else {
+    basePrompt = `Implement story ${storyKey}`;
+  }
 
   // 7b. Inject previous task's output contract context into the prompt (story 13-2)
   let prompt = buildPromptWithContractContext(basePrompt, previousOutputContract ?? null);

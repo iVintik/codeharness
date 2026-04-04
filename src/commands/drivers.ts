@@ -25,7 +25,7 @@ const DRIVER_DESCRIPTIONS: Record<string, string> = {
  * Ensure all built-in drivers are registered.
  * Safe to call multiple times — skips already-registered drivers.
  */
-function ensureDriversRegistered(): void {
+export function ensureDriversRegistered(): void {
   const registered = new Set(listDrivers());
   if (!registered.has('claude-code')) registerDriver(new ClaudeCodeDriver());
   if (!registered.has('codex')) registerDriver(new CodexDriver());

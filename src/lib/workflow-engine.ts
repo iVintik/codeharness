@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
-import { warn } from './output.js';
+import { warn, info } from './output.js';
 import { DispatchError } from './agent-dispatch.js';
 import type { DispatchErrorCode } from './agent-dispatch.js';
 // Note: dispatchAgent is no longer imported — dispatch goes through the driver factory
@@ -547,6 +547,7 @@ async function dispatchTaskWithResult(
   };
 
   // 9. Dispatch through the driver and consume AsyncIterable<StreamEvent>
+  info(`[${taskName}] ${storyKey} — dispatching via ${driverName} (model: ${model})`);
   let output = '';
   let resultSessionId = '';
   let cost = 0;
@@ -1165,6 +1166,12 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
     };
   }
 
+  // Log resume from previous error state
+  if (state.phase === 'error' || state.phase === 'failed') {
+    const errorCount = state.tasks_completed.filter(t => t.error).length;
+    info(`Resuming from ${state.phase} state — ${errorCount} previous error(s), retrying failed tasks`);
+  }
+
   state = {
     ...state,
     phase: 'executing',
@@ -1407,6 +1414,8 @@ function recordErrorInState(
     story_key: storyKey,
     completed_at: new Date().toISOString(),
     error: true,
+    error_message: error.message,
+    error_code: error.code,
   };
   return {
     ...state,

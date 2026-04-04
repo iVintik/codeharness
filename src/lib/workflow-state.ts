@@ -12,6 +12,10 @@ export interface TaskCheckpoint {
   session_id?: string;
   /** When present, indicates this checkpoint records a failed dispatch (not a success). */
   error?: boolean;
+  /** Error message when error is true. */
+  error_message?: string;
+  /** Error code when error is true (e.g., DISPATCH, NETWORK, TIMEOUT). */
+  error_code?: string;
 }
 
 export interface EvaluatorScore {

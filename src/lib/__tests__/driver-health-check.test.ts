@@ -100,6 +100,7 @@ vi.mock('../session-manager.js', () => ({
 
 vi.mock('../output.js', () => ({
   warn: mockWarn,
+  info: vi.fn(),
 }));
 
 vi.mock('node:fs', () => ({

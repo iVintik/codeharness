@@ -223,32 +223,73 @@ export function registerRunCommand(program: Command): void {
         },
       });
 
-      // 7b. Build EngineConfig with TUI event bridge
+      // 7b. Build TUI event bridge — tracks cumulative state across dispatches
+      let totalCostUsd = 0;
+      let storiesDone = counts.done;
+      const taskStates: Record<string, 'pending' | 'active' | 'done' | 'failed'> = {};
+      const taskMeta: Record<string, { driver?: string; costUsd?: number | null; elapsedMs?: number | null }> = {};
+      // Initialize all tasks as pending with driver info
+      for (const [tn, task] of Object.entries(parsedWorkflow.tasks)) {
+        taskStates[tn] = 'pending';
+        taskMeta[tn] = { driver: task.driver ?? 'claude-code' };
+      }
+      // Build initial story list from sprint status (Record<string, string>: key → status)
+      const storyEntries: Array<{ key: string; status: 'done' | 'in-progress' | 'pending' | 'failed' }> = [];
+      for (const [key, status] of Object.entries(statuses)) {
+        if (key.startsWith('epic-')) continue; // skip epic-level entries
+        if (status === 'done') storyEntries.push({ key, status: 'done' });
+        else if (status === 'in-progress') storyEntries.push({ key, status: 'in-progress' });
+        else if (status === 'backlog' || status === 'ready-for-dev') storyEntries.push({ key, status: 'pending' });
+        else if (status === 'failed') storyEntries.push({ key, status: 'failed' });
+      }
+      renderer.updateStories(storyEntries);
+
       const onEvent = (event: EngineEvent): void => {
         if (event.type === 'stream-event' && event.streamEvent) {
           renderer.update(event.streamEvent, event.driverName);
         }
         if (event.type === 'dispatch-start') {
+          // Update header with current story/task
           renderer.updateSprintState({
             storyKey: event.storyKey,
-            phase: `${event.taskName}`,
-            done: counts.done,
+            phase: event.taskName,
+            done: storiesDone,
             total: counts.total,
+            totalCost: totalCostUsd,
           });
-          renderer.updateWorkflowState(
-            parsedWorkflow.flow,
-            event.taskName,
-            { [event.taskName]: 'active' },
-          );
+          // Mark current task active in workflow graph
+          taskStates[event.taskName] = 'active';
+          renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
+          // Mark story as in-progress
+          const idx = storyEntries.findIndex(s => s.key === event.storyKey);
+          if (idx >= 0 && storyEntries[idx].status === 'pending') {
+            storyEntries[idx] = { ...storyEntries[idx], status: 'in-progress' };
+            renderer.updateStories([...storyEntries]);
+          }
         }
         if (event.type === 'dispatch-end') {
-          renderer.updateWorkflowState(
-            parsedWorkflow.flow,
-            event.taskName,
-            { [event.taskName]: 'done' },
-          );
+          // Accumulate cost
+          totalCostUsd += event.costUsd ?? 0;
+          // Mark task done in workflow graph with cost/time
+          taskStates[event.taskName] = 'done';
+          taskMeta[event.taskName] = {
+            ...taskMeta[event.taskName],
+            costUsd: (taskMeta[event.taskName]?.costUsd ?? 0) + (event.costUsd ?? 0),
+            elapsedMs: (taskMeta[event.taskName]?.elapsedMs ?? 0) + (event.elapsedMs ?? 0),
+          };
+          renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
+          // Update header cost
+          renderer.updateSprintState({
+            storyKey: event.storyKey,
+            phase: event.taskName,
+            done: storiesDone,
+            total: counts.total,
+            totalCost: totalCostUsd,
+          });
         }
         if (event.type === 'dispatch-error') {
+          taskStates[event.taskName] = 'failed';
+          renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
           renderer.addMessage({
             type: 'fail',
             key: event.storyKey,

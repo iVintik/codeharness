@@ -119,50 +119,85 @@ export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: Workf
   }
 
   const meta = taskMeta ?? {};
-  const showMeta = hasMetaData(taskMeta);
-
-  // Derive spinner frame from wall clock. Parent re-renders on state updates
-  // which naturally advances the animation. No hooks needed.
   const spinnerFrame = Math.floor(Date.now() / 80);
 
-  // Row 1: task names with status icons and arrows
-  const elements: React.ReactNode[] = [];
-
-  for (let i = 0; i < flow.length; i++) {
-    const step = flow[i];
-
-    if (i > 0) {
-      elements.push(<Text key={`arrow-${i}`}>{' → '}</Text>);
-    }
-
+  // Determine if we're inside the loop (any loop task is active/done/failed)
+  let inLoop = false;
+  let loopBlock: LoopBlock | null = null;
+  let loopItCount = 0;
+  for (const step of flow) {
     if (isLoopBlock(step)) {
-      const iteration = loopIteration(step.loop, taskStates);
-      const loopNodes: React.ReactNode[] = [];
-      for (let j = 0; j < step.loop.length; j++) {
-        if (j > 0) {
-          loopNodes.push(<Text key={`loop-arrow-${i}-${j}`}>{' → '}</Text>);
-        }
-        loopNodes.push(
-          <TaskNode key={`loop-task-${i}-${j}`} name={step.loop[j]} status={taskStates[step.loop[j]]} spinnerFrame={spinnerFrame} driver={meta[step.loop[j]]?.driver} />
-        );
-      }
-      elements.push(
-        <Text key={`loop-${i}`}>
-          <Text>loop({iteration})[ </Text>
-          {loopNodes}
-          <Text> ]</Text>
-        </Text>
-      );
-    } else {
-      elements.push(
-        <TaskNode key={`task-${i}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
-      );
+      loopBlock = step;
+      loopItCount = loopIteration(step.loop, taskStates);
+      inLoop = loopItCount > 0;
+      break;
     }
   }
 
-  return (
-    <Box flexDirection="column">
-      <Text>  {elements}</Text>
-    </Box>
-  );
+  if (inLoop && loopBlock) {
+    // --- In loop: show pre-loop tasks with status + loop tasks expanded ---
+    const elements: React.ReactNode[] = [];
+
+    // Pre-loop tasks: show each with status
+    for (const step of flow) {
+      if (isLoopBlock(step)) break;
+      if (typeof step === 'string') {
+        if (elements.length > 0) elements.push(<Text key={`a-${step}`}>{' → '}</Text>);
+        elements.push(
+          <TaskNode key={`t-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
+        );
+      }
+    }
+
+    // Loop tasks with iteration count
+    if (elements.length > 0) elements.push(<Text key="loop-arrow">{' → '}</Text>);
+    elements.push(<Text key="loop-label"><Text bold>{`Loop ${loopItCount}: `}</Text></Text>);
+    for (let j = 0; j < loopBlock.loop.length; j++) {
+      if (j > 0) elements.push(<Text key={`la-${j}`}>{' → '}</Text>);
+      const tn = loopBlock.loop[j];
+      elements.push(
+        <TaskNode key={`lt-${j}`} name={tn} status={taskStates[tn]} spinnerFrame={spinnerFrame} driver={meta[tn]?.driver} />
+      );
+    }
+
+    // Post-loop tasks (e.g., retro): only show if loop is complete
+    const loopDone = loopBlock.loop.every(t => taskStates[t] === 'done');
+    if (loopDone) {
+      let afterLoop = false;
+      for (const step of flow) {
+        if (afterLoop && typeof step === 'string') {
+          elements.push(<Text key={`post-a-${step}`}>{' → '}</Text>);
+          elements.push(
+            <TaskNode key={`post-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
+          );
+        }
+        if (isLoopBlock(step)) afterLoop = true;
+      }
+    }
+
+    return <Box flexDirection="column"><Text>  {elements}</Text></Box>;
+  }
+
+  // --- Pre-loop: show only pre-loop tasks up to current + next ---
+  const elements: React.ReactNode[] = [];
+  let passedCurrent = false;
+
+  for (const step of flow) {
+    if (isLoopBlock(step)) break; // Don't show loop before entering
+
+    if (typeof step === 'string') {
+      if (elements.length > 0) {
+        elements.push(<Text key={`a-${step}`}>{' → '}</Text>);
+      }
+      elements.push(
+        <TaskNode key={`t-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
+      );
+
+      if (step === currentTask) passedCurrent = true;
+      // Show one step after current, then stop
+      if (passedCurrent && step !== currentTask) break;
+    }
+  }
+
+  return <Box flexDirection="column"><Text>  {elements}</Text></Box>;
 }

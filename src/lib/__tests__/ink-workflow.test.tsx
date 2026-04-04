@@ -26,7 +26,7 @@ describe('WorkflowGraph component', () => {
     expect(frame).toContain('verify');
   });
 
-  it('renders loop block as loop(N)[ task1 → task2 ]', () => {
+  it('shows Loop N with task names when loop entered', () => {
     const flow: FlowStep[] = ['create-story', { loop: ['implement', 'verify'] }];
     const taskStates: Record<string, TaskNodeState> = {
       'create-story': 'done',
@@ -37,11 +37,11 @@ describe('WorkflowGraph component', () => {
       <WorkflowGraph flow={flow} currentTask="implement" taskStates={taskStates} />
     );
     const frame = lastFrame()!;
-    expect(frame).toContain('loop(');
-    expect(frame).toContain('[ ');
+    expect(frame).toContain('create-story');
+    expect(frame).toContain('✓');
+    expect(frame).toContain('Loop 1');
     expect(frame).toContain('implement');
     expect(frame).toContain('verify');
-    expect(frame).toContain(' ]');
   });
 
   it('renders pending tasks with dim text (no status symbols)', () => {
@@ -110,22 +110,22 @@ describe('WorkflowGraph component', () => {
     expect(lastFrame()).toBe('');
   });
 
-  it('renders loop block with iteration 0 when all tasks are pending', () => {
-    const flow: FlowStep[] = [{ loop: ['implement', 'verify'] }];
+  it('hides loop when all tasks pending (not yet entered)', () => {
+    const flow: FlowStep[] = ['task1', { loop: ['implement', 'verify'] }];
     const taskStates: Record<string, TaskNodeState> = {
+      'task1': 'active',
       'implement': 'pending',
       'verify': 'pending',
     };
     const { lastFrame } = render(
-      <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} />
+      <WorkflowGraph flow={flow} currentTask="task1" taskStates={taskStates} />
     );
     const frame = lastFrame()!;
-    expect(frame).toContain('loop(0)');
-    expect(frame).toContain('implement');
-    expect(frame).toContain('verify');
+    expect(frame).not.toContain('Loop');
+    expect(frame).not.toContain('implement');
   });
 
-  it('renders loop block with iteration 1 when a task is done', () => {
+  it('shows Loop 1 when a task is done', () => {
     const flow: FlowStep[] = [{ loop: ['implement', 'verify'] }];
     const taskStates: Record<string, TaskNodeState> = {
       'implement': 'done',
@@ -135,10 +135,10 @@ describe('WorkflowGraph component', () => {
       <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} />
     );
     const frame = lastFrame()!;
-    expect(frame).toContain('loop(1)');
+    expect(frame).toContain('Loop 1');
   });
 
-  it('renders loop block with iteration 1 when a task has failed', () => {
+  it('shows Loop 1 when a task has failed', () => {
     const flow: FlowStep[] = [{ loop: ['implement', 'verify'] }];
     const taskStates: Record<string, TaskNodeState> = {
       'implement': 'failed',
@@ -148,10 +148,10 @@ describe('WorkflowGraph component', () => {
       <WorkflowGraph flow={flow} currentTask={null} taskStates={taskStates} />
     );
     const frame = lastFrame()!;
-    expect(frame).toContain('loop(1)');
+    expect(frame).toContain('Loop 1');
   });
 
-  it('renders mixed flow with sequential and loop steps', () => {
+  it('shows pre-loop tasks with status and hides post-loop when in loop', () => {
     const flow: FlowStep[] = ['create-story', { loop: ['implement', 'verify'] }, 'deploy'];
     const taskStates: Record<string, TaskNodeState> = {
       'create-story': 'done',
@@ -165,12 +165,11 @@ describe('WorkflowGraph component', () => {
     const frame = lastFrame()!;
     expect(frame).toContain('create-story');
     expect(frame).toContain('✓');
-    expect(frame).toContain('loop(');
+    expect(frame).toContain('Loop 1');
     expect(frame).toContain('implement');
     expect(frame).toContain('verify');
-    expect(frame).toContain('deploy');
-    // No separator lines (removed in layout redesign)
-    expect(frame).not.toContain('━');
+    // deploy not shown until loop completes
+    expect(frame).not.toContain('deploy');
   });
 
   // --- Driver/cost rows removed (layout redesign) ---

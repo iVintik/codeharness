@@ -29,16 +29,14 @@ prompt_template: |
      - Observable output (logs, responses, behavior)
   3. If an AC requires reading source code, inspecting file contents, or understanding implementation details to verify — it FAILS testability
 
-  ## Output
+  ## Output — MANDATORY FORMAT
 
-  If ALL ACs are testable, output:
-  ```json
+  Your response MUST end with EXACTLY one of these two JSON lines (no code block, no markdown, just raw JSON as the LAST line of your output):
+
+  If ALL ACs are testable:
   {"verdict": "pass"}
-  ```
 
-  If ANY AC fails testability, output:
-  ```json
-  {"verdict": "fail", "issues": ["AC N: [reason it's untestable]. Suggested rewrite: [specific rewrite]"]}
-  ```
+  If ANY AC fails testability:
+  {"verdict": "fail", "issues": ["AC 1: reason and suggested rewrite", "AC 3: reason and suggested rewrite"]}
 
-  Be specific. Don't just say "untestable" — explain WHY and provide a concrete rewrite.
+  You may include analysis BEFORE the verdict line, but the LAST line of your response MUST be the raw JSON verdict. This is machine-parsed — the loop cannot exit without it.

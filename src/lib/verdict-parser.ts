@@ -180,13 +180,17 @@ export function parseVerdict(output: string): EvaluatorVerdict {
  * JSON is found — the caller decides how to handle (typically: treat as "no verdict").
  */
 export function parseSimpleVerdict(output: string): { verdict: 'pass' | 'fail' } | null {
-  // Try to find a JSON object containing a verdict field anywhere in the output
-  const jsonPattern = /\{[^{}]*"verdict"\s*:\s*"(pass|fail)"[^{}]*\}/;
-  const match = jsonPattern.exec(output);
-  if (!match) return null;
+  // Find ALL JSON objects with verdict field, take the LAST one (agents put verdict at end)
+  const jsonPattern = /\{[^{}]*"verdict"\s*:\s*"(pass|fail)"[^{}]*\}/g;
+  let lastMatch: RegExpExecArray | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = jsonPattern.exec(output)) !== null) {
+    lastMatch = m;
+  }
+  if (!lastMatch) return null;
 
   try {
-    const parsed = JSON.parse(match[0]) as { verdict?: string };
+    const parsed = JSON.parse(lastMatch[0]) as { verdict?: string };
     if (parsed.verdict === 'pass' || parsed.verdict === 'fail') {
       return { verdict: parsed.verdict };
     }

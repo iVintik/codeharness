@@ -544,8 +544,8 @@ async function dispatchTaskWithResult(
   // 7. Construct prompt — task-aware
   const isEpicSentinel = storyKey.startsWith('__epic_') || storyKey === PER_RUN_SENTINEL;
   const TASK_PROMPTS: Record<string, (key: string) => string> = {
-    'create-story': (key) => `Create the story spec for ${key}. Read the epic definitions and architecture docs, then write a complete story file with acceptance criteria, tasks, and dev notes.`,
-    'negotiate-acs': (key) => `Review the ACs in story ${key} for testability. Can each AC be verified by a blind QA agent with only Docker access and user documentation? Output a verdict JSON.`,
+    'create-story': (key) => `Create or revise the story spec for ${key}. Read the epic definitions and architecture docs. If previous feedback is provided (from AC negotiation or review), revise the story to address that feedback. Write a complete story file with acceptance criteria, tasks, and dev notes.`,
+    'negotiate-acs': (key) => `Review the ACs in story ${key} for testability. Can each AC be verified by a blind QA agent with only Docker access and user documentation? Your response MUST end with exactly one JSON line: {"verdict": "pass"} or {"verdict": "fail", "issues": ["..."]}`,
     'implement': (key) => `Implement story ${key}`,
     'check': (key) => `Run automated checks for story ${key}. Execute the project's test suite, linter, and coverage tool. Report pass/fail results.`,
     'review': (key) => `Review the implementation of story ${key}. Check for correctness, security issues, architecture violations, and AC coverage. Output a verdict JSON at the end.`,

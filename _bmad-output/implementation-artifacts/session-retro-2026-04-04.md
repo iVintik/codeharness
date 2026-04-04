@@ -736,3 +736,192 @@ Epic 18 introduced 3 instances of code duplication across 3 stories in one day. 
 | Verification cost share | 44.9% | Unchanged (structural) |
 | Unresolved action items | 7 carried 2+ sessions | Growing — needs attention |
 | Technical debt items | 5 (duplication, missing tests, large files) | +3 this session |
+
+---
+
+# Session Retrospective — 2026-04-04 (Session 2, appended)
+
+**Generated:** 2026-04-04T03:10:00Z
+
+---
+
+## 1. Session Summary
+
+This session ran autonomously via `/harness-run` and completed work across two epics:
+
+| Story | Epic | Start State | End State | Phases Run | Outcome |
+|-------|------|-------------|-----------|------------|---------|
+| 17-3 (verification only) | 17 | in-review | done | verify | ALL_PASS |
+| 18-1-merge-serialization-execution | 18 | backlog | done | create → dev → review → verify | ALL_PASS |
+| 18-2-merge-agent-conflict-resolution | 18 | backlog | done | create → dev → review → verify | ALL_PASS |
+| 18-3-cross-worktree-test-validation | 18 | backlog | done | create → dev → review → verify | ALL_PASS |
+| 19-1-epic-completion-detection | 19 | backlog | done | create → dev → review → verify | ALL_PASS, 10/10 ACs |
+
+**Result:** 5 stories completed (4 full pipeline + 1 verification-only). Epic 18 fully closed. Epic 19 started, first story done.
+
+---
+
+## 2. Issues Analysis
+
+### Security Issues Found & Fixed (3 HIGH)
+
+| Story | Issue | Resolution |
+|-------|-------|------------|
+| 18-1 | Shell injection via testCommand parameter | Regex validation added |
+| 18-1 | Shell injection via malicious branch names | Regex validation added |
+| 18-2 | resolveConflicts false positive on unparseable test output | Fixed zero-pass/zero-fail detection |
+
+### Design Issues Found & Fixed (7 MEDIUM)
+
+| Story | Issue |
+|-------|-------|
+| 18-1 | TOCTOU race on branch existence — re-verification inside mutex |
+| 18-2 | `driver: undefined as never` would crash at runtime — MergeConflictInfo type introduced |
+| 18-3 | Coverage type mismatch (undefined vs null) across validator/worktree-manager/merge-agent |
+| 18-3 | Missing maxBuffer on exec — could truncate large test output |
+| 18-3 | Missing stderr capture |
+| 18-3 | Telemetry object not typed against canonical TelemetryEntry |
+| 19-1 | Non-deterministic story ordering from getEpicStories — fixed with .sort() |
+
+### Additional MEDIUM issues in 19-1
+- VALID_TRANSITIONS key type was `string` instead of constrained union — fixed
+- Missing runtime test for `failed` as terminal state — added
+- Unsafe cast in transitionEpicState — fixed
+
+### Known Unfixed Issues (LOW, accepted)
+
+1. **18-1:** No mutex acquisition timeout (starvation risk), no logging in merge path, parseTestOutput only reads stdout
+2. **18-2:** parseTestOutput duplicated between merge-agent.ts and worktree-manager.ts, buildEscalationMessage only tested indirectly
+3. **18-3:** parseTestOutput first-match regex could pick per-suite counts, writeMergeTelemetry duplicates NDJSON write logic
+4. **19-1:** TransitionableStatus not exported, EpicCompletionError lacks structured metadata
+
+### Process Issues
+
+- **Proof format mismatches:** Verification subagent used `### AC N:` instead of `## AC N:`, `**Result:**` instead of `**Verdict:**`, missing `**Tier:**` prefix. Required orchestrator intervention twice (stories 17-3 and 19-1).
+- **AGENTS.md staleness:** `codeharness verify` precondition failed twice because AGENTS.md didn't list new source files. Fixed manually by orchestrator.
+- **Missing project-context.md:** Every create-story subagent reported this missing. Not a blocker but adds unnecessary discovery overhead.
+- **BATS test failures (253 `not ok`):** Pre-existing, not caused by any story, but pollute verification output.
+
+---
+
+## 3. Cost Analysis
+
+### Cumulative Project Costs (all 88 stories to date)
+
+| Metric | Value |
+|--------|-------|
+| Total cost | $372.74 |
+| Total API calls | 2,830 |
+| Average cost/story | $3.60 |
+| Cache reads | $230.58 (62%) |
+| Cache writes | $82.13 (22%) |
+| Output tokens | $59.89 (16%) |
+
+### Phase Cost Distribution
+
+The **verify** phase consumes **45.1%** of total cost ($168.14) — nearly half the budget. This is the single largest optimization target. Orchestrator overhead is 17.5% ($65.31).
+
+### This Session's Stories
+
+| Story | API Calls | Est. Cost |
+|-------|-----------|-----------|
+| 19-1-epic-completion-detection | 54 | $7.24 |
+| 18-2-merge-agent-conflict-resolution | 57 | $6.81 |
+| 18-1-merge-serialization-execution (estimated) | ~50 | ~$6.50 |
+| 18-3-cross-worktree-test-validation (estimated) | ~55 | ~$7.00 |
+
+### Subagent-Level Token Breakdown (from session issues log)
+
+| Story | Phase | Tool Calls | Heaviest Tools | Notable Waste |
+|-------|-------|------------|----------------|---------------|
+| 18-1 | create-story | 18 | Read: 10, Glob: 4 | None |
+| 18-1 | dev-story | 16 | Edit: 7, Read: 5 | None |
+| 18-1 | code-review | 16 | Bash: 7, Read: 6 | test:coverage ran twice; worktree-manager.test.ts read 4x |
+| 18-1 | verification | 16 | Bash: 10 | `npm test` ran 4 times |
+| 18-2 | create-story | 18 | Read: 10, Glob: 5 | worktree-manager.ts read 3x at different offsets |
+| 18-2 | dev-story | 20 | Edit: 8, Bash: 7 | None |
+| 18-2 | code-review | 22 | Bash: 9, Read: 8 | None |
+| 18-3 | create-story | 17 | Read: 10, Glob: 7 | One extra Glob for config path |
+| 18-3 | dev-story | 26 | Edit: 13, Read: 10 | worktree-manager.test.ts read 4x (token limits) |
+| 18-3 | code-review | 30 | Edit: 16, Read: 10 | One redundant glob |
+| 18-3 | verification | 21 | Bash: 9 | Two coverage commands that didn't isolate file % |
+| 19-1 | create-story | 16 | Read: 10, Glob: 3 | None |
+| 19-1 | dev-story | 13 | Bash: 6, Edit: 4 | None (leanest dev phase) |
+| 19-1 | code-review | 18 | Bash: 8, Read: 6 | One extra grep for coverage |
+| 19-1 | verification | 14+3 | Bash: 10, Read: 2 | test:coverage ran twice; format fix retries |
+
+**Key patterns:**
+- **Verification subagents run `npm test` 2-4 times** to extract different evidence. Single biggest token sink.
+- **Large test files (worktree-manager.test.ts) read 3-4x** due to token window limits.
+- **18-3 code-review was the most expensive subagent** at 30 tool calls — driven by 16 edits fixing type mismatches across 3 files.
+- **19-1 dev-story was the leanest** at 13 tool calls — pure functions with no I/O made implementation straightforward.
+
+### Top Tool Cost Drivers (project-wide)
+
+1. **Bash** ($103, 28%) — test runs dominate
+2. **Read** ($88, 24%) — repeated reads of large files
+3. **Edit** ($69, 19%) — code-review fix cycles
+4. **Agent** ($53, 14%) — subagent dispatch overhead
+
+---
+
+## 4. What Went Well
+
+1. **5 stories completed in one session** — clean pipeline from backlog to done with no stuck stories.
+2. **Epic 18 fully closed** — all 3 merge/worktree stories shipped and verified.
+3. **Security issues caught by code-review** — 3 HIGH shell injection vulnerabilities found and fixed before merge. The review phase is paying for itself.
+4. **Story 19-1 was the most efficient story** — 13 tool calls in dev, clean first-pass implementation. Pure function stories are cheap.
+5. **Zero rollbacks** — no story had to restart a phase.
+6. **Type safety improvements** — code review consistently caught type mismatches, unsafe casts, and missing constraints.
+
+---
+
+## 5. What Went Wrong
+
+1. **Verification phase is 45% of total cost** — running `npm test` 2-4x per verification is wasteful. Evidence extraction should be done in a single test run.
+2. **Proof format keeps breaking** — verification subagents produce headers in wrong format (`###` vs `##`, `Result` vs `Verdict`). This happened in 2 of 5 stories and required orchestrator retries.
+3. **AGENTS.md staleness** — precondition checks fail because AGENTS.md isn't auto-updated when new source files are added. Manual orchestrator fix required twice.
+4. **project-context.md missing** — every create-story subagent logs this as an issue. Creates unnecessary file discovery overhead.
+5. **253 pre-existing BATS failures** — these pollute verification output and waste tokens parsing irrelevant failures.
+6. **parseTestOutput duplicated** — same function exists in both merge-agent.ts and worktree-manager.ts. Code review flagged it but didn't fix it (LOW priority accepted).
+
+---
+
+## 6. Lessons Learned
+
+### Repeat
+- **Code review catching security issues** — the adversarial review model found real vulnerabilities (shell injection) that would have shipped otherwise.
+- **Pure function stories are cheap** — story 19-1 had all 10 ACs tagged test-provable, no I/O, and was the fastest/cheapest story in the session.
+- **Structured session issues log** — having every subagent report its issues + token usage enables this kind of analysis.
+
+### Avoid
+- **Multiple test runs for evidence extraction** — verification should run tests once and capture full output, then extract evidence from the captured output.
+- **Inconsistent proof format templates** — the verification subagent needs a stricter template or pre-flight format check.
+- **Accumulating LOW unfixed issues** — parseTestOutput duplication was flagged in 18-1, again in 18-2, and again in 18-3. Should have been fixed on second occurrence.
+
+### New Insights
+- **Code-review is the most edit-intensive phase** — 18-3 code-review made 16 edits in a single pass. This is where type safety debt gets paid.
+- **Worktree test files are too large for single reads** — worktree-manager.test.ts was consistently read in chunks (3-4x). Consider splitting test files.
+- **EpicState.status is typed as `string` not a union** — story 19-1 had to work around this with a local type. Worth fixing upstream.
+
+---
+
+## 7. Action Items
+
+| # | Action | Priority | Owner |
+|---|--------|----------|-------|
+| 1 | Fix verification subagent to run tests once and extract all evidence from captured output | HIGH | harness |
+| 2 | Standardize proof document format in verification template (enforce `## AC N:`, `**Verdict:**`, `**Tier:**`) | HIGH | harness |
+| 3 | Auto-update AGENTS.md when new source files are created by dev-story | MEDIUM | harness |
+| 4 | Generate project-context.md to eliminate repeated discovery overhead | MEDIUM | project |
+| 5 | Fix or skip pre-existing BATS failures to reduce verification noise | MEDIUM | project |
+| 6 | Extract parseTestOutput into shared utility (currently duplicated in merge-agent.ts and worktree-manager.ts) | LOW | sprint-next |
+| 7 | Split worktree-manager.test.ts into smaller test files to avoid chunked reads | LOW | sprint-next |
+| 8 | Type EpicState.status as a union type instead of string | LOW | sprint-next |
+| 9 | Continue Epic 19: story 19-2-epic-flow-execution is next in backlog | NEXT | sprint |
+
+---
+
+*Session wall-clock: ~01:10 to ~03:10 (approx 2 hours autonomous)*
+*Stories completed: 5 (17-3 verify, 18-1, 18-2, 18-3, 19-1)*
+*Estimated session cost: ~$27-30 (based on per-story averages)*

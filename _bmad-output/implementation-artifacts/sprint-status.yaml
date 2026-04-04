@@ -1,5 +1,5 @@
 # codeharness Sprint Status (auto-generated from sprint-state.json)
-# generated: 2026-04-03
+# generated: 2026-04-04
 # This file is a derived view — do NOT edit manually.
 # Source of truth: sprint-state.json
 
@@ -119,12 +119,12 @@ development_status:
   18-3-cross-worktree-test-validation: done
 
   # Epic 19
-  epic-19: backlog
+  epic-19: done
   19-1-epic-completion-detection: done
   19-2-epic-flow-execution: done
 
   # Epic 20
-  epic-20: backlog
-  20-1-lane-container-lane-components: backlog
+  epic-20: in-progress
+  20-1-lane-container-lane-components: done
   20-2-summary-bar-merge-status: backlog
   20-3-lane-event-routing-activity-display: backlog

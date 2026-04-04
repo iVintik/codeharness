@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 64,
-    "done": 52,
+    "done": 54,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -629,20 +629,28 @@
       }
     },
     "19-2-epic-flow-execution": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T03:50:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/19-2-epic-flow-execution-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "20-1-lane-container-lane-components": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 1,
+      "lastAttempt": "2026-04-04T02:42:00Z",
       "lastError": null,
-      "proofPath": null,
-      "acResults": null
+      "proofPath": "verification/20-1-lane-container-lane-components-proof.md",
+      "acResults": {
+        "passed": 12,
+        "failed": 0,
+        "escalated": 0
+      }
     },
     "20-2-summary-bar-merge-status": {
       "status": "backlog",
@@ -698,7 +706,20 @@
     "14-3-activity-display-driver-integration": 1,
     "15-1-plugin-pass-through-configuration": 1,
     "15-2-cost-tracking-per-driver": 1,
-    "15-3-driver-capability-matrix-routing-hints": 1
+    "15-3-driver-capability-matrix-routing-hints": 1,
+    "16-2-engine-handled-null-tasks": 1,
+    "16-3-telemetry-writer": 1,
+    "16-4-verify-flag-propagation": 1,
+    "16-5-coverage-deduplication": 1,
+    "16-6-story-flow-execution": 1,
+    "17-1-worktree-manager": 2,
+    "17-2-lane-pool": 2,
+    "17-3-run-command-parallel-integration": 2,
+    "18-2-merge-agent-conflict-resolution": 1,
+    "18-3-cross-worktree-test-validation": 2,
+    "19-1-epic-completion-detection": 1,
+    "19-2-epic-flow-execution": 2,
+    "20-1-lane-container-lane-components": 2
   },
   "flagged": [],
   "epics": {
@@ -788,19 +809,19 @@
       "storiesDone": 3
     },
     "epic-18": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 3
     },
     "epic-19": {
-      "status": "in-progress",
+      "status": "done",
       "storiesTotal": 2,
-      "storiesDone": 0
+      "storiesDone": 2
     },
     "epic-20": {
       "status": "in-progress",
       "storiesTotal": 3,
-      "storiesDone": 0
+      "storiesDone": 1
     }
   },
   "session": {

@@ -23,6 +23,10 @@ export interface SprintInfo {
   totalCost?: number;
   acProgress?: string;
   currentCommand?: string;
+  /** Number of active lanes (multi-lane mode). */
+  laneCount?: number;
+  /** Total cost across all lanes (multi-lane mode). */
+  laneTotalCost?: number;
 }
 
 export interface CompletedToolEntry {
@@ -76,6 +80,8 @@ export interface RendererState {
   taskMeta: Record<string, TaskNodeMeta>;
   activeDriverName: string | null;
   driverCosts: Record<string, number>;
+  /** Multi-lane data for parallel execution TUI. */
+  lanes?: import('./ink-lane-container.js').LaneData[];
 }
 
 // --- Layout Components ---
@@ -95,18 +101,25 @@ function formatCost(cost: number): string {
   return `$${cost.toFixed(2)}`;
 }
 
-export function Header({ info }: { info: SprintInfo | null }) {
+export function Header({ info, laneCount }: { info: SprintInfo | null; laneCount?: number }) {
   if (!info) return null;
 
   const parts: string[] = ['codeharness run'];
+  if (laneCount != null && laneCount > 1) {
+    parts.push(`${laneCount} lanes`);
+  }
   if (info.iterationCount != null) {
     parts.push(`iteration ${info.iterationCount}`);
   }
   if (info.elapsed) {
     parts.push(`${info.elapsed} elapsed`);
   }
-  if (info.totalCost != null) {
-    parts.push(`${formatCost(info.totalCost)} spent`);
+  // In multi-lane mode, show total cost across all lanes if available
+  const displayCost = (laneCount != null && laneCount > 1 && info.laneTotalCost != null)
+    ? info.laneTotalCost
+    : info.totalCost;
+  if (displayCost != null) {
+    parts.push(`${formatCost(displayCost)} spent`);
   }
   const headerLine = parts.join(' | ');
 

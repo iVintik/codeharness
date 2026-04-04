@@ -42,7 +42,7 @@ vi.mock('../../../lib/deps.js', () => ({
     {
       name: 'showboat',
       displayName: 'Showboat',
-      installCommands: [{ cmd: 'npx', args: ['showboat', '--version'] }],
+      installCommands: [{ cmd: 'npm', args: ['install', '-g', 'showboat'] }],
       checkCommand: { cmd: 'showboat', args: ['--version'] },
       critical: false,
     },
@@ -51,7 +51,7 @@ vi.mock('../../../lib/deps.js', () => ({
     {
       name: 'showboat',
       displayName: 'Showboat',
-      installCommands: [{ cmd: 'npx', args: ['showboat', '--version'] }],
+      installCommands: [{ cmd: 'npm', args: ['install', '-g', 'showboat'] }],
       checkCommand: { cmd: 'showboat', args: ['--version'] },
       critical: false,
     },

@@ -4,299 +4,81 @@ description: Initialize the codeharness harness in the current project — detec
 
 # Harness Init
 
-Initialize codeharness in the current project.
+Initialize codeharness in the current project. The CLI does the heavy lifting — your job is to run it and handle BMAD patches.
 
-## Step 1: Stack Detection
+## Step 1: Run the CLI
 
-Detect the project's technology stack by checking for indicator files:
-
-1. Check if `package.json` exists in the project root → **Node.js**
-2. Check if `requirements.txt` or `pyproject.toml` exists → **Python**
-3. Check if `go.mod` exists → **Go**
-4. Check if `Cargo.toml` exists → **Rust**
-5. If none found → Ask the user to specify the stack
-
-Output the detection result:
-```
-[INFO] Stack detected: {stack_name} ({indicator_file})
-```
-
-If no stack detected:
-```
-[INFO] No recognized stack files found.
-```
-Then ask: "What is your project's technology stack? (e.g., Node.js, Python, Go, Rust)"
-
-## Step 2: Enforcement Configuration
-
-Ask the user what to enforce. Present each option and wait for answers:
-
-1. "Frontend? (y/n)" — enables UI verification via agent-browser
-2. "Database? (y/n)" — enables DB state verification via DB MCP
-3. "APIs? (y/n)" — enables API verification via real HTTP calls
-
-Note: Observability is always enabled (mandatory). There is no opt-out.
-
-## Step 3: Dependency Check
-
-The CLI handles dependency checking and installation via `codeharness init`. Do NOT run dependency checks manually via bash — let the CLI do it.
-
-### How it works
-
-1. **Docker** is checked first — if missing, observability degrades to remote mode
-2. **All other deps** are checked in batch (fast version checks), then missing ones are installed with fallback chains
-3. **Stack-conditional deps** are only checked when relevant:
-   - `agent-browser`: only for nodejs/python projects (frontend UI verification)
-   - `cargo-tarpaulin`: only for rust projects (coverage)
-4. **Install fallback order** for Python tools: `uvx` → `pipx` → `brew` (never `pip install` into system Python)
-
-### Dependencies
-
-| Tool | Purpose | Install fallbacks | Conditional |
-|------|---------|------------------|-------------|
-| Docker | Observability stack | manual | no |
-| Showboat | Proof documents | npx, uvx, pipx, brew | no |
-| Semgrep | Static analysis | pipx, uvx, brew | no |
-| BATS | Integration tests | brew, npm | no |
-| agent-browser | UI verification | npm | nodejs, python |
-| cargo-tarpaulin | Rust coverage | cargo | rust |
-
-### What NOT to do
-
-- Do NOT try to install tools into the project's `.venv` — use system-level installers
-- Do NOT use `pip install` directly — it may hit the wrong Python or require sudo
-- Do NOT install OTLP packages manually — the CLI's `instrumentProject` handles this per-stack
-- Do NOT check deps one at a time with serial bash calls — the CLI batches checks
-
-### Dependency Report
-
-After all checks, the CLI outputs a summary:
-```
-[OK] Showboat: already installed (v0.6.1)
-[OK] Semgrep: already installed (v1.56.0)
-[OK] BATS: already installed (v1.11.0)
-[FAIL] agent-browser: install failed. Try: npm install -g @anthropic/agent-browser
-[INFO] agent-browser is optional — continuing without it
-```
-
-Non-critical failures do not block init.
-
-## Step 3.5: Observability Stack
-
-The observability stack is **shared across all projects** at `~/.codeharness/stack/`. Do NOT generate per-project compose files.
-
-### Check if shared stack is already running
+Run `codeharness init` and let it handle:
+- Stack detection
+- Dependency installation (with smart fallbacks — do NOT install deps manually)
+- Docker/observability stack check
+- State file creation
+- Documentation scaffold
+- Workflow template generation
 
 ```bash
-docker compose -p codeharness-shared -f ~/.codeharness/stack/docker-compose.harness.yml ps --format json
+codeharness init --json
 ```
 
-If running:
-```
-[OK] Observability stack: already running (shared at ~/.codeharness/stack/)
-```
-Skip to Step 4. Do NOT start new containers.
+Parse the JSON output to understand what happened. The output includes `status`, `stack`, `stacks`, `dependencies`, `docker`, `otlp`, `documentation`, and `workflow` fields.
 
-### If not running, start via CLI
+If the state file already exists (re-init), the CLI handles preservation of enforcement config and verification_log automatically.
 
-```bash
-codeharness init
-```
+### What if the user wants specific options?
 
-The CLI handles shared stack setup, compose file generation, and port management. Do NOT generate compose files manually or run `docker compose up` directly — the CLI manages the shared stack lifecycle.
+- `--no-observability` — skip OTLP instrumentation
+- `--observability-backend none` — disable observability entirely
+- `--otel-endpoint <url>` — use remote OTLP endpoint
+- `--force` — overwrite existing workflow file
+- `--frontend --no-database --api` — set enforcement flags
 
-### Remote/OpenSearch mode
+Pass user preferences as CLI flags.
 
-If the user wants remote observability (e.g., OpenSearch), use:
-```bash
-codeharness init --otel-endpoint <url>
-```
-Or for separate endpoints:
-```bash
-codeharness init --logs-url <url> --metrics-url <url> --traces-url <url>
-```
+## Step 2: BMAD Installation & Patches
 
-## Step 4: BMAD Installation & Harness Patches
+The CLI does NOT handle BMAD installation or patch application. This is your responsibility.
 
 ### Check for existing BMAD
 
-1. If `_bmad/` directory exists:
-   - This is an existing BMAD installation. Preserve user content.
-   - Output: `[OK] BMAD: existing installation detected, harness patches applied`
-
-2. If NO `_bmad/` directory:
-   - Install BMAD: run `npx bmad-method install --yes --tools claude-code`
-   - Must complete within 60 seconds (NFR18)
-   - Output: `[OK] BMAD: installed (v6.x), harness patches applied`
-
-3. If the user is running in standalone mode (no BMAD desired):
-   - Skip BMAD installation entirely
-   - Output: `[INFO] BMAD: not installed (standalone mode)`
-   - Continue to next step
+1. If `_bmad/` directory exists → preserve it, apply patches
+2. If NO `_bmad/` → run `npx bmad-method install --yes --tools claude-code`
 
 ### Apply Harness Patches
 
-After BMAD is available, apply harness patches. Patches are **idempotent** — applying them twice produces the same result (NFR19).
+Read each patch template from the codeharness plugin's `templates/bmad-patches/` directory. Check if the patch marker already exists in the target file before applying.
 
-Read each patch template from the plugin's `templates/bmad-patches/` directory and apply to the corresponding BMAD file. Check if the patch marker already exists before applying.
-
-**Patch targets:**
-
-1. **Story template** (`_bmad/` story template):
-   - Add verification requirements section
-   - Add documentation requirements (which AGENTS.md to update, exec-plan to create)
-   - Add testing requirements (coverage target)
-
-2. **Dev story workflow**:
-   - Add observability enforcement during implementation
-   - Add documentation update enforcement
-   - Add testing enforcement (write tests, 100% coverage)
-
-3. **Code review workflow**:
-   - Add check for Showboat proof document
-   - Add check for AGENTS.md freshness
-   - Add check for test coverage
-
-4. **Retrospective workflow**:
-   - Add verification effectiveness analysis
-   - Add doc health analysis
-   - Add test quality analysis
-
-Each patch is wrapped with markers for idempotency:
+Each patch is wrapped with markers:
 ```
 <!-- CODEHARNESS-PATCH-START:{patch_name} -->
 {patch content}
 <!-- CODEHARNESS-PATCH-END:{patch_name} -->
 ```
 
-If markers already exist, skip that patch.
+If markers already exist, skip that patch. Patches are idempotent.
 
-## Step 5: Documentation Scaffold
+## Step 3: Report
 
-Generate the project documentation structure for harness-enforced documentation.
-
-### Root AGENTS.md
-
-If no `AGENTS.md` exists at project root, generate one (~100 lines max, NFR24). The file should contain:
-
-1. **Build & test commands** — detected from stack (e.g., `npm test`, `pytest`)
-2. **Architecture overview** — brief description of project structure
-3. **Conventions** — code style, naming, patterns detected
-4. **Security notes** — any sensitive files, env vars
-5. **Pointers** — reference `_bmad-output/planning-artifacts/` for detailed planning docs
-
-If `AGENTS.md` already exists, preserve it. Output: `[OK] AGENTS.md: preserved (existing)`
-
-### docs/ Structure
-
-Create the following directories and files if they don't exist:
+Read the version from `codeharness --version` for the report header. Output:
 
 ```
-docs/
-├── index.md                          # Map to BMAD artifacts (NFR25: relative paths only)
-├── exec-plans/
-│   ├── active/                       # Stories in progress
-│   └── completed/                    # Verified stories
-└── generated/
-    └── .gitkeep                      # Auto-generated docs (DB schema, etc.)
-```
+Harness Init — codeharness v{version}
 
-`docs/index.md` must reference BMAD planning artifacts by **relative path** to `_bmad-output/planning-artifacts/` — never copy content (NFR25).
-
-All files in `docs/quality/` and `docs/generated/` must have this header (NFR27):
-```
-<!-- DO NOT EDIT MANUALLY — this file is auto-generated by codeharness -->
-```
-
-Output:
-```
-[OK] Documentation scaffold: created (AGENTS.md, docs/)
-```
-
-If docs/ already exists, only create missing subdirectories. Output: `[OK] Documentation scaffold: updated (missing dirs created)`
-
-## Step 6: State File & Hook Installation
-
-### State File
-
-Create `.claude/codeharness.local.md` with the canonical YAML structure. This is the single source of truth for harness state:
-
-```markdown
----
-harness_version: "0.1.0"
-initialized: true
-stack: "{detected_stack}"
-enforcement:
-  frontend: {true|false}
-  database: {true|false}
-  api: {true|false}
-coverage:
-  target: 100
-  baseline: null
-session_flags:
-  logs_queried: false
-  tests_passed: false
-  coverage_met: false
-  verification_run: false
-verification_log: []
----
-
-# codeharness State
-
-This file is managed by codeharness. Do not edit manually.
-```
-
-If the file already exists (re-init), preserve the existing enforcement config and verification_log. Only update harness_version and reset session_flags.
-
-If the file is corrupted (NFR17), recreate it from detected config and warn the user.
-
-### Hook Installation
-
-The plugin's `hooks/hooks.json` registers 4 hooks automatically via Claude Code's plugin auto-discovery:
-
-1. **session-start** (SessionStart) — verifies harness health, resets session flags
-2. **pre-commit-gate** (PreToolUse: Bash) — blocks commits without quality gates
-3. **post-write-check** (PostToolUse: Write) — prompts OTLP instrumentation verification
-4. **post-test-verify** (PostToolUse: Bash) — prompts VictoriaLogs query after tests
-
-Verify hook scripts are executable:
-```bash
-chmod +x hooks/session-start.sh hooks/pre-commit-gate.sh hooks/post-write-check.sh hooks/post-test-verify.sh
-```
-
-Output: `[OK] Hooks: 4 registered (session-start, pre-commit, post-write, post-test)`
-
-## Step 7: Report
-
-Output the init report:
-
-```
-Harness Init — codeharness v0.1.0
-
-[OK] Stack detected: {stack_name} ({indicator_file})
-[OK] Docker: running
-[OK] Showboat: installed
-[OK] agent-browser: {installed|skipped}
-[OK] OTLP instrumentation: {installed|skipped}
+[OK] Stack detected: {stack} ({indicator})
+[OK] Docker: {running|missing}
+[OK] Dependencies: {summary from CLI output}
 [OK] BMAD: {installed|existing|standalone}
-[OK] Documentation scaffold: {created|updated|preserved}
-[OK] Hooks: 4 registered (session-start, pre-commit, post-write, post-test)
-[OK] Enforcement configured: frontend:{ON|OFF} database:{ON|OFF} api:{ON|OFF} observability:ON
-[OK] Config persisted: .claude/codeharness.local.md
+[OK] Documentation scaffold: {created|preserved}
+[OK] Enforcement: frontend:{ON|OFF} database:{ON|OFF} api:{ON|OFF} observability:ON
+[OK] Config: .claude/codeharness.local.md
 
-→ Run /harness-run to start autonomous execution.
+→ Run /codeharness:harness-run to start autonomous execution.
 ```
 
-## Idempotency
+## Critical Rules
 
-This command is safe to re-run. On re-init:
-
-- **Stack detection:** Re-detects (may have changed)
-- **Enforcement config:** Preserves existing choices, asks to confirm
-- **Dependencies:** Re-checks all, skips already installed
-- **BMAD:** Preserves existing, re-applies patches (idempotent markers prevent duplication)
-- **Documentation:** Creates only missing directories/files
-- **State file:** Preserves verification_log, resets session_flags
-- **Hooks:** Already registered via plugin auto-discovery (no action needed)
-
-Components that are already configured show: `[OK] Already configured: {component}`
+1. **Do NOT run manual dependency checks via bash** — `codeharness init` handles all deps
+2. **Do NOT edit the state file manually** — the CLI manages `.claude/codeharness.local.md`
+3. **Do NOT check Docker, Showboat, Semgrep, BATS individually** — the CLI checks them all in batch
+4. **Do NOT install tools into the project's .venv** — the CLI uses system-level installers
+5. **Do NOT generate compose files** — the CLI manages the shared observability stack
+6. **Do NOT hardcode version numbers** — read from `codeharness --version`

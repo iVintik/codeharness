@@ -29,10 +29,9 @@ export const DEPENDENCY_REGISTRY: readonly DependencySpec[] = [
     name: 'showboat',
     displayName: 'Showboat',
     installCommands: [
-      { cmd: 'npx', args: ['showboat', '--version'] },
-      { cmd: 'uvx', args: ['install', 'showboat'] },
-      { cmd: 'pipx', args: ['install', 'showboat'] },
+      { cmd: 'npm', args: ['install', '-g', 'showboat'] },
       { cmd: 'brew', args: ['install', 'showboat'] },
+      { cmd: 'pipx', args: ['install', 'showboat'] },
     ],
     checkCommand: { cmd: 'showboat', args: ['--version'] },
     critical: false,

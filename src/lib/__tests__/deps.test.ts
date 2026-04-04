@@ -84,10 +84,9 @@ describe('installDependency', () => {
     name: 'showboat',
     displayName: 'Showboat',
     installCommands: [
-      { cmd: 'npx', args: ['showboat', '--version'] },
-      { cmd: 'uvx', args: ['install', 'showboat'] },
-      { cmd: 'pipx', args: ['install', 'showboat'] },
+      { cmd: 'npm', args: ['install', '-g', 'showboat'] },
       { cmd: 'brew', args: ['install', 'showboat'] },
+      { cmd: 'pipx', args: ['install', 'showboat'] },
     ],
     checkCommand: { cmd: 'showboat', args: ['--version'] },
     critical: false,
@@ -126,7 +125,7 @@ describe('installDependency', () => {
         if (checkCount === 1) throw new Error('not found');
         return Buffer.from('showboat 0.6.1');
       }
-      if (cmdStr === 'npx') throw new Error('npx failed');
+      if (cmdStr === 'npm') throw new Error('npm failed');
       return Buffer.from('');
     });
 
@@ -144,7 +143,7 @@ describe('installDependency', () => {
     expect(result.status).toBe('failed');
     expect(result.version).toBeNull();
     expect(result.error).toContain('Install failed');
-    expect(result.error).toContain('npx showboat --version');
+    expect(result.error).toContain('npm install -g showboat');
     expect(result.error).toContain('pipx install showboat');
   });
 
@@ -488,13 +487,12 @@ describe('DEPENDENCY_REGISTRY', () => {
     expect(agentBrowser?.critical).toBe(false);
   });
 
-  it('showboat has npx, uvx, pipx, brew fallback chain', () => {
+  it('showboat has npm, brew, pipx fallback chain', () => {
     const showboat = DEPENDENCY_REGISTRY.find(d => d.name === 'showboat');
-    expect(showboat?.installCommands).toHaveLength(4);
-    expect(showboat?.installCommands[0].cmd).toBe('npx');
-    expect(showboat?.installCommands[1].cmd).toBe('uvx');
+    expect(showboat?.installCommands).toHaveLength(3);
+    expect(showboat?.installCommands[0].cmd).toBe('npm');
+    expect(showboat?.installCommands[1].cmd).toBe('brew');
     expect(showboat?.installCommands[2].cmd).toBe('pipx');
-    expect(showboat?.installCommands[3].cmd).toBe('brew');
   });
 
   it('agent-browser has single npm install command', () => {

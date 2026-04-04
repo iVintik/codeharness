@@ -75,6 +75,14 @@ export interface EngineConfig {
   onEvent?: (event: EngineEvent) => void;
   /** Optional abort signal for graceful shutdown. */
   abortSignal?: AbortSignal;
+  /**
+   * When true, pre-loop per-story tasks run as a pipeline per story:
+   *   for each story: task1 → task2 → task3
+   * Instead of the default task-first order:
+   *   for each task: story1 → story2 → story3
+   * Loop blocks and post-loop tasks use default ordering.
+   */
+  storyPipeline?: boolean;
 }
 
 /**
@@ -1250,10 +1258,120 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   // 2. Load work items
   const workItems = loadWorkItems(config.sprintStatusPath, config.issuesPath);
 
-  // 3. Iterate through flow steps
+  // 3. Determine flow execution mode
   let halted = false;
   let lastOutputContract: OutputContract | null = null;
   let accumulatedCostUsd = 0;
+
+  // --- Story pipeline mode: iterate stories first, tasks second for pre-loop steps ---
+  if (config.storyPipeline) {
+    // Split flow into: pre-loop tasks, loop block, post-loop tasks
+    const preTasks: string[] = [];
+    let loopIdx = -1;
+    for (let i = 0; i < config.workflow.storyFlow.length; i++) {
+      const s = config.workflow.storyFlow[i];
+      if (isLoopBlock(s)) { loopIdx = i; break; }
+      if (typeof s === 'string') preTasks.push(s);
+    }
+
+    // Pipeline: for each story, run all pre-loop tasks
+    for (const item of workItems) {
+      if (halted || config.abortSignal?.aborted) {
+        if (config.abortSignal?.aborted) {
+          info('Execution interrupted — saving state');
+          state = { ...state, phase: 'interrupted' };
+          writeWorkflowState(state, projectDir);
+        }
+        halted = true;
+        break;
+      }
+      processedStories.add(item.key);
+
+      for (const taskName of preTasks) {
+        if (halted || config.abortSignal?.aborted) { halted = true; break; }
+        const task = config.workflow.tasks[taskName];
+        if (!task || task.agent === null) continue;
+        const definition = config.agents[task.agent];
+        if (!definition) { warn(`workflow-engine: agent "${task.agent}" not found for "${taskName}"`); continue; }
+        if (isTaskCompleted(state, taskName, item.key)) continue;
+
+        try {
+          const dr = await dispatchTaskWithResult(task, taskName, item.key, definition, state, config, undefined, lastOutputContract ?? undefined);
+          state = dr.updatedState;
+          lastOutputContract = dr.contract;
+          propagateVerifyFlags(taskName, dr.contract, projectDir);
+          accumulatedCostUsd += dr.contract?.cost_usd ?? 0;
+          tasksCompleted++;
+        } catch (err: unknown) {
+          const engineError = handleDispatchError(err, taskName, item.key);
+          errors.push(engineError);
+          if (config.onEvent) {
+            config.onEvent({ type: 'dispatch-error', taskName, storyKey: item.key, error: { code: engineError.code, message: engineError.message } });
+          } else {
+            warn(`[${taskName}] ${item.key} — ERROR: [${engineError.code}] ${engineError.message}`);
+          }
+          state = recordErrorInState(state, taskName, item.key, engineError);
+          writeWorkflowState(state, projectDir);
+          if (err instanceof DispatchError && HALT_ERROR_CODES.has(err.code)) { halted = true; }
+          break; // Stop this story on error, move to next
+        }
+      }
+    }
+
+    // Then execute loop + post-loop steps with default task-first ordering
+    const remaining = loopIdx >= 0 ? config.workflow.storyFlow.slice(loopIdx) : [];
+    for (const step of remaining) {
+      if (halted || config.abortSignal?.aborted) { halted = true; break; }
+      // Fall through to same loop/post-loop handling below — but we need to
+      // re-enter the original flow loop. Instead, replace storyFlow for the rest.
+      if (isLoopBlock(step)) {
+        const loopResult = await executeLoopBlock(step, state, config, workItems, lastOutputContract);
+        state = loopResult.state;
+        errors.push(...loopResult.errors);
+        tasksCompleted += loopResult.tasksCompleted;
+        lastOutputContract = loopResult.lastContract;
+        for (const item of workItems) processedStories.add(item.key);
+        if (loopResult.halted || state.phase === 'max-iterations' || state.phase === 'circuit-breaker') { halted = true; }
+        continue;
+      }
+      // Post-loop string tasks (e.g., retro) — use default per-story/per-run logic
+      const taskName = step as string;
+      const task = config.workflow.tasks[taskName];
+      if (!task) continue;
+      if (task.agent === null) continue;
+      const definition = config.agents[task.agent];
+      if (!definition) continue;
+      if (task.scope === 'per-run' || task.scope === 'per-epic') {
+        if (isTaskCompleted(state, taskName, PER_RUN_SENTINEL)) continue;
+        try {
+          const dr = await dispatchTaskWithResult(task, taskName, PER_RUN_SENTINEL, definition, state, config, undefined, lastOutputContract ?? undefined);
+          state = dr.updatedState; lastOutputContract = dr.contract; tasksCompleted++;
+        } catch (err: unknown) {
+          const engineError = handleDispatchError(err, taskName, PER_RUN_SENTINEL);
+          errors.push(engineError);
+          state = recordErrorInState(state, taskName, PER_RUN_SENTINEL, engineError);
+          writeWorkflowState(state, projectDir);
+        }
+      } else {
+        for (const item of workItems) {
+          if (halted || config.abortSignal?.aborted) break;
+          if (isTaskCompleted(state, taskName, item.key)) continue;
+          try {
+            const dr = await dispatchTaskWithResult(task, taskName, item.key, definition, state, config, undefined, lastOutputContract ?? undefined);
+            state = dr.updatedState; lastOutputContract = dr.contract; tasksCompleted++;
+          } catch (err: unknown) {
+            const engineError = handleDispatchError(err, taskName, item.key);
+            errors.push(engineError);
+            state = recordErrorInState(state, taskName, item.key, engineError);
+            writeWorkflowState(state, projectDir);
+          }
+        }
+      }
+    }
+  }
+
+  // --- Default mode: iterate tasks first, stories second (original behavior) ---
+  if (!config.storyPipeline)
   for (const step of config.workflow.storyFlow) {
     if (halted) break;
     if (config.abortSignal?.aborted) {

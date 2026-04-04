@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { Command } from 'commander';
 import { fail, info, ok } from '../lib/output.js';
@@ -224,20 +224,32 @@ export function registerRunCommand(program: Command): void {
         },
       });
 
-      // Ctrl+C handler: cleanup TUI, signal abort, let engine save state
+      // Interrupt handling: supports Ctrl+C, SIGTERM, and file-based stop
+      // File-based: `touch .codeharness/STOP` to interrupt (works in tmux/SSH)
       let interrupted = false;
+      const stopFile = join(projectDir, '.codeharness', 'STOP');
+
       const onInterrupt = () => {
         if (interrupted) {
-          // Second Ctrl+C: force exit
+          // Second interrupt: force exit
           process.exit(1);
         }
         interrupted = true;
-        renderer.cleanup(); // Unmount Ink first so terminal is restored
+        renderer.cleanup();
         abortController.abort();
         info('Interrupted — waiting for current task to finish...', outputOpts);
       };
       process.on('SIGINT', onInterrupt);
       process.on('SIGTERM', onInterrupt);
+
+      // Poll for STOP file every 2 seconds (fallback for tmux/SSH)
+      const stopFilePoll = setInterval(() => {
+        if (!interrupted && existsSync(stopFile)) {
+          try { unlinkSync(stopFile); } catch { // IGNORE: STOP file may already be removed
+          }
+          onInterrupt();
+        }
+      }, 2_000);
 
       // 7b. Build TUI event bridge — tracks cumulative state across dispatches
       const sessionStartMs = Date.now();
@@ -341,6 +353,7 @@ export function registerRunCommand(program: Command): void {
         runId: `run-${Date.now()}`,
         projectDir,
         abortSignal: abortController.signal,
+        storyPipeline: true,
         maxIterations,
         onEvent,
       };
@@ -444,6 +457,7 @@ export function registerRunCommand(program: Command): void {
         try {
           const result = await executeWorkflow(config);
           clearInterval(headerRefresh);
+          clearInterval(stopFilePoll);
           process.removeListener('SIGINT', onInterrupt);
           process.removeListener('SIGTERM', onInterrupt);
           renderer.cleanup();
@@ -462,6 +476,7 @@ export function registerRunCommand(program: Command): void {
           }
         } catch (err: unknown) {
           clearInterval(headerRefresh);
+          clearInterval(stopFilePoll);
           renderer.cleanup();
           const msg = err instanceof Error ? err.message : String(err);
           fail(`Workflow engine error: ${msg}`, outputOpts);

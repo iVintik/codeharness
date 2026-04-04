@@ -36,11 +36,10 @@ describe('default embedded workflow', () => {
       workflow = parseWorkflow(defaultWorkflowPath);
     });
 
-    it('defines ten tasks: create-story, negotiate-acs, implement, check, review, document, deploy, verify, retry, and retro', () => {
+    it('defines nine tasks: create-story, implement, check, review, document, deploy, verify, retry, and retro', () => {
       const taskNames = Object.keys(workflow.tasks);
-      expect(taskNames).toHaveLength(10);
+      expect(taskNames).toHaveLength(9);
       expect(taskNames).toContain('create-story');
-      expect(taskNames).toContain('negotiate-acs');
       expect(taskNames).toContain('implement');
       expect(taskNames).toContain('check');
       expect(taskNames).toContain('review');
@@ -107,23 +106,17 @@ describe('default embedded workflow', () => {
   describe('flow structure (AC #3)', () => {
     it('storyFlow: create-story, negotiate-acs, loop, implement, check, review, loop, document', () => {
       const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.storyFlow).toHaveLength(8);
+      expect(workflow.storyFlow).toHaveLength(6);
       expect(workflow.storyFlow[0]).toBe('create-story');
-      expect(workflow.storyFlow[1]).toBe('negotiate-acs');
+      expect(workflow.storyFlow[1]).toBe('implement');
+      expect(workflow.storyFlow[2]).toBe('check');
+      expect(workflow.storyFlow[3]).toBe('review');
 
-      const storyLoop1 = workflow.storyFlow[2] as LoopBlock;
-      expect(storyLoop1).toHaveProperty('loop');
-      expect(storyLoop1.loop).toEqual(['create-story', 'negotiate-acs']);
+      const storyLoop = workflow.storyFlow[4] as LoopBlock;
+      expect(storyLoop).toHaveProperty('loop');
+      expect(storyLoop.loop).toEqual(['retry', 'check', 'review']);
 
-      expect(workflow.storyFlow[3]).toBe('implement');
-      expect(workflow.storyFlow[4]).toBe('check');
-      expect(workflow.storyFlow[5]).toBe('review');
-
-      const storyLoop2 = workflow.storyFlow[6] as LoopBlock;
-      expect(storyLoop2).toHaveProperty('loop');
-      expect(storyLoop2.loop).toEqual(['retry', 'check', 'review']);
-
-      expect(workflow.storyFlow[7]).toBe('document');
+      expect(workflow.storyFlow[5]).toBe('document');
     });
 
     it('epicFlow: story_flow, deploy, verify, loop:[retry, document, deploy, verify], retro', () => {

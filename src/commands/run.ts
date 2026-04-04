@@ -252,6 +252,8 @@ export function registerRunCommand(program: Command): void {
       // Periodic header refresh (elapsed time, story status) — like the old 5s interval
       const headerRefresh = setInterval(() => {
         if (interrupted) return;
+        const epicId = currentStoryKey ? extractEpicId(currentStoryKey) : '';
+        const epic = epicId ? epicData[epicId] : undefined;
         renderer.updateSprintState({
           storyKey: currentStoryKey,
           phase: currentTaskName,
@@ -259,8 +261,21 @@ export function registerRunCommand(program: Command): void {
           total: counts.total,
           totalCost: totalCostUsd,
           elapsed: formatElapsed(Date.now() - sessionStartMs),
+          epicId: epicId || undefined,
+          epicStoriesDone: epic?.storiesDone,
+          epicStoriesTotal: epic?.storiesTotal,
         });
       }, 2_000);
+      // Load epic data for TUI context
+      const epicData: Record<string, { title?: string; storiesDone: number; storiesTotal: number }> = {};
+      const sprintStateResult = getSprintState();
+      if (sprintStateResult.success) {
+        for (const [epicKey, epic] of Object.entries(sprintStateResult.data.epics ?? {})) {
+          const epicId = epicKey.replace('epic-', '');
+          epicData[epicId] = { storiesDone: (epic as { storiesDone?: number }).storiesDone ?? 0, storiesTotal: (epic as { storiesTotal?: number }).storiesTotal ?? 0 };
+        }
+      }
+
       const taskStates: Record<string, 'pending' | 'active' | 'done' | 'failed'> = {};
       const taskMeta: Record<string, { driver?: string; costUsd?: number | null; elapsedMs?: number | null }> = {};
       // Initialize all tasks as pending with driver info
@@ -286,7 +301,8 @@ export function registerRunCommand(program: Command): void {
         if (event.type === 'dispatch-start') {
           currentStoryKey = event.storyKey;
           currentTaskName = event.taskName;
-          // Update header with current story/task
+          const epicId = extractEpicId(event.storyKey);
+          const epic = epicData[epicId];
           renderer.updateSprintState({
             storyKey: event.storyKey,
             phase: event.taskName,
@@ -294,6 +310,9 @@ export function registerRunCommand(program: Command): void {
             total: counts.total,
             totalCost: totalCostUsd,
             elapsed: formatElapsed(Date.now() - sessionStartMs),
+            epicId,
+            epicStoriesDone: epic?.storiesDone ?? 0,
+            epicStoriesTotal: epic?.storiesTotal ?? 0,
           });
           // Mark current task active in workflow graph
           taskStates[event.taskName] = 'active';

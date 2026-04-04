@@ -8,8 +8,8 @@
 
 import React from 'react';
 import { Box, Static, Text, useInput } from 'ink';
-import { Header, Separator, StoryBreakdown, type RendererState } from './ink-components.js';
-import { CompletedTools, ActiveTool, LastThought, RetryNotice, StoryMessageLine, DriverCostSummary } from './ink-activity-components.js';
+import { Header, Separator, ProgressBar, EpicInfo, StoryContext, StoryBreakdown, type RendererState } from './ink-components.js';
+import { StoryMessageLine, ActivitySection } from './ink-activity-components.js';
 import { WorkflowGraph } from './ink-workflow.js';
 import { LaneContainer } from './ink-lane-container.js';
 import type { LaneData } from './ink-lane-container.js';
@@ -50,6 +50,12 @@ export function App({ state, onCycleLane, onQuit }: { state: RendererState; onCy
 
   const activeLaneCount = state.laneCount ?? 0;
 
+  // Compute available height for activity section (adapts to terminal)
+  const termRows = process.stdout.rows || 24;
+  // Fixed sections: header(1) + separator(1) + progress(1) + epic(1) + storyContext(3) + separator(1) + workflow(1) + separator(1) = ~10
+  const fixedHeight = 10;
+  const availableHeight = Math.max(3, termRows - fixedHeight);
+
   return (
     <Box flexDirection="column">
       <Static items={state.messages}>
@@ -57,34 +63,28 @@ export function App({ state, onCycleLane, onQuit }: { state: RendererState; onCy
       </Static>
       <Header info={state.sprintInfo} laneCount={laneCount > 1 ? laneCount : undefined} />
       {laneCount > 1 ? (
-        <LaneContainer lanes={lanes!} terminalWidth={terminalWidth} />
+        <>
+          <LaneContainer lanes={lanes!} terminalWidth={terminalWidth} />
+          {state.summaryBar && <><Separator /><SummaryBar {...state.summaryBar} /></>}
+          {state.mergeState && <><Separator /><MergeStatus mergeState={state.mergeState} /></>}
+          <Separator />
+          <Box flexDirection="column" paddingLeft={1}>
+            <LaneActivityHeader activeLaneId={state.activeLaneId ?? null} laneCount={activeLaneCount} />
+            <ActivitySection completedTools={state.completedTools} activeTool={state.activeTool} activeDriverName={state.activeDriverName} lastThought={state.lastThought} retryInfo={state.retryInfo} availableHeight={availableHeight} />
+          </Box>
+        </>
       ) : (
         <>
-          <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} taskMeta={state.taskMeta} />
-          <StoryBreakdown stories={state.stories} sprintInfo={state.sprintInfo} />
-          <DriverCostSummary driverCosts={state.driverCosts} />
-        </>
-      )}
-      {laneCount > 1 && state.summaryBar && (
-        <>
           <Separator />
-          <SummaryBar {...state.summaryBar} />
-        </>
-      )}
-      {laneCount > 1 && state.mergeState && (
-        <>
+          <ProgressBar done={state.sprintInfo?.done ?? 0} total={state.sprintInfo?.total ?? 0} />
+          <EpicInfo info={state.sprintInfo} />
+          <StoryContext entries={state.storyContext ?? []} />
           <Separator />
-          <MergeStatus mergeState={state.mergeState} />
+          <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} />
+          <Separator />
+          <ActivitySection completedTools={state.completedTools} activeTool={state.activeTool} activeDriverName={state.activeDriverName} lastThought={state.lastThought} retryInfo={state.retryInfo} availableHeight={availableHeight} />
         </>
       )}
-      {(state.stories.length > 0 || (laneCount > 1 && (state.summaryBar || state.mergeState))) && <Separator />}
-      <Box flexDirection="column" paddingLeft={1}>
-        <LaneActivityHeader activeLaneId={state.activeLaneId ?? null} laneCount={activeLaneCount} />
-        <CompletedTools tools={state.completedTools} />
-        {state.activeTool && <ActiveTool name={state.activeTool.name} driverName={state.activeDriverName} />}
-        {state.lastThought && <LastThought text={state.lastThought} />}
-        {state.retryInfo && <RetryNotice info={state.retryInfo} />}
-      </Box>
     </Box>
   );
 }

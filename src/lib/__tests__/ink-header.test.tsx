@@ -95,29 +95,31 @@ describe('Header component', () => {
   });
 
   it('renders header format with pipes between parts', () => {
-    const info = makeSprintInfo({ iterationCount: 5 });
+    const info = makeSprintInfo();
     const { lastFrame } = render(
       <Header info={info} laneCount={2} />
     );
     const frame = lastFrame()!;
-    // Format: codeharness run | 2 lanes | iteration 5 | 18m elapsed | $X.XX spent
+    // Format: codeharness run | 2 lanes | 18m elapsed | $X.XX spent  [q to quit]
     expect(frame).toContain('codeharness run | 2 lanes');
-    expect(frame).toContain('| iteration 5');
+    // Iteration is no longer shown in header
+    expect(frame).not.toContain('iteration');
   });
 
-  it('renders story key line', () => {
+  it('does not render story key line (moved to StoryContext)', () => {
     const { lastFrame } = render(
       <Header info={makeSprintInfo({ storyKey: '14-2' })} />
     );
     const frame = lastFrame()!;
-    expect(frame).toContain('Story: 14-2');
+    // Story/Phase moved to StoryContext component
+    expect(frame).not.toContain('Story:');
   });
 
-  it('renders phase and AC progress', () => {
+  it('does not render phase and AC progress (moved to StoryContext)', () => {
     const info = makeSprintInfo({ phase: 'verify', acProgress: '7/9' });
     const { lastFrame } = render(<Header info={info} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('Phase: verify');
-    expect(frame).toContain('AC 7/9');
+    expect(frame).not.toContain('Phase:');
+    expect(frame).not.toContain('AC 7/9');
   });
 });

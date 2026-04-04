@@ -23,10 +23,21 @@ export interface SprintInfo {
   totalCost?: number;
   acProgress?: string;
   currentCommand?: string;
+  /** Epic context. */
+  epicId?: string;
+  epicTitle?: string;
+  epicStoriesDone?: number;
+  epicStoriesTotal?: number;
   /** Number of active lanes (multi-lane mode). */
   laneCount?: number;
   /** Total cost across all lanes (multi-lane mode). */
   laneTotalCost?: number;
+}
+
+export interface StoryContextEntry {
+  key: string;
+  role: 'prev' | 'current' | 'next';
+  task?: string;
 }
 
 export interface CompletedToolEntry {
@@ -80,6 +91,7 @@ export interface RendererState {
   taskMeta: Record<string, TaskNodeMeta>;
   activeDriverName: string | null;
   driverCosts: Record<string, number>;
+  storyContext: StoryContextEntry[];
   /** Multi-lane data for parallel execution TUI. */
   lanes?: import('./ink-lane-container.js').LaneData[];
   /** Summary bar data for multi-lane sprint overview. */
@@ -113,129 +125,65 @@ export function Header({ info, laneCount }: { info: SprintInfo | null; laneCount
   if (!info) return null;
 
   const parts: string[] = ['codeharness run'];
-  if (laneCount != null && laneCount > 1) {
-    parts.push(`${laneCount} lanes`);
-  }
-  if (info.iterationCount != null) {
-    parts.push(`iteration ${info.iterationCount}`);
-  }
-  if (info.elapsed) {
-    parts.push(`${info.elapsed} elapsed`);
-  }
-  // In multi-lane mode, show total cost across all lanes if available
+  if (laneCount != null && laneCount > 1) parts.push(`${laneCount} lanes`);
+  if (info.elapsed) parts.push(`${info.elapsed} elapsed`);
   const displayCost = (laneCount != null && laneCount > 1 && info.laneTotalCost != null)
-    ? info.laneTotalCost
-    : info.totalCost;
-  if (displayCost != null) {
-    parts.push(`${formatCost(displayCost)} spent`);
-  }
-  const headerLine = parts.join(' | ');
+    ? info.laneTotalCost : info.totalCost;
+  if (displayCost != null) parts.push(`${formatCost(displayCost)} spent`);
 
-  let phaseLine = '';
-  if (info.phase) {
-    phaseLine = `Phase: ${info.phase}`;
-    if (info.acProgress) {
-      phaseLine += ` → AC ${info.acProgress}`;
-    }
-    if (info.currentCommand) {
-      phaseLine += ` (${info.currentCommand})`;
-    }
-  }
+  const left = parts.join(' | ');
+  const right = '[q to quit]';
+  const width = process.stdout.columns || 80;
+  const pad = Math.max(0, width - left.length - right.length);
 
+  return <Text>{left}{' '.repeat(pad)}<Text dimColor>{right}</Text></Text>;
+}
+
+/** Progress bar with fraction and percentage. */
+export function ProgressBar({ done, total }: { done: number; total: number }) {
+  const width = Math.max(10, (process.stdout.columns || 80) - 30);
+  const pct = total > 0 ? done / total : 0;
+  const filled = Math.round(width * pct);
+  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(width - filled);
+  const pctStr = total > 0 ? `${Math.round(pct * 100)}%` : '0%';
+  return <Text>{'Progress: '}<Text color="green">{bar}</Text>{` ${done}/${total} stories (${pctStr})`}</Text>;
+}
+
+/** Epic context: name and progress within current epic. */
+export function EpicInfo({ info }: { info: SprintInfo | null }) {
+  if (!info?.epicId) return null;
+  const title = info.epicTitle ?? `Epic ${info.epicId}`;
+  const progress = info.epicStoriesTotal
+    ? ` \u2014 ${info.epicStoriesDone ?? 0}/${info.epicStoriesTotal} stories done`
+    : '';
+  return <Text><Text bold>{`Epic ${info.epicId}: ${title}`}</Text><Text dimColor>{progress}</Text></Text>;
+}
+
+/** Story context: prev/current/next sliding window. */
+export function StoryContext({ entries }: { entries: StoryContextEntry[] }) {
+  if (entries.length === 0) return null;
   return (
     <Box flexDirection="column">
-      <Text>{headerLine}</Text>
-      <Separator />
-      <Text>{`Story: ${info.storyKey || '(waiting)'}`}</Text>
-      {phaseLine && <Text>{phaseLine}</Text>}
+      {entries.map((e, i) => {
+        if (e.role === 'prev') return <Text key={i}><Text color="green">{`  Prev: ${shortKey(e.key)} \u2713`}</Text></Text>;
+        if (e.role === 'current') return <Text key={i}><Text color="cyan">{`  This: ${shortKey(e.key)} \u25C6 ${e.task ?? ''}`}</Text></Text>;
+        return <Text key={i}><Text dimColor>{`  Next: ${shortKey(e.key)}`}</Text></Text>;
+      })}
     </Box>
   );
 }
 
+/** @deprecated Use ProgressBar + StoryContext instead. Kept for multi-lane compatibility. */
 export function StoryBreakdown({ stories, sprintInfo }: { stories: StoryStatusEntry[]; sprintInfo?: SprintInfo | null }) {
   if (stories.length === 0) return null;
-
-  const done: StoryStatusEntry[] = [];
-  const inProgress: StoryStatusEntry[] = [];
-  const pending: StoryStatusEntry[] = [];
-  const failed: StoryStatusEntry[] = [];
-  const blocked: StoryStatusEntry[] = [];
-
-  for (const s of stories) {
-    switch (s.status) {
-      case 'done': done.push(s); break;
-      case 'in-progress': inProgress.push(s); break;
-      case 'pending': pending.push(s); break;
-      case 'failed': failed.push(s); break;
-      case 'blocked': blocked.push(s); break;
-    }
-  }
-
-  const lines: React.ReactNode[] = [];
-
-  if (done.length > 0) {
-    const doneItems = done.map(s => {
-      let item = `${shortKey(s.key)} ✓`;
-      if (s.costByDriver && Object.keys(s.costByDriver).length > 0) {
-        const costParts = Object.keys(s.costByDriver).sort().map(
-          driver => `${driver} ${formatCost(s.costByDriver![driver])}`
-        );
-        item += ` ${costParts.join(', ')}`;
-      }
-      return item;
-    }).join('  ');
-    lines.push(
-      <Text key="done"><Text color="green">{'Done: '}</Text><Text color="green">{doneItems}</Text></Text>
-    );
-  }
-
-  if (inProgress.length > 0) {
-    for (const s of inProgress) {
-      let thisText = `${shortKey(s.key)} ◆`;
-      if (sprintInfo && sprintInfo.storyKey && shortKey(s.key) === shortKey(sprintInfo.storyKey)) {
-        if (sprintInfo.phase) thisText += ` ${sprintInfo.phase}`;
-        if (sprintInfo.acProgress) thisText += ` (${sprintInfo.acProgress} ACs)`;
-      }
-      lines.push(
-        <Text key={`this-${s.key}`}><Text color="cyan">{'This: '}</Text><Text color="cyan">{thisText}</Text></Text>
-      );
-    }
-  }
-
-  if (pending.length > 0) {
-    lines.push(
-      <Text key="next">
-        <Text>{'Next: '}</Text><Text>{shortKey(pending[0].key)}</Text>
-        {pending.length > 1 && <Text dimColor>{` (+${pending.length - 1} more)`}</Text>}
-      </Text>
-    );
-  }
-
-  if (blocked.length > 0) {
-    const blockedItems = blocked.map(s => {
-      let item = `${shortKey(s.key)} ✕`;
-      if (s.retryCount != null && s.maxRetries != null) item += ` (${s.retryCount}/${s.maxRetries})`;
-      return item;
-    }).join('  ');
-    lines.push(
-      <Text key="blocked"><Text color="yellow">{'Blocked: '}</Text><Text color="yellow">{blockedItems}</Text></Text>
-    );
-  }
-
-  if (failed.length > 0) {
-    const failedItems = failed.map(s => {
-      let item = `${shortKey(s.key)} ✗`;
-      if (s.retryCount != null && s.maxRetries != null) item += ` (${s.retryCount}/${s.maxRetries})`;
-      return item;
-    }).join('  ');
-    lines.push(
-      <Text key="failed"><Text color="red">{'Failed: '}</Text><Text color="red">{failedItems}</Text></Text>
-    );
-  }
-
+  const done = stories.filter(s => s.status === 'done');
+  const inProgress = stories.filter(s => s.status === 'in-progress');
+  const pending = stories.filter(s => s.status === 'pending');
   return (
     <Box flexDirection="column">
-      {lines}
+      {done.length > 0 && <Text color="green">{`Done: ${done.map(s => `${shortKey(s.key)} \u2713`).join('  ')}`}</Text>}
+      {inProgress.map(s => <Text key={s.key} color="cyan">{`This: ${shortKey(s.key)} \u25C6 ${sprintInfo?.phase ?? ''}`}</Text>)}
+      {pending.length > 0 && <Text>{`Next: ${shortKey(pending[0].key)}${pending.length > 1 ? ` (+${pending.length - 1} more)` : ''}`}</Text>}
     </Box>
   );
 }

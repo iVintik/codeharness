@@ -23,6 +23,7 @@ function makeState(overrides?: Partial<RendererState>): RendererState {
     taskMeta: {},
     activeDriverName: null,
     driverCosts: {},
+    storyContext: [],
     ...overrides,
   };
 }
@@ -69,7 +70,8 @@ describe('App component', () => {
     const frame = lastFrame()!;
     // Should show header
     expect(frame).toContain('codeharness run');
-    expect(frame).toContain('Story: 10-3');
+    // Story/Phase no longer in header — moved to StoryContext
+    expect(frame).not.toContain('Story:');
     // Should NOT show lane count
     expect(frame).not.toContain('lanes');
   });
@@ -90,7 +92,8 @@ describe('App component', () => {
     const frame = lastFrame()!;
     // AC #8: single lane mode should be visually identical to current single-lane TUI
     expect(frame).toContain('codeharness run');
-    expect(frame).toContain('Story: 10-3');
+    // Story/Phase no longer in header
+    expect(frame).not.toContain('Story:');
     // Should NOT render LaneContainer (no lane indices visible)
     expect(frame).not.toContain('Lane 1:');
     expect(frame).not.toContain('lanes');
@@ -156,7 +159,7 @@ describe('App component', () => {
     const { lastFrame } = render(<App state={state} />);
     const frame = lastFrame()!;
     // Empty lanes = single-lane layout
-    expect(frame).toContain('Story: 10-3');
+    expect(frame).toContain('codeharness run');
     expect(frame).not.toContain('Lane 1:');
   });
 

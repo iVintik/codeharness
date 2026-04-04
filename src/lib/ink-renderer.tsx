@@ -113,6 +113,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     taskMeta: {},
     activeDriverName: null,
     driverCosts: {},
+    storyContext: [],
     activeLaneId: null,
     laneCount: 0,
   };
@@ -527,6 +528,27 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
       lastStoryKey = currentKey;
     }
     state.stories = updatedStories;
+
+    // Compute story context (prev/current/next)
+    const ctx: import('./ink-components.js').StoryContextEntry[] = [];
+    const currentStory = currentKey ?? '';
+    const currentTask = state.currentTaskName ?? '';
+    let foundCurrent = false;
+    let prevKey: string | null = null;
+    for (const s of updatedStories) {
+      if (s.key === currentStory) {
+        if (prevKey) ctx.push({ key: prevKey, role: 'prev' });
+        ctx.push({ key: s.key, role: 'current', task: currentTask });
+        foundCurrent = true;
+      } else if (foundCurrent && s.status === 'pending') {
+        ctx.push({ key: s.key, role: 'next' });
+        break;
+      } else if (s.status === 'done') {
+        prevKey = s.key;
+      }
+    }
+    state.storyContext = ctx;
+
     rerender();
   }
 

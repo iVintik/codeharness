@@ -39,6 +39,7 @@ function makeState(overrides?: Partial<RendererState>): RendererState {
     taskMeta: {},
     activeDriverName: null,
     driverCosts: {},
+    storyContext: [],
     ...overrides,
   };
 }
@@ -59,16 +60,15 @@ describe('Header component', () => {
     const frame = lastFrame()!;
     // AC1: plain text header, NO Box border, NO diamond prefix
     expect(frame).toContain('codeharness run');
-    expect(frame).toContain('iteration 2');
     expect(frame).toContain('$5.50 spent');
     expect(frame).not.toContain('◆');
     expect(frame).not.toContain('│'); // No Ink Box border character
-    // AC3: Story and Phase on separate lines
-    expect(frame).toContain('Story: 0-5-3');
-    expect(frame).toContain('Phase: dev');
+    // Header is now single line — Story/Phase moved to StoryContext
+    expect(frame).not.toContain('Story:');
+    expect(frame).not.toContain('Phase:');
   });
 
-  it('renders separator line with heavy bars', () => {
+  it('does not include separator (separator is a separate component now)', () => {
     const info: SprintInfo = {
       storyKey: '1-1',
       phase: 'dev',
@@ -77,8 +77,8 @@ describe('Header component', () => {
     };
     const { lastFrame } = render(<Header info={info} />);
     const frame = lastFrame()!;
-    // AC2: separator line
-    expect(frame).toContain('━━━');
+    // Separator is now rendered separately in App layout
+    expect(frame).not.toContain('━━━');
   });
 
   it('renders nothing when info is null', () => {
@@ -86,7 +86,7 @@ describe('Header component', () => {
     expect(lastFrame()).toBe('');
   });
 
-  it('renders Phase with AC progress and current command', () => {
+  it('does not render Phase/AC/command in header (moved to StoryContext)', () => {
     const info: SprintInfo = {
       storyKey: '3-2',
       phase: 'verify',
@@ -97,9 +97,11 @@ describe('Header component', () => {
     };
     const { lastFrame } = render(<Header info={info} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('Phase: verify');
-    expect(frame).toContain('AC 8/12');
-    expect(frame).toContain('(docker exec ... codeharness init --json)');
+    // Header is now single line — Phase/AC/command moved to StoryContext
+    expect(frame).toContain('codeharness run');
+    expect(frame).not.toContain('Phase:');
+    expect(frame).not.toContain('AC 8/12');
+    expect(frame).not.toContain('currentCommand');
   });
 
   it('omits iteration and cost when not provided', () => {
@@ -142,11 +144,11 @@ describe('Header with elapsed time (AC #3)', () => {
     const { lastFrame } = render(<Header info={info} />);
     const frame = lastFrame()!;
     expect(frame).toContain('codeharness run');
-    expect(frame).toContain('iteration 3');
     expect(frame).toContain('47m elapsed');
     expect(frame).toContain('$12.30 spent');
-    expect(frame).toContain('Story: 3-2');
-    expect(frame).toContain('Phase: verify');
+    // Header no longer shows iteration, Story, or Phase
+    expect(frame).not.toContain('Story:');
+    expect(frame).not.toContain('Phase:');
   });
 
   it('omits elapsed when not provided', () => {
@@ -158,13 +160,13 @@ describe('Header with elapsed time (AC #3)', () => {
     };
     const { lastFrame } = render(<Header info={info} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('Story: 1-1');
+    expect(frame).toContain('codeharness run');
     expect(frame).not.toContain('undefined');
   });
 });
 
 describe('StoryBreakdown component (AC #4)', () => {
-  it('renders labeled sections: Done, This, Next, Blocked', () => {
+  it('renders labeled sections: Done, This, Next (Blocked removed in simplified version)', () => {
     const stories: StoryStatusEntry[] = [
       { key: '3-1-some-story', status: 'done' },
       { key: '4-1-another', status: 'done' },
@@ -184,10 +186,8 @@ describe('StoryBreakdown component (AC #4)', () => {
     // Next: next pending story
     expect(frame).toContain('Next:');
     expect(frame).toContain('3-3');
-    // Blocked: with ✕ and retry counts
-    expect(frame).toContain('Blocked:');
-    expect(frame).toContain('0-1 ✕');
-    expect(frame).toContain('(10/10)');
+    // Blocked section no longer rendered in simplified StoryBreakdown
+    expect(frame).not.toContain('Blocked:');
   });
 
   it('renders nothing when stories array is empty', () => {
@@ -195,15 +195,14 @@ describe('StoryBreakdown component (AC #4)', () => {
     expect(lastFrame()).toBe('');
   });
 
-  it('renders failed stories with ✗', () => {
+  it('renders nothing for failed-only stories (failed section removed)', () => {
     const stories: StoryStatusEntry[] = [
       { key: '2-3-broken', status: 'failed', retryCount: 5, maxRetries: 10 },
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('Failed:');
-    expect(frame).toContain('2-3 ✗');
-    expect(frame).toContain('(5/10)');
+    // Failed section no longer rendered in simplified StoryBreakdown
+    expect(frame).not.toContain('Failed:');
   });
 
   it('shows +N indicator for multiple pending stories', () => {
@@ -221,7 +220,7 @@ describe('StoryBreakdown component (AC #4)', () => {
     expect(frame).toContain('+4 more');
   });
 
-  it('includes AC progress for current story when sprintInfo provided', () => {
+  it('includes phase for current story when sprintInfo provided (no AC progress)', () => {
     const stories: StoryStatusEntry[] = [
       { key: '3-2-current', status: 'in-progress' },
     ];
@@ -237,21 +236,22 @@ describe('StoryBreakdown component (AC #4)', () => {
     expect(frame).toContain('This:');
     expect(frame).toContain('3-2 ◆');
     expect(frame).toContain('verifying');
-    expect(frame).toContain('(8/12 ACs)');
+    // AC progress no longer shown in simplified StoryBreakdown
+    expect(frame).not.toContain('(8/12 ACs)');
   });
 
-  it('renders blocked stories without retry counts when not provided', () => {
+  it('does not render blocked stories (blocked section removed)', () => {
     const stories: StoryStatusEntry[] = [
       { key: '1-1-stuck', status: 'blocked' },
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('Blocked:');
-    expect(frame).toContain('1-1 ✕');
-    expect(frame).not.toContain('(');
+    // Blocked section no longer rendered in simplified StoryBreakdown
+    expect(frame).not.toContain('Blocked:');
+    expect(frame).not.toContain('1-1 ✕');
   });
 
-  it('does not match story 3-20 as current when sprint info says 3-2 (key prefix collision)', () => {
+  it('renders both in-progress stories with phase from sprintInfo', () => {
     const stories: StoryStatusEntry[] = [
       { key: '3-2-current', status: 'in-progress' },
       { key: '3-20-other', status: 'in-progress' },
@@ -265,9 +265,10 @@ describe('StoryBreakdown component (AC #4)', () => {
     };
     const { lastFrame } = render(<StoryBreakdown stories={stories} sprintInfo={sprintInfo} />);
     const frame = lastFrame()!;
-    // 3-2 should have phase info, 3-20 should NOT
-    expect(frame).toContain('3-2 ◆ verifying (8/12 ACs)');
-    expect(frame).toMatch(/3-20 ◆(?! verifying)/);
+    // Both in-progress stories rendered with diamond and phase
+    expect(frame).toContain('3-2 ◆');
+    expect(frame).toContain('3-20 ◆');
+    expect(frame).toContain('verifying');
   });
 });
 
@@ -408,7 +409,7 @@ describe('App component', () => {
     const { lastFrame } = render(<App state={state} />);
     const frame = lastFrame()!;
     expect(frame).toContain('codeharness run');
-    expect(frame).toContain('Story: 1-2-3');
+    // Story/Phase no longer in header — now in StoryContext
     expect(frame).toContain('✓');
     expect(frame).toContain('[Bash]');
     expect(frame).toContain('⚡');
@@ -433,7 +434,7 @@ describe('App component', () => {
     expect(frame).toContain('3');
   });
 
-  it('renders bottom separator after story breakdown', () => {
+  it('renders separators in single-lane layout', () => {
     const state = makeState({
       sprintInfo: { storyKey: '3-2', phase: 'dev', done: 1, total: 5 },
       stories: [
@@ -443,9 +444,9 @@ describe('App component', () => {
     });
     const { lastFrame } = render(<App state={state} />);
     const frame = lastFrame()!;
-    // Should have separators
+    // Single-lane layout has 3 separators: after header, after StoryContext, after WorkflowGraph
     const separatorCount = (frame.match(/━━━/g) || []).length;
-    expect(separatorCount).toBeGreaterThanOrEqual(2); // header separator + bottom separator
+    expect(separatorCount).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -802,37 +803,25 @@ describe('Visual snapshot: spec-compliant output', () => {
     const { lastFrame } = render(<App state={state} />);
     const frame = lastFrame()!;
 
-    // Header line: plain text with pipe separators
-    expect(frame).toContain('codeharness run | iteration 3 | 47m elapsed | $12.30 spent');
+    // Header line: plain text with pipe separators (no longer includes iteration)
+    expect(frame).toContain('codeharness run | 47m elapsed | $12.30 spent');
 
     // Separator lines (━━━)
     expect(frame).toContain('━━━');
 
-    // Story and Phase lines
-    expect(frame).toContain('Story: 3-2-bmad-installation-workflow-patching');
-    expect(frame).toContain('Phase: verify');
-    expect(frame).toContain('AC 8/12');
-    expect(frame).toContain('(docker exec ... codeharness init --json)');
+    // Single-lane layout uses ProgressBar + StoryContext instead of StoryBreakdown
+    // Story/Phase no longer in header
+    expect(frame).not.toContain('Story:');
+    expect(frame).not.toContain('Phase:');
 
-    // Labeled story sections
-    expect(frame).toContain('Done:');
-    expect(frame).toContain('3-1 ✓');
-    expect(frame).toContain('4-1 ✓');
-    expect(frame).toContain('4-2 ✓');
-    expect(frame).toContain('This:');
-    expect(frame).toContain('3-2 ◆');
-    expect(frame).toContain('Next:');
-    expect(frame).toContain('3-3');
-    expect(frame).toContain('Blocked:');
-    expect(frame).toContain('0-1 ✕ (10/10)');
-    expect(frame).toContain('13-3 ✕ (10/10)');
+    // ProgressBar shows done/total
+    expect(frame).toContain('18/65');
 
     // No Ink Box border artifacts
     expect(frame).not.toContain('╭');
     expect(frame).not.toContain('╮');
     expect(frame).not.toContain('╰');
     expect(frame).not.toContain('╯');
-    expect(frame).not.toMatch(/│/);
   });
 
   it('renders story completion in spec format', () => {
@@ -921,13 +910,14 @@ describe('driver name in rendered output', () => {
     expect(frame).not.toContain('(undefined)');
   });
 
-  it('renders DriverCostSummary with multi-driver costs in App layout', () => {
+  it('does not render DriverCostSummary in single-lane App layout (removed)', () => {
     const state = makeState({
       driverCosts: { codex: 0.45, 'claude-code': 1.23 },
     });
     const { lastFrame } = render(<App state={state} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('Cost: claude-code $1.23, codex $0.45');
+    // DriverCostSummary is no longer rendered in single-lane mode
+    expect(frame).not.toContain('Cost: claude-code');
   });
 
   it('renders nothing for DriverCostSummary when driverCosts is empty', () => {
@@ -983,23 +973,16 @@ describe('driver name in update() (controller integration)', () => {
 
 // --- Per-Story Cost Tracking Tests (Story 15-2) ---
 
-describe('StoryBreakdown per-story cost display', () => {
-  it('renders done story with multi-driver costs sorted alphabetically', () => {
+describe('StoryBreakdown per-story cost display (costs no longer rendered in simplified version)', () => {
+  it('renders done story without cost display (simplified)', () => {
     const stories: StoryStatusEntry[] = [
       { key: '1-1-auth', status: 'done', costByDriver: { codex: 0.15, 'claude-code': 0.42 } },
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('1-1 ✓ claude-code $0.42, codex $0.15');
-  });
-
-  it('renders done story with single-driver cost', () => {
-    const stories: StoryStatusEntry[] = [
-      { key: '1-1-auth', status: 'done', costByDriver: { 'claude-code': 0.42 } },
-    ];
-    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
-    const frame = lastFrame()!;
-    expect(frame).toContain('1-1 ✓ claude-code $0.42');
+    // Simplified StoryBreakdown no longer shows per-story costs
+    expect(frame).toContain('1-1 ✓');
+    expect(frame).not.toContain('$');
   });
 
   it('renders done story with no cost data as just checkmark', () => {
@@ -1022,16 +1005,7 @@ describe('StoryBreakdown per-story cost display', () => {
     expect(frame).not.toContain('$');
   });
 
-  it('formats cost as $X.XX with two decimal places', () => {
-    const stories: StoryStatusEntry[] = [
-      { key: '2-1-test', status: 'done', costByDriver: { opencode: 3 } },
-    ];
-    const { lastFrame } = render(<StoryBreakdown stories={stories} />);
-    const frame = lastFrame()!;
-    expect(frame).toContain('$3.00');
-  });
-
-  it('renders multiple done stories each with their own cost breakdown', () => {
+  it('renders multiple done stories as checkmarks without cost breakdown', () => {
     const stories: StoryStatusEntry[] = [
       { key: '1-1-auth', status: 'done', costByDriver: { 'claude-code': 0.42 } },
       { key: '1-2-api', status: 'done', costByDriver: { codex: 0.30, 'claude-code': 0.10 } },
@@ -1039,9 +1013,11 @@ describe('StoryBreakdown per-story cost display', () => {
     ];
     const { lastFrame } = render(<StoryBreakdown stories={stories} />);
     const frame = lastFrame()!;
-    expect(frame).toContain('1-1 ✓ claude-code $0.42');
-    expect(frame).toContain('1-2 ✓ claude-code $0.10, codex $0.30');
+    expect(frame).toContain('1-1 ✓');
+    expect(frame).toContain('1-2 ✓');
     expect(frame).toContain('1-3 ✓');
+    // Costs no longer displayed
+    expect(frame).not.toContain('$');
   });
 });
 

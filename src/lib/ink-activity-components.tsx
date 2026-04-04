@@ -52,10 +52,11 @@ export function CompletedTool({ entry }: { entry: CompletedToolEntry }) {
 }
 
 /** Show only the last N completed tools to keep output compact. */
-const VISIBLE_COMPLETED_TOOLS = 5;
+const DEFAULT_VISIBLE_TOOLS = 5;
 
-export function CompletedTools({ tools }: { tools: CompletedToolEntry[] }) {
-  const visible = tools.slice(-VISIBLE_COMPLETED_TOOLS);
+export function CompletedTools({ tools, maxVisible }: { tools: CompletedToolEntry[]; maxVisible?: number }) {
+  const limit = maxVisible ?? DEFAULT_VISIBLE_TOOLS;
+  const visible = tools.slice(-limit);
   const hidden = tools.length - visible.length;
   return (
     <Box flexDirection="column">
@@ -63,6 +64,32 @@ export function CompletedTools({ tools }: { tools: CompletedToolEntry[] }) {
       {visible.map((entry, i) => (
         <CompletedTool key={i} entry={entry} />
       ))}
+    </Box>
+  );
+}
+
+/** Activity section that adapts to available terminal height. */
+export function ActivitySection({ completedTools, activeTool, activeDriverName, lastThought, retryInfo, availableHeight }: {
+  completedTools: CompletedToolEntry[];
+  activeTool: { name: string } | null;
+  activeDriverName: string | null;
+  lastThought: string | null;
+  retryInfo: RetryInfo | null;
+  availableHeight: number;
+}) {
+  // Reserve lines: active tool (1), last thought (1), retry (1 if present)
+  let reserved = 0;
+  if (activeTool) reserved++;
+  if (lastThought) reserved++;
+  if (retryInfo) reserved++;
+  const toolsHeight = Math.max(1, availableHeight - reserved - 1); // -1 for hidden count line
+
+  return (
+    <Box flexDirection="column" paddingLeft={1}>
+      <CompletedTools tools={completedTools} maxVisible={toolsHeight} />
+      {activeTool && <ActiveTool name={activeTool.name} driverName={activeDriverName} />}
+      {lastThought && <LastThought text={lastThought} />}
+      {retryInfo && <RetryNotice info={retryInfo} />}
     </Box>
   );
 }

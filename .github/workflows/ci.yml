@@ -69,7 +69,8 @@ jobs:
       - name: Validate shell scripts
         run: |
           errors=0
-          for f in ralph/*.sh; do
+          shopt -s nullglob
+          for f in ralph/*.sh scripts/*.sh; do
             if ! bash -n "$f"; then
               echo "::error file=$f::Syntax error in $f"
               errors=$((errors + 1))

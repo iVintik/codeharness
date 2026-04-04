@@ -1,6 +1,5 @@
 import { readFileSync, existsSync } from 'node:fs';
-import { join, resolve, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, resolve } from 'node:path';
 import os from 'node:os';
 import { parse } from 'yaml';
 import { validateWorkflowSchema } from './schema-validate.js';
@@ -18,10 +17,9 @@ import {
 export type { ExecutionConfig, HierarchicalFlow } from './hierarchical-flow.js';
 export { BUILTIN_EPIC_FLOW_TASKS } from './hierarchical-flow.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { getPackageRoot } from './templates.js';
 
-const TEMPLATES_DIR = resolve(__dirname, '../../templates/workflows');
+const TEMPLATES_DIR = resolve(getPackageRoot(), 'templates/workflows');
 
 // --- Interfaces ---
 

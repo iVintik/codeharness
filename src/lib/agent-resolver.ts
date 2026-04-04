@@ -1,12 +1,10 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { resolve, join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { resolve, join } from 'node:path';
 import os from 'node:os';
 import { parse } from 'yaml';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 import { validateAgentSchema } from './schema-validate.js';
+import { getPackageRoot } from './templates.js';
 
 // --- Interfaces ---
 
@@ -80,7 +78,7 @@ export class AgentResolveError extends Error {
 
 // --- Constants ---
 
-const TEMPLATES_DIR = resolve(__dirname, '../../templates/agents');
+const TEMPLATES_DIR = resolve(getPackageRoot(), 'templates/agents');
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 
 // --- Input Validation ---

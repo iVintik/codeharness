@@ -12,6 +12,12 @@ tasks:
     source_access: true
     model: claude-sonnet-4-6
   check:
+    agent: checker
+    scope: per-story
+    session: fresh
+    source_access: true
+    driver: codex
+  review:
     agent: reviewer
     scope: per-story
     session: fresh
@@ -40,9 +46,11 @@ flow:
   - create-story
   - implement
   - check
+  - review
   - verify
   - loop:
       - retry
       - check
+      - review
       - verify
   - retro

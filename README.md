@@ -8,7 +8,7 @@ codeharness is an **npm CLI** + **Claude Code plugin** that packages verificatio
 
 1. **Verifies features work** — not just that tests pass. Black-box verification runs the built CLI inside a Docker container with no source code access. If the feature doesn't work from a user's perspective, verification fails.
 2. **Fixes what it finds** — verification failures with code bugs automatically return to development with specific findings. The dev agent gets told exactly what's broken and why.
-3. **Runs sprints autonomously** — reads your sprint plan, picks the highest-priority story, implements it, reviews it, verifies it, and moves to the next one. Cross-epic prioritization, retry management, and session handoff built in.
+3. **Runs sprints autonomously** — reads your sprint plan, picks the highest-priority story, implements it, checks it (tests + lint), verifies it (agent evaluation), and moves to the next one. Cross-epic prioritization, retry management, and session handoff built in.
 4. **Makes agents see runtime** — ephemeral VictoriaMetrics stack (logs, metrics, traces) that agents query programmatically during development. No guessing at what the code does at runtime.
 
 ## Installation
@@ -61,7 +61,7 @@ The plugin provides slash commands that orchestrate the CLI within Claude Code s
 
 | Command | Purpose |
 |---------|---------|
-| `/harness-run` | Autonomous sprint execution — picks stories by priority, runs create → dev → review → verify loop |
+| `/harness-run` | Autonomous sprint execution — picks stories by priority, runs create → implement → check → verify loop |
 | `/harness-init` | Interactive project initialization |
 | `/harness-status` | Quick overview of sprint progress and harness health |
 | `/harness-onboard` | Scan project and generate onboarding plan |
@@ -84,7 +84,7 @@ codeharness integrates with [BMAD Method](https://github.com/bmadcode/BMAD-METHO
 ┌─────────────────────────────────────────┐
 │  Claude Code Session                     │
 │  /harness-run picks next story           │
-│  → create-story → dev → review → verify  │
+│  → create-story → implement → check → verify │
 └────────────────────┬────────────────────┘
                      │ verify
                      ▼

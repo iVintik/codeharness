@@ -33,16 +33,18 @@ export function LaneActivityHeader({ activeLaneId, laneCount }: { activeLaneId: 
 
 // --- App Component ---
 
-export function App({ state, onCycleLane }: { state: RendererState; onCycleLane?: () => void }) {
+export function App({ state, onCycleLane, onQuit }: { state: RendererState; onCycleLane?: () => void; onQuit?: () => void }) {
   const lanes: LaneData[] | undefined = state.lanes;
   const laneCount = lanes?.length ?? 0;
   const terminalWidth = process.stdout.columns || 80;
 
-  // Ctrl+L handler for cycling lanes (only active in multi-lane mode)
-  // isActive guards against non-TTY environments (e.g., tests)
-  useInput((_input, key) => {
-    if (key.ctrl && _input === 'l' && onCycleLane && laneCount > 1) {
+  // Key handlers: Ctrl+L for lane cycling, 'q' for quit
+  useInput((input, key) => {
+    if (key.ctrl && input === 'l' && onCycleLane && laneCount > 1) {
       onCycleLane();
+    }
+    if (input === 'q' && onQuit) {
+      onQuit();
     }
   }, { isActive: typeof process.stdin.setRawMode === 'function' });
 

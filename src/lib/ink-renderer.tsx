@@ -30,6 +30,8 @@ import type { MergeState } from './ink-merge-status.js';
 export interface RendererOptions {
   quiet?: boolean;
   sprintState?: SprintInfo;
+  /** Called when user presses 'q' to quit. */
+  onQuit?: () => void;
   /** @internal Force TTY mode for testing. Not part of the public API. */
   _forceTTY?: boolean;
 }
@@ -129,7 +131,8 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
   let cleaned = false;
 
   // Mount Ink with performance options
-  const inkInstance = inkRender(<App state={state} onCycleLane={() => cycleLane()} />, {
+  const onQuit = options?.onQuit;
+  const inkInstance = inkRender(<App state={state} onCycleLane={() => cycleLane()} onQuit={onQuit ? () => onQuit() : undefined} />, {
     exitOnCtrlC: false,
     patchConsole: !options?._forceTTY,
     maxFps: 15,
@@ -139,7 +142,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     if (!cleaned) {
       // Create a new state object reference to trigger React re-render
       state = { ...state };
-      inkInstance.rerender(<App state={state} onCycleLane={() => cycleLane()} />);
+      inkInstance.rerender(<App state={state} onCycleLane={() => cycleLane()} onQuit={onQuit ? () => onQuit() : undefined} />);
     }
   }
 

@@ -338,8 +338,8 @@ export class CodexDriver implements AgentDriver {
       );
     }
 
-    // Build CLI args — use `codex exec --json --full-auto` for non-interactive JSONL output
-    const args: string[] = ['exec', '--json', '--full-auto'];
+    // Build CLI args — use `codex exec --json --full-auto --skip-git-repo-check`
+    const args: string[] = ['exec', '--json', '--full-auto', '--skip-git-repo-check'];
     // Only pass model if it's a codex-compatible model (not a Claude model)
     const model = opts.model && !opts.model.startsWith('claude-') ? opts.model : undefined;
     if (model) {

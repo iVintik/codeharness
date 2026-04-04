@@ -4,7 +4,7 @@ import { Command } from 'commander';
 import { fail, info, ok } from '../lib/output.js';
 import { isDockerAvailable } from '../lib/docker/index.js';
 import { cleanupContainers } from '../modules/infra/index.js';
-import { getSprintState, readSprintStatusFromState, reconcileState } from '../modules/sprint/index.js';
+import { getSprintState, readSprintStatusFromState, reconcileState, updateStoryStatus } from '../modules/sprint/index.js';
 import { countStories, formatElapsed } from '../lib/run-helpers.js';
 import { parseWorkflow, resolveWorkflow } from '../lib/workflow-parser.js';
 import { resolveAgent, compileSubagentDefinition } from '../lib/agent-resolver.js';
@@ -353,7 +353,8 @@ export function registerRunCommand(program: Command): void {
           });
           taskStates[stateKey] = 'active';
           renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
-          // Mark story as in-progress
+          // Mark story as in-progress in sprint state and TUI
+          updateStoryStatus(event.storyKey, 'in-progress');
           const idx = storyEntries.findIndex(s => s.key === event.storyKey);
           if (idx >= 0 && storyEntries[idx].status === 'pending') {
             storyEntries[idx] = { ...storyEntries[idx], status: 'in-progress' };
@@ -370,6 +371,16 @@ export function registerRunCommand(program: Command): void {
             elapsedMs: (taskMeta[stateKey]?.elapsedMs ?? 0) + (event.elapsedMs ?? 0),
           };
           renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
+          // Mark story done when verify completes successfully
+          if (event.taskName === 'verify') {
+            storiesDone++;
+            updateStoryStatus(event.storyKey, 'done');
+            const idx = storyEntries.findIndex(s => s.key === event.storyKey);
+            if (idx >= 0) {
+              storyEntries[idx] = { ...storyEntries[idx], status: 'done' };
+              renderer.updateStories([...storyEntries]);
+            }
+          }
           // Update header cost
           renderer.updateSprintState({
             storyKey: event.storyKey,
@@ -388,6 +399,14 @@ export function registerRunCommand(program: Command): void {
             key: event.storyKey,
             message: `[${event.taskName}] ${event.error?.message ?? 'unknown error'}`,
           });
+          // Mark story as failed in sprint state
+          updateStoryStatus(event.storyKey, 'failed');
+          // Update story display
+          const idx = storyEntries.findIndex(s => s.key === event.storyKey);
+          if (idx >= 0) {
+            storyEntries[idx] = { ...storyEntries[idx], status: 'failed' };
+            renderer.updateStories([...storyEntries]);
+          }
         }
       };
 

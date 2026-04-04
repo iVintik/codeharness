@@ -547,7 +547,7 @@ async function dispatchTaskWithResult(
   };
 
   // 9. Dispatch through the driver and consume AsyncIterable<StreamEvent>
-  info(`[${taskName}] ${storyKey} — dispatching via ${driverName} (model: ${model})`);
+  info(`[${taskName}] ${storyKey} — dispatching via ${driverName} (model: ${model})...`);
   let output = '';
   let resultSessionId = '';
   let cost = 0;
@@ -604,6 +604,9 @@ async function dispatchTaskWithResult(
       await workspace.cleanup();
     }
   }
+
+  const elapsed = ((Date.now() - startMs) / 1000).toFixed(1);
+  info(`[${taskName}] ${storyKey} — done (${elapsed}s, cost: $${cost.toFixed(4)})`);
 
   // 10. If the driver reported an error in the result event, throw DispatchError
   if (errorEvent) {
@@ -1330,6 +1333,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
       } catch (err: unknown) {
         const engineError = handleDispatchError(err, taskName, PER_RUN_SENTINEL);
         errors.push(engineError);
+        warn(`[${taskName}] ${PER_RUN_SENTINEL} — ERROR: [${engineError.code}] ${engineError.message}`);
 
         // Record error checkpoint in state (AC #13)
         state = recordErrorInState(state, taskName, PER_RUN_SENTINEL, engineError);
@@ -1363,6 +1367,7 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
         } catch (err: unknown) {
           const engineError = handleDispatchError(err, taskName, item.key);
           errors.push(engineError);
+          warn(`[${taskName}] ${item.key} — ERROR: [${engineError.code}] ${engineError.message}`);
 
           // Record error checkpoint in state (AC #13)
           state = recordErrorInState(state, taskName, item.key, engineError);

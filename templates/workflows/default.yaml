@@ -4,13 +4,13 @@ tasks:
     scope: per-story
     session: fresh
     source_access: true
-    model: claude-opus-4-6-20250514
+    model: claude-opus-4-6
   implement:
     agent: dev
     scope: per-story
     session: fresh
     source_access: true
-    model: claude-sonnet-4-6-20250514
+    model: claude-sonnet-4-6
   review:
     agent: reviewer
     scope: per-story
@@ -28,13 +28,13 @@ tasks:
     scope: per-story
     session: fresh
     source_access: true
-    model: claude-sonnet-4-6-20250514
+    model: claude-sonnet-4-6
   retro:
     agent: retro
     scope: per-epic
     session: fresh
     source_access: true
-    model: claude-opus-4-6-20250514
+    model: claude-opus-4-6
 
 flow:
   - create-story

@@ -50,7 +50,7 @@ describe('default embedded workflow', () => {
       expect(task.agent).toBe('story-creator');
       expect(task.scope).toBe('per-story');
       expect(task.source_access).toBe(true);
-      expect(task.model).toBe('claude-opus-4-6-20250514');
+      expect(task.model).toBe('claude-opus-4-6');
     });
 
     it('implement task uses sonnet model', () => {
@@ -59,7 +59,7 @@ describe('default embedded workflow', () => {
       expect(task.scope).toBe('per-story');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
-      expect(task.model).toBe('claude-sonnet-4-6-20250514');
+      expect(task.model).toBe('claude-sonnet-4-6');
     });
 
     it('review task uses codex driver', () => {
@@ -85,7 +85,7 @@ describe('default embedded workflow', () => {
       expect(task.scope).toBe('per-story');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
-      expect(task.model).toBe('claude-sonnet-4-6-20250514');
+      expect(task.model).toBe('claude-sonnet-4-6');
     });
 
     it('retro task runs per-epic with opus model', () => {
@@ -93,7 +93,7 @@ describe('default embedded workflow', () => {
       expect(task.agent).toBe('retro');
       expect(task.scope).toBe('per-epic');
       expect(task.source_access).toBe(true);
-      expect(task.model).toBe('claude-opus-4-6-20250514');
+      expect(task.model).toBe('claude-opus-4-6');
     });
   });
 

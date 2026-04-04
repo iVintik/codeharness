@@ -166,6 +166,7 @@ export class ClaudeCodeDriver implements AgentDriver {
   private lastCost: number | null = null;
 
   async healthCheck(): Promise<DriverHealth> {
+    // The Agent SDK spawns its own Claude Code subprocess — always available
     return { available: true, authenticated: true, version: null };
   }
 

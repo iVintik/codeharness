@@ -315,6 +315,13 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
         break;
 
       case 'text':
+        // Add previous thought to completed log before replacing
+        if (state.lastThought) {
+          const textEntry: CompletedToolEntry = { name: '', args: state.lastThought, isText: true };
+          const updated = [...state.completedTools, textEntry];
+          state.completedTools = updated.length > MAX_COMPLETED_TOOLS
+            ? updated.slice(updated.length - MAX_COMPLETED_TOOLS) : updated;
+        }
         state.lastThought = event.text;
         state.retryInfo = null;
         break;

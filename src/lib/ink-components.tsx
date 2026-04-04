@@ -44,6 +44,8 @@ export interface CompletedToolEntry {
   name: string;
   args: string;
   driver?: string;
+  /** When true, this entry is a text/thought line, not a tool. */
+  isText?: boolean;
 }
 
 export type StoryStatusValue = 'done' | 'in-progress' | 'pending' | 'failed' | 'blocked';

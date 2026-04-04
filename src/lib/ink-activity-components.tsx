@@ -36,6 +36,15 @@ export function StoryMessageLine({ msg }: { msg: StoryMessage }) {
 }
 
 export function CompletedTool({ entry }: { entry: CompletedToolEntry }) {
+  if (entry.isText) {
+    const text = entry.args.length > 80 ? entry.args.slice(0, 80) + '…' : entry.args;
+    return (
+      <Text wrap="truncate-end">
+        <Text>{'💭 '}</Text>
+        <Text dimColor>{text}</Text>
+      </Text>
+    );
+  }
   const argsSummary = entry.args.length > 60
     ? entry.args.slice(0, 60) + '…'
     : entry.args;

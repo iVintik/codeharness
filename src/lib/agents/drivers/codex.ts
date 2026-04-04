@@ -92,6 +92,82 @@ export function classifyError(err: unknown): ErrorCategory {
  * - item.completed { item: { type: 'command_execution' | 'agent_message', ... } }
  * - turn.completed { usage: { input_tokens, output_tokens } }
  */
+/**
+ * Parse a JSONL line into one or more StreamEvents.
+ * Returns array because codex item.started needs to emit both tool-start and tool-input.
+ */
+export function parseLineMulti(line: string): StreamEvent[] {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) return [];
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(trimmed) as Record<string, unknown>;
+  } catch { // IGNORE: malformed JSON
+    return [];
+  }
+
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return [];
+
+  const type = parsed.type as string | undefined;
+  const item = parsed.item as Record<string, unknown> | undefined;
+
+  if (type === 'item.started' && item) {
+    const itemType = item.type as string | undefined;
+    if (itemType === 'command_execution') {
+      const cmd = (item.command as string) ?? '';
+      return [
+        { type: 'tool-start', name: 'Bash', id: (item.id as string) ?? '' },
+        { type: 'tool-input', partial: cmd },
+      ];
+    }
+    if (itemType === 'file_edit') {
+      const path = (item.file_path as string) ?? (item.path as string) ?? '';
+      return [
+        { type: 'tool-start', name: 'Edit', id: (item.id as string) ?? '' },
+        { type: 'tool-input', partial: path },
+      ];
+    }
+    if (itemType === 'file_read') {
+      const path = (item.file_path as string) ?? (item.path as string) ?? '';
+      return [
+        { type: 'tool-start', name: 'Read', id: (item.id as string) ?? '' },
+        { type: 'tool-input', partial: path },
+      ];
+    }
+    return [];
+  }
+
+  if (type === 'item.completed' && item) {
+    const itemType = item.type as string | undefined;
+    if (itemType === 'command_execution') return [{ type: 'tool-complete' }];
+    if (itemType === 'agent_message') {
+      const text = item.text as string | undefined;
+      return text ? [{ type: 'text', text }] : [];
+    }
+    if (itemType === 'file_edit' || itemType === 'file_read') return [{ type: 'tool-complete' }];
+    return [];
+  }
+
+  if (type === 'turn.completed') {
+    const usage = parsed.usage as Record<string, unknown> | undefined;
+    if (usage) {
+      return [{
+        type: 'result',
+        cost: 0,
+        sessionId: '',
+        cost_usd: null,
+      } as StreamEvent];
+    }
+    return [];
+  }
+
+  // Fall through to legacy parser for older codex formats
+  const legacy = parseLine(line);
+  return legacy ? [legacy] : [];
+}
+
+/** Legacy single-event parser for older codex output formats. */
 export function parseLine(line: string): StreamEvent | null {
   const trimmed = line.trim();
   if (trimmed.length === 0) return null;
@@ -306,8 +382,8 @@ export class CodexDriver implements AgentDriver {
 
     try {
       for await (const line of rl) {
-        const event = parseLine(line);
-        if (event) {
+        const events = parseLineMulti(line);
+        for (const event of events) {
           // Capture cost from result events
           if (event.type === 'result') {
             const resultEvent = event as ResultEvent;
@@ -319,9 +395,6 @@ export class CodexDriver implements AgentDriver {
           } else {
             yield event;
           }
-        } else {
-          // Unparseable line — log at debug level and skip
-          console.debug('[CodexDriver] Skipping unparseable line:', line);
         }
       }
 

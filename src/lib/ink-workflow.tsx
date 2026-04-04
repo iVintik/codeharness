@@ -143,9 +143,13 @@ export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: Workf
       if (isLoopBlock(step)) break;
       if (typeof step === 'string') {
         if (elements.length > 0) elements.push(<Text key={`a-${step}`}>{' → '}</Text>);
-        elements.push(
-          <TaskNode key={`t-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
-        );
+        if (step === 'story_flow') {
+          elements.push(<Text key="sf" color="cyan">{'stories ✓'}</Text>);
+        } else {
+          elements.push(
+            <TaskNode key={`t-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
+          );
+        }
       }
     }
 
@@ -169,24 +173,25 @@ export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: Workf
     return <Box flexDirection="column"><Text>  {elements}</Text></Box>;
   }
 
-  // --- Pre-loop: show ALL pre-loop per-story tasks, no loop, no retro ---
+  // --- Show all tasks in the flow (story_flow or epic_flow), stop at loop ---
   const elements: React.ReactNode[] = [];
 
   for (const step of flow) {
     if (isLoopBlock(step)) break; // Don't show loop before entering
     if (typeof step !== 'string') continue;
 
-    // Skip per-epic/per-run tasks (retro) — not part of story pipeline
-    // Heuristic: if task scope is per-epic, skip. We check via meta or taskStates presence.
-    // Since we can't access task scope here, skip known post-loop tasks by position:
-    // they appear after the loop block, which we already break on above.
-
     if (elements.length > 0) {
       elements.push(<Text key={`a-${step}`}>{' → '}</Text>);
     }
-    elements.push(
-      <TaskNode key={`t-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
-    );
+
+    // Render 'story_flow' reference as a special node (when showing epicFlow)
+    if (step === 'story_flow') {
+      elements.push(<Text key="sf" color="cyan">{'stories ✓'}</Text>);
+    } else {
+      elements.push(
+        <TaskNode key={`t-${step}`} name={step} status={taskStates[step]} spinnerFrame={spinnerFrame} driver={meta[step]?.driver} />
+      );
+    }
   }
 
   return <Box flexDirection="column"><Text>  {elements}</Text></Box>;

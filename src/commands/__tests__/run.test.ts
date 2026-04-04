@@ -47,12 +47,16 @@ const {
         implement: { agent: 'dev', session: 'fresh', source_access: true },
       },
       flow: ['implement'],
+      storyFlow: ['implement'],
+      epicFlow: ['story_flow'],
     })),
     resolveWorkflowMock: vi.fn(() => ({
       tasks: {
         implement: { agent: 'dev', session: 'fresh', source_access: true },
       },
       flow: ['implement'],
+      storyFlow: ['implement'],
+      epicFlow: ['story_flow'],
     })),
     resolveAgentMock: vi.fn(() => ({
       name: 'dev',
@@ -164,6 +168,8 @@ describe('run command', () => {
         implement: { agent: 'dev', session: 'fresh', source_access: true },
       },
       flow: ['implement'],
+      storyFlow: ['implement'],
+      epicFlow: ['story_flow'],
     });
     resolveWorkflowMock.mockReset();
     resolveWorkflowMock.mockReturnValue({
@@ -171,6 +177,8 @@ describe('run command', () => {
         implement: { agent: 'dev', session: 'fresh', source_access: true },
       },
       flow: ['implement'],
+      storyFlow: ['implement'],
+      epicFlow: ['story_flow'],
     });
     resolveAgentMock.mockReset();
     resolveAgentMock.mockReturnValue({

@@ -276,35 +276,28 @@ export function registerRunCommand(program: Command): void {
         }
       }
 
-      // Track task states with flow-position awareness.
-      // Pre-loop tasks use their name directly. Loop tasks use 'loop:taskName'.
-      // This prevents loop iterations from overwriting pre-loop completion status.
-      const preLoopTasks = new Set<string>();
-      const loopTasks = new Set<string>();
-      for (const step of parsedWorkflow.flow) {
-        if (typeof step === 'string') {
-          preLoopTasks.add(step);
-        } else if (typeof step === 'object' && 'loop' in step) {
-          for (const lt of (step as { loop: string[] }).loop) loopTasks.add(lt);
+      // Build task sets from the hierarchical flow
+      const storyFlowTasks = new Set<string>();
+      for (const step of parsedWorkflow.storyFlow) {
+        if (typeof step === 'string') storyFlowTasks.add(step);
+      }
+      const epicLoopTasks = new Set<string>();
+      for (const step of parsedWorkflow.epicFlow) {
+        if (typeof step === 'object' && 'loop' in step) {
+          for (const lt of (step as { loop: string[] }).loop) epicLoopTasks.add(lt);
         }
       }
-      // Post-loop tasks (like retro) are treated as pre-loop for state purposes
-      let pastLoop = false;
-      for (const step of parsedWorkflow.flow) {
-        if (typeof step === 'object' && 'loop' in step) { pastLoop = true; continue; }
-        if (pastLoop && typeof step === 'string') preLoopTasks.add(step);
-      }
 
-      let inLoop = false; // tracks whether engine is inside the loop
+      let inEpicPhase = false; // true when engine moves past story_flow to epic-level tasks
       const taskStates: Record<string, 'pending' | 'active' | 'done' | 'failed'> = {};
       const taskMeta: Record<string, { driver?: string; costUsd?: number | null; elapsedMs?: number | null }> = {};
-      // Initialize all flow positions as pending
+      // Initialize tasks from both flows
       for (const [tn, task] of Object.entries(parsedWorkflow.tasks)) {
         taskStates[tn] = 'pending';
-        if (loopTasks.has(tn)) taskStates[`loop:${tn}`] = 'pending';
+        if (epicLoopTasks.has(tn)) taskStates[`loop:${tn}`] = 'pending';
         const driverLabel = task.model ?? task.driver ?? 'claude-code';
         taskMeta[tn] = { driver: driverLabel };
-        if (loopTasks.has(tn)) taskMeta[`loop:${tn}`] = { driver: driverLabel };
+        if (epicLoopTasks.has(tn)) taskMeta[`loop:${tn}`] = { driver: driverLabel };
       }
       // Build initial story list from sprint status (Record<string, string>: key → status)
       const storyEntries: Array<{ key: string; status: 'done' | 'in-progress' | 'pending' | 'failed' }> = [];
@@ -316,28 +309,36 @@ export function registerRunCommand(program: Command): void {
         else if (status === 'failed') storyEntries.push({ key, status: 'failed' });
       }
       renderer.updateStories(storyEntries);
-      // Initial workflow graph with all tasks pending and model labels
-      renderer.updateWorkflowState(parsedWorkflow.flow, null, { ...taskStates }, { ...taskMeta });
+      // Initial workflow graph — show story_flow pipeline
+      renderer.updateWorkflowState(parsedWorkflow.storyFlow, null, { ...taskStates }, { ...taskMeta });
 
       const onEvent = (event: EngineEvent): void => {
         if (event.type === 'stream-event' && event.streamEvent) {
           renderer.update(event.streamEvent, event.driverName);
         }
         if (event.type === 'dispatch-start') {
-          // Detect new story: reset all task states for fresh pipeline display
-          if (event.storyKey !== currentStoryKey && preLoopTasks.has(event.taskName)) {
-            inLoop = false;
-            for (const tn of Object.keys(taskStates)) {
+          const isStoryTask = storyFlowTasks.has(event.taskName);
+          const isEpicTask = !isStoryTask;
+
+          // New story in story_flow: reset story task states
+          if (isStoryTask && event.storyKey !== currentStoryKey) {
+            inEpicPhase = false;
+            for (const tn of storyFlowTasks) {
               taskStates[tn] = 'pending';
             }
           }
+          // Entering epic phase (verify, retro, or loop tasks)
+          if (isEpicTask && !inEpicPhase) {
+            inEpicPhase = true;
+          }
+
           currentStoryKey = event.storyKey;
           currentTaskName = event.taskName;
-          // Detect loop entry: if task is in loopTasks and pre-loop version is done
-          if (loopTasks.has(event.taskName) && taskStates[event.taskName] === 'done') {
-            inLoop = true;
-          }
-          const stateKey = inLoop && loopTasks.has(event.taskName) ? `loop:${event.taskName}` : event.taskName;
+
+          // Determine state key: loop tasks use 'loop:' prefix when in epic loop
+          const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName) && taskStates[event.taskName] === 'done';
+          const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
+
           const epicId = extractEpicId(event.storyKey);
           const epic = epicData[epicId];
           renderer.updateSprintState({
@@ -352,36 +353,36 @@ export function registerRunCommand(program: Command): void {
             epicStoriesTotal: epic?.storiesTotal ?? 0,
           });
           taskStates[stateKey] = 'active';
-          renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
-          // Mark story as in-progress in sprint state and TUI
-          updateStoryStatus(event.storyKey, 'in-progress');
-          const idx = storyEntries.findIndex(s => s.key === event.storyKey);
-          if (idx >= 0 && storyEntries[idx].status === 'pending') {
-            storyEntries[idx] = { ...storyEntries[idx], status: 'in-progress' };
-            renderer.updateStories([...storyEntries]);
+
+          // Show story_flow pipeline during story phase, epicFlow during epic phase
+          const displayFlow = inEpicPhase ? parsedWorkflow.epicFlow : parsedWorkflow.storyFlow;
+          renderer.updateWorkflowState(displayFlow, event.taskName, { ...taskStates }, { ...taskMeta });
+
+          // Mark story as in-progress
+          if (isStoryTask) {
+            updateStoryStatus(event.storyKey, 'in-progress');
+            const idx = storyEntries.findIndex(s => s.key === event.storyKey);
+            if (idx >= 0 && storyEntries[idx].status === 'pending') {
+              storyEntries[idx] = { ...storyEntries[idx], status: 'in-progress' };
+              renderer.updateStories([...storyEntries]);
+            }
           }
         }
         if (event.type === 'dispatch-end') {
           totalCostUsd += event.costUsd ?? 0;
-          const stateKey = inLoop && loopTasks.has(event.taskName) ? `loop:${event.taskName}` : event.taskName;
+          const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName) && taskStates[event.taskName] === 'done';
+          const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
           taskStates[stateKey] = 'done';
           taskMeta[stateKey] = {
             ...taskMeta[stateKey],
             costUsd: (taskMeta[stateKey]?.costUsd ?? 0) + (event.costUsd ?? 0),
             elapsedMs: (taskMeta[stateKey]?.elapsedMs ?? 0) + (event.elapsedMs ?? 0),
           };
-          renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
-          // Mark story done when verify completes successfully
-          if (event.taskName === 'verify') {
-            storiesDone++;
-            updateStoryStatus(event.storyKey, 'done');
-            const idx = storyEntries.findIndex(s => s.key === event.storyKey);
-            if (idx >= 0) {
-              storyEntries[idx] = { ...storyEntries[idx], status: 'done' };
-              renderer.updateStories([...storyEntries]);
-            }
-          }
-          // Update header cost
+
+          const displayFlow = inEpicPhase ? parsedWorkflow.epicFlow : parsedWorkflow.storyFlow;
+          renderer.updateWorkflowState(displayFlow, event.taskName, { ...taskStates }, { ...taskMeta });
+
+          // Update header
           renderer.updateSprintState({
             storyKey: event.storyKey,
             phase: event.taskName,
@@ -389,19 +390,34 @@ export function registerRunCommand(program: Command): void {
             total: counts.total,
             totalCost: totalCostUsd,
           });
+
+          // Story completes when all story_flow tasks finish for it
+          if (storyFlowTasks.has(event.taskName)) {
+            const allStoryDone = [...storyFlowTasks].every(tn => taskStates[tn] === 'done');
+            if (allStoryDone) {
+              storiesDone++;
+              updateStoryStatus(event.storyKey, 'done');
+              const idx = storyEntries.findIndex(s => s.key === event.storyKey);
+              if (idx >= 0) {
+                storyEntries[idx] = { ...storyEntries[idx], status: 'done' };
+                renderer.updateStories([...storyEntries]);
+              }
+            }
+          }
         }
         if (event.type === 'dispatch-error') {
-          const stateKey = inLoop && loopTasks.has(event.taskName) ? `loop:${event.taskName}` : event.taskName;
+          const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName);
+          const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
           taskStates[stateKey] = 'failed';
-          renderer.updateWorkflowState(parsedWorkflow.flow, event.taskName, { ...taskStates }, { ...taskMeta });
+          const displayFlow = inEpicPhase ? parsedWorkflow.epicFlow : parsedWorkflow.storyFlow;
+          renderer.updateWorkflowState(displayFlow, event.taskName, { ...taskStates }, { ...taskMeta });
           renderer.addMessage({
             type: 'fail',
             key: event.storyKey,
             message: `[${event.taskName}] ${event.error?.message ?? 'unknown error'}`,
           });
-          // Mark story as failed in sprint state
+          // Mark story as failed
           updateStoryStatus(event.storyKey, 'failed');
-          // Update story display
           const idx = storyEntries.findIndex(s => s.key === event.storyKey);
           if (idx >= 0) {
             storyEntries[idx] = { ...storyEntries[idx], status: 'failed' };

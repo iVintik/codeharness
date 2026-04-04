@@ -84,6 +84,14 @@ export function classifyError(err: unknown): ErrorCategory {
  * Parse a single line of Codex CLI NDJSON output into a StreamEvent.
  * Returns null for unrecognized or unparseable lines.
  */
+/**
+ * Parse a JSONL line from `codex exec --json` into a StreamEvent.
+ *
+ * Codex JSONL format:
+ * - item.started  { item: { type: 'command_execution', command: '...' } }
+ * - item.completed { item: { type: 'command_execution' | 'agent_message', ... } }
+ * - turn.completed { usage: { input_tokens, output_tokens } }
+ */
 export function parseLine(line: string): StreamEvent | null {
   const trimmed = line.trim();
   if (trimmed.length === 0) return null;
@@ -100,6 +108,42 @@ export function parseLine(line: string): StreamEvent | null {
   }
 
   const type = parsed.type as string | undefined;
+  const item = parsed.item as Record<string, unknown> | undefined;
+
+  // --- Codex native JSONL format (codex exec --json) ---
+
+  if (type === 'item.started' && item) {
+    const itemType = item.type as string | undefined;
+    if (itemType === 'command_execution') {
+      const cmd = item.command as string | undefined;
+      return { type: 'tool-start', name: 'Bash', id: (item.id as string) ?? '' };
+    }
+    if (itemType === 'file_edit') {
+      return { type: 'tool-start', name: 'Edit', id: (item.id as string) ?? '' };
+    }
+    if (itemType === 'file_read') {
+      return { type: 'tool-start', name: 'Read', id: (item.id as string) ?? '' };
+    }
+    return null;
+  }
+
+  if (type === 'item.completed' && item) {
+    const itemType = item.type as string | undefined;
+    if (itemType === 'command_execution') {
+      const cmd = item.command as string | undefined;
+      return { type: 'tool-complete' };
+    }
+    if (itemType === 'agent_message') {
+      const text = item.text as string | undefined;
+      if (text) return { type: 'text', text };
+    }
+    if (itemType === 'file_edit' || itemType === 'file_read') {
+      return { type: 'tool-complete' };
+    }
+    return null;
+  }
+
+  // --- Legacy format (pre-JSONL, kept for backward compatibility) ---
 
   if (type === 'tool_call') {
     const name = parsed.name;
@@ -218,10 +262,12 @@ export class CodexDriver implements AgentDriver {
       );
     }
 
-    // Build CLI args — use `codex exec` for non-interactive dispatch
-    const args: string[] = ['exec'];
-    if (opts.model) {
-      args.push('--model', opts.model);
+    // Build CLI args — use `codex exec --json` for non-interactive JSONL output
+    const args: string[] = ['exec', '--json'];
+    // Only pass model if it's a codex-compatible model (not a Claude model)
+    const model = opts.model && !opts.model.startsWith('claude-') ? opts.model : undefined;
+    if (model) {
+      args.push('--model', model);
     }
     if (opts.cwd) {
       args.push('--cd', opts.cwd);

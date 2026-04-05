@@ -249,19 +249,22 @@ export function registerRunCommand(program: Command): void {
       let currentStoryKey = '';
       let currentTaskName = '';
 
-      // Periodic header refresh (elapsed time, story status) — like the old 5s interval
+      // Track display-friendly versions for header refresh
+      let displayEpicId = '';
+      let displayStoryKeyForHeader = '';
+
+      // Periodic header refresh (elapsed time, story status)
       const headerRefresh = setInterval(() => {
         if (interrupted) return;
-        const epicId = currentStoryKey ? extractEpicId(currentStoryKey) : '';
-        const epic = epicId ? epicData[epicId] : undefined;
+        const epic = displayEpicId ? epicData[displayEpicId] : undefined;
         renderer.updateSprintState({
-          storyKey: currentStoryKey,
+          storyKey: displayStoryKeyForHeader || currentStoryKey,
           phase: currentTaskName,
           done: storiesDone,
           total: counts.total,
           totalCost: totalCostUsd,
           elapsed: formatElapsed(Date.now() - sessionStartMs),
-          epicId: epicId || undefined,
+          epicId: displayEpicId || undefined,
           epicStoriesDone: epic?.storiesDone,
           epicStoriesTotal: epic?.storiesTotal,
         });
@@ -339,12 +342,23 @@ export function registerRunCommand(program: Command): void {
           const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName) && taskStates[event.taskName] === 'done';
           const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
 
-          const epicId = event.storyKey.startsWith('__epic_')
-            ? event.storyKey.replace('__epic_', '').replace('__', '')
-            : extractEpicId(event.storyKey);
-          const displayStoryKey = event.storyKey.startsWith('__epic_')
-            ? `Epic ${epicId}`
-            : event.storyKey;
+          // Translate sentinel keys to display names
+          let epicId: string;
+          let displayStoryKey: string;
+          if (event.storyKey.startsWith('__epic_')) {
+            epicId = event.storyKey.replace('__epic_', '').replace('__', '');
+            displayStoryKey = `Epic ${epicId} verification`;
+          } else if (event.storyKey === '__run__') {
+            epicId = currentStoryKey ? extractEpicId(currentStoryKey) : '';
+            displayStoryKey = epicId ? `Epic ${epicId}` : 'Run';
+          } else {
+            epicId = extractEpicId(event.storyKey);
+            displayStoryKey = event.storyKey;
+          }
+          // Update display state for header refresh
+          displayEpicId = epicId;
+          displayStoryKeyForHeader = displayStoryKey;
+
           const epic = epicData[epicId];
           renderer.updateSprintState({
             storyKey: displayStoryKey,

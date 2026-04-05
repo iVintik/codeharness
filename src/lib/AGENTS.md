@@ -88,6 +88,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | workflow-actors.ts | XState v5 dispatch and null-task actors — extracted from workflow-machine.ts with no circular dependencies | `dispatchActor`, `nullTaskDispatchActor`, `dispatchTaskCore`, `nullTaskCore`, `buildCoverageDeduplicationContext` |
 | workflow-machine.ts | XState v5 workflow engine entry point — orchestration actors, machine definitions, and public API | `runWorkflowActor`, `EngineResult`, `EngineError`, `WorkItem`, `loadWorkItems`, `checkDriverHealth`, `buildRetryPrompt`, `getFailedItems`, `executeLoopBlock`, `dispatchTask`, `parseVerdict`, `EvaluatorVerdict` |
 | workflow-persistence.ts | XState-compatible snapshot save/load — replaces workflow-state.ts for JSON snapshot persistence to `.codeharness/workflow-state.json` | `saveSnapshot`, `loadSnapshot`, `clearSnapshot`, `WorkflowSnapshot` |
+| workflow-contracts.ts | Derives pending AC status entries from story files for output contract metadata | `getPendingAcceptanceCriteria` |
 
 ## Blind Evaluator (Epic 6)
 

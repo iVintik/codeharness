@@ -5,7 +5,7 @@ import { warn } from './output.js';
 import { DispatchError } from './agent-dispatch.js';
 import type { StreamEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
-import type { ResolvedTask } from './workflow-parser.js';
+import type { ResolvedTask, LoopBlock } from './workflow-parser.js';
 import { extractTag, parseVerdict } from './verdict-parser.js';
 import { evaluateProgress } from './circuit-breaker.js';
 import { writeWorkflowState } from './workflow-state.js';
@@ -28,6 +28,16 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
     }
     return loopBlock.loop[loopBlock.loop.length - 1];
   })();
+  // Reset evaluator scores and circuit breaker at the start of each loop block
+  // Each story's quality gate is independent — old scores must not poison new gates
+  if (currentState.iteration === 0) {
+    currentState = {
+      ...currentState,
+      evaluator_scores: [],
+      circuit_breaker: { triggered: false, reason: null, score_history: [] },
+    };
+    writeWorkflowState(currentState, projectDir);
+  }
   const allCurrentIterationDone = currentState.iteration > 0 && loopBlock.loop.every((tn) => {
     const t = config.workflow.tasks[tn];
     return !t || (storyFlowTasks?.has(tn) ? workItems.every((i) => isLoopTaskCompleted(currentState, tn, i.key, currentState.iteration)) : isLoopTaskCompleted(currentState, tn, RUN_SENTINEL, currentState.iteration));

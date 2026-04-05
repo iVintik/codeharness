@@ -6,17 +6,19 @@
  * - validate (no subcommand): defaults to schema validation
  */
 import { Command } from 'commander';
-import { registerValidateSchemaCommand, runSchemaValidation, renderSchemaResult } from './validate-schema.js';
+import { registerValidateSchemaCommand, runSchemaValidation, runSchemaValidationOnFile, renderSchemaResult } from './validate-schema.js';
 import { registerValidateSelfCommand } from './validate-self.js';
 
 export function registerValidateCommand(program: Command): void {
   const validateCmd = program
-    .command('validate')
-    .description('Validate workflow YAML files (default) or run self-validation')
-    .action((_opts: Record<string, unknown>, cmd: Command) => {
+    .command('validate [file]')
+    .description('Validate workflow YAML files (default) or run self-validation. Pass a file path to validate a single file.')
+    .action((file: string | undefined, _opts: Record<string, unknown>, cmd: Command) => {
       // Default action when no subcommand given: run schema validation
       const isJson = (cmd.optsWithGlobals() as { json?: boolean }).json === true;
-      const result = runSchemaValidation(process.cwd());
+      const result = file
+        ? runSchemaValidationOnFile(file)
+        : runSchemaValidation(process.cwd());
       renderSchemaResult(result, isJson);
     });
 

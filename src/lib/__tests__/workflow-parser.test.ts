@@ -1469,4 +1469,288 @@ epic_flow:
       }
     });
   });
+
+  // ---- Story 22-1: for_each block parsing ----
+
+  describe('for_each workflow format (story 22-1)', () => {
+    // AC 1: single-level for_each parses successfully
+    it('AC1: single-level for_each with plain task steps parses (exit 0)', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - retro
+`;
+      const filePath = writeYaml('fe-single.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.workflow).toBeDefined();
+      expect(result.workflow!.for_each).toBe('epic');
+      expect(result.workflow!.steps).toHaveLength(1);
+      expect(result.workflow!.steps[0]).toBe('retro');
+    });
+
+    // AC 2: nested for_each blocks parse successfully
+    it('AC2: nested for_each (epic → story) parses successfully', () => {
+      const yaml = `
+tasks:
+  create-story:
+    agent: dev
+  implement:
+    agent: dev
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - create-story
+        - implement
+    - retro
+`;
+      const filePath = writeYaml('fe-nested.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.workflow).toBeDefined();
+      expect(result.workflow!.for_each).toBe('epic');
+      expect(result.workflow!.steps).toHaveLength(2);
+      const inner = result.workflow!.steps[0] as { for_each: string; steps: unknown[] };
+      expect(inner.for_each).toBe('story');
+      expect(inner.steps).toEqual(['create-story', 'implement']);
+      expect(result.workflow!.steps[1]).toBe('retro');
+    });
+
+    // AC 3: missing steps key → non-zero exit, stderr mentions "steps"
+    it('AC3: for_each block without steps key throws error mentioning "steps"', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+`;
+      const filePath = writeYaml('fe-no-steps.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message.toLowerCase()).toMatch(/steps/);
+      }
+    });
+
+    // AC 4: empty steps array → non-zero exit, error mentions "steps"
+    it('AC4: for_each block with empty steps array throws error', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps: []
+`;
+      const filePath = writeYaml('fe-empty-steps.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        // AJV will report minItems violation mentioning "steps"
+        expect(pe.message.toLowerCase()).toMatch(/steps|items/);
+      }
+    });
+
+    // AC 5: missing/null scope value → error mentions "scope" or "for_each"
+    it('AC5: for_each block with null scope throws error', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: ~
+  steps:
+    - retro
+`;
+      const filePath = writeYaml('fe-null-scope.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message.toLowerCase()).toMatch(/for_each|scope|string/);
+      }
+    });
+
+    it('AC5b: for_each block with empty string scope throws error', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: ""
+  steps:
+    - retro
+`;
+      const filePath = writeYaml('fe-empty-scope.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message.toLowerCase()).toMatch(/for_each|scope|minlength|length/);
+      }
+    });
+
+    // AC 6: unknown task reference → error mentions the task name
+    it('AC6: unknown task reference in steps throws error with task name', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - ghost-task
+`;
+      const filePath = writeYaml('fe-unknown-task.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toMatch(/ghost-task/);
+      }
+    });
+
+    it('AC6b: unknown task reference in nested for_each throws error with task name', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - ghost-task
+    - retro
+`;
+      const filePath = writeYaml('fe-unknown-nested.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toMatch(/ghost-task/);
+      }
+    });
+
+    // AC 7: old story_flow/epic_flow format still works (backward compat)
+    it('AC7: old story_flow/epic_flow format still parses without errors', () => {
+      const filePath = writeYaml('fe-legacy.yaml', minimalYaml);
+      const result = parseWorkflow(filePath);
+      expect(result.storyFlow).toBeDefined();
+      expect(result.epicFlow).toBeDefined();
+      expect(result.workflow).toBeUndefined();
+    });
+
+    // AC 11: 3-level nesting parses successfully
+    it('AC11: 3-level nesting (epic → story → substory) parses successfully', () => {
+      const yaml = `
+tasks:
+  leaf-task:
+    agent: dev
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - for_each: substory
+          steps:
+            - leaf-task
+    - retro
+`;
+      const filePath = writeYaml('fe-three-levels.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.workflow).toBeDefined();
+      expect(result.workflow!.for_each).toBe('epic');
+      const level1 = result.workflow!.steps[0] as { for_each: string; steps: unknown[] };
+      expect(level1.for_each).toBe('story');
+      const level2 = level1.steps[0] as { for_each: string; steps: unknown[] };
+      expect(level2.for_each).toBe('substory');
+      expect(level2.steps[0]).toBe('leaf-task');
+    });
+
+    // AC 12: both workflow: and story_flow: present → error (mutual exclusion)
+    it('AC12: workflow: and story_flow: together throw mutual exclusion error', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - retro
+story_flow:
+  - implement
+epic_flow:
+  - story_flow
+`;
+      const filePath = writeYaml('fe-both-formats.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        // Error should mention the conflict
+        expect(pe.message.toLowerCase()).toMatch(/workflow|story_flow|format|one/);
+      }
+    });
+
+    // ResolvedWorkflow shape when using workflow: format
+    it('workflow: format returns empty storyFlow/epicFlow/flow arrays', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - retro
+`;
+      const filePath = writeYaml('fe-shape.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.storyFlow).toEqual([]);
+      expect(result.epicFlow).toEqual([]);
+      expect(result.flow).toEqual([]);
+      expect(result.tasks.retro).toBeDefined();
+      expect(result.execution).toBeDefined();
+    });
+
+    // Execution config still resolved from workflow: format YAML
+    it('workflow: format resolves execution config from YAML', () => {
+      const yaml = `
+tasks:
+  retro:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - retro
+execution:
+  max_parallel: 2
+  isolation: worktree
+`;
+      const filePath = writeYaml('fe-execution.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.execution.max_parallel).toBe(2);
+      expect(result.execution.isolation).toBe('worktree');
+    });
+  });
 });

@@ -102,10 +102,12 @@ describe('validateWorkflowSchema', () => {
       expect(result.errors.some((e) => e.keyword === 'required')).toBe(true);
     });
 
-    it('rejects missing story_flow and epic_flow (schema requires them)', () => {
+    it('accepts tasks-only object (story 22-1: schema no longer requires story_flow — parser enforces that)', () => {
+      // After story 22-1 the schema only requires `tasks`; the parser checks for
+      // story_flow vs workflow mutual-exclusion and presence. Schema-only validation
+      // of { tasks: {} } is valid — parseWorkflowData() still rejects it.
       const result = validateWorkflowSchema({ tasks: {} });
-      expect(result.valid).toBe(false);
-      expect(result.errors.some((e) => e.message.includes('story_flow'))).toBe(true);
+      expect(result.valid).toBe(true);
     });
 
     it('rejects missing agent in task (AC #7)', () => {

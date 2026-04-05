@@ -4,7 +4,7 @@
   "title": "Codeharness Workflow",
   "description": "Schema for codeharness workflow YAML files",
   "type": "object",
-  "required": ["tasks", "story_flow", "epic_flow"],
+  "required": ["tasks"],
   "properties": {
     "tasks": {
       "type": "object",
@@ -25,6 +25,10 @@
       "$ref": "#/definitions/flowArray",
       "description": "Epic-level execution flow — task references or loop blocks (supports built-in refs: merge, validate)"
     },
+    "workflow": {
+      "$ref": "#/definitions/forEachBlock",
+      "description": "New-format workflow definition using for_each blocks (mutually exclusive with story_flow/epic_flow)"
+    },
     "execution": {
       "$ref": "#/definitions/execution",
       "description": "Execution configuration for parallel and isolation settings"
@@ -32,6 +36,34 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "forEachBlock": {
+      "type": "object",
+      "required": ["for_each", "steps"],
+      "properties": {
+        "for_each": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Iteration scope (e.g. epic, story, substory)"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {
+                "type": "string",
+                "description": "Task reference by name"
+              },
+              {
+                "$ref": "#/definitions/forEachBlock"
+              }
+            ]
+          },
+          "description": "Steps to execute — task names or nested for_each blocks"
+        }
+      },
+      "additionalProperties": false
+    },
     "flowArray": {
       "type": "array",
       "items": {

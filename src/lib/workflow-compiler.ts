@@ -74,7 +74,7 @@ export function buildRetryPrompt(storyKey: string, findings: EvaluatorVerdict['f
       return entry;
     })
     .join('\n\n');
-  return `Retry story ${storyKey}. Previous evaluator findings:\n\n${formatted}\n\nFocus on fixing the failed criteria above.`;
+  return `Retry story ${storyKey}. Previous evaluator findings:\n\n${formatted}\n\nFocus on fixing the failed criteria above. BEFORE finishing: run \`npx eslint src/ --fix\` to auto-fix lint issues, then run \`npx eslint src/\` to verify zero warnings. If warnings remain, fix them manually. Also run \`npm run build\` and \`npx vitest run\` to verify no regressions.`;
 }
 
 export function buildAllUnknownVerdict(

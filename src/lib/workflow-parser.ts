@@ -4,6 +4,7 @@ import { parse } from 'yaml';
 import { validateWorkflowSchema } from './schema-validate.js';
 import {
   resolveHierarchicalFlow,
+  resolveExecutionConfig,
   validateFlowReferences,
   validateReferentialIntegrity,
   HierarchicalFlowError,
@@ -11,10 +12,12 @@ import {
   type HierarchicalFlow,
   type ResolvedTask,
   type FlowStep,
+  type ForEachBlock,
+  type ForEachFlowStep,
 } from './workflow-execution.js';
 
 // Re-export base types defined in workflow-execution.ts (they live there to avoid circular imports)
-export type { ResolvedTask, LoopBlock, FlowStep } from './workflow-execution.js';
+export type { ResolvedTask, LoopBlock, FlowStep, ForEachBlock, ForEachFlowStep } from './workflow-execution.js';
 
 export interface ResolvedWorkflow {
   tasks: Record<string, ResolvedTask>;
@@ -26,6 +29,11 @@ export interface ResolvedWorkflow {
   execution: ExecutionConfig;
   /** @deprecated Flat flow for backward compat. Use storyFlow/epicFlow. */
   flow: FlowStep[];
+  /**
+   * New-format workflow definition using for_each blocks.
+   * Present only when the YAML uses the `workflow:` key instead of `story_flow`/`epic_flow`.
+   */
+  workflow?: ForEachBlock;
 }
 
 // --- Error Class ---
@@ -38,6 +46,54 @@ export class WorkflowParseError extends Error {
     this.name = 'WorkflowParseError';
     this.errors = errors ?? [];
   }
+}
+
+// --- for_each Parser ---
+
+/**
+ * Recursively parse a `for_each` block, validating task name references.
+ * Structural validation (required fields, types, minItems) is done by JSON schema before this runs.
+ */
+function parseForEachFlow(
+  block: unknown,
+  taskNames: Set<string>,
+  path: string,
+  errors: Array<{ path: string; message: string }>,
+): ForEachBlock {
+  const b = block as Record<string, unknown>;
+  const scope = b.for_each as string;
+  const rawSteps = b.steps as unknown[];
+
+  const parsedSteps: ForEachFlowStep[] = [];
+
+  for (let i = 0; i < rawSteps.length; i++) {
+    const step = rawSteps[i];
+    const stepPath = `${path}.steps[${i}]`;
+
+    if (typeof step === 'string') {
+      if (!taskNames.has(step)) {
+        errors.push({
+          path: stepPath,
+          message: `Task "${step}" referenced in ${stepPath} but not defined in tasks`,
+        });
+      }
+      parsedSteps.push(step);
+    } else if (
+      typeof step === 'object' &&
+      step !== null &&
+      'for_each' in step
+    ) {
+      const nested = parseForEachFlow(step, taskNames, stepPath, errors);
+      parsedSteps.push(nested);
+    } else {
+      errors.push({
+        path: stepPath,
+        message: `Invalid step at ${stepPath}: expected task name or for_each block`,
+      });
+    }
+  }
+
+  return { for_each: scope, steps: parsedSteps };
 }
 
 // --- Shared Validation & Resolution ---
@@ -54,10 +110,21 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
     !Array.isArray(parsed)
   ) {
     const obj = parsed as Record<string, unknown>;
-    if (!('flow' in obj) && !('story_flow' in obj)) {
+    const hasWorkflowKey = 'workflow' in obj && obj.workflow !== undefined;
+    const hasLegacyKey = 'flow' in obj || 'story_flow' in obj || 'epic_flow' in obj;
+
+    if (!hasWorkflowKey && !hasLegacyKey) {
       throw new WorkflowParseError(
-        'Schema validation failed: /: must have either "flow" or "story_flow"',
-        [{ path: '/', message: 'must have either "flow" or "story_flow"' }],
+        'Schema validation failed: /: must have either "workflow" or "story_flow"',
+        [{ path: '/', message: 'must have either "workflow" or "story_flow"' }],
+      );
+    }
+
+    // Mutual exclusion: workflow: and story_flow:/epic_flow:/flow: cannot coexist
+    if (hasWorkflowKey && hasLegacyKey) {
+      throw new WorkflowParseError(
+        'Cannot use both "workflow" and legacy "story_flow"/"flow" format in the same file. Use one or the other.',
+        [{ path: '/', message: 'Only one workflow format is allowed: use "workflow" or "story_flow"/"flow", not both' }],
       );
     }
   }
@@ -76,8 +143,51 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
     flow?: unknown[];
     story_flow?: unknown[];
     epic_flow?: unknown[];
+    workflow?: unknown;
     execution?: Record<string, unknown>;
   };
+
+  const hasWorkflow = 'workflow' in data && data.workflow !== undefined;
+
+  // --- New format: workflow: with for_each blocks ---
+  if (hasWorkflow) {
+    const taskNames = new Set(Object.keys(data.tasks));
+    const allErrors: Array<{ path: string; message: string }> = [];
+
+    const workflowBlock = parseForEachFlow(data.workflow, taskNames, 'workflow', allErrors);
+    validateReferentialIntegrity(data, allErrors);
+
+    if (allErrors.length > 0) {
+      const details = allErrors.map((e) => e.message).join('; ');
+      throw new WorkflowParseError(`Referential integrity errors: ${details}`, allErrors);
+    }
+
+    const resolvedTasks = resolveTasksMap(data.tasks);
+    const rawExecution = (data.execution != null && typeof data.execution === 'object')
+      ? data.execution as Record<string, unknown>
+      : {};
+
+    let execution: ExecutionConfig;
+    try {
+      execution = resolveExecutionConfig(rawExecution);
+    } catch (err: unknown) {
+      if (err instanceof HierarchicalFlowError) {
+        throw new WorkflowParseError(err.message, [{ path: '/', message: err.message }]);
+      }
+      throw err;
+    }
+
+    return {
+      tasks: resolvedTasks,
+      storyFlow: [],
+      epicFlow: [],
+      execution,
+      flow: [],
+      workflow: workflowBlock,
+    };
+  }
+
+  // --- Legacy format: story_flow / epic_flow ---
 
   const hasStoryFlow = 'story_flow' in data && data.story_flow !== undefined;
   const hasEpicFlow = 'epic_flow' in data && data.epic_flow !== undefined;
@@ -103,22 +213,7 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
     throw new WorkflowParseError(`Referential integrity errors: ${details}`, allErrors);
   }
 
-  const resolvedTasks: Record<string, ResolvedTask> = {};
-  for (const [taskName, task] of Object.entries(data.tasks)) {
-    const resolved: ResolvedTask = {
-      agent: task.agent as string | null,
-      session: (task.session as ResolvedTask['session']) ?? 'fresh',
-      source_access: (task.source_access as boolean) ?? true,
-    };
-    if (task.prompt_template !== undefined) resolved.prompt_template = task.prompt_template as string;
-    if (task.input_contract !== undefined) resolved.input_contract = task.input_contract as Record<string, unknown>;
-    if (task.output_contract !== undefined) resolved.output_contract = task.output_contract as Record<string, unknown>;
-    if (task.max_budget_usd !== undefined) resolved.max_budget_usd = task.max_budget_usd as number;
-    if (task.driver !== undefined) resolved.driver = task.driver as string;
-    if (task.model !== undefined) resolved.model = task.model as string;
-    if (task.plugins !== undefined) resolved.plugins = task.plugins as string[];
-    resolvedTasks[taskName] = resolved;
-  }
+  const resolvedTasks = resolveTasksMap(data.tasks);
 
   let hierarchical: HierarchicalFlow;
   try {
@@ -137,6 +232,29 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
     execution: hierarchical.execution,
     flow: hierarchical.storyFlow, // deprecated compat
   };
+}
+
+/** Build the resolved tasks map from raw parsed task data. */
+function resolveTasksMap(
+  rawTasks: Record<string, Record<string, unknown>>,
+): Record<string, ResolvedTask> {
+  const resolvedTasks: Record<string, ResolvedTask> = {};
+  for (const [taskName, task] of Object.entries(rawTasks)) {
+    const resolved: ResolvedTask = {
+      agent: task.agent as string | null,
+      session: (task.session as ResolvedTask['session']) ?? 'fresh',
+      source_access: (task.source_access as boolean) ?? true,
+    };
+    if (task.prompt_template !== undefined) resolved.prompt_template = task.prompt_template as string;
+    if (task.input_contract !== undefined) resolved.input_contract = task.input_contract as Record<string, unknown>;
+    if (task.output_contract !== undefined) resolved.output_contract = task.output_contract as Record<string, unknown>;
+    if (task.max_budget_usd !== undefined) resolved.max_budget_usd = task.max_budget_usd as number;
+    if (task.driver !== undefined) resolved.driver = task.driver as string;
+    if (task.model !== undefined) resolved.model = task.model as string;
+    if (task.plugins !== undefined) resolved.plugins = task.plugins as string[];
+    resolvedTasks[taskName] = resolved;
+  }
+  return resolvedTasks;
 }
 
 // --- Parser ---

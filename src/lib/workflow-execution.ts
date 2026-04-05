@@ -23,6 +23,15 @@ export interface LoopBlock {
 
 export type FlowStep = string | LoopBlock;
 
+/** A recursive `for_each` iteration block in the new workflow format. */
+export interface ForEachBlock {
+  for_each: string;
+  steps: ForEachFlowStep[];
+}
+
+/** A step inside a `for_each` block: either a task name or a nested for_each. */
+export type ForEachFlowStep = string | ForEachBlock;
+
 // --- Execution Config ---
 
 export interface ExecutionConfig {
@@ -103,7 +112,7 @@ export function resolveHierarchicalFlow(
   };
 }
 
-function resolveExecutionConfig(raw: Record<string, unknown>): ExecutionConfig {
+export function resolveExecutionConfig(raw: Record<string, unknown>): ExecutionConfig {
   const maxParallel = raw.max_parallel;
   if (maxParallel !== undefined && (typeof maxParallel !== 'number' || !Number.isInteger(maxParallel) || maxParallel < 1)) {
     throw new HierarchicalFlowError(

@@ -4,7 +4,7 @@
  * Story 2-5: Validate Command
  */
 import { readdirSync, existsSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, isAbsolute } from 'node:path';
 import { Command } from 'commander';
 import { ok, fail, jsonOutput } from '../lib/output.js';
 import { parseWorkflow, WorkflowParseError } from '../lib/workflow-parser.js';
@@ -37,12 +37,29 @@ export function renderSchemaResult(result: ValidateSchemaResult, isJson: boolean
     } else {
       fail(`Schema: ${file.path}`);
       for (const error of file.errors) {
-        console.log(`  ${error.path}: ${error.message}`);
+        process.stderr.write(`  ${error.path}: ${error.message}\n`);
       }
     }
   }
 
   process.exitCode = result.status === 'pass' ? 0 : 1;
+}
+
+/**
+ * Validate a single workflow file by explicit path.
+ */
+export function runSchemaValidationOnFile(filePath: string): ValidateSchemaResult {
+  const absPath = isAbsolute(filePath) ? filePath : resolve(process.cwd(), filePath);
+  try {
+    parseWorkflow(absPath);
+    return { status: 'pass', files: [{ path: absPath, valid: true, errors: [] }] };
+  } catch (err: unknown) {
+    if (err instanceof WorkflowParseError) {
+      return { status: 'fail', files: [{ path: absPath, valid: false, errors: err.errors }] };
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    return { status: 'fail', files: [{ path: absPath, valid: false, errors: [{ path: absPath, message: msg }] }] };
+  }
 }
 
 export function runSchemaValidation(projectDir: string): ValidateSchemaResult {
@@ -102,11 +119,13 @@ export function runSchemaValidation(projectDir: string): ValidateSchemaResult {
 
 export function registerValidateSchemaCommand(parent: Command): void {
   parent
-    .command('schema')
-    .description('Validate workflow YAML files against JSON schemas')
-    .action((_opts: Record<string, unknown>, cmd: Command) => {
+    .command('schema [file]')
+    .description('Validate workflow YAML files against JSON schemas. Pass a file path to validate a single file.')
+    .action((file: string | undefined, _opts: Record<string, unknown>, cmd: Command) => {
       const isJson = (cmd.optsWithGlobals() as { json?: boolean }).json === true;
-      const result = runSchemaValidation(process.cwd());
+      const result = file
+        ? runSchemaValidationOnFile(file)
+        : runSchemaValidation(process.cwd());
       renderSchemaResult(result, isJson);
     });
 }

@@ -83,10 +83,15 @@ function createCli(): Command {
   return program;
 }
 
-async function runCli(args: string[]): Promise<{ stdout: string }> {
+async function runCli(args: string[]): Promise<{ stdout: string; stderr: string }> {
   const logs: string[] = [];
+  const errLogs: string[] = [];
   const consoleSpy = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => {
     logs.push(a.map(String).join(' '));
+  });
+  const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation((chunk: unknown) => {
+    errLogs.push(typeof chunk === 'string' ? chunk : String(chunk));
+    return true;
   });
   const origCwd = process.cwd();
   process.chdir(testDir);
@@ -97,7 +102,8 @@ async function runCli(args: string[]): Promise<{ stdout: string }> {
     process.chdir(origCwd);
   }
   consoleSpy.mockRestore();
-  return { stdout: logs.join('\n') };
+  stderrSpy.mockRestore();
+  return { stdout: logs.join('\n'), stderr: errLogs.join('') };
 }
 
 // ─── Unit tests for runSchemaValidation ──────────────────────────────────────
@@ -213,16 +219,16 @@ describe('validate schema CLI', () => {
 
   it('exits 1 and reports dangling reference (AC #3)', async () => {
     setupWorkflowsDir({ 'dangling.yaml': danglingRefYaml });
-    const { stdout } = await runCli(['validate', 'schema']);
+    const { stdout, stderr } = await runCli(['validate', 'schema']);
     expect(stdout).toContain('[FAIL]');
-    expect(stdout).toContain('nonexistent_task');
+    expect(stderr).toContain('nonexistent_task');
     expect(process.exitCode).toBe(1);
   });
 
   it('exits 1 with "No workflow files found" when dir missing (AC #4)', async () => {
-    const { stdout } = await runCli(['validate', 'schema']);
+    const { stdout, stderr } = await runCli(['validate', 'schema']);
     expect(stdout).toContain('[FAIL]');
-    expect(stdout).toContain('No workflow files found');
+    expect(stderr).toContain('No workflow files found');
     expect(process.exitCode).toBe(1);
   });
 
@@ -257,9 +263,9 @@ describe('validate schema CLI', () => {
   });
 
   it('default "validate" with no workflows reports fail (AC #6)', async () => {
-    const { stdout } = await runCli(['validate']);
+    const { stdout, stderr } = await runCli(['validate']);
     expect(stdout).toContain('[FAIL]');
-    expect(stdout).toContain('No workflow files found');
+    expect(stderr).toContain('No workflow files found');
     expect(process.exitCode).toBe(1);
   });
 

@@ -858,6 +858,17 @@ export async function executeLoopBlock(
     return { state: currentState, errors, tasksCompleted, halted: false, lastContract: lastOutputContract };
   }
 
+  // Find the last agent (non-null) task in the loop — that's where we parse verdicts.
+  // Null tasks can't produce verdict output, so we skip them when determining the verdict source.
+  const lastAgentTaskInLoop = (() => {
+    for (let i = loopBlock.loop.length - 1; i >= 0; i--) {
+      const tn = loopBlock.loop[i];
+      const t = config.workflow.tasks[tn];
+      if (t && t.agent !== null) return tn;
+    }
+    return loopBlock.loop[loopBlock.loop.length - 1]; // fallback to absolute last
+  })();
+
   while (true) {
     // 1. Determine whether to increment iteration or resume a partial one.
     //    On fresh start (iteration === 0), always increment.
@@ -1009,93 +1020,93 @@ export async function executeLoopBlock(
           accumulatedCostUsd += dispatchResult.contract?.cost_usd ?? 0;
           tasksCompleted++;
 
-          // Attempt to parse verdict from output with retry semantics (story 6-2)
-          let verdict: EvaluatorVerdict | null = null;
-          try {
-            verdict = parseVerdict(dispatchResult.output);
-          } catch (parseErr: unknown) {
-            if (parseErr instanceof VerdictParseError && parseErr.retryable) {
-              // Re-dispatch evaluator for one retry attempt
-              warn(`workflow-engine: verdict parse failed, retrying evaluator for ${taskName}`);
-              try {
-                const retryResult = await dispatchTaskWithResult(
-                  task, taskName, PER_RUN_SENTINEL, definition, currentState, config,
-                  undefined, lastOutputContract ?? undefined,
-                );
-                currentState = retryResult.updatedState;
-                lastOutputContract = retryResult.contract;
-                propagateVerifyFlags(taskName, retryResult.contract, projectDir);
-                tasksCompleted++;
-                verdict = parseVerdict(retryResult.output);
-              } catch { // IGNORE: retry failed — fall back to all-UNKNOWN verdict
-                // Second failure: generate all-UNKNOWN verdict
-                verdict = buildAllUnknownVerdict(
-                  workItems,
-                  'Evaluator failed to produce valid JSON after retry',
-                );
+          // Only parse verdicts from the last agent (non-null) task in the loop iteration
+          const isLastTaskInLoop = taskName === lastAgentTaskInLoop;
+          if (isLastTaskInLoop) {
+            let verdict: EvaluatorVerdict | null = null;
+            try {
+              verdict = parseVerdict(dispatchResult.output);
+            } catch (parseErr: unknown) {
+              if (parseErr instanceof VerdictParseError && parseErr.retryable) {
+                warn(`workflow-engine: verdict parse failed, retrying evaluator for ${taskName}`);
+                try {
+                  const retryResult = await dispatchTaskWithResult(
+                    task, taskName, PER_RUN_SENTINEL, definition, currentState, config,
+                    undefined, lastOutputContract ?? undefined,
+                  );
+                  currentState = retryResult.updatedState;
+                  lastOutputContract = retryResult.contract;
+                  propagateVerifyFlags(taskName, retryResult.contract, projectDir);
+                  tasksCompleted++;
+                  verdict = parseVerdict(retryResult.output);
+                } catch { // IGNORE: retry failed — fall back to all-UNKNOWN verdict
+                  verdict = buildAllUnknownVerdict(
+                    workItems,
+                    'Evaluator failed to produce valid JSON after retry',
+                  );
+                }
               }
             }
-            // If not a VerdictParseError or not retryable, try simple verdict
-          }
 
-          // Fallback: XML verdict tag for non-evaluator tasks (negotiator, reviewer)
-          if (!verdict) {
-            const tagged = parseVerdictTag(dispatchResult.output);
-            if (tagged) {
-              verdict = {
-                verdict: tagged.verdict,
-                score: { passed: tagged.verdict === 'pass' ? 1 : 0, failed: tagged.verdict === 'fail' ? 1 : 0, unknown: 0, total: 1 },
-                findings: [],
+            // Fallback: XML verdict tag for non-evaluator tasks (reviewer, checker)
+            if (!verdict) {
+              const tagged = parseVerdictTag(dispatchResult.output);
+              if (tagged) {
+                verdict = {
+                  verdict: tagged.verdict,
+                  score: { passed: tagged.verdict === 'pass' ? 1 : 0, failed: tagged.verdict === 'fail' ? 1 : 0, unknown: 0, total: 1 },
+                  findings: [],
+                };
+              }
+            }
+            lastVerdict = verdict;
+
+            // Record score in state
+            if (verdict) {
+              const score = {
+                iteration: currentState.iteration,
+                passed: verdict.score.passed,
+                failed: verdict.score.failed,
+                unknown: verdict.score.unknown,
+                total: verdict.score.total,
+                timestamp: new Date().toISOString(),
+              };
+              currentState = {
+                ...currentState,
+                evaluator_scores: [...currentState.evaluator_scores, score],
+              };
+            } else {
+              // Parse failure: record all-UNKNOWN score
+              const totalItems = workItems.length;
+              const score = {
+                iteration: currentState.iteration,
+                passed: 0,
+                failed: 0,
+                unknown: totalItems,
+                total: totalItems,
+                timestamp: new Date().toISOString(),
+              };
+              currentState = {
+                ...currentState,
+                evaluator_scores: [...currentState.evaluator_scores, score],
               };
             }
-          }
-          lastVerdict = verdict;
 
-          // Record score in state
-          if (verdict) {
-            const score = {
-              iteration: currentState.iteration,
-              passed: verdict.score.passed,
-              failed: verdict.score.failed,
-              unknown: verdict.score.unknown,
-              total: verdict.score.total,
-              timestamp: new Date().toISOString(),
-            };
-            currentState = {
-              ...currentState,
-              evaluator_scores: [...currentState.evaluator_scores, score],
-            };
-          } else {
-            // Parse failure: record all-UNKNOWN score
-            const totalItems = workItems.length;
-            const score = {
-              iteration: currentState.iteration,
-              passed: 0,
-              failed: 0,
-              unknown: totalItems,
-              total: totalItems,
-              timestamp: new Date().toISOString(),
-            };
-            currentState = {
-              ...currentState,
-              evaluator_scores: [...currentState.evaluator_scores, score],
-            };
+            // Circuit breaker: evaluate progress after recording score
+            const cbDecision = evaluateProgress(currentState.evaluator_scores);
+            if (cbDecision.halt) {
+              currentState = {
+                ...currentState,
+                circuit_breaker: {
+                  triggered: true,
+                  reason: cbDecision.reason,
+                  score_history: cbDecision.scoreHistory,
+                },
+              };
+              writeWorkflowState(currentState, projectDir);
+            }
           }
           writeWorkflowState(currentState, projectDir);
-
-          // Circuit breaker: evaluate progress after recording score
-          const cbDecision = evaluateProgress(currentState.evaluator_scores);
-          if (cbDecision.halt) {
-            currentState = {
-              ...currentState,
-              circuit_breaker: {
-                triggered: true,
-                reason: cbDecision.reason,
-                score_history: cbDecision.scoreHistory,
-              },
-            };
-            writeWorkflowState(currentState, projectDir);
-          }
         } catch (err: unknown) {
           const engineError = handleDispatchError(err, taskName, PER_RUN_SENTINEL);
           errors.push(engineError);

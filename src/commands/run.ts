@@ -214,6 +214,7 @@ export function registerRunCommand(program: Command): void {
       // 7. Start TUI renderer and abort controller for graceful shutdown
       const abortController = new AbortController();
       let interrupted = false;
+      // eslint-disable-next-line prefer-const
       let renderer: ReturnType<typeof startRenderer>;
 
       const onInterrupt = () => {
@@ -393,7 +394,6 @@ export function registerRunCommand(program: Command): void {
           }
           // During epic phase, show epic's stories as context
           if (isEpicTask) {
-            const epicStories = storyEntries.filter(s => s.key.startsWith(`${epicId}-`));
             renderer.updateStories([...storyEntries]);
           }
         }

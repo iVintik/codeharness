@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { ok, fail, info, jsonOutput } from '../lib/output.js';
+import { fail, info, jsonOutput } from '../lib/output.js';
 import { isGhAvailable, ghIssueSearch, getRepoFromRemote } from '../lib/github.js';
 import type { GhIssue } from '../lib/github.js';
 

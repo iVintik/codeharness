@@ -104,7 +104,7 @@ describe('setupBmad', () => {
 
   it('handles non-Error thrown value (string) in catch', () => {
     mockInstallBmad.mockImplementation(() => {
-      throw 'raw string error'; // eslint-disable-line no-throw-literal
+      throw 'raw string error';  
     });
     const result = setupBmad({ projectDir: '/tmp/test', isJson: false });
     expect(result.success).toBe(true);

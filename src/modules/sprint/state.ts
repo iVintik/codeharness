@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, renameSync, existsSync, unlinkSync } from 
 import { join, dirname } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
-import type { SprintState, SprintStateAny, StoryStatus, StoryState, EpicState } from '../../types/state.js';
+import type { SprintState, StoryStatus, StoryState } from '../../types/state.js';
 import type { StoryDetail, RunProgressUpdate } from './types.js';
 import { migrateFromOldFormat, migrateV1ToV2, parseStoryRetriesRecord, parseFlaggedStoriesList } from './migration.js';
 import { readSprintStatus } from '../../lib/sync/index.js';

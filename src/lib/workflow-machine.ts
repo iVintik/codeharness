@@ -42,19 +42,15 @@ import type { WorkflowState, TaskCheckpoint, EvaluatorScore } from './workflow-s
 // Currently resume works via readWorkflowState (YAML state checkpoints).
 import {
   dispatchTaskCore,
-  dispatchActor,
   nullTaskCore,
-  buildCoverageDeduplicationContext,
 } from './workflow-actors.js';
+import type { EngineEvent, EngineConfig } from './workflow-types.js';
 export type {
   DispatchInput,
   DispatchOutput,
   NullTaskInput,
-} from './workflow-types.js';
-import type {
-  DispatchInput,
-  DispatchOutput,
-  NullTaskInput,
+  EngineEvent,
+  EngineConfig,
 } from './workflow-types.js';
 
 // Re-export for downstream consumers
@@ -69,30 +65,7 @@ const HEALTH_CHECK_TIMEOUT_MS = 5000;
 
 // ─── Engine-Level Interfaces ──────────────────────────────────────────
 
-export interface EngineEvent {
-  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip' | 'story-done' | 'epic-verified';
-  taskName: string;
-  storyKey: string;
-  verdictPassed?: boolean;
-  driverName?: string;
-  model?: string;
-  streamEvent?: StreamEvent;
-  error?: { code: string; message: string };
-  elapsedMs?: number;
-  costUsd?: number;
-}
-
-export interface EngineConfig {
-  workflow: ResolvedWorkflow;
-  agents: Record<string, SubagentDefinition>;
-  sprintStatusPath: string;
-  issuesPath?: string;
-  runId: string;
-  projectDir?: string;
-  maxIterations?: number;
-  onEvent?: (event: EngineEvent) => void;
-  abortSignal?: AbortSignal;
-}
+// EngineEvent and EngineConfig are defined in workflow-types.ts (imported above).
 
 export interface EngineResult {
   success: boolean;
@@ -278,8 +251,9 @@ interface LoopMachineContext {
 
 /** Runs one full iteration of all tasks in a loop block. Returns updated context fields. */
 const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineContext }): Promise<LoopMachineContext> => {
-  const { loopBlock, config, workItems, storyFlowTasks, onStreamEvent, maxIterations } = input;
-  let { currentState, errors, tasksCompleted, lastContract, lastVerdict, accumulatedCostUsd } = input;
+  const { loopBlock, config, workItems, storyFlowTasks, onStreamEvent, maxIterations: _maxIterations } = input;
+  const { errors } = input;
+  let { currentState, tasksCompleted, lastContract, lastVerdict, accumulatedCostUsd } = input;
   const projectDir = config.projectDir ?? process.cwd();
   const RUN_SENTINEL = '__run__';
 
@@ -728,7 +702,8 @@ interface EpicMachineContext {
 /** Processes one epic-flow step (story_flow, loop block, or epic task). */
 const epicStepActor = fromPromise(async ({ input }: { input: EpicMachineContext }): Promise<EpicMachineContext> => {
   const { epicId, epicItems, config, storyFlowTasks } = input;
-  let { workflowState: state, errors, tasksCompleted, storiesProcessed, lastContract, accumulatedCostUsd, halted, currentStepIndex } = input;
+  const { errors, storiesProcessed, currentStepIndex } = input;
+  let { workflowState: state, tasksCompleted, lastContract, accumulatedCostUsd, halted } = input;
   const projectDir = config.projectDir ?? process.cwd();
   const step = config.workflow.epicFlow[currentStepIndex];
 
@@ -898,7 +873,8 @@ interface RunMachineContext {
 /** Processes one epic by running the epic machine. */
 const runEpicActor = fromPromise(async ({ input }: { input: RunMachineContext }): Promise<RunMachineContext> => {
   const { config, storyFlowTasks, epicEntries, currentEpicIndex } = input;
-  let { workflowState: state, errors, tasksCompleted, storiesProcessed, lastContract, accumulatedCostUsd, halted } = input;
+  const { errors, storiesProcessed } = input;
+  let { workflowState: state, tasksCompleted, lastContract, accumulatedCostUsd, halted } = input;
 
   if (currentEpicIndex >= epicEntries.length || halted || config.abortSignal?.aborted) {
     if (config.abortSignal?.aborted) {

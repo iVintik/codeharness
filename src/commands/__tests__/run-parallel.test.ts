@@ -22,12 +22,12 @@ const {
   LanePoolClass, WorktreeManagerClass,
   realExistsSync,
 } = vi.hoisted(() => {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+   
   const fs = require('node:fs');
   const realFn = fs.existsSync.bind(fs);
 
   // Class mocks that delegate to the mutable factories
-  // eslint-disable-next-line @typescript-eslint/no-extraneous-class
+   
   class LanePoolClass {
     constructor(...args: unknown[]) {
       _lanePoolConstructed = true;
@@ -35,7 +35,7 @@ const {
       return _poolFactory();
     }
   }
-  // eslint-disable-next-line @typescript-eslint/no-extraneous-class
+   
   class WorktreeManagerClass {
     constructor(..._args: unknown[]) {
       _worktreeManagerConstructed = true;

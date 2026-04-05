@@ -494,7 +494,7 @@ describe('validateRuntime — error handling', () => {
   it('returns fail when test command throws non-Error', async () => {
     mockHealthy();
     mockExecSync.mockImplementation(() => {
-      throw 'exit code 1'; // eslint-disable-line no-throw-literal
+      throw 'exit code 1';  
     });
     setupModuleDiscovery([]);
 

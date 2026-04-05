@@ -40,7 +40,7 @@ export function buildStoryKey(gap: AuditGap, index: number): string {
  * Render BMAD-format markdown for a fix story.
  * Includes user story, Given/When/Then AC, and Dev Notes with gap details.
  */
-export function buildStoryMarkdown(gap: AuditGap, key: string): string {
+export function buildStoryMarkdown(gap: AuditGap, _key: string): string {
   return [
     `# Fix: ${gap.dimension} — ${gap.description}`,
     '',

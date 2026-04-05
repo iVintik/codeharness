@@ -26,14 +26,14 @@ export function countStories(statuses: Record<string, string>): {
   ready: number;
   done: number;
   inProgress: number;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   verified: number;
 } {
   let total = 0;
   let ready = 0;
   let done = 0;
   let inProgress = 0;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+   
   let verified = 0;
 
   for (const [key, status] of Object.entries(statuses)) {

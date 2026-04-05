@@ -145,7 +145,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   if (isOk(bmadResult)) result.bmad = bmadResult.data;
 
   // --- State file creation ---
-  let state: HarnessState = getDefaultState(stack);
+  const state: HarnessState = getDefaultState(stack);
   state.harness_version = HARNESS_VERSION;
   state.initialized = true;
   state.app_type = appType;

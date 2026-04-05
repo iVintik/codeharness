@@ -219,7 +219,7 @@ describe('all code paths return Result<T> — never throw', () => {
   });
 
   it('never throws on unknown error types', () => {
-    mockedExecFileSync.mockImplementation(() => { throw 'string error'; }); // eslint-disable-line no-throw-literal
+    mockedExecFileSync.mockImplementation(() => { throw 'string error'; });  
     expect(() => invokeBmadCodeReview('x')).not.toThrow();
     const result = invokeBmadCodeReview('x');
     expect(result.success).toBe(false);

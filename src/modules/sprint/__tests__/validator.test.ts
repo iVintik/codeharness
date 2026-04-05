@@ -713,7 +713,7 @@ describe('defensive catch blocks', () => {
     mockedReadFileSync
       .mockReturnValueOnce(VALID_STATE)
       .mockImplementationOnce(() => {
-        // eslint-disable-next-line no-throw-literal
+         
         throw 42;
       });
 

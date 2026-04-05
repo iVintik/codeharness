@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { Box, Static, Text, useInput } from 'ink';
-import { Header, Separator, ProgressBar, EpicInfo, StoryContext, StoryBreakdown, type RendererState } from './ink-components.js';
+import { Header, Separator, ProgressBar, EpicInfo, StoryContext, type RendererState } from './ink-components.js';
 import { StoryMessageLine, ActivitySection } from './ink-activity-components.js';
 import { WorkflowGraph } from './ink-workflow.js';
 import { LaneContainer } from './ink-lane-container.js';

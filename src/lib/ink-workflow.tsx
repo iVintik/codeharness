@@ -21,7 +21,7 @@ import type { FlowStep, LoopBlock } from './workflow-parser.js';
 import type { TaskNodeState, TaskNodeMeta } from './ink-components.js';
 
 /** Terminal width, capped to avoid excessive line lengths. */
-const termWidth = () => Math.min(process.stdout.columns || 60, 80);
+const _termWidth = () => Math.min(process.stdout.columns || 60, 80);
 
 /** Spinner frames for active task animation. */
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -95,7 +95,7 @@ function loopIteration(tasks: string[], taskStates: Record<string, TaskNodeState
 }
 
 /** Collect all task names from the flow in order (flattening loop blocks). */
-function collectTaskNames(flow: FlowStep[]): string[] {
+function _collectTaskNames(flow: FlowStep[]): string[] {
   const names: string[] = [];
   for (const step of flow) {
     if (isLoopBlock(step)) {
@@ -108,12 +108,12 @@ function collectTaskNames(flow: FlowStep[]): string[] {
 }
 
 /** Check if taskMeta has any meaningful data. */
-function hasMetaData(taskMeta: Record<string, TaskNodeMeta> | undefined): boolean {
+function _hasMetaData(taskMeta: Record<string, TaskNodeMeta> | undefined): boolean {
   if (!taskMeta) return false;
   return Object.keys(taskMeta).length > 0;
 }
 
-export function WorkflowGraph({ flow, currentTask, taskStates, taskMeta }: WorkflowGraphProps) {
+export function WorkflowGraph({ flow, currentTask: _currentTask, taskStates, taskMeta }: WorkflowGraphProps) {
   if (flow.length === 0 || Object.keys(taskStates).length === 0) {
     return null;
   }

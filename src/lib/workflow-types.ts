@@ -6,9 +6,37 @@
 import type { OutputContract } from './agents/types.js';
 import type { StreamEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
-import type { ResolvedTask } from './workflow-parser.js';
+import type { ResolvedTask, ResolvedWorkflow } from './workflow-parser.js';
 import type { WorkflowState } from './workflow-state.js';
-import type { EngineConfig } from './workflow-machine.js';
+
+// ─── Engine Event ─────────────────────────────────────────────────────
+
+export interface EngineEvent {
+  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip' | 'story-done' | 'epic-verified';
+  taskName: string;
+  storyKey: string;
+  verdictPassed?: boolean;
+  driverName?: string;
+  model?: string;
+  streamEvent?: StreamEvent;
+  error?: { code: string; message: string };
+  elapsedMs?: number;
+  costUsd?: number;
+}
+
+// ─── Engine Config ─────────────────────────────────────────────────────
+
+export interface EngineConfig {
+  workflow: ResolvedWorkflow;
+  agents: Record<string, SubagentDefinition>;
+  sprintStatusPath: string;
+  issuesPath?: string;
+  runId: string;
+  projectDir?: string;
+  maxIterations?: number;
+  onEvent?: (event: EngineEvent) => void;
+  abortSignal?: AbortSignal;
+}
 
 // ─── Dispatch Input/Output ────────────────────────────────────────────
 

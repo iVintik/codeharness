@@ -96,7 +96,7 @@ describe('ghIssueCreate', () => {
 
   it('wraps non-Error throws in GitHubError', () => {
     mockExecFileSync.mockImplementation(() => {
-      throw 'string error'; // eslint-disable-line no-throw-literal
+      throw 'string error';  
     });
     expect(() => ghIssueCreate('o/r', 't', 'b', [])).toThrow(GitHubError);
   });
@@ -132,7 +132,7 @@ describe('ghIssueSearch', () => {
 
   it('wraps non-Error throws in GitHubError', () => {
     mockExecFileSync.mockImplementation(() => {
-      throw 'string error'; // eslint-disable-line no-throw-literal
+      throw 'string error';  
     });
     expect(() => ghIssueSearch('o/r', 'q')).toThrow(GitHubError);
   });

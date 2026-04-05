@@ -854,7 +854,7 @@ describe('stack start (local-shared) edge cases', () => {
 
   it('reports stop failure with non-Error thrown value', async () => {
     mockStopSharedStack.mockImplementation(() => {
-      throw 'string error';  // eslint-disable-line no-throw-literal
+      throw 'string error';   
     });
 
     const { stdout, exitCode } = await runCli(['stack', 'stop']);

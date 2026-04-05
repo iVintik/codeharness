@@ -5,7 +5,6 @@ import {
   prepareVerifyWorkspace,
   checkVerifyEnv,
   cleanupVerifyEnv,
-  isValidStoryKey,
 } from '../modules/verify/index.js';
 
 export function registerVerifyEnvCommand(program: Command): void {

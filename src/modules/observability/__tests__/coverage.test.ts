@@ -180,7 +180,7 @@ describe('saveCoverageResult', () => {
   it('returns fail with stringified error when readFileSync throws non-Error', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockImplementation(() => {
-      throw 'raw string error'; // eslint-disable-line no-throw-literal
+      throw 'raw string error';  
     });
 
     const result = saveCoverageResult('/project', makeAnalyzerResult(75));
@@ -206,7 +206,7 @@ describe('saveCoverageResult', () => {
   it('returns fail with stringified error when writeFileSync throws non-Error', () => {
     mockExistsSync.mockReturnValue(false);
     mockWriteFileSync.mockImplementation(() => {
-      throw 42; // eslint-disable-line no-throw-literal
+      throw 42;  
     });
 
     const result = saveCoverageResult('/project', makeAnalyzerResult(75));

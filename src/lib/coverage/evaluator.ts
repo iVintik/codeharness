@@ -1,5 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { ok, fail as failOut, info, warn } from '../output.js';
 import { readStateWithBody, writeState } from '../state.js';
 import type { CoverageResult, CoverageEvaluation, FileCoverageEntry, PerFileCoverageResult } from './types.js';

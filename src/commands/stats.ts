@@ -10,7 +10,7 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { info, ok, fail, jsonOutput } from '../lib/output.js';
+import { ok, fail, jsonOutput } from '../lib/output.js';
 
 // Opus 4.6 pricing per MTok
 const RATES = {
@@ -66,7 +66,7 @@ function parseLogFile(filePath: string, report: {
 }): void {
   const basename = filePath.split('/').pop() ?? '';
   const dateMatch = basename.match(/(\d{4}-\d{2}-\d{2})/);
-  const date = dateMatch ? dateMatch[1] : 'unknown';
+  const _date = dateMatch ? dateMatch[1] : 'unknown';
 
   let currentPhase = 'orchestrator';
   let currentStory = 'unknown';

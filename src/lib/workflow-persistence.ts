@@ -11,7 +11,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { warn } from './output.js';
-import type { WorkflowState, EvaluatorScore } from './workflow-state.js';
+import type { WorkflowState } from './workflow-state.js';
 import type { EngineError } from './workflow-machine.js';
 
 // ─── Types ───────────────────────────────────────────────────────────

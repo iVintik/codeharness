@@ -5,7 +5,7 @@
  * JSON format returns structured AuditResult shape.
  */
 
-import type { AuditResult, DimensionResult } from './types.js';
+import type { AuditResult } from './types.js';
 
 // ─── Status to prefix mapping ────────────────────────────────────────────────
 

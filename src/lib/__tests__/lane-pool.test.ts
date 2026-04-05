@@ -365,7 +365,7 @@ describe('lane-pool', () => {
       const epics = [makeEpic('1')];
 
       const executeFn: ExecuteEpicFn = async () => {
-        throw 'string error'; // eslint-disable-line no-throw-literal
+        throw 'string error';  
       };
 
       const result = await pool.startPool(epics, executeFn);
@@ -455,7 +455,7 @@ describe('lane-pool', () => {
     it('handles non-Error throw from createWorktree', async () => {
       (mockWtm.createWorktree as ReturnType<typeof vi.fn>)
         .mockImplementationOnce(() => {
-          throw 'raw string worktree error'; // eslint-disable-line no-throw-literal
+          throw 'raw string worktree error';  
         })
         .mockImplementation((epicId: string) => `/tmp/codeharness-wt-epic-${epicId}`);
 

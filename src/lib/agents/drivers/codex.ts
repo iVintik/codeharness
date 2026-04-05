@@ -191,7 +191,6 @@ export function parseLine(line: string): StreamEvent | null {
   if (type === 'item.started' && item) {
     const itemType = item.type as string | undefined;
     if (itemType === 'command_execution') {
-      const cmd = item.command as string | undefined;
       return { type: 'tool-start', name: 'Bash', id: (item.id as string) ?? '' };
     }
     if (itemType === 'file_edit') {
@@ -206,7 +205,6 @@ export function parseLine(line: string): StreamEvent | null {
   if (type === 'item.completed' && item) {
     const itemType = item.type as string | undefined;
     if (itemType === 'command_execution') {
-      const cmd = item.command as string | undefined;
       return { type: 'tool-complete' };
     }
     if (itemType === 'agent_message') {

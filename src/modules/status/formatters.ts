@@ -11,8 +11,7 @@ import { getStackDir, getComposeFilePath, getElkComposeFilePath } from '../../li
 import { generateReport } from '../sprint/index.js';
 import { getValidationProgress } from '../verify/index.js';
 import { readWorkflowState } from '../../lib/workflow-state.js';
-import type { WorkflowState } from '../../lib/workflow-state.js';
-import { DEFAULT_ENDPOINTS, buildScopedEndpoints, resolveEndpoints, getDefaultEndpointsForBackend } from './endpoints.js';
+import { buildScopedEndpoints, resolveEndpoints, getDefaultEndpointsForBackend } from './endpoints.js';
 import type { HarnessState } from '../../lib/state.js';
 import type { StatusReport } from '../sprint/index.js';
 

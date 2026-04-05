@@ -9,14 +9,13 @@ import type { Result } from '../../types/result.js';
 import { validateProofQuality } from './proof.js';
 import {
   checkPreconditions as checkPreconditionsImpl,
-  createProofDocument as createProofDocumentImpl,
   runShowboatVerify as runShowboatVerifyImpl,
   updateVerificationState as updateVerificationStateImpl,
   closeBeadsIssue as closeBeadsIssueImpl,
 } from './orchestrator.js';
 import { parseStoryACs as parseStoryACsImpl, parseObservabilityGaps as parseObservabilityGapsImpl } from './parser.js';
 import { computeRuntimeCoverage as computeRuntimeCoverageImpl, saveRuntimeCoverage as saveRuntimeCoverageImpl } from '../observability/index.js';
-import type { VerifyResult, ProofQuality, ObservabilityGapResult } from './types.js';
+import type { VerifyResult, ProofQuality } from './types.js';
 
 // Re-export all public types
 export type {

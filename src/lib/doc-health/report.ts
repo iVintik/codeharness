@@ -71,7 +71,7 @@ export function createExecPlan(storyId: string, dir?: string): string {
   const storyDir = join(root, '_bmad-output', 'implementation-artifacts');
   const storyPath = join(storyDir, `${storyId}.md`);
 
-  let storyTitle = storyId;
+  let _storyTitle = storyId;
   let acSection = '';
   let taskSection = '';
 
@@ -80,7 +80,7 @@ export function createExecPlan(storyId: string, dir?: string): string {
 
     const titleMatch = /^#\s+(.+)$/m.exec(content);
     if (titleMatch) {
-      storyTitle = titleMatch[1];
+      _storyTitle = titleMatch[1];
     }
 
     const acMatch = /## Acceptance Criteria\n([\s\S]*?)(?=\n## |\n<!-- |$)/i.exec(content);

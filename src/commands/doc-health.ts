@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { ok, fail, info, warn, jsonOutput } from '../lib/output.js';
+import { fail, info, warn, jsonOutput } from '../lib/output.js';
 import {
   scanDocHealth,
   checkStoryDocFreshness,

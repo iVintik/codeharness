@@ -10,7 +10,7 @@ import {
 } from '../../lib/docker/index.js';
 import { getComposeFilePath, getElkComposeFilePath } from '../../lib/stack-path.js';
 import { ok as okOutput, fail as failOutput, info } from '../../lib/output.js';
-import { readState, writeState } from '../../lib/state.js';
+import { writeState } from '../../lib/state.js';
 import type { HarnessState } from '../../lib/state.js';
 import type { AppType } from '../../lib/stacks/index.js';
 import type { Result } from '../../types/result.js';
@@ -92,7 +92,7 @@ export interface DockerSetupResult {
  */
 export function setupDocker(opts: DockerSetupOptions): Result<DockerSetupResult> {
   try {
-    let state = { ...opts.state };
+    const state = { ...opts.state };
 
     if (!opts.observability) {
       // Observability OFF — skip Docker entirely

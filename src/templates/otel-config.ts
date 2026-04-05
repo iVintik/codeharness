@@ -32,7 +32,7 @@ export function otelCollectorConfigWithCors(): string {
 
   // Insert CORS after the "endpoint: 0.0.0.0:4318" line in the http receiver
   return base.replace(
-    /^(        endpoint: 0\.0\.0\.0:4318)$/m,
+    /^( {8}endpoint: 0\.0\.0\.0:4318)$/m,
     `$1\n${corsBlock}`,
   );
 }

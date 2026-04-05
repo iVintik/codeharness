@@ -6,7 +6,6 @@
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseRetroSections, isDuplicate } from './retro-parser.js';
-import type { RetroSectionItem } from './retro-parser.js';
 import type { SprintState, EpicState, StoryState } from '../types/state.js';
 
 /** Result of processing retro action items */

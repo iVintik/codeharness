@@ -17,7 +17,7 @@ export function registerStateCommand(program: Command): void {
     .description('Manage harness state');
 
   // Hide 'state' from top-level --help (internal utility command)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (stateCmd as any)._hidden = true;
 
   stateCmd

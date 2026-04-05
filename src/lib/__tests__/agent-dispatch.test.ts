@@ -404,7 +404,7 @@ describe('agent-dispatch', () => {
     it('classifies non-Error throws as UNKNOWN (AC #8)', async () => {
       expect.assertions(2);
       mockQuery.mockImplementation(() => {
-        throw 'string error'; // eslint-disable-line no-throw-literal
+        throw 'string error';  
       });
 
       try {

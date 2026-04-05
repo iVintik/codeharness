@@ -9,8 +9,6 @@
 import { createInterface } from 'node:readline';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { parseEpicsFile } from './bmad.js';
-import type { ParsedStory } from './bmad.js';
 import type { ScanResult, CoverageGapReport, DocAuditResult } from './scanner.js';
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -40,7 +38,7 @@ export interface OnboardingEpic {
 
 // ─── Priority Mapping ───────────────────────────────────────────────────────
 
-const PRIORITY_BY_TYPE: Record<OnboardingStory['type'], number> = {
+const _PRIORITY_BY_TYPE: Record<OnboardingStory['type'], number> = {
   observability: 1,
   coverage: 2,
   verification: 2,

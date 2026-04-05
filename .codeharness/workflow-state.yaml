@@ -1,60 +1,57 @@
 workflow_name: create-story -> implement -> check -> review -> document
-started: 2026-04-05T10:59:56.615Z
-iteration: 4
+started: 2026-04-05T11:55:59.403Z
+iteration: 3
 phase: executing
 tasks_completed:
   - task_name: create-story
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:02:52.049Z
-    session_id: f1a33881-4d57-4bbc-8aa6-03641c1a8642
+    completed_at: 2026-04-05T11:58:02.754Z
+    session_id: 26f8491b-150f-4036-8aef-7a97242dc0bc
   - task_name: implement
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:04:52.542Z
-    session_id: 2b0f884a-350a-4372-9a09-1ad87c3e4773
+    completed_at: 2026-04-05T11:59:57.543Z
+    session_id: 131e8c3e-0f5f-45f2-aa8b-9a139d6b7367
   - task_name: check
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:05:49.266Z
+    completed_at: 2026-04-05T12:00:50.818Z
   - task_name: review
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:13:54.767Z
+    completed_at: 2026-04-05T12:02:23.988Z
   - task_name: retry
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:19:57.871Z
-    session_id: 8a1bd7e5-5955-4909-a6d2-ab3a9a0a02fd
+    completed_at: 2026-04-05T12:06:02.776Z
+    session_id: f76c93e8-e3fe-4e76-b731-d68f23a623e9
   - task_name: retry
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:21:41.615Z
-    session_id: 8df1311a-9892-4feb-b1c6-d9c2a5b7896c
+    completed_at: 2026-04-05T12:07:55.813Z
+    session_id: 7d0ebd8d-5bb8-4aa6-9bbb-a10dd942ef91
   - task_name: check
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:22:31.472Z
+    completed_at: 2026-04-05T12:08:45.249Z
   - task_name: review
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:24:21.533Z
-  - task_name: retry
-    story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:28:59.073Z
-    session_id: d7f07adf-460a-400e-987c-7c0d15e9742e
-  - task_name: check
-    story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:29:44.290Z
+    completed_at: 2026-04-05T12:10:04.727Z
   - task_name: review
     story_key: 21-1-extract-workflow-actors
-    completed_at: 2026-04-05T11:31:22.757Z
-evaluator_scores: []
+    completed_at: 2026-04-05T12:12:08.801Z
+evaluator_scores:
+  - iteration: 2
+    passed: 0
+    failed: 0
+    unknown: 1
+    total: 1
+    timestamp: 2026-04-05T12:12:08.803Z
 circuit_breaker:
   triggered: false
   reason: null
   score_history: []
 trace_ids:
-  - ch-run-1775386796615-0-create-story
-  - ch-run-1775386796615-0-implement
-  - ch-run-1775386796615-0-check
-  - ch-run-1775387494378-0-review
-  - ch-run-1775387494378-1-retry
-  - ch-run-1775387494378-2-retry
-  - ch-run-1775387494378-2-check
-  - ch-run-1775387494378-2-review
-  - ch-run-1775387494378-3-retry
-  - ch-run-1775387494378-3-check
-  - ch-run-1775387494378-3-review
+  - ch-run-1775390159403-0-create-story
+  - ch-run-1775390159403-0-implement
+  - ch-run-1775390159403-0-check
+  - ch-run-1775390159403-0-review
+  - ch-run-1775390159403-1-retry
+  - ch-run-1775390159403-2-retry
+  - ch-run-1775390159403-2-check
+  - ch-run-1775390159403-2-review
+  - ch-run-1775390159403-2-review

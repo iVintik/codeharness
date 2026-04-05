@@ -1,6 +1,6 @@
 # Story 21-1: Extract `workflow-actors.ts` from `workflow-machine.ts`
 
-Status: done
+Status: review
 
 ## Story
 

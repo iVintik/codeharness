@@ -10,8 +10,8 @@
   "stories": {
     "21-1-extract-workflow-actors": {
       "status": "in-progress",
-      "attempts": 8,
-      "lastAttempt": "2026-04-05T11:29:44.303Z",
+      "attempts": 15,
+      "lastAttempt": "2026-04-05T12:10:04.741Z",
       "lastError": null
     },
     "21-2-extract-workflow-compiler": {

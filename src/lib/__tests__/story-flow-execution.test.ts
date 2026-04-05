@@ -153,8 +153,8 @@ vi.mock('../circuit-breaker.js', () => ({
 
 vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
 
-import { runWorkflowActor } from '../workflow-machine.js';
-import type { EngineConfig } from '../workflow-machine.js';
+import { runWorkflowActor } from '../workflow-runner.js';
+import type { EngineConfig } from '../workflow-types.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';

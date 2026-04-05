@@ -114,8 +114,8 @@ vi.mock('yaml', () => ({
   parse: mockParse,
 }));
 
-import { checkDriverHealth, runWorkflowActor } from '../workflow-machine.js';
-import type { EngineConfig } from '../workflow-machine.js';
+import { checkDriverHealth, runWorkflowActor } from '../workflow-runner.js';
+import type { EngineConfig } from '../workflow-types.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { DriverHealth } from '../agents/types.js';
 

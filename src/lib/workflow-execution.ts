@@ -1,6 +1,29 @@
-import type { ResolvedTask, FlowStep, LoopBlock } from './workflow-parser.js';
+/** Execution config, hierarchical flow resolution, and flow validation helpers. */
+import { listDrivers } from './agents/drivers/factory.js';
+import { listEmbeddedAgents, resolveAgent, AgentResolveError } from './agent-resolver.js';
 
-// --- Interfaces ---
+// --- Base Task & Flow Types (defined here to avoid circular imports) ---
+
+export interface ResolvedTask {
+  agent: string | null;
+  session: 'fresh' | 'continue';
+  source_access: boolean;
+  prompt_template?: string;
+  input_contract?: Record<string, unknown>;
+  output_contract?: Record<string, unknown>;
+  max_budget_usd?: number;
+  driver?: string;
+  model?: string;
+  plugins?: string[];
+}
+
+export interface LoopBlock {
+  loop: string[];
+}
+
+export type FlowStep = string | LoopBlock;
+
+// --- Execution Config ---
 
 export interface ExecutionConfig {
   max_parallel: number;
@@ -16,8 +39,6 @@ export interface HierarchicalFlow {
   epicFlow: FlowStep[];
   tasks: Record<string, ResolvedTask>;
 }
-
-// --- Constants ---
 
 /** Built-in epic flow step names that do not need entries in `tasks:`. */
 export const BUILTIN_EPIC_FLOW_TASKS = new Set(['merge', 'validate', 'story_flow']);
@@ -37,15 +58,13 @@ const VALID_MERGE_STRATEGY = new Set<string>(['rebase', 'merge-commit']);
 const VALID_EPIC_STRATEGY = new Set<string>(['parallel', 'sequential']);
 const VALID_STORY_STRATEGY = new Set<string>(['sequential', 'parallel']);
 
-// --- Resolution ---
+export class HierarchicalFlowError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'HierarchicalFlowError';
+  }
+}
 
-/**
- * Resolve a parsed workflow YAML into a HierarchicalFlow.
- *
- * Requires `story_flow` and `epic_flow`. The `epic_flow` must contain
- * exactly one `story_flow` reference that marks where per-story
- * iteration happens within the epic pipeline.
- */
 export function resolveHierarchicalFlow(
   parsed: Record<string, unknown>,
   resolvedTasks: Record<string, ResolvedTask>,
@@ -60,7 +79,6 @@ export function resolveHierarchicalFlow(
     throw new HierarchicalFlowError('Workflow must define "epic_flow"');
   }
 
-  // Resolve execution config
   const rawExecution = (parsed.execution != null && typeof parsed.execution === 'object')
     ? parsed.execution as Record<string, unknown>
     : {};
@@ -69,7 +87,6 @@ export function resolveHierarchicalFlow(
   const storyFlow: FlowStep[] = normalizeFlowArray(parsed.story_flow);
   const epicFlow: FlowStep[] = normalizeFlowArray(parsed.epic_flow);
 
-  // Validate story_flow reference exists in epic_flow
   const storyFlowRefs = epicFlow.filter(s => s === 'story_flow');
   if (storyFlowRefs.length === 0) {
     throw new HierarchicalFlowError('epic_flow must contain a "story_flow" reference');
@@ -86,10 +103,6 @@ export function resolveHierarchicalFlow(
   };
 }
 
-/**
- * Resolve and validate execution config, applying defaults for missing fields.
- * Rejects invalid enum values with a descriptive error.
- */
 function resolveExecutionConfig(raw: Record<string, unknown>): ExecutionConfig {
   const maxParallel = raw.max_parallel;
   if (maxParallel !== undefined && (typeof maxParallel !== 'number' || !Number.isInteger(maxParallel) || maxParallel < 1)) {
@@ -131,10 +144,6 @@ function resolveExecutionConfig(raw: Record<string, unknown>): ExecutionConfig {
   };
 }
 
-/**
- * Normalize an unknown value into a FlowStep array.
- * Returns [] for undefined/null. Validates that each step is a string or loop block.
- */
 function normalizeFlowArray(raw: unknown): FlowStep[] {
   if (raw === undefined || raw === null) return [];
   if (!Array.isArray(raw)) {
@@ -159,11 +168,93 @@ function normalizeFlowArray(raw: unknown): FlowStep[] {
   });
 }
 
-// --- Error Class ---
+// --- Flow Reference Validation ---
 
-export class HierarchicalFlowError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'HierarchicalFlowError';
+/**
+ * Validate that all task references in a flow array point to defined tasks.
+ * When `allowBuiltins` is true, built-in epic flow task names are also accepted.
+ */
+export function validateFlowReferences(
+  flow: unknown[],
+  taskNames: Set<string>,
+  flowLabel: string,
+  errors: Array<{ path: string; message: string }>,
+  allowBuiltins: boolean,
+): void {
+  for (let i = 0; i < flow.length; i++) {
+    const step = flow[i];
+    if (typeof step === 'string') {
+      const isValid = taskNames.has(step) || (allowBuiltins && BUILTIN_EPIC_FLOW_TASKS.has(step));
+      if (!isValid) {
+        errors.push({
+          path: `/${flowLabel}/${i}`,
+          message: `Task "${step}" referenced in ${flowLabel} but not defined in tasks`,
+        });
+      }
+    } else if (typeof step === 'object' && step !== null && 'loop' in step) {
+      const loopBlock = step as { loop: string[] };
+      for (let j = 0; j < loopBlock.loop.length; j++) {
+        const ref = loopBlock.loop[j];
+        const isValid = taskNames.has(ref) || (allowBuiltins && BUILTIN_EPIC_FLOW_TASKS.has(ref));
+        if (!isValid) {
+          errors.push({
+            path: `/${flowLabel}/${i}/loop/${j}`,
+            message: `Task "${ref}" referenced in loop but not defined in tasks`,
+          });
+        }
+      }
+    }
+  }
+}
+
+// --- Referential Integrity Validation ---
+
+/**
+ * Validate that driver and agent references in tasks point to real registered
+ * drivers and resolvable agents. Collects errors into the provided array
+ * (does not throw — caller decides when to throw).
+ */
+export function validateReferentialIntegrity(
+  data: { tasks: Record<string, Record<string, unknown>> },
+  errors: Array<{ path: string; message: string }>,
+): void {
+  const registeredDrivers = listDrivers();
+  const driverRegistryPopulated = registeredDrivers.length > 0;
+  const embeddedAgents = listEmbeddedAgents();
+
+  for (const [taskName, task] of Object.entries(data.tasks)) {
+    if (task.driver !== undefined && typeof task.driver === 'string' && driverRegistryPopulated) {
+      if (!registeredDrivers.includes(task.driver)) {
+        errors.push({
+          path: `/tasks/${taskName}/driver`,
+          message: `Driver "${task.driver}" not found in task "${taskName}". Registered drivers: ${registeredDrivers.join(', ')}`,
+        });
+      }
+    }
+
+    if (task.agent !== undefined && task.agent !== null && typeof task.agent === 'string') {
+      try {
+        resolveAgent(task.agent);
+      } catch (err: unknown) {
+        if (err instanceof AgentResolveError && err.message.startsWith('Embedded agent not found:')) {
+          const available = embeddedAgents.length > 0 ? embeddedAgents.join(', ') : '(none)';
+          errors.push({
+            path: `/tasks/${taskName}/agent`,
+            message: `Agent "${task.agent}" not found in task "${taskName}". Available agents: ${available}`,
+          });
+        } else if (err instanceof AgentResolveError) {
+          errors.push({
+            path: `/tasks/${taskName}/agent`,
+            message: `Agent "${task.agent}" in task "${taskName}" failed to resolve: ${err.message}`,
+          });
+        } else {
+          const msg = err instanceof Error ? err.message : String(err);
+          errors.push({
+            path: `/tasks/${taskName}/agent`,
+            message: `Agent "${task.agent}" in task "${taskName}" failed to resolve: ${msg}`,
+          });
+        }
+      }
+    }
   }
 }

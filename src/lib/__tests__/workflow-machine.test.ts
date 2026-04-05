@@ -6,25 +6,18 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { runWorkflowActor, loadWorkItems, checkDriverHealth } from '../workflow-runner.js';
 import {
-  runWorkflowActor,
-  loadWorkItems,
   isTaskCompleted,
   isLoopTaskCompleted,
   buildRetryPrompt,
   buildAllUnknownVerdict,
   getFailedItems,
-  checkDriverHealth,
-  buildCoverageDeduplicationContext,
   PER_RUN_SENTINEL,
-} from '../workflow-machine.js';
-import type {
-  EngineConfig,
-  EngineResult,
-  EngineError,
-  EngineEvent,
-  WorkItem,
-} from '../workflow-machine.js';
+} from '../workflow-compiler.js';
+import { buildCoverageDeduplicationContext } from '../workflow-actors.js';
+import type { EngineConfig, EngineError, EngineEvent, WorkItem } from '../workflow-types.js';
+import type { EngineResult } from '../workflow-compiler.js';
 import type { WorkflowState, TaskCheckpoint, EvaluatorScore } from '../workflow-state.js';
 import { getDefaultWorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask } from '../workflow-parser.js';

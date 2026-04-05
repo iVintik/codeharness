@@ -132,7 +132,7 @@ vi.mock('../../lib/agent-resolver.js', () => ({
   compileSubagentDefinition: (...args: unknown[]) => compileSubagentMock(...(args as Parameters<typeof compileSubagentMock>)),
 }));
 
-vi.mock('../../lib/workflow-machine.js', () => ({
+vi.mock('../../lib/workflow-runner.js', () => ({
   runWorkflowActor: (...args: unknown[]) => executeWorkflowMock(...(args as Parameters<typeof executeWorkflowMock>)),
 }));
 
@@ -794,7 +794,7 @@ describe('run command', () => {
         join(process.cwd(), 'src', 'commands', 'run.ts'),
         'utf-8',
       );
-      expect(runSource).toContain('workflow-machine');
+      expect(runSource).toContain('workflow-runner');
       expect(runSource).toContain('workflow-parser');
       expect(runSource).toContain('agent-resolver');
     });

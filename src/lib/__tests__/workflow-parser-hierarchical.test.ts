@@ -7,11 +7,9 @@ import {
   HierarchicalFlowError,
   BUILTIN_EPIC_FLOW_TASKS,
   EXECUTION_DEFAULTS,
-  type ExecutionConfig,
-} from '../hierarchical-flow.js';
-import {
   parseWorkflow,
   WorkflowParseError,
+  type ExecutionConfig,
   type ResolvedWorkflow,
   type ResolvedTask,
 } from '../workflow-parser.js';

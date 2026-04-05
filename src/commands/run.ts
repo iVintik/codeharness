@@ -8,13 +8,13 @@ import { getSprintState, readSprintStatusFromState, reconcileState, updateStoryS
 import { countStories, formatElapsed } from '../lib/run-helpers.js';
 import { parseWorkflow, resolveWorkflow } from '../lib/workflow-parser.js';
 import { resolveAgent, compileSubagentDefinition } from '../lib/agent-resolver.js';
-import { runWorkflowActor } from '../lib/workflow-machine.js';
+import { runWorkflowActor } from '../lib/workflow-runner.js';
 import { readWorkflowState, writeWorkflowState } from '../lib/workflow-state.js';
 import { WorktreeManager } from '../lib/worktree-manager.js';
 import { LanePool } from '../lib/lane-pool.js';
 import { startRenderer } from '../lib/ink-renderer.js';
 import type { EpicDescriptor, ExecuteEpicFn, LaneEvent } from '../lib/lane-pool.js';
-import type { EngineConfig, EngineEvent } from '../lib/workflow-machine.js';
+import type { EngineConfig, EngineEvent } from '../lib/workflow-types.js';
 import type { SubagentDefinition } from '../lib/agent-resolver.js';
 import type { SprintState } from '../types/state.js';
 

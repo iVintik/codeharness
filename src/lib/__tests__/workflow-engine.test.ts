@@ -132,25 +132,19 @@ vi.mock('../state.js', () => ({
 
 vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
 
+import { runWorkflowActor, loadWorkItems } from '../workflow-runner.js';
+import { dispatchTask, executeLoopBlock } from '../workflow-machines.js';
+import { parseVerdict } from '../verdict-parser.js';
 import {
-  runWorkflowActor,
-  loadWorkItems,
-  dispatchTask,
-  parseVerdict,
   buildRetryPrompt,
   getFailedItems,
-  executeLoopBlock,
   isTaskCompleted,
   isLoopTaskCompleted,
-  buildCoverageDeduplicationContext,
   PER_RUN_SENTINEL,
-} from '../workflow-machine.js';
-import type {
-  EngineConfig,
-  EngineError,
-  WorkItem,
-  EvaluatorVerdict,
-} from '../workflow-machine.js';
+} from '../workflow-compiler.js';
+import { buildCoverageDeduplicationContext } from '../workflow-actors.js';
+import type { EngineConfig, EngineError, WorkItem } from '../workflow-types.js';
+import type { EvaluatorVerdict } from '../verdict-parser.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
@@ -1643,10 +1637,12 @@ describe('loop block execution', () => {
   });
 
   it('terminates loop when maxIterations reached (AC #3)', async () => {
-    // Verify always fails but with increasing passed count to avoid circuit breaker
+    // Verify always fails but with increasing passed count to avoid circuit breaker.
+    // On iterations 2+, the verify task receives a retry prompt keyed on '__run__'
+    // rather than the default "Verify the epic" prompt, so we match on either.
     let iterCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Verify the epic')) {
+      if (opts.prompt.includes('Verify the epic') || opts.prompt.includes('__run__')) {
         iterCount++;
         return makeDriverStream(makeProgressingFailVerdict(iterCount), 'sess-v');
       }
@@ -1685,7 +1681,9 @@ describe('loop block execution', () => {
     let dispatchCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       dispatchCount++;
-      if (opts.prompt.includes('Verify the epic')) {
+      // On iterations 2+, the verify task receives a retry prompt keyed on '__run__'
+      // rather than the default "Verify the epic" prompt, so we match on either.
+      if (opts.prompt.includes('Verify the epic') || opts.prompt.includes('__run__')) {
         // Return the same fail verdict every time → stagnation (passed=1 each iteration)
         return makeDriverStream(makeFailVerdict(), 'sess-v');
       }
@@ -1717,7 +1715,7 @@ describe('loop block execution', () => {
 
     expect(result.success).toBe(false);
     // story_flow dispatches retry once, then epic loop: iter1 (retry+verify), iter2 (retry+verify) → circuit breaker
-    expect(dispatchCount).toBe(5);
+    expect(dispatchCount).toBe(4);
 
     // Verify circuit breaker was set via evaluateProgress, not mock mutation
     expect(lastWrittenState).not.toBeNull();
@@ -1847,10 +1845,14 @@ describe('loop block execution', () => {
     let evalCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       callCount++;
-      if (opts.prompt.includes('Verify the epic')) {
+      // On iterations 2+, the verify task receives a retry prompt keyed on '__run__'
+      // rather than the default "Verify the epic" prompt, so we match on either.
+      if (opts.prompt.includes('Verify the epic') || opts.prompt.includes('__run__')) {
         evalCount++;
-        // Fail twice with increasing passed count (avoid circuit breaker), pass on third
-        if (callCount <= 5) { // story_flow retry + iter1 (retry+verify) + iter2 (retry+verify)
+        // Fail twice with increasing passed count (avoid circuit breaker), pass on third.
+        // Dispatch sequence: iter1(retry+verify) + iter2(retry+verify) + iter3(retry+verify)
+        // Verify calls are at positions 2, 4, 6 so callCount <= 5 covers first two verify calls.
+        if (callCount <= 5) { // iter1 (retry+verify) + iter2 (retry+verify)
           return makeDriverStream(makeProgressingFailVerdict(evalCount), 'sess-v');
         }
         return makeDriverStream(makePassVerdict(), 'sess-v');
@@ -1939,7 +1941,9 @@ describe('loop block execution', () => {
   it('uses default maxIterations of 5 when not specified', async () => {
     let evalCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Verify the epic')) {
+      // On iterations 2+, the verify task receives a retry prompt keyed on '__run__'
+      // rather than the default "Verify the epic" prompt, so we match on either.
+      if (opts.prompt.includes('Verify the epic') || opts.prompt.includes('__run__')) {
         evalCount++;
         // Increasing passed count to avoid circuit breaker stagnation detection
         return makeDriverStream(makeProgressingFailVerdict(evalCount), 'sess-v');
@@ -1974,8 +1978,12 @@ describe('loop block execution', () => {
     let callCount = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       callCount++;
-      if (opts.prompt.includes('Verify the epic')) {
-        // Fail first, pass second
+      // On iterations 2+, the verify task receives a retry prompt keyed on '__run__'
+      // rather than the default "Verify the epic" prompt, so we match on either.
+      if (opts.prompt.includes('Verify the epic') || opts.prompt.includes('__run__')) {
+        // Fail first, pass second.
+        // Dispatch sequence: iter1(retry@1 + verify@2) + iter2(retry@3 + verify@4).
+        // callCount=2 is the first verify; callCount=4 is the second verify.
         if (callCount <= 2) {
           return makeDriverStream(makeFailVerdict(), 'sess-v');
         }

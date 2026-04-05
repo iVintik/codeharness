@@ -150,17 +150,10 @@ vi.mock('../circuit-breaker.js', () => ({
 
 vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
 
-import {
-  runWorkflowActor,
-  executeLoopBlock,
-  checkDriverHealth,
-  isTaskCompleted,
-  PER_RUN_SENTINEL,
-} from '../workflow-machine.js';
-import type {
-  EngineConfig,
-  WorkItem,
-} from '../workflow-machine.js';
+import { runWorkflowActor, checkDriverHealth } from '../workflow-runner.js';
+import { executeLoopBlock } from '../workflow-machines.js';
+import { isTaskCompleted, PER_RUN_SENTINEL } from '../workflow-compiler.js';
+import type { EngineConfig, WorkItem } from '../workflow-types.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';

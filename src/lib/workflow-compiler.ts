@@ -10,7 +10,9 @@ import type { EvaluatorVerdict } from './verdict-parser.js';
 import type { WorkflowState, TaskCheckpoint } from './workflow-state.js';
 import { DispatchError } from './agent-dispatch.js';
 import type { OutputContract } from './agents/types.js';
+import type { WorkItem, EngineError } from './workflow-types.js';
 export type { OutputContract, DriverHealth } from './agents/types.js';
+export type { WorkItem, EngineError } from './workflow-types.js';
 
 // ─── Constants ───────────────────────────────────────────────────────
 
@@ -26,19 +28,6 @@ export interface EngineResult {
   storiesProcessed: number;
   errors: EngineError[];
   durationMs: number;
-}
-
-export interface EngineError {
-  taskName: string;
-  storyKey: string;
-  code: string;
-  message: string;
-}
-
-export interface WorkItem {
-  key: string;
-  title?: string;
-  source: 'sprint' | 'issues';
 }
 
 export interface LoopBlockResult {

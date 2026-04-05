@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from '
 import { join } from 'node:path';
 import { warn } from './output.js';
 import type { WorkflowState } from './workflow-state.js';
-import type { EngineError } from './workflow-machine.js';
+import type { EngineError } from './workflow-types.js';
 
 // ─── Types ───────────────────────────────────────────────────────────
 

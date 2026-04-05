@@ -148,17 +148,19 @@ vi.mock('../circuit-breaker.js', () => ({
   evaluateProgress: vi.fn().mockReturnValue({ halt: false }),
 }));
 
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
+
 import {
-  executeWorkflow,
+  runWorkflowActor,
   executeLoopBlock,
   checkDriverHealth,
   isTaskCompleted,
   PER_RUN_SENTINEL,
-} from '../workflow-engine.js';
+} from '../workflow-machine.js';
 import type {
   EngineConfig,
   WorkItem,
-} from '../workflow-engine.js';
+} from '../workflow-machine.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
@@ -384,7 +386,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       // Null-task-only loop exits with max-iterations (no pass verdict)
       // but the null task itself was executed
@@ -406,7 +408,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
 
       expect(mockGetNullTask).toHaveBeenCalledWith('telemetry');
     });
@@ -440,7 +442,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
 
       expect(capturedCtxs).toHaveLength(1);
       const ctx = capturedCtxs[0] as Record<string, unknown>;
@@ -464,7 +466,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
 
       // writeWorkflowState is called multiple times; check that at least one
       // call includes a checkpoint for our null task
@@ -496,7 +498,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -544,7 +546,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         development_status: { 'story-1': 'ready-for-dev' },
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       // implement runs first, then telemetry (in loop iteration)
       expect(executionOrder[0]).toBe('implement');
@@ -582,7 +584,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
 
       expect(receivedContract).not.toBeNull();
       const contract = receivedContract as OutputContract;
@@ -612,7 +614,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       // All tasks skipped (already completed) — loop hits max-iterations
       expect(result.tasksCompleted).toBe(0); // skipped
@@ -651,7 +653,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       // Null tasks execute per-story in loop
       expect(storyKeys).toContain('story-a');
@@ -684,7 +686,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       // Null task ran once with __run__ sentinel
       expect(storyKeys).toEqual(['__run__']);
@@ -764,7 +766,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       });
 
       const start = performance.now();
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
       const elapsed = performance.now() - start;
 
       // The total time includes setup overhead (state read/write mocks),
@@ -793,7 +795,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -821,7 +823,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
 
       // Check that no SUCCESS checkpoint was written (only error checkpoint should exist)
       const successCheckpointCalls = mockWriteWorkflowState.mock.calls.filter(
@@ -866,7 +868,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: {},
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -912,7 +914,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         agents: { dev: makeDefinition() },
       });
 
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
 
       // The telemetry handler should receive the accumulated cost from the implement task
       expect(receivedCost).not.toBeNull();

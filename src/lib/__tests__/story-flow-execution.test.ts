@@ -151,8 +151,10 @@ vi.mock('../circuit-breaker.js', () => ({
   evaluateProgress: vi.fn().mockReturnValue({ halt: false }),
 }));
 
-import { executeWorkflow } from '../workflow-engine.js';
-import type { EngineConfig } from '../workflow-engine.js';
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
+
+import { runWorkflowActor } from '../workflow-machine.js';
+import type { EngineConfig } from '../workflow-machine.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
@@ -400,7 +402,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(true);
       // implement per-story + verify in loop + telemetry in loop
@@ -463,7 +465,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(true);
       // Telemetry runs inside loop after verify passes
@@ -514,7 +516,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       // In the new architecture, telemetry runs inside the loop iteration
       // alongside verify. The circuit-breaker halt prevents the NEXT iteration,
@@ -560,7 +562,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       // Loop ran retry+verify per iteration, 5 iterations = 10 dispatches
       expect(dispatchCount).toBe(10);
@@ -602,7 +604,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       // Only 1 iteration: retry + verify = 2 dispatches
       expect(dispatchCount).toBe(2);
@@ -626,7 +628,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
       // storyFlow should equal flow
       expect(config.workflow.storyFlow).toEqual(config.workflow.flow);
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(true);
       expect(result.tasksCompleted).toBe(1);
@@ -669,7 +671,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(true);
       // Engine should execute storyFlow (implement + verify per story), not flow (just implement)
@@ -692,7 +694,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
 
       // writeWorkflowState is called with state that has workflow_name derived from storyFlow
       const stateWrites = mockWriteWorkflowState.mock.calls;
@@ -716,7 +718,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      await executeWorkflow(config);
+      await runWorkflowActor(config);
 
       const stateWrites = mockWriteWorkflowState.mock.calls;
       const firstWrite = stateWrites[0]?.[0] as WorkflowState | undefined;
@@ -756,7 +758,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         }),
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(true);
       // 2 stories * 2 tasks = 4 total dispatches
@@ -776,7 +778,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         },
       });
 
-      const result = await executeWorkflow(config);
+      const result = await runWorkflowActor(config);
 
       expect(result.success).toBe(true);
       expect(result.tasksCompleted).toBe(0);

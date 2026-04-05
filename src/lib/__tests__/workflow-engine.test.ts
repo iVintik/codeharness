@@ -130,8 +130,10 @@ vi.mock('../state.js', () => ({
   writeState: mockWriteState,
 }));
 
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
+
 import {
-  executeWorkflow,
+  runWorkflowActor,
   loadWorkItems,
   dispatchTask,
   parseVerdict,
@@ -142,13 +144,13 @@ import {
   isLoopTaskCompleted,
   buildCoverageDeduplicationContext,
   PER_RUN_SENTINEL,
-} from '../workflow-engine.js';
+} from '../workflow-machine.js';
 import type {
   EngineConfig,
   EngineError,
   WorkItem,
   EvaluatorVerdict,
-} from '../workflow-engine.js';
+} from '../workflow-machine.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
@@ -863,7 +865,7 @@ describe('plugin resolution cascade (story 15-1)', () => {
   });
 });
 
-describe('executeWorkflow', () => {
+describe('runWorkflowActor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     setupDefaultMocks();
@@ -885,7 +887,7 @@ describe('executeWorkflow', () => {
     });
 
     const config = makeConfig();
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(true);
     // story_flow: implement for each story, then epic_flow: verify once per epic
@@ -910,7 +912,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
     expect(result.tasksCompleted).toBe(2);
@@ -933,7 +935,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
@@ -953,7 +955,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // writeWorkflowState called: initial state + after dispatch + final completed state
     expect(mockWriteWorkflowState).toHaveBeenCalledTimes(3);
@@ -987,7 +989,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Should have dispatched: retry for 1 story + verify once
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
@@ -1011,7 +1013,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     expect(result.errors).toHaveLength(1);
@@ -1040,7 +1042,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     // Should halt after first error — only one dispatch attempted
@@ -1073,7 +1075,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Both stories attempted
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
@@ -1098,7 +1100,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Find the write call that sets phase to "error"
     const errorWrite = mockWriteWorkflowState.mock.calls.find(
@@ -1119,7 +1121,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     const lastWrite = mockWriteWorkflowState.mock.calls[
       mockWriteWorkflowState.mock.calls.length - 1
@@ -1139,7 +1141,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     const firstWrite = mockWriteWorkflowState.mock.calls[0];
     expect((firstWrite[0] as WorkflowState).phase).toBe('executing');
@@ -1169,7 +1171,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     expect(mockCreateIsolatedWorkspace).toHaveBeenCalled();
     expect(mockWorkspace.cleanup).toHaveBeenCalled();
@@ -1187,7 +1189,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     expect(mockCreateIsolatedWorkspace).not.toHaveBeenCalled();
   });
@@ -1211,7 +1213,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -1235,7 +1237,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(true);
     expect(result.tasksCompleted).toBe(0);
@@ -1255,7 +1257,7 @@ describe('executeWorkflow', () => {
       agents: {}, // no agents
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('agent'));
     expect(result.success).toBe(true);
@@ -1279,7 +1281,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Find the write call with the error checkpoint
     const errorWrite = mockWriteWorkflowState.mock.calls.find(
@@ -1315,7 +1317,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     // Should halt after implement fails — verify should NOT run
@@ -1338,7 +1340,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     expect(result.errors[0].code).toBe('UNKNOWN');
@@ -1357,7 +1359,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(mockWarn).toHaveBeenCalledWith(
       expect.stringContaining('task "nonexistent-task" not found'),
@@ -1388,7 +1390,7 @@ describe('executeWorkflow', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     // Should halt after verify fails — implement never runs
@@ -1634,7 +1636,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(true);
     expect(result.tasksCompleted).toBe(2); // 1 retry + 1 verify
@@ -1667,7 +1669,7 @@ describe('loop block execution', () => {
       maxIterations: 3,
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     // 3 iterations × 2 tasks per iteration = 6
@@ -1711,11 +1713,11 @@ describe('loop block execution', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
-    // Two full iterations: iter1 (retry+verify), iter2 (retry+verify) → circuit breaker triggers
-    expect(dispatchCount).toBe(4);
+    // story_flow dispatches retry once, then epic loop: iter1 (retry+verify), iter2 (retry+verify) → circuit breaker
+    expect(dispatchCount).toBe(5);
 
     // Verify circuit breaker was set via evaluateProgress, not mock mutation
     expect(lastWrittenState).not.toBeNull();
@@ -1758,7 +1760,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Second retry prompt (iteration 2) should contain findings
     const secondRetryPrompt = dispatches[2]; // [0]=retry, [1]=verify, [2]=retry(with findings)
@@ -1790,7 +1792,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Check that evaluator_scores were recorded in state
     const stateWrites = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
@@ -1828,7 +1830,7 @@ describe('loop block execution', () => {
       maxIterations: 1,
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Check for all-UNKNOWN score
     const stateWrites = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
@@ -1848,7 +1850,7 @@ describe('loop block execution', () => {
       if (opts.prompt.includes('Verify the epic')) {
         evalCount++;
         // Fail twice with increasing passed count (avoid circuit breaker), pass on third
-        if (callCount <= 4) { // calls 1-2 = iter1 (retry+verify), calls 3-4 = iter2
+        if (callCount <= 5) { // story_flow retry + iter1 (retry+verify) + iter2 (retry+verify)
           return makeDriverStream(makeProgressingFailVerdict(evalCount), 'sess-v');
         }
         return makeDriverStream(makePassVerdict(), 'sess-v');
@@ -1871,7 +1873,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Find all writes with different iteration values
     const iterations = mockWriteWorkflowState.mock.calls
@@ -1905,7 +1907,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     expect(result.errors).toHaveLength(1);
@@ -1928,7 +1930,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(true);
     expect(mockDriverDispatch).not.toHaveBeenCalled();
@@ -1961,7 +1963,7 @@ describe('loop block execution', () => {
       // maxIterations not set — should default to 5
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     // 5 iterations × 2 dispatches = 10
@@ -1997,7 +1999,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Find final state with evaluator scores
     const allWrites = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
@@ -2039,7 +2041,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     expect(result.errors).toHaveLength(1);
@@ -2089,7 +2091,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Loop should eventually succeed (pass verdict on iteration 2 verify)
     expect(result.errors).toHaveLength(1);
@@ -2130,7 +2132,7 @@ describe('loop block execution', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Error from first verify recorded, but loop continued and eventually passed
     expect(result.errors).toHaveLength(1);
@@ -2238,7 +2240,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Only 5-2-bar should have been dispatched (5-1-foo skipped)
     expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
@@ -2256,7 +2258,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Both 5-1-foo and 5-2-bar should be dispatched
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
@@ -2283,7 +2285,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(mockDriverDispatch).not.toHaveBeenCalled();
     expect(result.tasksCompleted).toBe(0);
@@ -2320,7 +2322,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Only 2 dispatches for 5-4-d and 5-5-e
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
@@ -2351,7 +2353,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Only 1 dispatch for verify (implement skipped for both stories)
     expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
@@ -2367,7 +2369,7 @@ describe('crash recovery & resume', () => {
     );
 
     const config = makeConfig();
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(true);
     expect(result.tasksCompleted).toBe(0);
@@ -2406,7 +2408,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // implement skipped, verify dispatched
     expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
@@ -2425,7 +2427,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Should execute all tasks from scratch
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
@@ -2446,7 +2448,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // 2 per-story + 1 per-run = 3 dispatches
     expect(mockDriverDispatch).toHaveBeenCalledTimes(3);
@@ -2470,7 +2472,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Check that state writes contain tasks_completed arrays that only grow by 1 per dispatch
     const writes = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
@@ -2531,14 +2533,14 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Only verify should be dispatched (retry already done for iteration 2)
     expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
     // retry should have been skipped
     expect(mockWarn).toHaveBeenCalledWith(
-      'workflow-engine: skipping completed task retry for 3-1-foo',
+      'workflow-machine: skipping completed task retry for 3-1-foo',
     );
   });
 
@@ -2586,7 +2588,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Check that iteration was advanced to 3 (not reset to 0 or 1)
     const writes = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
@@ -2627,7 +2629,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Both stories should be dispatched (error checkpoint should not skip 5-1-foo)
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
@@ -2675,7 +2677,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // 5-1-foo was successfully completed (no error flag), so it should be skipped.
     // Only 5-2-bar should be dispatched.
@@ -2723,7 +2725,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // 3 dispatches: retry(3-1-foo, error) + retry(3-2-bar, ok) + verify(pass)
     expect(mockDriverDispatch).toHaveBeenCalledTimes(3);
@@ -2775,7 +2777,7 @@ describe('crash recovery & resume', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Should advance to iteration 2, dispatch retry + verify
     expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
@@ -2812,7 +2814,7 @@ describe('crash recovery & resume', () => {
       maxIterations: 1,
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // verify task should be skipped because agent 'evaluator' is missing
     expect(mockWarn).toHaveBeenCalledWith(
@@ -3038,7 +3040,7 @@ describe('driver integration (story 10-5)', () => {
     );
   });
 
-  it('passes timeout from task.max_budget_usd through DispatchOpts.timeout (AC #6)', async () => {
+  it('does not map max_budget_usd to timeout — they have different semantics (AC #6)', async () => {
     const task = makeTask({ max_budget_usd: 5.0 });
     const definition = makeDefinition();
     const state = makeDefaultState();
@@ -3046,21 +3048,7 @@ describe('driver integration (story 10-5)', () => {
 
     await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
 
-    expect(mockDriverDispatch).toHaveBeenCalledWith(
-      expect.objectContaining({
-        timeout: 5.0,
-      }),
-    );
-  });
-
-  it('does not include timeout when max_budget_usd is not set (AC #6)', async () => {
-    const task = makeTask(); // no max_budget_usd
-    const definition = makeDefinition();
-    const state = makeDefaultState();
-    const config = makeConfig();
-
-    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
-
+    // max_budget_usd is a dollar cost cap, timeout is milliseconds — never mapped
     const callArgs = mockDriverDispatch.mock.calls[0][0] as Record<string, unknown>;
     expect(callArgs.timeout).toBeUndefined();
   });
@@ -3134,7 +3122,7 @@ describe('driver integration (story 10-5)', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Both retry and verify should go through driver.dispatch
     // +1 for health check (deduped to 1 call for claude-code default)
@@ -3197,7 +3185,7 @@ describe('driver integration (story 10-5)', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Second retry prompt should contain findings from the failed verify
     const secondRetryPrompt = dispatches[2]; // [0]=retry, [1]=verify(fail), [2]=retry(with findings)
@@ -3400,7 +3388,7 @@ describe('output contract writing (story 13-3)', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // First task (create-story) gets null contract
     expect(contractCalls[0]).toBeNull();
@@ -3429,7 +3417,7 @@ describe('output contract writing (story 13-3)', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     expect(contractCalls[0]).toBeNull();
   });
@@ -3468,7 +3456,7 @@ describe('output contract writing (story 13-3)', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // retry is first in loop — gets null (or initial contract)
     // verify should get the contract from retry
@@ -3522,7 +3510,7 @@ describe('output contract writing (story 13-3)', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // Iteration 2, retry task should receive the contract from iteration 1's verify task
     // Calls: [retry(null), verify(retry-contract), retry(verify-contract), verify(retry2-contract)]
@@ -3558,7 +3546,7 @@ describe('output contract writing (story 13-3)', () => {
       }),
     });
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Workflow still completes despite contract write failure
     expect(result.success).toBe(true);
@@ -3669,7 +3657,7 @@ describe('output contract writing (story 13-3)', () => {
       }),
     });
 
-    await executeWorkflow(config);
+    await runWorkflowActor(config);
 
     // create-story gets null (first task)
     expect(contractCalls[0].contract).toBeNull();
@@ -3782,7 +3770,7 @@ describe('propagateVerifyFlags (story 16-4)', () => {
     expect(mockWriteState).not.toHaveBeenCalled();
   });
 
-  // --- Direct propagation logic tests via executeWorkflow with mocked contracts ---
+  // --- Direct propagation logic tests via runWorkflowActor with mocked contracts ---
   // These tests verify the propagation logic by intercepting the contract construction
 
   it('AC#1,#2: sets both tests_passed and coverage_met when both conditions met', async () => {

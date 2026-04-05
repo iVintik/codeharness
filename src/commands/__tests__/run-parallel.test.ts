@@ -145,8 +145,8 @@ vi.mock('../../lib/agent-resolver.js', () => ({
   compileSubagentDefinition: (...args: unknown[]) => compileSubagentMock(args[0]),
 }));
 
-vi.mock('../../lib/workflow-engine.js', () => ({
-  executeWorkflow: (...args: unknown[]) => executeWorkflowMock(args[0]),
+vi.mock('../../lib/workflow-machine.js', () => ({
+  runWorkflowActor: (...args: unknown[]) => executeWorkflowMock(args[0]),
 }));
 
 vi.mock('../../lib/workflow-state.js', () => ({

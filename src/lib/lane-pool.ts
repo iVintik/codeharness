@@ -11,7 +11,7 @@
  */
 
 import type { WorktreeManager } from './worktree-manager.js';
-import type { EngineResult } from './workflow-engine.js';
+import type { EngineResult } from './workflow-machine.js';
 
 // --- Types ---
 

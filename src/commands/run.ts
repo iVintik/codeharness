@@ -8,13 +8,13 @@ import { getSprintState, readSprintStatusFromState, reconcileState, updateStoryS
 import { countStories, formatElapsed } from '../lib/run-helpers.js';
 import { parseWorkflow, resolveWorkflow } from '../lib/workflow-parser.js';
 import { resolveAgent, compileSubagentDefinition } from '../lib/agent-resolver.js';
-import { executeWorkflow } from '../lib/workflow-engine.js';
+import { runWorkflowActor } from '../lib/workflow-machine.js';
 import { readWorkflowState, writeWorkflowState } from '../lib/workflow-state.js';
 import { WorktreeManager } from '../lib/worktree-manager.js';
 import { LanePool } from '../lib/lane-pool.js';
 import { startRenderer } from '../lib/ink-renderer.js';
 import type { EpicDescriptor, ExecuteEpicFn, LaneEvent } from '../lib/lane-pool.js';
-import type { EngineConfig, EngineEvent } from '../lib/workflow-engine.js';
+import type { EngineConfig, EngineEvent } from '../lib/workflow-machine.js';
 import type { SubagentDefinition } from '../lib/agent-resolver.js';
 import type { SprintState } from '../types/state.js';
 
@@ -526,7 +526,7 @@ export function registerRunCommand(program: Command): void {
               ...config,
               projectDir: worktreePath,
             };
-            return executeWorkflow(epicConfig);
+            return runWorkflowActor(epicConfig);
           };
 
           // Start the pool (AC #9: max_parallel=1 still runs through pool)
@@ -571,7 +571,7 @@ export function registerRunCommand(program: Command): void {
       } else {
         // --- Sequential execution path (AC #8) — existing single-engine behavior ---
         try {
-          const result = await executeWorkflow(config);
+          const result = await runWorkflowActor(config);
           clearInterval(headerRefresh);
           process.removeListener('SIGINT', onInterrupt);
           process.removeListener('SIGTERM', onInterrupt);

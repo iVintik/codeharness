@@ -98,6 +98,8 @@ vi.mock('../session-manager.js', () => ({
   recordSessionId: mockRecordSessionId,
 }));
 
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
+
 vi.mock('../output.js', () => ({
   warn: mockWarn,
   info: vi.fn(),
@@ -112,8 +114,8 @@ vi.mock('yaml', () => ({
   parse: mockParse,
 }));
 
-import { checkDriverHealth, executeWorkflow } from '../workflow-engine.js';
-import type { EngineConfig } from '../workflow-engine.js';
+import { checkDriverHealth, runWorkflowActor } from '../workflow-machine.js';
+import type { EngineConfig } from '../workflow-machine.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { DriverHealth } from '../agents/types.js';
 
@@ -359,7 +361,7 @@ describe('checkDriverHealth', () => {
   });
 });
 
-describe('executeWorkflow — health check integration', () => {
+describe('runWorkflowActor — health check integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
@@ -388,7 +390,7 @@ describe('executeWorkflow — health check integration', () => {
       projectDir: '/tmp/test',
     };
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(true);
     expect(result.tasksCompleted).toBe(0);
@@ -422,7 +424,7 @@ describe('executeWorkflow — health check integration', () => {
       projectDir: '/tmp/test',
     };
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(false);
     expect(result.tasksCompleted).toBe(0);
@@ -481,7 +483,7 @@ describe('executeWorkflow — health check integration', () => {
       projectDir: '/tmp/test',
     };
 
-    const result = await executeWorkflow(config);
+    const result = await runWorkflowActor(config);
 
     // Health check should have been called
     expect(healthyDriver.healthCheck).toHaveBeenCalledOnce();

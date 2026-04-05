@@ -122,344 +122,600 @@ Split workflow-machine.ts into 7 files. Update imports. Delete hierarchical-flow
 
 **Dependencies:** Epic 1 → Epic 2 → Epic 4 (with Epic 3 parallel). Epic 5, 6 depend on Epic 4. Epic 7 after all.
 
-## Epic 1: Flow Configuration Format & Parser
+---
+
+## Stories
+
+### Epic 1: Flow Configuration Format & Parser
 
 Users can define workflows using the new `for_each` + `gate` YAML format with arbitrary nesting, named gates, consensus semantics, and compile-time validation.
 
-### Story 1.1: Parse `for_each` blocks in workflow YAML
+#### Story 1.1: Parse `for_each` blocks in workflow YAML
 
-As a workflow author, I want to define nested iteration levels using `for_each: epic` and `for_each: story`, So that my workflow YAML naturally expresses multi-level execution.
-
-**Acceptance Criteria:**
-
-**Given** a YAML file with `workflow: { for_each: epic, steps: [...] }` **When** the parser resolves the workflow **Then** it returns a `ForEachBlock` with `scope: 'epic'` and nested `steps` array **And** nested `for_each: story` blocks are parsed recursively
-
-**Given** a `for_each` block without a scope name **When** the parser validates **Then** it throws `WorkflowParseError` with missing scope message
-
-### Story 1.2: Parse named `gate` blocks in workflow YAML
-
-As a workflow author, I want to define negotiation gates with explicit check/fix/exit semantics, So that retry logic is readable and configurable.
+As a workflow author,
+I want to define nested iteration levels using `for_each: epic` and `for_each: story`,
+So that my workflow YAML naturally expresses multi-level execution.
 
 **Acceptance Criteria:**
 
-**Given** `gate: quality` with `check: [check, review]`, `fix: [retry]`, `pass_when: consensus`, `max_retries: 5` **When** parsed **Then** returns `GateBlock` with all fields, `circuit_breaker` defaults to `'stagnation'`
+**Given** a YAML file with `workflow: { for_each: epic, steps: [...] }`
+**When** the parser resolves the workflow
+**Then** it returns a `ForEachBlock` with `scope: 'epic'` and nested `steps` array
+**And** nested `for_each: story` blocks within steps are also parsed recursively
 
-**Given** unnamed gate **When** validated **Then** throws `WorkflowParseError` "gate must be named"
+**Given** a `for_each` block without a scope name
+**When** the parser validates the YAML
+**Then** it throws a `WorkflowParseError` with message indicating missing scope
 
-**Given** gate with `check: []` **When** validated **Then** throws `WorkflowParseError` "at least one check task"
+#### Story 1.2: Parse named `gate` blocks in workflow YAML
 
-**Given** gate referencing unknown task **When** validated **Then** throws `WorkflowParseError` "unknown task reference"
-
-### Story 1.3: Update default.yaml to new format
-
-As a workflow author, I want the default template to use `for_each` + `gate` syntax, So that new projects start clean.
-
-**Acceptance Criteria:**
-
-**Given** `templates/workflows/default.yaml` **When** parsed **Then** succeeds with `for_each: epic`, nested `for_each: story`, named gates `quality` and `verification` **And** old `story_flow`/`epic_flow`/`loop:` keys absent
-
-## Epic 2: Workflow Compiler
-
-Pure recursive compiler transforms parsed YAML into XState MachineConfig.
-
-### Story 2.1: Create `workflow-types.ts` with shared types
-
-As a developer, I want all workflow engine types in a single shared module, So that all modules import from one source without circular deps.
+As a workflow author,
+I want to define negotiation gates with explicit check/fix/exit semantics,
+So that retry logic is readable and configurable per-gate.
 
 **Acceptance Criteria:**
 
-**Given** `src/lib/workflow-types.ts` **When** imported by any workflow module **Then** exports all context types, config types, error types, `WorkflowError` class **And** zero imports from any `workflow-*.ts` file **And** `WorkflowError` extends `Error` with `code`, `taskName`, `storyKey`
+**Given** a YAML step `gate: quality` with `check: [check, review]`, `fix: [retry]`, `pass_when: consensus`, `max_retries: 5`
+**When** the parser resolves the step
+**Then** it returns a `GateBlock` with name, check tasks, fix tasks, pass_when, max_retries, and circuit_breaker defaulting to `'stagnation'`
 
-### Story 2.2: Compile plain task steps to invoke states
+**Given** a gate without a name
+**When** the parser validates
+**Then** it throws `WorkflowParseError` with "gate must be named"
 
-As a developer, I want `compileStep('implement', tasks)` to return an XState invoke state config, So that each task becomes a real state with onDone/onError.
+**Given** a gate with empty `check: []`
+**When** the parser validates
+**Then** it throws `WorkflowParseError` with "gate must have at least one check task"
 
-**Acceptance Criteria:**
+**Given** a gate referencing a task name not in `tasks:`
+**When** the parser validates
+**Then** it throws `WorkflowParseError` with "unknown task reference"
 
-**Given** string step `'implement'` with agent task **When** `compileStep` called **Then** returns state with `invoke: { src: 'dispatchActor' }`, onDone targeting next state, onError with isAbortError/isHaltError guards
+#### Story 1.3: Update default.yaml to new format
 
-**Given** task with `agent: null` **When** `compileStep` called **Then** returns state with `invoke: { src: 'nullTaskActor' }`
-
-### Story 2.3: Compile `gate` blocks to compound negotiation states
-
-As a developer, I want `compileGate()` to return a compound state with checking → evaluate → fixing cycle, So that gates are real state machines with guards.
-
-**Acceptance Criteria:**
-
-**Given** gate config with consensus and 2 check tasks **When** `compileGate` called **Then** returns compound state: `checking` (sequential invokes), `evaluate` (guards: allPassed/maxRetries/circuitBreaker), `fixing` (sequential invokes → back to checking) **And** final states: `passed`, `maxedOut`, `halted`
-
-### Story 2.4: Compile `for_each` blocks to iteration states
-
-As a developer, I want `compileForEach()` to return AD4 iteration pattern, So that items are iterated via state transitions and guards.
+As a workflow author,
+I want the default workflow template to use `for_each` + `gate` syntax,
+So that new projects start with the clean format.
 
 **Acceptance Criteria:**
 
-**Given** `for_each: story` with nested steps **When** `compileForEach` called **Then** returns compound state: `processItem` → `checkNext` → `processItem` | `done` **And** child machine compiled recursively from nested steps **And** `hasMoreItems` guard controls iteration
+**Given** the file `templates/workflows/default.yaml`
+**When** the parser loads it
+**Then** it successfully parses with `for_each: epic` at top level, `for_each: story` nested, and named gates `quality` and `verification`
+**And** the old `story_flow` / `epic_flow` / `loop:` keys are absent
 
-### Story 2.5: `compileFlow` top-level recursive entry point
+### Epic 2: Workflow Compiler
 
-As a developer, I want `compileFlow(steps, tasks, scope)` to chain steps into sequential machine config.
+The engine compiles YAML workflow configs into XState machine definitions via a pure, recursive compiler.
 
-**Acceptance Criteria:**
+#### Story 2.1: Create `workflow-types.ts` with shared types
 
-**Given** steps array **When** `compileFlow` called **Then** returns MachineConfig with states chained: `step_0` → `step_1` → ... → `done` **And** `initial: 'step_0'`
-
-**Given** empty steps **When** called **Then** returns machine with only `done: { type: 'final' }`
-
-## Epic 3: Dispatch & Null Task Actors
-
-Typed `fromPromise` actors with streaming, contracts, error classification.
-
-### Story 3.1: Create `workflow-actors.ts` with dispatch actor
-
-As a developer, I want `dispatchActor` as `fromPromise<DispatchOutput, DispatchInput>`, So that task dispatch is a clean typed XState actor.
+As a developer,
+I want all workflow engine types in a single shared module,
+So that all other modules import from one source without circular deps.
 
 **Acceptance Criteria:**
 
-**Given** DispatchInput **When** invoked **Then** resolves driver, dispatches, streams via sideband, returns DispatchOutput
+**Given** the file `src/lib/workflow-types.ts`
+**When** imported by compiler, machines, actors, visualizer, persistence, or runner
+**Then** it exports: `RunContext`, `EpicContext`, `StoryContext`, `GateContext`, `EngineConfig`, `EngineResult`, `EngineError`, `EngineEvent`, `WorkItem`, `DispatchInput`, `DispatchOutput`, `NullTaskInput`, `GateConfig`, `ForEachConfig`, `FlowStep`, `WorkflowError` class
+**And** the file has zero imports from any `workflow-*.ts` file
+**And** `WorkflowError` extends `Error` with `code`, `taskName`, `storyKey` properties
 
-**Given** driver error **When** processed **Then** throws `WorkflowError` with mapped code
+#### Story 2.2: Compile plain task steps to invoke states
 
-**Given** `source_access: false` **When** dispatching **Then** creates isolated workspace, cleans up in `finally`
-
-### Story 3.2: Create null task actor
-
-As a developer, I want `nullTaskActor` as `fromPromise<DispatchOutput, NullTaskInput>`.
-
-**Acceptance Criteria:**
-
-**Given** NullTaskInput **When** invoked **Then** looks up handler, calls it, returns DispatchOutput with `driver: 'engine'`
-
-**Given** no handler **When** invoked **Then** throws `WorkflowError` code `NULL_TASK_NOT_FOUND`
-
-### Story 3.3: Contract chaining and verify flag propagation
-
-As a developer, I want actors to write contracts and propagate flags, So that tasks chain context.
+As a developer,
+I want `compileStep('implement', tasks)` to return an XState state config that invokes the dispatch actor,
+So that each task in the flow becomes a real state with onDone/onError transitions.
 
 **Acceptance Criteria:**
 
-**Given** dispatch completes **When** contract built **Then** written to `.codeharness/contracts/`, returned in output, assigned to `lastContract` via machine `onDone`
+**Given** a plain string step `'implement'` and a tasks map containing `implement: { agent: 'dev', ... }`
+**When** `compileStep('implement', tasks, scope)` is called
+**Then** it returns a `StateNodeConfig` with `invoke: { src: 'dispatchActor', input: ..., onDone: { target: nextState }, onError: [...] }`
+**And** `onError` includes `isAbortError` guard check first, then `isHaltError`, then generic error
 
-**Given** implement task with testResults **When** flags propagated **Then** `tests_passed` and `coverage_met` set in harness state
+**Given** a task with `agent: null`
+**When** `compileStep` is called
+**Then** it returns a state config with `invoke: { src: 'nullTaskActor' }` instead of `dispatchActor`
 
-### Story 3.4: Error classification with WorkflowError
+#### Story 2.3: Compile `gate` blocks to compound negotiation states
 
-As a developer, I want all errors as `WorkflowError` instances, So that guards classify correctly.
-
-**Acceptance Criteria:**
-
-**Given** `code: 'RATE_LIMIT'` **When** onError **Then** `isHaltError` → `halted`
-**Given** `code: 'UNKNOWN'` **When** onError **Then** recorded, continues
-**Given** AbortError **When** onError **Then** `isAbortError` → `interrupted`
-
-## Epic 4: XState Machine Hierarchy
-
-Real machines with setup() + createMachine(), typed contexts, pure guards.
-
-### Story 4.1: Create gate machine
-
-As a developer, I want `gateMachine` implementing checking → evaluate → fixing cycle.
+As a developer,
+I want `compileGate(gateConfig, tasks)` to return a compound XState state with checking → evaluate → fixing cycle,
+So that gates are real state machines with guards controlling exit.
 
 **Acceptance Criteria:**
 
-**Given** gate started **When** running **Then** checking invokes check tasks sequentially, assigns verdicts to map
-**Given** all pass **When** evaluate **Then** `allPassed` → `passed` (final)
-**Given** max retries reached **When** evaluate **Then** `maxRetries` → `maxedOut` (final)
-**Given** stagnation **When** evaluate **Then** `circuitBreaker` → `halted` (final)
-**Given** no exit **When** default **Then** → `fixing` → back to `checking`, iteration incremented
-**Given** INTERRUPT **When** received **Then** → `interrupted` (final)
+**Given** a gate config `{ name: 'quality', check: ['check', 'review'], fix: ['retry'], pass_when: 'consensus', max_retries: 5 }`
+**When** `compileGate(config, tasks)` is called
+**Then** it returns a compound state with substates: `checking`, `evaluate`, `fixing`
+**And** `evaluate` has guards: `allPassed` → `passed`, `maxRetries` → `maxedOut`, `circuitBreaker` → `halted`, default → `fixing`
+**And** `fixing.onDone` transitions back to `checking`
+**And** `passed`, `maxedOut`, `halted` are all `type: 'final'`
 
-### Story 4.2: Create story machine
+**Given** `pass_when: 'consensus'` with 3 check tasks
+**When** the checking substates complete
+**Then** each check task's onDone adds its verdict to `context.verdicts` map via `assign`
+**And** the `allPassed` guard returns `true` only when ALL verdicts are `'pass'`
 
-As a developer, I want `storyMachine` processing one story through compiled steps.
+#### Story 2.4: Compile `for_each` blocks to iteration states
 
-**Acceptance Criteria:**
-
-**Given** started with storyFlow **When** running **Then** processes steps sequentially via dispatch actors
-**Given** gate step **When** reached **Then** invokes gateMachine as child, merges output
-**Given** halt error **When** onError **Then** → `halted`, error recorded via immutable assign
-**Given** all done **When** completed **Then** output includes state, errors, tasks, contract, cost
-
-### Story 4.3: Create epic machine with for_each story iteration
-
-As a developer, I want `epicMachine` iterating stories then running epic-level steps.
+As a developer,
+I want `compileForEach(config, tasks, scope)` to return a compound iteration state with AD4 pattern,
+So that `for_each` blocks iterate over items via XState state transitions and guards.
 
 **Acceptance Criteria:**
 
-**Given** started **When** running **Then** `processingStory` invokes storyMachine for first item
-**Given** more stories **When** `hasMoreStories` true **Then** back to `processingStory`, index incremented
-**Given** all stories done **When** false **Then** proceeds to epic-level steps
-**Given** story completes **When** onDone **Then** emits `story-done` event
+**Given** a `for_each: story` block with `steps: ['create-story', 'implement', { gate: 'quality', ... }]`
+**When** `compileForEach(config, tasks, scope)` is called
+**Then** it returns a compound state: `processItem` → `checkNext` → `processItem` | `done`
+**And** `checkNext` has guard `hasMoreItems`: if true → `processItem` with `assign` incrementing index
+**And** `checkNext` default → `done` (final)
+**And** the child machine is compiled recursively from nested steps
 
-### Story 4.4: Create run machine
+#### Story 2.5: `compileFlow` top-level recursive entry point
 
-As a developer, I want `runMachine` iterating epics via AD4 pattern.
-
-**Acceptance Criteria:**
-
-**Given** started **When** running **Then** `processingEpic` invokes epicMachine
-**Given** more epics **When** `hasMoreEpics` **Then** back, incremented
-**Given** all done **When** false **Then** → `allDone` (final)
-**Given** INTERRUPT **When** received **Then** → `interrupted` at every level
-**Given** onError **When** epic fails **Then** error recorded (not swallowed)
-
-### Story 4.5: Wire `runWorkflowActor()` to compiled machines
-
-As a developer, I want `runWorkflowActor(config)` compiling YAML, creating actor, returning EngineResult.
+As a developer,
+I want `compileFlow(steps, tasks, scope)` to chain compiled steps into a sequential machine config,
+So that a list of steps becomes a machine where each state transitions to the next.
 
 **Acceptance Criteria:**
 
-**Given** EngineConfig **When** called **Then** pre-flight, compile, create actor, start, return Promise<EngineResult>
-**Given** phase `completed` **When** called **Then** returns immediately
-**Given** health check failure **When** called **Then** returns `{ success: false, errors: [HEALTH_CHECK] }`
+**Given** steps `['create-story', 'implement', { gate: 'quality', ... }, 'document']`
+**When** `compileFlow(steps, tasks, scope)` is called
+**Then** it returns a `MachineConfig` with states chained: `step_0` → `step_1` → `step_2` → `step_3` → `done`
+**And** each `step_N` is the output of `compileStep` for that step
+**And** the machine has `initial: 'step_0'`
 
-## Epic 5: Persistence & Resume
+**Given** an empty steps array
+**When** `compileFlow` is called
+**Then** it returns a machine with only `done: { type: 'final' }`
 
-Dual-layer: XState snapshots + semantic checkpoint log.
+### Epic 3: Dispatch & Null Task Actors
 
-### Story 5.1: XState snapshot via `getPersistedSnapshot()`
+Task dispatch and null task execution through properly typed `fromPromise` XState actors.
 
-As a developer, I want snapshots saved after every task, So that exact state is recoverable.
+#### Story 3.1: Create `workflow-actors.ts` with dispatch actor
 
-**Acceptance Criteria:**
-
-**Given** task completes **When** inspect fires **Then** snapshot + configHash saved to `.codeharness/workflow-snapshot.json`
-**Given** INTERRUPT **When** transitioning **Then** snapshot saved before stop
-
-### Story 5.2: Snapshot resume with config hash
-
-As a developer, I want resume from matching snapshot, fallback on mismatch.
-
-**Acceptance Criteria:**
-
-**Given** matching configHash **When** resuming **Then** `createActor(machine, { snapshot })`
-**Given** mismatched hash **When** compared **Then** discarded, falls back to checkpoint log
-
-### Story 5.3: Semantic checkpoint log
-
-As a developer, I want append-only checkpoint log for config-change resilience.
+As a developer,
+I want a `dispatchActor` defined as `fromPromise<DispatchOutput, DispatchInput>` in its own module,
+So that task dispatch is a clean, typed XState actor with sideband streaming.
 
 **Acceptance Criteria:**
 
-**Given** task completes **When** onDone **Then** checkpoint appended to `.codeharness/workflow-checkpoints.jsonl`
-**Given** no snapshot **When** fresh machine starts **Then** guards skip completed tasks from log
+**Given** a `DispatchInput` with task, taskName, storyKey, definition, config, workflowState, previousContract
+**When** the dispatch actor is invoked by a machine
+**Then** it resolves driver, model, constructs prompt, dispatches via `driver.dispatch(opts)`
+**And** streams events to TUI via sideband callback
+**And** returns `DispatchOutput` with output, cost, changedFiles, sessionId, contract, updatedState
 
-### Story 5.4: Clear persistence on completion
+**Given** the driver reports an error
+**When** the actor processes the result
+**Then** it throws a `WorkflowError` with mapped error code
 
-As a developer, I want cleanup on success.
+**Given** `task.source_access === false`
+**When** the actor prepares dispatch
+**Then** it creates an isolated workspace and cleans up in `finally` block
 
-**Acceptance Criteria:**
+#### Story 3.2: Create null task actor
 
-**Given** `allDone` with zero errors **When** completed **Then** snapshot + checkpoint deleted, phase `completed`
-**Given** halted/maxed **When** finished **Then** files preserved
-
-## Epic 6: TUI Visualization & Integration
-
-One-row visualization via inspect API, simplified run.ts.
-
-### Story 6.1: Pure visualizer function
-
-As a developer, I want `visualize(config, snapshot, vizConfig) → string`.
-
-**Acceptance Criteria:**
-
-**Given** story-level snapshot **When** called **Then** `Epic 17 [1/6] create✓ → impl… → ⟲quality → doc` ≤80 chars
-**Given** gate snapshot 2/5 mixed **When** called **Then** `⟲quality(2/5 1✓1✗)…`
-**Given** 8 steps, active at 6 **When** sliding window **Then** `[5✓]` prefix, `→ …2 more` suffix
-
-### Story 6.2: Derive position from snapshot state path
-
-As a developer, I want visualizer to parse snapshot value for level/step/gate/iteration.
+As a developer,
+I want a `nullTaskActor` defined as `fromPromise<DispatchOutput, NullTaskInput>`,
+So that null tasks execute through the same invoke pattern as agent tasks.
 
 **Acceptance Criteria:**
 
-**Given** nested state value **When** parsed **Then** determines level, indices, active step, gate phase from path + context
+**Given** a `NullTaskInput` with task (agent: null), taskName, storyKey
+**When** the null task actor is invoked
+**Then** it looks up handler, builds `TaskContext`, calls handler, returns `DispatchOutput`
 
-### Story 6.3: Wire inspect to visualizer in run.ts
+**Given** no handler registered
+**When** the actor runs
+**Then** it throws `WorkflowError` with code `NULL_TASK_NOT_FOUND`
 
-As a developer, I want inspect callback driving visualization.
+**Given** handler returns `success: false`
+**When** the actor processes result
+**Then** it throws `WorkflowError` with code `NULL_TASK_FAILED`
 
-**Acceptance Criteria:**
+#### Story 3.3: Contract chaining and verify flag propagation
 
-**Given** actor with inspect **When** `@xstate.snapshot` fires **Then** `visualize()` → `renderer.updateWorkflowRow()`
-**Given** unchanged snapshot **When** inspect fires **Then** debounced, not called
-
-### Story 6.4: Sideband streaming to TUI
-
-As a developer, I want dispatch actors feeding stream events via sideband.
-
-**Acceptance Criteria:**
-
-**Given** `config.onEvent` set **When** dispatching **Then** StreamEvents forwarded, dispatch-start/end emitted with timing/cost
-
-### Story 6.5: Simplify run.ts
-
-As a developer, I want all hand-tracked state removed.
+As a developer,
+I want each actor to write output contracts and propagate verify flags,
+So that the next task receives the previous task's contract context.
 
 **Acceptance Criteria:**
 
-**Given** current hand-tracked vars **When** migrated **Then** deleted — visualization from inspect only
-**And** onEvent tracks only totalCost, storiesDone, forwards streams
-**And** stories marked done on `story-done` event only
+**Given** a dispatch completes successfully
+**When** the actor builds the output contract
+**Then** it writes to `.codeharness/contracts/` and returns contract in `DispatchOutput`
+**And** machine's `onDone` assigns `lastContract` in context
 
-## Epic 7: File Decomposition & Migration
+**Given** taskName is `'implement'` and contract has `testResults`
+**When** `propagateVerifyFlags` runs
+**Then** it sets `session_flags.tests_passed` and `session_flags.coverage_met`
 
-Split monolith, update imports, migrate tests.
+#### Story 3.4: Error classification with WorkflowError
 
-### Story 7.1: Extract `workflow-actors.ts`
-
-As a developer, I want actors in own module ≤200 lines.
-
-**Acceptance Criteria:**
-
-**Given** created **When** containing dispatch/null actors **Then** ≤200 lines, imports from types + externals only, existing tests pass
-
-### Story 7.2: Extract `workflow-compiler.ts`
-
-As a developer, I want compiler in pure module ≤200 lines.
+As a developer,
+I want all actor errors to be `WorkflowError` instances with structured codes,
+So that machine `onError` guards can classify errors correctly.
 
 **Acceptance Criteria:**
 
-**Given** created **When** containing compile functions **Then** ≤200 lines, zero imports from actors/machines/runner, all pure
+**Given** a `WorkflowError` with `code: 'RATE_LIMIT'`
+**When** machine's `onError` handler runs
+**Then** `isHaltError` guard returns true, machine transitions to `halted`
 
-### Story 7.3: Extract `workflow-machines.ts`
+**Given** a `WorkflowError` with `code: 'UNKNOWN'`
+**When** machine's `onError` handler runs
+**Then** error is recorded in context, execution continues
 
-As a developer, I want machine defs in own module ≤250 lines.
+**Given** an `AbortError`
+**When** machine's `onError` handler runs
+**Then** `isAbortError` guard returns true, machine transitions to `interrupted`
 
-**Acceptance Criteria:**
+### Epic 4: XState Machine Hierarchy
 
-**Given** created **When** containing 4 machines **Then** ≤250 lines, imports from types + actors only
+Real XState machines with `setup()` + `createMachine()`, typed contexts, pure guards, proper transitions.
 
-### Story 7.4: Extract `workflow-runner.ts`
+#### Story 4.1: Create gate machine
 
-As a developer, I want runner as composition root ≤150 lines.
-
-**Acceptance Criteria:**
-
-**Given** created **When** containing runWorkflowActor, checkDriverHealth, loadWorkItems **Then** ≤150 lines, run.ts + lane-pool import from here
-
-### Story 7.5: Delete `workflow-machine.ts` and `hierarchical-flow.ts`
-
-As a developer, I want dead code removed.
-
-**Acceptance Criteria:**
-
-**Given** all consumers updated **When** deleted **Then** build + tests pass, zero references
-
-### Story 7.6: Migrate test imports
-
-As a developer, I want all test files using new modules.
+As a developer,
+I want a `gateMachine` implementing checking → evaluate → fixing cycle,
+So that gates are real XState compound states with guards driving exit.
 
 **Acceptance Criteria:**
 
-**Given** all tests updated **When** imports point to new modules **Then** 4976+ tests pass, zero old references
+**Given** a gate machine started with gate config input
+**When** running
+**Then** it enters `checking`, invokes each check task sequentially, assigns verdicts to context map
 
-### Story 7.7: Dedicated test files per module
+**Given** `evaluate` state with all verdicts `'pass'`
+**When** `allPassed` guard fires
+**Then** transitions to `passed` (final)
 
-As a developer, I want focused tests per module.
+**Given** `context.iteration >= context.maxRetries`
+**When** `maxRetries` guard fires
+**Then** transitions to `maxedOut` (final)
+
+**Given** stagnation detected
+**When** `circuitBreaker` guard fires
+**Then** transitions to `halted` (final)
+
+**Given** no exit guards fire
+**When** default transition runs
+**Then** transitions to `fixing`, invokes fix tasks, returns to `checking`
+
+**Given** `INTERRUPT` event received
+**When** processed
+**Then** transitions to `interrupted` (final)
+
+#### Story 4.2: Create story machine
+
+As a developer,
+I want a `storyMachine` that processes one story through compiled storyFlow steps,
+So that each story is a real state machine.
 
 **Acceptance Criteria:**
 
-**Given** 6 test files created **When** coverage run **Then** each module ≥90% lines
-**And** compiler tests: pure snapshot assertions
-**And** machine tests: actual XState state transition assertions
+**Given** a story machine started with storyFlow steps
+**When** running
+**Then** it processes steps sequentially via dispatch actors, transitions on `onDone`
+
+**Given** a step is a compiled gate
+**When** reached
+**Then** invokes `gateMachine` as child, merges output on `onDone`
+
+**Given** halt error on dispatch
+**When** `onError` fires
+**Then** `isHaltError` matches, transitions to `halted`, error recorded via immutable `assign`
+
+**Given** all steps complete
+**When** `done` reached
+**Then** output includes updated state, errors, tasksCompleted, lastContract, cost
+
+#### Story 4.3: Create epic machine with for_each story iteration
+
+As a developer,
+I want an `epicMachine` that iterates stories via AD4 pattern then runs epic-level steps,
+So that epics process stories through story machines then execute deploy/verify/retro.
+
+**Acceptance Criteria:**
+
+**Given** epic machine started with epicItems
+**When** running
+**Then** enters `processingStory`, invokes `storyMachine` for first item
+
+**Given** `checkNextStory` with more stories
+**When** `hasMoreStories` guard true
+**Then** transitions back to `processingStory` with incremented index
+
+**Given** all stories done
+**When** `hasMoreStories` false
+**Then** proceeds to epic-level steps (deploy, gate, retro)
+
+**Given** story completes without error
+**When** story machine `onDone` fires
+**Then** `config.onEvent` called with `{ type: 'story-done', storyKey: item.key }`
+
+#### Story 4.4: Create run machine with for_each epic iteration
+
+As a developer,
+I want a `runMachine` iterating epics via AD4 pattern,
+So that the top-level orchestrator is a real XState machine.
+
+**Acceptance Criteria:**
+
+**Given** run machine started with epicEntries
+**When** running
+**Then** enters `processingEpic`, invokes `epicMachine` for first epic
+
+**Given** `checkNextEpic` with more epics
+**When** `hasMoreEpics` true
+**Then** transitions back with incremented index
+
+**Given** all epics processed
+**When** `hasMoreEpics` false
+**Then** transitions to `allDone` (final)
+
+**Given** `INTERRUPT` event sent
+**When** received
+**Then** transitions to `interrupted` at every level, propagates to children
+
+**Given** `onError` on epic invoke
+**When** error received
+**Then** error recorded in context (not swallowed)
+
+#### Story 4.5: Wire `runWorkflowActor()` to use compiled machines
+
+As a developer,
+I want `runWorkflowActor(config)` to compile YAML, create run machine, return EngineResult,
+So that LanePool and run.ts get same interface with real XState underneath.
+
+**Acceptance Criteria:**
+
+**Given** an `EngineConfig`
+**When** `runWorkflowActor(config)` called
+**Then** runs pre-flight checks, compiles workflow, creates actor, starts, returns `Promise<EngineResult>`
+
+**Given** phase is `'completed'`
+**When** state read
+**Then** returns immediately with success
+
+**Given** health check failure
+**When** `checkDriverHealth()` throws
+**Then** returns `{ success: false, errors: [{ code: 'HEALTH_CHECK' }] }`
+
+### Epic 5: Persistence & Resume
+
+Dual-layer persistence with XState snapshots and semantic checkpoint log.
+
+#### Story 5.1: XState snapshot persistence via `getPersistedSnapshot()`
+
+As a developer,
+I want snapshots saved after every task completion,
+So that exact machine state is recoverable.
+
+**Acceptance Criteria:**
+
+**Given** a dispatch actor completes
+**When** inspect callback receives snapshot change
+**Then** `getPersistedSnapshot()` saved to `.codeharness/workflow-snapshot.json` with `configHash`
+
+**Given** INTERRUPT event
+**When** machine transitions to `interrupted`
+**Then** snapshot saved before actor stops
+
+#### Story 5.2: Snapshot resume with config hash validation
+
+As a developer,
+I want `runWorkflowActor()` to resume from snapshot if config matches,
+So that crash recovery is instant.
+
+**Acceptance Criteria:**
+
+**Given** snapshot exists with matching configHash
+**When** `runWorkflowActor()` compiles workflow
+**Then** creates actor with `createActor(machine, { snapshot })`
+
+**Given** snapshot with mismatched configHash
+**When** compared
+**Then** snapshot discarded with warning, falls back to checkpoint log
+
+#### Story 5.3: Semantic checkpoint log for config-change resilient resume
+
+As a developer,
+I want an append-only checkpoint log,
+So that resume works even after YAML changes.
+
+**Acceptance Criteria:**
+
+**Given** task completes
+**When** machine's `onDone` runs
+**Then** checkpoint appended to `.codeharness/workflow-checkpoints.jsonl`
+
+**Given** invalid snapshot and checkpoint log exists
+**When** engine starts fresh machine
+**Then** guards skip completed tasks by reading checkpoint log
+
+#### Story 5.4: Clear persistence on workflow completion
+
+As a developer,
+I want cleanup on successful completion,
+So that next run starts fresh.
+
+**Acceptance Criteria:**
+
+**Given** run machine reaches `allDone` with zero errors
+**When** completion processed
+**Then** snapshot and checkpoint files deleted, phase set to `'completed'`
+
+**Given** machine reaches `halted` or `maxedOut`
+**When** workflow finishes with errors
+**Then** files preserved for resume
+
+### Epic 6: TUI Visualization & Integration
+
+One-row visualization driven by inspect API, run.ts simplified.
+
+#### Story 6.1: Create `workflow-visualizer.ts` with pure rendering function
+
+As a developer,
+I want `visualize(machineConfig, snapshot, vizConfig) → string`,
+So that any workflow state renders as one terminal row.
+
+**Acceptance Criteria:**
+
+**Given** snapshot at story processing step
+**When** `visualize()` called with `{ maxWidth: 80, maxStepSlots: 5, taskNameMaxLen: 8 }`
+**Then** returns string like `Epic 17 [1/6] create✓ → impl… → ⟲quality → doc` within 80 chars
+
+**Given** snapshot inside gate iteration 2/5 with mixed verdicts
+**When** called
+**Then** renders `⟲quality(2/5 1✓1✗)…`
+
+**Given** flow with 8 steps, active at step 6
+**When** sliding window applies
+**Then** `[5✓]` prefix, `→ …2 more` suffix
+
+#### Story 6.2: Derive workflow position from XState snapshot state path
+
+As a developer,
+I want the visualizer to parse snapshot value to determine active level/step/gate/iteration,
+So that visualization is purely derived from XState state.
+
+**Acceptance Criteria:**
+
+**Given** snapshot with nested state value path
+**When** visualizer parses
+**Then** determines level, epicIndex, storyIndex, activeStep, gatePhase, checkIndex from state path and context
+
+#### Story 6.3: Wire `inspect` API to visualizer in run.ts
+
+As a developer,
+I want inspect callback on run machine actor driving visualization updates,
+So that state transitions trigger TUI refresh.
+
+**Acceptance Criteria:**
+
+**Given** actor created with `inspect` callback
+**When** `@xstate.snapshot` event fires
+**Then** `visualize()` called, result passed to `renderer.updateWorkflowRow()`
+
+**Given** snapshot unchanged (actor internal progress only)
+**When** inspect fires
+**Then** visualizer NOT called (debounce on state transitions only)
+
+#### Story 6.4: Wire sideband streaming to TUI renderer
+
+As a developer,
+I want dispatch actors to feed stream events via sideband,
+So that user sees real-time agent output.
+
+**Acceptance Criteria:**
+
+**Given** `config.onEvent` set
+**When** dispatch actor streams
+**Then** each `StreamEvent` forwarded via `config.onEvent`
+**And** dispatch-start and dispatch-end emitted with timing/cost
+
+#### Story 6.5: Simplify run.ts — remove hand-tracked state
+
+As a developer,
+I want run.ts to derive ALL display state from machine snapshot,
+So that hand-tracked variables are eliminated.
+
+**Acceptance Criteria:**
+
+**Given** current hand-tracked variables (`inEpicPhase`, `currentStoryKey`, `taskStates`, etc.)
+**When** migration complete
+**Then** all deleted, workflow visualization from `inspect` → `visualize()` only
+**And** `onEvent` handler only tracks `totalCostUsd`, `storiesDone`, forwards stream events
+
+### Epic 7: File Decomposition & Migration
+
+Split monolith into 7 files, update imports, migrate tests, delete dead code.
+
+#### Story 7.1: Extract `workflow-actors.ts` from `workflow-machine.ts`
+
+As a developer,
+I want dispatch and null task actors in their own module,
+So that actors are independently testable and ≤200 lines.
+
+**Acceptance Criteria:**
+
+**Given** `src/lib/workflow-actors.ts` created
+**When** containing dispatchActor, nullTaskActor, dispatchTaskCore, nullTaskCore
+**Then** ≤200 lines, imports only from workflow-types.ts and externals
+**And** all existing dispatch tests pass
+
+#### Story 7.2: Extract `workflow-compiler.ts`
+
+As a developer,
+I want compiler in its own pure module,
+So that it has zero runtime dependencies.
+
+**Acceptance Criteria:**
+
+**Given** `src/lib/workflow-compiler.ts` created
+**When** containing compileFlow, compileStep, compileGate, compileForEach
+**Then** ≤200 lines, zero imports from actors/machines/runner/persistence, all functions pure
+
+#### Story 7.3: Extract `workflow-machines.ts`
+
+As a developer,
+I want machine definitions in their own module.
+
+**Acceptance Criteria:**
+
+**Given** `src/lib/workflow-machines.ts` created
+**When** containing gateMachine, storyMachine, epicMachine, runMachine
+**Then** ≤250 lines, imports from types + actors only
+
+#### Story 7.4: Extract `workflow-runner.ts`
+
+As a developer,
+I want `runWorkflowActor()` in its own module as the composition root.
+
+**Acceptance Criteria:**
+
+**Given** `src/lib/workflow-runner.ts` created
+**When** containing runWorkflowActor, checkDriverHealth, loadWorkItems
+**Then** ≤150 lines, imports from all workflow modules
+**And** run.ts and lane-pool.ts import from workflow-runner.ts
+
+#### Story 7.5: Delete `workflow-machine.ts` and `hierarchical-flow.ts`
+
+As a developer,
+I want dead code removed.
+
+**Acceptance Criteria:**
+
+**Given** all consumers import from new files
+**When** old files deleted
+**Then** `npm run build` and `npx vitest run` pass with zero references remaining
+
+#### Story 7.6: Migrate all test files to new module imports
+
+As a developer,
+I want all test imports updated to correct new modules.
+
+**Acceptance Criteria:**
+
+**Given** all test files updated
+**When** imports point to workflow-runner, workflow-actors, workflow-types, workflow-compiler
+**Then** all 4976+ tests pass, zero references to workflow-machine.ts
+
+#### Story 7.7: Create dedicated test files per module
+
+As a developer,
+I want each new module to have focused tests.
+
+**Acceptance Criteria:**
+
+**Given** test files: compiler, machines, actors, visualizer, persistence, runner
+**When** `npx vitest run --coverage`
+**Then** each module ≥90% line coverage
+**And** compiler tests use pure snapshot assertions
+**And** machine tests assert actual XState state transitions

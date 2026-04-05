@@ -22,27 +22,17 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync, rmSync } from 'node
 import { join } from 'node:path';
 import { warn, info } from './output.js';
 import { DispatchError } from './agent-dispatch.js';
-import type { DispatchErrorCode } from './agent-dispatch.js';
 import { getDriver } from './agents/drivers/factory.js';
 import { checkCapabilityConflicts } from './agents/capability-check.js';
-import { resolveModel } from './agents/model-resolver.js';
-import type { DispatchOpts, DriverHealth, OutputContract } from './agents/types.js';
-import type { ResultEvent, ToolStartEvent, StreamEvent } from './agents/stream-parser.js';
+import type { DriverHealth, OutputContract } from './agents/types.js';
+import type { StreamEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
 import type { ResolvedWorkflow, ResolvedTask, FlowStep, LoopBlock } from './workflow-parser.js';
-import { buildPromptWithContractContext, writeOutputContract } from './agents/output-contract.js';
-import { createIsolatedWorkspace } from './source-isolation.js';
-import { generateTraceId, formatTracePrompt, recordTraceId } from './trace-id.js';
-import { resolveSessionId, recordSessionId } from './session-manager.js';
-import type { SessionLookupKey } from './session-manager.js';
-import { parseVerdict, parseVerdictTag, extractTag, VerdictParseError } from './verdict-parser.js';
+import { extractTag } from './verdict-parser.js';
+import { parseVerdict, parseVerdictTag, VerdictParseError } from './verdict-parser.js';
 import type { EvaluatorVerdict } from './verdict-parser.js';
 import { evaluateProgress } from './circuit-breaker.js';
-import { getNullTask, listNullTasks } from './null-task-registry.js';
-import type { TaskContext, NullTaskResult } from './null-task-registry.js';
 import { parse } from 'yaml';
-import { readStateWithBody, writeState } from './state.js';
-import { formatCoverageContextMessage } from './evaluator.js';
 import {
   readWorkflowState,
   writeWorkflowState,
@@ -50,59 +40,38 @@ import {
 import type { WorkflowState, TaskCheckpoint, EvaluatorScore } from './workflow-state.js';
 // Note: workflow-persistence.ts exists for future XState snapshot resume.
 // Currently resume works via readWorkflowState (YAML state checkpoints).
+import {
+  dispatchTaskCore,
+  dispatchActor,
+  nullTaskCore,
+  buildCoverageDeduplicationContext,
+  TASK_PROMPTS,
+  FILE_WRITE_TOOL_NAMES,
+} from './workflow-actors.js';
+export type {
+  EngineEvent,
+  EngineConfig,
+  EngineResult,
+  EngineError,
+  WorkItem,
+  DispatchInput,
+  DispatchOutput,
+  NullTaskInput,
+} from './workflow-actors.js';
+import type {
+  EngineEvent,
+  EngineConfig,
+  EngineResult,
+  EngineError,
+  WorkItem,
+  DispatchInput,
+  DispatchOutput,
+  NullTaskInput,
+} from './workflow-actors.js';
 
 // Re-export for downstream consumers
 export type { EvaluatorVerdict } from './verdict-parser.js';
 export { parseVerdict } from './verdict-parser.js';
-
-// ─── Interfaces ──────────────────────────────────────────────────────
-
-export interface EngineEvent {
-  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip' | 'story-done' | 'epic-verified';
-  taskName: string;
-  storyKey: string;
-  /** Whether an epic verification passed (only for type: 'epic-verified'). */
-  verdictPassed?: boolean;
-  driverName?: string;
-  model?: string;
-  streamEvent?: StreamEvent;
-  error?: { code: string; message: string };
-  elapsedMs?: number;
-  costUsd?: number;
-}
-
-export interface EngineConfig {
-  workflow: ResolvedWorkflow;
-  agents: Record<string, SubagentDefinition>;
-  sprintStatusPath: string;
-  issuesPath?: string;
-  runId: string;
-  projectDir?: string;
-  maxIterations?: number;
-  onEvent?: (event: EngineEvent) => void;
-  abortSignal?: AbortSignal;
-}
-
-export interface EngineResult {
-  success: boolean;
-  tasksCompleted: number;
-  storiesProcessed: number;
-  errors: EngineError[];
-  durationMs: number;
-}
-
-export interface EngineError {
-  taskName: string;
-  storyKey: string;
-  code: string;
-  message: string;
-}
-
-export interface WorkItem {
-  key: string;
-  title?: string;
-  source: 'sprint' | 'issues';
-}
 
 // ─── Constants ───────────────────────────────────────────────────────
 
@@ -110,105 +79,10 @@ const HALT_ERROR_CODES = new Set(['RATE_LIMIT', 'NETWORK', 'SDK_INIT']);
 const DEFAULT_MAX_ITERATIONS = 5;
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
 
-/** Tool names that indicate file writes. */
-const FILE_WRITE_TOOL_NAMES = new Set([
-  'Write', 'Edit', 'write_to_file', 'edit_file',
-  'write', 'edit', 'WriteFile', 'EditFile',
-]);
+// ─── Coverage Deduplication re-exported for tests ────────────────────
+export { buildCoverageDeduplicationContext } from './workflow-actors.js';
 
-
-
-// ─── Dispatch Input/Output ───────────────────────────────────────────
-
-interface DispatchInput {
-  task: ResolvedTask;
-  taskName: string;
-  storyKey: string;
-  definition: SubagentDefinition;
-  config: EngineConfig;
-  workflowState: WorkflowState;
-  previousContract: OutputContract | null;
-  onStreamEvent?: (event: StreamEvent, driverName?: string) => void;
-  storyFiles?: string[];
-  customPrompt?: string;
-  accumulatedCostUsd?: number;
-}
-
-interface DispatchOutput {
-  output: string;
-  cost: number;
-  changedFiles: string[];
-  sessionId: string;
-  contract: OutputContract | null;
-  updatedState: WorkflowState;
-}
-
-interface NullTaskInput {
-  task: ResolvedTask;
-  taskName: string;
-  storyKey: string;
-  config: EngineConfig;
-  workflowState: WorkflowState;
-  previousContract: OutputContract | null;
-  accumulatedCostUsd: number;
-}
-
-// ─── TASK_PROMPTS ────────────────────────────────────────────────────
-
-const TASK_PROMPTS: Record<string, (key: string) => string> = {
-  'create-story': (key) => `Create the story spec for ${key}. Read the epic definitions and architecture docs. Write a complete story file with acceptance criteria, tasks, and dev notes. CRITICAL: Every AC must be testable by a blind QA agent using ONLY a user guide + browser/API/CLI access. No AC should reference source code, internal data structures, or implementation details like O(1) complexity. Each AC must describe observable behavior that can be verified through UI interaction (agent-browser), API calls (curl), CLI commands (docker exec), or log inspection (docker logs). Wrap output in <story-spec>...</story-spec> tags.`,
-  'implement': (key) => `Implement story ${key}`,
-  'check': (key) => `Run automated checks for story ${key}. Execute the project's test suite, linter, and coverage tool. Include <verdict>pass</verdict> or <verdict>fail</verdict> in your response.`,
-  'review': (key) => `Review the implementation of story ${key}. Check for correctness, security issues, architecture violations, and AC coverage. Include <verdict>pass</verdict> or <verdict>fail</verdict> in your response. If fail, include <issues>...</issues>.`,
-  'document': (key) => `Write user documentation for story ${key}. Describe what was built and how to use it from a user's perspective. No source code. Wrap documentation in <user-docs>...</user-docs> tags.`,
-  'deploy': () => `Provision the Docker environment for this project. Check for docker-compose.yml, start containers, verify health. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`,
-  'verify': () => `Verify the epic's stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps, run commands, observe output. Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`,
-  'retro': () => `Run a retrospective for this epic. Analyze what worked, what failed, patterns, and action items for next epic.`,
-};
-
-// ─── Coverage Deduplication (Story 16-5) ─────────────────────────────
-
-export function buildCoverageDeduplicationContext(
-  contract: OutputContract | null,
-  projectDir: string,
-): string | null {
-  if (!contract?.testResults) return null;
-  const { coverage } = contract.testResults;
-  if (coverage === null || coverage === undefined) return null;
-  try {
-    const { state } = readStateWithBody(projectDir);
-    if (!state.session_flags.coverage_met) return null;
-    const target = state.coverage.target ?? 90;
-    return formatCoverageContextMessage(coverage, target);
-  } catch { // IGNORE: state unreadable — coverage context is best-effort
-    return null;
-  }
-}
-
-// ─── Verify Flag Propagation (Story 16-4) ────────────────────────────
-
-function propagateVerifyFlags(
-  taskName: string,
-  contract: OutputContract | null,
-  projectDir: string,
-): void {
-  if (taskName !== 'implement') return;
-  if (!contract?.testResults) return;
-  const { failed, coverage } = contract.testResults;
-  try {
-    const { state, body } = readStateWithBody(projectDir);
-    if (failed === 0) state.session_flags.tests_passed = true;
-    if (coverage !== null && coverage !== undefined && coverage >= state.coverage.target) {
-      state.session_flags.coverage_met = true;
-    }
-    writeState(state, projectDir, body);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    warn(`workflow-machine: flag propagation failed for ${taskName}: ${msg}`);
-  }
-}
-
-// ─── Task Completion Check ───────────────────────────────────────────
+// ─── Task Completion Check ─────────────────────────────────────────────────────
 
 export function isTaskCompleted(
   state: WorkflowState,
@@ -328,228 +202,11 @@ export function getFailedItems(verdict: EvaluatorVerdict | null, allItems: WorkI
   return allItems;
 }
 
-// ─── Core Dispatch Function ──────────────────────────────────────────
-
-async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOutput> {
-  const { task, taskName, storyKey, definition, config, workflowState, previousContract, onStreamEvent, storyFiles, customPrompt, accumulatedCostUsd } = input;
-  const projectDir = config.projectDir ?? process.cwd();
-
-  // 1. Trace ID
-  const traceId = generateTraceId(config.runId, workflowState.iteration, taskName);
-  const tracePrompt = formatTracePrompt(traceId);
-
-  // 2. Session
-  const sessionKey: SessionLookupKey = { taskName, storyKey };
-  const sessionId = resolveSessionId(task.session, sessionKey, workflowState);
-
-  // 3. Driver + model
-  const driverName = task.driver ?? 'claude-code';
-  const driver = getDriver(driverName);
-  const model = resolveModel(task, { model: definition.model }, driver);
-
-  // 4. CWD + workspace (source isolation)
-  let cwd: string;
-  let workspace: Awaited<ReturnType<typeof createIsolatedWorkspace>> | null = null;
-  if (task.source_access === false) {
-    try {
-      workspace = await createIsolatedWorkspace({ runId: config.runId, storyFiles: storyFiles ?? [] });
-      cwd = workspace?.toDispatchOptions()?.cwd ?? projectDir;
-    } catch { cwd = projectDir; } // IGNORE: workspace creation failed — fall back to projectDir
-  } else {
-    cwd = projectDir;
-  }
-
-  // 5. Prompt construction
-  const isEpicSentinel = storyKey.startsWith('__epic_') || storyKey === '__run__';
-  let basePrompt: string;
-  if (customPrompt) {
-    basePrompt = customPrompt;
-  } else if (TASK_PROMPTS[taskName]) {
-    basePrompt = TASK_PROMPTS[taskName](storyKey);
-  } else {
-    basePrompt = `Execute task "${taskName}" for story ${storyKey}`;
-  }
-
-  let prompt = buildPromptWithContractContext(basePrompt, previousContract);
-  const coverageDedup = buildCoverageDeduplicationContext(previousContract, projectDir);
-  if (coverageDedup) prompt = `${prompt}\n\n${coverageDedup}`;
-
-  // 6. DispatchOpts
-  const dispatchOpts: DispatchOpts = {
-    prompt,
-    model,
-    cwd,
-    sourceAccess: task.source_access !== false,
-    ...(sessionId ? { sessionId } : {}),
-    ...(tracePrompt ? { appendSystemPrompt: tracePrompt } : {}),
-    ...((task.plugins ?? definition.plugins) ? { plugins: task.plugins ?? definition.plugins } : {}),
-    // Note: max_budget_usd is not mapped to timeout — they have different semantics
-  };
-
-  // 7. Emit dispatch-start
-  const emit = config.onEvent;
-  if (emit) emit({ type: 'dispatch-start', taskName, storyKey, driverName, model });
-
-  // 8. Dispatch and stream
-  let output = '';
-  let resultSessionId = '';
-  let cost = 0;
-  let errorEvent: { error: string; errorCategory?: string } | null = null;
-  const changedFiles: string[] = [];
-  let activeToolName: string | null = null;
-  let activeToolInput = '';
-  const startMs = Date.now();
-
-  try {
-    for await (const event of driver.dispatch(dispatchOpts)) {
-      // Sideband: TUI gets real-time events
-      if (onStreamEvent) onStreamEvent(event, driverName);
-      if (emit) emit({ type: 'stream-event', taskName, storyKey, driverName, streamEvent: event });
-
-      if (event.type === 'text') output += event.text;
-      if (event.type === 'tool-start') {
-        const ts = event as ToolStartEvent;
-        activeToolName = ts.name;
-        activeToolInput = '';
-      }
-      if (event.type === 'tool-input') activeToolInput += event.partial;
-      if (event.type === 'tool-complete') {
-        if (activeToolName && FILE_WRITE_TOOL_NAMES.has(activeToolName)) {
-          try {
-            const parsed = JSON.parse(activeToolInput) as Record<string, unknown>;
-            const filePath = (parsed.file_path ?? parsed.path ?? parsed.filePath) as string | undefined;
-            if (filePath && typeof filePath === 'string') changedFiles.push(filePath);
-          } catch { /* IGNORE: tool input not valid JSON — changed-files tracking is best-effort */ }
-        }
-        activeToolName = null;
-        activeToolInput = '';
-      }
-      if (event.type === 'result') {
-        const r = event as ResultEvent;
-        resultSessionId = r.sessionId;
-        cost = r.cost;
-        if (r.error) errorEvent = { error: r.error, errorCategory: r.errorCategory };
-      }
-    }
-  } finally {
-    if (workspace) await workspace.cleanup();
-  }
-
-  const elapsedMs = Date.now() - startMs;
-  if (emit) emit({ type: 'dispatch-end', taskName, storyKey, driverName, elapsedMs, costUsd: cost });
-
-  // 9. Error from driver
-  if (errorEvent) {
-    const categoryToCode: Record<string, string> = {
-      RATE_LIMIT: 'RATE_LIMIT', NETWORK: 'NETWORK', SDK_INIT: 'SDK_INIT',
-      AUTH: 'UNKNOWN', TIMEOUT: 'UNKNOWN', UNKNOWN: 'UNKNOWN',
-    };
-    const code = categoryToCode[errorEvent.errorCategory ?? 'UNKNOWN'] ?? 'UNKNOWN';
-    throw new DispatchError(errorEvent.error, code as DispatchErrorCode, definition.name, errorEvent);
-  }
-
-  // 10. Record session + trace
-  let updatedState = workflowState;
-  if (resultSessionId) {
-    updatedState = recordSessionId(sessionKey, resultSessionId, updatedState);
-  } else {
-    const checkpoint: TaskCheckpoint = {
-      task_name: taskName,
-      story_key: storyKey,
-      completed_at: new Date().toISOString(),
-    };
-    updatedState = { ...updatedState, tasks_completed: [...updatedState.tasks_completed, checkpoint] };
-  }
-  updatedState = recordTraceId(traceId, updatedState);
-
-  // 11. Output contract
-  const durationMs = Date.now() - startMs;
-  let contract: OutputContract | null = null;
-  try {
-    contract = {
-      version: 1,
-      taskName,
-      storyId: storyKey,
-      driver: driverName,
-      model,
-      timestamp: new Date().toISOString(),
-      cost_usd: cost > 0 ? cost : null,
-      duration_ms: durationMs,
-      changedFiles: [...new Set(changedFiles)],
-      testResults: null,
-      output,
-      acceptanceCriteria: [],
-    };
-    writeOutputContract(contract, join(projectDir, '.codeharness', 'contracts'));
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    warn(`workflow-machine: failed to write output contract for ${taskName}/${storyKey}: ${msg}`);
-    contract = null;
-  }
-
-  // 12. Persist state
-  writeWorkflowState(updatedState, projectDir);
-  propagateVerifyFlags(taskName, contract, projectDir);
-
-  return { output, cost, changedFiles, sessionId: resultSessionId, contract, updatedState };
-}
-
-// ─── Core Null Task Function ─────────────────────────────────────────
-
-async function nullTaskCore(input: NullTaskInput): Promise<DispatchOutput> {
-  const { task, taskName, storyKey, config, workflowState, previousContract, accumulatedCostUsd } = input;
-  const projectDir = config.projectDir ?? process.cwd();
-
-  const handler = getNullTask(taskName);
-  if (!handler) {
-    const registered = listNullTasks();
-    throw { taskName, storyKey, code: 'NULL_TASK_NOT_FOUND', message: `No null task handler registered for "${taskName}". Registered: ${registered.join(', ') || '(none)'}` };
-  }
-
-  const startMs = Date.now();
-  const workflowStartMs = workflowState.started ? new Date(workflowState.started).getTime() : startMs;
-  const ctx: TaskContext = {
-    storyKey, taskName, cost: accumulatedCostUsd, durationMs: startMs - workflowStartMs,
-    outputContract: previousContract, projectDir,
-  };
-
-  let result: NullTaskResult;
-  try { result = await handler(ctx); } catch (err: unknown) {
-    throw { taskName, storyKey, code: 'NULL_TASK_HANDLER_ERROR', message: `Null task handler "${taskName}" threw: ${err instanceof Error ? err.message : String(err)}` };
-  }
-
-  if (!result.success) {
-    throw { taskName, storyKey, code: 'NULL_TASK_FAILED', message: `Null task handler "${taskName}" returned success=false${result.output ? `: ${result.output}` : ''}` };
-  }
-
-  const checkpoint: TaskCheckpoint = { task_name: taskName, story_key: storyKey, completed_at: new Date().toISOString() };
-  const updatedState: WorkflowState = { ...workflowState, tasks_completed: [...workflowState.tasks_completed, checkpoint] };
-  const durationMs = Date.now() - startMs;
-  const contract: OutputContract = {
-    version: 1, taskName, storyId: storyKey, driver: 'engine', model: 'null',
-    timestamp: new Date().toISOString(), cost_usd: 0, duration_ms: durationMs,
-    changedFiles: [], testResults: null, output: result.output ?? '', acceptanceCriteria: [],
-  };
-  writeWorkflowState(updatedState, projectDir);
-
-  return { output: result.output ?? '', cost: 0, changedFiles: [], sessionId: '', contract, updatedState };
-}
-
 // ─── Flow Step Helpers ───────────────────────────────────────────────
 
 function isLoopBlock(step: FlowStep): step is LoopBlock {
   return typeof step === 'object' && step !== null && 'loop' in step;
 }
-
-// ─── XState Dispatch Actors (fromPromise) ────────────────────────────
-
-const dispatchActor = fromPromise(async ({ input }: { input: DispatchInput }): Promise<DispatchOutput> => {
-  return dispatchTaskCore(input);
-});
-
-const nullTaskDispatchActor = fromPromise(async ({ input }: { input: NullTaskInput }): Promise<DispatchOutput> => {
-  return nullTaskCore(input);
-});
 
 // ─── Loop Block Execution (XState loop machine) ─────────────────────
 

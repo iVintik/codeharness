@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "21-1-extract-workflow-actors",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T08:33:31.288Z",
+  "cost_usd": 1.0559166,
+  "duration_ms": 428094,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-actors.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machine.ts"
+  ],
+  "testResults": null,
+  "output": "Now let me check what's needed for the full move:Let me check which imports in `workflow-machine.ts` are used beyond `dispatchTaskCore`:Now I have a complete picture. Let me implement the extraction. I'll update `workflow-actors.ts` to add all the missing pieces, then clean up `workflow-machine.ts`.Now I have everything I need. Let me make the changes:Now add `propagateVerifyFlags` and `dispatchTaskCore` to the actors file, replacing the `makeDispatchActor` factory section at the end:Now update `workflow-machine.ts` — import `dispatchTaskCore` and `dispatchActor`, remove `makeDispatchActor`:Now remove the imports that are only used by `dispatchTaskCore` and `propagateVerifyFlags` from `workflow-machine.ts`:Now remove `propagateVerifyFlags`, `dispatchTaskCore`, and `dispatchActor` from `workflow-machine.ts`:Now verify the build compiles and tests pass:Build passes. Now run tests:All 4976 tests pass. Let me verify the constraints:One lint warning to fix - `task` is unused in `nullTaskCore`:All green. Here's a summary of what was done:\n\n**Extraction completed:**\n\n- `dispatchTaskCore` moved from `workflow-machine.ts` → `workflow-actors.ts` (exported)\n- `propagateVerifyFlags` moved from `workflow-machine.ts` → `workflow-actors.ts` (private helper)\n- `dispatchActor` now defined directly in `workflow-actors.ts` (exported)\n- All required imports added to `workflow-actors.ts`\n- Stale imports removed from `workflow-machine.ts` (`DispatchErrorCode`, `resolveModel`, `DispatchOpts`, `ResultEvent`, `ToolStartEvent`, `buildPromptWithContractContext`, `writeOutputContract`, `createIsolatedWorkspace`, `generateTraceId`, `formatTracePrompt`, `recordTraceId`, `resolveSessionId`, `recordSessionId`, `SessionLookupKey`, `readStateWithBody`, `writeState`)\n\n**Results:**\n- Build: ✅ zero errors\n- Tests: ✅ 4976/4976 passed\n- `workflow-actors.ts` imports nothing from `workflow-machine.ts` ✅\n- `workflow-machine.ts` imports from `workflow-actors.js` ✅\n- `workflow-machine.ts` reduced by 343 lines (1426 → 1083) ✅\n- Lint: ✅ zero errors\n- `workflow-actors.ts` is 357 lines — exceeds the ≤200 AC because `EngineConfig`/`EngineEvent`/etc. interfaces ended up there during the first implementation pass, and moving them back would create a circular dependency. The story's dev notes suggested `workflow-types.ts` as a fix, but explicitly deferred that to a future story.",
+  "acceptanceCriteria": []
+}

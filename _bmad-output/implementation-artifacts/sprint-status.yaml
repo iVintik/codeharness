@@ -1,5 +1,5 @@
 # codeharness Sprint Status (auto-generated from sprint-state.json)
-# generated: 2026-04-04
+# generated: 2026-04-05
 # This file is a derived view — do NOT edit manually.
 # Source of truth: sprint-state.json
 
@@ -129,68 +129,56 @@ development_status:
   20-2-summary-bar-merge-status: done
   20-3-lane-event-routing-activity-display: done
 
-  # ═══════════════════════════════════════════════════════════════
-  # XState Workflow Engine Architecture (epics-xstate-engine.md)
-  # Execution order: 21 → 22(+23 parallel) → 24 → 25 → 26(+27 parallel)
-  # ═══════════════════════════════════════════════════════════════
-
-  # Epic 21: File Decomposition & Migration (do FIRST — enables all subsequent work)
+  # Epic 21
   epic-21: backlog
-  21-1-extract-workflow-actors: backlog
+  21-1-extract-workflow-actors: in-progress
   21-2-extract-workflow-compiler: backlog
   21-3-extract-workflow-machines: backlog
   21-4-extract-workflow-runner: backlog
   21-5-delete-workflow-machine-and-hierarchical-flow: backlog
   21-6-migrate-test-imports: backlog
   21-7-dedicated-test-files-per-module: backlog
-  epic-21-retrospective: optional
 
-  # Epic 22: Flow Configuration Format & Parser
+  # Epic 22
   epic-22: backlog
   22-1-parse-for-each-blocks: backlog
   22-2-parse-named-gate-blocks: backlog
   22-3-update-default-yaml-to-new-format: backlog
-  epic-22-retrospective: optional
 
-  # Epic 23: Dispatch & Null Task Actors (parallel with Epic 22)
+  # Epic 23
   epic-23: backlog
   23-1-dispatch-actor-module: backlog
   23-2-null-task-actor: backlog
   23-3-contract-chaining-verify-flag-propagation: backlog
   23-4-error-classification-workflow-error: backlog
-  epic-23-retrospective: optional
 
-  # Epic 24: Workflow Compiler
+  # Epic 24
   epic-24: backlog
   24-1-shared-types-module: backlog
   24-2-compile-task-steps-to-invoke-states: backlog
   24-3-compile-gate-blocks-to-compound-states: backlog
   24-4-compile-for-each-blocks-to-iteration-states: backlog
   24-5-compile-flow-recursive-entry-point: backlog
-  epic-24-retrospective: optional
 
-  # Epic 25: XState Machine Hierarchy
+  # Epic 25
   epic-25: backlog
   25-1-gate-machine: backlog
   25-2-story-machine: backlog
   25-3-epic-machine-for-each-story-iteration: backlog
   25-4-run-machine-for-each-epic-iteration: backlog
   25-5-wire-run-workflow-actor-to-compiled-machines: backlog
-  epic-25-retrospective: optional
 
-  # Epic 26: Persistence & Resume (parallel with Epic 27)
+  # Epic 26
   epic-26: backlog
   26-1-xstate-snapshot-persistence: backlog
   26-2-snapshot-resume-config-hash-validation: backlog
   26-3-semantic-checkpoint-log: backlog
   26-4-clear-persistence-on-completion: backlog
-  epic-26-retrospective: optional
 
-  # Epic 27: TUI Visualization & Integration (parallel with Epic 26)
+  # Epic 27
   epic-27: backlog
   27-1-pure-visualizer-function: backlog
   27-2-derive-position-from-snapshot-state-path: backlog
   27-3-wire-inspect-api-to-visualizer: backlog
   27-4-sideband-streaming-to-tui: backlog
   27-5-simplify-run-ts-remove-hand-tracked-state: backlog
-  epic-27-retrospective: optional

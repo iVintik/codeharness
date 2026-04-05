@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "taskName": "check",
+  "storyId": "21-1-extract-workflow-actors",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T08:24:52.051Z",
+  "cost_usd": null,
+  "duration_ms": 176217,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Running the automated checks for story `21-1-extract-workflow-actors`. I’ll confirm the available scripts, then execute test, lint, and coverage commands and report the results.I found the relevant scripts: `lint`, `test:unit`, `test`, and `test:coverage`. The worktree is dirty, so I’m treating this as verification only and leaving existing changes untouched while I run the checks.The checks are in flight. I’m waiting for the full lint, unit, integration, and coverage results so I can give you a clear pass/fail verdict rather than partial output.Two failures are already clear in the Vitest runs: one performance timeout and one filesystem permission error writing under `~/.codeharness`. I’m pulling the remaining final statuses so the report is complete.`eslint` exited successfully but with warnings only. I’m waiting on the integration suite to see whether anything beyond the Vitest failures is broken.The integration run is taking materially longer than the rest of the checks. I’m giving it a bit more time before treating it as stalled.The integration suite is no longer just slow; it’s reporting failures now. I’m pulling the tail so I can include the specific failing Bats case in the summary.<verdict>fail</verdict>\n\nI ran the requested checks in `/Users/ivintik/dev/personal/codeharness`.\n\n`npm run lint` passed with warnings only: ESLint exited `0`, reporting `73` warnings and `0` errors.\n\n`npm run test:unit` failed. Vitest reported `2 failed | 4974 passed`:\n- `src/lib/__tests__/ink-renderer-lanes.test.ts:484` timed out after `5000ms` in `routing 4 lanes of events completes within acceptable time`\n- `src/lib/__tests__/workflow-parser.test.ts:862` failed with `EPERM: operation not permitted, open '/Users/ivintik/.codeharness/workflows/default.patch.yaml'`\n\n`npm run test:coverage` failed with the same two Vitest failures, so coverage did not complete successfully.\n\n`npm test` also failed in the integration suite. The failing case surfaced as:\n- `tests/coverage_gate.bats:30` `not ok 19 codeharness coverage --help exits 0`\n  - assertion `[[ \"$output\" == *\"coverage\"* ]]` failed\n\nI did not modify any files.",
+  "acceptanceCriteria": []
+}

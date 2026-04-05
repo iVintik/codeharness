@@ -1,0 +1,34 @@
+workflow_name: create-story -> implement -> check -> review -> document
+started: 2026-04-05T08:05:52.143Z
+iteration: 2
+phase: executing
+tasks_completed:
+  - task_name: create-story
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T08:09:08.745Z
+    session_id: 71ef4486-d8af-4355-8333-5f01f7fae83d
+  - task_name: implement
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T08:21:55.815Z
+    session_id: 9dd24b5f-34fc-4c43-b44f-c1a62fa7f38a
+  - task_name: check
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T08:24:52.051Z
+  - task_name: review
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T08:26:23.170Z
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T08:33:31.288Z
+    session_id: 6e70d7e6-7e29-412f-8e58-a6b32a9ebd3a
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: []
+trace_ids:
+  - ch-run-1775376352143-0-create-story
+  - ch-run-1775376352143-0-implement
+  - ch-run-1775376352143-0-check
+  - ch-run-1775376352143-0-review
+  - ch-run-1775376352143-1-retry

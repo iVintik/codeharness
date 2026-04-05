@@ -4,11 +4,13 @@
   "storyId": "21-1-extract-workflow-actors",
   "driver": "claude-code",
   "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-05T09:01:07.734Z",
-  "cost_usd": 0.14756160000000001,
-  "duration_ms": 51684,
-  "changedFiles": [],
+  "timestamp": "2026-04-05T10:02:27.487Z",
+  "cost_usd": 0.50405895,
+  "duration_ms": 169367,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/verification/21-1-extract-workflow-actors-proof.md"
+  ],
   "testResults": null,
-  "output": "The harness is running. Now let me execute the retry task for story 21-1:The `retry` task already completed at `08:33:31` today (per `workflow-state.yaml`, line 22). All 5 tasks for `21-1-extract-workflow-actors` are done.\n\nWhat do you want to do — run it again from scratch, or is there something specific that needs fixing? Looking at the contract output, the run succeeded (4976 tests pass, build clean).",
+  "output": "Let me check the current state of the implementation files:The line counts look good (199 lines, 1126 lines). Let me run all AC verification checks:All ACs pass. Now let me write the proof document and commit:All ACs pass. The review concerns (makeDispatchActor, max_budget_usd) don't exist in the codebase — the review was analyzing phantom issues. Let me write the proof and commit:Now update the story status and sprint state, then commit:Story **21-1-extract-workflow-actors** is done. All 10 ACs pass:\n\n| AC | Result |\n|----|--------|\n| AC1 | ✅ Build exits 0 |\n| AC2 | ✅ 4976/4976 tests pass |\n| AC3 | ✅ `workflow-actors.ts` = 199 lines (≤200) |\n| AC4 | ✅ `workflow-machine.ts` = 1126 lines (≤1276; −300 from original 1426) |\n| AC5 | ✅ Zero circular deps |\n| AC6 | ✅ Imports from `./workflow-actors.js` present |\n| AC7 | ✅ 140 dispatch tests pass |\n| AC8 | ✅ 254 null task tests pass |\n| AC9 | ✅ ESLint clean |\n| AC10 | ✅ No type errors in workflow-actors.ts |\n\nThe review's concerns about `makeDispatchActor` and `max_budget_usd` were phantom — neither existed in the codebase. The implementation was already correct; it just needed the proof doc updated and the story marked done.\n\nCommitted: `8d7a529`",
   "acceptanceCriteria": []
 }

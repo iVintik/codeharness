@@ -420,25 +420,13 @@ export function registerRunCommand(program: Command): void {
             totalCost: totalCostUsd,
           });
 
-          // Epic-level verify completion → mark stories done + show quality scores
+          // Epic-level verify completion → show quality scores (do NOT mark stories done here)
           if (event.taskName === 'verify' && event.storyKey.startsWith('__epic_')) {
-            // Show quality scores if present in the output
-            // (Evaluator includes quality_scores in verdict JSON)
             renderer.addMessage({
               type: 'ok',
               key: event.storyKey.replace('__epic_', 'Epic ').replace('__', ''),
               message: `verification complete (cost: $${(event.costUsd ?? 0).toFixed(2)})`,
             });
-            const epicId = event.storyKey.replace('__epic_', '').replace('__', '');
-            for (let i = 0; i < storyEntries.length; i++) {
-              const se = storyEntries[i];
-              if (se.status === 'in-progress' && se.key.startsWith(`${epicId}-`)) {
-                storiesDone++;
-                updateStoryStatus(se.key, 'done');
-                storyEntries[i] = { ...se, status: 'done' };
-              }
-            }
-            renderer.updateStories([...storyEntries]);
           }
         }
         if (event.type === 'dispatch-error') {
@@ -458,6 +446,21 @@ export function registerRunCommand(program: Command): void {
           if (idx >= 0) {
             storyEntries[idx] = { ...storyEntries[idx], status: 'failed' };
             renderer.updateStories([...storyEntries]);
+          }
+        }
+        // Story completed its storyFlow — mark as done in sprint state
+        if (event.type === 'story-done') {
+          storiesDone++;
+          updateStoryStatus(event.storyKey, 'done');
+          const idx = storyEntries.findIndex(s => s.key === event.storyKey);
+          if (idx >= 0) {
+            storyEntries[idx] = { ...storyEntries[idx], status: 'done' };
+            renderer.updateStories([...storyEntries]);
+          }
+          // Update epic done count
+          const epicId = extractEpicId(event.storyKey);
+          if (epicData[epicId]) {
+            epicData[epicId].storiesDone = (epicData[epicId].storiesDone ?? 0) + 1;
           }
         }
       };

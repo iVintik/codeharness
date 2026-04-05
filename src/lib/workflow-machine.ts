@@ -58,9 +58,11 @@ export { parseVerdict } from './verdict-parser.js';
 // ─── Interfaces ──────────────────────────────────────────────────────
 
 export interface EngineEvent {
-  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip';
+  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip' | 'story-done' | 'epic-verified';
   taskName: string;
   storyKey: string;
+  /** Whether an epic verification passed (only for type: 'epic-verified'). */
+  verdictPassed?: boolean;
   driverName?: string;
   model?: string;
   streamEvent?: StreamEvent;
@@ -993,6 +995,11 @@ const storyFlowActor = fromPromise(async ({ input }: { input: {
       if (err instanceof DispatchError && HALT_ERROR_CODES.has(err.code)) halted = true;
       break;
     }
+  }
+
+  // Emit story-done if story completed without halt
+  if (!halted && config.onEvent) {
+    config.onEvent({ type: 'story-done', taskName: 'story_flow', storyKey: item.key });
   }
 
   return { workflowState: state, errors, tasksCompleted, lastContract, accumulatedCostUsd, halted };

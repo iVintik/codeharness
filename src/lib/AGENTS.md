@@ -79,6 +79,16 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 |------|---------|-------------|
 | workflow-engine.ts | Sequential flow execution orchestrator — composes all Epic 1-4 modules to execute workflow steps in order, dispatching agents per-story or per-run | `executeWorkflow`, `dispatchTask`, `loadWorkItems`, `EngineConfig`, `EngineResult`, `EngineError`, `WorkItem` |
 
+## XState v5 Workflow Engine (Epic 21)
+
+| File | Purpose | Key Exports |
+|------|---------|-------------|
+| workflow-types.ts | Shared actor/workflow-boundary types — pure type definitions with no runtime code | `EngineEvent`, `EngineConfig`, `DispatchInput`, `DispatchOutput`, `NullTaskInput` |
+| workflow-constants.ts | Shared constants for the XState workflow engine — prompt templates and tool name sets | `TASK_PROMPTS`, `FILE_WRITE_TOOL_NAMES` |
+| workflow-actors.ts | XState v5 dispatch and null-task actors — extracted from workflow-machine.ts with no circular dependencies | `dispatchActor`, `nullTaskDispatchActor`, `dispatchTaskCore`, `nullTaskCore`, `buildCoverageDeduplicationContext` |
+| workflow-machine.ts | XState v5 workflow engine entry point — orchestration actors, machine definitions, and public API | `runWorkflowActor`, `EngineResult`, `EngineError`, `WorkItem`, `loadWorkItems`, `checkDriverHealth`, `buildRetryPrompt`, `getFailedItems`, `executeLoopBlock`, `dispatchTask`, `parseVerdict`, `EvaluatorVerdict` |
+| workflow-persistence.ts | XState-compatible snapshot save/load — replaces workflow-state.ts for JSON snapshot persistence to `.codeharness/workflow-state.json` | `saveSnapshot`, `loadSnapshot`, `clearSnapshot`, `WorkflowSnapshot` |
+
 ## Blind Evaluator (Epic 6)
 
 | File | Purpose | Key Exports |
@@ -234,4 +244,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 79 library files + 4 shared test utility files across 29 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 84 library files + 4 shared test utility files across 30 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

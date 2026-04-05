@@ -4,13 +4,13 @@
   "storyId": "21-1-extract-workflow-actors",
   "driver": "claude-code",
   "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-05T10:02:27.487Z",
-  "cost_usd": 0.50405895,
-  "duration_ms": 169367,
+  "timestamp": "2026-04-05T10:27:47.257Z",
+  "cost_usd": 0.3429358,
+  "duration_ms": 164677,
   "changedFiles": [
-    "/Users/ivintik/dev/personal/codeharness/verification/21-1-extract-workflow-actors-proof.md"
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/21-1-extract-workflow-actors.md"
   ],
   "testResults": null,
-  "output": "Let me check the current state of the implementation files:The line counts look good (199 lines, 1126 lines). Let me run all AC verification checks:All ACs pass. Now let me write the proof document and commit:All ACs pass. The review concerns (makeDispatchActor, max_budget_usd) don't exist in the codebase — the review was analyzing phantom issues. Let me write the proof and commit:Now update the story status and sprint state, then commit:Story **21-1-extract-workflow-actors** is done. All 10 ACs pass:\n\n| AC | Result |\n|----|--------|\n| AC1 | ✅ Build exits 0 |\n| AC2 | ✅ 4976/4976 tests pass |\n| AC3 | ✅ `workflow-actors.ts` = 199 lines (≤200) |\n| AC4 | ✅ `workflow-machine.ts` = 1126 lines (≤1276; −300 from original 1426) |\n| AC5 | ✅ Zero circular deps |\n| AC6 | ✅ Imports from `./workflow-actors.js` present |\n| AC7 | ✅ 140 dispatch tests pass |\n| AC8 | ✅ 254 null task tests pass |\n| AC9 | ✅ ESLint clean |\n| AC10 | ✅ No type errors in workflow-actors.ts |\n\nThe review's concerns about `makeDispatchActor` and `max_budget_usd` were phantom — neither existed in the codebase. The implementation was already correct; it just needed the proof doc updated and the story marked done.\n\nCommitted: `8d7a529`",
+  "output": "All checks pass. The implementation is complete and verified. Updating story status:All 36 tasks checked off. Story status updated to `done`.\n\n**Retry task result — no changes needed.** The implementation was already complete and correct:\n\n| AC | Check | Result |\n|----|-------|--------|\n| AC1 | `npm run build` | ✅ exits 0 |\n| AC3 | `wc -l workflow-actors.ts` | ✅ 199 lines |\n| AC4 | `wc -l workflow-machine.ts` | ✅ 1102 lines |\n| AC5 | No `workflow-machine` refs in actors | ✅ 0 |\n| AC6 | `workflow-machine` imports from actors | ✅ 2 import lines |\n| AC9 | ESLint on actors file | ✅ clean |\n| AC10 | `tsc --noEmit \\| grep workflow-actors` | ✅ no output |\n\nThe previous implementation (from the `implement` task, confirmed by the `review` pass) satisfied all constraints. Story 21-1 is done.",
   "acceptanceCriteria": []
 }

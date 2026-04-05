@@ -1,6 +1,6 @@
 workflow_name: create-story -> implement -> check -> review -> document
 started: 2026-04-05T09:25:53.922Z
-iteration: 4
+iteration: 8
 phase: executing
 tasks_completed:
   - task_name: create-story
@@ -41,6 +41,46 @@ tasks_completed:
   - task_name: review
     story_key: 21-1-extract-workflow-actors
     completed_at: 2026-04-05T10:05:07.901Z
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:07:44.321Z
+    session_id: f35f62e7-bd32-47d1-bf71-e29c0d0de529
+  - task_name: check
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:08:32.512Z
+  - task_name: review
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:11:02.902Z
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:18:42.450Z
+    session_id: 27ea5ab0-3464-441a-9146-0de1d34d0d5f
+  - task_name: check
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:19:28.843Z
+  - task_name: review
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:21:43.062Z
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:22:04.063Z
+    session_id: 9101317b-98d1-48f0-97d6-b498c14fc395
+  - task_name: check
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:23:09.431Z
+  - task_name: review
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:25:02.556Z
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:27:47.257Z
+    session_id: 2aa09c8c-4124-4959-bda4-ecc7e1eacc63
+  - task_name: check
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:28:47.289Z
+  - task_name: review
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T10:30:10.180Z
 evaluator_scores: []
 circuit_breaker:
   triggered: false
@@ -58,3 +98,15 @@ trace_ids:
   - ch-run-1775381153922-3-retry
   - ch-run-1775381153922-3-check
   - ch-run-1775381153922-3-review
+  - ch-run-1775381153922-4-retry
+  - ch-run-1775381153922-4-check
+  - ch-run-1775381153922-4-review
+  - ch-run-1775381153922-5-retry
+  - ch-run-1775381153922-5-check
+  - ch-run-1775381153922-5-review
+  - ch-run-1775381153922-6-retry
+  - ch-run-1775381153922-6-check
+  - ch-run-1775381153922-6-review
+  - ch-run-1775381153922-7-retry
+  - ch-run-1775381153922-7-check
+  - ch-run-1775381153922-7-review

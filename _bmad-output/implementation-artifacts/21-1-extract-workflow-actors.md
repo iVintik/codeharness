@@ -1,6 +1,6 @@
 # Story 21-1: Extract `workflow-actors.ts` from `workflow-machine.ts`
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -42,46 +42,46 @@ So that actors are independently testable, the monolith file shrinks toward the 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Create `src/lib/workflow-actors.ts` with extracted code (AC: 1, 3, 5, 9, 10)
-  - [ ] 1.1: Create the file with module header
-  - [ ] 1.2: Move `DispatchInput`, `DispatchOutput`, `NullTaskInput` interfaces
-  - [ ] 1.3: Move `dispatchTaskCore()` function (~160 lines of dispatch logic)
-  - [ ] 1.4: Move `nullTaskCore()` function (~38 lines of null task logic)
-  - [ ] 1.5: Move `dispatchActor` and `nullTaskDispatchActor` — the `fromPromise` XState wrappers
-  - [ ] 1.6: Move helper functions used exclusively by actors: `buildCoverageDeduplicationContext`, `propagateVerifyFlags`
-  - [ ] 1.7: Move `HALT_ERROR_CODES` constant
-  - [ ] 1.8: Add all necessary imports from external modules (drivers, trace-id, session-manager, output-contract, source-isolation, etc.)
-  - [ ] 1.9: Export public API: `dispatchActor`, `nullTaskDispatchActor`, `dispatchTaskCore`, `nullTaskCore`, `DispatchInput`, `DispatchOutput`, `NullTaskInput`, `buildCoverageDeduplicationContext`
+- [x] Task 1: Create `src/lib/workflow-actors.ts` with extracted code (AC: 1, 3, 5, 9, 10)
+  - [x] 1.1: Create the file with module header
+  - [x] 1.2: Move `DispatchInput`, `DispatchOutput`, `NullTaskInput` interfaces
+  - [x] 1.3: Move `dispatchTaskCore()` function (~160 lines of dispatch logic)
+  - [x] 1.4: Move `nullTaskCore()` function (~38 lines of null task logic)
+  - [x] 1.5: Move `dispatchActor` and `nullTaskDispatchActor` — the `fromPromise` XState wrappers
+  - [x] 1.6: Move helper functions used exclusively by actors: `buildCoverageDeduplicationContext`, `propagateVerifyFlags`
+  - [x] 1.7: Move `HALT_ERROR_CODES` constant
+  - [x] 1.8: Add all necessary imports from external modules (drivers, trace-id, session-manager, output-contract, source-isolation, etc.)
+  - [x] 1.9: Export public API: `dispatchActor`, `nullTaskDispatchActor`, `dispatchTaskCore`, `nullTaskCore`, `DispatchInput`, `DispatchOutput`, `NullTaskInput`, `buildCoverageDeduplicationContext`
 
-- [ ] Task 2: Apply line budget — bring `workflow-actors.ts` under 200 lines (AC: 3)
-  - [ ] 2.1: If file exceeds 200 lines, move `TASK_PROMPTS` to `workflow-constants.ts` or `workflow-prompts.ts`
-  - [ ] 2.2: If still over, move `FILE_WRITE_TOOL_NAMES` to the same constants file
-  - [ ] 2.3: If still over, move type interfaces (`DispatchInput`, `DispatchOutput`, `NullTaskInput`) to a future `workflow-types.ts` or keep in `workflow-machine.ts` and import them (dependency goes the right direction: actors imports from types, not from machine)
-  - [ ] 2.4: Verify final `wc -l` <= 200
+- [x] Task 2: Apply line budget — bring `workflow-actors.ts` under 200 lines (AC: 3)
+  - [x] 2.1: If file exceeds 200 lines, move `TASK_PROMPTS` to `workflow-constants.ts` or `workflow-prompts.ts`
+  - [x] 2.2: If still over, move `FILE_WRITE_TOOL_NAMES` to the same constants file
+  - [x] 2.3: If still over, move type interfaces (`DispatchInput`, `DispatchOutput`, `NullTaskInput`) to a future `workflow-types.ts` or keep in `workflow-machine.ts` and import them (dependency goes the right direction: actors imports from types, not from machine)
+  - [x] 2.4: Verify final `wc -l` <= 200
 
-- [ ] Task 3: Update `src/lib/workflow-machine.ts` to import from new module (AC: 2, 4, 6, 7, 8)
-  - [ ] 3.1: Remove all code moved in Task 1 from `workflow-machine.ts`
-  - [ ] 3.2: Add import statement(s) from `./workflow-actors.js`
-  - [ ] 3.3: Re-export any symbols that downstream consumers expect from `workflow-machine.ts` (preserve public API for backward compat)
-  - [ ] 3.4: Remove imports that are no longer needed in `workflow-machine.ts` (they moved to `workflow-actors.ts`)
-  - [ ] 3.5: Verify the orchestration actors (`loopIterationActor`, `storyFlowActor`, `epicStepActor`, `runEpicActor`) still compile — they call `dispatchTaskCore`/`nullTaskCore` which are now imported
+- [x] Task 3: Update `src/lib/workflow-machine.ts` to import from new module (AC: 2, 4, 6, 7, 8)
+  - [x] 3.1: Remove all code moved in Task 1 from `workflow-machine.ts`
+  - [x] 3.2: Add import statement(s) from `./workflow-actors.js`
+  - [x] 3.3: Re-export any symbols that downstream consumers expect from `workflow-machine.ts` (preserve public API for backward compat)
+  - [x] 3.4: Remove imports that are no longer needed in `workflow-machine.ts` (they moved to `workflow-actors.ts`)
+  - [x] 3.5: Verify the orchestration actors (`loopIterationActor`, `storyFlowActor`, `epicStepActor`, `runEpicActor`) still compile — they call `dispatchTaskCore`/`nullTaskCore` which are now imported
 
-- [ ] Task 4: Update cross-file imports if needed (AC: 1, 10)
-  - [ ] 4.1: Search for any files that import moved symbols directly from `workflow-machine` (test files, other lib files)
-  - [ ] 4.2: Update import paths to `./workflow-actors.js` OR rely on re-exports from Task 3.3
-  - [ ] 4.3: Run `npx tsc --noEmit 2>&1 | grep workflow-actors` to confirm zero new type errors
+- [x] Task 4: Update cross-file imports if needed (AC: 1, 10)
+  - [x] 4.1: Search for any files that import moved symbols directly from `workflow-machine` (test files, other lib files)
+  - [x] 4.2: Update import paths to `./workflow-actors.js` OR rely on re-exports from Task 3.3
+  - [x] 4.3: Run `npx tsc --noEmit 2>&1 | grep workflow-actors` to confirm zero new type errors
 
-- [ ] Task 5: Final verification (AC: 1-10)
-  - [ ] 5.1: `npm run build` exits 0
-  - [ ] 5.2: `npx vitest run` — all tests pass, pass count >= 4976
-  - [ ] 5.3: `wc -l src/lib/workflow-actors.ts` <= 200
-  - [ ] 5.4: `wc -l src/lib/workflow-machine.ts` <= 1276
-  - [ ] 5.5: `grep -c 'workflow-machine' src/lib/workflow-actors.ts` outputs 0
-  - [ ] 5.6: `grep 'workflow-actors' src/lib/workflow-machine.ts` shows import line(s)
-  - [ ] 5.7: `npx vitest run -t 'dispatch'` passes
-  - [ ] 5.8: `npx vitest run -t 'null'` passes
-  - [ ] 5.9: `npx eslint src/lib/workflow-actors.ts` exits 0
-  - [ ] 5.10: `npx tsc --noEmit 2>&1 | grep workflow-actors` produces no output
+- [x] Task 5: Final verification (AC: 1-10)
+  - [x] 5.1: `npm run build` exits 0
+  - [x] 5.2: `npx vitest run` — all tests pass, pass count >= 4976
+  - [x] 5.3: `wc -l src/lib/workflow-actors.ts` <= 200
+  - [x] 5.4: `wc -l src/lib/workflow-machine.ts` <= 1276
+  - [x] 5.5: `grep -c 'workflow-machine' src/lib/workflow-actors.ts` outputs 0
+  - [x] 5.6: `grep 'workflow-actors' src/lib/workflow-machine.ts` shows import line(s)
+  - [x] 5.7: `npx vitest run -t 'dispatch'` passes
+  - [x] 5.8: `npx vitest run -t 'null'` passes
+  - [x] 5.9: `npx eslint src/lib/workflow-actors.ts` exits 0
+  - [x] 5.10: `npx tsc --noEmit 2>&1 | grep workflow-actors` produces no output
 
 ## Dev Notes
 

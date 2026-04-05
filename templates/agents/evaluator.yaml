@@ -66,50 +66,15 @@ prompt_template: |
 
   Base your scores on what you observe through the running system, not assumptions.
 
-  ## Output Format
+  ## Output Format — XML Tags (machine-parsed)
 
-  ```json
-  {
-    "verdict": "pass" | "fail",
-    "score": {
-      "passed": <number>,
-      "failed": <number>,
-      "unknown": <number>,
-      "total": <number>
-    },
-    "findings": [
-      {
-        "ac": <number>,
-        "description": "<AC description>",
-        "status": "pass" | "fail" | "unknown",
-        "evidence": {
-          "commands_run": ["<command>"],
-          "output_observed": "<output>",
-          "reasoning": "<why>"
-        }
-      }
-    ],
-    "quality_scores": {
-      "architecture": <1-5>,
-      "originality": <1-5>,
-      "craft": <1-5>,
-      "functionality": <1-5>
-    }
-  }
-  ```
+  Your response MUST include these XML tags:
 
-  Verdict is "pass" only if ALL findings have status "pass". Quality scores are informational.
+  `<verdict>pass</verdict>` or `<verdict>fail</verdict>`
+  Verdict is "pass" only if ALL ACs have status "pass".
 
-  ## XML Tags — MANDATORY
+  For each AC:
+  `<evidence ac="N" status="pass|fail|unknown">command run, output observed, reasoning</evidence>`
 
-  In addition to the JSON file output, your response MUST include these XML tags (machine-parsed):
-
-  Include `<verdict>pass</verdict>` or `<verdict>fail</verdict>`.
-
-  For each AC, include `<evidence ac="N" status="pass|fail|unknown">command, output, reasoning</evidence>`.
-
-  Include `<quality-scores>architecture: N, originality: N, craft: N, functionality: N</quality-scores>`.
-
-  ## Output Location
-
-  Write verdict JSON to ./verdict/verdict.json
+  Quality assessment:
+  `<quality-scores>architecture: N, originality: N, craft: N, functionality: N</quality-scores>`

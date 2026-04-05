@@ -156,6 +156,9 @@ tasks_completed:
   - task_name: check
     story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
     completed_at: 2026-04-05T14:58:10.509Z
+  - task_name: review
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T15:02:02.368Z
 evaluator_scores:
   - iteration: 2
     passed: 0
@@ -242,3 +245,4 @@ trace_ids:
   - ch-run-1775392544381-4-review
   - ch-run-1775392544381-4-retry
   - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review

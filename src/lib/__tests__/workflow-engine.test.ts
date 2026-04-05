@@ -959,11 +959,7 @@ describe('runWorkflowActor', () => {
     // Loop with retry (per-story) + verify (per-run) — verify returns pass on first try
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       if (opts.prompt.includes('Verify the epic')) {
-        return makeDriverStream(JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-          findings: [],
-        }), 'sess-v');
+        return makeDriverStream('<verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });
@@ -1395,85 +1391,43 @@ describe('runWorkflowActor', () => {
 // --- Loop Block Tests (Story 5-2) ---
 
 describe('parseVerdict (re-exported from verdict-parser)', () => {
-  it('parses valid verdict JSON', () => {
-    const verdict = parseVerdict(JSON.stringify({
-      verdict: 'pass',
-      score: { passed: 3, failed: 0, unknown: 0, total: 3 },
-      findings: [],
-    }));
-
+  it('parses pass verdict from XML tag', () => {
+    const verdict = parseVerdict('All checks passed <verdict>pass</verdict>');
     expect(verdict).toBeDefined();
     expect(verdict.verdict).toBe('pass');
-    expect(verdict.score.passed).toBe(3);
+    expect(verdict.score.passed).toBe(1);
   });
 
-  it('parses verdict with findings', () => {
-    const input = {
-      verdict: 'fail',
-      score: { passed: 1, failed: 1, unknown: 1, total: 3 },
-      findings: [{
-        ac: 1,
-        description: 'Test AC',
-        status: 'fail',
-        evidence: {
-          commands_run: ['npm test'],
-          output_observed: 'FAIL',
-          reasoning: 'Tests failed',
-        },
-      }],
-    };
+  it('parses verdict with evidence tags', () => {
+    const output = [
+      '<evidence ac="1" status="fail">Tests failed</evidence>',
+      '<verdict>fail</verdict>',
+    ].join('\n');
 
-    const verdict = parseVerdict(JSON.stringify(input));
+    const verdict = parseVerdict(output);
     expect(verdict).toBeDefined();
     expect(verdict.findings).toHaveLength(1);
     expect(verdict.findings[0].ac).toBe(1);
   });
 
-  it('throws VerdictParseError for invalid JSON', () => {
-    expect(() => parseVerdict('not json')).toThrow();
+  it('returns fail when no verdict tag (never throws)', () => {
+    const verdict = parseVerdict('not a verdict at all');
+    expect(verdict.verdict).toBe('fail');
   });
 
-  it('throws VerdictParseError for missing verdict field', () => {
-    expect(() => parseVerdict(JSON.stringify({
-      score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-      findings: [],
-    }))).toThrow();
+  it('returns fail for empty string (never throws)', () => {
+    const verdict = parseVerdict('');
+    expect(verdict.verdict).toBe('fail');
   });
 
-  it('throws VerdictParseError for invalid verdict value', () => {
-    expect(() => parseVerdict(JSON.stringify({
-      verdict: 'maybe',
-      score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-      findings: [],
-    }))).toThrow();
-  });
-
-  it('throws VerdictParseError for missing score field', () => {
-    expect(() => parseVerdict(JSON.stringify({
-      verdict: 'pass',
-      findings: [],
-    }))).toThrow();
-  });
-
-  it('throws VerdictParseError for missing findings field', () => {
-    expect(() => parseVerdict(JSON.stringify({
+  it('returns fail for JSON input without verdict tag', () => {
+    const verdict = parseVerdict(JSON.stringify({
       verdict: 'pass',
       score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-    }))).toThrow();
-  });
-
-  it('throws VerdictParseError for non-object input', () => {
-    expect(() => parseVerdict('"just a string"')).toThrow();
-    expect(() => parseVerdict('42')).toThrow();
-    expect(() => parseVerdict('null')).toThrow();
-  });
-
-  it('throws VerdictParseError when score fields are not numbers', () => {
-    expect(() => parseVerdict(JSON.stringify({
-      verdict: 'pass',
-      score: { passed: 'one', failed: 0, unknown: 0, total: 1 },
       findings: [],
-    }))).toThrow();
+    }));
+    // JSON has no <verdict> tag, so result is fail
+    expect(verdict.verdict).toBe('fail');
   });
 });
 
@@ -1566,32 +1520,11 @@ describe('loop block execution', () => {
   });
 
   function makePassVerdict(): string {
-    return JSON.stringify({
-      verdict: 'pass',
-      score: { passed: 2, failed: 0, unknown: 0, total: 2 },
-      findings: [],
-    });
+    return '<evidence ac="1" status="pass">all tests pass</evidence> <evidence ac="2" status="pass">build OK</evidence> <verdict>pass</verdict>';
   }
 
   function makeFailVerdict(): string {
-    return JSON.stringify({
-      verdict: 'fail',
-      score: { passed: 1, failed: 1, unknown: 0, total: 2 },
-      findings: [
-        {
-          ac: 1,
-          description: 'Tests pass',
-          status: 'fail',
-          evidence: { commands_run: ['npm test'], output_observed: 'FAIL', reasoning: 'Test suite failed' },
-        },
-        {
-          ac: 2,
-          description: 'Build succeeds',
-          status: 'pass',
-          evidence: { commands_run: ['npm run build'], output_observed: 'OK', reasoning: 'Build fine' },
-        },
-      ],
-    });
+    return '<evidence ac="1" status="fail">Test suite failed</evidence> <evidence ac="2" status="pass">Build fine</evidence> <verdict>fail</verdict>';
   }
 
   /**
@@ -1599,12 +1532,13 @@ describe('loop block execution', () => {
    * across iterations so the circuit breaker does not trigger stagnation.
    */
   function makeProgressingFailVerdict(passed: number): string {
-    const total = Math.max(passed + 1, 2); // always at least 1 failure
-    return JSON.stringify({
-      verdict: 'fail',
-      score: { passed, failed: total - passed, unknown: 0, total },
-      findings: [],
-    });
+    const parts: string[] = [];
+    for (let i = 1; i <= passed; i++) {
+      parts.push(`<evidence ac="${i}" status="pass">AC ${i} ok</evidence>`);
+    }
+    parts.push(`<evidence ac="${passed + 1}" status="fail">AC ${passed + 1} failed</evidence>`);
+    parts.push('<verdict>fail</verdict>');
+    return parts.join(' ');
   }
 
   it('terminates loop when verdict is pass (AC #2)', async () => {
@@ -1800,11 +1734,11 @@ describe('loop block execution', () => {
     expect(stateWithScore!.evaluator_scores[0].failed).toBe(0);
   });
 
-  it('records all-UNKNOWN score when verdict parsing fails (AC #6)', async () => {
+  it('records fail score when output has no verdict tag (AC #6)', async () => {
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       if (opts.prompt.includes('Verify the epic')) {
-        // Return non-JSON output
-        return makeDriverStream('not a json verdict', 'sess-v');
+        // Return output with no verdict tag
+        return makeDriverStream('not a verdict at all', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });
@@ -1830,14 +1764,13 @@ describe('loop block execution', () => {
 
     await runWorkflowActor(config);
 
-    // Check for all-UNKNOWN score
+    // No verdict tag = fail. parseVerdict never throws, returns fail verdict.
     const stateWrites = mockWriteWorkflowState.mock.calls.map((c: unknown[]) => c[0] as WorkflowState);
     const stateWithScore = stateWrites.find((s) => s.evaluator_scores.length > 0);
     expect(stateWithScore).toBeDefined();
     expect(stateWithScore!.evaluator_scores[0].passed).toBe(0);
-    expect(stateWithScore!.evaluator_scores[0].failed).toBe(0);
-    expect(stateWithScore!.evaluator_scores[0].unknown).toBe(2); // 2 work items
-    expect(stateWithScore!.evaluator_scores[0].total).toBe(2);
+    expect(stateWithScore!.evaluator_scores[0].failed).toBe(1);
+    expect(stateWithScore!.evaluator_scores[0].total).toBe(1);
   });
 
   it('increments iteration and persists each loop pass (AC #7)', async () => {
@@ -2521,11 +2454,7 @@ describe('crash recovery & resume', () => {
     // verify returns pass so loop terminates
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       if (opts.prompt.includes('Verify the epic')) {
-        return makeDriverStream(JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 2, failed: 0, unknown: 0, total: 2 },
-          findings: [],
-        }), 'sess-v');
+        return makeDriverStream('<evidence ac="1" status="pass">ok</evidence> <evidence ac="2" status="pass">ok</evidence> <verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });
@@ -2576,11 +2505,7 @@ describe('crash recovery & resume', () => {
     // Pass on next verify
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       if (opts.prompt.includes('Verify the epic')) {
-        return makeDriverStream(JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 2, failed: 0, unknown: 0, total: 2 },
-          findings: [],
-        }), 'sess-v');
+        return makeDriverStream('<evidence ac="1" status="pass">ok</evidence> <evidence ac="2" status="pass">ok</evidence> <verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });
@@ -2708,11 +2633,7 @@ describe('crash recovery & resume', () => {
         return makeDriverStream('ok', 'sess-r');
       }
       // Verify passes
-      return makeDriverStream(JSON.stringify({
-        verdict: 'pass',
-        score: { passed: 2, failed: 0, unknown: 0, total: 2 },
-        findings: [],
-      }), 'sess-v');
+      return makeDriverStream('<evidence ac="1" status="pass">ok</evidence> <evidence ac="2" status="pass">ok</evidence> <verdict>pass</verdict>', 'sess-v');
     });
 
     mockParse.mockReturnValue({
@@ -2765,11 +2686,7 @@ describe('crash recovery & resume', () => {
 
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       if (opts.prompt.includes('Verify the epic')) {
-        return makeDriverStream(JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-          findings: [],
-        }), 'sess-v');
+        return makeDriverStream('<verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });
@@ -2799,11 +2716,7 @@ describe('crash recovery & resume', () => {
 
     // verify task uses 'evaluator' agent which is NOT in config.agents
     mockDriverDispatch.mockImplementation(() => {
-      return makeDriverStream(JSON.stringify({
-        verdict: 'pass',
-        score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-        findings: [],
-      }), 'sess-v');
+      return makeDriverStream('<verdict>pass</verdict>', 'sess-v');
     });
 
     const config = makeConfig({
@@ -3106,11 +3019,7 @@ describe('driver integration (story 10-5)', () => {
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       dispatches.push(opts.prompt);
       if (opts.prompt.includes('Verify the epic')) {
-        return makeDriverStream(JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-          findings: [],
-        }), 'sess-v');
+        return makeDriverStream('<verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });
@@ -3150,30 +3059,9 @@ describe('driver integration (story 10-5)', () => {
       dispatches.push(opts.prompt);
       if (opts.prompt.includes('Verify the epic')) {
         if (callCount <= 2) {
-          return makeDriverStream(JSON.stringify({
-            verdict: 'fail',
-            score: { passed: 1, failed: 1, unknown: 0, total: 2 },
-            findings: [
-              {
-                ac: 1,
-                description: 'Test suite failed',
-                status: 'fail',
-                evidence: { commands_run: ['npm run build'], output_observed: 'ERR', reasoning: 'Build broken' },
-              },
-              {
-                ac: 2,
-                description: 'Coverage met',
-                status: 'pass',
-                evidence: { commands_run: ['npm run test'], output_observed: 'OK', reasoning: 'Coverage fine' },
-              },
-            ],
-          }), 'sess-v');
+          return makeDriverStream('<evidence ac="1" status="fail">Test suite failed</evidence> <evidence ac="2" status="pass">Coverage fine</evidence> <verdict>fail</verdict>', 'sess-v');
         }
-        return makeDriverStream(JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 2, failed: 0, unknown: 0, total: 2 },
-          findings: [],
-        }), 'sess-v');
+        return makeDriverStream('<evidence ac="1" status="pass">ok</evidence> <evidence ac="2" status="pass">ok</evidence> <verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });
@@ -3463,11 +3351,7 @@ describe('output contract writing (story 13-3)', () => {
     // First verify call: pass verdict so loop exits
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
       if (opts.prompt.includes('Verify the epic')) {
-        return makeDriverStream(JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-          findings: [],
-        }), 'sess-v');
+        return makeDriverStream('<verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });
@@ -3511,17 +3395,9 @@ describe('output contract writing (story 13-3)', () => {
       if (opts.prompt.includes('Verify the epic')) {
         verifyCallCount++;
         if (verifyCallCount === 1) {
-          return makeDriverStream(JSON.stringify({
-            verdict: 'fail',
-            score: { passed: 0, failed: 1, unknown: 0, total: 1 },
-            findings: [{ ac: 1, description: 'Test', status: 'fail', evidence: { commands_run: [], output_observed: '', reasoning: 'failed' } }],
-          }), 'sess-v');
+          return makeDriverStream('<evidence ac="1" status="fail">failed</evidence> <verdict>fail</verdict>', 'sess-v');
         }
-        return makeDriverStream(JSON.stringify({
-          verdict: 'pass',
-          score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-          findings: [],
-        }), 'sess-v');
+        return makeDriverStream('<verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
     });

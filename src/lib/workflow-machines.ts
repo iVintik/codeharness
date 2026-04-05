@@ -5,15 +5,14 @@ import { warn } from './output.js';
 import { DispatchError } from './agent-dispatch.js';
 import type { StreamEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
-import type { ResolvedTask, LoopBlock } from './workflow-parser.js';
-import { extractTag, parseVerdict, parseVerdictTag, VerdictParseError } from './verdict-parser.js';
-import type { EvaluatorVerdict } from './verdict-parser.js';
+import type { ResolvedTask } from './workflow-parser.js';
+import { extractTag, parseVerdict } from './verdict-parser.js';
 import { evaluateProgress } from './circuit-breaker.js';
 import { writeWorkflowState } from './workflow-state.js';
 import type { WorkflowState, EvaluatorScore } from './workflow-state.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import type { EngineConfig, LoopMachineContext, EpicMachineContext, RunMachineContext, StoryFlowInput, StoryFlowOutput } from './workflow-types.js';
-import { HALT_ERROR_CODES, DEFAULT_MAX_ITERATIONS, isTaskCompleted, isLoopTaskCompleted, buildRetryPrompt, buildAllUnknownVerdict, getFailedItems, isLoopBlock, recordErrorInState, isEngineError, handleDispatchError } from './workflow-compiler.js';
+import { HALT_ERROR_CODES, DEFAULT_MAX_ITERATIONS, isTaskCompleted, isLoopTaskCompleted, buildRetryPrompt, getFailedItems, isLoopBlock, recordErrorInState, isEngineError, handleDispatchError } from './workflow-compiler.js';
 import type { EngineError, WorkItem, LoopBlockResult, OutputContract } from './workflow-compiler.js';
 
 const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineContext }): Promise<LoopMachineContext> => {
@@ -65,20 +64,8 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
         const dr = await dispatchTaskCore({ task, taskName, storyKey: item.key, definition, config, workflowState: currentState, previousContract: lastContract, onStreamEvent, customPrompt: prompt });
         currentState = dr.updatedState; lastContract = dr.contract; accumulatedCostUsd += dr.contract?.cost_usd ?? 0; tasksCompleted++;
         if (taskName === lastAgentTaskInLoop) {
-          let verdict: EvaluatorVerdict | null = null;
-          // Try XML verdict tag first (most review/check agents use this)
-          const tagged = parseVerdictTag(dr.output);
-          if (tagged) {
-            verdict = { verdict: tagged.verdict, score: { passed: tagged.verdict === 'pass' ? 1 : 0, failed: tagged.verdict === 'fail' ? 1 : 0, unknown: 0, total: 1 }, findings: [] };
-          }
-          // Fall back to JSON verdict (evaluator agents use this)
-          if (!verdict) {
-            try { verdict = parseVerdict(dr.output); } catch { /* IGNORE: not JSON — already tried XML tag above */ }
-          }
-          // Last resort: no verdict parseable at all → all-unknown
-          if (!verdict) {
-            verdict = buildAllUnknownVerdict(workItems, 'No verdict tag or JSON found in output');
-          }
+          // Parse verdict from XML tags. One format everywhere.
+          const verdict = parseVerdict(dr.output);
           lastVerdict = verdict;
           if (verdict) {
             const score: EvaluatorScore = { iteration: currentState.iteration, passed: verdict.score.passed, failed: verdict.score.failed, unknown: verdict.score.unknown, total: verdict.score.total, timestamp: new Date().toISOString() };

@@ -135,13 +135,7 @@ vi.mock('../null-task-registry.js', () => ({
 
 vi.mock('../verdict-parser.js', () => ({
   parseVerdict: vi.fn(),
-  VerdictParseError: class VerdictParseError extends Error {
-    public readonly retryable: boolean;
-    constructor(message: string, retryable: boolean) {
-      super(message);
-      this.retryable = retryable;
-    }
-  },
+  extractTag: vi.fn(),
 }));
 
 vi.mock('../circuit-breaker.js', () => ({

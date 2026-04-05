@@ -191,7 +191,7 @@ describe('runEvaluator', () => {
       await runEvaluator(makeOptions());
 
       const promptArg = vi.mocked(dispatchAgent).mock.calls[0][1] as string;
-      expect(promptArg).toContain('./verdict/verdict.json');
+      expect(promptArg).toContain('<verdict>');
     });
   });
 
@@ -345,15 +345,14 @@ describe('runEvaluator', () => {
       expect(compiled.instructions).toContain('UNKNOWN');
     });
 
-    it('compiled evaluator definition instructions reference verdict JSON structure', async () => {
+    it('compiled evaluator definition instructions reference XML verdict tags', async () => {
       const { loadEmbeddedAgent, compileSubagentDefinition } = await import('../agent-resolver.js');
       const agent = loadEmbeddedAgent('evaluator');
       const compiled = compileSubagentDefinition(agent);
 
-      expect(compiled.instructions).toContain('verdict');
-      expect(compiled.instructions).toContain('score');
-      expect(compiled.instructions).toContain('findings');
-      expect(compiled.instructions).toContain('commands_run');
+      expect(compiled.instructions).toContain('<verdict>');
+      expect(compiled.instructions).toContain('<evidence');
+      expect(compiled.instructions).toContain('status=');
     });
 
     it('compiled evaluator uses prompt_template from YAML, not a hardcoded constant', async () => {
@@ -363,7 +362,7 @@ describe('runEvaluator', () => {
 
       // The instructions should contain the full prompt_template content
       expect(compiled.instructions).toContain('./story-files/');
-      expect(compiled.instructions).toContain('./verdict/verdict.json');
+      expect(compiled.instructions).toContain('<verdict>');
       expect(compiled.instructions).toContain('docker exec');
     });
   });
@@ -483,7 +482,7 @@ describe('buildEvaluatorPrompt (story 16-5)', () => {
     // Should still include standard prompt parts
     expect(prompt).toContain('Verify the acceptance criteria for this story.');
     expect(prompt).toContain('./story-files/');
-    expect(prompt).toContain('./verdict/verdict.json');
+    expect(prompt).toContain('<verdict>');
   });
 
   it('AC#2: does NOT include coverage context when coverageContext is undefined', () => {

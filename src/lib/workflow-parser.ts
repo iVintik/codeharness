@@ -10,7 +10,6 @@ import {
   type ExecutionConfig,
   type HierarchicalFlow,
   type ResolvedTask,
-  type LoopBlock,
   type FlowStep,
 } from './workflow-execution.js';
 

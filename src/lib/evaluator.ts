@@ -84,7 +84,7 @@ export function buildEvaluatorPrompt(coverageContext?: CoverageContext): string 
 
   parts.push('Verify the acceptance criteria for this story.');
   parts.push('Story files are available in ./story-files/. Read each file to find the ACs.');
-  parts.push('Write your verdict JSON output to ./verdict/verdict.json.');
+  parts.push('Write your verdict as XML tags: <verdict>pass</verdict> or <verdict>fail</verdict>.');
 
   if (coverageContext) {
     parts.push('');

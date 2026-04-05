@@ -376,10 +376,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
 
       // In the new architecture, null tasks only execute inside loop blocks.
       // verify runs as epic-level task, telemetry runs in a loop after verify.
-      const passVerdict = JSON.stringify({
-        verdict: 'pass', findings: [],
-        score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-      });
+      const passVerdict = '<verdict>pass</verdict>';
 
       mockDriverDispatch.mockImplementation(() => {
         return (async function* () {
@@ -429,11 +426,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         return undefined;
       });
 
-      const passVerdict = JSON.stringify({
-        verdict: 'pass',
-        findings: [],
-        score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-      });
+      const passVerdict = '<verdict>pass</verdict>';
 
       // Loop: retry (per-story) then verify (per-run) — verify returns pass verdict as text
       let callCount = 0;
@@ -485,11 +478,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
         return undefined;
       });
 
-      const failVerdict = JSON.stringify({
-        verdict: 'fail',
-        findings: [{ ac: 1, description: 'test', status: 'fail', evidence: { commands_run: ['echo'], output_observed: 'fail', reasoning: 'test' } }],
-        score: { passed: 0, failed: 1, unknown: 0, total: 1 },
-      });
+      const failVerdict = '<evidence ac="1" status="fail">test</evidence> <verdict>fail</verdict>';
 
       mockDriverDispatch.mockImplementation(() => {
         return (async function* () {
@@ -532,11 +521,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const mockEvaluateProgress = vi.mocked(evaluateProgress);
       mockEvaluateProgress.mockReturnValue({ halt: false });
 
-      const failVerdict = JSON.stringify({
-        verdict: 'fail',
-        findings: [{ ac: 1, description: 'test', status: 'fail', evidence: { commands_run: ['echo'], output_observed: 'fail', reasoning: 'test' } }],
-        score: { passed: 0, failed: 1, unknown: 0, total: 1 },
-      });
+      const failVerdict = '<evidence ac="1" status="fail">test</evidence> <verdict>fail</verdict>';
 
       let dispatchCount = 0;
       mockDriverDispatch.mockImplementation(() => {
@@ -575,11 +560,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
       const mockEvaluateProgress = vi.mocked(evaluateProgress);
       mockEvaluateProgress.mockReturnValue({ halt: false });
 
-      const passVerdict = JSON.stringify({
-        verdict: 'pass',
-        findings: [],
-        score: { passed: 1, failed: 0, unknown: 0, total: 1 },
-      });
+      const passVerdict = '<verdict>pass</verdict>';
 
       let dispatchCount = 0;
       mockDriverDispatch.mockImplementation(() => {

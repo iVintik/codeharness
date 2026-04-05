@@ -105,13 +105,8 @@ vi.mock('../session-manager.js', () => ({
 }));
 
 vi.mock('../verdict-parser.js', () => ({
-  parseVerdict: vi.fn(() => null),
-  parseVerdictTag: vi.fn(() => null),
+  parseVerdict: vi.fn(() => ({ verdict: 'fail', score: { passed: 0, failed: 1, unknown: 0, total: 1 }, findings: [] })),
   extractTag: vi.fn(() => null),
-  VerdictParseError: class VerdictParseError extends Error {
-    retryable = false;
-    constructor(msg: string) { super(msg); }
-  },
 }));
 
 vi.mock('../circuit-breaker.js', () => ({

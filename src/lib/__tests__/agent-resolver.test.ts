@@ -77,15 +77,12 @@ describe('agent-resolver', () => {
       expect(template).toContain('UNKNOWN');
     });
 
-    it('evaluator.yaml prompt_template references verdict JSON structure (AC #3, story 6-3)', () => {
+    it('evaluator.yaml prompt_template references XML verdict tags (AC #3, story 6-3)', () => {
       const agent = loadEmbeddedAgent('evaluator');
       const template = agent.prompt_template!;
-      expect(template).toContain('verdict');
-      expect(template).toContain('score');
-      expect(template).toContain('findings');
-      expect(template).toContain('commands_run');
-      expect(template).toContain('output_observed');
-      expect(template).toContain('reasoning');
+      expect(template).toContain('<verdict>');
+      expect(template).toContain('<evidence');
+      expect(template).toContain('status=');
     });
 
     it('evaluator.yaml prompt_template includes tool access instructions (AC #4, story 6-3)', () => {
@@ -96,10 +93,11 @@ describe('agent-resolver', () => {
       expect(template).toContain('source code');
     });
 
-    it('evaluator.yaml prompt_template instructs output to ./verdict/verdict.json (AC #3, story 6-3)', () => {
+    it('evaluator.yaml prompt_template instructs XML tag output format (AC #3, story 6-3)', () => {
       const agent = loadEmbeddedAgent('evaluator');
       const template = agent.prompt_template!;
-      expect(template).toContain('./verdict/verdict.json');
+      expect(template).toContain('<verdict>pass</verdict>');
+      expect(template).toContain('<verdict>fail</verdict>');
     });
 
     it('evaluator.yaml prompt_template instructs reading from ./story-files/ (AC #1, story 6-3)', () => {
@@ -108,11 +106,11 @@ describe('agent-resolver', () => {
       expect(template).toContain('./story-files/');
     });
 
-    it('evaluator.yaml prompt_template includes Docker-based verification and quality_scores (AC #1, story 6-3)', () => {
+    it('evaluator.yaml prompt_template includes Docker-based verification and quality-scores (AC #1, story 6-3)', () => {
       const agent = loadEmbeddedAgent('evaluator');
       const template = agent.prompt_template!;
       expect(template).toContain('Docker');
-      expect(template).toContain('quality_scores');
+      expect(template).toContain('quality-scores');
     });
 
     it('throws AgentResolveError for non-existent embedded agent', () => {

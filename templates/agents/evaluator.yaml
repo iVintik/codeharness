@@ -47,7 +47,10 @@ prompt_template: |
      - **Logs**: `docker logs` to check for specific entries
   5. Observe output and compare to expected behavior from the docs
 
-  If Docker is not available or containers are not running, report ALL ACs as UNKNOWN.
+  If Docker is not available or containers are not running, switch to CLI verification:
+  - Run build/test/lint commands directly (npm run build, npx vitest run, npx eslint, etc.)
+  - Check file existence, line counts, grep patterns as specified in AC comments
+  - Do NOT report UNKNOWN just because Docker is unavailable — most ACs can be verified via CLI
 
   ### Anti-Leniency Rules
   - Assume code is broken until demonstrated otherwise
@@ -109,6 +112,13 @@ prompt_template: |
   For each AC, include `<evidence ac="N" status="pass|fail|unknown">command, output, reasoning</evidence>`.
 
   Include `<quality-scores>architecture: N, originality: N, craft: N, functionality: N</quality-scores>`.
+
+  ## Execution Budget
+
+  - Verify each AC with at most 2 commands (run + check output)
+  - Total verification: under 30 tool calls for the entire epic
+  - After all ACs are verified, produce the verdict JSON immediately and STOP
+  - Do NOT re-verify ACs or loop back to check them again
 
   ## Output Location
 

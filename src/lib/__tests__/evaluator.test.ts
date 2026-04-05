@@ -18,6 +18,10 @@ vi.mock('../trace-id.js', () => ({
   formatTracePrompt: vi.fn(),
 }));
 
+vi.mock('../../modules/verify/index.js', () => ({
+  parseStoryACs: vi.fn(),
+}));
+
 // --- Imports ---
 
 import { runEvaluator, buildEvaluatorPrompt } from '../evaluator.js';
@@ -26,6 +30,7 @@ import { isDockerAvailable } from '../docker/index.js';
 import { createIsolatedWorkspace } from '../source-isolation.js';
 import { dispatchAgent } from '../agent-dispatch.js';
 import { formatTracePrompt } from '../trace-id.js';
+import { parseStoryACs } from '../../modules/verify/index.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
 import type { IsolatedWorkspace } from '../source-isolation.js';
 import type { DispatchResult } from '../agent-dispatch.js';
@@ -77,6 +82,9 @@ function makeDispatchResult(overrides?: Partial<DispatchResult>): DispatchResult
 beforeEach(() => {
   vi.clearAllMocks();
   vi.useRealTimers();
+  vi.mocked(parseStoryACs).mockImplementation((path: string) => [
+    { id: path.endsWith('story-1.md') ? '1' : '2', description: `Parsed ${path}`, type: 'general' },
+  ]);
 });
 
 describe('runEvaluator', () => {
@@ -97,6 +105,7 @@ describe('runEvaluator', () => {
       expect(parsed.score.total).toBe(2);
       expect(parsed.findings).toHaveLength(2);
       expect(parsed.findings[0].status).toBe('unknown');
+      expect(parsed.findings[0].description).toContain('Parsed');
       expect(parsed.findings[0].evidence.reasoning).toContain('Docker');
     });
 
@@ -245,6 +254,7 @@ describe('runEvaluator', () => {
       const parsed = JSON.parse(result.output);
       expect(parsed.verdict).toBe('fail');
       expect(parsed.findings[0].status).toBe('unknown');
+      expect(parsed.findings[0].description).toContain('Parsed');
       expect(parsed.findings[0].evidence.reasoning).toContain('timed out');
     });
 

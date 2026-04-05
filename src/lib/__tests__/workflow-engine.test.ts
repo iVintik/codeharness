@@ -3332,6 +3332,29 @@ describe('output contract writing (story 13-3)', () => {
     expect(contract.acceptanceCriteria).toEqual([]);
   });
 
+  it('contract acceptanceCriteria is populated from the story file when available', async () => {
+    mockExistsSync.mockImplementation((path: string) => path === '/project/_bmad-output/implementation-artifacts/5-1-foo.md' || path === '/project/sprint-status.yaml');
+    mockReadFileSync.mockImplementation((path: string) => {
+      if (path === '/project/_bmad-output/implementation-artifacts/5-1-foo.md') {
+        return '# Story 5-1\n\n## Acceptance Criteria\n\n1. First AC.\n2. Second AC.\n';
+      }
+      return 'dummy yaml';
+    });
+
+    const task = makeTask();
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
+
+    const [contract] = mockWriteOutputContract.mock.calls[0] as [OutputContract];
+    expect(contract.acceptanceCriteria).toEqual([
+      { id: 'AC1', description: 'First AC.', status: 'pending' },
+      { id: 'AC2', description: 'Second AC.', status: 'pending' },
+    ]);
+  });
+
   it('contract duration_ms is populated (AC #1, #5)', async () => {
     const task = makeTask();
     const definition = makeDefinition();

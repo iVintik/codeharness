@@ -1,7 +1,4 @@
-/**
- * XState v5 dispatch and null-task actors. No circular import dependencies.
- */
-
+/* XState v5 dispatch and null-task actors. No circular import dependencies. */
 import { fromPromise } from 'xstate';
 import { join } from 'node:path';
 import { warn } from './output.js';
@@ -20,6 +17,7 @@ import { formatCoverageContextMessage } from './evaluator.js';
 import { writeWorkflowState, type WorkflowState, type TaskCheckpoint } from './workflow-state.js';
 import type { DispatchInput, DispatchOutput, NullTaskInput } from './workflow-types.js';
 import { TASK_PROMPTS, FILE_WRITE_TOOL_NAMES } from './workflow-constants.js';
+import { getPendingAcceptanceCriteria } from './workflow-contracts.js';
 
 // ─── Coverage Deduplication ──────────────────────────────────────────
 export function buildCoverageDeduplicationContext(contract: OutputContract | null, projectDir: string): string | null {
@@ -181,7 +179,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
     contract = {
       version: 1, taskName, storyId: storyKey, driver: driverName, model,
       timestamp: new Date().toISOString(), cost_usd: cost > 0 ? cost : null, duration_ms: durationMs,
-      changedFiles: [...new Set(changedFiles)], testResults: null, output, acceptanceCriteria: [],
+      changedFiles: [...new Set(changedFiles)], testResults: null, output, acceptanceCriteria: getPendingAcceptanceCriteria(taskName, storyKey, projectDir, storyFiles),
     };
     writeOutputContract(contract, join(projectDir, '.codeharness', 'contracts'));
   } catch (err: unknown) {

@@ -5,6 +5,7 @@ import { createIsolatedWorkspace } from './source-isolation.js';
 import type { IsolatedWorkspace } from './source-isolation.js';
 import { isDockerAvailable } from './docker/index.js';
 import { formatTracePrompt } from './trace-id.js';
+import { parseStoryACs } from '../modules/verify/index.js';
 
 // --- Interfaces ---
 
@@ -99,18 +100,22 @@ export function buildEvaluatorPrompt(coverageContext?: CoverageContext): string 
  * Build a fallback output JSON string with all ACs scored UNKNOWN.
  */
 function buildUnknownOutput(storyFiles: string[], reasoning: string): string {
-  // We don't know how many ACs each story file has, so we produce
-  // a single finding per story file with status unknown.
-  const findings = storyFiles.map((_, index) => ({
-    ac: index + 1,
-    description: `AC #${index + 1}`,
-    status: 'unknown' as const,
-    evidence: {
-      commands_run: [],
-      output_observed: '',
-      reasoning,
-    },
-  }));
+  const findings = storyFiles.flatMap((storyFile, fileIndex) => {
+    const acs = (() => {
+      try { return parseStoryACs(storyFile); } catch { return []; } // IGNORE: fallback still emits at least one UNKNOWN finding per file
+    })();
+    const fallback = [{ id: `${fileIndex + 1}`, description: `AC #${fileIndex + 1}` }];
+    return (acs.length > 0 ? acs : fallback).map(({ id, description }) => ({
+      ac: Number(id) || fileIndex + 1,
+      description,
+      status: 'unknown' as const,
+      evidence: {
+        commands_run: [],
+        output_observed: '',
+        reasoning,
+      },
+    }));
+  });
 
   return JSON.stringify({
     verdict: 'fail',

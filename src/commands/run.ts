@@ -265,17 +265,19 @@ export function registerRunCommand(program: Command): void {
           totalCost: totalCostUsd,
           elapsed: formatElapsed(Date.now() - sessionStartMs),
           epicId: displayEpicId || undefined,
+          epicTitle: epic?.name,
           epicStoriesDone: epic?.storiesDone,
           epicStoriesTotal: epic?.storiesTotal,
         });
       }, 2_000);
       // Load epic data for TUI context
-      const epicData: Record<string, { title?: string; storiesDone: number; storiesTotal: number }> = {};
+      const epicData: Record<string, { name?: string; storiesDone: number; storiesTotal: number }> = {};
       const sprintStateResult = getSprintState();
       if (sprintStateResult.success) {
         for (const [epicKey, epic] of Object.entries(sprintStateResult.data.epics ?? {})) {
           const epicId = epicKey.replace('epic-', '');
-          epicData[epicId] = { storiesDone: (epic as { storiesDone?: number }).storiesDone ?? 0, storiesTotal: (epic as { storiesTotal?: number }).storiesTotal ?? 0 };
+          const e = epic as { name?: string; storiesDone?: number; storiesTotal?: number };
+          epicData[epicId] = { name: e.name, storiesDone: e.storiesDone ?? 0, storiesTotal: e.storiesTotal ?? 0 };
         }
       }
 
@@ -342,15 +344,17 @@ export function registerRunCommand(program: Command): void {
           const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName) && taskStates[event.taskName] === 'done';
           const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
 
-          // Translate sentinel keys to display names
+          // Translate sentinel keys to display names with epic name
           let epicId: string;
           let displayStoryKey: string;
           if (event.storyKey.startsWith('__epic_')) {
             epicId = event.storyKey.replace('__epic_', '').replace('__', '');
-            displayStoryKey = `Epic ${epicId} verification`;
+            const epicName = epicData[epicId]?.name;
+            displayStoryKey = epicName ? `${epicName} — verification` : `Epic ${epicId} verification`;
           } else if (event.storyKey === '__run__') {
             epicId = currentStoryKey ? extractEpicId(currentStoryKey) : '';
-            displayStoryKey = epicId ? `Epic ${epicId}` : 'Run';
+            const epicName = epicId ? epicData[epicId]?.name : undefined;
+            displayStoryKey = epicName ?? (epicId ? `Epic ${epicId}` : 'Run');
           } else {
             epicId = extractEpicId(event.storyKey);
             displayStoryKey = event.storyKey;
@@ -368,6 +372,7 @@ export function registerRunCommand(program: Command): void {
             totalCost: totalCostUsd,
             elapsed: formatElapsed(Date.now() - sessionStartMs),
             epicId,
+            epicTitle: epic?.name,
             epicStoriesDone: epic?.storiesDone ?? 0,
             epicStoriesTotal: epic?.storiesTotal ?? 0,
           });

@@ -129,4 +129,3 @@ codeharness validate-state
 | `_bmad-output/implementation-artifacts/sprint-status.yaml` | Human-readable sprint view (derived) |
 | `.claude/codeharness.local.md` | Project config (stack, OTLP, coverage targets) |
 | `ralph/logs/` | Session logs for stats analysis |
-| `verification/{story}-proof.md` | Showboat proof documents |

@@ -33,7 +33,7 @@ codeharness patches these BMAD workflows (see `templates/bmad-patches/`):
 
 1. **Story template** — adds verification, documentation, testing requirements
 2. **Dev story workflow** — enforces observability, docs, tests during implementation
-3. **Code review workflow** — verifies proof doc, AGENTS.md freshness, coverage
+3. **Code review workflow** — verifies AGENTS.md freshness, coverage
 4. **Retrospective workflow** — analyzes verification effectiveness, doc health, test quality
 5. **Sprint planning workflow** — verifies planning docs complete, test infra ready
 
@@ -44,8 +44,3 @@ Patches use idempotent markers (NFR19):
 <!-- CODEHARNESS-PATCH-END:{name} -->
 ```
 
-## Showboat Proof & Sprint Status
-
-- Proof docs use BMAD story IDs: `verification/{story-id}-proof.md`
-- Sprint status updated automatically when stories are verified
-- Verification summary per story: pass/fail per AC with evidence links

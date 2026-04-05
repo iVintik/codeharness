@@ -359,6 +359,13 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
     if (haltedInLoop) break;
   }
 
+  // Detect stuck iteration: all tasks were skipped or errored, nothing completed successfully.
+  // This prevents infinite loops when dispatch keeps failing (e.g., sandbox issues).
+  if (tasksCompleted === 0 && !haltedInLoop && errors.length > 0) {
+    warn(`workflow-machine: loop iteration produced zero completions with ${errors.length} error(s) — halting to prevent infinite loop`);
+    haltedInLoop = true;
+  }
+
   return { ...input, currentState, errors, tasksCompleted, halted: haltedInLoop, lastContract, lastVerdict, accumulatedCostUsd };
 });
 

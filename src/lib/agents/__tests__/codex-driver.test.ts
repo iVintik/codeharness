@@ -643,7 +643,7 @@ describe('CodexDriver', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'codex',
-        ['exec', '--json', '-a', 'on-request', '--sandbox', 'danger-full-access', '--skip-git-repo-check', '--model', 'codex-mini', '--cd', '/my/project', 'hello'],
+        ['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', '--skip-git-repo-check', '--model', 'codex-mini', '--cd', '/my/project', 'hello'],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });
@@ -697,7 +697,7 @@ describe('CodexDriver', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'codex',
-        ['exec', '--json', '-a', 'on-request', '--sandbox', 'danger-full-access', '--skip-git-repo-check', 'hello'],
+        ['exec', '--json', '--dangerously-bypass-approvals-and-sandbox', '--skip-git-repo-check', 'hello'],
         { stdio: ['ignore', 'pipe', 'pipe'] },
       );
     });

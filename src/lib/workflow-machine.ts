@@ -44,7 +44,7 @@ import {
   dispatchTaskCore,
   nullTaskCore,
 } from './workflow-actors.js';
-import type { EngineEvent, EngineConfig } from './workflow-types.js';
+import type { EngineConfig } from './workflow-types.js';
 export type {
   DispatchInput,
   DispatchOutput,
@@ -624,7 +624,12 @@ const storyFlowActor = fromPromise(async ({ input }: { input: {
       errors.push(...loopResult.errors);
       tasksCompleted += loopResult.tasksCompleted;
       lastContract = loopResult.lastContract;
-      if (loopResult.halted || state.phase === 'max-iterations' || state.phase === 'circuit-breaker') { halted = true; break; }
+      if (loopResult.halted) { halted = true; break; }
+      // Story-level max-iterations or circuit-breaker: skip remaining steps for THIS story, move to next
+      if (state.phase === 'max-iterations' || state.phase === 'circuit-breaker') {
+        state = { ...state, phase: 'executing' };
+        break;
+      }
       continue;
     }
     if (typeof storyStep !== 'string') continue;

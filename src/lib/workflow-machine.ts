@@ -329,7 +329,7 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
         accumulatedCostUsd += dr.contract?.cost_usd ?? 0;
         tasksCompleted++;
 
-        if (taskName === lastAgentTaskInLoop && !storyFlowTasks?.has(taskName)) {
+        if (taskName === lastAgentTaskInLoop) {
           let verdict: EvaluatorVerdict | null = null;
           try { verdict = parseVerdict(dr.output); } catch (parseErr: unknown) {
             if (parseErr instanceof VerdictParseError && parseErr.retryable) {

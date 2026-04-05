@@ -515,7 +515,44 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
       lastStoryKey = newKey;
     }
 
+    // Recompute story context when sprint state changes (new story/epic)
+    recomputeStoryContext();
     rerender();
+  }
+
+  function recomputeStoryContext(): void {
+    const currentStory = state.sprintInfo?.storyKey ?? '';
+    const ctx: import('./ink-components.js').StoryContextEntry[] = [];
+
+    // Epic phase: show last completed story + first remaining
+    const epicMatch = currentStory.match(/Epic (\d+)/);
+    if (epicMatch) {
+      const epicPrefix = `${epicMatch[1]}-`;
+      const epicStories = state.stories.filter(s => s.key.startsWith(epicPrefix));
+      const lastDone = [...epicStories].reverse().find(s => s.status === 'done');
+      const firstIp = epicStories.find(s => s.status === 'in-progress');
+      const firstPending = epicStories.find(s => s.status === 'pending');
+      if (lastDone) ctx.push({ key: lastDone.key, role: 'prev' });
+      if (firstIp) ctx.push({ key: firstIp.key, role: 'current' });
+      else if (firstPending) ctx.push({ key: firstPending.key, role: 'next' });
+    } else if (currentStory) {
+      // Story phase: prev/current/next
+      let foundCurrent = false;
+      let prevKey: string | null = null;
+      for (const s of state.stories) {
+        if (s.key === currentStory) {
+          if (prevKey) ctx.push({ key: prevKey, role: 'prev' });
+          ctx.push({ key: s.key, role: 'current' });
+          foundCurrent = true;
+        } else if (foundCurrent && (s.status === 'pending' || s.status === 'in-progress')) {
+          ctx.push({ key: s.key, role: 'next' });
+          break;
+        } else if (s.status === 'done' || s.status === 'in-progress') {
+          prevKey = s.key;
+        }
+      }
+    }
+    state.storyContext = ctx;
   }
 
   function updateStories(stories: StoryStatusEntry[]): void {
@@ -547,41 +584,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     }
     state.stories = updatedStories;
 
-    // Compute story context (prev/current/next)
-    const ctx: import('./ink-components.js').StoryContextEntry[] = [];
-    const currentStory = currentKey ?? '';
-    const currentTask = state.currentTaskName ?? '';
-
-    // Epic phase: show last completed story + first remaining story
-    const epicMatch = currentStory.match(/Epic (\d+)/);
-    if (epicMatch) {
-      const epicPrefix = `${epicMatch[1]}-`;
-      const epicStories = updatedStories.filter(s => s.key.startsWith(epicPrefix));
-      const lastDone = [...epicStories].reverse().find(s => s.status === 'done');
-      const firstIp = epicStories.find(s => s.status === 'in-progress');
-      const firstPending = epicStories.find(s => s.status === 'pending');
-      if (lastDone) ctx.push({ key: lastDone.key, role: 'prev' });
-      if (firstIp) ctx.push({ key: firstIp.key, role: 'current' });
-      else if (firstPending) ctx.push({ key: firstPending.key, role: 'next' });
-    } else {
-      // Story phase: normal prev/current/next
-      let foundCurrent = false;
-      let prevKey: string | null = null;
-      for (const s of updatedStories) {
-        if (s.key === currentStory) {
-          if (prevKey) ctx.push({ key: prevKey, role: 'prev' });
-          ctx.push({ key: s.key, role: 'current' });
-          foundCurrent = true;
-        } else if (foundCurrent && (s.status === 'pending' || s.status === 'in-progress')) {
-          ctx.push({ key: s.key, role: 'next' });
-          break;
-        } else if (s.status === 'done' || s.status === 'in-progress') {
-          prevKey = s.key;
-        }
-      }
-    }
-    state.storyContext = ctx;
-
+    recomputeStoryContext();
     rerender();
   }
 

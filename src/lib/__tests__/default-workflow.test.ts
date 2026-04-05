@@ -119,18 +119,11 @@ describe('default embedded workflow', () => {
       expect(workflow.storyFlow[5]).toBe('document');
     });
 
-    it('epicFlow: story_flow, deploy, verify, loop:[retry, document, deploy, verify], retro', () => {
+    it('epicFlow: story_flow, retro', () => {
       const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.epicFlow).toHaveLength(5);
+      expect(workflow.epicFlow).toHaveLength(2);
       expect(workflow.epicFlow[0]).toBe('story_flow');
-      expect(workflow.epicFlow[1]).toBe('deploy');
-      expect(workflow.epicFlow[2]).toBe('verify');
-
-      const loopStep = workflow.epicFlow[3] as LoopBlock;
-      expect(loopStep).toHaveProperty('loop');
-      expect(loopStep.loop).toEqual(['retry', 'document', 'deploy', 'verify']);
-
-      expect(workflow.epicFlow[4]).toBe('retro');
+      expect(workflow.epicFlow[1]).toBe('retro');
     });
 
     it('flow (deprecated compat) equals storyFlow', () => {

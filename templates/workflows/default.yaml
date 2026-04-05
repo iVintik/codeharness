@@ -58,11 +58,4 @@ story_flow:
 
 epic_flow:
   - story_flow
-  - deploy
-  - verify
-  - loop:
-      - retry
-      - document
-      - deploy
-      - verify
   - retro

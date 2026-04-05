@@ -10,20 +10,7 @@ export const TASK_PROMPTS: Record<string, (key: string) => string> = {
   'review': (key) => `Review the implementation of story ${key}. Check for correctness, security issues, architecture violations, and AC coverage. Include <verdict>pass</verdict> or <verdict>fail</verdict> in your response. If fail, include <issues>...</issues>.`,
   'document': (key) => `Write user documentation for story ${key}. Describe what was built and how to use it from a user's perspective. No source code. Wrap documentation in <user-docs>...</user-docs> tags.`,
   'deploy': () => `Provision the Docker environment for this project. Check for docker-compose.yml, start containers, verify health. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`,
-  'verify': () => `Verify the epic's stories against their acceptance criteria. Read story files from ./story-files/ for ACs and user docs.
-
-VERIFICATION STRATEGY — pick based on what's available:
-1. If deploy-info.md exists with running containers → verify via Docker (curl, docker exec, agent-browser, docker logs)
-2. If NO deploy info or no containers → verify via local CLI commands (npm run build, npx vitest run, wc -l, grep, npx eslint, npx tsc --noEmit)
-3. For code-only stories (refactoring, decomposition, extraction) → run the CLI verification commands listed in each AC's comment tags
-
-CRITICAL RULES:
-- Do NOT loop endlessly trying to find Docker when there is none. If no deploy info, use CLI verification immediately.
-- Each AC should be verified ONCE. Run the command, capture output, record evidence, move on.
-- After verifying ALL ACs, produce the verdict JSON and stop. Do not re-verify.
-- Budget: verify each AC in at most 2 commands. Total verification should complete in under 20 tool calls.
-
-Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`,
+  'verify': () => `Verify the epic's stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps, run commands, observe output. Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`,
   'retro': () => `Run a retrospective for this epic. Analyze what worked, what failed, patterns, and action items for next epic.`,
 };
 

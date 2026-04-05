@@ -7,3 +7,4 @@ node_modules/
 dist/
 .DS_Store
 .claude/codeharness.local.md
+_bmad-output/implementation-artifacts/archive/

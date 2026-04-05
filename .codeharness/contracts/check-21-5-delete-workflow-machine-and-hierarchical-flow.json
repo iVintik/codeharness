@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "taskName": "check",
+  "storyId": "21-5-delete-workflow-machine-and-hierarchical-flow",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T14:58:10.509Z",
+  "cost_usd": null,
+  "duration_ms": 57537,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m checking the available npm scripts first so I can run the project’s test suite and lint command exactly as defined in this repo.I found `npm run lint`, `npm run test:unit`, and `npm test`. I’m running all three so the result covers the full defined test suite plus the linter.The checks are in flight. Unit tests and integration tests both started cleanly; I’m waiting on final status and failures, if any.`npm run lint` completed with warnings only, not errors. `npm run test:unit` has already failed; I’m letting `npm test` finish so I can give you the full check summary rather than stopping at the first failure.<verdict>fail</verdict>\n\n`npm test` passed, but the full automated checks did not pass because `npm run test:unit` failed.\n\nFailed unit tests:\n- [workflow-engine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-engine.test.ts#L1884) `increments iteration and persists each loop pass (AC #7)`  \n  Expected iterations to include `3`, received `[0, 1, 2]`.\n- [workflow-engine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-engine.test.ts#L1968) `uses default maxIterations of 5 when not specified`  \n  Expected mock to be called `10` times, got `4`.\n- [workflow-engine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-engine.test.ts#L2011) `records multiple evaluator scores across iterations`  \n  Expected final scored state to contain `2` evaluator scores, got `0`.\n- [ink-renderer-lanes.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/ink-renderer-lanes.test.ts#L484) `routing 4 lanes of events completes within acceptable time`  \n  Timed out at `5000ms`.\n\nLint status:\n- `npm run lint` exited `0` with 2 warnings, no errors.\n- Warning in [workflow-machines.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts): unused `VerdictParseError` at line 9.\n- Warning in [workflow-parser.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-parser.ts): unused `LoopBlock` at line 13.\n\nCheck summary:\n- `npm run lint`: passed with warnings\n- `npm run test:unit`: failed\n- `npm test`: passed",
+  "acceptanceCriteria": []
+}

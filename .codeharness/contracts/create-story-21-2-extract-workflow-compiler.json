@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "21-2-extract-workflow-compiler",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T12:48:45.251Z",
+  "cost_usd": 0.9567273500000001,
+  "duration_ms": 305048,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/21-2-extract-workflow-compiler.md"
+  ],
+  "testResults": null,
+  "output": "Now let me look at the compiler-related functions in workflow-machine.ts and the architecture doc.No `compile*` functions found in workflow-machine.ts. Let me check what exists and what the \"compiler\" actually is in this codebase.Now I have full context. Let me check what's in workflow-types.ts and workflow-constants.ts to avoid overlap.Now I have complete context. Let me write the story spec.<story-spec>\nWritten to `_bmad-output/implementation-artifacts/21-2-extract-workflow-compiler.md`.\n\n**Summary:**\n- Extracts **15 pure functions/constants/interfaces** from `workflow-machine.ts` into `workflow-compiler.ts`\n- Target: ~125 lines (well under ≤200 budget)\n- Monolith shrinks from 1107 → ≤980 lines\n- **12 ACs**, all verifiable via CLI commands (`npm run build`, `npx vitest run`, `wc -l`, `grep`)\n- Zero AC references source code internals — all are observable via build output, test results, line counts, and grep patterns\n- **5 task groups** with 32 subtasks\n- Key constraint: zero runtime imports — only type imports from parser/state/verdict modules (plus one value import of `DispatchError` for `instanceof`)\n- Preserves backward compat via re-exports from `workflow-machine.ts`\n\n**What moves:** `isTaskCompleted`, `isLoopTaskCompleted`, `buildRetryPrompt`, `buildAllUnknownVerdict`, `getFailedItems`, `isLoopBlock`, `recordErrorInState`, `isEngineError`, `handleDispatchError`, `EngineResult`, `EngineError`, `WorkItem`, `LoopBlockResult`, `PER_RUN_SENTINEL`, `DEFAULT_MAX_ITERATIONS`, `HALT_ERROR_CODES`\n\n**What stays:** All XState machines, actors, IO functions, and the entry point `runWorkflowActor()`.\n</story-spec>",
+  "acceptanceCriteria": []
+}

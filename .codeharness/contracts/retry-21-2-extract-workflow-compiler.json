@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "21-2-extract-workflow-compiler",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T13:03:38.565Z",
+  "cost_usd": 0.1302324,
+  "duration_ms": 232780,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Updated the retry in the workflow extraction boundary.\n\n`/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machine.ts` now imports the extracted constants/helpers and the `DriverHealth` / `OutputContract` types from `/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts`, so the direct `./agents/types.js` import is gone from the machine layer. In `/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts`, `handleDispatchError` is back to strict `instanceof DispatchError` handling instead of duck-typing.\n\nThe unrelated edits in `/Users/ivintik/dev/personal/codeharness/src/modules/verify/proof.ts` and `/Users/ivintik/dev/personal/codeharness/src/modules/verify/__tests__/verify-blackbox.test.ts` were restored to `HEAD`; they no longer show in `git diff`.\n\nValidation passed with `npx vitest run src/lib/__tests__/workflow-machine.test.ts` and `npm run build`.\n\nChanges are local. Codex did not push. Sandbox blocked `.git/index.lock` writes during restore, so reverts were applied via file-content overwrite from `git show HEAD`.",
+  "acceptanceCriteria": []
+}

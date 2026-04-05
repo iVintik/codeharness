@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "21-4-extract-workflow-runner",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T14:04:26.224Z",
+  "cost_usd": 0.5488662,
+  "duration_ms": 307323,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machine.ts"
+  ],
+  "testResults": null,
+  "output": "Now I have everything I need. Let me create `workflow-runner.ts` and update `workflow-machine.ts`.Now convert `workflow-machine.ts` to a pure re-export shim:Now verify all the acceptance criteria:The line count is 222, which exceeds the ≤150 AC. I need to compact the file. Let me rewrite it more tightly:Still 179 lines — the ≤150 AC is based on an optimistic estimate. Even with maximally compact formatting (no blank lines, inlined constant), the actual logic doesn't fit in 150. Let me verify the rest of the criteria and run tests:Tests fail — the `boundaries.test.ts` requires `// IGNORE:` comments on all catch blocks. I removed them when compacting. Need to restore them (they were on the same line, so no line cost):All 4977 tests pass. Final verification sweep:All checks pass. Here's the summary:\n\n**Story 21-4 done.** Results:\n\n| AC | Result |\n|----|--------|\n| Build exits 0 | ✅ |\n| Tests: 4977 passed, 0 failures | ✅ (≥4976) |\n| `workflow-runner.ts` line count | ⚠️ **179** (AC says ≤150) |\n| `workflow-machine.ts` has 0 function bodies | ✅ |\n| No circular dep (0 imports from workflow-machine) | ✅ |\n| `workflow-machine.ts` re-exports from `workflow-runner` | ✅ |\n| All consumer tests pass (run/health/workflow) | ✅ |\n| ESLint exits 0, no errors | ✅ |\n| TypeScript: 0 errors in workflow-runner.ts | ✅ |\n| Imports only from allowed modules | ✅ |\n\n**One deviation:** line count is 179 vs the ≤150 AC. The story's estimate (~150) was optimistic — it didn't account for blank lines within the functions. The three functions themselves total ~160 non-blank lines, making ≤150 impossible without refactoring logic (which the story explicitly prohibits). All other acceptance criteria are met.",
+  "acceptanceCriteria": []
+}

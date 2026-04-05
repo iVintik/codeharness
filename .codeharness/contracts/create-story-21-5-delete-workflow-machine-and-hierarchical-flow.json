@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "21-5-delete-workflow-machine-and-hierarchical-flow",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T14:29:05.168Z",
+  "cost_usd": 1.0514163,
+  "duration_ms": 249390,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/21-5-delete-workflow-machine-and-hierarchical-flow.md"
+  ],
+  "testResults": null,
+  "output": "Now let me check the current state of consumers and the hierarchical-flow file:Now let me check the exact imports from each consumer to map the migration:Now let me check what's exported from each target module to map the migration correctly:Now I have all the information needed. Let me also check what `workflow-parser.ts` exports related to `HierarchicalFlow` so I understand the full dependency:Now I have the complete picture. The story needs to:\n\n1. **Delete `workflow-machine.ts`** — update all 9 consumer files to import from canonical modules\n2. **Delete `hierarchical-flow.ts`** — inline its logic into `workflow-parser.ts` (since `workflow-parser.ts` is the only runtime consumer)\n3. **Delete test files**: `hierarchical-flow.test.ts` (tests move or are absorbed into workflow-parser tests)\n4. **Migrate all test imports** away from `workflow-machine.js`\n\nLet me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/21-5-delete-workflow-machine-and-hierarchical-flow.md`.\n\n**Summary:**\n\n- **16 acceptance criteria**, all verifiable via CLI commands (`npm run build`, `npx vitest run`, `grep`, `test -f`, `npx eslint`, `npx tsc --noEmit`) — no source code reading or internal structure knowledge required by a blind QA agent\n- **6 task groups**: import migration (9 consumer files), hierarchical-flow inlining into workflow-parser, test migration, file deletion, AGENTS.md cleanup, final verification\n- **3 files deleted**: `workflow-machine.ts` (25-line shim), `hierarchical-flow.ts` (169 lines), `hierarchical-flow.test.ts` (680 lines)\n- **Complete import migration map** covering all 25 symbols across their canonical source modules\n- **Execution order constraint** documented: inline first, migrate imports second, delete third — prevents build breakage",
+  "acceptanceCriteria": []
+}

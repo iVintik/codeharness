@@ -1,6 +1,6 @@
 workflow_name: create-story -> implement -> check -> review -> document
 started: 2026-04-05T11:55:59.403Z
-iteration: 3
+iteration: 4
 phase: executing
 tasks_completed:
   - task_name: create-story
@@ -34,6 +34,128 @@ tasks_completed:
   - task_name: review
     story_key: 21-1-extract-workflow-actors
     completed_at: 2026-04-05T12:12:08.801Z
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T12:15:58.857Z
+    session_id: fa5fb7d5-90b6-4090-a357-8bfd5940a193
+  - task_name: check
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T12:22:21.696Z
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T12:38:01.589Z
+    session_id: bdaa90ac-6f24-4d43-b2b0-7f781ca0de11
+  - task_name: check
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T12:39:09.260Z
+  - task_name: review
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T12:42:08.923Z
+  - task_name: review
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-05T12:43:40.172Z
+  - task_name: create-story
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-05T12:48:45.251Z
+    session_id: 328aae83-b198-40cb-a11b-3645c9ee3c14
+  - task_name: implement
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-05T12:57:58.522Z
+    session_id: 52aab1a3-cdcc-4c13-aff3-d735ac7a00c0
+  - task_name: check
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-05T12:58:46.722Z
+  - task_name: review
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-05T12:59:45.766Z
+  - task_name: retry
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-05T13:03:38.565Z
+    session_id: a0f18d05-4e4a-436f-8847-32a006549108
+  - task_name: check
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-05T13:04:27.646Z
+  - task_name: review
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-05T13:06:38.799Z
+  - task_name: review
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-05T13:07:49.236Z
+  - task_name: create-story
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-05T13:13:11.050Z
+    session_id: 88b98043-a1fd-4404-9885-6eef2eae471b
+  - task_name: implement
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-05T13:42:16.940Z
+    session_id: 1873b3d8-0668-4ef6-846d-2af98e48ea77
+  - task_name: check
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-05T13:43:17.353Z
+  - task_name: review
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-05T13:45:38.801Z
+  - task_name: retry
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-05T13:50:00.398Z
+    session_id: 0a508ec7-35e3-4f5d-92db-2b30b6937eb9
+  - task_name: check
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-05T13:50:54.635Z
+  - task_name: review
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-05T13:52:54.905Z
+  - task_name: review
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-05T13:54:27.885Z
+  - task_name: create-story
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-05T13:59:18.884Z
+    session_id: 8bd7ee71-e3fd-401d-aa4b-183dec13b008
+  - task_name: implement
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-05T14:04:26.224Z
+    session_id: fd0b4095-af8c-4cf0-a244-090caeb642e3
+  - task_name: check
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-05T14:05:19.839Z
+  - task_name: review
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-05T14:06:57.621Z
+  - task_name: retry
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-05T14:21:11.222Z
+    session_id: 8f8a67ac-e4d3-4680-b291-c554228be32b
+  - task_name: check
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-05T14:22:22.323Z
+  - task_name: review
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-05T14:23:28.731Z
+  - task_name: review
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-05T14:24:55.743Z
+  - task_name: create-story
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T14:29:05.168Z
+    session_id: 26ae7e3d-5f4a-4e0a-b17f-b870488c5ddc
+  - task_name: implement
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T14:38:23.547Z
+    session_id: 63f6ba60-16c0-4574-88d1-38bb6463ae7b
+  - task_name: check
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T14:39:12.843Z
+  - task_name: review
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T14:42:07.758Z
+  - task_name: retry
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T14:57:12.956Z
+    session_id: a0a7eced-8f6f-473c-8070-337ba739e036
+  - task_name: check
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T14:58:10.509Z
 evaluator_scores:
   - iteration: 2
     passed: 0
@@ -41,10 +163,39 @@ evaluator_scores:
     unknown: 1
     total: 1
     timestamp: 2026-04-05T12:12:08.803Z
+  - iteration: 4
+    passed: 0
+    failed: 0
+    unknown: 1
+    total: 1
+    timestamp: 2026-04-05T12:43:40.175Z
+  - iteration: 4
+    passed: 0
+    failed: 0
+    unknown: 1
+    total: 1
+    timestamp: 2026-04-05T13:07:49.238Z
+  - iteration: 4
+    passed: 0
+    failed: 0
+    unknown: 1
+    total: 1
+    timestamp: 2026-04-05T13:54:27.887Z
+  - iteration: 4
+    passed: 0
+    failed: 0
+    unknown: 1
+    total: 1
+    timestamp: 2026-04-05T14:24:55.746Z
 circuit_breaker:
-  triggered: false
-  reason: null
-  score_history: []
+  triggered: true
+  reason: score-stagnation
+  score_history:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
 trace_ids:
   - ch-run-1775390159403-0-create-story
   - ch-run-1775390159403-0-implement
@@ -55,3 +206,39 @@ trace_ids:
   - ch-run-1775390159403-2-check
   - ch-run-1775390159403-2-review
   - ch-run-1775390159403-2-review
+  - ch-run-1775390159403-3-retry
+  - ch-run-1775390159403-3-check
+  - ch-run-1775392544381-4-retry
+  - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-create-story
+  - ch-run-1775392544381-4-implement
+  - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-retry
+  - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-create-story
+  - ch-run-1775392544381-4-implement
+  - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-retry
+  - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-create-story
+  - ch-run-1775392544381-4-implement
+  - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-retry
+  - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-create-story
+  - ch-run-1775392544381-4-implement
+  - ch-run-1775392544381-4-check
+  - ch-run-1775392544381-4-review
+  - ch-run-1775392544381-4-retry
+  - ch-run-1775392544381-4-check

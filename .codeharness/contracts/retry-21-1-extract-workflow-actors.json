@@ -4,62 +4,14 @@
   "storyId": "21-1-extract-workflow-actors",
   "driver": "claude-code",
   "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-05T12:15:58.857Z",
-  "cost_usd": 0.39358650000000006,
-  "duration_ms": 230036,
-  "changedFiles": [],
+  "timestamp": "2026-04-05T12:38:01.589Z",
+  "cost_usd": 0.3743613,
+  "duration_ms": 137028,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-21-1-extract-workflow-actors.json",
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/workflow-state.yaml"
+  ],
   "testResults": null,
-  "output": "All 10 ACs pass. The previous failure was a tooling issue, not an implementation problem.\n\n**Story 21-1-extract-workflow-actors: PASS**\n\n| AC | Check | Result |\n|----|-------|--------|\n| 1 | `npm run build` exits 0 | ✅ 3× confirmed |\n| 2 | 4976+ tests, zero failures | ✅ 190 files, 4976 tests |\n| 3 | `workflow-actors.ts` ≤200 lines | ✅ 199 lines |\n| 4 | `workflow-machine.ts` ≤1276 lines | ✅ 1107 lines |\n| 5 | No circular dep back to workflow-machine | ✅ 0 matches |\n| 6 | workflow-machine imports from workflow-actors | ✅ 2 import lines |\n| 7 | Dispatch tests: 11+ files, 140+ tests | ✅ 11 files, 140 tests |\n| 8 | Null tests: 66+ files, 254+ tests | ✅ 66 files, 254 tests |\n| 9 | eslint exits 0 | ✅ clean |\n| 10 | tsc --noEmit no workflow-actors errors | ✅ 0 errors |\n\nProof doc written to `verification/21-1-extract-workflow-actors-proof.md`.",
-  "acceptanceCriteria": [
-    {
-      "id": "AC1",
-      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with zero errors in stdout/stderr.",
-      "status": "pending"
-    },
-    {
-      "id": "AC2",
-      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** 4976+ tests pass with zero failures — no regressions from the extraction.",
-      "status": "pending"
-    },
-    {
-      "id": "AC3",
-      "description": "**Given** the file `src/lib/workflow-actors.ts` exists, **When** its line count is measured via `wc -l`, **Then** it contains <=200 lines (imports, whitespace, and comments included). If the raw extraction exceeds 200 lines, constants like `TASK_PROMPTS` or `FILE_WRITE_TOOL_NAMES` must be moved to a separate module (e.g. `workflow-constants.ts`) to bring the count under budget.",
-      "status": "pending"
-    },
-    {
-      "id": "AC4",
-      "description": "**Given** the original monolith `src/lib/workflow-machine.ts` was 1426 lines, **When** its current line count is measured via `wc -l`, **Then** it contains <=1276 lines (at least 150 lines fewer than the original).",
-      "status": "pending"
-    },
-    {
-      "id": "AC5",
-      "description": "**Given** `workflow-actors.ts` is the new module, **When** its contents are searched for references to `workflow-machine` via `grep -c 'workflow-machine' src/lib/workflow-actors.ts`, **Then** the count is 0 — no circular dependency back to the monolith.",
-      "status": "pending"
-    },
-    {
-      "id": "AC6",
-      "description": "**Given** `workflow-machine.ts` consumes actors from the new module, **When** its imports are searched via `grep 'workflow-actors' src/lib/workflow-machine.ts`, **Then** at least one import line from `./workflow-actors.js` is present.",
-      "status": "pending"
-    },
-    {
-      "id": "AC7",
-      "description": "**Given** the test suite includes dispatch-related tests, **When** they are run via `npx vitest run -t 'dispatch'`, **Then** all matching tests pass (11+ test files, 140+ tests) — the extracted `dispatchTaskCore` function works identically to before.",
-      "status": "pending"
-    },
-    {
-      "id": "AC8",
-      "description": "**Given** the test suite includes null-task-related tests, **When** they are run via `npx vitest run -t 'null'`, **Then** all matching tests pass (66+ test files, 254+ tests) — the extracted `nullTaskCore` function works identically to before.",
-      "status": "pending"
-    },
-    {
-      "id": "AC9",
-      "description": "**Given** the project linter is run on the new file via `npx eslint src/lib/workflow-actors.ts`, **When** linting completes, **Then** it exits 0 with zero errors and zero warnings.",
-      "status": "pending"
-    },
-    {
-      "id": "AC10",
-      "description": "**Given** the TypeScript compiler is run via `npx tsc --noEmit`, **When** type-checking completes, **Then** zero errors reference `workflow-actors.ts`. Pre-existing type errors in other files are acceptable, but the new file must introduce no new ones.",
-      "status": "pending"
-    }
-  ]
+  "output": "Now I understand the state. The workflow is on iteration 4, and the `check` task (Codex) just finished — it fixed the AC metadata bug in contracts. Next task is `retry` for story 21-1-extract-workflow-actors. I need to verify all 10 ACs and update the contract.All 10 ACs pass. Now update the retry contract with verified results and record the task in workflow-state.yaml.Now record this task completion in the workflow state:**retry task complete** — all 10 ACs verified:\n\n| AC | Check | Result |\n|----|-------|--------|\n| 1 | `npm run build` exits 0 | ✅ |\n| 2 | 4983 tests, zero failures | ✅ 190 files |\n| 3 | `workflow-actors.ts` ≤200 lines | ✅ 197 lines |\n| 4 | `workflow-machine.ts` ≤1276 lines | ✅ 1107 lines |\n| 5 | No circular dep back to workflow-machine | ✅ 0 matches |\n| 6 | workflow-machine imports from workflow-actors | ✅ 2 import lines |\n| 7 | Dispatch tests: 11+ files, 140+ tests | ✅ exact match |\n| 8 | Null tests: 66+ files, 254+ tests | ✅ exact match |\n| 9 | eslint exits 0 | ✅ clean |\n| 10 | tsc --noEmit no workflow-actors errors | ✅ 0 errors |\n\nContract updated with all ACs marked `pass`. Workflow state recorded as iteration 4 retry complete. Next task in the flow is `review`.",
+  "acceptanceCriteria": []
 }

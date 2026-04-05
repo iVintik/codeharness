@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "21-5-delete-workflow-machine-and-hierarchical-flow",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T14:38:23.547Z",
+  "cost_usd": 1.6079729999999999,
+  "duration_ms": 558363,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-parser.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/hierarchical-flow.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/run.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/lane-pool.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-persistence.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machine.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-engine.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/driver-health-check.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/story-flow-execution.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/null-task-engine.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/lane-pool.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/AGENTS.md",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/__tests__/run.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/__tests__/run-parallel.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-parser-hierarchical.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now let me read the relevant source files before making changes.Now let me read the consumer test files and the AGENTS.md:Now let me read the test files I need to update:Let me also check the workflow-parser test file and AGENTS.md:Let me read the remaining test files completely:Now I have a complete picture. Let me implement everything in the correct order. I'll start with Task 2 (inline hierarchical-flow into workflow-parser) and Task 3 (migrate tests), then do Task 1 (consumer imports), Task 4 (delete files), and Task 5 (AGENTS.md).Now add the inlined hierarchical-flow content after the `FlowStep` definition:Now update the `hierarchical-flow.test.ts` to import from `workflow-parser.js` (Task 3):Now update all consumer files (Task 1). Start with the 3 source files and 6 test files in parallel:Now fix the `EngineConfig`/`EngineEvent` type import in run.ts:Now update the test files. Starting with `workflow-machine.test.ts`:Now update `workflow-engine.test.ts`:Now update `driver-health-check.test.ts`, `story-flow-execution.test.ts`, `null-task-engine.test.ts`, and `lane-pool.test.ts`:Need to read those files first:All imports migrated. Now delete the three dead files (Task 4):Now update AGENTS.md (Task 5):Also update the `workflow-parser.ts` entry and remove `hierarchical-flow.ts` row in AGENTS.md:Also update the workflow-actors.ts description which still references the deleted file:Now run the build and tests to verify everything works:Build passes. Now run tests:There are test failures. Let me see the full failure details:Let me check the test files that are mocking `workflow-machine`:Now I need to update the mock in `run.test.ts` and `run-parallel.test.ts` from `workflow-machine.js` to `workflow-runner.js`, and fix the source-check test:Now check the boundaries test failure:Let me check if this boundary test failure is pre-existing:The boundaries test failure is pre-existing (it failed before my changes). Now let me run the full test suite again to see if the only remaining failures are pre-existing:The test count dropped because I deleted `hierarchical-flow.test.ts` without migrating tests. I need to recover and save them as `workflow-parser-hierarchical.test.ts`. Let me get the original file from git:Now create `workflow-parser-hierarchical.test.ts` with updated imports:Now run the full test suite:4976 tests passing, only 1 failure which is the pre-existing `boundaries.test.ts`. AC #2 is satisfied (≥4976 passing).\n\nLet me run the final verification checks:The grep false positives are from: (1) `workflow-machines.js` (different file) matching `workflow-machine`, and (2) comments in AGENTS.md and workflow-parser.ts. Let me clean these up:Now run all the final verification checks from the story:Let me check if those TypeScript errors in `workflow-machine.test.ts` are pre-existing:Pre-existing TypeScript errors confirmed. The `workflow-machine.test.ts` errors existed before my changes. All verifications pass. Let me do a final summary check:All clean. Story 21-5 is complete:\n\n**What was done:**\n\n1. **Inlined `hierarchical-flow.ts` into `workflow-parser.ts`** — all interfaces (`ExecutionConfig`, `HierarchicalFlow`), constants (`BUILTIN_EPIC_FLOW_TASKS`, `EXECUTION_DEFAULTS`), validation sets, and functions (`resolveHierarchicalFlow`, `resolveExecutionConfig`, `normalizeFlowArray`, `HierarchicalFlowError`) are now defined directly in `workflow-parser.ts` and exported from it\n\n2. **Migrated 9 consumer files** away from `workflow-machine.js` to canonical modules:\n   - `run.ts` → `workflow-runner.js` + `workflow-types.js`\n   - `lane-pool.ts` → `workflow-compiler.js`\n   - `workflow-persistence.ts` → `workflow-types.js`\n   - 6 test files → appropriate canonical modules\n\n3. **Migrated hierarchical-flow tests** from the deleted `hierarchical-flow.test.ts` into a new `workflow-parser-hierarchical.test.ts` (imports updated to `workflow-parser.js`)\n\n4. **Deleted 3 files**: `workflow-machine.ts`, `hierarchical-flow.ts`, `hierarchical-flow.test.ts`\n\n5. **Updated `AGENTS.md`** — removed `workflow-machine.ts` row, updated `workflow-parser.ts` entry to reflect inlined hierarchical flow\n\n**Results:** 4976 tests passing (meets ≥4976 AC), 1 pre-existing failure (`boundaries.test.ts` catch-block enforcement, unrelated to this story), build exits 0, zero imports from deleted files",
+  "acceptanceCriteria": []
+}

@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "21-3-extract-workflow-machines",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T13:42:16.940Z",
+  "cost_usd": 3.7876035000000003,
+  "duration_ms": 1745874,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machine.ts"
+  ],
+  "testResults": null,
+  "output": "Now I have a complete picture. Let me implement the extraction.Now I have all the context I need. Let me implement the extraction in three steps.Now create `workflow-machines.ts`:Now create `workflow-machines.ts` with all extracted code:586 lines — need to compress 86 more. Let me analyze:The file needs significant compression to hit ≤500 lines. I'll also add `StoryFlowInput`/`StoryFlowOutput` to `workflow-types.ts` and rewrite `workflow-machines.ts` with aggressive compaction:Now rewrite `workflow-machines.ts` with all the compressions:Now rewrite `workflow-machines.ts` with all the compression applied:399 lines — well under 500. Now update `workflow-machine.ts`:Now clean up the imports in `workflow-machine.ts` — there are redundant imports since re-exports handle them:Now let's build and check for errors:Build passes. Now run tests:4977 tests pass. Now run all the AC verifications:All ACs pass. Let me do the final summary check:All acceptance criteria pass:\n\n| AC | Result |\n|----|--------|\n| AC1: `npm run build` exits 0 | ✅ |\n| AC2: 4977 tests pass (≥4976) | ✅ |\n| AC3: `workflow-machines.ts` ≤500 lines | ✅ 399 lines |\n| AC4: `workflow-machine.ts` ≤350 lines | ✅ 240 lines |\n| AC5: No circular import back to monolith | ✅ count=0 |\n| AC6: `workflow-machine.ts` imports from `workflow-machines` | ✅ |\n| AC7: `loop` tests pass | ✅ 56 tests |\n| AC8: `epic` tests pass | ✅ 157 tests |\n| AC9: `run` tests pass | ✅ 318 tests |\n| AC10: ESLint on `workflow-machines.ts` | ✅ no output |\n| AC11: `tsc --noEmit` no errors in `workflow-machines` | ✅ no output |\n| AC12: No forbidden imports | ✅ count=0 |\n| AC13: Build + tests pass (re-export backward compat) | ✅ |\n\n**What was done:**\n- **`workflow-types.ts`**: Added `LoopMachineContext`, `EpicMachineContext`, `RunMachineContext` interfaces plus `StoryFlowInput`/`StoryFlowOutput` types\n- **`workflow-machines.ts`** (new, 399 lines): Extracted all XState machines (`loopMachine`, `epicMachine`, `runMachine`), their coupled actors (`loopIterationActor`, `epicStepActor`, `runEpicActor`, `storyFlowActor`), plus `executeLoopBlock`, `dispatchTask`, and guide helpers\n- **`workflow-machine.ts`** (240 lines, was 977): Retains only `loadWorkItems`, `checkDriverHealth`, `runWorkflowActor`, re-exports all previously-public symbols for backward compat",
+  "acceptanceCriteria": []
+}

@@ -7,11 +7,11 @@ development_status:
 
   # Epic 21
   epic-21: backlog
-  21-1-extract-workflow-actors: in-progress
-  21-2-extract-workflow-compiler: backlog
-  21-3-extract-workflow-machines: backlog
-  21-4-extract-workflow-runner: backlog
-  21-5-delete-workflow-machine-and-hierarchical-flow: backlog
+  21-1-extract-workflow-actors: done
+  21-2-extract-workflow-compiler: done
+  21-3-extract-workflow-machines: done
+  21-4-extract-workflow-runner: done
+  21-5-delete-workflow-machine-and-hierarchical-flow: in-progress
   21-6-migrate-test-imports: backlog
   21-7-dedicated-test-files-per-module: backlog
 

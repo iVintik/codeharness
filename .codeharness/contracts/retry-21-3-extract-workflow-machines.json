@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "21-3-extract-workflow-machines",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T13:50:00.398Z",
+  "cost_usd": 0.8056528499999999,
+  "duration_ms": 261577,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/AGENTS.md",
+    "/Users/ivintik/dev/personal/codeharness/verification/21-3-extract-workflow-machines-proof.md",
+    "/Users/ivintik/dev/personal/codeharness/docs/exec-plans/active/21-3-extract-workflow-machines.md",
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-21-3-extract-workflow-machines.json"
+  ],
+  "testResults": null,
+  "output": "Now I have the full picture. The review failed with 3 issues to fix. Let me examine the current state of the files.Now let me check the workflow-machines.ts imports to understand the full picture:Now I have everything I need. Let me fix all three issues:\n\n**Issue 1**: Move `WorkItem` + `EngineError` to `workflow-types.ts`, re-export from `workflow-compiler.ts`  \n**Issue 2**: Create missing verification proof + exec-plan  \n**Issue 3**: Update `AGENTS.md` for `workflow-machines.ts`Now fix issue 1 — move `WorkItem` and `EngineError` to `workflow-types.ts` and re-export from `workflow-compiler.ts`:Now update `workflow-compiler.ts` to import `WorkItem`/`EngineError` from `workflow-types.ts` and re-export them:Now remove the now-duplicate interface definitions in `workflow-compiler.ts`:Now verify the build passes:Build passes. Now run the targeted tests:Tests pass. Now check the circular dependency situation:No errors. Now fix issue 3 — update `AGENTS.md`:Now create the exec-plan and proof documents. Let me look at an existing exec-plan for format reference:Let me run the AC checks to generate real evidence for the proof:All 4977 tests pass. Now create the proof document:Now create the exec-plan:Now write a contract for this retry task and run a final build check:Now write the retry contract:Done. Here's what the retry fixed:\n\n**Issue 1 — Architecture violation (AD6)**  \n`WorkItem` and `EngineError` were defined in `workflow-compiler.ts` but imported by `workflow-types.ts`, inverting the intended dependency direction. Fixed by moving the interface definitions to `workflow-types.ts` (the base layer) and adding `export type { WorkItem, EngineError } from './workflow-types.js'` in `workflow-compiler.ts` as a re-export. All existing import paths continue to resolve unchanged.\n\n**Issue 2 — Missing verification artifacts**  \nCreated `verification/21-3-extract-workflow-machines-proof.md` with real evidence for all 13 ACs (build output, test counts, line counts, grep checks).\n\n**Issue 3 — Stale AGENTS.md**  \nUpdated `src/lib/AGENTS.md` to add `workflow-machines.ts` entry and update both `workflow-types.ts` and `workflow-machine.ts` descriptions to reflect post-extraction state.\n\nAlso created `docs/exec-plans/active/21-3-extract-workflow-machines.md` per documentation requirements.\n\n**Verification:** Build exits 0, 4977 tests pass (0 failures), all AC structural checks green.",
+  "acceptanceCriteria": []
+}

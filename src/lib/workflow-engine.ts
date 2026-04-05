@@ -1301,6 +1301,11 @@ export async function executeWorkflow(config: EngineConfig): Promise<EngineResul
   const storyFlowTasks = new Set<string>();
   for (const step of config.workflow.storyFlow) {
     if (typeof step === 'string') storyFlowTasks.add(step);
+    if (typeof step === 'object' && 'loop' in step) {
+      for (const loopTask of (step as { loop: string[] }).loop) {
+        storyFlowTasks.add(loopTask);
+      }
+    }
   }
 
   // 3. Group work items by epic

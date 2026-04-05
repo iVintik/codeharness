@@ -21,6 +21,7 @@ import {
   handleDispatchError,
 } from '../workflow-compiler.js';
 import { DispatchError } from '../agent-dispatch.js';
+import { WorkflowError } from '../workflow-types.js';
 import type { WorkItem } from '../workflow-types.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { EvaluatorVerdict } from '../verdict-parser.js';
@@ -418,7 +419,9 @@ describe('isEngineError', () => {
 describe('handleDispatchError', () => {
   it('maps DispatchError instances to engine errors', () => {
     const err = new DispatchError('rate limited', 'RATE_LIMIT', 'dev', new Error('inner'));
-    expect(handleDispatchError(err, 'implement', '5-1-foo')).toEqual({
+    const handled = handleDispatchError(err, 'implement', '5-1-foo');
+    expect(handled).toBeInstanceOf(WorkflowError);
+    expect(handled).toMatchObject({
       taskName: 'implement',
       storyKey: '5-1-foo',
       code: 'RATE_LIMIT',
@@ -427,7 +430,9 @@ describe('handleDispatchError', () => {
   });
 
   it('maps generic Error instances to UNKNOWN engine errors', () => {
-    expect(handleDispatchError(new Error('kaboom'), 'verify', PER_RUN_SENTINEL)).toEqual({
+    const handled = handleDispatchError(new Error('kaboom'), 'verify', PER_RUN_SENTINEL);
+    expect(handled).toBeInstanceOf(WorkflowError);
+    expect(handled).toMatchObject({
       taskName: 'verify',
       storyKey: PER_RUN_SENTINEL,
       code: 'UNKNOWN',
@@ -436,7 +441,9 @@ describe('handleDispatchError', () => {
   });
 
   it('stringifies non-Error throwables', () => {
-    expect(handleDispatchError('bad response', 'verify', PER_RUN_SENTINEL)).toEqual({
+    const handled = handleDispatchError('bad response', 'verify', PER_RUN_SENTINEL);
+    expect(handled).toBeInstanceOf(WorkflowError);
+    expect(handled).toMatchObject({
       taskName: 'verify',
       storyKey: PER_RUN_SENTINEL,
       code: 'UNKNOWN',

@@ -5,38 +5,18 @@
  * Dependency direction flows one way: the machine imports from here.
  */
 
-import type { FlowStep, LoopBlock } from './workflow-parser.js';
-import type { EvaluatorVerdict } from './verdict-parser.js';
 import type { WorkflowState, TaskCheckpoint } from './workflow-state.js';
 import { DispatchError } from './agent-dispatch.js';
-import type { OutputContract } from './agents/types.js';
-import type { WorkItem, EngineError } from './workflow-types.js';
-export type { OutputContract, DriverHealth } from './agents/types.js';
-export type { WorkItem, EngineError } from './workflow-types.js';
+import { WorkflowError, isEngineError, isLoopBlock } from './workflow-types.js';
+import type { EvaluatorVerdict, WorkItem, EngineError } from './workflow-types.js';
+export { isEngineError, isLoopBlock } from './workflow-types.js';
+export type { OutputContract, DriverHealth, WorkItem, EngineError, EngineResult, LoopBlockResult } from './workflow-types.js';
 
 // ─── Constants ───────────────────────────────────────────────────────
 
 export const HALT_ERROR_CODES = new Set(['RATE_LIMIT', 'NETWORK', 'SDK_INIT']);
 export const DEFAULT_MAX_ITERATIONS = 5;
 export const PER_RUN_SENTINEL = '__run__';
-
-// ─── Engine-Level Interfaces ──────────────────────────────────────────
-
-export interface EngineResult {
-  success: boolean;
-  tasksCompleted: number;
-  storiesProcessed: number;
-  errors: EngineError[];
-  durationMs: number;
-}
-
-export interface LoopBlockResult {
-  state: WorkflowState;
-  errors: EngineError[];
-  tasksCompleted: number;
-  halted: boolean;
-  lastContract: OutputContract | null;
-}
 
 // ─── Task Completion Checks ───────────────────────────────────────────
 
@@ -96,12 +76,6 @@ export function getFailedItems(verdict: EvaluatorVerdict | null, allItems: WorkI
   return allItems;
 }
 
-// ─── Flow Step Type Guard ─────────────────────────────────────────────
-
-export function isLoopBlock(step: FlowStep): step is LoopBlock {
-  return typeof step === 'object' && step !== null && 'loop' in step;
-}
-
 // ─── Error Handling ───────────────────────────────────────────────────
 
 export function recordErrorInState(state: WorkflowState, taskName: string, storyKey: string, error: EngineError): WorkflowState {
@@ -112,14 +86,9 @@ export function recordErrorInState(state: WorkflowState, taskName: string, story
   return { ...state, phase: 'error', tasks_completed: [...state.tasks_completed, errorCheckpoint] };
 }
 
-export function isEngineError(err: unknown): err is EngineError {
-  if (!err || typeof err !== 'object') return false;
-  const e = err as Record<string, unknown>;
-  return typeof e.taskName === 'string' && typeof e.storyKey === 'string' && typeof e.code === 'string' && typeof e.message === 'string';
-}
-
 export function handleDispatchError(err: unknown, taskName: string, storyKey: string): EngineError {
-  if (err instanceof DispatchError) return { taskName, storyKey, code: err.code, message: err.message };
+  if (err instanceof WorkflowError) return err;
+  if (err instanceof DispatchError) return new WorkflowError(err.message, err.code, taskName, storyKey);
   const message = err instanceof Error ? err.message : String(err);
-  return { taskName, storyKey, code: 'UNKNOWN', message };
+  return new WorkflowError(message, 'UNKNOWN', taskName, storyKey);
 }

@@ -15,9 +15,11 @@ import { getNullTask, listNullTasks, type TaskContext, type NullTaskResult } fro
 import { readStateWithBody, writeState } from './state.js';
 import { formatCoverageContextMessage } from './evaluator.js';
 import { writeWorkflowState, type WorkflowState, type TaskCheckpoint } from './workflow-state.js';
+import { WorkflowError } from './workflow-types.js';
 import type { DispatchInput, DispatchOutput, NullTaskInput } from './workflow-types.js';
 import { TASK_PROMPTS, FILE_WRITE_TOOL_NAMES } from './workflow-constants.js';
 import { getPendingAcceptanceCriteria } from './workflow-contracts.js';
+import { parseTestOutput } from './cross-worktree-validator.js';
 
 // ─── Coverage Deduplication ──────────────────────────────────────────
 export function buildCoverageDeduplicationContext(contract: OutputContract | null, projectDir: string): string | null {
@@ -38,17 +40,32 @@ export async function nullTaskCore(input: NullTaskInput): Promise<DispatchOutput
   const handler = getNullTask(taskName);
   if (!handler) {
     const registered = listNullTasks();
-    throw { taskName, storyKey, code: 'NULL_TASK_NOT_FOUND', message: `No null task handler registered for "${taskName}". Registered: ${registered.join(', ') || '(none)'}` };
+    throw new WorkflowError(
+      `No null task handler registered for "${taskName}". Registered: ${registered.join(', ') || '(none)'}`,
+      'NULL_TASK_NOT_FOUND',
+      taskName,
+      storyKey,
+    );
   }
   const startMs = Date.now();
   const workflowStartMs = workflowState.started ? new Date(workflowState.started).getTime() : startMs;
   const ctx: TaskContext = { storyKey, taskName, cost: accumulatedCostUsd, durationMs: startMs - workflowStartMs, outputContract: previousContract, projectDir };
   let result: NullTaskResult;
   try { result = await handler(ctx); } catch (err: unknown) {
-    throw { taskName, storyKey, code: 'NULL_TASK_HANDLER_ERROR', message: `Null task handler "${taskName}" threw: ${err instanceof Error ? err.message : String(err)}` };
+    throw new WorkflowError(
+      `Null task handler "${taskName}" threw: ${err instanceof Error ? err.message : String(err)}`,
+      'NULL_TASK_HANDLER_ERROR',
+      taskName,
+      storyKey,
+    );
   }
   if (!result.success) {
-    throw { taskName, storyKey, code: 'NULL_TASK_FAILED', message: `Null task handler "${taskName}" returned success=false${result.output ? `: ${result.output}` : ''}` };
+    throw new WorkflowError(
+      `Null task handler "${taskName}" returned success=false${result.output ? `: ${result.output}` : ''}`,
+      'NULL_TASK_FAILED',
+      taskName,
+      storyKey,
+    );
   }
   const checkpoint: TaskCheckpoint = { task_name: taskName, story_key: storyKey, completed_at: new Date().toISOString() };
   const updatedState: WorkflowState = { ...workflowState, tasks_completed: [...workflowState.tasks_completed, checkpoint] };
@@ -65,7 +82,8 @@ export async function nullTaskCore(input: NullTaskInput): Promise<DispatchOutput
 // ─── Verify Flag Propagation ─────────────────────────────────────────
 function propagateVerifyFlags(taskName: string, contract: OutputContract | null, projectDir: string): void {
   if (taskName !== 'implement' || !contract?.testResults) return;
-  const { failed, coverage } = contract.testResults;
+  const { passed, failed, coverage } = contract.testResults;
+  if (passed === 0 && failed === 0) return; // no tests ran — skip flag update
   try {
     const { state, body } = readStateWithBody(projectDir);
     if (failed === 0) state.session_flags.tests_passed = true;
@@ -179,7 +197,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
     contract = {
       version: 1, taskName, storyId: storyKey, driver: driverName, model,
       timestamp: new Date().toISOString(), cost_usd: cost > 0 ? cost : null, duration_ms: durationMs,
-      changedFiles: [...new Set(changedFiles)], testResults: null, output, acceptanceCriteria: getPendingAcceptanceCriteria(taskName, storyKey, projectDir, storyFiles),
+      changedFiles: [...new Set(changedFiles)], testResults: taskName === 'implement' ? (parseTestOutput(output) ?? null) : null, output, acceptanceCriteria: getPendingAcceptanceCriteria(taskName, storyKey, projectDir, storyFiles),
     };
     writeOutputContract(contract, join(projectDir, '.codeharness', 'contracts'));
   } catch (err: unknown) {

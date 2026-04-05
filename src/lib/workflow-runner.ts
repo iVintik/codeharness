@@ -7,8 +7,7 @@ import { checkCapabilityConflicts } from './agents/capability-check.js';
 import type { ResolvedWorkflow } from './workflow-parser.js';
 import { parse } from 'yaml';
 import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
-import type { EngineConfig, RunMachineContext } from './workflow-types.js';
-import type { EngineResult, EngineError, WorkItem, DriverHealth } from './workflow-compiler.js';
+import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth } from './workflow-types.js';
 import { runMachine } from './workflow-machines.js';
 
 export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): WorkItem[] {

@@ -45,29 +45,17 @@ import {
   dispatchActor,
   nullTaskCore,
   buildCoverageDeduplicationContext,
-  TASK_PROMPTS,
-  FILE_WRITE_TOOL_NAMES,
 } from './workflow-actors.js';
 export type {
-  EngineEvent,
-  EngineConfig,
-  EngineResult,
-  EngineError,
-  WorkItem,
   DispatchInput,
   DispatchOutput,
   NullTaskInput,
-} from './workflow-actors.js';
+} from './workflow-types.js';
 import type {
-  EngineEvent,
-  EngineConfig,
-  EngineResult,
-  EngineError,
-  WorkItem,
   DispatchInput,
   DispatchOutput,
   NullTaskInput,
-} from './workflow-actors.js';
+} from './workflow-types.js';
 
 // Re-export for downstream consumers
 export type { EvaluatorVerdict } from './verdict-parser.js';
@@ -78,6 +66,54 @@ export { parseVerdict } from './verdict-parser.js';
 const HALT_ERROR_CODES = new Set(['RATE_LIMIT', 'NETWORK', 'SDK_INIT']);
 const DEFAULT_MAX_ITERATIONS = 5;
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
+// ─── Engine-Level Interfaces ──────────────────────────────────────────
+
+export interface EngineEvent {
+  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip' | 'story-done' | 'epic-verified';
+  taskName: string;
+  storyKey: string;
+  verdictPassed?: boolean;
+  driverName?: string;
+  model?: string;
+  streamEvent?: StreamEvent;
+  error?: { code: string; message: string };
+  elapsedMs?: number;
+  costUsd?: number;
+}
+
+export interface EngineConfig {
+  workflow: ResolvedWorkflow;
+  agents: Record<string, SubagentDefinition>;
+  sprintStatusPath: string;
+  issuesPath?: string;
+  runId: string;
+  projectDir?: string;
+  maxIterations?: number;
+  onEvent?: (event: EngineEvent) => void;
+  abortSignal?: AbortSignal;
+}
+
+export interface EngineResult {
+  success: boolean;
+  tasksCompleted: number;
+  storiesProcessed: number;
+  errors: EngineError[];
+  durationMs: number;
+}
+
+export interface EngineError {
+  taskName: string;
+  storyKey: string;
+  code: string;
+  message: string;
+}
+
+export interface WorkItem {
+  key: string;
+  title?: string;
+  source: 'sprint' | 'issues';
+}
 
 // ─── Coverage Deduplication re-exported for tests ────────────────────
 export { buildCoverageDeduplicationContext } from './workflow-actors.js';

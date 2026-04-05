@@ -677,10 +677,11 @@
       }
     },
     "21-1-extract-workflow-actors": {
-      "status": "in-progress",
-      "attempts": 7292,
-      "lastAttempt": "2026-04-05T09:15:34.159Z",
-      "lastError": null
+      "status": "done",
+      "attempts": 7298,
+      "lastAttempt": "2026-04-05T09:57:36.790Z",
+      "lastError": null,
+      "completedAt": "2026-04-05T10:02:10.661Z"
     },
     "21-2-extract-workflow-compiler": {
       "status": "backlog",

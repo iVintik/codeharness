@@ -552,17 +552,17 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     const currentStory = currentKey ?? '';
     const currentTask = state.currentTaskName ?? '';
 
-    // Epic phase: "Epic N" → show the epic's stories as context
-    const epicMatch = currentStory.match(/^Epic (\d+)/);
+    // Epic phase: show last completed story + first remaining story
+    const epicMatch = currentStory.match(/Epic (\d+)/);
     if (epicMatch) {
       const epicPrefix = `${epicMatch[1]}-`;
       const epicStories = updatedStories.filter(s => s.key.startsWith(epicPrefix));
-      // Show last done story, first in-progress, first pending
-      const lastDone = [...epicStories].reverse().find(s => s.status === 'done' || s.status === 'in-progress');
+      const lastDone = [...epicStories].reverse().find(s => s.status === 'done');
+      const firstIp = epicStories.find(s => s.status === 'in-progress');
+      const firstPending = epicStories.find(s => s.status === 'pending');
       if (lastDone) ctx.push({ key: lastDone.key, role: 'prev' });
-      // All in-progress stories are "current" for epic verification
-      const ipStory = epicStories.find(s => s.status === 'in-progress');
-      if (ipStory) ctx.push({ key: `${epicStories.length} stories in epic`, role: 'current' });
+      if (firstIp) ctx.push({ key: firstIp.key, role: 'current' });
+      else if (firstPending) ctx.push({ key: firstPending.key, role: 'next' });
     } else {
       // Story phase: normal prev/current/next
       let foundCurrent = false;

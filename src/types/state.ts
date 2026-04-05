@@ -47,6 +47,7 @@ export interface ActionItem {
 /** State of an epic within the sprint */
 export interface EpicState {
   readonly status: string;
+  readonly name?: string;
   readonly storiesTotal: number;
   readonly storiesDone: number;
 }

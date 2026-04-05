@@ -282,10 +282,13 @@ export function registerRunCommand(program: Command): void {
         }
       }
 
-      // Build task sets from the hierarchical flow
+      // Build task sets from the hierarchical flow (include loop tasks)
       const storyFlowTasks = new Set<string>();
       for (const step of parsedWorkflow.storyFlow) {
         if (typeof step === 'string') storyFlowTasks.add(step);
+        if (typeof step === 'object' && 'loop' in step) {
+          for (const lt of (step as { loop: string[] }).loop) storyFlowTasks.add(lt);
+        }
       }
       const epicLoopTasks = new Set<string>();
       for (const step of parsedWorkflow.epicFlow) {

@@ -23,11 +23,6 @@ codeharness run --timeout 7200     # 2 hour total timeout
 codeharness run --iteration-timeout 45  # 45 min per iteration
 ```
 
-### `codeharness verify --story <key>`
-Validate a story's proof document against acceptance criteria.
-```
-codeharness verify --story 3-1-some-feature
-```
 
 ### `codeharness coverage`
 Run tests with coverage and evaluate against targets (default: 90% overall, 80% per-file).

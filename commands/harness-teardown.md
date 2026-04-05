@@ -20,7 +20,6 @@ This will NOT remove:
 - _bmad/ directory (BMAD artifacts preserved)
 - docs/ directory (documentation preserved)
 - Project source code (never touched)
-- verification/ directory (proof documents preserved)
 
 Proceed? (y/n)
 ```

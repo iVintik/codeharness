@@ -18,15 +18,6 @@ When a BMAD sprint plan exists at `_bmad-output/planning-artifacts/`:
 3. Produce per-story verification task lists
 4. Works with BMAD Method v6+ artifact format (NFR12)
 
-## Story Mapping
-
-Each BMAD story maps to a verification task that includes:
-- Story ID and title
-- Acceptance criteria (extracted from story file)
-- Verification type per AC (UI, API, DB, Log)
-- Showboat proof expectations
-- Observability requirements
-
 ## BMAD Workflow Patches
 
 codeharness patches these BMAD workflows (see `templates/bmad-patches/`):

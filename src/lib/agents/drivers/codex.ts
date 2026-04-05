@@ -338,8 +338,12 @@ export class CodexDriver implements AgentDriver {
       );
     }
 
-    // Build CLI args — use `codex exec --json --full-auto --skip-git-repo-check`
-    const args: string[] = ['exec', '--json', '--full-auto', '--skip-git-repo-check'];
+    // Build CLI args — sandbox policy depends on source_access:
+    // source_access=true  → full access (needs to run tests, install deps, etc.)
+    // source_access=false → workspace-write only (blind verification sandbox)
+    const args: string[] = opts.sourceAccess
+      ? ['exec', '--json', '-a', 'on-request', '--sandbox', 'danger-full-access', '--skip-git-repo-check']
+      : ['exec', '--json', '--full-auto', '--skip-git-repo-check'];
     // Only pass model if it's a codex-compatible model (not a Claude model)
     const model = opts.model && !opts.model.startsWith('claude-') ? opts.model : undefined;
     if (model) {

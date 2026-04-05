@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "21-7-dedicated-test-files-per-module",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T16:00:24.692Z",
+  "cost_usd": 0.67862135,
+  "duration_ms": 217781,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/21-7-dedicated-test-files-per-module.md"
+  ],
+  "testResults": null,
+  "output": "Now I have enough context. Let me look at the describe blocks in the engine test to map them to modules, and check an existing story for the exact format.Now I have all the context I need. Let me map describe blocks to modules and write the story spec.\n\nBased on my analysis:\n\n**Current state of tests:**\n- `workflow-machine.test.ts` (334 lines) — tests compiler functions (isTaskCompleted, isLoopTaskCompleted, buildRetryPrompt, buildAllUnknownVerdict, getFailedItems, PER_RUN_SENTINEL) + runner functions (loadWorkItems, runWorkflowActor)\n- `workflow-engine.test.ts` (4102 lines) — massive file testing: loadWorkItems (runner), dispatchTask (machines), runWorkflowActor (runner), parseVerdict (verdict-parser), buildRetryPrompt/getFailedItems (compiler), loop block (machines), isTaskCompleted/isLoopTaskCompleted (compiler), crash recovery (runner), driver integration (runner), output contract (machines), propagateVerifyFlags (actors), buildCoverageDeduplicationContext (actors), coverage dedup in dispatchTask (machines)\n\n**Target new test files:**\n- `workflow-compiler.test.ts` — compiler pure functions\n- `workflow-machines.test.ts` — XState machine/orchestration tests\n- `workflow-actors.test.ts` — actor dispatch tests\n- `workflow-runner.test.ts` — runner entry point tests\n\nExisting files that already align: `workflow-persistence.test.ts`, `workflow-parser.test.ts`, `driver-health-check.test.ts`Story spec written to `_bmad-output/implementation-artifacts/21-7-dedicated-test-files-per-module.md`.\n\n**Summary of the spec:**\n\n- **20 ACs**, all verifiable via CLI commands (`ls`, `npx vitest run`, `npx eslint`, `npm run build`, `grep`, `npx vitest run --coverage`) — no source code inspection or internal implementation knowledge required\n- **9 tasks** covering: analysis/mapping → create 4 new test files (compiler, machines, actors, runner) → handle parseVerdict → delete 2 old monoliths → verify existing aligned files → final verification\n- **Key design decisions:**\n  - Each new file gets its own `vi.hoisted()` mock block — no shared mock helpers\n  - Compiler tests are pure (minimal mocks), runner/machines/actors need selective mock subsets\n  - Tests duplicated across `workflow-engine.test.ts` and `workflow-machine.test.ts` are merged with deduplication\n  - `parseVerdict` tests move to existing verdict-parser test file\n  - 8 existing test files (parser, persistence, state, etc.) remain untouched — already aligned\n- **Coverage target:** ≥90% line coverage per module (compiler, machines, actors, runner, persistence)\n- **Estimated result:** ~4000 lines across 4 new files replacing 4436 lines in 2 monoliths",
+  "acceptanceCriteria": []
+}

@@ -6,18 +6,18 @@
 development_status:
 
   # Epic 21
-  epic-21: backlog
+  epic-21: done
   21-1-extract-workflow-actors: done
   21-2-extract-workflow-compiler: done
   21-3-extract-workflow-machines: done
   21-4-extract-workflow-runner: done
-  21-5-delete-workflow-machine-and-hierarchical-flow: in-progress
-  21-6-migrate-test-imports: backlog
-  21-7-dedicated-test-files-per-module: backlog
+  21-5-delete-workflow-machine-and-hierarchical-flow: done
+  21-6-migrate-test-imports: done
+  21-7-dedicated-test-files-per-module: done
 
   # Epic 22
   epic-22: backlog
-  22-1-parse-for-each-blocks: backlog
+  22-1-parse-for-each-blocks: in-progress
   22-2-parse-named-gate-blocks: backlog
   22-3-update-default-yaml-to-new-format: backlog
 

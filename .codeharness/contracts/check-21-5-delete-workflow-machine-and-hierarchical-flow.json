@@ -4,11 +4,92 @@
   "storyId": "21-5-delete-workflow-machine-and-hierarchical-flow",
   "driver": "codex",
   "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-05T14:58:10.509Z",
+  "timestamp": "2026-04-05T15:35:34.497Z",
   "cost_usd": null,
-  "duration_ms": 57537,
+  "duration_ms": 52600,
   "changedFiles": [],
   "testResults": null,
-  "output": "I’m checking the available npm scripts first so I can run the project’s test suite and lint command exactly as defined in this repo.I found `npm run lint`, `npm run test:unit`, and `npm test`. I’m running all three so the result covers the full defined test suite plus the linter.The checks are in flight. Unit tests and integration tests both started cleanly; I’m waiting on final status and failures, if any.`npm run lint` completed with warnings only, not errors. `npm run test:unit` has already failed; I’m letting `npm test` finish so I can give you the full check summary rather than stopping at the first failure.<verdict>fail</verdict>\n\n`npm test` passed, but the full automated checks did not pass because `npm run test:unit` failed.\n\nFailed unit tests:\n- [workflow-engine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-engine.test.ts#L1884) `increments iteration and persists each loop pass (AC #7)`  \n  Expected iterations to include `3`, received `[0, 1, 2]`.\n- [workflow-engine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-engine.test.ts#L1968) `uses default maxIterations of 5 when not specified`  \n  Expected mock to be called `10` times, got `4`.\n- [workflow-engine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-engine.test.ts#L2011) `records multiple evaluator scores across iterations`  \n  Expected final scored state to contain `2` evaluator scores, got `0`.\n- [ink-renderer-lanes.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/ink-renderer-lanes.test.ts#L484) `routing 4 lanes of events completes within acceptable time`  \n  Timed out at `5000ms`.\n\nLint status:\n- `npm run lint` exited `0` with 2 warnings, no errors.\n- Warning in [workflow-machines.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts): unused `VerdictParseError` at line 9.\n- Warning in [workflow-parser.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-parser.ts): unused `LoopBlock` at line 13.\n\nCheck summary:\n- `npm run lint`: passed with warnings\n- `npm run test:unit`: failed\n- `npm test`: passed",
-  "acceptanceCriteria": []
+  "output": "I’m checking the repo scripts first so I can run the intended linter and the full test suite rather than guessing command names.I found the relevant scripts: `npm run lint`, `npm run test:unit`, and `npm test` for the integration suite. I’m running all three so the result covers the linter plus both unit and bats tests.The integration suite is underway and lint has started cleanly. I’m kicking off the unit suite separately so we get a complete check set for this story.`npm run lint` passed and the unit suite passed with `4960/4960` tests. I’m waiting on the bats integration run to finish so I can give you a final verdict for the full check set.<verdict>pass</verdict>\n\nExecuted the repo’s configured checks for this story:\n\n- `npm run lint` -> passed\n- `npm run test:unit` -> passed, `4960/4960` tests\n- `npm test` -> passed, `47/47` bats integration tests\n\nNotes:\n- The unit run emitted `MaxListenersExceededWarning` warnings and a couple of `required option '--story <key>' not specified` lines during test execution, but the suite still exited `0` with all tests passing.\n- I did not make code changes, so there was nothing to push.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with zero errors in stdout/stderr. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** the pass count is ≥4976 with zero failures — no regressions from the deletion. <!-- verification: `npx vitest run` exits 0; pass count >= 4976 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** the file `src/lib/workflow-machine.ts` previously existed as a re-export shim, **When** the project is searched for this file, **Then** the file does not exist on disk. <!-- verification: `test ! -f src/lib/workflow-machine.ts && echo PASS` outputs PASS -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** the file `src/lib/hierarchical-flow.ts` previously existed as legacy flow resolution logic, **When** the project is searched for this file, **Then** the file does not exist on disk. <!-- verification: `test ! -f src/lib/hierarchical-flow.ts && echo PASS` outputs PASS -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** the test file `src/lib/__tests__/hierarchical-flow.test.ts` previously tested hierarchical-flow.ts, **When** the project is searched for this file, **Then** the file does not exist on disk. <!-- verification: `test ! -f src/lib/__tests__/hierarchical-flow.test.ts && echo PASS` outputs PASS -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** the entire `src/` directory is searched for import references to `workflow-machine`, **When** the search completes, **Then** zero matches are found — no source file imports from the deleted shim. <!-- verification: `grep -rE \"from.*workflow-machine\" src/ | grep -v node_modules` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** the entire `src/` directory is searched for import references to `hierarchical-flow`, **When** the search completes, **Then** zero matches are found — no source file imports from the deleted module. <!-- verification: `grep -rE \"from.*hierarchical-flow\" src/ | grep -v node_modules` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** the `src/commands/run.ts` file imports `runWorkflowActor` and types, **When** its imports are inspected, **Then** it imports `runWorkflowActor` from `../lib/workflow-runner.js` and types `EngineConfig`, `EngineEvent` from `../lib/workflow-types.js`. <!-- verification: `grep \"from.*workflow-runner\" src/commands/run.ts` shows runWorkflowActor import; `grep \"from.*workflow-types\" src/commands/run.ts` shows EngineConfig/EngineEvent import -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the `src/lib/lane-pool.ts` file imports `EngineResult` type, **When** its imports are inspected, **Then** it imports `EngineResult` from `./workflow-compiler.js`. <!-- verification: `grep \"EngineResult\" src/lib/lane-pool.ts` shows import from workflow-compiler.js -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the `src/lib/workflow-persistence.ts` file imports `EngineError` type, **When** its imports are inspected, **Then** it imports `EngineError` from `./workflow-types.js`. <!-- verification: `grep \"EngineError\" src/lib/workflow-persistence.ts` shows import from workflow-types.js -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** `workflow-parser.ts` previously delegated to `hierarchical-flow.ts` for flow resolution, **When** its contents are inspected, **Then** the `resolveHierarchicalFlow`, `ExecutionConfig`, `HierarchicalFlow`, `BUILTIN_EPIC_FLOW_TASKS`, and `EXECUTION_DEFAULTS` logic is inlined or moved directly into `workflow-parser.ts`, with no import from `hierarchical-flow.js`. <!-- verification: `grep \"hierarchical-flow\" src/lib/workflow-parser.ts` produces no output; `grep \"resolveHierarchicalFlow\\|BUILTIN_EPIC_FLOW_TASKS\\|ExecutionConfig\" src/lib/workflow-parser.ts` shows these symbols defined locally -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `workflow-parser.ts` still re-exports `ExecutionConfig`, `HierarchicalFlow`, and `BUILTIN_EPIC_FLOW_TASKS`, **When** test files that import these symbols from `workflow-parser.js` are run, **Then** all tests pass — the public API surface is preserved. <!-- verification: `npx vitest run -t 'workflow-parser\\|hierarchical'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the project linter is run on all modified files, **When** linting completes, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/commands/run.ts src/lib/lane-pool.ts src/lib/workflow-persistence.ts src/lib/workflow-parser.ts src/lib/workflow-runner.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** the TypeScript compiler is run via `npx tsc --noEmit`, **When** type-checking completes, **Then** zero new type errors are introduced by the deleted files. Pre-existing type errors in other files are acceptable. <!-- verification: `npx tsc --noEmit 2>&1 | grep -E 'workflow-machine|hierarchical-flow'` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "**Given** the test files `workflow-machine.test.ts`, `workflow-engine.test.ts`, `driver-health-check.test.ts`, `story-flow-execution.test.ts`, `null-task-engine.test.ts`, and `lane-pool.test.ts` previously imported from `workflow-machine.js`, **When** their imports are inspected, **Then** each imports from the canonical module that actually exports the symbol (`workflow-runner.js`, `workflow-types.js`, `workflow-compiler.js`, `workflow-actors.js`, `workflow-machines.js`, or `verdict-parser.js`). <!-- verification: `grep -rE \"from.*workflow-machine\" src/lib/__tests__/` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC16",
+      "description": "**Given** the boundary/architecture policy tests exist, **When** they are run via `npx vitest run -t 'boundar'`, **Then** all boundary tests pass — no policy violations from the changes. <!-- verification: `npx vitest run -t 'boundar'` exits 0 with 0 failures -->",
+      "status": "pending"
+    }
+  ]
 }

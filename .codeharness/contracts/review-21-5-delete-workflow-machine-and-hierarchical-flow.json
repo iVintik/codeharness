@@ -4,11 +4,92 @@
   "storyId": "21-5-delete-workflow-machine-and-hierarchical-flow",
   "driver": "codex",
   "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-05T15:02:02.368Z",
+  "timestamp": "2026-04-05T15:38:00.480Z",
   "cost_usd": null,
-  "duration_ms": 231841,
+  "duration_ms": 145965,
   "changedFiles": [],
   "testResults": null,
-  "output": "I’m reviewing story `21-5-delete-workflow-machine-and-hierarchical-flow` as a code review task. I’ll inspect the branch diff and the relevant tests first, then check for correctness, security, architecture fit, and whether the implementation appears to cover the intended acceptance criteria.The implementation is uncommitted on `master`, so I’m reviewing the working tree diff directly. Next I’m pulling the story artifact and the key file diffs to line up the intended scope against the actual deletions and rewiring.I’ve got the scope diff. The risky area is not the import rewrites, it’s the refactor that split parser and machine logic into new modules while deleting the old shim. I’m reading the new `workflow-execution`, `workflow-machines`, and `workflow-runner` implementations now to check for behavior drift behind the updated tests.I found something odd: `git diff` shows `workflow-machine.ts` as a tracked deletion, but `git show HEAD:...` says the path is absent in `HEAD`. I’m checking the index/tree state directly before drawing conclusions, because that usually means the worktree is based on a conflicted or partially-staged state.I have enough context to start forming findings, but I want one pass of targeted verification against the refactored modules so I’m not relying only on static inspection. I’m running the hierarchical parser tests and the workflow-engine tests that historically cover the deleted shim’s behavior.The refactor itself is mostly coherent. I’m checking one more angle before I write the verdict: whether the story’s verification/AC side was actually completed, not just whether the new modules compile in isolation.The targeted checks are clean so far, including `npm run build` and the boundary test slice. I’m doing one final broad check with the full Vitest suite because this story’s main risk is regression from moving exports and flow logic around.The code path checks are clean. The only remaining concern is acceptance-coverage hygiene: the implementation appears to satisfy the technical ACs, but I’m verifying whether the required proof artifact and verification trail were actually produced.<verdict>fail</verdict>\n\n<issues>\n1. AC14 is not currently satisfiable as implemented. Running `npx tsc --noEmit 2>&1 | rg 'workflow-machine|hierarchical-flow'` still produces output because [workflow-machine.test.ts:182](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machine.test.ts#L182), [workflow-machine.test.ts:183](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machine.test.ts#L183), and [workflow-machine.test.ts:184](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machine.test.ts#L184) trigger `TS2352`. The errors are in a file whose path still contains `workflow-machine`, so the story’s prescribed verification command does not come back empty.\n\n2. The required proof artifact is missing: [verification/21-5-delete-workflow-machine-and-hierarchical-flow-proof.md](/Users/ivintik/dev/personal/codeharness/verification/21-5-delete-workflow-machine-and-hierarchical-flow-proof.md). That leaves AC/verification coverage incomplete even though the code changes themselves look sound.\n</issues>\n\nI did not find a runtime correctness, security, or architecture defect in the refactor itself. The core implementation checks I ran were clean: `npm run build` passed, `npx vitest run` passed with 4977/4977 tests, `npx vitest run -t 'boundar'` passed, the deleted files are gone, and there are no remaining `from ...workflow-machine` / `from ...hierarchical-flow` imports in `src/`.\n\nThe failure is on acceptance coverage, not on the main code path.",
-  "acceptanceCriteria": []
+  "output": "I’m reviewing the story implementation as a code review, starting with the actual diff and the affected files so I can check correctness, boundary violations, and whether the acceptance criteria are truly covered.I’ve confirmed this is an uncommitted worktree review. Next I’m narrowing to the workflow files and tests touched by the deletion so I can review the actual implementation rather than the proof artifacts.The worktree diff is surprisingly small: only the test file and `workflow-machines.ts` are currently modified, while the deleted modules are already absent in the checked-out tree. I’m now checking the live source for lingering imports, inlined flow logic, and whether the current tree still satisfies the story’s architecture constraints.The current tree does remove the legacy files and consumers, but one structural detail stands out: hierarchical flow logic is not in `workflow-parser.ts`; it now lives in a new `workflow-execution.ts`. I’m checking whether that still matches the story contract or quietly changes the intended module boundary.I’ve read the story spec. The important nuance is that it did not just require removing `hierarchical-flow.ts`; it required that logic to end up in `workflow-parser.ts`, with only a narrow helper split allowed if the parser exceeded line budget. I’m checking whether the current `workflow-execution.ts` split violates that contract and whether any docs still describe the old ownership incorrectly.I also checked the repo metadata around this story. There is no story-specific exec plan file in `docs/exec-plans/active/`, which leaves the documentation requirement incomplete even before getting to code behavior.The targeted vitest and TypeScript checks are running now. I’m waiting on them because they directly validate the claimed AC coverage and whether the `workflow-execution.ts` split introduces any hidden boundary regressions.I have one concrete implementation miss already: the story claims parser ownership after deletion, but the code keeps the hierarchical-flow runtime in a separate `workflow-execution.ts` even though `workflow-parser.ts` is only 194 lines. I’m pulling exact line references so the review can be precise.I’ve got two review-level blockers now. One is in code and one is in AC coverage: the implementation changes the module boundary the story asked to finish, and the proof marks an unsatisfied test-count AC as passed.1. AC11 is not actually satisfied. [`workflow-parser.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-parser.ts#L5) still imports `resolveHierarchicalFlow`, `ExecutionConfig`, `HierarchicalFlow`, and related symbols from [`workflow-execution.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-execution.ts#L28), and then re-exports them from [`workflow-parser.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-parser.ts#L182). The story explicitly requires that the old `hierarchical-flow.ts` logic be inlined or moved directly into `workflow-parser.ts`; the current split leaves the ownership boundary in a new module instead. That also contradicts [`src/lib/AGENTS.md`](/Users/ivintik/dev/personal/codeharness/src/lib/AGENTS.md#L56), which says parser owns hierarchical flow resolution.\n\n2. AC2 is not met as written. The proof for this story records `4960` passing tests in [`verification/21-5-delete-workflow-machine-and-hierarchical-flow-proof.md`](/Users/ivintik/dev/personal/codeharness/verification/21-5-delete-workflow-machine-and-hierarchical-flow-proof.md#L20), but the acceptance criterion requires `>=4976`. Marking that as pass by explanation does not satisfy the stated AC.\n\n3. The proof document contains inaccurate evidence, so AC coverage cannot be trusted at face value. In AC8, the proof claims [`run.ts`](/Users/ivintik/dev/personal/codeharness/src/commands/run.ts#L11) imports `runWorkflowActor, checkDriverHealth` from `workflow-runner.js` in [`verification/21-5-delete-workflow-machine-and-hierarchical-flow-proof.md`](/Users/ivintik/dev/personal/codeharness/verification/21-5-delete-workflow-machine-and-hierarchical-flow-proof.md#L84), but the actual file imports only `runWorkflowActor`.\n\nI did not find a new security issue in the changed workflow code. I also ran `npx vitest run -t 'workflow-parser|hierarchical|boundar'`, which passed, and `npx tsc --noEmit`, which still has unrelated repo-wide errors but none referencing `workflow-machine` or `hierarchical-flow`.\n\n<verdict>fail</verdict>\n<issues>\nAC11 is unmet because hierarchical-flow logic was moved into workflow-execution.ts instead of workflow-parser.ts.\n\nAC2 is unmet because the recorded full-suite count is 4960, below the required >=4976.\n\nThe proof document is inaccurate (for example AC8’s quoted import does not match src/commands/run.ts), so the claimed AC pass set is not reliable.\n</issues>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with zero errors in stdout/stderr. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** the pass count is ≥4976 with zero failures — no regressions from the deletion. <!-- verification: `npx vitest run` exits 0; pass count >= 4976 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** the file `src/lib/workflow-machine.ts` previously existed as a re-export shim, **When** the project is searched for this file, **Then** the file does not exist on disk. <!-- verification: `test ! -f src/lib/workflow-machine.ts && echo PASS` outputs PASS -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** the file `src/lib/hierarchical-flow.ts` previously existed as legacy flow resolution logic, **When** the project is searched for this file, **Then** the file does not exist on disk. <!-- verification: `test ! -f src/lib/hierarchical-flow.ts && echo PASS` outputs PASS -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** the test file `src/lib/__tests__/hierarchical-flow.test.ts` previously tested hierarchical-flow.ts, **When** the project is searched for this file, **Then** the file does not exist on disk. <!-- verification: `test ! -f src/lib/__tests__/hierarchical-flow.test.ts && echo PASS` outputs PASS -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** the entire `src/` directory is searched for import references to `workflow-machine`, **When** the search completes, **Then** zero matches are found — no source file imports from the deleted shim. <!-- verification: `grep -rE \"from.*workflow-machine\" src/ | grep -v node_modules` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** the entire `src/` directory is searched for import references to `hierarchical-flow`, **When** the search completes, **Then** zero matches are found — no source file imports from the deleted module. <!-- verification: `grep -rE \"from.*hierarchical-flow\" src/ | grep -v node_modules` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** the `src/commands/run.ts` file imports `runWorkflowActor` and types, **When** its imports are inspected, **Then** it imports `runWorkflowActor` from `../lib/workflow-runner.js` and types `EngineConfig`, `EngineEvent` from `../lib/workflow-types.js`. <!-- verification: `grep \"from.*workflow-runner\" src/commands/run.ts` shows runWorkflowActor import; `grep \"from.*workflow-types\" src/commands/run.ts` shows EngineConfig/EngineEvent import -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the `src/lib/lane-pool.ts` file imports `EngineResult` type, **When** its imports are inspected, **Then** it imports `EngineResult` from `./workflow-compiler.js`. <!-- verification: `grep \"EngineResult\" src/lib/lane-pool.ts` shows import from workflow-compiler.js -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the `src/lib/workflow-persistence.ts` file imports `EngineError` type, **When** its imports are inspected, **Then** it imports `EngineError` from `./workflow-types.js`. <!-- verification: `grep \"EngineError\" src/lib/workflow-persistence.ts` shows import from workflow-types.js -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** `workflow-parser.ts` previously delegated to `hierarchical-flow.ts` for flow resolution, **When** its contents are inspected, **Then** the `resolveHierarchicalFlow`, `ExecutionConfig`, `HierarchicalFlow`, `BUILTIN_EPIC_FLOW_TASKS`, and `EXECUTION_DEFAULTS` logic is inlined or moved directly into `workflow-parser.ts`, with no import from `hierarchical-flow.js`. <!-- verification: `grep \"hierarchical-flow\" src/lib/workflow-parser.ts` produces no output; `grep \"resolveHierarchicalFlow\\|BUILTIN_EPIC_FLOW_TASKS\\|ExecutionConfig\" src/lib/workflow-parser.ts` shows these symbols defined locally -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `workflow-parser.ts` still re-exports `ExecutionConfig`, `HierarchicalFlow`, and `BUILTIN_EPIC_FLOW_TASKS`, **When** test files that import these symbols from `workflow-parser.js` are run, **Then** all tests pass — the public API surface is preserved. <!-- verification: `npx vitest run -t 'workflow-parser\\|hierarchical'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the project linter is run on all modified files, **When** linting completes, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/commands/run.ts src/lib/lane-pool.ts src/lib/workflow-persistence.ts src/lib/workflow-parser.ts src/lib/workflow-runner.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** the TypeScript compiler is run via `npx tsc --noEmit`, **When** type-checking completes, **Then** zero new type errors are introduced by the deleted files. Pre-existing type errors in other files are acceptable. <!-- verification: `npx tsc --noEmit 2>&1 | grep -E 'workflow-machine|hierarchical-flow'` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "**Given** the test files `workflow-machine.test.ts`, `workflow-engine.test.ts`, `driver-health-check.test.ts`, `story-flow-execution.test.ts`, `null-task-engine.test.ts`, and `lane-pool.test.ts` previously imported from `workflow-machine.js`, **When** their imports are inspected, **Then** each imports from the canonical module that actually exports the symbol (`workflow-runner.js`, `workflow-types.js`, `workflow-compiler.js`, `workflow-actors.js`, `workflow-machines.js`, or `verdict-parser.js`). <!-- verification: `grep -rE \"from.*workflow-machine\" src/lib/__tests__/` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC16",
+      "description": "**Given** the boundary/architecture policy tests exist, **When** they are run via `npx vitest run -t 'boundar'`, **Then** all boundary tests pass — no policy violations from the changes. <!-- verification: `npx vitest run -t 'boundar'` exits 0 with 0 failures -->",
+      "status": "pending"
+    }
+  ]
 }

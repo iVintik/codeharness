@@ -159,6 +159,89 @@ tasks_completed:
   - task_name: review
     story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
     completed_at: 2026-04-05T15:02:02.368Z
+  - task_name: retry
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T15:34:41.876Z
+    session_id: b09a34a0-fca8-4613-9121-25d6d962149a
+  - task_name: check
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T15:35:34.497Z
+  - task_name: review
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-05T15:38:00.480Z
+  - task_name: create-story
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-05T15:42:43.813Z
+    session_id: 9e8f97ee-868e-4562-8ada-dff5b42b0d28
+  - task_name: implement
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-05T15:45:52.536Z
+    session_id: d1e48d6e-fb41-47b4-bfc0-d7c1e96d577b
+  - task_name: check
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-05T15:46:39.527Z
+  - task_name: review
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-05T15:48:18.105Z
+  - task_name: retry
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-05T15:53:45.949Z
+    session_id: 53e8414f-986b-4820-a63d-a5fce4b814a4
+  - task_name: check
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-05T15:54:35.742Z
+  - task_name: review
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-05T15:56:46.877Z
+  - task_name: create-story
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-05T16:00:24.692Z
+    session_id: 925ffd02-6000-4a97-9812-046c72660c4e
+  - task_name: implement
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-05T16:12:59.897Z
+    session_id: 391bec4a-46ae-4e33-bed5-016cb72ef5e2
+  - task_name: check
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-05T16:13:48.885Z
+  - task_name: review
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-05T16:16:54.314Z
+  - task_name: retry
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-05T16:27:45.170Z
+    session_id: de978482-fa82-4473-af97-b684248437eb
+  - task_name: check
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-05T16:28:40.799Z
+  - task_name: review
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-05T16:30:43.964Z
+  - task_name: retro
+    story_key: __epic_21__
+    completed_at: 2026-04-05T16:32:58.639Z
+    session_id: 68ab17d4-6d8e-4bf4-a2e8-7ceeee22c711
+  - task_name: create-story
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-05T16:41:30.532Z
+    session_id: abf18b23-eba1-47dd-837b-cf80feadf4d2
+  - task_name: implement
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-05T16:49:07.162Z
+    session_id: b793afc4-6c4d-41db-8599-5d58ec40746d
+  - task_name: check
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-05T16:49:55.889Z
+  - task_name: review
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-05T16:52:08.771Z
+  - task_name: retry
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-05T16:56:24.280Z
+    session_id: 3783759c-7eb3-4ac8-b4f1-686f0b6986c9
+  - task_name: check
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-05T16:57:21.775Z
 evaluator_scores:
   - iteration: 2
     passed: 0
@@ -190,10 +273,31 @@ evaluator_scores:
     unknown: 1
     total: 1
     timestamp: 2026-04-05T14:24:55.746Z
+  - iteration: 4
+    passed: 0
+    failed: 1
+    unknown: 0
+    total: 1
+    timestamp: 2026-04-05T15:38:00.486Z
+  - iteration: 4
+    passed: 0
+    failed: 1
+    unknown: 0
+    total: 1
+    timestamp: 2026-04-05T15:56:46.882Z
+  - iteration: 4
+    passed: 0
+    failed: 1
+    unknown: 0
+    total: 1
+    timestamp: 2026-04-05T16:30:43.967Z
 circuit_breaker:
   triggered: true
   reason: score-stagnation
   score_history:
+    - 0
+    - 0
+    - 0
     - 0
     - 0
     - 0
@@ -246,3 +350,27 @@ trace_ids:
   - ch-run-1775392544381-4-retry
   - ch-run-1775392544381-4-check
   - ch-run-1775392544381-4-review
+  - ch-run-1775402999096-4-retry
+  - ch-run-1775402999096-4-check
+  - ch-run-1775402999096-4-review
+  - ch-run-1775403570109-4-create-story
+  - ch-run-1775403570109-4-implement
+  - ch-run-1775403570109-4-check
+  - ch-run-1775403570109-4-review
+  - ch-run-1775403570109-4-retry
+  - ch-run-1775403570109-4-check
+  - ch-run-1775403570109-4-review
+  - ch-run-1775403570109-4-create-story
+  - ch-run-1775403570109-4-implement
+  - ch-run-1775403570109-4-check
+  - ch-run-1775403570109-4-review
+  - ch-run-1775403570109-4-retry
+  - ch-run-1775403570109-4-check
+  - ch-run-1775403570109-4-review
+  - ch-run-1775403570109-4-retro
+  - ch-run-1775403570109-4-create-story
+  - ch-run-1775403570109-4-implement
+  - ch-run-1775403570109-4-check
+  - ch-run-1775403570109-4-review
+  - ch-run-1775403570109-4-retry
+  - ch-run-1775403570109-4-check

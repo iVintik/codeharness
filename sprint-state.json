@@ -2,10 +2,10 @@
   "version": 2,
   "sprint": {
     "total": 33,
-    "done": 4,
+    "done": 7,
     "failed": 0,
     "blocked": 0,
-    "inProgress": "21-5-delete-workflow-machine-and-hierarchical-flow"
+    "inProgress": "22-1-parse-for-each-blocks"
   },
   "stories": {
     "21-1-extract-workflow-actors": {
@@ -33,27 +33,27 @@
       "lastError": null
     },
     "21-5-delete-workflow-machine-and-hierarchical-flow": {
-      "status": "in-progress",
-      "attempts": 8,
-      "lastAttempt": "2026-04-05T15:02:02.386Z",
+      "status": "done",
+      "attempts": 12,
+      "lastAttempt": "2026-04-05T15:35:34.515Z",
       "lastError": null
     },
     "21-6-migrate-test-imports": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 9,
+      "lastAttempt": "2026-04-05T15:54:35.761Z",
       "lastError": null
     },
     "21-7-dedicated-test-files-per-module": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 7,
+      "lastAttempt": "2026-04-05T16:28:40.818Z",
       "lastError": null
     },
     "22-1-parse-for-each-blocks": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "in-progress",
+      "attempts": 7,
+      "lastAttempt": "2026-04-05T16:57:21.796Z",
       "lastError": null
     },
     "22-2-parse-named-gate-blocks": {
@@ -214,7 +214,7 @@
       "name": "File Decomposition & Migration",
       "status": "in-progress",
       "storiesTotal": 7,
-      "storiesDone": 0
+      "storiesDone": 5
     },
     "epic-22": {
       "name": "Flow Configuration Format & Parser",

@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "22-1-parse-for-each-blocks",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T16:56:24.280Z",
+  "cost_usd": 0.8342271,
+  "duration_ms": 255488,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-parser.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/validate-schema.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/validate.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/__tests__/validate-schema.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-22-1-parse-for-each-blocks.json"
+  ],
+  "testResults": null,
+  "output": "The review found two issues to fix. Let me read the relevant files before implementing.Now I have the full picture. Two concrete fixes needed:\n\n1. `hasLegacyKey` in `workflow-parser.ts` line 114 misses `epic_flow`\n2. `validate` and `validate schema` don't accept a file path arg, and errors go to stdout\n\nLet me fix both:Now fix `validate-schema.ts` — add `[file]` arg support and stderr output:Now add the `runSchemaValidationOnFile` function and update `registerValidateSchemaCommand` to accept an optional file arg:Now update `registerValidateSchemaCommand` to accept the optional `[file]` argument:Now update `validate.ts` to accept an optional `[file]` argument in the default action:There are 8 test failures. Let me see what's failing:The validate-schema test failures are mine — moving to stderr broke tests that capture stdout. Let me check the test file:The test's `runCli` only captures `console.log`. I need to update it to also capture `process.stderr.write`, then fix the 3 assertions that now need to check `stderr`:Now update the 3 failing assertions to check `stderr` for error details:Now check if the other failures (workflow-machines, workflow-runner, ink-renderer-lanes) are pre-existing:Let me pop the stash and check the pre-existing failures:Good — those 4 failures in workflow-machines/workflow-runner are pre-existing, not caused by my changes. Now let me verify my validate-schema fixes work:All 16 validate-schema tests pass. Now run the full suite and confirm only the pre-existing failures remain:4969 passing, 4 pre-existing failures (not mine). Let me also run eslint on the changed files:Zero lint errors. Now let me do a quick end-to-end smoke test of the AC12 fix (the `epic_flow` mutual exclusion bug) and the CLI file path argument:`[FAIL]` goes to stdout, error details go to stderr. All working correctly.Now write the retry contract:Done. Here's what the retry fixed:\n\n**Fix 1 (High — AC12):** `hasLegacyKey` in `workflow-parser.ts:114` now includes `epic_flow`. Previously `workflow: + epic_flow:` was silently accepted; it now rejects with the mutual-exclusion error.\n\n**Fix 2 (Medium — AC1–6, AC11–12):** Both `codeharness validate <file>` and `codeharness validate schema <file>` now accept an optional file path argument. When provided, they validate that single file instead of scanning `.codeharness/workflows/`. Error detail lines were moved from `console.log` (stdout) to `process.stderr.write` (stderr).\n\n**Tests:** 4969/4973 pass. The 4 remaining failures are pre-existing in `workflow-machines` and `workflow-runner` — unrelated to this story.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a YAML file containing a `workflow:` key with `for_each: epic` and nested `steps`, **When** the file is parsed via `codeharness validate <file>`, **Then** the command exits 0 with no errors printed to stderr. <!-- verification: create test YAML with `workflow: { for_each: epic, steps: [retro] }`, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a YAML file with `workflow: { for_each: epic, steps: [{ for_each: story, steps: [create-story, implement] }, retro] }`, **When** parsed via `codeharness validate <file>`, **Then** the command exits 0, confirming nested `for_each` blocks are accepted. <!-- verification: create nested YAML, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a YAML file with a `for_each` block that has no `steps` key (e.g., `workflow: { for_each: epic }`), **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"steps\". <!-- verification: create YAML missing steps, run `codeharness validate <file>`, expect non-zero exit and stderr contains \"steps\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a YAML file with a `for_each` block that has an empty `steps: []` array, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message about empty steps. <!-- verification: create YAML with empty steps, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"empty\" or \"steps\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a YAML file where a `for_each` block is missing the scope value (e.g., `workflow: { for_each: , steps: [...] }`), **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"scope\" or \"for_each\". <!-- verification: create YAML with missing scope, run `codeharness validate <file>`, expect non-zero exit and message about scope -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a YAML file with a `for_each` step that references a task name not defined in `tasks:`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr reports the unknown task name. <!-- verification: create YAML referencing undefined task `ghost-task`, run `codeharness validate <file>`, expect non-zero exit and stderr contains \"ghost-task\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a YAML file using the old `story_flow` / `epic_flow` format (no `workflow:` key), **When** parsed via `codeharness validate <file>`, **Then** the command still exits 0 — backward compatibility is preserved. <!-- verification: run `codeharness validate` against the existing `templates/workflows/default.yaml`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** 4960+ tests pass with zero failures — no regressions from the parser extension. <!-- verification: `npx vitest run` exits 0; pass count >= 4960 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the new parser code is linted via `npx eslint src/lib/workflow-parser.ts`, **When** linting completes, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-parser.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a YAML file with 3 levels of nesting (e.g., `for_each: epic` → `for_each: story` → `for_each: substory`), **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — arbitrary nesting depth is supported. <!-- verification: create 3-level YAML, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** a YAML file that contains BOTH `workflow:` and `story_flow:` keys, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr reports that only one format is allowed. <!-- verification: create YAML with both keys, run `codeharness validate <file>`, expect non-zero exit -->",
+      "status": "pending"
+    }
+  ]
+}

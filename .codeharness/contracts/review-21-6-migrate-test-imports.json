@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "21-6-migrate-test-imports",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T15:56:46.877Z",
+  "cost_usd": null,
+  "duration_ms": 131115,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m reviewing story `21-6-migrate-test-imports` as a code review task. I’ll identify the implementation diff first, then verify the acceptance criteria and look for correctness, security, and architecture issues against the changed files and relevant tests.The implementation appears to be local-only in the worktree, not committed on top of `origin/master`. I’m narrowing the review to the actual source/test changes and the story artifact so I can assess whether the code change matches the AC rather than the bookkeeping files.I’ve isolated the actual code delta: the story currently changes one test file and one source file. Next I’m checking whether that delta actually satisfies the migration story’s acceptance criteria across all referenced tests, or whether the story is only partially implemented.The story artifact claims “no code changes were needed,” but the worktree includes code edits in both a source file and a test. I’m checking whether those edits are legitimate fallout from the migration or whether they’re masking a type-contract problem that should be called out in review.ESLint on the migrated test set is clean. Type-check is still running; once that finishes I’ll know whether the new `unknown as SubagentDefinition` casts are simply silencing a real type mismatch or are incidental.Type-checking does not currently pass, but the failures are broad and pre-existing, not specific to `workflow-machine`. I’m running the story-specific build and boundary checks now so the review can distinguish actual migration coverage from repository-wide baseline issues.The story-specific tests pass, the boundary suite passes, and the build is clean. I’m running the full Vitest suite as the last validation step so the verdict reflects AC1 directly rather than relying on the previous task note.I have one concrete review concern left: the migration itself checks out, but one test edit weakens type-contract coverage instead of preserving it. I’m grabbing exact line numbers so the review is precise.<verdict>fail</verdict>\n\n<issues>\n1. Medium: [workflow-machine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machine.test.ts#L177) weakens the test contract by changing the agent fixtures to `as unknown as SubagentDefinition`. That suppresses compile-time validation for required `SubagentDefinition` fields like `instructions`, `disallowedTools`, and `bare`, so this migration no longer verifies that the test setup matches the production type shape. For a story whose scope is import migration only, that is a regression in coverage rather than a necessary change. Use a valid fixture/helper instead of casting through `unknown`.\n</issues>\n\nI did not find a security issue, and the import migration itself looks correct: no `workflow-machine.js` imports remain under `src/lib/__tests__`, the migrated test files lint cleanly, `npm run build` passes, boundary tests pass, and `npx vitest run` passes with `4960` tests. `npm exec tsc --noEmit` still fails in the repo, but those failures are unrelated to `workflow-machine`.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** the exit code is 0 and the pass count is ≥4960 with zero failures. <!-- verification: `npx vitest run` exits 0; output contains \"passed\" with count >= 4960 and 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the `src/` directory is searched for test files importing from `workflow-machine.js`, **When** `grep -rE \"from.*['\\\"].*workflow-machine\\.js['\\\"]\" src/lib/__tests__/` is run, **Then** zero matches are returned — no test file imports from the deleted shim. <!-- verification: `grep -rE \"from.*['\\\"].*workflow-machine\\.js['\\\"]\" src/lib/__tests__/` produces no output, exit code 1 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** `npx tsc --noEmit` is run, **When** type-checking completes, **Then** no type errors reference `workflow-machine` — the deleted module causes no type resolution failures. <!-- verification: `npx tsc --noEmit 2>&1 | grep -i workflow-machine` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** the test file `src/lib/__tests__/workflow-machine.test.ts` imports `runWorkflowActor`, `loadWorkItems`, `checkDriverHealth`, **When** its imports are inspected, **Then** these symbols come from `../workflow-runner.js`. <!-- verification: `grep -E \"from.*workflow-runner\" src/lib/__tests__/workflow-machine.test.ts` shows runWorkflowActor, loadWorkItems, checkDriverHealth -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** the test file `src/lib/__tests__/workflow-machine.test.ts` imports compiler utilities, **When** its imports are inspected, **Then** `isTaskCompleted`, `isLoopTaskCompleted`, `buildRetryPrompt`, `buildAllUnknownVerdict`, `getFailedItems`, `PER_RUN_SENTINEL` come from `../workflow-compiler.js`. <!-- verification: `grep -E \"from.*workflow-compiler\" src/lib/__tests__/workflow-machine.test.ts` shows these symbols -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** the test file `src/lib/__tests__/workflow-machine.test.ts` imports `buildCoverageDeduplicationContext`, **When** its imports are inspected, **Then** it comes from `../workflow-actors.js`. <!-- verification: `grep \"buildCoverageDeduplicationContext\" src/lib/__tests__/workflow-machine.test.ts | grep \"workflow-actors\"` matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** the test file `src/lib/__tests__/workflow-machine.test.ts` imports types, **When** its imports are inspected, **Then** `EngineConfig`, `EngineError`, `EngineEvent`, `WorkItem` come from `../workflow-types.js`. <!-- verification: `grep -E \"from.*workflow-types\" src/lib/__tests__/workflow-machine.test.ts` shows EngineConfig, EngineError, EngineEvent, WorkItem -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the test file `src/lib/__tests__/workflow-engine.test.ts` imports values, **When** its imports are inspected, **Then** `runWorkflowActor`, `loadWorkItems` from `../workflow-runner.js`; `dispatchTask`, `executeLoopBlock` from `../workflow-machines.js`; `parseVerdict` from `../verdict-parser.js`; compiler utilities from `../workflow-compiler.js`; `buildCoverageDeduplicationContext` from `../workflow-actors.js`. <!-- verification: `grep -E \"^import\" src/lib/__tests__/workflow-engine.test.ts` shows no workflow-machine.js references; shows workflow-runner, workflow-machines, verdict-parser, workflow-compiler, workflow-actors -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the test file `src/lib/__tests__/driver-health-check.test.ts` imports values, **When** its imports are inspected, **Then** `checkDriverHealth`, `runWorkflowActor` from `../workflow-runner.js`; `EngineConfig` from `../workflow-types.js`. <!-- verification: `grep -E \"^import\" src/lib/__tests__/driver-health-check.test.ts | grep -v vitest` shows workflow-runner and workflow-types, no workflow-machine -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the test file `src/lib/__tests__/story-flow-execution.test.ts` imports values, **When** its imports are inspected, **Then** `runWorkflowActor` from `../workflow-runner.js`; `EngineConfig` from `../workflow-types.js`. <!-- verification: `grep -E \"^import\" src/lib/__tests__/story-flow-execution.test.ts | grep -v vitest` shows workflow-runner and workflow-types, no workflow-machine -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the test file `src/lib/__tests__/null-task-engine.test.ts` imports values, **When** its imports are inspected, **Then** `runWorkflowActor`, `checkDriverHealth` from `../workflow-runner.js`; `executeLoopBlock` from `../workflow-machines.js`; `isTaskCompleted`, `PER_RUN_SENTINEL` from `../workflow-compiler.js`; types from `../workflow-types.js`. <!-- verification: `grep -E \"^import\" src/lib/__tests__/null-task-engine.test.ts | grep -v vitest` shows workflow-runner, workflow-machines, workflow-compiler, workflow-types, no workflow-machine -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the test file `src/lib/__tests__/lane-pool.test.ts` imports `EngineResult`, **When** its imports are inspected, **Then** it comes from `../workflow-compiler.js`. <!-- verification: `grep \"EngineResult\" src/lib/__tests__/lane-pool.test.ts | grep \"workflow-compiler\"` matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** the linter is run on all migrated test files, **When** `npx eslint src/lib/__tests__/workflow-machine.test.ts src/lib/__tests__/workflow-engine.test.ts src/lib/__tests__/driver-health-check.test.ts src/lib/__tests__/story-flow-execution.test.ts src/lib/__tests__/null-task-engine.test.ts src/lib/__tests__/lane-pool.test.ts` completes, **Then** it exits 0 with zero errors. <!-- verification: eslint command above exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "**Given** the boundary/architecture policy tests exist, **When** `npx vitest run -t 'boundar'` is run, **Then** all boundary tests pass with zero failures — import migration doesn't violate architectural constraints. <!-- verification: `npx vitest run -t 'boundar'` exits 0 -->",
+      "status": "pending"
+    }
+  ]
+}

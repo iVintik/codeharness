@@ -1,5 +1,5 @@
 # codeharness Sprint Status (auto-generated from sprint-state.json)
-# generated: 2026-04-05
+# generated: 2026-04-06
 # This file is a derived view — do NOT edit manually.
 # Source of truth: sprint-state.json
 
@@ -38,7 +38,7 @@ development_status:
 
   # Epic 25
   epic-25: backlog
-  25-1-gate-machine: in-progress
+  25-1-gate-machine: review
   25-2-story-machine: backlog
   25-3-epic-machine-for-each-story-iteration: backlog
   25-4-run-machine-for-each-epic-iteration: backlog

@@ -34,6 +34,24 @@ function resolveStoryKey(ctx: GateContext): string {
   return ctx.parentItemKey ? `${ctx.parentItemKey}:${ctx.gate.gate}` : ctx.gate.gate;
 }
 
+/**
+ * Combine two AbortSignals so either one aborting aborts the result.
+ * Falls back to a manual controller when AbortSignal.any is unavailable.
+ */
+function mergeSignals(existing: AbortSignal | undefined, next: AbortSignal): AbortSignal {
+  if (!existing) return next;
+  // AbortSignal.any is available in Node 20.3+ and modern browsers
+  if (typeof (AbortSignal as { any?: unknown }).any === 'function') {
+    return (AbortSignal as { any: (s: AbortSignal[]) => AbortSignal }).any([existing, next]);
+  }
+  const ctrl = new AbortController();
+  const abort = () => ctrl.abort();
+  if (existing.aborted || next.aborted) { ctrl.abort(); return ctrl.signal; }
+  existing.addEventListener('abort', abort, { once: true });
+  next.addEventListener('abort', abort, { once: true });
+  return ctrl.signal;
+}
+
 /** Compute aggregate evaluator score from current verdicts map. */
 function computeVerdictScore(verdicts: Record<string, string>, iteration: number): EvaluatorScore {
   let passed = 0; let failed = 0; let unknown = 0;
@@ -51,10 +69,11 @@ function computeVerdictScore(verdicts: Record<string, string>, iteration: number
  * a verdict string per task into context.verdicts. Throws on abort/halt errors;
  * non-fatal errors are accumulated into context.errors.
  */
-const checkPhaseActor = fromPromise(async ({ input }: { input: GateContext }): Promise<GateContext> => {
-  let ctx = { ...input };
+const checkPhaseActor = fromPromise(async ({ input, signal }: { input: GateContext; signal: AbortSignal }): Promise<GateContext> => {
+  let ctx = { ...input, config: { ...input.config, abortSignal: mergeSignals(input.config.abortSignal, signal) } };
   const storyKey = resolveStoryKey(ctx);
   for (const taskName of ctx.gate.check) {
+    if (signal.aborted) throw Object.assign(new Error('Gate interrupted'), { name: 'AbortError' });
     const task = ctx.config.workflow.tasks[taskName];
     if (!task) { warn(`gate-machine: check task "${taskName}" not found, skipping`); continue; }
     let out: DispatchOutput;
@@ -80,10 +99,11 @@ const checkPhaseActor = fromPromise(async ({ input }: { input: GateContext }): P
  * Fix phase actor: runs all gate.fix tasks sequentially. Resets verdicts to {}
  * so the next check phase starts fresh. Throws on abort/halt errors.
  */
-const fixPhaseActor = fromPromise(async ({ input }: { input: GateContext }): Promise<GateContext> => {
-  let ctx = { ...input, verdicts: {} as Record<string, string> };
+const fixPhaseActor = fromPromise(async ({ input, signal }: { input: GateContext; signal: AbortSignal }): Promise<GateContext> => {
+  let ctx = { ...input, verdicts: {} as Record<string, string>, config: { ...input.config, abortSignal: mergeSignals(input.config.abortSignal, signal) } };
   const storyKey = resolveStoryKey(ctx);
   for (const taskName of ctx.gate.fix) {
+    if (signal.aborted) throw Object.assign(new Error('Gate interrupted'), { name: 'AbortError' });
     const task = ctx.config.workflow.tasks[taskName];
     if (!task) { warn(`gate-machine: fix task "${taskName}" not found, skipping`); continue; }
     let out: DispatchOutput;
@@ -168,8 +188,8 @@ export const gateMachine = setup({
         onDone: { target: 'evaluate', actions: assign(({ event }) => event.output) },
         onError: [
           { guard: 'isAbortError', target: 'interrupted' },
-          { guard: 'isHaltError', target: 'halted', actions: assign(({ context, event }) => ({ halted: true, errors: [...context.errors, toGateError((event as { error?: unknown }).error, 'check-phase', context.gate.gate)] })) },
-          { target: 'halted', actions: assign(({ context, event }) => ({ errors: [...context.errors, toGateError((event as { error?: unknown }).error, 'check-phase', context.gate.gate)] })) },
+          { guard: 'isHaltError', target: 'halted', actions: assign(({ context, event }) => ({ halted: true, errors: [...context.errors, toGateError((event as { error?: unknown }).error, 'check-phase', resolveStoryKey(context))] })) },
+          { target: 'halted', actions: assign(({ context, event }) => ({ errors: [...context.errors, toGateError((event as { error?: unknown }).error, 'check-phase', resolveStoryKey(context))] })) },
         ],
       },
     },
@@ -203,8 +223,8 @@ export const gateMachine = setup({
         onDone: { target: 'checking', actions: assign(({ event }) => event.output) },
         onError: [
           { guard: 'isAbortError', target: 'interrupted' },
-          { guard: 'isHaltError', target: 'halted', actions: assign(({ context, event }) => ({ halted: true, errors: [...context.errors, toGateError((event as { error?: unknown }).error, 'fix-phase', context.gate.gate)] })) },
-          { target: 'halted', actions: assign(({ context, event }) => ({ errors: [...context.errors, toGateError((event as { error?: unknown }).error, 'fix-phase', context.gate.gate)] })) },
+          { guard: 'isHaltError', target: 'halted', actions: assign(({ context, event }) => ({ halted: true, errors: [...context.errors, toGateError((event as { error?: unknown }).error, 'fix-phase', resolveStoryKey(context))] })) },
+          { target: 'halted', actions: assign(({ context, event }) => ({ errors: [...context.errors, toGateError((event as { error?: unknown }).error, 'fix-phase', resolveStoryKey(context))] })) },
         ],
       },
     },

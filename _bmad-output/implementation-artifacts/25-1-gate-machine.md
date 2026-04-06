@@ -2,7 +2,7 @@
 
 # Story 25-1: Create gate machine
 
-Status: draft
+Status: review
 
 ## Story
 
@@ -254,22 +254,54 @@ Mock the async I/O boundary (actors) to make tests fast and deterministic:
 
 ## Verification Requirements
 
-- [ ] All acceptance criteria verified via CLI commands (npm run build, npx vitest run, npx eslint, wc -l)
+- [x] All acceptance criteria verified via CLI commands (npm run build, npx vitest run, npx eslint, wc -l)
 - [ ] Proof document at `verification/25-1-gate-machine-proof.md`
-- [ ] Evidence is reproducible — all verification commands can be re-run
+- [x] Evidence is reproducible — all verification commands can be re-run
 
 ## Documentation Requirements
 
-- [ ] Inline JSDoc on gate machine setup, guards, and exported factory
+- [x] Inline JSDoc on gate machine setup, guards, and exported factory
 - [ ] Per-subsystem AGENTS.md updated if new file created
 - [ ] Exec-plan created at `docs/exec-plans/active/25-1-gate-machine.md`
 
 ## Testing Requirements
 
-- [ ] Tests written for all new code (gate machine states, guards, transitions, output)
-- [ ] Tests cover all four final states (passed, maxedOut, halted, interrupted)
-- [ ] Tests cover the full fix-and-retry cycle
-- [ ] All tests passing — zero regressions
-- [ ] Test file ≤ 300 lines (per NFR18)
+- [x] Tests written for all new code (gate machine states, guards, transitions, output)
+- [x] Tests cover all four final states (passed, maxedOut, halted, interrupted)
+- [x] Tests cover the full fix-and-retry cycle
+- [x] All tests passing — zero regressions
+- [x] Test file ≤ 300 lines (per NFR18)
+
+## Dev Agent Record
+
+### Implementation Notes
+
+- Created `src/lib/workflow-gate-machine.ts` (236 lines, within NFR18 ≤300 limit) with XState v5 `setup()` + `createMachine()` gate machine
+- Used phase-level actors (`checkPhaseActor`, `fixPhaseActor`) as `fromPromise` wrappers that run all tasks sequentially — simpler and more testable than per-task substates
+- Guards implemented as pure functions: `allPassed` (uses `parseVerdict`), `maxRetries`, `circuitBreaker`, `isAbortError`, `isHaltError`
+- `evaluate` entry action increments iteration + evaluates circuit breaker in a single `assign` — XState v5 guarantees entry runs before `always` transitions
+- Verdicts reset inside `fixPhaseActor` so next check phase starts fresh
+- Exported `GateOutput` type co-located with machine; input reuses `GateContext` directly
+- No imports from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` (boundary respected)
+- Test file `src/lib/__tests__/workflow-gate-machine.test.ts` (245 lines) — 13 tests covering all final states, fix-retry cycle, multi-task verdicts, null task path, halt error, machine output shape, nested-gate story keys, and interrupt signal propagation
+
+### Verification Results
+
+- `npm run build` — exits 0, no TypeScript errors
+- `npx vitest run` — 5117 tests pass, 0 failures, 194 test files (no regressions)
+- `npx eslint src/` — 0 warnings, 0 errors
+- `wc -l src/lib/workflow-gate-machine.ts` — 236 lines (≤300 ✓)
+- `wc -l src/lib/__tests__/workflow-gate-machine.test.ts` — 245 lines (≤300 ✓)
+- Boundary check: no imports from runner/visualizer/persistence ✓
+
+### File List
+
+- `src/lib/workflow-gate-machine.ts` — new file: XState v5 gate machine definition
+- `src/lib/__tests__/workflow-gate-machine.test.ts` — new file: 13 comprehensive unit tests
+- `_bmad-output/implementation-artifacts/25-1-gate-machine.md` — status updated to review
+
+### Change Log
+
+- 2026-04-06: Implemented story 25-1 — gate machine with checking → evaluate → fixing cycle, 4 final states, 5 pure guards, phase-level actors, 13 unit tests. Build clean, lint clean, all 5117 tests pass.
 
 </story-spec>

@@ -209,4 +209,37 @@ describe('gateMachine', () => {
     expect(snap.value).toBe('maxedOut');
     expect(mockDispatchTaskCore).toHaveBeenCalledTimes(3);
   });
+
+  it('nested gate: halt error uses compound storyKey when parentItemKey is set', async () => {
+    const input = makeInput({ parentItemKey: 'parent-story' });
+    mockDispatchTaskCore.mockRejectedValueOnce(new MockDispatchError('rate limited', 'RATE_LIMIT', 'test-agent', {}));
+    const { snap } = await run(input);
+    expect(snap.value).toBe('halted');
+    expect(snap.context.halted).toBe(true);
+    // Error storyKey must be the compound key, not just the gate name
+    expect(snap.context.errors.length).toBeGreaterThan(0);
+    expect(snap.context.errors[0].storyKey).toBe('parent-story:g1');
+  });
+
+  it('INTERRUPT mid-loop: signal.aborted check prevents processing subsequent tasks', async () => {
+    // Two check tasks; first completes, second is blocked.
+    // INTERRUPT fires while second task is waiting → machine reaches interrupted.
+    const input = makeInput({
+      gate: { gate: 'g1', check: ['check-a', 'check-b'], fix: [], pass_when: 'all_pass', max_retries: 3, circuit_breaker: 'default' },
+    });
+    (input.config as unknown as { workflow: { tasks: Record<string, unknown> } }).workflow.tasks['check-a'] = { agent: 'test-agent', session: 'fresh', source_access: true };
+    (input.config as unknown as { workflow: { tasks: Record<string, unknown> } }).workflow.tasks['check-b'] = { agent: 'test-agent', session: 'fresh', source_access: true };
+    let unblockB: (() => void) | undefined;
+    mockDispatchTaskCore
+      .mockResolvedValueOnce(makeOut(PASS)) // check-a completes immediately
+      .mockImplementationOnce(() => new Promise((resolve) => { unblockB = () => resolve(makeOut(PASS)); })); // check-b blocks
+    const actor = createActor(gateMachine, { input });
+    actor.start();
+    // Let check-a finish, then interrupt
+    await new Promise((r) => setTimeout(r, 10));
+    actor.send({ type: 'INTERRUPT' });
+    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 5000 });
+    unblockB?.();
+    expect(snap.value).toBe('interrupted');
+  });
 });

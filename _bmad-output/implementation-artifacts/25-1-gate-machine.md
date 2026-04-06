@@ -255,7 +255,7 @@ Mock the async I/O boundary (actors) to make tests fast and deterministic:
 ## Verification Requirements
 
 - [x] All acceptance criteria verified via CLI commands (npm run build, npx vitest run, npx eslint, wc -l)
-- [ ] Proof document at `verification/25-1-gate-machine-proof.md`
+- [x] Proof document at `verification/25-1-gate-machine-proof.md`
 - [x] Evidence is reproducible — all verification commands can be re-run
 
 ## Documentation Requirements
@@ -299,6 +299,7 @@ Mock the async I/O boundary (actors) to make tests fast and deterministic:
 - `src/lib/workflow-gate-machine.ts` — new file: XState v5 gate machine definition
 - `src/lib/__tests__/workflow-gate-machine.test.ts` — new file: 13 comprehensive unit tests
 - `_bmad-output/implementation-artifacts/25-1-gate-machine.md` — status updated to review
+- `verification/25-1-gate-machine-proof.md` — acceptance-criteria proof for this story
 
 ### Change Log
 

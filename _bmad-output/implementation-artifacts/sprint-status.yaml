@@ -37,7 +37,7 @@ development_status:
   24-5-compile-flow-recursive-entry-point: done
 
   # Epic 25
-  epic-25: backlog
+  epic-25: in-progress
   25-1-gate-machine: review
   25-2-story-machine: backlog
   25-3-epic-machine-for-each-story-iteration: backlog

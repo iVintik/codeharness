@@ -288,6 +288,27 @@ describe('epicMachine', () => {
     expect(snap.value).toBe('interrupted');
   });
 
+  it('INTERRUPT propagates to child story machine via abort signal: second story dispatch never called', async () => {
+    // The first story task blocks indefinitely; we interrupt mid-flight.
+    // After interrupt, second story must not be dispatched — proving abort signal wires through.
+    let unblock: (() => void) | undefined;
+    mockDispatchTaskCore.mockImplementation(() => new Promise((resolve) => { unblock = () => resolve(makeOut()); }));
+    const input = makeEpicInput({
+      epicItems: [{ key: 'story-1', source: 'sprint' }, { key: 'story-2', source: 'sprint' }],
+      storyFlow: ['story-task'],
+    });
+    const actor = createActor(epicMachine, { input });
+    actor.start();
+    await new Promise((r) => setTimeout(r, 10));
+    actor.send({ type: 'INTERRUPT' });
+    unblock?.();
+    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 5000 });
+    expect(snap.value).toBe('interrupted');
+    // Only one dispatch call (first story's task); story-2 never dispatched
+    expect(mockDispatchTaskCore).toHaveBeenCalledTimes(1);
+    expect(mockDispatchTaskCore.mock.calls[0][0]).toMatchObject({ storyKey: 'story-1' });
+  });
+
   it('epic with mixed epic-level steps task → gate → task: processed in order, context flows', async () => {
     mockDispatchTaskCore
       .mockResolvedValueOnce(makeOut()) // task-a (epic-level)

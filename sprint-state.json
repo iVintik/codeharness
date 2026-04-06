@@ -2,10 +2,10 @@
   "version": 2,
   "sprint": {
     "total": 33,
-    "done": 19,
+    "done": 22,
     "failed": 0,
     "blocked": 0,
-    "inProgress": null
+    "inProgress": "25-5-wire-run-workflow-actor-to-compiled-machines"
   },
   "stories": {
     "21-1-extract-workflow-actors": {
@@ -123,33 +123,33 @@
       "lastError": null
     },
     "25-1-gate-machine": {
-      "status": "review",
-      "attempts": 8,
-      "lastAttempt": "2026-04-06T02:47:03.182Z",
+      "status": "done",
+      "attempts": 17,
+      "lastAttempt": "2026-04-06T13:06:53.660Z",
       "lastError": null
     },
     "25-2-story-machine": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 16,
+      "lastAttempt": "2026-04-06T13:24:31.843Z",
       "lastError": null
     },
     "25-3-epic-machine-for-each-story-iteration": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 14,
+      "lastAttempt": "2026-04-06T13:42:42.028Z",
       "lastError": null
     },
     "25-4-run-machine-for-each-epic-iteration": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "in-progress",
+      "attempts": 10,
+      "lastAttempt": "2026-04-06T05:38:05.838Z",
       "lastError": null
     },
     "25-5-wire-run-workflow-actor-to-compiled-machines": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "in-progress",
+      "attempts": 10,
+      "lastAttempt": "2026-04-06T05:39:22.810Z",
       "lastError": null
     },
     "26-1-xstate-snapshot-persistence": {
@@ -238,7 +238,7 @@
       "name": "XState Machine Hierarchy",
       "status": "in-progress",
       "storiesTotal": 5,
-      "storiesDone": 0
+      "storiesDone": 3
     },
     "epic-26": {
       "name": "Persistence & Resume",

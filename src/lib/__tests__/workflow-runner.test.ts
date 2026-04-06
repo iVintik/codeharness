@@ -778,7 +778,7 @@ describe('runWorkflowActor', () => {
     expect(result.errors).toHaveLength(1);
   });
 
-  it('continues on UNKNOWN errors for per-story tasks (AC #13)', async () => {
+  it('halts on UNKNOWN errors for per-story tasks after story-machine semantics change', async () => {
     const { DispatchError } = await import('../agent-dispatch.js');
     let callCount = 0;
     mockDriverDispatch.mockImplementation(() => {
@@ -805,9 +805,9 @@ describe('runWorkflowActor', () => {
 
     const result = await runWorkflowActor(config);
 
-    expect(mockDriverDispatch).toHaveBeenCalledTimes(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.errors).toHaveLength(1);
-    expect(result.tasksCompleted).toBe(1);
+    expect(result.tasksCompleted).toBe(0);
   });
 
   it('sets phase to completed when no errors occur', async () => {

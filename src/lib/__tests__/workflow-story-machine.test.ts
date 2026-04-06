@@ -224,12 +224,12 @@ describe('storyMachine', () => {
     expect(mockDispatchTaskCore.mock.calls[2][0]).toMatchObject({ taskName: 'task-b' });
   });
 
-  it('non-halt error from plain task: error recorded in errors array, machine finishes done (non-halt errors do not halt pipeline)', async () => {
+  it('non-halt error from plain task: error recorded in errors array and machine transitions to halted', async () => {
     mockDispatchTaskCore.mockRejectedValueOnce(new Error('unexpected failure'));
     const { snap } = await run(makeInput({ storyFlow: ['task-a'] }));
-    // Non-halt errors stop the current story (break) but set halted=false so the epic continues
-    expect(snap.value).toBe('done');
-    expect(snap.context.halted).toBe(false);
+    // Story-level errors always halt the story — no retry at story level (unlike gate-level where non-halt errors allow continuation).
+    expect(snap.value).toBe('halted');
+    expect(snap.output?.halted).toBe(true);
     expect(snap.context.errors.length).toBeGreaterThan(0);
     expect(snap.context.errors[0].taskName).toBe('task-a');
   });

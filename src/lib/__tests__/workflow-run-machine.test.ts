@@ -212,14 +212,15 @@ describe('runMachine', () => {
     expect(snap.output?.workflowState.phase).toBe('interrupted');
   });
 
-  it('run epic error recorded in run errors array with taskName and storyKey fields', async () => {
+  it('run epic non-halt story error halts run and records error metadata', async () => {
     mockDispatchTaskCore.mockRejectedValueOnce(new Error('unexpected failure'));
     const input = makeRunInput({
       epicEntries: [['17', [{ key: 'story-1' }]]],
       storyFlow: ['story-task'],
     });
     const { snap } = await run(input);
-    expect(snap.value).toBe('allDone');
+    expect(snap.value).toBe('halted');
+    expect(snap.output?.halted).toBe(true);
     expect(snap.output?.errors.length).toBeGreaterThan(0);
     const err = snap.output!.errors[0];
     expect(err).toHaveProperty('taskName');

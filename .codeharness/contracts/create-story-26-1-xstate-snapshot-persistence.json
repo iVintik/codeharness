@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "26-1-xstate-snapshot-persistence",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-06T17:20:40.193Z",
+  "cost_usd": 1.0080702000000001,
+  "duration_ms": 223915,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/26-1-xstate-snapshot-persistence.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the key files:Now let me read the story template and existing implementation files:Now let me look at a recent completed story for format reference:Now let me check what Epic 26 actually is — the user referenced \"26-1-xstate-snapshot-persistence\" which maps to Epic 5 (Persistence & Resume) in the XState engine epic breakdown. Let me also check what's been implemented and what exists for persistence:Now I have all the context. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/26-1-xstate-snapshot-persistence.md`.\n\n**Summary:**\n\n- **13 ACs**, all verifiable by a blind QA agent using `ls`, `cat`, `jq`, `wc -l`, `npm run build`, `npx vitest run`, and file system inspection — no source code or internal data structure references\n- **10 tasks** covering: config hash computation, upgraded snapshot format, atomic writes, corrupt file handling, inspect callback wiring, interrupt save, completion cleanup, directory creation, unit tests, and build verification\n- **Scope**: upgrades `workflow-persistence.ts` and wires `workflow-runner.ts` — no machine file changes\n- **Explicitly deferred**: resume from snapshot (26-2), checkpoint log (26-3), completion cleanup edge cases (26-4)",
+  "acceptanceCriteria": []
+}

@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "26-1-xstate-snapshot-persistence",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T17:27:08.016Z",
+  "cost_usd": 1.2542314499999998,
+  "duration_ms": 387805,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-persistence.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-persistence.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machines.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/driver-health-check.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/null-task-engine.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-runner.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/story-flow-execution.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/AGENTS.md",
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/26-1-xstate-snapshot-persistence.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the existing source files:Now let me check existing tests for workflow-persistence:Now I have everything I need. Let me implement the changes:Now update `workflow-runner.ts` to wire snapshot saving and clearing:Now update the `runWorkflowActor` to wire snapshot saving:Now add `clearSnapshot` on successful completion:Now rewrite the `workflow-persistence.test.ts` to match the new API:Now update the 5 other test files that mock `workflow-persistence.js` to include `clearSnapshot` and `computeConfigHash`:Now update the AGENTS.md to reflect the new exports:Now run build and tests:Build passes. Now run the tests for the changed files:All 20 tests pass. Now run the other affected test files:209 tests pass. Now run the full test suite:The codebase requires `// IGNORE:` comments on catch blocks. Let me fix them:All 5177 tests pass. Now run lint:Zero lint warnings. Let me also verify the file size constraint:Both files are well under 300 lines. Let me update the story spec with completion notes:Done. Here's what was implemented:\n\n**Story 26-1: XState snapshot persistence via `getPersistedSnapshot()`**\n\n### Changes\n\n**`workflow-persistence.ts`** (138 → 186 lines):\n- `computeConfigHash(config)` — SHA-256 of stable-key-sorted `config.workflow` JSON; same config = same hash, any task/flow change = different hash\n- New `XStateWorkflowSnapshot` type with `snapshot`, `configHash`, `savedAt`\n- `saveSnapshot(xstateSnapshot, configHash, projectDir?)` — atomic write via `.tmp` + `renameSync`; directory auto-created\n- `loadSnapshot()` — handles corrupt/truncated JSON (warns \"corrupt\"), wrong shape (warns \"invalid\"), stale `.tmp` cleanup\n- `clearSnapshot()` — targets new `workflow-snapshot.json` filename\n- All catch blocks have `// IGNORE:` per codebase convention\n\n**`workflow-runner.ts`**:\n- Imports `saveSnapshot`, `clearSnapshot`, `computeConfigHash` from persistence\n- `computeConfigHash` called once before actor creation\n- `actor.subscribe({ next })` saves snapshot after every state transition (covers task completions, interrupt, halt)\n- `clearSnapshot()` called on success only; preserved on halt/error/interrupt for story 26-2 resume\n\n**Tests**: 20 new tests in `workflow-persistence.test.ts`; 6 other test files updated with `clearSnapshot` and `computeConfigHash` in their module mocks.\n\n**Results**: 5177/5177 tests pass, 0 lint warnings, build exits 0, `workflow-persistence.ts` = 186 lines (≤ 300 NFR18 ✓).",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow run that completes at least one task successfully, **When** the user inspects the `.codeharness/` directory via `ls .codeharness/`, **Then** a file named `workflow-snapshot.json` is present. <!-- verification: docker exec / ls .codeharness/ | grep workflow-snapshot.json -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow run where three tasks complete in sequence, **When** the user reads `.codeharness/workflow-snapshot.json` after the run, **Then** the JSON file contains a top-level `snapshot` field (the XState persisted snapshot), a `configHash` field (a non-empty string), and a `savedAt` field (an ISO 8601 timestamp). <!-- verification: docker exec / cat .codeharness/workflow-snapshot.json | jq '.snapshot, .configHash, .savedAt' — all non-null -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow run that is interrupted (user sends SIGINT or presses q), **When** the user reads `.codeharness/workflow-snapshot.json`, **Then** the file exists and contains a valid snapshot saved before the actor stopped — the `savedAt` timestamp is within 5 seconds of the interrupt time. <!-- verification: interrupt workflow via signal, then cat .codeharness/workflow-snapshot.json | jq '.savedAt' — timestamp present and recent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow run where the first task completes and then a second task is dispatched, **When** the user reads `.codeharness/workflow-snapshot.json` after the first task completes (before second finishes), **Then** the snapshot reflects the state after the first task — the file is updated after each task completion, not just at the end. <!-- verification: monitor file modification time during run; mtime updates after each task dispatch completes -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a workflow run that completes successfully with zero errors, **When** the user checks `.codeharness/workflow-snapshot.json` after the run finishes, **Then** the file does NOT exist — it was cleaned up on successful completion. <!-- verification: after successful run, ls .codeharness/workflow-snapshot.json returns \"No such file\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a workflow run that halts due to errors (e.g., all retries exhausted, rate limit), **When** the user checks `.codeharness/workflow-snapshot.json`, **Then** the file EXISTS and is preserved — it was NOT cleaned up because the run did not complete successfully. <!-- verification: after halted run, cat .codeharness/workflow-snapshot.json returns valid JSON -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a saved `workflow-snapshot.json` file, **When** the user reads its content, **Then** the `configHash` field is a deterministic hash string — running the same workflow config always produces the same hash value, and changing any task definition or workflow step produces a different hash. <!-- verification: run workflow twice with same config, compare configHash values — they match. Change a task model, run again — configHash differs. -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a workflow snapshot file that was partially written (simulated by truncating the file to 50 bytes), **When** the engine attempts to load it on the next run, **Then** the engine logs a warning message containing \"corrupt\" or \"invalid\" and treats it as if no snapshot exists — the run starts fresh without crashing. <!-- verification: truncate .codeharness/workflow-snapshot.json to 50 bytes, start run, check logs for warning -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the project directory has no `.codeharness/` directory, **When** a workflow run starts and the first task completes, **Then** the `.codeharness/` directory is created automatically and the snapshot file is written — no error about missing directory. <!-- verification: rm -rf .codeharness/, start workflow, ls .codeharness/workflow-snapshot.json — file exists -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a workflow run in progress, **When** a power failure is simulated by killing the process with SIGKILL during a task, **Then** on the next run the snapshot file is either valid JSON (from the last successful atomic write) or absent — it is never a partially-written corrupt file that crashes the engine. <!-- verification: kill -9 during task, then start new run — engine starts without crash, logs indicate fresh start or loaded snapshot -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the codebase after implementation, **When** `npm run build` is executed, **Then** it exits with code 0. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** zero failures — no regressions. <!-- verification: npx vitest run exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the workflow-persistence.ts file, **When** its line count is checked, **Then** it is ≤ 300 lines (per NFR18). <!-- verification: wc -l src/lib/workflow-persistence.ts ≤ 300 -->",
+      "status": "pending"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 33,
-    "done": 24,
+    "done": 25,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -153,9 +153,9 @@
       "lastError": null
     },
     "26-1-xstate-snapshot-persistence": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 3,
+      "lastAttempt": "2026-04-06T17:27:08.030Z",
       "lastError": null
     },
     "26-2-snapshot-resume-config-hash-validation": {
@@ -235,7 +235,9 @@
       "storiesDone": 5
     },
     "epic-25": {
-      "status": "done"
+      "status": "done",
+      "storiesTotal": 5,
+      "storiesDone": 5
     },
     "epic-26": {
       "name": "Persistence & Resume",

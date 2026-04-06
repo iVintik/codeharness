@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "25-1-gate-machine",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T02:36:23.064Z",
+  "cost_usd": 0.5302734,
+  "duration_ms": 141914,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/25-1-gate-machine.md",
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/implement-25-1-gate-machine.json"
+  ],
+  "testResults": null,
+  "output": "Now let me explore the existing codebase to understand the current state:The implementation already exists. Let me check the current state - run tests, build, and lint:Zero lint warnings. Let me also run the full test suite and check the file size:All checks pass. Now let me update the story status to \"review\" and fill in the required sections:Now update all Tasks/Subtasks checkboxes and the Dev Agent Record:Now check the contract file to see if there's a harness contract to update:Let me write the implement contract for the harness:Story 25-1 is complete. Here's the summary:\n\n---\n\n**Story 25-1: Create gate machine — DONE**\n\nThe implementation was already present in the codebase. All checks pass clean:\n\n| Check | Result |\n|---|---|\n| `npm run build` | ✅ exits 0, no TypeScript errors |\n| `npx vitest run` | ✅ 5115 tests pass, 0 failures, 194 files |\n| `npx eslint src/` (with `--fix`) | ✅ 0 warnings, 0 errors |\n| `wc -l workflow-gate-machine.ts` | ✅ 216 lines (≤300 NFR18) |\n| `wc -l workflow-gate-machine.test.ts` | ✅ 212 lines (≤300 NFR18) |\n| Boundary check (no runner/viz/persistence imports) | ✅ clean |\n\n**Files:**\n- `src/lib/workflow-gate-machine.ts` — XState v5 gate machine with `setup()` + `createMachine()`, phase-level actors (`checkPhaseActor`, `fixPhaseActor`), 5 pure guards, 4 final states\n- `src/lib/__tests__/workflow-gate-machine.test.ts` — 11 unit tests covering all final states, fix-retry cycle, multi-task verdicts, null task path, halt error, output shape, guard purity\n- Story status set to **review**",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from adding the gate machine. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a test that creates and starts a gate machine with all check tasks configured to return passing verdicts, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `passed` final state — the gate exited because all checks passed. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*machine.*passed\" or \"gate.*allPassed\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a test that creates and starts a gate machine where check tasks return failing verdicts and the iteration count equals `max_retries`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `maxedOut` final state — the gate exited because retry limit was hit. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*maxedOut\" or \"gate.*maxRetries\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a test that creates and starts a gate machine where the circuit breaker condition triggers, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `halted` final state — the gate exited due to stagnation detection. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*halted\" or \"gate.*circuitBreaker\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a test that creates and starts a gate machine and then sends an `INTERRUPT` event, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `interrupted` final state — the gate stopped because it was interrupted. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*interrupted\" or \"gate.*INTERRUPT\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a test that creates and starts a gate machine where check tasks fail on the first cycle but pass on the second cycle, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine completes a full checking → evaluate → fixing → checking → evaluate → passed cycle — the fix-and-retry loop worked. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*cycle\" or \"gate.*fixing.*checking.*passed\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a test that creates a gate machine with two check tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming both check tasks are invoked sequentially and each produces a verdict entry in the gate context — verdicts accumulate per check task. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*verdict\" or \"gate.*check.*sequential\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a test that creates a gate machine with a check task whose actor throws a halt error (e.g., `RATE_LIMIT`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine transitions to `halted` — halt errors from actors stop the gate. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*halt.*error\" or \"gate.*RATE_LIMIT.*halted\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the gate machine definition file, **When** `npx eslint` is run against it, **Then** it exits with code 0 and produces no lint errors. <!-- verification: `npx eslint src/lib/workflow-gate-machine.ts` (or workflow-machines.ts) exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the gate machine definition file, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l <file>` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** a test that creates a gate machine with `null` agent check tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming null tasks are dispatched through the null task actor path — not the agent dispatch actor. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*null.*task\" or \"gate.*nullTask\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the gate machine source file, **When** its imports are inspected, **Then** it does not import from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` — boundary rules are respected (machines depend on types, actors, compiler — not runner/viz/persistence). <!-- verification: `grep \"from.*workflow-runner\\|from.*workflow-visualizer\\|from.*workflow-persistence\" <file>` returns no matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** a test that creates a gate machine and runs it to completion, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine output includes updated `workflowState`, accumulated `errors`, `tasksCompleted` count, and `accumulatedCostUsd` — the gate returns structured results to its parent. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"gate.*output\" or \"gate.*result\" -->",
+      "status": "pending"
+    }
+  ]
+}

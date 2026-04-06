@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "25-3-epic-machine-for-each-story-iteration",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-06T03:16:43.147Z",
+  "cost_usd": 1.0482764,
+  "duration_ms": 253690,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/25-3-epic-machine-for-each-story-iteration.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the epic 25 definition from epics.md:Now I have everything I need. Let me also check the 25-1 story spec to ensure format consistency:I have all the context. Now I'll write the story spec.Story spec written to `_bmad-output/implementation-artifacts/25-3-epic-machine-for-each-story-iteration.md`.\n\n**Summary:**\n- **17 ACs**, all testable via CLI commands (`npm run build`, `npx vitest run --reporter=verbose`, `npx eslint`, `wc -l`, `grep`) — no source code inspection, no internal data structure references\n- **9 tasks** (T1-T9): actors/types → guards → two-phase machine structure → epic step actor → machine definition → story invocation → gate invocation → unit tests → verification\n- **Key design**: Two-phase compound state — Phase 1 iterates stories via AD4 `processStory → checkNextStory` loop invoking `storyMachine`, Phase 2 processes `epicFlow` steps sequentially (tasks, gates, loops)\n- **New file**: `src/lib/workflow-epic-machine.ts` (target ≤300 lines, est. 200-280)\n- **Preserves**: `__epic_N__` sentinel convention, `collectGuideFiles`/`cleanupGuideFiles` for blind verification, all error propagation patterns from existing `epicStepActor`",
+  "acceptanceCriteria": []
+}

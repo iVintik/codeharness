@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "25-4-run-machine-for-each-epic-iteration",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T14:01:25.731Z",
+  "cost_usd": null,
+  "duration_ms": 100639,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m checking the current worktree and the run-machine story files first so I can see what is already implemented locally, what remains missing, and whether there are user changes I need to preserve.There are existing local edits in the run-machine area and related story files. I’m reading the implementation, tests, and trackers now to determine whether this story still needs code changes or only completion bookkeeping.The implementation and proof for story 25-4 are already present in the worktree. The remaining inconsistency is that the sprint trackers still mark `25-4` as `in-progress`, so I’m re-running the relevant quality gates before I update only those bookkeeping files.Targeted verification is green: the run-machine suite now has 17 passing tests, ESLint is clean, and the boundary grep only failed because it found no forbidden imports. I’m polling the build to completion, then I’ll patch the sprint trackers to mark 25-4 done and keep 25-5 as the active story.I only need bookkeeping edits now. I’m checking the epic summary block in `sprint-state.json` so the aggregate counts stay internally consistent when I flip story `25-4` to `done`.I’m patching the trackers now: `sprint-status.yaml` will mark `25-4` done, and `sprint-state.json` will mark the story done while keeping `25-5` as the active in-progress item.The tracker patch is in. I’m doing a quick consistency check on the updated status files and the git state now, then I’ll decide whether the mandated session-close push is safe given the existing unrelated local changes in the worktree.The worktree is not isolated to this story: there are many unrelated tracked and untracked changes already present on `master`. I’m running the full Vitest suite once so the story closes against its stated acceptance criteria, but I’m not going to auto-push this mixed worktree because that would publish unrelated local work.The full suite is still running. I’m waiting for the final summary now so I can close this with the exact pass/fail counts rather than assuming from the earlier proof file.Story `25-4-run-machine-for-each-epic-iteration` is already implemented in the current worktree; I finished the remaining bookkeeping so the sprint trackers now mark it done in [_bmad-output/implementation-artifacts/sprint-status.yaml](/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml) and [sprint-state.json](/Users/ivintik/dev/personal/codeharness/sprint-state.json). The run-machine implementation and tests remain in [src/lib/workflow-run-machine.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-run-machine.ts) and [src/lib/__tests__/workflow-run-machine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-run-machine.test.ts).\n\nVerification passed against the current tree: `npm run build` exited 0, `npx vitest run` passed with 197 files and 5165 tests, and the targeted run-machine suite passed 17 tests. `src/lib/workflow-run-machine.ts` is 200 lines and has no forbidden imports from runner/visualizer/persistence.\n\nI did not run `git pull --rebase && git push`. The branch has many unrelated tracked and untracked local changes on `master`, so pushing now would publish work outside this story. If you want, I can next help isolate and prepare a safe commit/push boundary.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "[x] **Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "[x] **Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from adding the run machine. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "[x] **Given** a test that creates and starts a run machine with one epic entry containing one story item, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the epic machine was invoked for that entry, the run machine reaches `allDone`, and `storiesProcessed` contains the story item key. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*single.*epic\" or \"run.*one.*epic.*done\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "[x] **Given** a test that creates and starts a run machine with three epic entries each containing one story item, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the epic machine was invoked three times in order, `currentEpicIndex` advanced through 0→1→2, and the run machine reaches `allDone` with all story keys in `storiesProcessed`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*three.*epics\" or \"run.*sequential.*epics\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "[x] **Given** a test that creates a run machine with two epic entries where the second epic halts, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the first epic completed, the second epic's halt propagated, the run machine reaches `halted`, and only the first epic's story keys are in `storiesProcessed` as completed. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*epic.*halt\" or \"run.*halted.*epic\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "[x] **Given** a test that creates a run machine and sends an `INTERRUPT` event during epic processing, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the run machine reaches the `interrupted` final state. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*interrupted\" or \"run.*INTERRUPT\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "[x] **Given** a test that creates a run machine where the epic machine invocation throws an error, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the run machine records the error in its errors array and the error includes taskName and storyKey fields. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*error.*recorded\" or \"run.*epic.*error\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "[x] **Given** a test that creates a run machine and runs it to completion with multiple epics, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine output includes updated `workflowState`, accumulated `errors`, `tasksCompleted` count, `storiesProcessed` set, `lastContract`, `accumulatedCostUsd`, and `halted` flag — matching the `RunOutput` type. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*output\" or \"run.*result\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "[x] **Given** a test that creates a run machine with zero epic entries (empty `epicEntries`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine skips epic iteration entirely and reaches `allDone` with `storiesProcessed` being empty. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*empty.*epics\" or \"run.*no.*epics\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "[x] **Given** a test that creates a run machine where the `onEvent` callback is provided, **When** each epic starts processing, **Then** verbose test output shows the callback received a `dispatch-start` event with `storyKey` matching the `__epic_N__` sentinel for that epic entry. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*onEvent\" or \"run.*dispatch-start.*epic\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "[x] **Given** a test that creates a run machine with two epics where the first succeeds and context (workflowState, lastContract, accumulatedCostUsd) flows to the second epic, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the second epic received the updated context from the first epic's completion. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*context.*flow\" or \"run.*epic.*chain\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "[x] **Given** a test that creates a run machine where an epic's invoke throws an `AbortError`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the run machine transitions to `interrupted` (not `halted`). <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*abort\" or \"run.*AbortError.*interrupted\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "[x] **Given** the run machine definition file, **When** `npx eslint` is run against it, **Then** it exits with code 0 and produces no lint errors. <!-- verification: `npx eslint src/lib/workflow-run-machine.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "[x] **Given** the run machine definition file, **When** its line count is checked, **Then** it contains <= 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l src/lib/workflow-run-machine.ts` shows <= 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "[x] **Given** the run machine source file, **When** its imports are inspected, **Then** it does not import from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` — boundary rules are respected. <!-- verification: `grep \"from.*workflow-runner\\|from.*workflow-visualizer\\|from.*workflow-persistence\" src/lib/workflow-run-machine.ts` returns no matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC16",
+      "description": "[x] **Given** a test that creates a run machine where an epic halts but subsequent epics exist, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the run machine stops processing further epics (does not invoke the next epic) and reaches `halted`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*halt.*stops\" or \"run.*no.*further.*epics\" -->",
+      "status": "pending"
+    }
+  ]
+}

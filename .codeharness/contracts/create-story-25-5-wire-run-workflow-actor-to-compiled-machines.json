@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "25-5-wire-run-workflow-actor-to-compiled-machines",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-06T04:20:55.463Z",
+  "cost_usd": 1.0546217500000001,
+  "duration_ms": 261007,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/25-5-wire-run-workflow-actor-to-compiled-machines.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the current source files to understand the wiring:Now let me read the existing test files and the epic machine file to understand patterns:Now I have enough context. Let me write the story spec.Story spec written to `_bmad-output/implementation-artifacts/25-5-wire-run-workflow-actor-to-compiled-machines.md`.\n\n**Summary:**\n\n- **16 ACs**, all verifiable by blind QA via CLI commands (`npm run build`, `npx vitest run`, `grep`, `wc -l`, `npx eslint`)\n- **7 tasks**: switch import, update runEpicActor for typed output, update runner for typed output, remove dead legacy code, update imports across codebase, update runner tests, verify full integration\n- **Core change**: one import swap (`epicMachine` from `workflow-machines.ts` → `workflow-epic-machine.ts`) + cascading cleanup\n- **Key behavioral changes**: runner reads `.output` instead of `.context`, legacy epic/run/story actors removed from `workflow-machines.ts` (~200 lines of dead code deleted)\n- **No AC references source code internals** — every criterion is verified through build commands, test execution, grep inspection, or line counts",
+  "acceptanceCriteria": []
+}

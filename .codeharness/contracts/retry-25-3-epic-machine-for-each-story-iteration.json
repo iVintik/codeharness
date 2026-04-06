@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "25-3-epic-machine-for-each-story-iteration",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T13:51:05.337Z",
+  "cost_usd": 0.34300319999999995,
+  "duration_ms": 97511,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Story 25-3 is already fully implemented and all ACs pass:\n\n- **Build**: `npm run build` exits 0\n- **Tests**: 5164 tests pass, 0 failures\n- **Epic machine**: `src/lib/workflow-epic-machine.ts` — 286 lines (≤300), no forbidden imports, no lint errors\n- **Test coverage**: 18 tests in `workflow-epic-machine.test.ts` cover all AC3–AC17 scenarios (single story, sequential stories, halt propagation, epic-level tasks/gates, INTERRUPT, mixed steps, null task, output shape, empty items, onEvent callback)\n\nNo code changes needed — the story was already complete.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "[x] **Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "[x] **Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from adding the epic machine. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "[x] **Given** a test that creates and starts an epic machine with one story item and a storyFlow containing a single passing task, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the story machine was invoked for that item, the epic machine reaches `done`, and `storiesProcessed` contains the item key. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*single.*story\" or \"epic.*one.*story.*done\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "[x] **Given** a test that creates and starts an epic machine with three story items, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the story machine was invoked three times in order (item keys match), the `currentStoryIndex` advanced through 0→1→2, and the epic machine reaches `done` with all three keys in `storiesProcessed`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*three.*stories\" or \"epic.*sequential.*stories\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "[x] **Given** a test that creates an epic machine with two stories where the second story halts, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the first story completed, the second story's halt propagated, the epic machine reaches `halted`, and only the first story key is in `storiesProcessed` as completed. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*story.*halt\" or \"epic.*halted.*story\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "[x] **Given** a test that creates an epic machine with stories completed and an epic-level plain task step (e.g., `deploy`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming all stories processed first, then the deploy task dispatched after story iteration completes, and the epic machine reaches `done`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*deploy\" or \"epic.*epic-level.*task\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "[x] **Given** a test that creates an epic machine with stories completed and an epic-level gate step, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the gate machine was invoked at epic level after story iteration, the gate output was merged into epic context, and the epic machine reaches `done`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*epic.*gate\" or \"epic.*gate.*after.*stories\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "[x] **Given** a test that creates an epic machine and sends an `INTERRUPT` event during story processing, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the epic machine reaches the `interrupted` final state. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*interrupted\" or \"epic.*INTERRUPT\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "[x] **Given** a test that creates an epic machine with stories and multiple epic-level steps (task → gate → task), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the epic-level steps were processed in order after story iteration, with context flowing between steps (contract chaining, cost accumulation). <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*mixed.*steps\" or \"epic.*task.*gate.*task\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "[x] **Given** a test that creates an epic machine where an epic-level task dispatch throws a halt error, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the epic machine transitions to `halted` and the error is recorded in the output errors array. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*halt.*error\" or \"epic.*RATE_LIMIT\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "[x] **Given** a test that creates an epic machine with a null task step at epic level (agent: null), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the null task was dispatched through the null task actor path, not the agent dispatch actor. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*null.*task\" or \"epic.*nullTask\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "[x] **Given** a test that creates an epic machine and runs it to completion, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine output includes updated `workflowState`, accumulated `errors`, `tasksCompleted` count, `storiesProcessed` set, `lastContract`, `accumulatedCostUsd`, and `halted` flag — matching the `EpicOutput` type. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*output\" or \"epic.*result\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "[x] **Given** the epic machine definition file, **When** `npx eslint` is run against it, **Then** it exits with code 0 and produces no lint errors. <!-- verification: `npx eslint src/lib/workflow-epic-machine.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "[x] **Given** the epic machine definition file, **When** its line count is checked, **Then** it contains <= 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l src/lib/workflow-epic-machine.ts` shows <= 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "[x] **Given** the epic machine source file, **When** its imports are inspected, **Then** it does not import from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` — boundary rules are respected. <!-- verification: `grep \"from.*workflow-runner\\|from.*workflow-visualizer\\|from.*workflow-persistence\" src/lib/workflow-epic-machine.ts` returns no matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC16",
+      "description": "[x] **Given** a test that creates an epic machine with zero story items (empty `epicItems`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine skips story iteration entirely, proceeds to epic-level steps, and reaches `done` with `storiesProcessed` being empty. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*empty.*stories\" or \"epic.*no.*stories\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC17",
+      "description": "[x] **Given** a test that creates an epic machine where the `onEvent` callback is provided, **When** a story completes successfully, **Then** verbose test output shows the callback received a `story-done` event with the correct `storyKey` for that story item. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"epic.*onEvent\" or \"epic.*story-done.*event\" -->",
+      "status": "pending"
+    }
+  ]
+}

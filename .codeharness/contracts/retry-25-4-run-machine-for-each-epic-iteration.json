@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "25-4-run-machine-for-each-epic-iteration",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T14:03:20.479Z",
+  "cost_usd": 0.16240515000000003,
+  "duration_ms": 114724,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "All 16 acceptance criteria are already satisfied — no code changes were needed.\n\n**Verification summary:**\n- `npm run build` → exit 0, no TS errors\n- `npx vitest run` → 197 test suites passed, 0 failures  \n- `npx eslint src/lib/workflow-run-machine.ts` → exit 0\n- `wc -l src/lib/workflow-run-machine.ts` → 200 lines (≤ 300 limit)\n\nThe implementation at `src/lib/workflow-run-machine.ts` already covers sequential epic iteration, halt/interrupt handling, `AbortError` detection, error recording with `taskName`/`storyKey` fields, sentinel `__epic_N__` dispatch-start events, and context carry-forward between epics. All corresponding tests in `src/lib/__tests__/workflow-run-machine.test.ts` are passing.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "[x] **Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "[x] **Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from adding the run machine. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "[x] **Given** a test that creates and starts a run machine with one epic entry containing one story item, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the epic machine was invoked for that entry, the run machine reaches `allDone`, and `storiesProcessed` contains the story item key. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*single.*epic\" or \"run.*one.*epic.*done\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "[x] **Given** a test that creates and starts a run machine with three epic entries each containing one story item, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the epic machine was invoked three times in order, `currentEpicIndex` advanced through 0→1→2, and the run machine reaches `allDone` with all story keys in `storiesProcessed`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*three.*epics\" or \"run.*sequential.*epics\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "[x] **Given** a test that creates a run machine with two epic entries where the second epic halts, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the first epic completed, the second epic's halt propagated, the run machine reaches `halted`, and only the first epic's story keys are in `storiesProcessed` as completed. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*epic.*halt\" or \"run.*halted.*epic\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "[x] **Given** a test that creates a run machine and sends an `INTERRUPT` event during epic processing, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the run machine reaches the `interrupted` final state. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*interrupted\" or \"run.*INTERRUPT\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "[x] **Given** a test that creates a run machine where the epic machine invocation throws an error, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the run machine records the error in its errors array and the error includes taskName and storyKey fields. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*error.*recorded\" or \"run.*epic.*error\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "[x] **Given** a test that creates a run machine and runs it to completion with multiple epics, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine output includes updated `workflowState`, accumulated `errors`, `tasksCompleted` count, `storiesProcessed` set, `lastContract`, `accumulatedCostUsd`, and `halted` flag — matching the `RunOutput` type. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*output\" or \"run.*result\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "[x] **Given** a test that creates a run machine with zero epic entries (empty `epicEntries`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine skips epic iteration entirely and reaches `allDone` with `storiesProcessed` being empty. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*empty.*epics\" or \"run.*no.*epics\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "[x] **Given** a test that creates a run machine where the `onEvent` callback is provided, **When** each epic starts processing, **Then** verbose test output shows the callback received a `dispatch-start` event with `storyKey` matching the `__epic_N__` sentinel for that epic entry. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*onEvent\" or \"run.*dispatch-start.*epic\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "[x] **Given** a test that creates a run machine with two epics where the first succeeds and context (workflowState, lastContract, accumulatedCostUsd) flows to the second epic, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the second epic received the updated context from the first epic's completion. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*context.*flow\" or \"run.*epic.*chain\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "[x] **Given** a test that creates a run machine where an epic's invoke throws an `AbortError`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the run machine transitions to `interrupted` (not `halted`). <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*abort\" or \"run.*AbortError.*interrupted\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "[x] **Given** the run machine definition file, **When** `npx eslint` is run against it, **Then** it exits with code 0 and produces no lint errors. <!-- verification: `npx eslint src/lib/workflow-run-machine.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "[x] **Given** the run machine definition file, **When** its line count is checked, **Then** it contains <= 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l src/lib/workflow-run-machine.ts` shows <= 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "[x] **Given** the run machine source file, **When** its imports are inspected, **Then** it does not import from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` — boundary rules are respected. <!-- verification: `grep \"from.*workflow-runner\\|from.*workflow-visualizer\\|from.*workflow-persistence\" src/lib/workflow-run-machine.ts` returns no matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC16",
+      "description": "[x] **Given** a test that creates a run machine where an epic halts but subsequent epics exist, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the run machine stops processing further epics (does not invoke the next epic) and reaches `halted`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"run.*halt.*stops\" or \"run.*no.*further.*epics\" -->",
+      "status": "pending"
+    }
+  ]
+}

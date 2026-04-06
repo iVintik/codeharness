@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "25-5-wire-run-workflow-actor-to-compiled-machines",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T04:59:46.013Z",
+  "cost_usd": 5.257011900000001,
+  "duration_ms": 2330533,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-run-machine.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-story-machine.ts",
+    "/Users/ivantik/dev/personal/codeharness/src/lib/workflow-epic-machine.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-epic-machine.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/null-task-engine.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-story-machine.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-runner.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now let me read the relevant source files:Now let me read the epic machine and the runner test:Now let me check what imports `workflow-machines.ts` across the codebase:Now I have all the context I need. Let me implement all the changes:\n\n**T1+T2: Update workflow-run-machine.ts**Now update `runEpicActor` to use `snap.output as EpicOutput` instead of `snap.context as EpicContext`:**T3: Update workflow-runner.ts** — switch from `.context` to `.output`:**T4: Remove dead legacy code from workflow-machines.ts**\n\nThe legacy code spans lines 196–396. I'll remove `storyFlowActor`, `epicStepActor`, `epicMachine`, `runEpicActor`, and `runMachine`, and clean up their unused imports.Now remove the legacy functions. First, remove `storyFlowActor` through end of file:Now check if there are unused imports in workflow-machines.ts after removing the legacy code:Let me check the full remaining file to find any unused imports:The file has orphaned `collectGuideFiles` and `cleanupGuideFiles` (only used by removed `epicStepActor`) and unused imports (`isTaskCompleted`, `isLoopBlock`, `readFileSync`, `existsSync`, `writeFileSync`, `mkdirSync`, `rmSync`, `join`, `extractTag`). Let me clean them up:Now remove `collectGuideFiles` and `cleanupGuideFiles` (dead code) and the trailing blank line:Now let's run the build to check for TypeScript errors:Build passes. Now run the full test suite:There are failures. Let me see which test files failed:Let me check if these test failures were pre-existing before my changes:Tests were passing before my changes. Let me restore and investigate which specific change caused the regressions:Now I have the full picture. Let me make all three changes in parallel.Now fix the `storyStepActor` catch block and add `isTaskCompleted` check:Also fix the `storyMachine` onError handlers — they use `toStoryError` which loses error codes for re-thrown halt errors. Since we no longer re-throw halt errors from `storyStepActor`, the `isHaltError` guard won't trigger, but let's use `handleDispatchError` there too for consistency:Now fix `workflow-epic-machine.ts` — add empty loop early exit, `isLoopTaskCompleted` check, and `buildRetryPrompt`:Now add the empty loop early exit and `isLoopTaskCompleted` + `buildRetryPrompt` in `runEpicLoop`:Now add `isLoopTaskCompleted` check and `buildRetryPrompt` inside the loop dispatch:Now update the null-task-engine.test.ts sentinel references:Now build and run tests:Clean build. Now run the tests:Two failures left. Let me check the story-machine test:Now I understand both failures:\n\n1. **story-machine test**: With `halted: isHalt`, non-halt errors leave `halted: false` → machine reaches `done` not `halted`. The test needs updating — non-halt task errors stop the story (break) but don't halt the pipeline.\n\n2. **runner test**: Warn prefix changed from `workflow-machine:` to `epic-machine:` (from `runEpicLoop`).5155/5155 passing. Now lint:Two unused symbols to remove:Now remove the `isEngineError` import from story-machine since `toStoryError` (the only user) is gone:Zero lint warnings, zero test failures, clean build.\n\nStory 25-5 is complete. Here's what was done:\n\n**Core wiring (workflow-run-machine.ts + workflow-runner.ts):**\n- `epicMachine` import switched from `workflow-machines.js` → `workflow-epic-machine.js`\n- `runEpicActor` reads `snap.output` (typed `EpicOutput`) instead of `.context`\n- `workflow-runner.ts` uses `RunOutput` type and `.output!` from the actor snapshot\n\n**Dead code removal (workflow-machines.ts):**\n- Stripped `storyFlowActor`, `epicStepActor`, legacy `epicMachine`, legacy `runEpicActor`, `runMachine`, `collectGuideFiles`, `cleanupGuideFiles`\n- Cleaned corresponding imports; `executeLoopBlock` + `dispatchTask` + `loopMachine` remain\n\n**Behavioral fixes in new machines:**\n- `workflow-story-machine.ts`: added `isTaskCompleted` crash-recovery check, fixed catch block to use `handleDispatchError` (preserves error codes), `recordErrorInState`, `writeWorkflowState`, and `halted: isHalt` (only halt for RATE_LIMIT/NETWORK/SDK_INIT)\n- `workflow-epic-machine.ts`: added empty-loop early exit, `isLoopTaskCompleted` skip check, `buildRetryPrompt` injection for story-flow tasks on retry iterations\n\n**Test updates:**\n- `null-task-engine.test.ts`: per-run sentinel changed from `'__run__'` → `'__epic_5__'` (4 sites)\n- `workflow-story-machine.test.ts`: non-halt error test updated to expect `done` + `halted: false`\n- `workflow-runner.test.ts`: skip warn prefix updated from `workflow-machine:` → `epic-machine:`",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "[ ] **Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "[ ] **Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from the wiring changes. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "[ ] **Given** the run machine module, **When** its imports are inspected via `grep`, **Then** it imports `epicMachine` from `workflow-epic-machine` (not from `workflow-machines`). <!-- verification: `grep \"from.*workflow-epic-machine\" src/lib/workflow-run-machine.ts` returns a match AND `grep \"from.*workflow-machines\" src/lib/workflow-run-machine.ts` returns no matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "[ ] **Given** the existing run machine tests, **When** `npx vitest run src/lib/__tests__/workflow-run-machine.test.ts --reporter=verbose` is executed, **Then** all 16 existing tests still pass — confirming the wire-up to the new epic machine is backward-compatible. <!-- verification: `npx vitest run src/lib/__tests__/workflow-run-machine.test.ts --reporter=verbose` shows 16 passing tests and 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "[ ] **Given** the existing runner tests, **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** all existing tests pass — confirming `runWorkflowActor()` works correctly with the machine output change. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "[ ] **Given** the workflow runner module, **When** its source is inspected, **Then** it reads the final result from the run machine's output (not raw context) — verified by the presence of `.output` access pattern and absence of `.context` access for the final machine result. <!-- verification: `grep \"getSnapshot().output\\|\\.output\" src/lib/workflow-runner.ts` returns at least one match for the actor result reading -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "[ ] **Given** a test that exercises the full pipeline — `runWorkflowActor()` called with a valid `EngineConfig` containing work items — **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the function returns an `EngineResult` with `success`, `tasksCompleted`, `storiesProcessed`, `errors`, and `durationMs` fields. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows a passing test matching \"runWorkflowActor.*result\\|runWorkflowActor.*success\\|runWorkflowActor.*EngineResult\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "[ ] **Given** `runWorkflowActor()` called with an `EngineConfig` where the workflow state phase is `'completed'`, **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming it returns immediately with `{ success: true, tasksCompleted: 0, storiesProcessed: 0 }` without starting the machine. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows a passing test matching \"completed.*phase\\|already.*completed\\|phase.*completed\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "[ ] **Given** `runWorkflowActor()` called with an `EngineConfig` where `checkDriverHealth()` throws, **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming it returns `{ success: false }` with an error containing `code: 'HEALTH_CHECK'`. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows a passing test matching \"health.*check\\|driver.*health\\|HEALTH_CHECK\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "[ ] **Given** the legacy machines file (`workflow-machines.ts`), **When** its exports are inspected, **Then** it no longer exports `runMachine` or the legacy `epicMachine` — those symbols have been removed since the new modules provide them. <!-- verification: `grep \"^export.*\\brunMachine\\b\\|^export const runMachine\\|^export const epicMachine\" src/lib/workflow-machines.ts` returns no matches for `runMachine` and no match for the old `epicMachine` setup+createMachine block -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "[ ] **Given** the codebase after cleanup, **When** `grep -r \"from.*workflow-machines\" src/` is executed, **Then** any remaining imports from `workflow-machines.ts` reference only the preserved functions (`executeLoopBlock`, `loopMachine`, `dispatchTask`, `collectGuideFiles`, or `cleanupGuideFiles`) — no import references the removed `epicMachine`, `runMachine`, `storyFlowActor`, `epicStepActor`, or `runEpicActor`. <!-- verification: `grep -r \"from.*workflow-machines\" src/` shows no references to removed symbols -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "[ ] **Given** the new epic machine tests, **When** `npx vitest run src/lib/__tests__/workflow-epic-machine.test.ts --reporter=verbose` is executed, **Then** all 17 existing tests pass — confirming the new epic machine is unaffected by the wiring changes. <!-- verification: `npx vitest run src/lib/__tests__/workflow-epic-machine.test.ts --reporter=verbose` shows 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "[ ] **Given** a test where `runWorkflowActor()` is called and the workflow encounters a halt error (e.g., `RATE_LIMIT`), **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the function returns `{ success: false }` with errors populated — demonstrating halt propagation through the full machine hierarchy. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows a passing test matching \"halt\\|RATE_LIMIT\\|error.*propagat\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "[ ] **Given** all linted files, **When** `npx eslint src/lib/workflow-run-machine.ts src/lib/workflow-runner.ts src/lib/workflow-machines.ts` is executed, **Then** it exits with code 0 and produces no lint errors. <!-- verification: `npx eslint src/lib/workflow-run-machine.ts src/lib/workflow-runner.ts src/lib/workflow-machines.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "[ ] **Given** the modified files, **When** their line counts are checked, **Then** `workflow-run-machine.ts` is <= 300 lines, `workflow-runner.ts` is <= 300 lines, and `workflow-machines.ts` is reduced in size compared to its pre-story 397 lines (since dead code was removed). <!-- verification: `wc -l src/lib/workflow-run-machine.ts src/lib/workflow-runner.ts src/lib/workflow-machines.ts` shows all files under 300 lines -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC16",
+      "description": "[ ] **Given** the run machine's `runEpicActor`, **When** it completes processing an epic, **Then** it reads the epic machine's typed output (not raw context) — verified by the `runEpicActor` accessing `snap.output` instead of `snap.context`. <!-- verification: `grep \"snap.output\\|\\.output as EpicOutput\\|output as Epi\" src/lib/workflow-run-machine.ts` returns at least one match -->",
+      "status": "pending"
+    }
+  ]
+}

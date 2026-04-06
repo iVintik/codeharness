@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "25-2-story-machine",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-06T02:58:46.064Z",
+  "cost_usd": 1.04928485,
+  "duration_ms": 246532,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/25-2-story-machine.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the existing implementation files and architecture for more context:Let me check the compiler and existing test patterns:Now I have complete context. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/25-2-story-machine.md`.\n\n**Summary:**\n- **15 ACs**, all blind-verifiable via CLI commands (`npm run build`, `npx vitest run --reporter=verbose`, `npx eslint`, `wc -l`, `grep`)\n- **9 tasks** (T1-T9): actors, guards, step processor, machine definition, gate invocation, input/output types, tests, verification\n- ACs cover: single task, sequential tasks, gate pass, gate halt, halt error, interrupt, null task, output shape, mixed steps, lint, file size, boundary imports, non-halt error recording\n- No AC references source code internals — all verified through test output patterns, build exit codes, or file inspection commands\n- Follows gate machine pattern: `setup()` + `createMachine()`, phase-level actor, `fromPromise` wrappers, `INTERRUPT` handler, typed `StoryFlowInput`/`StoryFlowOutput`",
+  "acceptanceCriteria": []
+}

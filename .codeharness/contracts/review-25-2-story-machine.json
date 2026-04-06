@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "25-2-story-machine",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T13:24:31.822Z",
+  "cost_usd": null,
+  "duration_ms": 68328,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m checking the current branch state and the story-machine-related tests first so I can see what remains to make `25-2-story-machine` fully green on this tree.I’ve confirmed the worktree is already dirty in unrelated areas, so I’m isolating changes to the story/run-machine path and reading the failing expectations before I edit anything.I’ve got the relevant story-machine and downstream tests in view. Next I’m reproducing the current failures on the exact files that were called out so I can patch only the stale assertions or real regressions.The directly relevant tests are already green on this tree, so I’m checking the full acceptance surface now: story artifact/status, full Vitest, build, and the exact proof points for the ACs.The story artifact already marks `25-2` done, and the static gates are clean. I’m waiting on the two long-running checks now so I can close this out on actual results rather than assumptions.The full suite is green on the current branch, which removes the blocker from the previous task context. I’m doing one last targeted verbose run on the story-machine test file so the AC-specific proof points are explicit rather than inferred from the aggregate pass.`25-2-story-machine` is already implemented on the current tree. The machine lives in [src/lib/workflow-story-machine.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-story-machine.ts), and the story-specific coverage is in [src/lib/__tests__/workflow-story-machine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-story-machine.test.ts). I did not need to change code.\n\nVerification is clean:\n- `npm run build` passed.\n- `npx vitest run` passed with `197` test files and `5163` tests, `0` failures.\n- `npx vitest run src/lib/__tests__/workflow-story-machine.test.ts --reporter=verbose` passed and explicitly covered the AC cases for single task, sequential tasks, gate pass/halt, interrupt, null task, mixed flow, output shape, and non-halt error semantics.\n- `npx eslint src/lib/workflow-story-machine.ts` passed.\n- `wc -l src/lib/workflow-story-machine.ts` reported `219` lines.\n- Boundary check against runner/visualizer/persistence imports returned no matches.\n\nThe story artifact [25-2-story-machine.md](/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/25-2-story-machine.md) already marks the story as `done`, and the earlier full-suite blocker from the previous task context is no longer present.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "[x] **Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "[x] **Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from adding the story machine. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "[x] **Given** a test that creates and starts a story machine with a single plain task step configured to succeed, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `done` final state and the task was dispatched exactly once. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*machine.*done\" or \"story.*single.*task\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "[x] **Given** a test that creates and starts a story machine with three plain task steps in sequence, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming all three tasks were dispatched in order and the machine reaches `done` with `tasksCompleted` equal to 3. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*sequential\" or \"story.*three.*steps\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "[x] **Given** a test that creates and starts a story machine with a gate step where all check tasks pass, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the gate was invoked, the gate passed, and the machine reaches `done` — the story machine correctly delegates to the gate machine. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*gate.*pass\" or \"story.*gate.*done\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "[x] **Given** a test that creates and starts a story machine with a gate step that halts (e.g., max retries exceeded), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `halted` final state and the gate's output (errors, halted flag) is merged into the story context. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*gate.*halt\" or \"story.*gate.*maxed\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "[x] **Given** a test that creates and starts a story machine where a plain task dispatch throws a halt error (e.g., `RATE_LIMIT`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine transitions to `halted` and the error is recorded in context. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*halt.*error\" or \"story.*RATE_LIMIT\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "[x] **Given** a test that creates and starts a story machine and then sends an `INTERRUPT` event, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `interrupted` final state. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*interrupted\" or \"story.*INTERRUPT\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "[x] **Given** a test that creates and starts a story machine with a null task step (agent: null), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the null task was dispatched through the null task actor path, not the agent dispatch actor. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*null.*task\" or \"story.*nullTask\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "[x] **Given** a test that creates a story machine and runs it to completion with all steps succeeding, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine output includes updated `workflowState`, accumulated `errors`, `tasksCompleted` count, `lastContract`, `accumulatedCostUsd`, and `halted` flag — matching the `StoryFlowOutput` type. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*output\" or \"story.*result\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "[x] **Given** a test that creates a story machine with a mix of plain task, gate, and plain task steps in sequence, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine processes task → gate → task in order, the gate output is merged into the story context, and subsequent tasks receive the updated context. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*mixed.*steps\" or \"story.*task.*gate.*task\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "[x] **Given** the story machine definition file, **When** `npx eslint` is run against it, **Then** it exits with code 0 and produces no lint errors. <!-- verification: `npx eslint src/lib/workflow-story-machine.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "[x] **Given** the story machine definition file, **When** its line count is checked, **Then** it contains <= 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l src/lib/workflow-story-machine.ts` shows <= 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "[x] **Given** the story machine source file, **When** its imports are inspected, **Then** it does not import from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` — boundary rules are respected. <!-- verification: `grep \"from.*workflow-runner\\|from.*workflow-visualizer\\|from.*workflow-persistence\" src/lib/workflow-story-machine.ts` returns no matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "[x] **Given** a test that creates a story machine where a plain task throws a non-halt error, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the error is recorded in the context `errors` array and the machine transitions to `halted` (story-level errors halt the story, unlike gate-level where non-halt errors allow continuation). <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching \"story.*non-halt.*error\" or \"story.*error.*recorded\" -->",
+      "status": "pending"
+    }
+  ]
+}

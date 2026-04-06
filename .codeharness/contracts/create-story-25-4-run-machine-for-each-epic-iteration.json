@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "25-4-run-machine-for-each-epic-iteration",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-06T03:48:38.255Z",
+  "cost_usd": 0.8894502999999999,
+  "duration_ms": 210803,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/25-4-run-machine-for-each-epic-iteration.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the existing source files to understand the run machine context and types.Now let me read the architecture doc for the XState engine and the existing test files.Now let me check the architecture doc for the AD4 pattern and run machine details.I have enough context. Let me now write the story spec.Story spec written. 16 acceptance criteria, 8 tasks, dev notes covering patterns/guards/errors/context flow.\n\nAll ACs are verifiable by a blind QA agent:\n- **AC1-2**: `npm run build` and `npx vitest run` — CLI exit codes\n- **AC3-12, 16**: `npx vitest run --reporter=verbose` — observable test names matching patterns\n- **AC13**: `npx eslint` — CLI exit code\n- **AC14**: `wc -l` — line count check\n- **AC15**: `grep` — import boundary check\n\nNo AC references source code internals, O(1) complexity, or data structures. Each describes behavior observable through CLI commands.",
+  "acceptanceCriteria": []
+}

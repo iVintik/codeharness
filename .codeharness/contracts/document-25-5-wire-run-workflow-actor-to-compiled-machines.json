@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "taskName": "document",
+  "storyId": "25-5-wire-run-workflow-actor-to-compiled-machines",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-06T14:37:43.456Z",
+  "cost_usd": 0.33884794999999995,
+  "duration_ms": 91129,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Story 25-5 is already implemented. Let me verify it's actually passing right now:Story 25-5 is already implemented (contract shows implementation completed 2026-04-06T04:59:46Z, $5.26 cost). Let me verify current state:All passing. Let me run the remaining AC verification checks:Story 25-5 is already fully implemented and all 16 ACs pass:\n\n| AC | Check | Result |\n|----|-------|--------|\n| AC1 | `npm run build` exits 0 | ✅ |\n| AC2 | 5166/5166 tests pass, 0 failures | ✅ |\n| AC3 | Imports `epicMachine` from `workflow-epic-machine`, not `workflow-machines` | ✅ |\n| AC4 | Run machine tests pass (17) | ✅ |\n| AC5 | Runner tests pass (48) | ✅ |\n| AC6 | Runner reads `.output!` not `.context` | ✅ |\n| AC7 | Runner returns `EngineResult` with all fields | ✅ |\n| AC8 | Completed phase returns early | ✅ |\n| AC9 | Health check failure returns `HEALTH_CHECK` | ✅ |\n| AC10 | No `runMachine`/`epicMachine` exports in legacy file | ✅ |\n| AC11 | Remaining imports from `workflow-machines` only reference preserved functions | ✅ |\n| AC12 | Epic machine tests pass (18) | ✅ |\n| AC13 | Halt propagation through full hierarchy | ✅ |\n| AC14 | ESLint passes on all 3 files | ✅ |\n| AC15 | All files ≤300 lines (200 + 162 + 164), legacy shrunk from 397→164 | ✅ |\n| AC16 | `runEpicActor` reads `snap.output as EpicOutput` | ✅ |\n\nNothing to implement — this story was completed in a prior session.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "[x] **Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "[x] **Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from the wiring changes. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "[x] **Given** the run machine module, **When** its imports are inspected via `grep`, **Then** it imports `epicMachine` from `workflow-epic-machine` (not from `workflow-machines`). <!-- verification: `grep \"from.*workflow-epic-machine\" src/lib/workflow-run-machine.ts` returns a match AND `grep \"from.*workflow-machines\" src/lib/workflow-run-machine.ts` returns no matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "[x] **Given** the existing run machine tests, **When** `npx vitest run src/lib/__tests__/workflow-run-machine.test.ts --reporter=verbose` is executed, **Then** all 16 existing tests still pass — confirming the wire-up to the new epic machine is backward-compatible. <!-- verification: `npx vitest run src/lib/__tests__/workflow-run-machine.test.ts --reporter=verbose` shows 16 passing tests and 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "[x] **Given** the existing runner tests, **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** all existing tests pass — confirming `runWorkflowActor()` works correctly with the machine output change. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "[x] **Given** the workflow runner module, **When** its source is inspected, **Then** it reads the final result from the run machine's output (not raw context) — verified by the presence of `.output` access pattern and absence of `.context` access for the final machine result. <!-- verification: `grep \"getSnapshot().output\\|\\.output\" src/lib/workflow-runner.ts` returns at least one match for the actor result reading -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "[x] **Given** a test that exercises the full pipeline — `runWorkflowActor()` called with a valid `EngineConfig` containing work items — **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the function returns an `EngineResult` with `success`, `tasksCompleted`, `storiesProcessed`, `errors`, and `durationMs` fields. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows a passing test matching \"runWorkflowActor.*result\\|runWorkflowActor.*success\\|runWorkflowActor.*EngineResult\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "[x] **Given** `runWorkflowActor()` called with an `EngineConfig` where the workflow state phase is `'completed'`, **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming it returns immediately with `{ success: true, tasksCompleted: 0, storiesProcessed: 0 }` without starting the machine. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows a passing test matching \"completed.*phase\\|already.*completed\\|phase.*completed\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "[x] **Given** `runWorkflowActor()` called with an `EngineConfig` where `checkDriverHealth()` throws, **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming it returns `{ success: false }` with an error containing `code: 'HEALTH_CHECK'`. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows a passing test matching \"health.*check\\|driver.*health\\|HEALTH_CHECK\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "[x] **Given** the legacy machines file (`workflow-machines.ts`), **When** its exports are inspected, **Then** it no longer exports `runMachine` or the legacy `epicMachine` — those symbols have been removed since the new modules provide them. <!-- verification: `grep \"^export.*\\brunMachine\\b\\|^export const runMachine\\|^export const epicMachine\" src/lib/workflow-machines.ts` returns no matches for `runMachine` and no match for the old `epicMachine` setup+createMachine block -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "[x] **Given** the codebase after cleanup, **When** `grep -r \"from.*workflow-machines\" src/` is executed, **Then** any remaining imports from `workflow-machines.ts` reference only the preserved functions (`executeLoopBlock`, `loopMachine`, `dispatchTask`, `collectGuideFiles`, or `cleanupGuideFiles`) — no import references the removed `epicMachine`, `runMachine`, `storyFlowActor`, `epicStepActor`, or `runEpicActor`. <!-- verification: `grep -r \"from.*workflow-machines\" src/` shows no references to removed symbols -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "[x] **Given** the new epic machine tests, **When** `npx vitest run src/lib/__tests__/workflow-epic-machine.test.ts --reporter=verbose` is executed, **Then** all 17 existing tests pass — confirming the new epic machine is unaffected by the wiring changes. <!-- verification: `npx vitest run src/lib/__tests__/workflow-epic-machine.test.ts --reporter=verbose` shows 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "[x] **Given** a test where `runWorkflowActor()` is called and the workflow encounters a halt error (e.g., `RATE_LIMIT`), **When** `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the function returns `{ success: false }` with errors populated — demonstrating halt propagation through the full machine hierarchy. <!-- verification: `npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose` shows a passing test matching \"halt\\|RATE_LIMIT\\|error.*propagat\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "[x] **Given** all linted files, **When** `npx eslint src/lib/workflow-run-machine.ts src/lib/workflow-runner.ts src/lib/workflow-machines.ts` is executed, **Then** it exits with code 0 and produces no lint errors. <!-- verification: `npx eslint src/lib/workflow-run-machine.ts src/lib/workflow-runner.ts src/lib/workflow-machines.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "[x] **Given** the modified files, **When** their line counts are checked, **Then** `workflow-run-machine.ts` is <= 300 lines, `workflow-runner.ts` is <= 300 lines, and `workflow-machines.ts` is reduced in size compared to its pre-story 397 lines (since dead code was removed). <!-- verification: `wc -l src/lib/workflow-run-machine.ts src/lib/workflow-runner.ts src/lib/workflow-machines.ts` shows all files under 300 lines -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC16",
+      "description": "[x] **Given** the run machine's `runEpicActor`, **When** it completes processing an epic, **Then** it reads the epic machine's typed output (not raw context) — verified by the `runEpicActor` accessing `snap.output` instead of `snap.context`. <!-- verification: `grep \"snap.output\\|\\.output as EpicOutput\\|output as Epi\" src/lib/workflow-run-machine.ts` returns at least one match -->",
+      "status": "pending"
+    }
+  ]
+}

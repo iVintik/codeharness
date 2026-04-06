@@ -53,7 +53,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | File | Purpose | Key Exports |
 |------|---------|-------------|
 | schema-validate.ts | JSON Schema validation using ajv — workflow YAML structure validation with typed error reporting | `validateWorkflowSchema`, `validateAgainstSchema`, `ValidationResult`, `ValidationError` |
-| workflow-parser.ts | Workflow YAML parser — reads file, validates against JSON schema, checks referential integrity, applies defaults, returns typed `ResolvedWorkflow`. Also owns hierarchical flow resolution (inlined in Story 21-5) | `parseWorkflow`, `WorkflowParseError`, `ResolvedWorkflow`, `ResolvedTask`, `LoopBlock`, `FlowStep`, `ExecutionConfig`, `HierarchicalFlow`, `BUILTIN_EPIC_FLOW_TASKS`, `EXECUTION_DEFAULTS`, `resolveHierarchicalFlow`, `HierarchicalFlowError` |
+| workflow-parser.ts | Workflow YAML parser — reads file, validates against JSON schema, returns typed `ResolvedWorkflow`; re-exports types from `workflow-execution.ts` and `workflow-resolver.ts` for backward compat | `parseWorkflow`, `parseWorkflowData`, `WorkflowParseError`, `ResolvedWorkflow`, `ResolvedTask`, `LoopBlock`, `FlowStep`, `ExecutionConfig`, `HierarchicalFlow`, `WorkflowPatch`, `resolveHierarchicalFlow`, `resolveWorkflow` |
 
 ## Agent Infrastructure (Epic 4)
 
@@ -85,7 +85,14 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | workflow-types.ts | Shared actor/workflow-boundary types — pure type definitions with no runtime code, foundational base layer | `EngineEvent`, `EngineConfig`, `DispatchInput`, `DispatchOutput`, `NullTaskInput`, `EngineError`, `WorkItem`, `LoopMachineContext`, `EpicMachineContext`, `RunMachineContext`, `StoryFlowInput`, `StoryFlowOutput` |
 | workflow-constants.ts | Shared constants for the XState workflow engine — prompt templates and tool name sets | `TASK_PROMPTS`, `FILE_WRITE_TOOL_NAMES` |
 | workflow-actors.ts | XState v5 dispatch and null-task actors — no circular dependencies | `dispatchActor`, `nullTaskDispatchActor`, `dispatchTaskCore`, `nullTaskCore`, `buildCoverageDeduplicationContext` |
-| workflow-machines.ts | XState machine definitions and orchestration actors — all XState machines and their tightly-coupled `fromPromise` actors | `loopMachine`, `executeLoopBlock`, `dispatchTask`, `epicMachine`, `runMachine` |
+| workflow-compiler.ts | XState compiler — pure helpers that turn YAML gate/forEach/flow configs into XState state configs; also re-exports engine error helpers and constants | `compileStep`, `compileGate`, `compileForEach`, `compileFlow`, `HALT_ERROR_CODES`, `DEFAULT_MAX_ITERATIONS`, `PER_RUN_SENTINEL`, `isEngineError`, `isLoopBlock`, `buildRetryPrompt`, `buildAllUnknownVerdict`, `getFailedItems`, `recordErrorInState`, `handleDispatchError`, `isTaskCompleted`, `isLoopTaskCompleted` |
+| workflow-execution.ts | Execution config, hierarchical flow resolution, and flow validation helpers — extracted from workflow-parser.ts | `resolveHierarchicalFlow`, `resolveExecutionConfig`, `validateFlowReferences`, `validateReferentialIntegrity`, `HierarchicalFlow`, `HierarchicalFlowError`, `BUILTIN_EPIC_FLOW_TASKS`, `EXECUTION_DEFAULTS`, `ForEachBlock`, `GateBlock`, `FlowStep`, `ForEachFlowStep` |
+| workflow-gate-machine.ts | XState v5 gate machine — implements the checking → evaluate → fixing cycle with typed context, pure guards, and proper transitions | `gateMachine`, `GateOutput` |
+| workflow-story-machine.ts | XState v5 story machine — processes one story through storyFlow steps | `storyMachine` |
+| workflow-resolver.ts | Workflow patch loading, merging, and resolution through the embedded→user→project chain | `resolveWorkflow`, `loadWorkflowPatch`, `mergeWorkflowPatch`, `WorkflowPatch` |
+| workflow-machines.ts | Legacy loop execution helpers retained after the compiled machine split — loop iteration machine plus compatibility exports used by tests/integration | `executeLoopBlock`, `dispatchTask` |
+| workflow-epic-machine.ts | XState epic machine — iterates stories and epic-level steps with typed output | `epicMachine`, `EpicOutput` |
+| workflow-run-machine.ts | XState run machine — iterates epics and returns typed run output | `runMachine`, `RunOutput` |
 | workflow-runner.ts | Composition root and entry point — pre-flight checks, work item loading, and XState actor orchestration | `runWorkflowActor`, `loadWorkItems`, `checkDriverHealth` |
 | workflow-persistence.ts | XState-compatible snapshot save/load — replaces workflow-state.ts for JSON snapshot persistence to `.codeharness/workflow-state.json` | `saveSnapshot`, `loadSnapshot`, `clearSnapshot`, `WorkflowSnapshot` |
 | workflow-contracts.ts | Derives pending AC status entries from story files for output contract metadata | `getPendingAcceptanceCriteria` |
@@ -245,4 +252,4 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | agents/drivers/opencode.ts | OpenCode driver — CLI-wrapped driver for OpenCode, spawns `opencode` binary and parses NDJSON stdout | `OpenCodeDriver` |
 | agents/drivers/index.ts | Barrel re-exports — factory functions and all driver classes | all public API |
 
-**Total: 84 library files + 4 shared test utility files across 30 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**
+**Total: 89 library files + 4 shared test utility files across 30 categories (includes 6 domain subdirectories: docker/, observability/, sync/, doc-health/, agents/, agents/drivers/).**

@@ -2,7 +2,7 @@
 
 # Story 25-1: Create gate machine
 
-Status: review
+Status: done
 
 ## Story
 
@@ -46,46 +46,46 @@ A real XState machine definition in `workflow-machines.ts` (or a new `workflow-g
 
 ## Acceptance Criteria
 
-1. **Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output.
+1. [x] **Given** the codebase after implementation, **When** `npm run build` is executed in the project root, **Then** it exits with code 0 and produces no TypeScript errors in the terminal output.
    <!-- verification: `npm run build` exits 0 -->
 
-2. **Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from adding the gate machine.
+2. [x] **Given** the full test suite, **When** `npx vitest run` is executed in the project root, **Then** the summary line shows zero failures and all tests pass — no regressions from adding the gate machine.
    <!-- verification: `npx vitest run` exits 0 with 0 failures -->
 
-3. **Given** a test that creates and starts a gate machine with all check tasks configured to return passing verdicts, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `passed` final state — the gate exited because all checks passed.
+3. [x] **Given** a test that creates and starts a gate machine with all check tasks configured to return passing verdicts, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `passed` final state — the gate exited because all checks passed.
    <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*machine.*passed" or "gate.*allPassed" -->
 
-4. **Given** a test that creates and starts a gate machine where check tasks return failing verdicts and the iteration count equals `max_retries`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `maxedOut` final state — the gate exited because retry limit was hit.
+4. [x] **Given** a test that creates and starts a gate machine where check tasks return failing verdicts and the iteration count equals `max_retries`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `maxedOut` final state — the gate exited because retry limit was hit.
    <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*maxedOut" or "gate.*maxRetries" -->
 
-5. **Given** a test that creates and starts a gate machine where the circuit breaker condition triggers, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `halted` final state — the gate exited due to stagnation detection.
+5. [x] **Given** a test that creates and starts a gate machine where the circuit breaker condition triggers, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `halted` final state — the gate exited due to stagnation detection.
    <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*halted" or "gate.*circuitBreaker" -->
 
-6. **Given** a test that creates and starts a gate machine and then sends an `INTERRUPT` event, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `interrupted` final state — the gate stopped because it was interrupted.
+6. [x] **Given** a test that creates and starts a gate machine and then sends an `INTERRUPT` event, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine reaches the `interrupted` final state — the gate stopped because it was interrupted.
    <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*interrupted" or "gate.*INTERRUPT" -->
 
-7. **Given** a test that creates and starts a gate machine where check tasks fail on the first cycle but pass on the second cycle, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine completes a full checking → evaluate → fixing → checking → evaluate → passed cycle — the fix-and-retry loop worked.
+7. [x] **Given** a test that creates and starts a gate machine where check tasks fail on the first cycle but pass on the second cycle, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine completes a full checking → evaluate → fixing → checking → evaluate → passed cycle — the fix-and-retry loop worked.
    <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*cycle" or "gate.*fixing.*checking.*passed" -->
 
-8. **Given** a test that creates a gate machine with two check tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming both check tasks are invoked sequentially and each produces a verdict entry in the gate context — verdicts accumulate per check task.
+8. [x] **Given** a test that creates a gate machine with two check tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming both check tasks are invoked sequentially and each produces a verdict entry in the gate context — verdicts accumulate per check task.
    <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*verdict" or "gate.*check.*sequential" -->
 
-9. **Given** a test that creates a gate machine with a check task whose actor throws a halt error (e.g., `RATE_LIMIT`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine transitions to `halted` — halt errors from actors stop the gate.
+9. [x] **Given** a test that creates a gate machine with a check task whose actor throws a halt error (e.g., `RATE_LIMIT`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine transitions to `halted` — halt errors from actors stop the gate.
    <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*halt.*error" or "gate.*RATE_LIMIT.*halted" -->
 
-10. **Given** the gate machine definition file, **When** `npx eslint` is run against it, **Then** it exits with code 0 and produces no lint errors.
+10. [x] **Given** the gate machine definition file, **When** `npx eslint` is run against it, **Then** it exits with code 0 and produces no lint errors.
     <!-- verification: `npx eslint src/lib/workflow-gate-machine.ts` (or workflow-machines.ts) exits 0 -->
 
-11. **Given** the gate machine definition file, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR18 file size constraint).
+11. [x] **Given** the gate machine definition file, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR18 file size constraint).
     <!-- verification: `wc -l <file>` shows ≤ 300 -->
 
-12. **Given** a test that creates a gate machine with `null` agent check tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming null tasks are dispatched through the null task actor path — not the agent dispatch actor.
+12. [x] **Given** a test that creates a gate machine with `null` agent check tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming null tasks are dispatched through the null task actor path — not the agent dispatch actor.
     <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*null.*task" or "gate.*nullTask" -->
 
-13. **Given** the gate machine source file, **When** its imports are inspected, **Then** it does not import from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` — boundary rules are respected (machines depend on types, actors, compiler — not runner/viz/persistence).
+13. [x] **Given** the gate machine source file, **When** its imports are inspected, **Then** it does not import from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` — boundary rules are respected (machines depend on types, actors, compiler — not runner/viz/persistence).
     <!-- verification: `grep "from.*workflow-runner\|from.*workflow-visualizer\|from.*workflow-persistence" <file>` returns no matches -->
 
-14. **Given** a test that creates a gate machine and runs it to completion, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine output includes updated `workflowState`, accumulated `errors`, `tasksCompleted` count, and `accumulatedCostUsd` — the gate returns structured results to its parent.
+14. [x] **Given** a test that creates a gate machine and runs it to completion, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the machine output includes updated `workflowState`, accumulated `errors`, `tasksCompleted` count, and `accumulatedCostUsd` — the gate returns structured results to its parent.
     <!-- verification: `npx vitest run --reporter=verbose` shows a passing test matching "gate.*output" or "gate.*result" -->
 
 ## Tasks / Subtasks
@@ -276,33 +276,33 @@ Mock the async I/O boundary (actors) to make tests fast and deterministic:
 
 ### Implementation Notes
 
-- Created `src/lib/workflow-gate-machine.ts` (236 lines, within NFR18 ≤300 limit) with XState v5 `setup()` + `createMachine()` gate machine
+- Created `src/lib/workflow-gate-machine.ts` (245 lines, within NFR18 ≤300 limit) with XState v5 `setup()` + `createMachine()` gate machine
 - Used phase-level actors (`checkPhaseActor`, `fixPhaseActor`) as `fromPromise` wrappers that run all tasks sequentially — simpler and more testable than per-task substates
 - Guards implemented as pure functions: `allPassed` (uses `parseVerdict`), `maxRetries`, `circuitBreaker`, `isAbortError`, `isHaltError`
 - `evaluate` entry action increments iteration + evaluates circuit breaker in a single `assign` — XState v5 guarantees entry runs before `always` transitions
 - Verdicts reset inside `fixPhaseActor` so next check phase starts fresh
 - Exported `GateOutput` type co-located with machine; input reuses `GateContext` directly
 - No imports from `workflow-runner.ts`, `workflow-visualizer.ts`, or `workflow-persistence.ts` (boundary respected)
-- Test file `src/lib/__tests__/workflow-gate-machine.test.ts` (245 lines) — 13 tests covering all final states, fix-retry cycle, multi-task verdicts, null task path, halt error, machine output shape, nested-gate story keys, and interrupt signal propagation
+- Test file `src/lib/__tests__/workflow-gate-machine.test.ts` (263 lines) — 14 tests covering all final states, fix-retry cycle, multi-task verdicts, null task path, halt error, machine output shape, nested-gate story keys, interrupt signal propagation, and skipped-check-task verdict accounting
 
 ### Verification Results
 
 - `npm run build` — exits 0, no TypeScript errors
-- `npx vitest run` — 5117 tests pass, 0 failures, 194 test files (no regressions)
-- `npx eslint src/` — 0 warnings, 0 errors
-- `wc -l src/lib/workflow-gate-machine.ts` — 236 lines (≤300 ✓)
-- `wc -l src/lib/__tests__/workflow-gate-machine.test.ts` — 245 lines (≤300 ✓)
+- `npx vitest run` — 5163 tests pass, 0 failures, 197 test files (no regressions)
+- `npx eslint src/lib/workflow-gate-machine.ts` — 0 warnings, 0 errors
+- `wc -l src/lib/workflow-gate-machine.ts` — 245 lines (≤300 ✓)
+- `wc -l src/lib/__tests__/workflow-gate-machine.test.ts` — 263 lines (≤300 ✓)
 - Boundary check: no imports from runner/visualizer/persistence ✓
 
 ### File List
 
 - `src/lib/workflow-gate-machine.ts` — new file: XState v5 gate machine definition
-- `src/lib/__tests__/workflow-gate-machine.test.ts` — new file: 13 comprehensive unit tests
-- `_bmad-output/implementation-artifacts/25-1-gate-machine.md` — status updated to review
+- `src/lib/__tests__/workflow-gate-machine.test.ts` — new file: 14 comprehensive unit tests
+- `_bmad-output/implementation-artifacts/25-1-gate-machine.md` — status updated to done
 - `verification/25-1-gate-machine-proof.md` — acceptance-criteria proof for this story
 
 ### Change Log
 
-- 2026-04-06: Implemented story 25-1 — gate machine with checking → evaluate → fixing cycle, 4 final states, 5 pure guards, phase-level actors, 13 unit tests. Build clean, lint clean, all 5117 tests pass.
+- 2026-04-06: Implemented story 25-1 — gate machine with checking → evaluate → fixing cycle, 4 final states, 5 pure guards, phase-level actors, 14 unit tests. Build clean, lint clean, all 5163 tests pass.
 
 </story-spec>

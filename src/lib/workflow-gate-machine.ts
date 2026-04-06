@@ -144,10 +144,19 @@ export const gateMachine = setup({
   types: {} as { context: GateContext; input: GateContext; output: GateOutput },
   actors: { checkPhaseActor, fixPhaseActor },
   guards: {
-    /** True when every verdict in context.verdicts parses as 'pass'. False if empty. */
+    /**
+     * True when ALL check tasks contributed a verdict AND every verdict parses as 'pass'.
+     * Returns false if verdicts is empty or if fewer verdicts were collected than
+     * check tasks configured (i.e. some tasks were skipped due to missing definition
+     * or missing agent — skipped tasks must not silently count as passing).
+     */
     allPassed: ({ context }) => {
       const entries = Object.values(context.verdicts);
       if (entries.length === 0) return false;
+      // Guard against silently-skipped tasks: every configured check task must
+      // have produced a verdict entry. A missing task/agent is a config error
+      // that should prevent the gate from reporting passed.
+      if (entries.length < context.gate.check.length) return false;
       return entries.every((v) => parseVerdict(v).verdict === 'pass');
     },
     /** True when iteration count has reached max_retries. */

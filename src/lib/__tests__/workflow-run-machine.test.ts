@@ -212,6 +212,44 @@ describe('runMachine', () => {
     expect(snap.output?.workflowState.phase).toBe('interrupted');
   });
 
+  it('run INTERRUPT cancels in-flight epic work so child dispatch aborts', async () => {
+    let aborted = false;
+    mockDispatchTaskCore.mockImplementation((args: { config?: { abortSignal?: AbortSignal } }) => new Promise((_resolve, reject) => {
+      const signal = args.config?.abortSignal;
+      const abort = () => {
+        aborted = true;
+        reject(Object.assign(new Error('dispatch aborted'), { name: 'AbortError' }));
+      };
+
+      if (!signal) return;
+      if (signal.aborted) {
+        abort();
+        return;
+      }
+
+      signal.addEventListener('abort', abort, { once: true });
+    }));
+
+    const input = makeRunInput({
+      epicEntries: [['17', [{ key: 'story-1' }]]],
+      storyFlow: ['story-task'],
+    });
+    const actor = createActor(runMachine, { input });
+    actor.start();
+    await new Promise((r) => setTimeout(r, 10));
+    actor.send({ type: 'INTERRUPT' });
+    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 5_000 });
+    await waitFor(
+      { getSnapshot: () => ({ aborted }) },
+      (state) => state.aborted,
+      { timeout: 1_000 },
+    );
+
+    expect(snap.value).toBe('interrupted');
+    expect(aborted).toBe(true);
+    expect(mockDispatchTaskCore).toHaveBeenCalledTimes(1);
+  });
+
   it('run epic non-halt story error halts run and records error metadata', async () => {
     mockDispatchTaskCore.mockRejectedValueOnce(new Error('unexpected failure'));
     const input = makeRunInput({

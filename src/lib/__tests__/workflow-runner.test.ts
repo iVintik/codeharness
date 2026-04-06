@@ -1083,6 +1083,33 @@ describe('runWorkflowActor', () => {
 
     expect((mockWriteWorkflowState.mock.calls.at(-1)?.[0] as WorkflowState).phase).toBe('failed');
   });
+
+  it('persists interrupted phase to disk when abort signal fires mid-run', async () => {
+    // Pre-abort the controller so runEpicActor short-circuits immediately
+    // without needing a live dispatch stream (avoids hanging the test).
+    const ctrl = new AbortController();
+    ctrl.abort();
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    const config = makeConfig({
+      abortSignal: ctrl.signal,
+      workflow: makeWorkflow({
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      }),
+    });
+
+    const result = await runWorkflowActor(config);
+
+    expect(result.success).toBe(false);
+    // The last write must record 'interrupted' — not 'executing' — so that a
+    // subsequent run knows the workflow was cleanly stopped, not crashed.
+    const lastPhase = (mockWriteWorkflowState.mock.calls.at(-1)?.[0] as WorkflowState).phase;
+    expect(lastPhase).toBe('interrupted');
+  });
 });
 
 describe('crash recovery & resume', () => {

@@ -143,8 +143,14 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   const { errors, tasksCompleted, storiesProcessed } = finalOutput;
   if (state.phase !== 'interrupted' && errors.length === 0 && state.phase !== 'max-iterations' && state.phase !== 'circuit-breaker') {
     state = { ...state, phase: 'completed' };
-    writeWorkflowState(state, projectDir);
+  } else if (state.phase === 'executing') {
+    // Machine halted or errored without updating the phase — mark as failed so
+    // the next run does not incorrectly treat the workflow as still executing.
+    state = { ...state, phase: 'failed' };
   }
+  // Always persist the terminal state (interrupted, failed, completed, …)
+  // so the on-disk phase is never left as 'executing' after the run ends.
+  writeWorkflowState(state, projectDir);
   const loopTerminated = state.phase === 'max-iterations' || state.phase === 'circuit-breaker';
   return {
     success: errors.length === 0 && !loopTerminated && state.phase !== 'interrupted',

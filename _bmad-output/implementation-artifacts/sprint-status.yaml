@@ -37,12 +37,12 @@ development_status:
   24-5-compile-flow-recursive-entry-point: done
 
   # Epic 25
-  epic-25: backlog
+  epic-25: done
   25-1-gate-machine: done
   25-2-story-machine: done
   25-3-epic-machine-for-each-story-iteration: done
-  25-4-run-machine-for-each-epic-iteration: in-progress
-  25-5-wire-run-workflow-actor-to-compiled-machines: in-progress
+  25-4-run-machine-for-each-epic-iteration: done
+  25-5-wire-run-workflow-actor-to-compiled-machines: done
 
   # Epic 26
   epic-26: backlog

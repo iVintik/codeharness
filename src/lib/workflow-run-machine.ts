@@ -3,7 +3,7 @@
 import { assign, createActor, fromPromise, setup, waitFor } from 'xstate';
 import { DispatchError } from './agent-dispatch.js';
 import { handleDispatchError, HALT_ERROR_CODES, isEngineError } from './workflow-compiler.js';
-import type { EngineError, RunContext } from './workflow-types.js';
+import type { EngineError, EpicContext, RunContext } from './workflow-types.js';
 import { epicMachine, type EpicOutput } from './workflow-epic-machine.js';
 
 export type RunOutput = Pick<RunContext, 'workflowState' | 'errors' | 'tasksCompleted' | 'storiesProcessed' | 'lastContract' | 'accumulatedCostUsd' | 'halted'>;
@@ -12,7 +12,25 @@ function toRunError(err: unknown, taskName: string, storyKey: string): EngineErr
   return isEngineError(err) ? err : handleDispatchError(err, taskName, storyKey);
 }
 
-const runEpicActor = fromPromise(async ({ input }: { input: RunContext }): Promise<RunContext> => {
+function mergeSignals(existing: AbortSignal | undefined, next: AbortSignal): AbortSignal {
+  if (!existing) return next;
+  if (typeof (AbortSignal as { any?: unknown }).any === 'function') {
+    return (AbortSignal as { any: (signals: AbortSignal[]) => AbortSignal }).any([existing, next]);
+  }
+
+  const ctrl = new AbortController();
+  if (existing.aborted || next.aborted) {
+    ctrl.abort();
+    return ctrl.signal;
+  }
+
+  const abort = () => ctrl.abort();
+  existing.addEventListener('abort', abort, { once: true });
+  next.addEventListener('abort', abort, { once: true });
+  return ctrl.signal;
+}
+
+const runEpicActor = fromPromise(async ({ input, signal }: { input: RunContext; signal: AbortSignal }): Promise<RunContext> => {
   const { epicEntries, currentEpicIndex, config } = input;
 
   // Check abort signal before starting epic — throw AbortError so runMachine → interrupted
@@ -33,6 +51,7 @@ const runEpicActor = fromPromise(async ({ input }: { input: RunContext }): Promi
     epicItems,
     config: {
       ...input.config,
+      abortSignal: mergeSignals(input.config.abortSignal, signal),
       workflow: {
         ...input.config.workflow,
         epicFlow: input.config.workflow.epicFlow.length > 0
@@ -53,9 +72,17 @@ const runEpicActor = fromPromise(async ({ input }: { input: RunContext }): Promi
   };
 
   const actor = createActor(epicMachine, { input: epicInput });
-  actor.start();
-  const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 300_000 });
-  const epicOut = snap.output as EpicOutput;
+  const onAbort = () => actor.send({ type: 'INTERRUPT' });
+  signal.addEventListener('abort', onAbort, { once: true });
+
+  let epicOut: EpicOutput;
+  try {
+    actor.start();
+    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 300_000 });
+    epicOut = snap.output as EpicOutput;
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
 
   if (epicOut.workflowState.phase === 'interrupted') {
     const abortErr = new Error('Epic interrupted');

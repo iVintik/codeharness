@@ -221,6 +221,24 @@ describe('gateMachine', () => {
     expect(snap.context.errors[0].storyKey).toBe('parent-story:g1');
   });
 
+  it('allPassed guard: returns false when fewer verdicts collected than check tasks (skipped task does not count as pass)', async () => {
+    // Two check tasks: check-a passes, check-b is missing from config → skipped, no verdict.
+    // allPassed must return false because only 1/2 verdicts were collected.
+    // With max_retries=1, after one cycle: allPassed=false, maxRetries(1>=1)=true → maxedOut.
+    const input = makeInput({
+      gate: { gate: 'g1', check: ['check-a', 'check-b'], fix: [], pass_when: 'all_pass', max_retries: 1, circuit_breaker: 'default' },
+    });
+    // Only check-a is in the workflow tasks; check-b is intentionally missing.
+    (input.config as unknown as { workflow: { tasks: Record<string, unknown> } }).workflow.tasks['check-a'] = { agent: 'test-agent', session: 'fresh', source_access: true };
+    // check-b is absent from tasks — it will be silently skipped in checkPhaseActor.
+    mockDispatchTaskCore.mockResolvedValueOnce(makeOut(PASS)); // check-a passes
+    const { snap } = await run(input);
+    // Must NOT be 'passed' — only 1 of 2 check tasks produced a verdict.
+    expect(snap.value).toBe('maxedOut');
+    expect(snap.context.verdicts['check-a']).toBe(PASS);
+    expect(snap.context.verdicts['check-b']).toBeUndefined();
+  });
+
   it('INTERRUPT mid-loop: signal.aborted check prevents processing subsequent tasks', async () => {
     // Two check tasks; first completes, second is blocked.
     // INTERRUPT fires while second task is waiting → machine reaches interrupted.

@@ -1,0 +1,97 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "22-2-parse-named-gate-blocks",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T17:10:53.491Z",
+  "cost_usd": 0.9937459499999998,
+  "duration_ms": 301109,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-execution.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/schemas/workflow.schema.json",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-parser.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-parser.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/22-2-parse-named-gate-blocks.md",
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml"
+  ],
+  "testResults": null,
+  "output": "Now let me load the story file and project context in parallel.Good. Story is `in-progress`. Let me load all relevant source files now.Now let me look at the existing test file to understand the patterns:Now I have a complete picture. Let me implement all tasks.\n\n**Step 1: Add `GateBlock` interface and extend `ForEachFlowStep` in `workflow-execution.ts`****Step 2: Add `gateBlock` definition to JSON schema and update `forEachBlock.steps.items.oneOf`****Step 3: Extend `parseForEachFlow()` and re-export `GateBlock` in `workflow-parser.ts`**Now extend `parseForEachFlow()` to handle gate blocks:Now let me build to verify no TypeScript errors before writing tests:Build passes. Now let's write the gate-parsing tests. Let me append them to the test file:Now run the full test suite:That's the codeharness TUI, not vitest output. Let me check how tests are actually configured:One test failure — `verifier` isn't a known agent. Fix it to use `evaluator`:All 4988 tests pass. Now run the linter:Zero lint errors. Now let me verify the `codeharness validate` CLI surface with a quick sanity check, then update the story file.\n\nLet me check if there's an existing `templates/workflows/default.yaml` to verify backward compat (AC 12):Now update the story file — mark all tasks done, update status to `review`, fill File List, Change Log, and Dev Agent Record:Now add the Dev Agent Record, File List, and Change Log sections to the story:Now update sprint-status.yaml to `review`:Story 22-2 is complete and marked `review`. Here's the summary:\n\n---\n\n**Story 22-2: Parse named `gate` blocks — DONE ✅**\n\n**What was implemented:**\n\n| Layer | File | Change |\n|---|---|---|\n| Type | `src/lib/workflow-execution.ts` | Added `GateBlock` interface; extended `ForEachFlowStep` union to `string \\| ForEachBlock \\| GateBlock` |\n| Schema | `src/schemas/workflow.schema.json` | Added `gateBlock` definition with required `gate`/`check`, optional `fix`/`pass_when`/`max_retries`/`circuit_breaker`; wired into `forEachBlock.steps.items.oneOf` |\n| Parser | `src/lib/workflow-parser.ts` | Extended `parseForEachFlow()` with gate detection branch — referential integrity check for `check`/`fix` task refs, explicit defaults applied, `GateBlock` re-exported |\n| Tests | `src/lib/__tests__/workflow-parser.test.ts` | 14 new test cases covering AC1–AC12 (all fields, minimal + defaults, error cases, backward compat) |\n\n**Results:**\n- `npm run build` — exit 0, no TypeScript errors\n- `npm run test:unit` — **4988/4988 pass**, zero regressions\n- `npx eslint src/lib/workflow-parser.ts src/lib/workflow-execution.ts` — 0 errors\n- `codeharness validate templates/workflows/default.yaml` — exit 0 (backward compat confirmed)",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a YAML file containing a `gate: quality` step with `check: [check]`, `fix: [retry]`, and all referenced tasks defined in `tasks:`, **When** the file is parsed via `codeharness validate <file>`, **Then** the command exits 0 with no errors printed to stderr. <!-- verification: create test YAML with a valid gate block, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a YAML file containing a `gate:` step with only the name and `check` list (no `fix`, `pass_when`, `max_retries`, or `circuit_breaker`), **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — omitted fields get defaults: `fix: []`, `pass_when: consensus`, `max_retries: 3`, `circuit_breaker: stagnation`. <!-- verification: create YAML with minimal gate (name + check only), run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a YAML file with a gate step that has no name (e.g., `gate:` with empty value or `gate: \"\"`), **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"gate\" and \"name\" (or \"named\"). <!-- verification: create YAML with unnamed gate, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"gate\" and \"name\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a YAML file with a gate step that has an empty `check: []` list, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"check\". <!-- verification: create YAML with empty check list, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"check\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a YAML file with a gate step that has no `check` key at all, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"check\". <!-- verification: create YAML with gate missing check key, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"check\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a YAML file with a gate whose `check` list references a task name not defined in `tasks:`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr reports the unknown task name. <!-- verification: create YAML with gate referencing `ghost-checker` not in tasks, run `codeharness validate <file>`, expect non-zero exit and stderr contains \"ghost-checker\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a YAML file with a gate whose `fix` list references a task name not defined in `tasks:`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr reports the unknown task name. <!-- verification: create YAML with gate fix referencing `ghost-fixer` not in tasks, run `codeharness validate <file>`, expect non-zero exit and stderr contains \"ghost-fixer\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a YAML file with a gate using `pass_when: majority`, **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — the parser accepts `consensus`, `majority`, and `any_pass` as valid `pass_when` values. <!-- verification: create YAML with pass_when: majority, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a YAML file with a gate using `pass_when: invalid_value`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"pass_when\". <!-- verification: create YAML with pass_when: invalid_value, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"pass_when\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a YAML file with a gate using `max_retries: 0`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"max_retries\" — retries must be at least 1. <!-- verification: create YAML with max_retries: 0, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"max_retries\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a YAML file with multiple gates at different nesting levels (e.g., `gate: quality` inside a `for_each: story` and `gate: verification` inside a `for_each: epic`), **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — gates are valid at any nesting level. <!-- verification: create YAML with gates at two levels, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** a YAML file using the old `story_flow` / `epic_flow` format (no gates, no `workflow:` key), **When** parsed via `codeharness validate <file>`, **Then** the command still exits 0 — backward compatibility is preserved. <!-- verification: run `codeharness validate` against the existing `templates/workflows/default.yaml`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** all existing tests pass plus new gate-parsing tests — zero failures, no regressions. <!-- verification: `npx vitest run` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "**Given** the parser code is linted via `npx eslint src/lib/workflow-parser.ts src/lib/workflow-execution.ts`, **When** linting completes, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-parser.ts src/lib/workflow-execution.ts` exits 0 -->",
+      "status": "pending"
+    }
+  ]
+}

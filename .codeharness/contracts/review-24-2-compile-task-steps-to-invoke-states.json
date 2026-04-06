@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "24-2-compile-task-steps-to-invoke-states",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T20:18:43.172Z",
+  "cost_usd": null,
+  "duration_ms": 144340,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Reviewing the story implementation now. I’m locating the relevant changes in `workflow-compiler` and its tests first, then I’ll assess behavior against the acceptance criteria and call out any correctness or architecture issues.I’ve confirmed the change is concentrated in `src/lib/workflow-compiler.ts` plus targeted tests in `src/lib/__tests__/workflow-compiler.test.ts`. Next I’m reading the implementation and the exact diff to check whether the behavior actually matches the story, not just whether tests exist.The implementation itself is straightforward; the risk now is whether it was wired into the machine layer correctly and whether the tests cover real behavior instead of implementation details. I’m checking integration points, type contracts, and line-count/ESLint/build expectations next.I found one architectural concern already: `compileStep` is not used anywhere outside its unit test file, so this story adds a helper but does not actually shift the machine implementation to compiled invoke states. I’m checking whether that is acceptable for the story boundary or whether it leaves the system with duplicated logic and drift risk.I’ve confirmed the story spec explicitly allows adding `compileStep` without changing runtime behavior yet, so being unused by the machine is not itself a defect for this story. The next check is whether the helper matches the intended context contracts precisely, especially the `onDone` merge and the actual actor type shapes.The targeted compileStep suite passes and the file meets the lint/size/build gates. I’m now checking semantic consistency with the existing actor outputs and runtime conventions, because that’s where review-worthy defects are most likely to hide.I have one concrete defect and one AC mismatch to pin down. I’m pulling exact line references now so the review can be specific rather than speculative.1. High: Halt-path error recording loses the actual dispatch classification. In [workflow-compiler.ts:188](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L188) and [workflow-compiler.ts:199](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L199), the compiled `onError` actions call `toEngineError()`, but that helper collapses any non-`EngineError` exception to `code: 'UNKNOWN'` at [workflow-compiler.ts:224](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L224). `dispatchActor` failures are raised as `DispatchError`s, so RATE_LIMIT/NETWORK/SDK_INIT errors will be recorded in context as `UNKNOWN`, unlike the existing conversion logic in [workflow-compiler.ts:93](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L93). That breaks the “proper error classification” part of the story and will degrade downstream telemetry/retry behavior.\n\n2. Medium: AC7 is not actually satisfied by the implemented contract. The success assign in [workflow-compiler.ts:175](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L175) preserves `errors: context.errors` rather than merging any output-provided errors, and `DispatchOutput` has no `errors` field at all in [workflow-types.ts:155](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts#L155). The test added for AC7 explicitly locks in that behavior by asserting the same `errors` array reference is preserved at [workflow-compiler.test.ts:582](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts#L582). Either the AC/spec is wrong or the type/implementation is incomplete, but as written the story does not meet AC7 verbatim.\n\n3. Low: The story’s own testing requirement says the test file should stay at `<= 300` lines, but [workflow-compiler.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts) is now 697 lines. That is not in the explicit AC list, but it is a stated NFR miss.\n\nI did not find a distinct security issue in this change.\n\nChecks I verified:\n- `npm run build` passed.\n- `npx eslint src/lib/workflow-compiler.ts` passed.\n- `wc -l src/lib/workflow-compiler.ts` is `232`.\n- `npx vitest run src/lib/__tests__/workflow-compiler.test.ts --reporter=verbose` passed.\n- `npx vitest run` passed: `193` files, `5060` tests.\n\nAC coverage:\n- AC1-6, AC8-12: covered by the current implementation/tests and the commands above.\n- AC7: not fully satisfied for the reason in finding 2.\n\n<verdict>fail</verdict>\n<issues>\n- Halt/fallback error recording downgrades DispatchError codes to UNKNOWN instead of preserving RATE_LIMIT/NETWORK/SDK_INIT.\n- AC7 is not met as written: DispatchOutput has no errors field, and compileStep preserves context.errors rather than merging output errors.\n- Story-level test-file size NFR is missed: src/lib/__tests__/workflow-compiler.test.ts is 697 lines.\n</issues>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the project repository, **When** `npm run build` is executed, **Then** it exits 0 with zero TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all tests pass with zero failures — no regressions from adding compiler logic. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a test that calls `compileStep` with a plain task name (e.g. `'implement'`) where the task has `agent: 'dev'`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the returned state config uses `src: 'dispatchActor'` as the invoke source. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*agent.*dispatchActor\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a test that calls `compileStep` with a task name where the task has `agent: null`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the returned state config uses `src: 'nullTaskActor'` as the invoke source. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*null.*nullTaskActor\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a test that calls `compileStep` with a valid task name and a `nextState` target, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming `onDone.target` equals the provided `nextState` string. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*onDone.*target\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a test that inspects the `onError` array of a compiled step, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming: the first entry has guard `'isAbortError'` targeting `'interrupted'`, the second entry has guard `'isHaltError'` targeting `'halted'`, and a fallback entry exists that records the error in context. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*onError.*guard.*abort.*halt\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a test that calls `compileStep` with an agent task, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the `onDone` handler uses an `assign` action that merges `DispatchOutput` fields (updated state, errors, tasksCompleted, lastContract, accumulatedCostUsd) into the parent context. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*onDone.*assign.*context\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a test that calls `compileStep` with an unknown task name not present in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time (not at runtime). <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*unknown.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a test that calls `compileStep` with different task names, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the invoke `input` function produces a `DispatchInput` (for agent tasks) or `NullTaskInput` (for null tasks) derived from the machine context — not hardcoded values. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*input.*context\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `npx eslint src/lib/workflow-compiler.ts` is executed, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-compiler.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `wc -l src/lib/workflow-compiler.ts` is executed, **Then** the file is ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-compiler.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `compileStep` is a pure function, **When** tests call it with the same inputs multiple times, **Then** verbose test output shows a passing test confirming identical outputs each time — no side effects, no I/O, no state mutation. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*pure.*deterministic\" or equivalent -->",
+      "status": "pending"
+    }
+  ]
+}

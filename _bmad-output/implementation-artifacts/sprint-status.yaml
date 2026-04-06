@@ -16,29 +16,29 @@ development_status:
   21-7-dedicated-test-files-per-module: done
 
   # Epic 22
-  epic-22: backlog
-  22-1-parse-for-each-blocks: in-progress
-  22-2-parse-named-gate-blocks: backlog
-  22-3-update-default-yaml-to-new-format: backlog
+  epic-22: done
+  22-1-parse-for-each-blocks: done
+  22-2-parse-named-gate-blocks: done
+  22-3-update-default-yaml-to-new-format: done
 
   # Epic 23
-  epic-23: backlog
-  23-1-dispatch-actor-module: backlog
-  23-2-null-task-actor: backlog
-  23-3-contract-chaining-verify-flag-propagation: backlog
-  23-4-error-classification-workflow-error: backlog
+  epic-23: done
+  23-1-dispatch-actor-module: done
+  23-2-null-task-actor: done
+  23-3-contract-chaining-verify-flag-propagation: done
+  23-4-error-classification-workflow-error: done
 
   # Epic 24
-  epic-24: backlog
-  24-1-shared-types-module: backlog
-  24-2-compile-task-steps-to-invoke-states: backlog
-  24-3-compile-gate-blocks-to-compound-states: backlog
-  24-4-compile-for-each-blocks-to-iteration-states: backlog
-  24-5-compile-flow-recursive-entry-point: backlog
+  epic-24: done
+  24-1-shared-types-module: done
+  24-2-compile-task-steps-to-invoke-states: done
+  24-3-compile-gate-blocks-to-compound-states: done
+  24-4-compile-for-each-blocks-to-iteration-states: done
+  24-5-compile-flow-recursive-entry-point: done
 
   # Epic 25
   epic-25: backlog
-  25-1-gate-machine: backlog
+  25-1-gate-machine: in-progress
   25-2-story-machine: backlog
   25-3-epic-machine-for-each-story-iteration: backlog
   25-4-run-machine-for-each-epic-iteration: backlog

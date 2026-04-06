@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "24-3-compile-gate-blocks-to-compound-states",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T20:41:53.176Z",
+  "cost_usd": null,
+  "duration_ms": 106169,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m locating the story implementation and its tests first so the review is based on the actual diff and not the acceptance criteria alone. After that I’ll check the compiler logic, run targeted verification where it adds signal, and map findings back to AC coverage.I’ve identified the likely write set for this story in `workflow-compiler`, its tests, and adjacent workflow types. Next I’m reading the actual diff and surrounding code to separate story-specific defects from unrelated sprint churn.The compiler diff is enough to assess behavior now. I’m checking the old gate runtime and a few static constraints next, because most likely failures here are semantic drift rather than syntax or test breakage.I’ve got the main semantic drift now. I’m checking one more edge set: whether empty gate arrays are prevented elsewhere, and whether the current tests leave these gaps uncovered.I have enough to write findings, but I’m running the build once so the verdict also reflects whether the current branch still compiles cleanly under the story’s stated constraints.<verdict>fail</verdict>\n\n<issues>\n1. High: Gate tasks are compiled with the gate name as `storyKey` instead of the actual story identifier in [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L261) and [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L262), and the same wrong key is used for error attribution in [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L271). That will write contracts, checkpoints, and errors under `\"quality\"` rather than the story key, causing cross-story collisions and breaking resume/history semantics. The tests currently reinforce the bug by expecting `storyId: 'quality'` in [workflow-compiler.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts#L808).\n\n2. High: The compiled gate never advances retry state and never clears verdicts when looping from fixing back to checking in [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L283). The story spec explicitly requires incrementing iteration and resetting verdicts between rounds. As implemented, `maxRetries` cannot become true from the compiled state itself, and stale verdicts leak into the next evaluation cycle, so a failing gate can loop forever or evaluate against old results.\n\n3. Medium: Gate halt errors lose the bookkeeping that `compileStep` already performs. In [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L270), the `isHaltError` branch jumps to `halted` without recording the error or setting `halted: true`, unlike [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L186). That is a behavioral divergence from the shared step compiler and makes RATE_LIMIT/NETWORK/SDK_INIT halts opaque to the parent context.\n</issues>\n\nAC coverage is only partial. `AC1`, `AC12`, and `AC13` are satisfied by current verification: `npm run build`, `npx eslint src/lib/workflow-compiler.ts`, and `wc -l` all passed, and the file is 295 lines. `AC3` through `AC11` and `AC14` have passing structural unit tests in [workflow-compiler.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts#L724). I did not rerun the full-suite `AC2`, and regardless, the implementation has the correctness gaps above, so the story should not pass review.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow YAML file containing a `gate: quality` block with `check: [check, review]`, `fix: [retry]`, `pass_when: consensus`, `max_retries: 5`, **When** `npm run build` is executed, **Then** it exits 0 with zero TypeScript errors — the new `compileGate` function compiles cleanly. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all tests pass with zero failures — no regressions from adding gate compiler logic. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a test that compiles a gate config with multiple check tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled gate has a `checking` child state that invokes check tasks sequentially — each check task appears as a distinct invoke state within the checking phase. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*checking.*check\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a test that compiles a gate config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled gate has an `evaluate` child state with guard-based transitions: `allPassed` → `passed`, `maxRetries` → `maxedOut`, `circuitBreaker` → `halted`, and a default fallback → `fixing`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*evaluate.*guard\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a test that compiles a gate config with fix tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled gate has a `fixing` child state that invokes fix tasks and transitions back to `checking` upon completion. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*fixing.*checking\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a test that compiles a gate config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled gate has four final states: `passed`, `maxedOut`, `halted`, and `interrupted` — all with `type: 'final'`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*final.*passed.*maxedOut.*halted.*interrupted\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a test that compiles a gate with `check: [check, review]`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming each check task's `onDone` handler accumulates a verdict entry in the gate context — the checking phase records per-task verdicts before transitioning to evaluate. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*verdict.*assign\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a test that compiles a gate with a check task referencing a task name not in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time — not deferred to runtime. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*unknown.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a test that compiles a gate with a fix task referencing a task name not in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*unknown.*fix.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a test that compiles a gate where all check tasks have `agent: null`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the check task invoke states use `nullTaskActor` as the source — not `dispatchActor`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*null.*nullTaskActor\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a test that compiles the same gate config twice with identical inputs, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming identical outputs — `compileGate` is pure and deterministic with no side effects. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*pure.*deterministic\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `npx eslint src/lib/workflow-compiler.ts` is executed, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-compiler.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `wc -l src/lib/workflow-compiler.ts` is executed, **Then** the file is ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-compiler.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** a test that compiles a gate with `check: [check]` (single check task) and `fix: [retry]`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the checking phase has exactly one invoke state (not a sequential chain) and the fixing phase has exactly one invoke state. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*single.*check.*single.*fix\" or equivalent -->",
+      "status": "pending"
+    }
+  ]
+}

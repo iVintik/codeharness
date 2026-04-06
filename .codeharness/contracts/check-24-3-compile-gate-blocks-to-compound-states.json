@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "taskName": "check",
+  "storyId": "24-3-compile-gate-blocks-to-compound-states",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T20:40:06.986Z",
+  "cost_usd": null,
+  "duration_ms": 45650,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m checking the project scripts first so I can run the intended automated checks for story `24-3-compile-gate-blocks-to-compound-states` without guessing which lint command this repo uses.The repo defines `build`, unit tests, integration tests, and a repo-wide lint target. I’m running those checks now so the verdict covers the full automated path rather than just a subset.Build, lint, unit tests, and Bats integration tests are in flight. I’m polling for final exit codes now; if anything fails I’ll capture the failing segment rather than just the top-level command.Unit tests completed cleanly. The Bats suite is still finishing; I’m waiting for the final summary and exit code so the verdict is based on the full run, not a partial pass.Automated checks for story `24-3-compile-gate-blocks-to-compound-states` passed.\n\n- `npm run build`: passed\n- `npm run lint`: passed\n- `npm run test:unit`: passed, `193` test files and `5073` tests passed\n- `npm test`: passed, `47` Bats integration tests passed\n\nOne minor note from the unit-test output: two lines printed `error: required option '--story <key>' not specified`, but the overall `vitest` run still exited `0` and all tests passed.\n\n<verdict>pass</verdict>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow YAML file containing a `gate: quality` block with `check: [check, review]`, `fix: [retry]`, `pass_when: consensus`, `max_retries: 5`, **When** `npm run build` is executed, **Then** it exits 0 with zero TypeScript errors — the new `compileGate` function compiles cleanly. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all tests pass with zero failures — no regressions from adding gate compiler logic. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a test that compiles a gate config with multiple check tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled gate has a `checking` child state that invokes check tasks sequentially — each check task appears as a distinct invoke state within the checking phase. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*checking.*check\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a test that compiles a gate config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled gate has an `evaluate` child state with guard-based transitions: `allPassed` → `passed`, `maxRetries` → `maxedOut`, `circuitBreaker` → `halted`, and a default fallback → `fixing`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*evaluate.*guard\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a test that compiles a gate config with fix tasks, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled gate has a `fixing` child state that invokes fix tasks and transitions back to `checking` upon completion. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*fixing.*checking\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a test that compiles a gate config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled gate has four final states: `passed`, `maxedOut`, `halted`, and `interrupted` — all with `type: 'final'`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*final.*passed.*maxedOut.*halted.*interrupted\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a test that compiles a gate with `check: [check, review]`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming each check task's `onDone` handler accumulates a verdict entry in the gate context — the checking phase records per-task verdicts before transitioning to evaluate. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*verdict.*assign\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a test that compiles a gate with a check task referencing a task name not in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time — not deferred to runtime. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*unknown.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a test that compiles a gate with a fix task referencing a task name not in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*unknown.*fix.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a test that compiles a gate where all check tasks have `agent: null`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the check task invoke states use `nullTaskActor` as the source — not `dispatchActor`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*null.*nullTaskActor\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a test that compiles the same gate config twice with identical inputs, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming identical outputs — `compileGate` is pure and deterministic with no side effects. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*pure.*deterministic\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `npx eslint src/lib/workflow-compiler.ts` is executed, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-compiler.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `wc -l src/lib/workflow-compiler.ts` is executed, **Then** the file is ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-compiler.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** a test that compiles a gate with `check: [check]` (single check task) and `fix: [retry]`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the checking phase has exactly one invoke state (not a sequential chain) and the fixing phase has exactly one invoke state. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileGate.*single.*check.*single.*fix\" or equivalent -->",
+      "status": "pending"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "23-1-dispatch-actor-module",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T17:56:17.866Z",
+  "cost_usd": 0.60450325,
+  "duration_ms": 185279,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/23-1-dispatch-actor-module.md"
+  ],
+  "testResults": null,
+  "output": "Good research. Let me read the key source files now.Now let me check the existing test file for workflow-actors and the agent-dispatch module for DispatchError:I have all the context needed. Let me write the story spec now.Story spec written to `_bmad-output/implementation-artifacts/23-1-dispatch-actor-module.md`.\n\n**Summary of the spec:**\n\n- **14 ACs**, all verifiable through observable behavior: CLI output, log inspection, file system checks (`ls`, `cat`, `wc -l`), `codeharness status`, and state file inspection. Zero references to source code internals, data structures, or complexity guarantees.\n- **7 task groups** covering: dispatch core validation, source isolation, error classification, contract output, verify flag propagation, XState actor wrappers, and build/test/lint gates.\n- **Key design note:** This is primarily a validation/hardening story — the implementation already exists (197 lines). The ACs confirm the existing code matches the architecture spec's behavioral requirements.\n- **Verification methods per AC:** terminal/log output for dispatch events (AC1-4, 6-8), file system for contracts and state (AC5, 11-12, 14), CLI exit codes for build/lint/test (AC9-10, 13), `codeharness status` for workflow state (AC7, 11).",
+  "acceptanceCriteria": []
+}

@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "24-5-compile-flow-recursive-entry-point",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T21:26:02.638Z",
+  "cost_usd": null,
+  "duration_ms": 127026,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m reviewing story `24-5-compile-flow-recursive-entry-point` as a code review, focusing on correctness, security, architecture constraints, and whether the implementation actually covers the listed acceptance criteria. I’ll inspect the relevant diffs and tests first, then run the targeted checks needed to validate the verdict.I’ve confirmed the worktree is broadly dirty, so I’m isolating the review to the story-specific compiler and test changes rather than assuming the entire diff belongs to this story. Next I’m reading the story artifact, the compiler implementation, and the targeted tests side by side.The implementation is visible now. I’m checking whether it satisfies the story’s non-test requirements too, not just whether the new tests pass: file-size budget, exported API shape, architectural purity, and whether the helper was actually applied consistently.I’ve checked the structural pieces; next I’m validating the implementation against the acceptance criteria with the actual commands the story calls out. I’m running the compiler file checks plus the `compileFlow` test block in verbose mode first, then I’ll use those results to judge AC coverage and look for gaps the tests miss.The targeted checks are green, so I’m looking for review findings that the happy-path tests don’t catch: public API exposure, edge-case behavior in the generated machine config, and whether any stated story deliverables were skipped even though the unit tests pass.I found a semantic issue in the generated machine config that the new tests don’t exercise, so I’m pulling exact line references before I write the review. After that I’ll close with whether the story passes as implemented or fails despite the green test run.1. High: Gate failure terminal states are compiled as success-path transitions. In [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L209), `compileGate()` makes `passed`, `maxedOut`, `halted`, and `interrupted` all `final` child states. Then [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L245) wraps every gate step with `onDone: { target: next }`. In XState, a parent compound state's `onDone` fires when any final child state is reached, so a gate that halts, is interrupted, or maxes out still advances to the next top-level step. The same bug propagates recursively inside `for_each`, because `compileForEach()` also delegates nested steps through `compileSteps()` at [workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L227). That breaks the intended semantics for AC4/AC5/AC10/AC11.\n\n2. Medium: The new tests miss the failing-path semantics above, so AC coverage is incomplete. The `compileFlow` tests only assert that gate/for_each states exist and that `step_0.onDone.target` points at the next step in the happy path at [workflow-compiler.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts#L1120) and [workflow-compiler.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts#L1190). There is no assertion that `halted`, `interrupted`, or `maxedOut` gate outcomes do not fall through to the next compiled step, which is the key behavioral risk introduced by this story.\n\n<verdict>fail</verdict>\n<issues>\n- Gate compound states advance on any final child outcome, including `halted`, `interrupted`, and `maxedOut`, so failed gates are treated as success and the flow keeps running.\n- Acceptance-criteria coverage is incomplete because the new tests only verify structural chaining, not terminal gate outcome behavior in top-level or recursive flows.\n</issues>\n\nChecks run: `npm run build`, `npx eslint src/lib/workflow-compiler.ts`, `wc -l src/lib/workflow-compiler.ts` (`259`), `npx vitest run src/lib/__tests__/workflow-compiler.test.ts --reporter=verbose`, and `npx vitest run` all passed. No direct security issue stood out in this change set.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow YAML file containing mixed step types, **When** `npm run build` is executed, **Then** the build exits 0 with zero TypeScript errors — the new `compileFlow` function compiles cleanly. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all tests pass with zero failures — no regressions from adding compileFlow logic. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a test that compiles a mixed-step flow with steps `['create-story', 'implement', { gate: 'quality', ... }, 'document']`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled flow has four step states chained sequentially (`step_0` through `step_3`) plus a terminal `done` state, with `initial: 'step_0'`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*sequential.*step_0.*step_3.*done\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a test that compiles a flow containing a gate block step, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the gate step is embedded as a compound state (with checking/evaluate/fixing substates) and its completion transitions to the next step in the chain. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*gate.*compound.*checking.*next\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a test that compiles a flow containing a `for_each` block step, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the for_each step is embedded as a compound state (with processItem/checkNext/done substates) and its completion transitions to the next step in the chain. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*for_each.*processItem.*checkNext.*next\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a test that compiles a flow with an empty steps array, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled flow contains only a `done` state with `type: 'final'` and `initial: 'done'` — empty flows resolve immediately. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*empty.*done.*final\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a test that compiles a flow where one step references a task name not in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time with a message identifying the unknown task — not deferred to runtime. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*unknown.*task.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a test that compiles a flow with a single plain task step, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled flow has exactly one step state (`step_0`) transitioning directly to `done` — no unnecessary intermediate states. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*single.*step.*done\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a test that compiles the same flow config twice with identical inputs, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming both outputs are deeply equal — `compileFlow` is pure and deterministic. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*pure.*deterministic\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a test that compiles a flow containing all three step types (plain task, gate, for_each) in a single steps array, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming each step type is dispatched correctly — plain tasks produce invoke states, gates produce compound negotiation states, for_each blocks produce compound iteration states — all chained sequentially. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*mixed.*invoke.*gate.*for_each\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a test that compiles a flow with a nested structure (for_each containing steps that include a gate), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the recursive compilation works end-to-end — `compileFlow` delegates to `compileForEach` which delegates to `compileGate` within its processItem. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*recursive.*for_each.*gate\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `npx eslint src/lib/workflow-compiler.ts` is executed, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-compiler.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `wc -l src/lib/workflow-compiler.ts` is executed, **Then** the file is ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-compiler.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** a test that compiles a flow containing a step with an unsupported type (e.g., a legacy `LoopBlock`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time with a descriptive message — unsupported step types are rejected explicitly. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileFlow.*unsupported.*loop.*throws\" or equivalent -->",
+      "status": "pending"
+    }
+  ]
+}

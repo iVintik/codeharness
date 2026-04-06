@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "23-2-null-task-actor",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T18:15:17.809Z",
+  "cost_usd": 0.86407235,
+  "duration_ms": 178823,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/23-2-null-task-actor.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the architecture doc and the existing null task story for reference:Now let me check for existing null task tests in the workflow-actors test and the null task registry:Now I have all the context. Let me check the default.yaml for any `agent: null` tasks, and look at the story 23-1's review issues to understand what the review found:Now I have complete context. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/23-2-null-task-actor.md`.\n\n**Summary:**\n\n- **12 ACs**, all blind-testable via CLI output, log inspection, file system checks, or `codeharness status` — no source code or internal data structure references\n- **7 tasks** covering: architecture validation, error paths, contract output, checkpoint persistence, dispatch-path exclusion, dedicated tests, and build quality\n- **Key bug flagged in T3/Dev Notes:** `nullTaskCore()` creates an `OutputContract` but never calls `writeOutputContract()` to write it to disk, unlike `dispatchTaskCore()`. AC2 will surface this if contract files are expected on disk for null tasks.\n- **Error handling gap documented:** null task errors are plain objects, not `DispatchError`/`WorkflowError` instances — deferred to story 23-4 for unification",
+  "acceptanceCriteria": []
+}

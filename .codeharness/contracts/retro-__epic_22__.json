@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "retro",
+  "storyId": "__epic_22__",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T17:53:12.557Z",
+  "cost_usd": 0.9437599999999999,
+  "duration_ms": 233529,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/epic-22-retrospective.md"
+  ],
+  "testResults": null,
+  "output": "Now let me gather more context — git log for epic 22 work, the epic definition, and any verification/proof docs.Now I have enough context to write the retrospective. Let me check the previous retro for format reference:Now let me check the sprint-state.json for more detail on Epic 22 execution:Now I have all the data I need. Let me write the retrospective.\n\nBob (Scrum Master): \"Welcome to the retrospective. Based on sprint-status.yaml, Epic 22 — *Flow Configuration Format & Parser* — is marked done with all 3 stories complete. Is that the epic you want to review today?\"\n\nBefore I write it up, let me confirm: **Epic 22, 3 stories (22-1 parse for_each, 22-2 parse gates, 22-3 migrate default template)?**\n\nAlso — the codex review on 22-3 came back **FAIL** with a critical finding: the parser accepts the new format but the runtime still drives from `storyFlow`/`epicFlow`, meaning the new default template *validates* but can't *execute*. That's going to be a significant part of this retro. Proceeding?\n\nI'll write it now based on what I've gathered.Bob (Scrum Master): \"Retrospective complete. Here's the summary:\"\n\n**Epic 22 — Flow Configuration Format & Parser** — 3 stories, all marked done.\n\n### The headline finding:\n\n**The parser works. The runtime doesn't.** Story 22-3 migrated the default template to the new `workflow:` / `for_each:` / `gate:` format, but the execution engine (`workflow-execution.ts`, `workflow-machines.ts`, etc. — 20 files) still drives from `storyFlow`/`epicFlow`. The new default template validates but can't execute. The codex review caught this.\n\n### Key numbers:\n| Story | Attempts |\n|-------|----------|\n| 22-1 (for_each parsing) | 7 |\n| 22-2 (gate parsing) | **13** |\n| 22-3 (template migration) | 7 |\n\n### Top action items:\n1. **Revert `default.yaml` or add a runtime bridge** — the new template is unrunnable. Fix before next release.\n2. **Sync sprint-state.json** — shows `storiesDone: 1` while sprint-status.yaml shows all 3 done.\n3. **Add runtime integration ACs** to any future template story — parser validation alone isn't enough.\n\nRetrospective written to `_bmad-output/implementation-artifacts/epic-22-retrospective.md`.\n\nWhat would you like to address first?",
+  "acceptanceCriteria": []
+}

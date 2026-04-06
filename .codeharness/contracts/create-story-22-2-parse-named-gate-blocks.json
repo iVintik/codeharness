@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "22-2-parse-named-gate-blocks",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T17:05:52.364Z",
+  "cost_usd": 0.74212685,
+  "duration_ms": 205529,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/22-2-parse-named-gate-blocks.md"
+  ],
+  "testResults": null,
+  "output": "\n\nLet me start by reading the epic definitions and architecture docs to understand the context.Now let me read the completed 22-1 story for format reference and the architecture doc for gate details.Now let me check the current schema and test baseline:Now let me check the current test count baseline:I have all the context I need. Now let me write the story spec.Story spec written to `_bmad-output/implementation-artifacts/22-2-parse-named-gate-blocks.md`.\n\n**Summary:**\n- **15 acceptance criteria**, all testable via `codeharness validate <file>` CLI (exit codes + stderr inspection) — no source code or internal structure references\n- **6 task groups**: define `GateBlock` type, extend JSON schema, implement parsing in `parseForEachFlow()`, wire types, write unit tests, verify CLI surface\n- **Key design decisions**: parse-only (no execution), no nested gates in v1, schema-first validation then referential integrity, defaults applied explicitly (`pass_when: consensus`, `max_retries: 3`, `circuit_breaker: stagnation`, `fix: []`)\n- Follows the same pattern established by 22-1 (for_each parsing) — extends the same `parseForEachFlow()` function and `ForEachFlowStep` union type",
+  "acceptanceCriteria": []
+}

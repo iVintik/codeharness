@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "24-1-shared-types-module",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T20:00:04.544Z",
+  "cost_usd": null,
+  "duration_ms": 172911,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Reviewing story `24-1-shared-types-module` as a code review, not a rewrite. I’m checking the current diff and the workflow type/module files first, then I’ll verify the acceptance criteria against the actual implementation.The story landed as commit `3689c1a`, so I’m reviewing that change directly instead of the unrelated dirty worktree. Next I’m reading the shared types module, its consumers, and the story artifact to check AC coverage and regression risk.I’ve confirmed the intended scope: this story was supposed to be a type refactor only. I’m now checking whether the commit stayed within that boundary and whether the new shared types are actually consistent with the parser/state/agent contracts they replaced.The commit includes non-type runtime edits in `workflow-actors.ts`, which is already outside the story’s stated boundary. I’m checking whether those runtime changes are both justified and correct, because that is the most likely source of regressions here.The leaf-module refactor duplicated several cross-module types instead of re-exporting them. I’m comparing those duplicates with the original definitions now, because silent drift there is a real correctness risk even if the build is green today.The targeted review tests surfaced concrete regressions in `workflow-actors`; this story is not cleanly isolated. I’m letting the build finish, then I’ll verify whether the breakage is confined to out-of-scope runtime edits or if the shared-types refactor itself also missed ACs.The current checkout has later edits on top of the story, so I’m validating the story commit in isolation now. I’m spinning up a temporary worktree at `3689c1a` and running the story-relevant checks there so the verdict is about the implementation that actually landed.The isolated worktree didn’t have dependencies linked, so the first build command wasn’t meaningful there. I’m wiring that worktree to the repo’s existing `node_modules` and rerunning the checks against the exact story commit.The isolated targeted suite is clean on the story commit. I’m running the full Vitest suite in that clean worktree now, because AC2 is explicitly “zero regressions,” and I don’t want to infer that from partial coverage.<verdict>fail</verdict>\n\n<issues>\n1. [`src/lib/workflow-actors.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-actors.ts#L200) changes runtime behavior outside the stated scope of this type-refactor story and introduces a regression: `implement` contracts now always get `testResults` set to `{ passed: 0, failed: 0, coverage: null }` when no parseable test output exists, because `parseTestOutput()` never returns `null`. Existing behavior expected `testResults: null` in that case. This breaks AC2 and fails the full suite at [`src/lib/__tests__/workflow-machines.test.ts:1080`](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machines.test.ts#L1080). It is also an architecture violation relative to the story spec, which explicitly said this story should be a type consolidation and “does not change runtime behavior.”\n</issues>\n\nThe shared-types refactor itself looks sound: `workflow-types.ts` is dependency-free, under 300 lines, exports the required symbols, `WorkflowError` matches the contract, `workflow-compiler.ts` consumes/re-exports from the shared module, ESLint passes, `npm run build` passes, and `madge` reports no circular dependency. The new `workflow-types` tests also pass.\n\nThe blocking problem is AC2. In an isolated worktree at commit `3689c1a`, `npx vitest run` finished with `1` failure out of `4977` tests:\n- `lib/__tests__/workflow-machines.test.ts > output contract writing (story 13-3) > contract testResults is null and acceptanceCriteria is empty (AC #5)`\n\nNo separate security issue stood out in this story beyond that regression.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a fresh clone of the repository, **When** `npm run build` completes, **Then** it exits 0 with zero TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` completes, **Then** all tests pass with zero failures — no regressions from type refactoring. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** its import statements are inspected, **Then** it contains zero imports from any file matching `workflow-*.ts` (i.e., no imports from `workflow-parser`, `workflow-state`, `workflow-compiler`, `workflow-machines`, `workflow-actors`, `workflow-runner`, `workflow-execution`). <!-- verification: `grep -c 'from.*workflow-' src/lib/workflow-types.ts` shows only self-references or zero; `grep \"from '.*workflow-\" src/lib/workflow-types.ts` returns no matches to other workflow modules -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** its exports are inspected, **Then** it exports at minimum: `RunContext`, `EpicContext`, `StoryContext`, `GateContext`, `EngineConfig`, `EngineResult`, `EngineError`, `EngineEvent`, `WorkItem`, `DispatchInput`, `DispatchOutput`, `NullTaskInput`, `GateConfig`, `ForEachConfig`, `FlowStep`, and the `WorkflowError` class. <!-- verification: for each type name, `grep \"export.*TypeName\" src/lib/workflow-types.ts` returns a match -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** `WorkflowError` is inspected, **Then** it is a class extending `Error` with readonly properties `code` (string), `taskName` (string), and `storyKey` (string). <!-- verification: `grep -A5 \"class WorkflowError\" src/lib/workflow-types.ts` shows `extends Error` and the three properties -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** `src/lib/workflow-compiler.ts`, **When** its imports are inspected, **Then** it imports shared types from `workflow-types.ts` (not defining them locally) and contains no duplicate type definitions that exist in `workflow-types.ts`. <!-- verification: `grep \"from.*workflow-types\" src/lib/workflow-compiler.ts` returns at least one match; `grep \"export interface EngineResult\" src/lib/workflow-compiler.ts` returns no match (moved to types) -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** any module that previously imported `EngineResult` from `workflow-compiler.ts`, **When** it is inspected after the refactor, **Then** it imports `EngineResult` from `workflow-types.ts` (directly or via re-export). <!-- verification: `grep -r \"EngineResult\" src/lib/ --include=\"*.ts\"` shows all references resolve through workflow-types or its re-exports -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-types.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** linted via `npx eslint src/lib/workflow-types.ts`, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-types.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** any `workflow-*.ts` file in `src/lib/`, **When** its imports from `workflow-types.ts` are inspected, **Then** no circular dependency exists — `workflow-types.ts` does not import from any `workflow-*.ts` file, while other `workflow-*.ts` files may import from `workflow-types.ts`. <!-- verification: `npx madge --circular src/lib/workflow-types.ts` (or manual grep) shows no circular dependency involving workflow-types.ts -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the new `GateConfig` type exported from `workflow-types.ts`, **When** inspected, **Then** it includes fields: `gate` (string — the gate name), `check` (string array), `fix` (string array), `pass_when` (union of strategy strings), `max_retries` (number), and `circuit_breaker` (string, defaults to `'stagnation'`). <!-- verification: `grep -A8 \"interface GateConfig\\|type GateConfig\" src/lib/workflow-types.ts` shows the required fields -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the new `ForEachConfig` type exported from `workflow-types.ts`, **When** inspected, **Then** it includes fields: `for_each` (string — the scope name like `'epic'` or `'story'`) and `steps` (array of flow steps). <!-- verification: `grep -A4 \"interface ForEachConfig\\|type ForEachConfig\" src/lib/workflow-types.ts` shows the required fields -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the context types (`RunContext`, `EpicContext`, `StoryContext`, `GateContext`), **When** inspected, **Then** each contains at minimum: an `errors` array field, an accumulator for tasks completed, and a `halted` boolean — enabling guards to operate on any context level uniformly. <!-- verification: for each context type, `grep -A15 \"interface RunContext\\|interface EpicContext\\|interface StoryContext\\|interface GateContext\" src/lib/workflow-types.ts` shows errors, tasksCompleted/halted fields -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** unit tests exist for `workflow-types.ts`, **When** `npx vitest run --reporter=verbose` is filtered to type-related tests, **Then** tests verify: `WorkflowError` construction, `WorkflowError` instanceof checks, type guard functions (if any), and that exported types are importable. <!-- verification: `npx vitest run --reporter=verbose` shows passing tests for WorkflowError and type exports -->",
+      "status": "pending"
+    }
+  ]
+}

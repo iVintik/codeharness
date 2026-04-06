@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "22-2-parse-named-gate-blocks",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T17:34:12.376Z",
+  "cost_usd": null,
+  "duration_ms": 121824,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Reviewing story `22-2-parse-named-gate-blocks` now. I’m locating the implementation and tests first, then I’ll check behavior against the listed acceptance criteria and look for correctness, security, and architecture issues.I’ve isolated the implementation surface to the parser, execution types, schema, and parser tests. Next I’m reading the actual diffs rather than relying on test names, so I can check for behavioral gaps and architectural mismatches.The parser and schema changes are straightforward; the higher-risk question is whether the rest of the engine can actually consume the new `GateBlock` type or if validation-only parsing leaks an unsupported construct into runtime code. I’m checking the downstream type guards and workflow consumers now.I haven’t found a concrete parser correctness or security bug yet. The remaining gaps are in acceptance coverage, so I’m pulling exact line numbers from the new tests before I write the review verdict.1. Acceptance coverage for AC1-AC11 is incomplete. The story requires validating behavior through `codeharness validate <file>` with exit-code and stderr assertions, but the new gate tests only call `parseWorkflow(...)` directly in [workflow-parser.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-parser.test.ts#L1767). The existing CLI tests in [validate-schema.test.ts](/Users/ivintik/dev/personal/codeharness/src/commands/__tests__/validate-schema.test.ts#L203) cover generic validation flows, but they were not extended with gate-specific cases. That leaves the actual CLI contract in AC1-AC11 unverified.\n\n2. AC12 is not covered as written. The acceptance criterion explicitly calls for validating the shipped legacy template `templates/workflows/default.yaml` ([22-2-parse-named-gate-blocks.md](/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/22-2-parse-named-gate-blocks.md#L86)), but the added test uses the local `minimalYaml` fixture instead of the real template in [workflow-parser.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-parser.test.ts#L2115). That misses the main backward-compat regression surface.\n\n3. AC3’s assertion is weaker than the criterion. The criterion requires an error mentioning both `gate` and `name`/`named` ([22-2-parse-named-gate-blocks.md](/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/22-2-parse-named-gate-blocks.md#L59)), but the test only checks for `gate` in [workflow-parser.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-parser.test.ts#L1842). The implementation looks likely correct here, but the acceptance check is not actually enforced.\n\nI did not find a concrete correctness, security, or architecture bug in the parser/schema changes themselves. The main problem is that the story is marked done without fully proving the requested CLI-facing ACs.\n\n<verdict>fail</verdict>\n<issues>\n1. Gate-specific AC1-AC11 are only covered at the parser unit-test level, not through `codeharness validate <file>` as specified.\n2. AC12 does not test the real legacy template `templates/workflows/default.yaml`; it uses a fixture instead.\n3. AC3’s test does not assert the required `name`/`named` wording, only `gate`.\n</issues>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a YAML file containing a `gate: quality` step with `check: [check]`, `fix: [retry]`, and all referenced tasks defined in `tasks:`, **When** the file is parsed via `codeharness validate <file>`, **Then** the command exits 0 with no errors printed to stderr. <!-- verification: create test YAML with a valid gate block, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a YAML file containing a `gate:` step with only the name and `check` list (no `fix`, `pass_when`, `max_retries`, or `circuit_breaker`), **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — omitted fields get defaults: `fix: []`, `pass_when: consensus`, `max_retries: 3`, `circuit_breaker: stagnation`. <!-- verification: create YAML with minimal gate (name + check only), run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a YAML file with a gate step that has no name (e.g., `gate:` with empty value or `gate: \"\"`), **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"gate\" and \"name\" (or \"named\"). <!-- verification: create YAML with unnamed gate, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"gate\" and \"name\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a YAML file with a gate step that has an empty `check: []` list, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"check\". <!-- verification: create YAML with empty check list, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"check\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a YAML file with a gate step that has no `check` key at all, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"check\". <!-- verification: create YAML with gate missing check key, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"check\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a YAML file with a gate whose `check` list references a task name not defined in `tasks:`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr reports the unknown task name. <!-- verification: create YAML with gate referencing `ghost-checker` not in tasks, run `codeharness validate <file>`, expect non-zero exit and stderr contains \"ghost-checker\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a YAML file with a gate whose `fix` list references a task name not defined in `tasks:`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr reports the unknown task name. <!-- verification: create YAML with gate fix referencing `ghost-fixer` not in tasks, run `codeharness validate <file>`, expect non-zero exit and stderr contains \"ghost-fixer\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a YAML file with a gate using `pass_when: majority`, **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — the parser accepts `consensus`, `majority`, and `any_pass` as valid `pass_when` values. <!-- verification: create YAML with pass_when: majority, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a YAML file with a gate using `pass_when: invalid_value`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"pass_when\". <!-- verification: create YAML with pass_when: invalid_value, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"pass_when\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a YAML file with a gate using `max_retries: 0`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"max_retries\" — retries must be at least 1. <!-- verification: create YAML with max_retries: 0, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"max_retries\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a YAML file with multiple gates at different nesting levels (e.g., `gate: quality` inside a `for_each: story` and `gate: verification` inside a `for_each: epic`), **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — gates are valid at any nesting level. <!-- verification: create YAML with gates at two levels, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** a YAML file using the old `story_flow` / `epic_flow` format (no gates, no `workflow:` key), **When** parsed via `codeharness validate <file>`, **Then** the command still exits 0 — backward compatibility is preserved. <!-- verification: run `codeharness validate` against the existing `templates/workflows/default.yaml`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** all existing tests pass plus new gate-parsing tests — zero failures, no regressions. <!-- verification: `npx vitest run` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "**Given** the parser code is linted via `npx eslint src/lib/workflow-parser.ts src/lib/workflow-execution.ts`, **When** linting completes, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-parser.ts src/lib/workflow-execution.ts` exits 0 -->",
+      "status": "pending"
+    }
+  ]
+}

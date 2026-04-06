@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "taskName": "check",
+  "storyId": "24-4-compile-for-each-blocks-to-iteration-states",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T21:03:59.747Z",
+  "cost_usd": null,
+  "duration_ms": 45333,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m checking the repo scripts first so I can run the exact test suite and lint commands for story `24-4-compile-for-each-blocks-to-iteration-states`.I found the relevant scripts: `npm run test:unit`, `npm test`, and `npm run lint`. I’m running those now and will report the exact pass/fail state from each command.The checks are still running. Unit tests and integration tests both started cleanly; I’m waiting for final exit codes and any failures before I summarize.`eslint` has already exited cleanly. I’m polling the two test commands for their final summaries and exit codes now.Executed the requested automated checks for story `24-4-compile-for-each-blocks-to-iteration-states`.\n\nResults:\n- `npm run test:unit` passed: 193 files, 5092 tests\n- `npm test` passed: 47 integration tests\n- `npm run lint` passed\n\n<verdict>pass</verdict>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow YAML file containing nested `for_each` blocks, **When** `npm run build` is executed, **Then** it exits 0 with zero TypeScript errors — the new `compileForEach` function compiles cleanly. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all tests pass with zero failures — no regressions from adding for_each compiler logic. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a test that compiles a `for_each: story` config with steps `['create-story', 'implement']`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled for_each has a `processItem` child state that contains a compiled flow from the nested steps — the nested steps appear as invoke states within the processItem phase. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*processItem.*steps\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a test that compiles a `for_each` config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled for_each has a `checkNext` child state with guard-based transitions: `hasMoreItems` → `processItem` (with index increment action), and a default fallback → `done`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*checkNext.*hasMoreItems.*guard\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a test that compiles a `for_each` config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled for_each has a `done` child state with `type: 'final'` — signaling iteration completion to the parent machine. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*done.*final\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a test that compiles a `for_each: story` config with steps containing a gate block `{ gate: 'quality', check: ['check'], fix: ['retry'], ... }`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the gate block within processItem is compiled as a compound negotiation state (with checking/evaluate/fixing substates) — `compileForEach` delegates to `compileGate` for gate steps. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*gate.*checking.*evaluate\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a test that compiles a nested `for_each` (e.g., `for_each: epic` containing `for_each: story`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the inner `for_each` is compiled recursively — the processItem of the outer for_each contains another compound iteration state with its own processItem/checkNext/done structure. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*nested.*recursive.*processItem\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a test that compiles a `for_each` block where a nested step references a task name not in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time — not deferred to runtime. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*unknown.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a test that compiles a `for_each` config with a single step `['implement']`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the processItem phase has exactly one invoke state (not a sequential chain) — single-step optimization. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*single.*step\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a test that compiles the same `for_each` config twice with identical inputs, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming identical outputs — `compileForEach` is pure and deterministic with no side effects. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*pure.*deterministic\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a test that compiles a `for_each` config with an empty steps array, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming either an error is thrown at compile time or the compiled state goes directly to `done` — empty iteration is handled explicitly, not silently ignored. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*empty.*steps\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `npx eslint src/lib/workflow-compiler.ts` is executed, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-compiler.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `wc -l src/lib/workflow-compiler.ts` is executed, **Then** the file is ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-compiler.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** a test that compiles a `for_each` config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the `checkNext` state's `hasMoreItems` transition includes an `assign` action — the index is incremented as part of the guard-true transition, not as a separate step. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*checkNext.*assign.*index\" or equivalent -->",
+      "status": "pending"
+    }
+  ]
+}

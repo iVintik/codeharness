@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "taskName": "check",
+  "storyId": "24-1-shared-types-module",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T19:57:11.615Z",
+  "cost_usd": null,
+  "duration_ms": 59580,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m checking the repo scripts first so I can run the intended test and lint commands for story `24-1-shared-types-module`, then I’ll execute them and report the results.The repo has separate unit and integration test scripts plus `eslint`. I’m running `npm run test:unit`, `npm test`, and `npm run lint` now so the verdict reflects the full configured suite.The checks are still running. I’m waiting for the full unit, integration, and lint results before I call the story pass/fail.`eslint` finished with no errors but two warnings in [src/lib/workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts). I’m still waiting on the unit and integration suites to finish so I can give a single verdict.`vitest` has finished and is failing with 5 tests, concentrated in `workflow-actors` and `workflow-machines`. I’m waiting for the final `bats` result, but the overall story verdict is already trending `fail` because the unit suite is nonzero.<verdict>fail</verdict>\n\nRan the configured checks for story `24-1-shared-types-module`:\n\n- `npm run test:unit`: failed, `5` tests failing out of `5041`\n- `npm test`: passed, `47/47` bats tests\n- `npm run lint`: passed with `0` errors and `2` warnings\n\nCurrent blocking failures:\n- [workflow-actors.test.ts:769](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts#L769)\n- [workflow-actors.test.ts:918](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts#L918)\n- [workflow-actors.test.ts:1240](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts#L1240)\n- [workflow-actors.test.ts:1263](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts#L1263)\n- [workflow-machines.test.ts:1080](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machines.test.ts#L1080)\n\nLint warnings only:\n- [workflow-compiler.ts:10](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L10) unused `isEngineError`\n- [workflow-compiler.ts:10](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L10) unused `isLoopBlock`\n\nI did not run `npm run build` because you asked for the test suite and linter specifically.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a fresh clone of the repository, **When** `npm run build` completes, **Then** it exits 0 with zero TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` completes, **Then** all tests pass with zero failures — no regressions from type refactoring. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** its import statements are inspected, **Then** it contains zero imports from any file matching `workflow-*.ts` (i.e., no imports from `workflow-parser`, `workflow-state`, `workflow-compiler`, `workflow-machines`, `workflow-actors`, `workflow-runner`, `workflow-execution`). <!-- verification: `grep -c 'from.*workflow-' src/lib/workflow-types.ts` shows only self-references or zero; `grep \"from '.*workflow-\" src/lib/workflow-types.ts` returns no matches to other workflow modules -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** its exports are inspected, **Then** it exports at minimum: `RunContext`, `EpicContext`, `StoryContext`, `GateContext`, `EngineConfig`, `EngineResult`, `EngineError`, `EngineEvent`, `WorkItem`, `DispatchInput`, `DispatchOutput`, `NullTaskInput`, `GateConfig`, `ForEachConfig`, `FlowStep`, and the `WorkflowError` class. <!-- verification: for each type name, `grep \"export.*TypeName\" src/lib/workflow-types.ts` returns a match -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** `WorkflowError` is inspected, **Then** it is a class extending `Error` with readonly properties `code` (string), `taskName` (string), and `storyKey` (string). <!-- verification: `grep -A5 \"class WorkflowError\" src/lib/workflow-types.ts` shows `extends Error` and the three properties -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** `src/lib/workflow-compiler.ts`, **When** its imports are inspected, **Then** it imports shared types from `workflow-types.ts` (not defining them locally) and contains no duplicate type definitions that exist in `workflow-types.ts`. <!-- verification: `grep \"from.*workflow-types\" src/lib/workflow-compiler.ts` returns at least one match; `grep \"export interface EngineResult\" src/lib/workflow-compiler.ts` returns no match (moved to types) -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** any module that previously imported `EngineResult` from `workflow-compiler.ts`, **When** it is inspected after the refactor, **Then** it imports `EngineResult` from `workflow-types.ts` (directly or via re-export). <!-- verification: `grep -r \"EngineResult\" src/lib/ --include=\"*.ts\"` shows all references resolve through workflow-types or its re-exports -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-types.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** `src/lib/workflow-types.ts`, **When** linted via `npx eslint src/lib/workflow-types.ts`, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-types.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** any `workflow-*.ts` file in `src/lib/`, **When** its imports from `workflow-types.ts` are inspected, **Then** no circular dependency exists — `workflow-types.ts` does not import from any `workflow-*.ts` file, while other `workflow-*.ts` files may import from `workflow-types.ts`. <!-- verification: `npx madge --circular src/lib/workflow-types.ts` (or manual grep) shows no circular dependency involving workflow-types.ts -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the new `GateConfig` type exported from `workflow-types.ts`, **When** inspected, **Then** it includes fields: `gate` (string — the gate name), `check` (string array), `fix` (string array), `pass_when` (union of strategy strings), `max_retries` (number), and `circuit_breaker` (string, defaults to `'stagnation'`). <!-- verification: `grep -A8 \"interface GateConfig\\|type GateConfig\" src/lib/workflow-types.ts` shows the required fields -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the new `ForEachConfig` type exported from `workflow-types.ts`, **When** inspected, **Then** it includes fields: `for_each` (string — the scope name like `'epic'` or `'story'`) and `steps` (array of flow steps). <!-- verification: `grep -A4 \"interface ForEachConfig\\|type ForEachConfig\" src/lib/workflow-types.ts` shows the required fields -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the context types (`RunContext`, `EpicContext`, `StoryContext`, `GateContext`), **When** inspected, **Then** each contains at minimum: an `errors` array field, an accumulator for tasks completed, and a `halted` boolean — enabling guards to operate on any context level uniformly. <!-- verification: for each context type, `grep -A15 \"interface RunContext\\|interface EpicContext\\|interface StoryContext\\|interface GateContext\" src/lib/workflow-types.ts` shows errors, tasksCompleted/halted fields -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** unit tests exist for `workflow-types.ts`, **When** `npx vitest run --reporter=verbose` is filtered to type-related tests, **Then** tests verify: `WorkflowError` construction, `WorkflowError` instanceof checks, type guard functions (if any), and that exported types are importable. <!-- verification: `npx vitest run --reporter=verbose` shows passing tests for WorkflowError and type exports -->",
+      "status": "pending"
+    }
+  ]
+}

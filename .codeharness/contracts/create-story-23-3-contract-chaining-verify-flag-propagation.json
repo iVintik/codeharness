@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "23-3-contract-chaining-verify-flag-propagation",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T18:44:58.156Z",
+  "cost_usd": 0.84585245,
+  "duration_ms": 204857,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/23-3-contract-chaining-verify-flag-propagation.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the key files to understand the story format and the specific details needed for story 23-3.Now let me read the architecture doc section on contract chaining and the workflow-machines file to understand how contracts flow through the machine hierarchy.Now I have full context. Let me also quickly check the test file for existing contract chaining tests and the verification proof file.Now I have everything I need. Let me write the story spec.Story spec written to `_bmad-output/implementation-artifacts/23-3-contract-chaining-verify-flag-propagation.md`.\n\n**13 ACs**, all blind-verifiable:\n- **AC1-4**: Contract chaining — contracts exist on disk, downstream tasks reference upstream output, null tasks participate in chain\n- **AC5-8**: Verify flag propagation — `tests_passed`/`coverage_met` set only for `implement` tasks with correct test results; non-implement tasks don't touch flags\n- **AC9**: Chronological contract ordering\n- **AC10**: Verify task observes flags set by implement\n- **AC11-13**: Build, tests, file size\n\n**8 tasks** covering: machine context validation, prompt injection, file persistence, verify flags, null task boundaries, error impact, integration tests, build quality.\n\n**Key findings documented in dev notes:**\n- `testResults` is always `null` in actor-constructed contracts — flags may rely on a separate evaluator path, needs validation\n- Story-level null task failures don't set `halted = true` (known from 23-2 review, deferred to 23-4)\n- Contract chain flows bidirectionally: forward (task→task) and upward (story→epic→run) via `onDone` assign",
+  "acceptanceCriteria": []
+}

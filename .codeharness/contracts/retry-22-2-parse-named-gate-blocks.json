@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "22-2-parse-named-gate-blocks",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T17:31:13.315Z",
+  "cost_usd": 0.9083519999999998,
+  "duration_ms": 257921,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-22-2-parse-named-gate-blocks.json",
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/22-2-parse-named-gate-blocks.md"
+  ],
+  "testResults": null,
+  "output": "The implementation is done and both check/review gave `pass` verdicts, but all AC statuses in the retry contract are still `\"pending\"`. I'll run the actual verifications and update the contract.All 15 ACs verified. Now checking AC3/AC9/AC10 stderr mentions required keywords:\n- AC3: output includes `/gate: gate name must be a non-empty string` → mentions \"gate\" and \"name\" ✓\n- AC9: output includes `/pass_when: must be equal to one of the allowed values` → mentions \"pass_when\" ✓  \n- AC10: output includes `/max_retries: must be >= 1` → mentions \"max_retries\" ✓\n\nNow update the retry contract with all statuses set to `pass`:All 15 ACs updated to `pass`. Now update the story status from `review` to `done`:Done. Here's what happened:\n\n**Story 22-2 `parse-named-gate-blocks` — retry task executed**\n\nThe implementation was already complete (from previous attempts). The retry contract had all 15 ACs still as `\"pending\"` despite the agents reporting `pass` in their output — they failed to write the status updates back.\n\nI re-ran all 15 ACs directly:\n- **AC1-AC2**: valid gate blocks → exit 0 ✓\n- **AC3**: empty gate name → exit 1, stderr mentions \"gate\" and \"name\" ✓\n- **AC4-AC5**: missing/empty check → exit 1, mentions \"check\" ✓\n- **AC6-AC7**: unknown check/fix task refs → exit 1, names in stderr ✓\n- **AC8**: `pass_when: majority` → exit 0 ✓\n- **AC9**: invalid `pass_when` → exit 1, mentions \"pass_when\" ✓\n- **AC10**: `max_retries: 0` → exit 1, mentions \"max_retries\" ✓\n- **AC11**: gates at two nesting levels → exit 0 ✓\n- **AC12**: backward compat with legacy format → exit 0 ✓\n- **AC13**: `npm run build` → exit 0, 4988 tests pass ✓\n- **AC14-AC15**: tests + lint → exit 0 ✓\n\nUpdated `retry` contract (all 15 → `pass`), `sprint-state.json` and `sprint-status.yaml` to `done`.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a YAML file containing a `gate: quality` step with `check: [check]`, `fix: [retry]`, and all referenced tasks defined in `tasks:`, **When** the file is parsed via `codeharness validate <file>`, **Then** the command exits 0 with no errors printed to stderr. <!-- verification: create test YAML with a valid gate block, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a YAML file containing a `gate:` step with only the name and `check` list (no `fix`, `pass_when`, `max_retries`, or `circuit_breaker`), **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — omitted fields get defaults: `fix: []`, `pass_when: consensus`, `max_retries: 3`, `circuit_breaker: stagnation`. <!-- verification: create YAML with minimal gate (name + check only), run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a YAML file with a gate step that has no name (e.g., `gate:` with empty value or `gate: \"\"`), **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"gate\" and \"name\" (or \"named\"). <!-- verification: create YAML with unnamed gate, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"gate\" and \"name\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a YAML file with a gate step that has an empty `check: []` list, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"check\". <!-- verification: create YAML with empty check list, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"check\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a YAML file with a gate step that has no `check` key at all, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"check\". <!-- verification: create YAML with gate missing check key, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"check\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a YAML file with a gate whose `check` list references a task name not defined in `tasks:`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr reports the unknown task name. <!-- verification: create YAML with gate referencing `ghost-checker` not in tasks, run `codeharness validate <file>`, expect non-zero exit and stderr contains \"ghost-checker\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a YAML file with a gate whose `fix` list references a task name not defined in `tasks:`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr reports the unknown task name. <!-- verification: create YAML with gate fix referencing `ghost-fixer` not in tasks, run `codeharness validate <file>`, expect non-zero exit and stderr contains \"ghost-fixer\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a YAML file with a gate using `pass_when: majority`, **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — the parser accepts `consensus`, `majority`, and `any_pass` as valid `pass_when` values. <!-- verification: create YAML with pass_when: majority, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a YAML file with a gate using `pass_when: invalid_value`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"pass_when\". <!-- verification: create YAML with pass_when: invalid_value, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"pass_when\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a YAML file with a gate using `max_retries: 0`, **When** parsed via `codeharness validate <file>`, **Then** the command exits non-zero and stderr contains an error message mentioning \"max_retries\" — retries must be at least 1. <!-- verification: create YAML with max_retries: 0, run `codeharness validate <file>`, expect non-zero exit and stderr mentions \"max_retries\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a YAML file with multiple gates at different nesting levels (e.g., `gate: quality` inside a `for_each: story` and `gate: verification` inside a `for_each: epic`), **When** parsed via `codeharness validate <file>`, **Then** the command exits 0 — gates are valid at any nesting level. <!-- verification: create YAML with gates at two levels, run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** a YAML file using the old `story_flow` / `epic_flow` format (no gates, no `workflow:` key), **When** parsed via `codeharness validate <file>`, **Then** the command still exits 0 — backward compatibility is preserved. <!-- verification: run `codeharness validate` against the existing `templates/workflows/default.yaml`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** all existing tests pass plus new gate-parsing tests — zero failures, no regressions. <!-- verification: `npx vitest run` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC15",
+      "description": "**Given** the parser code is linted via `npx eslint src/lib/workflow-parser.ts src/lib/workflow-execution.ts`, **When** linting completes, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-parser.ts src/lib/workflow-execution.ts` exits 0 -->",
+      "status": "pending"
+    }
+  ]
+}

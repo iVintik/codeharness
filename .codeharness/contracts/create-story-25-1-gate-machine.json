@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "25-1-gate-machine",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T21:33:50.253Z",
+  "cost_usd": 0.72819075,
+  "duration_ms": 205845,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/25-1-gate-machine.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the key files for exact details:Now let me read the current source files to understand what exists:Now let me check the 24-1 story format more closely for structure reference:Now I have all the context. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/25-1-gate-machine.md`.\n\n**Summary:**\n- 14 acceptance criteria — all verifiable via CLI commands (`npm run build`, `npx vitest run --reporter=verbose`, `npx eslint`, `wc -l`, `grep`). No AC references source code internals, O(1) complexity, or data structures. A blind QA agent can verify every criterion by running commands and reading terminal output.\n- 10 tasks covering: pure guards, actors, machine definition with `setup()` + `createMachine()`, checking/evaluate/fixing states, final states, input/output types, comprehensive tests, build verification.\n- Dev notes explain: compiler vs machine relationship, guard implementations, verdict accumulation pattern, circuit breaker evaluation timing, file organization (new `workflow-gate-machine.ts` recommended), test strategy with mocked actors.\n- Key architectural patterns preserved: `setup()` + `createMachine()`, immutable `assign()`, pure guards, `onDone`/`onError` on every invoke, `INTERRUPT` event handler, typed context boundaries.",
+  "acceptanceCriteria": []
+}

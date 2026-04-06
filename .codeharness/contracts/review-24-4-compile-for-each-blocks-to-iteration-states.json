@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "24-4-compile-for-each-blocks-to-iteration-states",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T21:05:59.318Z",
+  "cost_usd": null,
+  "duration_ms": 119554,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m reviewing story `24-4-compile-for-each-blocks-to-iteration-states` as a code review: I’ll inspect the implementation diff, trace the compiler logic and tests against the acceptance criteria, and then call out any correctness, security, architecture, or coverage gaps.The worktree is dirty with multiple in-progress story changes, so I’m isolating the `for_each` implementation by reading the compiler and its targeted tests rather than assuming the whole diff belongs to this story.I have the raw compiler diff now. Next I’m checking whether the new helpers are actually wired into the workflow engine and whether the tests really cover the acceptance criteria instead of only shape-checking isolated objects.The runtime is still fundamentally executing legacy `storyFlow`/`epicFlow` plus loop blocks. I’m checking whether the new parser/compiler path preserves semantics or whether `for_each` is currently only compile-tested and not actually runnable end to end.The build is in progress. After that I’m going to verify whether the parser’s new-format fallback actually preserves nested `for_each` behavior at runtime, because that is the main architectural risk I see so far.I found two substantive correctness risks in the compiler path and I’m pulling exact line references now. One is a control-flow bug on task errors; the other is that nested compiled substates are not context-compatible when composed.<verdict>fail</verdict>\n\n<issues>\n1. The compiled error path can deadlock the machine instead of “continuing.” In [`workflow-compiler.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L160) the fallback `onError` branch for `compileStep` records the error but has no `target`; after an invoked actor fails, that leaves the state active with no live invocation and no transition forward. The same pattern exists in `compileGate` at [`workflow-compiler.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L229). The comment says execution continues, but the config does not implement that. The current tests only assert object shape, not actual XState execution, so this escaped coverage; see [`workflow-compiler.test.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts#L905).\n\n2. `compileForEach` composes child states with incompatible context contracts. `compileStep` reads `StoryContext` fields like `context.config`, `context.workflowState`, and `context.item.key` at [`workflow-compiler.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L124), while `compileGate` reads `GateContext` fields like `context.gate`, `context.verdicts`, and `context.parentItemKey` at [`workflow-compiler.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L220). But `compileForEach` just drops those compiled substates into the iteration machine at [`workflow-compiler.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L273) and only updates `currentIndex` and `item` in `checkNext` at [`workflow-compiler.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L285). A `for_each` containing a gate or nested `for_each` is therefore not actually executable with the context shape this compiler produces. The tests again only validate structural presence of substates, not that their input functions can run; see [`workflow-compiler.test.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts#L952).\n\n3. Nested `for_each` is still not runtime-compatible in the actual engine path. The parser derives legacy `storyFlow`/`epicFlow` from `workflow:` and explicitly skips deeper nesting in [`workflow-parser.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-parser.ts#L155), while the runtime executor still only handles strings and loop blocks in [`workflow-machines.ts`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts#L210). So a nested `for_each` may parse and compile in isolation, but the end-to-end engine silently drops that structure instead of executing it recursively. That is an architecture gap and an AC coverage gap for recursive behavior.\n</issues>\n\nBuild, lint, and the targeted compiler test file all pass locally. I did not find a separate security issue in this story.\n\nAC coverage is partial: AC1, AC12, and AC13 are satisfied locally; AC3-11 and AC14 are only covered by structure-level unit tests, not by executing the compiled XState config, which is why the two compiler bugs above were not caught.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow YAML file containing nested `for_each` blocks, **When** `npm run build` is executed, **Then** it exits 0 with zero TypeScript errors — the new `compileForEach` function compiles cleanly. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all tests pass with zero failures — no regressions from adding for_each compiler logic. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a test that compiles a `for_each: story` config with steps `['create-story', 'implement']`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled for_each has a `processItem` child state that contains a compiled flow from the nested steps — the nested steps appear as invoke states within the processItem phase. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*processItem.*steps\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a test that compiles a `for_each` config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled for_each has a `checkNext` child state with guard-based transitions: `hasMoreItems` → `processItem` (with index increment action), and a default fallback → `done`. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*checkNext.*hasMoreItems.*guard\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a test that compiles a `for_each` config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the compiled for_each has a `done` child state with `type: 'final'` — signaling iteration completion to the parent machine. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*done.*final\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a test that compiles a `for_each: story` config with steps containing a gate block `{ gate: 'quality', check: ['check'], fix: ['retry'], ... }`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the gate block within processItem is compiled as a compound negotiation state (with checking/evaluate/fixing substates) — `compileForEach` delegates to `compileGate` for gate steps. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*gate.*checking.*evaluate\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a test that compiles a nested `for_each` (e.g., `for_each: epic` containing `for_each: story`), **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the inner `for_each` is compiled recursively — the processItem of the outer for_each contains another compound iteration state with its own processItem/checkNext/done structure. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*nested.*recursive.*processItem\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a test that compiles a `for_each` block where a nested step references a task name not in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time — not deferred to runtime. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*unknown.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a test that compiles a `for_each` config with a single step `['implement']`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the processItem phase has exactly one invoke state (not a sequential chain) — single-step optimization. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*single.*step\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a test that compiles the same `for_each` config twice with identical inputs, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming identical outputs — `compileForEach` is pure and deterministic with no side effects. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*pure.*deterministic\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** a test that compiles a `for_each` config with an empty steps array, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming either an error is thrown at compile time or the compiled state goes directly to `done` — empty iteration is handled explicitly, not silently ignored. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*empty.*steps\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `npx eslint src/lib/workflow-compiler.ts` is executed, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-compiler.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `wc -l src/lib/workflow-compiler.ts` is executed, **Then** the file is ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-compiler.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** a test that compiles a `for_each` config, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the `checkNext` state's `hasMoreItems` transition includes an `assign` action — the index is incremented as part of the guard-true transition, not as a separate step. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileForEach.*checkNext.*assign.*index\" or equivalent -->",
+      "status": "pending"
+    }
+  ]
+}

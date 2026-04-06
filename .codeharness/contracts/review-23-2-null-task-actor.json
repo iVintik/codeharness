@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "23-2-null-task-actor",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T18:41:33.265Z",
+  "cost_usd": null,
+  "duration_ms": 139368,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m reviewing story `23-2-null-task-actor` as a code review: I’ll inspect the branch diff, the touched implementation and tests, then map the result against correctness, security, architecture, and each acceptance criterion.I have the changed surface now. Next I’m reading the null-task implementation and the machine integration in detail, then I’ll check whether the tests actually prove each AC or just partially cover it.I’m into the control flow now. One thing I’m checking closely is whether null-task failures actually halt the workflow in every path, not just inside loop blocks, because the ACs are explicit about “must not silently continue.”I found one likely type-level regression in the event payloads and I’m verifying it with the build now, along with the null-task test file, before I lock the verdict.I’ve got a concrete control-flow concern: null-task errors are only marked as halting inside loop and epic-level paths. I’m checking whether there is any existing test for a direct story-flow null task failure; if not, that’s probably the key gap.I’ve verified the targeted actor tests and the build. I’m running the full Vitest suite now because AC11 is phrased against the whole suite, and I want the verdict to reflect that rather than just the focused tests.<verdict>fail</verdict>\n\n<issues>\n1. A story-level `agent: null` failure does not halt the workflow, so AC4/AC5/AC6 are not actually met for all valid placements of a null task. In [workflow-machines.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts#L225), the `task.agent === null` branch catches the null-task error, records it, and `break`s, but never sets `halted = true`. The function then still emits `story-done` at [workflow-machines.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts#L251), which means the run can continue as if the story finished. The TUI then marks the same story done after previously marking it failed at [run.ts](/Users/ivintik/dev/personal/codeharness/src/commands/run.ts#L435) and [run.ts](/Users/ivintik/dev/personal/codeharness/src/commands/run.ts#L455). That is a correctness bug and a direct AC violation for “does NOT silently continue past the error”.\n\n2. The tests are structured to avoid the broken path, so they overstate AC coverage. The null-task test helper rewrites string null tasks into loop execution and even states “The engine only executes null tasks inside loop blocks” at [null-task-engine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/null-task-engine.test.ts#L244), which is not true of the runtime because direct story-flow null tasks are handled in [workflow-machines.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts#L225). The story-flow tests also explicitly steer telemetry into loop-only scenarios at [story-flow-execution.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/story-flow-execution.test.ts#L377). As a result, the suite does not cover the real failure mode above, so AC4/5/6 are not adequately verified.\n</issues>\n\nBuild passed with `npm run build`, targeted null-task tests passed, and [workflow-actors.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-actors.ts) is 203 lines, so AC10 and AC12 look satisfied. I did not find a separate security issue beyond the inconsistent failed-vs-done workflow state caused by the halt bug.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow YAML with a task `telemetry` defined as `agent: null`, **When** `codeharness run` reaches that task in the flow, **Then** the terminal output or `docker logs` shows NO `dispatch-start` and NO `dispatch-end` log lines for `telemetry` — confirming the engine skipped driver dispatch entirely. <!-- verification: run `codeharness run` with a workflow containing agent:null task, grep terminal/logs for \"dispatch-start\" + \"dispatch-end\" filtered by taskName=telemetry — expect zero matches -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow with a null task `telemetry` that completes, **When** the task finishes, **Then** `.codeharness/contracts/` contains a contract JSON file for the `telemetry` task with fields: `taskName: \"telemetry\"`, `driver: \"engine\"`, `model: \"null\"`, `cost_usd: 0`, `duration_ms` (a number ≥ 0), `changedFiles: []`, and `output` (a string). <!-- verification: after workflow completes, `ls .codeharness/contracts/ | grep telemetry`; then `cat` the file and verify JSON fields match -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow with a null task `telemetry` that completes, **When** the workflow state file is inspected, **Then** `.codeharness/workflow-state.yaml` (or `.json`) contains a `tasks_completed` entry with `task_name: \"telemetry\"` and a `completed_at` ISO timestamp. <!-- verification: `cat .codeharness/workflow-state.yaml` or `cat .codeharness/workflow-state.json`, find the telemetry entry in tasks_completed array, verify task_name and completed_at fields -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow with a task `unknown-null-task` defined as `agent: null` but NO handler registered for that name, **When** `codeharness run` reaches that task, **Then** the terminal output or logs show an error containing the text `NULL_TASK_NOT_FOUND` and the task name `unknown-null-task`, and the workflow does NOT silently continue past the error. <!-- verification: configure workflow with unregistered null task name, run `codeharness run`, observe error output contains \"NULL_TASK_NOT_FOUND\" and \"unknown-null-task\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a registered null task handler that returns `{ success: false }`, **When** `codeharness run` executes that task, **Then** the terminal output or logs show an error containing the text `NULL_TASK_FAILED` and the task name, and the workflow does NOT write a success checkpoint for that task. <!-- verification: register a failing handler or mock one, run `codeharness run`, observe error with \"NULL_TASK_FAILED\"; inspect workflow-state to confirm no success checkpoint for that task -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a registered null task handler that throws an exception, **When** `codeharness run` executes that task, **Then** the terminal output or logs show an error containing the text `NULL_TASK_HANDLER_ERROR` and the original error message from the handler. <!-- verification: register a throwing handler or mock one, run `codeharness run`, observe error with \"NULL_TASK_HANDLER_ERROR\" and the original message -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a workflow with sequential tasks `implement` (agent: dev) → `telemetry` (agent: null) → `verify` (agent: evaluator), **When** all three tasks complete, **Then** the `verify` task receives the `telemetry` task's output contract as its previous contract context (visible in the verify task's prompt or contract chain), confirming null tasks participate in contract chaining. <!-- verification: run workflow with mixed tasks, inspect .codeharness/contracts/ for all three files; the verify contract's prompt should reference the telemetry contract's output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a null task `telemetry` is executed, **When** the dispatch completes, **Then** the accumulated cost for the null task is $0.00 — no cost is charged to the workflow budget, and `codeharness status` or the workflow state shows no cost increase from the null task. <!-- verification: run workflow, note cost before and after null task; inspect contracts or status to confirm cost_usd=0 for telemetry task -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a null task is executed, **When** the engine processes it, **Then** NO isolated workspace is created (no `source_access: false` isolation path is triggered), regardless of the task's `source_access` setting. <!-- verification: observe terminal/logs during null task execution — no workspace creation logs; verify no temporary workspace directories exist during/after null task -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** all tests pass with zero failures — no regressions from null task actor changes. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `workflow-actors.ts` exists on disk, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l src/lib/workflow-actors.ts` shows ≤ 300 -->",
+      "status": "pending"
+    }
+  ]
+}

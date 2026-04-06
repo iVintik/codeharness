@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "24-2-compile-task-steps-to-invoke-states",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T20:03:40.408Z",
+  "cost_usd": 0.7978327000000001,
+  "duration_ms": 215829,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/24-2-compile-task-steps-to-invoke-states.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the current source files to understand the implementation state:Now let me check the workflow-machines.ts to understand how invoke states currently work and what pattern compileStep needs to produce:Now I have full context. Let me write the story spec.Story spec written to `_bmad-output/implementation-artifacts/24-2-compile-task-steps-to-invoke-states.md`.\n\n**Summary:**\n\n- **12 ACs**, all blind-verifiable via CLI commands (`npm run build`, `npx vitest run --reporter=verbose`, `npx eslint`, `wc -l`) — zero source code inspection required\n- **7 task groups** covering: function signature design, agent task compilation (dispatchActor), null task compilation (nullTaskActor), onError guard chain, compile-time validation, unit tests, and build/lint verification\n- **Key design decisions documented:** guard names as strings (not functions), actor sources as strings, input functions as the one embedded function exception, `assign()` as the only XState import needed\n\nThe ACs verify behavior through test output (verbose test names confirming specific compiler behaviors) rather than grepping source code. A blind QA agent can run `npx vitest run --reporter=verbose` and confirm each compiler behavior has a passing test.",
+  "acceptanceCriteria": []
+}

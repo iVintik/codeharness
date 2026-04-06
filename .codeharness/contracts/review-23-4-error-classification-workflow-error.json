@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "23-4-error-classification-workflow-error",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T19:19:08.782Z",
+  "cost_usd": null,
+  "duration_ms": 107049,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m reviewing the implementation for `23-4-error-classification-workflow-error` as a code review task. I’ll locate the relevant changes and tests first, then check them against the acceptance criteria, security concerns, and the architecture constraints.I’ve confirmed the story is sitting as uncommitted work in the current tree, touching the workflow actor/machine path plus status formatting and tests. Next I’m reading the actual diffs and the story artifact to see whether the behavior matches the acceptance criteria or only the tests.I’ve got the core diff. Two obvious areas need validation now: the new error guards in `workflow-compiler.ts`, and whether the machine behavior actually matches the story spec rather than just the updated tests.The main review signal is emerging now. I’m checking two things in detail before I write findings: whether stack traces survive the new `WorkflowError` path at all, and whether the new abort wiring actually satisfies the SIGINT acceptance criterion instead of just flipping state in one catch path.I’ve got enough to call this. The implementation fixes several classification paths, but there are still concrete acceptance-criteria and architecture failures in the current diff, so I’m writing the review against those specific gaps rather than the broader workflow worktree.<verdict>fail</verdict>\n\n<issues>\n1. High: AC1 is still not met because the null-task handler stack trace is discarded before the error is recorded or surfaced. [`nullTaskCore`](#/Users/ivintik/dev/personal/codeharness/src/lib/workflow-actors.ts#L49) wraps the original exception in a fresh `WorkflowError` without preserving `cause`, and [`handleDispatchError`](#/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L123) plus [`recordErrorInState`](#/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts#L109) only persist `message`/`code`. That means logs/status can show `NULL_TASK_HANDLER_ERROR`, but not the handler stack trace the AC explicitly requires.\n\n2. High: machine-level failures still bypass the unified classification/persistence path, so AC8 is incomplete. [`epicMachine`](#/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts#L356) and [`runMachine`](#/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts#L409) synthesize raw `{ taskName, storyKey, code, message }` objects on `invoke.onError` instead of using `WorkflowError`/`handleDispatchError`/`recordErrorInState`. [`status`](#/Users/ivintik/dev/personal/codeharness/src/modules/status/formatters.ts#L535) only reads persisted checkpoint errors from `tasks_completed`, so these actor failures will not appear in `codeharness status`, contrary to the story’s “all workflow engine errors” scope and AC8’s “no errors are swallowed or missing”.\n\n3. Medium: the implementation violates the module boundary documented in [`workflow-types.ts`](#/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts#L1). That file explicitly says “No runtime code — pure type definitions”, but the story adds a runtime `WorkflowError` class there at [`workflow-types.ts`](#/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts#L22). That is an architecture violation even if the code works.\n\n4. Medium: AC13 fails as implemented. `src/lib/workflow-machines.ts` is 418 lines (`wc -l`), over the stated ≤400 limit.\n</issues>\n\nNo distinct security issue stood out beyond those correctness/architecture gaps. I did not rerun the full build or full Vitest suite in this review, so AC10/AC11 remain unverified here.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow with a null task `telemetry` whose handler throws an exception, **When** `codeharness run` executes that task, **Then** the terminal output or logs show an error with a classification code (`NULL_TASK_HANDLER_ERROR`) and the task name `telemetry`, AND the error includes a stack trace (visible in debug/verbose mode or log file). <!-- verification: register a throwing null task handler, run `codeharness run`, observe error output contains \"NULL_TASK_HANDLER_ERROR\", \"telemetry\", and a stack trace line with \"at\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow with a null task referencing an unregistered handler, **When** `codeharness run` reaches that task, **Then** the terminal output shows an error with code `NULL_TASK_NOT_FOUND`, AND `codeharness status` or the workflow state file shows the workflow halted — it did NOT continue to the next task or next story. <!-- verification: configure workflow with unregistered null task, run `codeharness run`, confirm error with \"NULL_TASK_NOT_FOUND\"; then `codeharness status` or `cat .codeharness/workflow-state.yaml` shows phase is \"error\" or halted indicator -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow where a null task fails at the story level (inside story flow, not in a loop), **When** the null task error is processed, **Then** the workflow state file shows the story DID NOT emit a `story-done` event for that story key, AND the terminal output does NOT show a `story-done` log for that story. <!-- verification: run workflow where story-level null task fails, grep logs for \"story-done\" with that story key — expect zero matches; inspect workflow state for halted indicator -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow where a dispatch task fails with error code `RATE_LIMIT`, **When** the error is processed, **Then** `codeharness status` or the workflow state file shows the workflow entered a halted/error state, AND the error record in the state file contains `code: \"RATE_LIMIT\"` and the task name. <!-- verification: trigger rate limit error (invalid API key or mock), run `codeharness run`, check `codeharness status` for halted state; inspect state file errors array for code=RATE_LIMIT entry -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a workflow where a dispatch task fails with error code `NETWORK`, **When** the error is processed, **Then** the workflow halts (same behavior as RATE_LIMIT — the workflow does NOT continue to the next task). <!-- verification: trigger network error, run `codeharness run`, confirm workflow stopped and state file shows error state -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a workflow where a dispatch task fails with error code `UNKNOWN`, **When** the error is processed, **Then** the error is recorded in the workflow state file's error entries, AND the workflow halts the current story but the epic continues to the next story (non-fatal for the overall run). <!-- verification: trigger unknown error, inspect state file for error entry with code=UNKNOWN; observe that subsequent stories in the same epic are attempted -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a running workflow that receives SIGINT (Ctrl+C), **When** a dispatch is in progress, **Then** the running driver subprocess is killed, the workflow state is persisted to disk with a recent timestamp, AND the state file shows a phase of `interrupted` (not `error` or `executing`). <!-- verification: start `codeharness run`, send SIGINT during active dispatch, inspect state file for phase=\"interrupted\" and recent timestamp -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a workflow where multiple tasks fail across different stories, **When** the entire run completes, **Then** `codeharness status` shows all errors with their task names, story keys, and classification codes — no errors are swallowed or missing from the summary. <!-- verification: run workflow that hits multiple errors, then `codeharness status` or inspect state file — count error entries matches expected count, each has taskName/storyKey/code -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a workflow with a null task failure followed by subsequent stories, **When** the error occurs in story N, **Then** the workflow state file shows an error record for story N's null task, AND story N+1 begins execution (null task failure in one story does not halt the entire epic — unless the error code is in the halt set). <!-- verification: run workflow with 2+ stories where story 1 has a failing null task with code NULL_TASK_FAILED (non-halt code), observe story 2 is attempted; inspect state for error entry for story 1 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** all tests pass with zero failures — no regressions from error classification changes. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `workflow-actors.ts` exists on disk, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l src/lib/workflow-actors.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** `workflow-machines.ts` exists on disk, **When** its line count is checked, **Then** it contains ≤ 400 lines (current ~402 lines, target ≤ 400 after cleanup). <!-- verification: `wc -l src/lib/workflow-machines.ts` shows ≤ 400 -->",
+      "status": "pending"
+    }
+  ]
+}

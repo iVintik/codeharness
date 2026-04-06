@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "23-3-contract-chaining-verify-flag-propagation",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T18:59:17.827Z",
+  "cost_usd": null,
+  "duration_ms": 153259,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m reviewing story `23-3-contract-chaining-verify-flag-propagation` as a code review, starting with the git diff and the workflow/contract propagation code paths that map to the acceptance criteria.I’ve narrowed the review to the workflow parser/execution/actor changes plus the new tests, since that’s where contract chaining and `session_flags` propagation are implemented. Next I’m reading the actual diff to check whether the behavior matches the ACs and whether the tests really cover it.I’ve found the main implementation points. I’m now checking whether the flag propagation is only persisted to disk or also reflected in the in-memory workflow state, because that matters for downstream task behavior and AC10.I’ve identified two concrete review risks and I’m pulling exact line references now. One is behavioral: contract context is carried from one story into the next story. The other is state correctness: `tests_passed`/`coverage_met` become sticky `true` once set, so a later failing `implement` can inherit a previous story’s success state.I have enough context for the review. I’m running the targeted workflow tests once to confirm whether the current suite catches these failure modes; if it passes, that will strengthen the AC-coverage finding rather than weaken it.<verdict>fail</verdict>\n\n<issues>\n1. High: contract chaining leaks across story boundaries. In [workflow-machines.ts:265](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts#L265), each new `storyFlowActor` is started with the previous epic-level `lastContract`, and [workflow-machines.ts:275](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts#L275) then stores the completed story’s final contract back into `lastContract`. That means story `N+1` starts with story `N`’s final contract as `previousContract`. This is a correctness bug and a context-isolation/security problem: prompts for a new story can contain prior-story output. AC1/AC3/AC4 are only exercised in single-story units, so this escaped coverage.\n\n2. High: verify flags become sticky once any `implement` passes. [workflow-actors.ts:72](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-actors.ts#L72) only sets `session_flags.tests_passed` and `session_flags.coverage_met` to `true`; it never clears them when a later `implement` has `failed > 0` or `coverage: null`. Because the file is global session state, one successful story can leave stale `true` values that a later failing story’s `verify` step will still observe. That breaks the intended semantics of AC6, AC7, AC8, and AC10 in multi-story runs. The added tests in [workflow-actors.test.ts:1213](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts#L1213) only assert from an initial false state and do not cover the sequential/stale-flag case.\n</issues>\n\nTargeted tests passed locally: `npx vitest run src/lib/__tests__/workflow-actors.test.ts src/lib/__tests__/workflow-machines.test.ts src/lib/__tests__/workflow-runner.test.ts src/lib/__tests__/workflow-parser.test.ts src/lib/__tests__/default-workflow.test.ts`.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow with sequential tasks `create-story` (agent: story-creator) → `implement` (agent: dev), **When** both tasks complete successfully, **Then** `.codeharness/contracts/` contains contract JSON files for both tasks, and the `implement` contract's `output` field contains text referencing the `create-story` task's output (visible as injected contract context in the prompt). <!-- verification: run `codeharness run` with a two-task workflow, then `ls .codeharness/contracts/ | grep create-story` and `ls .codeharness/contracts/ | grep implement`; `cat` the implement contract and confirm the output references prior contract context -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow with tasks `implement` (agent: dev) → `telemetry` (agent: null) → `verify` (agent: evaluator), **When** all three tasks complete, **Then** `.codeharness/contracts/` contains contract files for all three tasks, each with a distinct `timestamp` and the correct `taskName`. <!-- verification: `ls .codeharness/contracts/` filtered for the three task names; `cat` each and verify taskName and timestamp fields are present and distinct -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow where task A completes and task B follows, **When** task B's contract is inspected, **Then** the `output` field of task B's contract contains text that references or incorporates content from task A's contract output — confirming the prompt included the previous contract's context. <!-- verification: run a sequential two-task workflow; `cat` both contract files; confirm task B's output contains phrases or data from task A's output, showing contract context injection -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow with a null task `telemetry` between two agent tasks, **When** all tasks complete, **Then** the agent task following `telemetry` receives `telemetry`'s contract as its previous context, confirmed by the downstream task's contract output referencing the null task's output content. <!-- verification: run workflow with agent → null → agent sequence; inspect downstream agent's contract output for references to null task output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a task `implement` completes with test results showing `failed: 0` and `coverage` ≥ the configured target, **When** the workflow state is inspected after that task, **Then** `codeharness status --story <key>` or the state file shows `session_flags.tests_passed: true` and `session_flags.coverage_met: true`. <!-- verification: after implement task completes successfully with passing tests, run `codeharness status --story <key>` or `cat .codeharness/state.yaml` and verify session_flags -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a task `implement` completes with test results showing `failed: 3`, **When** the workflow state is inspected, **Then** `session_flags.tests_passed` remains `false` (or is absent), confirming flags are NOT set when tests fail. <!-- verification: after implement task with failing tests, inspect state file for session_flags.tests_passed — should be false or absent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a task `implement` completes with test results showing `coverage: null` (no coverage data), **When** the workflow state is inspected, **Then** `session_flags.coverage_met` remains `false` (or is absent), confirming the flag is NOT set when coverage is unavailable. <!-- verification: after implement task with null coverage, inspect state file for session_flags.coverage_met — should be false or absent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a task named `check` (not `implement`) completes with test results, **When** the workflow state is inspected after that task, **Then** `session_flags.tests_passed` and `session_flags.coverage_met` are NOT modified by the `check` task — only `implement` triggers flag propagation. <!-- verification: run workflow where check task produces test results; inspect state file before and after — session_flags should not change from check task -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a workflow with 3+ sequential tasks that all complete, **When** the contracts directory is inspected, **Then** each contract file has a `timestamp` that is chronologically later than the previous task's contract `timestamp`, confirming sequential execution order. <!-- verification: `ls -lt .codeharness/contracts/` and `cat` each contract; compare timestamp fields to confirm chronological ordering -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** an `implement` task completes and sets `tests_passed: true`, **When** the `verify` task runs next, **Then** the verify task can observe `session_flags.tests_passed: true` in the state file (the flag was persisted before the verify task started). <!-- verification: after implement sets flags, inspect state file before verify runs (or after verify completes, confirm the verify contract's output references the passing test state) -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** all tests pass with zero failures — no regressions from contract chaining or verify flag changes. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** `workflow-actors.ts` exists on disk, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l src/lib/workflow-actors.ts` shows ≤ 300 -->",
+      "status": "pending"
+    }
+  ]
+}

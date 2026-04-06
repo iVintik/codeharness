@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "taskName": "check",
+  "storyId": "24-2-compile-task-steps-to-invoke-states",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T20:16:18.810Z",
+  "cost_usd": null,
+  "duration_ms": 49621,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Running the automated checks for story `24-2-compile-task-steps-to-invoke-states` now. I’m checking the available scripts first, then I’ll execute the test suite and lint targets and report the results.I’ve confirmed the repo has `lint`, `test:unit`, and `test` targets. The worktree is already dirty and the branch is `ahead 1`, so I’m only running checks and not touching any files.The checks are running. Unit tests are exercising the workflow path for this story, and the integration suite has started cleanly; I’m waiting for final exit codes and any failure details before I call the result.`lint` has already exited 0, and the unit suite completed with `193` files and `5060` tests passing. I’m waiting on the remainder of the Bats integration run to finish so the verdict reflects the full check set.Automated checks for story `24-2-compile-task-steps-to-invoke-states` passed.\n\nExecuted:\n- `npm run lint` → exit `0`\n- `npm run test:unit` → exit `0`, `193` test files passed, `5060` tests passed\n- `npm test` → exit `0`, `47` Bats integration tests passed\n\nThe repo was already dirty and `master` is `ahead 1`, but I did not modify anything while running checks.\n\n<verdict>pass</verdict>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the project repository, **When** `npm run build` is executed, **Then** it exits 0 with zero TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all tests pass with zero failures — no regressions from adding compiler logic. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a test that calls `compileStep` with a plain task name (e.g. `'implement'`) where the task has `agent: 'dev'`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the returned state config uses `src: 'dispatchActor'` as the invoke source. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*agent.*dispatchActor\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a test that calls `compileStep` with a task name where the task has `agent: null`, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the returned state config uses `src: 'nullTaskActor'` as the invoke source. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*null.*nullTaskActor\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a test that calls `compileStep` with a valid task name and a `nextState` target, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming `onDone.target` equals the provided `nextState` string. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*onDone.*target\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a test that inspects the `onError` array of a compiled step, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming: the first entry has guard `'isAbortError'` targeting `'interrupted'`, the second entry has guard `'isHaltError'` targeting `'halted'`, and a fallback entry exists that records the error in context. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*onError.*guard.*abort.*halt\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a test that calls `compileStep` with an agent task, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the `onDone` handler uses an `assign` action that merges `DispatchOutput` fields (updated state, errors, tasksCompleted, lastContract, accumulatedCostUsd) into the parent context. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*onDone.*assign.*context\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a test that calls `compileStep` with an unknown task name not present in the tasks map, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming an error is thrown at compile time (not at runtime). <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*unknown.*throws\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a test that calls `compileStep` with different task names, **When** `npx vitest run --reporter=verbose` is executed, **Then** verbose output shows a passing test confirming the invoke `input` function produces a `DispatchInput` (for agent tasks) or `NullTaskInput` (for null tasks) derived from the machine context — not hardcoded values. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*input.*context\" or equivalent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `npx eslint src/lib/workflow-compiler.ts` is executed, **Then** it exits 0 with zero errors. <!-- verification: `npx eslint src/lib/workflow-compiler.ts` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** `src/lib/workflow-compiler.ts` after the change, **When** `wc -l src/lib/workflow-compiler.ts` is executed, **Then** the file is ≤ 300 lines (per NFR3 file size constraint). <!-- verification: `wc -l src/lib/workflow-compiler.ts` shows ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `compileStep` is a pure function, **When** tests call it with the same inputs multiple times, **Then** verbose test output shows a passing test confirming identical outputs each time — no side effects, no I/O, no state mutation. <!-- verification: `npx vitest run --reporter=verbose` shows a passing test for \"compileStep.*pure.*deterministic\" or equivalent -->",
+      "status": "pending"
+    }
+  ]
+}

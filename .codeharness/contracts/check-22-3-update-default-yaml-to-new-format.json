@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "taskName": "check",
+  "storyId": "22-3-update-default-yaml-to-new-format",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T17:47:20.579Z",
+  "cost_usd": null,
+  "duration_ms": 57597,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m checking the available project scripts first so I can run the right automated checks for story `22-3-update-default-yaml-to-new-format`, then I’ll execute the linter and test suite and report the result.I found the relevant scripts: `lint`, `test:unit`, and the integration suite via `npm test`. I’m running those checks now against the current worktree without modifying files.The unit tests are still running; lint started cleanly and I’m waiting for both commands to finish before I run the integration suite.`eslint` and the full Vitest unit suite both passed. I’m running the integration tests now so the result covers the project’s test suite rather than just unit coverage.The Bats integration suite is in progress. I’m waiting for the final status so I can give you a single pass/fail verdict for the requested checks.<verdict>pass</verdict>\n\nRan the requested automated checks for story `22-3-update-default-yaml-to-new-format` in `/Users/ivintik/dev/personal/codeharness`.\n\n`npm run lint` passed.\n`npm run test:unit` passed with `192` test files and `4991` tests passing.\n`npm test` passed with `47` Bats integration tests passing.\n\nI did not modify any files.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the file `templates/workflows/default.yaml` after this change, **When** a user runs `codeharness validate templates/workflows/default.yaml`, **Then** the command exits 0 with no errors printed to stderr. <!-- verification: run `codeharness validate templates/workflows/default.yaml`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the updated `templates/workflows/default.yaml`, **When** a user opens the file and inspects its contents, **Then** the file contains a `workflow:` key with a `for_each: epic` block at the top level — and does NOT contain `story_flow:`, `epic_flow:`, or `loop:` keys. <!-- verification: run `cat templates/workflows/default.yaml`, check output contains \"workflow:\" and \"for_each: epic\", and does NOT contain \"story_flow:\", \"epic_flow:\", or \"loop:\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** the updated `templates/workflows/default.yaml`, **When** a user inspects the `workflow:` block, **Then** there is a nested `for_each: story` block inside `for_each: epic` containing story-level steps. <!-- verification: run `cat templates/workflows/default.yaml`, check output contains \"for_each: story\" nested under \"for_each: epic\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** the updated `templates/workflows/default.yaml`, **When** a user inspects the story-level steps, **Then** they contain a `gate: quality` block with `check:` listing at least `check` and `review`, and `fix:` listing at least `retry`. <!-- verification: run `cat templates/workflows/default.yaml`, check output contains \"gate: quality\" with \"check:\" and \"fix:\" fields -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** the updated `templates/workflows/default.yaml`, **When** a user inspects the epic-level steps (after `for_each: story`), **Then** there is a `gate: verification` block with `check:` listing `verify`. <!-- verification: run `cat templates/workflows/default.yaml`, check output contains \"gate: verification\" with \"check:\" including \"verify\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** the updated `templates/workflows/default.yaml`, **When** a user counts the task definitions under `tasks:`, **Then** there are exactly 9 tasks: `create-story`, `implement`, `check`, `review`, `document`, `deploy`, `verify`, `retry`, `retro` — unchanged from before. <!-- verification: run `cat templates/workflows/default.yaml`, verify the `tasks:` section lists exactly 9 task names matching the expected list -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a YAML file using the old `story_flow` / `epic_flow` format (without `workflow:` key), **When** a user runs `codeharness validate <file>`, **Then** the command still exits 0 — backward compatibility is preserved for user-authored files that haven't migrated yet. <!-- verification: create a test YAML file with old-format keys (story_flow, epic_flow, loop), run `codeharness validate <file>`, expect exit 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a new project is initialized via `codeharness init`, **When** the user inspects the generated workflow file, **Then** it uses the new `workflow:` / `for_each:` / `gate:` format (not the old `story_flow` / `epic_flow` format). <!-- verification: run `codeharness init` in a temp directory, inspect the generated workflow YAML, confirm it contains \"workflow:\" and \"for_each:\" and does not contain \"story_flow:\" or \"epic_flow:\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** all existing tests pass — zero failures, no regressions. <!-- verification: `npx vitest run` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the updated template is validated by the parser, **When** the parser returns the resolved workflow, **Then** any test that previously referenced `templates/workflows/default.yaml` still passes — no test regressions from the format change. <!-- verification: `npx vitest run` exits 0 (same as AC10, confirms no test references to old format keys break) -->",
+      "status": "pending"
+    }
+  ]
+}

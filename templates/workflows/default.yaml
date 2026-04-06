@@ -45,17 +45,25 @@ tasks:
     source_access: true
     model: claude-opus-4-6
 
-story_flow:
-  - create-story
-  - implement
-  - check
-  - review
-  - loop:
-      - retry
-      - check
-      - review
-  - document
-
-epic_flow:
-  - story_flow
-  - retro
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - create-story
+        - implement
+        - gate: quality
+          check: [check, review]
+          fix: [retry]
+          pass_when: consensus
+          max_retries: 5
+          circuit_breaker: stagnation
+        - document
+    - deploy
+    - gate: verification
+      check: [verify]
+      fix: [retry, document, deploy]
+      pass_when: consensus
+      max_retries: 3
+      circuit_breaker: stagnation
+    - retro

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "24-1-shared-types-module",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-05T19:25:10.070Z",
+  "cost_usd": 0.8409303499999999,
+  "duration_ms": 218586,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/24-1-shared-types-module.md"
+  ],
+  "testResults": null,
+  "output": "Now let me find epic 24 specifically. The previous search mentioned epics 16-20, but the user is working on epic 24.Now let me check the architecture doc for compiler-specific details and see what types are missing:Now I have all the context needed. Let me also check the template patch and the existing workflow-execution.ts for the ForEachBlock/GateBlock types:Now I have everything. Let me write the story spec.Story spec written to `_bmad-output/implementation-artifacts/24-1-shared-types-module.md`.\n\n**Summary:**\n- **14 acceptance criteria**, all verifiable via CLI commands (`npm run build`, `npx vitest run`, `grep`, `wc -l`, `npx eslint`) — no source code reading or internal data structure inspection required by QA\n- **7 task groups**: audit current types → define missing types → define context types → break circular imports → update consumers → add tests → verify build\n- **Key work**: consolidate `GateConfig`, `ForEachConfig`, `RunContext`, `EpicContext`, `StoryContext`, `GateContext` into `workflow-types.ts`; move `EngineResult` from `workflow-compiler.ts`; eliminate all `workflow-*.ts` imports from the types module\n- **File budget**: ~157 → ~277 lines (within 300-line NFR3 cap)\n- **No runtime behavior changes** — pure type refactoring",
+  "acceptanceCriteria": []
+}

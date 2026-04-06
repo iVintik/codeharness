@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "23-3-contract-chaining-verify-flag-propagation",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-05T18:48:20.049Z",
+  "cost_usd": 0.5577212,
+  "duration_ms": 201877,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now let me read the actual source files to see the current state precisely:Now let me look at the workflow-machines.ts to understand contract chaining in the machine layer:Now I have everything I need. Let me add the story 23-3 test block to the test file:Now run the tests to verify they pass, then lint:All 52 tests pass. Now run lint:Zero warnings. Now build:Build exits 0. Let me also verify the full test suite passes and `wc -l` on workflow-actors.ts:All checks pass:\n- **5025 tests** across 192 files — zero failures\n- **`workflow-actors.ts`**: 203 lines (≤ 300 limit ✓)\n- **Build**: exits 0, no TypeScript errors\n- **Lint**: zero warnings\n\n---\n\nStory 23-3 implemented. Here's what was done:\n\n**No source code changes required** — contract chaining (`lastContract` → `previousContract` → `buildPromptWithContractContext`) and verify flag propagation (`propagateVerifyFlags` after `implement` dispatch) were already fully implemented across `workflow-actors.ts`, `workflow-machines.ts`, and `workflow-types.ts`.\n\n**Added 8 new integration tests** in a `contract chaining (story 23-3)` describe block:\n- **T1**: Sequential dispatch tasks — second task's `buildPromptWithContractContext` receives first task's contract\n- **T2**: Null task contract flows to downstream dispatch task's `previousContract`  \n- **T3**: Null task propagates its `previousContract` to the handler via `TaskContext.outputContract`\n- **T7**: First task in chain calls `buildPromptWithContractContext` with `null`\n- **T8**: Both dispatch and null task contracts have valid ISO timestamps\n- **T9**: Non-`implement` task (e.g. `check`) does not modify `session_flags`\n- **T10**: `writeOutputContract` called exactly once per task in a 3-task chain (dispatch → null → dispatch)",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow with sequential tasks `create-story` (agent: story-creator) → `implement` (agent: dev), **When** both tasks complete successfully, **Then** `.codeharness/contracts/` contains contract JSON files for both tasks, and the `implement` contract's `output` field contains text referencing the `create-story` task's output (visible as injected contract context in the prompt). <!-- verification: run `codeharness run` with a two-task workflow, then `ls .codeharness/contracts/ | grep create-story` and `ls .codeharness/contracts/ | grep implement`; `cat` the implement contract and confirm the output references prior contract context -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow with tasks `implement` (agent: dev) → `telemetry` (agent: null) → `verify` (agent: evaluator), **When** all three tasks complete, **Then** `.codeharness/contracts/` contains contract files for all three tasks, each with a distinct `timestamp` and the correct `taskName`. <!-- verification: `ls .codeharness/contracts/` filtered for the three task names; `cat` each and verify taskName and timestamp fields are present and distinct -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow where task A completes and task B follows, **When** task B's contract is inspected, **Then** the `output` field of task B's contract contains text that references or incorporates content from task A's contract output — confirming the prompt included the previous contract's context. <!-- verification: run a sequential two-task workflow; `cat` both contract files; confirm task B's output contains phrases or data from task A's output, showing contract context injection -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow with a null task `telemetry` between two agent tasks, **When** all tasks complete, **Then** the agent task following `telemetry` receives `telemetry`'s contract as its previous context, confirmed by the downstream task's contract output referencing the null task's output content. <!-- verification: run workflow with agent → null → agent sequence; inspect downstream agent's contract output for references to null task output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a task `implement` completes with test results showing `failed: 0` and `coverage` ≥ the configured target, **When** the workflow state is inspected after that task, **Then** `codeharness status --story <key>` or the state file shows `session_flags.tests_passed: true` and `session_flags.coverage_met: true`. <!-- verification: after implement task completes successfully with passing tests, run `codeharness status --story <key>` or `cat .codeharness/state.yaml` and verify session_flags -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a task `implement` completes with test results showing `failed: 3`, **When** the workflow state is inspected, **Then** `session_flags.tests_passed` remains `false` (or is absent), confirming flags are NOT set when tests fail. <!-- verification: after implement task with failing tests, inspect state file for session_flags.tests_passed — should be false or absent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a task `implement` completes with test results showing `coverage: null` (no coverage data), **When** the workflow state is inspected, **Then** `session_flags.coverage_met` remains `false` (or is absent), confirming the flag is NOT set when coverage is unavailable. <!-- verification: after implement task with null coverage, inspect state file for session_flags.coverage_met — should be false or absent -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a task named `check` (not `implement`) completes with test results, **When** the workflow state is inspected after that task, **Then** `session_flags.tests_passed` and `session_flags.coverage_met` are NOT modified by the `check` task — only `implement` triggers flag propagation. <!-- verification: run workflow where check task produces test results; inspect state file before and after — session_flags should not change from check task -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a workflow with 3+ sequential tasks that all complete, **When** the contracts directory is inspected, **Then** each contract file has a `timestamp` that is chronologically later than the previous task's contract `timestamp`, confirming sequential execution order. <!-- verification: `ls -lt .codeharness/contracts/` and `cat` each contract; compare timestamp fields to confirm chronological ordering -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** an `implement` task completes and sets `tests_passed: true`, **When** the `verify` task runs next, **Then** the verify task can observe `session_flags.tests_passed: true` in the state file (the flag was persisted before the verify task started). <!-- verification: after implement sets flags, inspect state file before verify runs (or after verify completes, confirm the verify contract's output references the passing test state) -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with no TypeScript errors. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** all tests pass with zero failures — no regressions from contract chaining or verify flag changes. <!-- verification: `npx vitest run` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** `workflow-actors.ts` exists on disk, **When** its line count is checked, **Then** it contains ≤ 300 lines (per NFR18 file size constraint). <!-- verification: `wc -l src/lib/workflow-actors.ts` shows ≤ 300 -->",
+      "status": "pending"
+    }
+  ]
+}

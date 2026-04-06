@@ -1368,7 +1368,7 @@ describe('crash recovery & resume', () => {
     expect(mockDriverDispatch).toHaveBeenCalledTimes(1);
     expect(result.tasksCompleted).toBe(1);
     expect(mockWarn).toHaveBeenCalledWith(
-      'workflow-machine: skipping completed task retry for 3-1-foo',
+      'epic-machine: skipping completed task retry for 3-1-foo',
     );
   });
 

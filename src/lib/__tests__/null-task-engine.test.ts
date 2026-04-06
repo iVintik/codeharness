@@ -586,7 +586,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
       mockReadWorkflowState.mockReturnValue(makeDefaultState({
         phase: 'executing',
         tasks_completed: [
-          { task_name: 'telemetry', story_key: '__run__', completed_at: '2026-04-03T00:00:00.000Z' },
+          { task_name: 'telemetry', story_key: '__epic_5__', completed_at: '2026-04-03T00:00:00.000Z' },
         ],
       }));
 
@@ -675,8 +675,8 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
 
       const result = await runWorkflowActor(config);
 
-      // Null task ran once with __run__ sentinel
-      expect(storyKeys).toEqual(['__run__']);
+      // Null task ran once with epic sentinel (per-run tasks use epicSentinel in runEpicLoop)
+      expect(storyKeys).toEqual(['__epic_5__']);
     });
   });
 
@@ -817,7 +817,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         (call: unknown[]) => {
           const state = call[0] as WorkflowState;
           return state.tasks_completed.some(
-            (cp) => cp.task_name === 'telemetry' && cp.story_key === '__run__' && !cp.error,
+            (cp) => cp.task_name === 'telemetry' && cp.story_key === '__epic_5__' && !cp.error,
           );
         },
       );
@@ -828,7 +828,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
         (call: unknown[]) => {
           const state = call[0] as WorkflowState;
           return state.tasks_completed.some(
-            (cp) => cp.task_name === 'telemetry' && cp.story_key === '__run__' && cp.error === true,
+            (cp) => cp.task_name === 'telemetry' && cp.story_key === '__epic_5__' && cp.error === true,
           );
         },
       );

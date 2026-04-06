@@ -3,8 +3,8 @@
 import { assign, createActor, fromPromise, setup, waitFor } from 'xstate';
 import { DispatchError } from './agent-dispatch.js';
 import { handleDispatchError, HALT_ERROR_CODES, isEngineError } from './workflow-compiler.js';
-import type { EngineError, EpicContext, RunContext } from './workflow-types.js';
-import { epicMachine } from './workflow-machines.js';
+import type { EngineError, RunContext } from './workflow-types.js';
+import { epicMachine, type EpicOutput } from './workflow-epic-machine.js';
 
 export type RunOutput = Pick<RunContext, 'workflowState' | 'errors' | 'tasksCompleted' | 'storiesProcessed' | 'lastContract' | 'accumulatedCostUsd' | 'halted'>;
 
@@ -55,7 +55,7 @@ const runEpicActor = fromPromise(async ({ input }: { input: RunContext }): Promi
   const actor = createActor(epicMachine, { input: epicInput });
   actor.start();
   const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 300_000 });
-  const epicOut = snap.context as EpicContext;
+  const epicOut = snap.output as EpicOutput;
 
   if (epicOut.workflowState.phase === 'interrupted') {
     const abortErr = new Error('Epic interrupted');

@@ -229,7 +229,7 @@ export const gateMachine = setup({
       },
     },
     passed: { type: 'final' },
-    maxedOut: { type: 'final' },
+    maxedOut: { type: 'final', entry: assign({ halted: true }) },
     halted: { type: 'final', entry: assign({ halted: true }) },
     interrupted: { type: 'final', entry: assign({ halted: true }) },
   },

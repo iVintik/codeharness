@@ -8,7 +8,7 @@ import type { ResolvedWorkflow } from './workflow-parser.js';
 import { parse } from 'yaml';
 import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
 import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth } from './workflow-types.js';
-import { runMachine } from './workflow-run-machine.js';
+import { runMachine, type RunOutput } from './workflow-run-machine.js';
 
 export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): WorkItem[] {
   const items: WorkItem[] = [];
@@ -134,13 +134,13 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     accumulatedCostUsd: 0,
     halted: false,
   };
-  const finalContext = await new Promise<RunMachineContext>((resolve) => {
+  const finalOutput = await new Promise<RunOutput>((resolve) => {
     const actor = createActor(runMachine, { input: runInput });
-    actor.subscribe({ complete: () => resolve(actor.getSnapshot().context) });
+    actor.subscribe({ complete: () => resolve(actor.getSnapshot().output!) });
     actor.start();
   });
-  state = finalContext.workflowState;
-  const { errors, tasksCompleted, storiesProcessed } = finalContext;
+  state = finalOutput.workflowState;
+  const { errors, tasksCompleted, storiesProcessed } = finalOutput;
   if (state.phase !== 'interrupted' && errors.length === 0 && state.phase !== 'max-iterations' && state.phase !== 'circuit-breaker') {
     state = { ...state, phase: 'completed' };
     writeWorkflowState(state, projectDir);

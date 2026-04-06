@@ -36,6 +36,15 @@ vi.mock('../workflow-actors.js', () => ({
   buildCoverageDeduplicationContext: vi.fn().mockReturnValue(null),
 }));
 vi.mock('../output.js', () => ({ warn: vi.fn(), log: vi.fn(), error: vi.fn() }));
+vi.mock('../workflow-state.js', () => ({
+  writeWorkflowState: vi.fn(),
+  readWorkflowState: vi.fn(),
+  getDefaultWorkflowState: vi.fn().mockReturnValue({
+    workflow_name: '', started: '', iteration: 0, phase: 'idle' as const,
+    tasks_completed: [], evaluator_scores: [],
+    circuit_breaker: { triggered: false, reason: null, score_history: [] },
+  }),
+}));
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -83,6 +92,7 @@ function makeRunInput(overrides: {
       tasks: {
         'story-task': { agent: 'test-agent', session: 'fresh', source_access: true },
         'task-a': { agent: 'test-agent', session: 'fresh', source_access: true },
+        'deploy': { agent: 'test-agent', session: 'fresh', source_access: true },
       },
       storyFlow,
       epicFlow,
@@ -240,6 +250,27 @@ describe('runMachine', () => {
     expect(out!.storiesProcessed).toBeInstanceOf(Set);
   });
 
+  it('run aggregates tasksCompleted, accumulatedCostUsd, and lastContract across multiple epics', async () => {
+    const contract1 = makeContract('epic-1');
+    const contract2 = makeContract('epic-2');
+    mockDispatchTaskCore
+      .mockResolvedValueOnce({ ...makeOut(makeWorkflowState({ iteration: 1 })), cost: 0.5, contract: contract1 })
+      .mockResolvedValueOnce({ ...makeOut(makeWorkflowState({ iteration: 2 })), cost: 0.25, contract: contract2 });
+    const input = makeRunInput({
+      epicEntries: [
+        ['17', [{ key: 'story-17-1' }]],
+        ['18', [{ key: 'story-18-1' }]],
+      ],
+      storyFlow: ['story-task'],
+    });
+    const { snap } = await run(input);
+    expect(snap.value).toBe('allDone');
+    expect(snap.output?.tasksCompleted).toBe(2);
+    expect(snap.output?.accumulatedCostUsd).toBe(0.75);
+    expect(snap.output?.lastContract).toEqual(contract2);
+    expect(snap.output?.workflowState.iteration).toBe(2);
+  });
+
   it('run empty epics reaches allDone and storiesProcessed is empty', async () => {
     const input = makeRunInput({ epicEntries: [] });
     const { snap } = await run(input);
@@ -295,6 +326,31 @@ describe('runMachine', () => {
     expect(calls[1]).toMatchObject({ workflowState: updatedState });
   });
 
+  it('run context flow passes previousContract and accumulatedCostUsd into the next epic', async () => {
+    const firstContract = makeContract('first');
+    const calls: Array<Record<string, unknown>> = [];
+    mockDispatchTaskCore.mockImplementation((args: Record<string, unknown>) => {
+      calls.push(args);
+      if (calls.length === 1) return Promise.resolve({ ...makeOut(), cost: 0.5, contract: firstContract });
+      return Promise.resolve(makeOut());
+    });
+    const input = makeRunInput({
+      epicEntries: [
+        ['17', [{ key: 'story-17-1' }]],
+        ['18', [{ key: 'story-18-1' }]],
+      ],
+      storyFlow: ['story-task'],
+    });
+    const { snap } = await run(input);
+    expect(snap.value).toBe('allDone');
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toMatchObject({
+      storyKey: 'story-18-1',
+      previousContract: firstContract,
+      accumulatedCostUsd: 0.5,
+    });
+  });
+
   it('run AbortError interrupted path transitions to interrupted not halted', async () => {
     // Provide an already-aborted signal so runEpicActor throws AbortError immediately
     const controller = new AbortController();
@@ -314,6 +370,33 @@ describe('runMachine', () => {
     expect(snap.output?.halted).toBe(true);
   });
 
+  it('run keeps completed stories from a halted epic when the halt happens in an epic-level step', async () => {
+    const storyCompletedState = makeWorkflowState({
+      tasks_completed: [{
+        task_name: 'story-task',
+        story_key: 'story-17-1',
+        completed_at: '2024-01-01T00:00:00.000Z',
+      }],
+    });
+    mockDispatchTaskCore
+      .mockResolvedValueOnce(makeOut(storyCompletedState))
+      .mockRejectedValueOnce(new MockDispatchError('rate limited', 'RATE_LIMIT', 'test-agent', {}));
+    const input = makeRunInput({
+      epicEntries: [
+        ['17', [{ key: 'story-17-1' }]],
+        ['18', [{ key: 'story-18-1' }]],
+      ],
+      storyFlow: ['story-task'],
+      epicFlow: ['deploy'],
+    });
+    const { snap } = await run(input);
+    expect(snap.value).toBe('halted');
+    expect(snap.output?.storiesProcessed.has('story-17-1')).toBe(true);
+    expect(snap.output?.storiesProcessed.has('story-18-1')).toBe(false);
+    expect(mockDispatchTaskCore).toHaveBeenCalledTimes(2);
+    expect(mockDispatchTaskCore.mock.calls[1][0]).toMatchObject({ taskName: 'deploy', storyKey: '__epic_17__' });
+  });
+
   it('run halt stops further epics and no further epics are invoked', async () => {
     mockDispatchTaskCore
       .mockResolvedValueOnce(makeOut())
@@ -331,5 +414,51 @@ describe('runMachine', () => {
     // Only epics 17 (success) and 18 (halt) should have been processed, not 19
     expect(mockDispatchTaskCore).toHaveBeenCalledTimes(2);
     expect(snap.output?.storiesProcessed.has('story-19-1')).toBe(false);
+  });
+
+  it('run processes epic-level-only workflows for each epic entry and leaves storiesProcessed empty', async () => {
+    mockDispatchTaskCore
+      .mockResolvedValueOnce(makeOut())
+      .mockResolvedValueOnce(makeOut());
+    const input = makeRunInput({
+      epicEntries: [
+        ['17', [{ key: 'story-17-1' }]],
+        ['18', [{ key: 'story-18-1' }]],
+      ],
+      storyFlow: [],
+      epicFlow: ['deploy'],
+    });
+    const { snap } = await run(input);
+    expect(snap.value).toBe('allDone');
+    expect(snap.output?.storiesProcessed).toEqual(new Set(['story-17-1', 'story-18-1']));
+    expect(mockDispatchTaskCore).toHaveBeenCalledTimes(2);
+    expect(mockDispatchTaskCore.mock.calls[0][0]).toMatchObject({ taskName: 'deploy', storyKey: '__epic_17__' });
+    expect(mockDispatchTaskCore.mock.calls[1][0]).toMatchObject({ taskName: 'deploy', storyKey: '__epic_18__' });
+  });
+
+  it('run records non-halt epic-level errors and continues processing later epics', async () => {
+    mockDispatchTaskCore
+      .mockRejectedValueOnce(new Error('soft failure'))
+      .mockResolvedValueOnce(makeOut());
+    const input = makeRunInput({
+      epicEntries: [
+        ['17', [{ key: 'story-17-1' }]],
+        ['18', [{ key: 'story-18-1' }]],
+      ],
+      storyFlow: [],
+      epicFlow: ['deploy'],
+    });
+    const { snap } = await run(input);
+    expect(snap.value).toBe('allDone');
+    expect(snap.output?.halted).toBe(false);
+    expect(snap.output?.errors).toHaveLength(1);
+    expect(snap.output?.errors[0]).toMatchObject({
+      taskName: 'deploy',
+      storyKey: '__epic_17__',
+      code: 'UNKNOWN',
+      message: 'soft failure',
+    });
+    expect(mockDispatchTaskCore).toHaveBeenCalledTimes(2);
+    expect(mockDispatchTaskCore.mock.calls[1][0]).toMatchObject({ taskName: 'deploy', storyKey: '__epic_18__' });
   });
 });

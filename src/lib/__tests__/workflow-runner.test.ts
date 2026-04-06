@@ -143,7 +143,7 @@ vi.mock('../state.js', () => ({
   writeState: mockWriteState,
 }));
 
-vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null), clearSnapshot: vi.fn(), computeConfigHash: vi.fn(() => 'test-hash') }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 

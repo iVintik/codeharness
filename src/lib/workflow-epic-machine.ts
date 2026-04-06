@@ -127,7 +127,7 @@ const epicStoryActor = fromPromise(async ({ input, signal }: { input: EpicContex
 
   try {
     actor.start();
-    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 300_000 });
+    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 3_600_000 });
     const out = snap.output as StoryFlowOutput;
     const storiesProcessed = new Set(input.storiesProcessed);
     if (!out.halted) storiesProcessed.add(item.key);
@@ -167,7 +167,7 @@ const epicStepActor = fromPromise(async ({ input, signal }: { input: EpicContext
 
     try {
       gateActor.start();
-      const gateSnap = await waitFor(gateActor, (s) => s.status === 'done', { timeout: 300_000 });
+      const gateSnap = await waitFor(gateActor, (s) => s.status === 'done', { timeout: 3_600_000 });
       const gateOut = gateSnap.output as GateOutput;
       return { ...ctx, workflowState: gateOut.workflowState, errors: [...ctx.errors, ...gateOut.errors], tasksCompleted: ctx.tasksCompleted + gateOut.tasksCompleted, lastContract: gateOut.lastContract, accumulatedCostUsd: gateOut.accumulatedCostUsd, halted: gateOut.halted };
     } finally {

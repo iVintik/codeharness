@@ -98,7 +98,7 @@ vi.mock('../session-manager.js', () => ({
   recordSessionId: mockRecordSessionId,
 }));
 
-vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null), clearSnapshot: vi.fn(), computeConfigHash: vi.fn(() => 'test-hash') }));
 
 vi.mock('../output.js', () => ({
   warn: mockWarn,

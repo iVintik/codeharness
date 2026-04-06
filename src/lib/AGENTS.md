@@ -94,7 +94,7 @@ Pure library modules consumed by CLI commands (`src/commands/`) and by each othe
 | workflow-epic-machine.ts | XState epic machine — iterates stories and epic-level steps with typed output | `epicMachine`, `EpicOutput` |
 | workflow-run-machine.ts | XState run machine — iterates epics and returns typed run output | `runMachine`, `RunOutput` |
 | workflow-runner.ts | Composition root and entry point — pre-flight checks, work item loading, and XState actor orchestration | `runWorkflowActor`, `loadWorkItems`, `checkDriverHealth` |
-| workflow-persistence.ts | XState-compatible snapshot save/load — replaces workflow-state.ts for JSON snapshot persistence to `.codeharness/workflow-state.json` | `saveSnapshot`, `loadSnapshot`, `clearSnapshot`, `WorkflowSnapshot` |
+| workflow-persistence.ts | XState snapshot persistence — saves `getPersistedSnapshot()` output to `.codeharness/workflow-snapshot.json` with atomic write, config hash invalidation, and corrupt-file handling | `saveSnapshot`, `loadSnapshot`, `clearSnapshot`, `computeConfigHash`, `XStateWorkflowSnapshot` |
 | workflow-contracts.ts | Derives pending AC status entries from story files for output contract metadata | `getPendingAcceptanceCriteria` |
 
 ## Blind Evaluator (Epic 6)

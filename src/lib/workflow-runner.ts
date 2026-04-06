@@ -7,6 +7,7 @@ import { checkCapabilityConflicts } from './agents/capability-check.js';
 import type { ResolvedWorkflow } from './workflow-parser.js';
 import { parse } from 'yaml';
 import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
+import { saveSnapshot, clearSnapshot, computeConfigHash } from './workflow-persistence.js';
 import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth } from './workflow-types.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
 
@@ -134,9 +135,19 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     accumulatedCostUsd: 0,
     halted: false,
   };
+  const configHash = computeConfigHash(config);
   const finalOutput = await new Promise<RunOutput>((resolve) => {
     const actor = createActor(runMachine, { input: runInput });
-    actor.subscribe({ complete: () => resolve(actor.getSnapshot().output!) });
+    actor.subscribe({
+      next: () => {
+        // Save XState snapshot after every state transition (task completions,
+        // interrupt, halt). Atomic write ensures no corrupt file on crash.
+        try { saveSnapshot(actor.getPersistedSnapshot(), configHash, projectDir); }
+        catch { // IGNORE: snapshot save is best-effort — a failed save must never crash the workflow runner
+        }
+      },
+      complete: () => resolve(actor.getSnapshot().output!),
+    });
     actor.start();
   });
   state = finalOutput.workflowState;
@@ -152,8 +163,15 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   // so the on-disk phase is never left as 'executing' after the run ends.
   writeWorkflowState(state, projectDir);
   const loopTerminated = state.phase === 'max-iterations' || state.phase === 'circuit-breaker';
+  const success = errors.length === 0 && !loopTerminated && state.phase !== 'interrupted';
+  // Clear snapshot on clean success — preserve on halt/error/interrupt for story 26-2 resume.
+  if (success) {
+    try { clearSnapshot(projectDir); }
+    catch { // IGNORE: snapshot cleanup is best-effort — a stale file on disk does not cause data loss
+    }
+  }
   return {
-    success: errors.length === 0 && !loopTerminated && state.phase !== 'interrupted',
+    success,
     tasksCompleted,
     storiesProcessed: storiesProcessed.size,
     errors,

@@ -142,7 +142,7 @@ vi.mock('../circuit-breaker.js', () => ({
   evaluateProgress: vi.fn().mockReturnValue({ halt: false }),
 }));
 
-vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null) }));
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null), clearSnapshot: vi.fn(), computeConfigHash: vi.fn(() => 'test-hash') }));
 
 import { runWorkflowActor, checkDriverHealth } from '../workflow-runner.js';
 import { executeLoopBlock } from '../workflow-machines.js';

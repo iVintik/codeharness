@@ -315,7 +315,7 @@ const epicStepActor = fromPromise(async ({ input }: { input: EpicMachineContext 
   return { ...input, workflowState: state, errors, tasksCompleted, storiesProcessed, lastContract, accumulatedCostUsd, halted, currentStepIndex: currentStepIndex + 1 };
 });
 
-const epicMachine = setup({
+export const epicMachine = setup({
   types: {} as { context: EpicMachineContext; input: EpicMachineContext },
   actors: { epicStepActor },
   guards: {

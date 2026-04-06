@@ -127,11 +127,15 @@ const epicStoryActor = fromPromise(async ({ input, signal }: { input: EpicContex
 
   try {
     actor.start();
-    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 3_600_000 });
+    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 1_800_000 });
     const out = snap.output as StoryFlowOutput;
     const storiesProcessed = new Set(input.storiesProcessed);
     if (!out.halted) storiesProcessed.add(item.key);
     return { ...input, workflowState: out.workflowState, errors: [...input.errors, ...out.errors], tasksCompleted: input.tasksCompleted + out.tasksCompleted, lastContract: out.lastContract, accumulatedCostUsd: out.accumulatedCostUsd, halted: out.halted, storiesProcessed };
+  } catch (err: unknown) { // IGNORE: timeout or actor error — skip this story, continue to next
+    const msg = err instanceof Error ? err.message : String(err);
+    warn(`workflow-epic-machine: story ${item.key} failed (${msg}) — skipping to next story`);
+    return { ...input, errors: [...input.errors, { taskName: 'story-flow', storyKey: item.key, code: 'TIMEOUT', message: msg }] };
   } finally {
     signal.removeEventListener('abort', onAbort);
   }
@@ -167,7 +171,7 @@ const epicStepActor = fromPromise(async ({ input, signal }: { input: EpicContext
 
     try {
       gateActor.start();
-      const gateSnap = await waitFor(gateActor, (s) => s.status === 'done', { timeout: 3_600_000 });
+      const gateSnap = await waitFor(gateActor, (s) => s.status === 'done', { timeout: 1_800_000 });
       const gateOut = gateSnap.output as GateOutput;
       return { ...ctx, workflowState: gateOut.workflowState, errors: [...ctx.errors, ...gateOut.errors], tasksCompleted: ctx.tasksCompleted + gateOut.tasksCompleted, lastContract: gateOut.lastContract, accumulatedCostUsd: gateOut.accumulatedCostUsd, halted: gateOut.halted };
     } finally {

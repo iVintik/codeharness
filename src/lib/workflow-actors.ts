@@ -138,8 +138,15 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
   const coverageDedup = buildCoverageDeduplicationContext(previousContract, projectDir);
   if (coverageDedup) prompt = `${prompt}\n\n${coverageDedup}`;
 
+  // Per-task timeout: task config → default 30 minutes
+  const DEFAULT_TASK_TIMEOUT_MS = 30 * 60 * 1000;
+  const timeoutMs = task.timeout_minutes
+    ? task.timeout_minutes * 60 * 1000
+    : DEFAULT_TASK_TIMEOUT_MS;
+
   const dispatchOpts: DispatchOpts = {
     prompt, model, cwd, sourceAccess: task.source_access !== false,
+    timeout: timeoutMs,
     ...(config.abortSignal ? { abortSignal: config.abortSignal } : {}),
     ...(sessionId ? { sessionId } : {}),
     ...(tracePrompt ? { appendSystemPrompt: tracePrompt } : {}),

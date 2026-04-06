@@ -4,46 +4,55 @@ tasks:
     session: fresh
     source_access: true
     model: claude-opus-4-6
+    timeout_minutes: 15
   implement:
     agent: dev
     session: fresh
     source_access: true
     model: claude-sonnet-4-6
+    timeout_minutes: 30
   check:
     agent: checker
     session: fresh
     source_access: true
     driver: codex
+    timeout_minutes: 10
   review:
     agent: reviewer
     session: fresh
     source_access: true
     driver: codex
+    timeout_minutes: 10
   document:
     agent: documenter
     session: fresh
     source_access: true
     model: claude-opus-4-6
+    timeout_minutes: 15
   deploy:
     agent: deployer
     session: fresh
     source_access: true
     model: claude-sonnet-4-6
+    timeout_minutes: 15
   verify:
     agent: evaluator
     session: fresh
     source_access: false
     driver: codex
+    timeout_minutes: 20
   retry:
     agent: dev
     session: fresh
     source_access: true
     model: claude-sonnet-4-6
+    timeout_minutes: 15
   retro:
     agent: retro
     session: fresh
     source_access: true
     model: claude-opus-4-6
+    timeout_minutes: 15
 
 workflow:
   for_each: epic

@@ -38,6 +38,8 @@ export interface ResolvedTask {
   input_contract?: Record<string, unknown>;
   output_contract?: Record<string, unknown>;
   max_budget_usd?: number;
+  /** Per-task timeout in minutes. Kills the dispatch process after this duration. */
+  timeout_minutes?: number;
   driver?: string;
   model?: string;
   plugins?: string[];

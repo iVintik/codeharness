@@ -1413,7 +1413,7 @@ describe('dispatchTask driver integration', () => {
       makeConfig(),
     );
 
-    expect((mockDriverDispatch.mock.calls[0][0] as Record<string, unknown>).timeout).toBeUndefined();
+    expect((mockDriverDispatch.mock.calls[0][0] as Record<string, unknown>).timeout).toBe(1800000);
   });
 
   it('passes sourceAccess=false when task.source_access is false', async () => {

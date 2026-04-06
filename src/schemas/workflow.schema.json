@@ -210,6 +210,10 @@
           "type": "number",
           "description": "Maximum budget in USD for this task execution"
         },
+        "timeout_minutes": {
+          "type": "number",
+          "description": "Timeout in minutes for this task execution"
+        },
         "driver": {
           "type": "string",
           "description": "Agent driver framework (e.g., claude-code, codex, opencode)"

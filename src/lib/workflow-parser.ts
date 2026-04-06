@@ -336,6 +336,7 @@ function resolveTasksMap(
     if (task.input_contract !== undefined) resolved.input_contract = task.input_contract as Record<string, unknown>;
     if (task.output_contract !== undefined) resolved.output_contract = task.output_contract as Record<string, unknown>;
     if (task.max_budget_usd !== undefined) resolved.max_budget_usd = task.max_budget_usd as number;
+    if (task.timeout_minutes !== undefined) resolved.timeout_minutes = task.timeout_minutes as number;
     if (task.driver !== undefined) resolved.driver = task.driver as string;
     if (task.model !== undefined) resolved.model = task.model as string;
     if (task.plugins !== undefined) resolved.plugins = task.plugins as string[];

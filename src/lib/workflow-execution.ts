@@ -1,46 +1,18 @@
 /** Execution config, hierarchical flow resolution, and flow validation helpers. */
 import { listDrivers } from './agents/drivers/factory.js';
 import { listEmbeddedAgents, resolveAgent, AgentResolveError } from './agent-resolver.js';
+import type { ResolvedTask, LoopBlock, ExecutionConfig, ForEachConfig, GateConfig } from './workflow-types.js';
 
-// --- Base Task & Flow Types (defined here to avoid circular imports) ---
-
-export interface ResolvedTask {
-  agent: string | null;
-  session: 'fresh' | 'continue';
-  source_access: boolean;
-  prompt_template?: string;
-  input_contract?: Record<string, unknown>;
-  output_contract?: Record<string, unknown>;
-  max_budget_usd?: number;
-  driver?: string;
-  model?: string;
-  plugins?: string[];
-}
-
-export interface LoopBlock {
-  loop: string[];
-}
-
+// Re-export base types so existing imports from workflow-execution.ts continue to work.
+export type { ResolvedTask, LoopBlock, ExecutionConfig } from './workflow-types.js';
+/** @deprecated Use ForEachConfig from workflow-types.ts. */
+export type ForEachBlock = ForEachConfig;
+/** @deprecated Use GateConfig from workflow-types.ts. */
+export type GateBlock = GateConfig;
 export type FlowStep = string | LoopBlock;
 
-/** A recursive `for_each` iteration block in the new workflow format. */
-export interface ForEachBlock {
-  for_each: string;
-  steps: ForEachFlowStep[];
-}
-
-/** A step inside a `for_each` block: either a task name or a nested for_each. */
-export type ForEachFlowStep = string | ForEachBlock;
-
-// --- Execution Config ---
-
-export interface ExecutionConfig {
-  max_parallel: number;
-  isolation: 'worktree' | 'none';
-  merge_strategy: 'rebase' | 'merge-commit';
-  epic_strategy: 'parallel' | 'sequential';
-  story_strategy: 'sequential' | 'parallel';
-}
+/** A step inside a `for_each` block: either a task name, a nested for_each, or a gate block. */
+export type ForEachFlowStep = string | ForEachConfig | GateConfig;
 
 export interface HierarchicalFlow {
   execution: ExecutionConfig;

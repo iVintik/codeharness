@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { parseWorkflow, type ResolvedWorkflow, type LoopBlock } from '../workflow-parser.js';
+import { parseWorkflow, type ResolvedWorkflow, type ForEachBlock, type GateBlock } from '../workflow-parser.js';
 
 const defaultWorkflowPath = resolve(__dirname, '../../../templates/workflows/default.yaml');
 
@@ -11,11 +11,18 @@ describe('default embedded workflow', () => {
       expect(existsSync(defaultWorkflowPath)).toBe(true);
     });
 
-    it('contains tasks and story_flow/epic_flow top-level keys', () => {
+    it('contains tasks and workflow/for_each top-level keys', () => {
       const raw = readFileSync(defaultWorkflowPath, 'utf-8');
       expect(raw).toContain('tasks:');
-      expect(raw).toContain('story_flow:');
-      expect(raw).toContain('epic_flow:');
+      expect(raw).toContain('workflow:');
+      expect(raw).toContain('for_each: epic');
+    });
+
+    it('does NOT contain legacy story_flow, epic_flow, or loop keys', () => {
+      const raw = readFileSync(defaultWorkflowPath, 'utf-8');
+      expect(raw).not.toContain('story_flow:');
+      expect(raw).not.toContain('epic_flow:');
+      expect(raw).not.toContain('loop:');
     });
   });
 
@@ -24,8 +31,7 @@ describe('default embedded workflow', () => {
       const result = parseWorkflow(defaultWorkflowPath);
       expect(result).toBeDefined();
       expect(result.tasks).toBeDefined();
-      expect(result.storyFlow).toBeDefined();
-      expect(result.epicFlow).toBeDefined();
+      expect(result.workflow).toBeDefined();
     });
   });
 
@@ -103,32 +109,69 @@ describe('default embedded workflow', () => {
     });
   });
 
-  describe('flow structure (AC #3)', () => {
-    it('storyFlow: create-story, negotiate-acs, loop, implement, check, review, loop, document', () => {
-      const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.storyFlow).toHaveLength(6);
-      expect(workflow.storyFlow[0]).toBe('create-story');
-      expect(workflow.storyFlow[1]).toBe('implement');
-      expect(workflow.storyFlow[2]).toBe('check');
-      expect(workflow.storyFlow[3]).toBe('review');
+  describe('workflow structure (AC #3)', () => {
+    let workflow: ResolvedWorkflow;
 
-      const storyLoop = workflow.storyFlow[4] as LoopBlock;
-      expect(storyLoop).toHaveProperty('loop');
-      expect(storyLoop.loop).toEqual(['retry', 'check', 'review']);
-
-      expect(workflow.storyFlow[5]).toBe('document');
+    beforeAll(() => {
+      workflow = parseWorkflow(defaultWorkflowPath);
     });
 
-    it('epicFlow: story_flow, retro', () => {
-      const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.epicFlow).toHaveLength(2);
-      expect(workflow.epicFlow[0]).toBe('story_flow');
-      expect(workflow.epicFlow[1]).toBe('retro');
+    it('top-level workflow block uses for_each: epic', () => {
+      const wf = workflow.workflow as ForEachBlock;
+      expect(wf.for_each).toBe('epic');
+      expect(Array.isArray(wf.steps)).toBe(true);
     });
 
-    it('flow (deprecated compat) equals storyFlow', () => {
-      const workflow = parseWorkflow(defaultWorkflowPath);
-      expect(workflow.flow).toEqual(workflow.storyFlow);
+    it('first step is a for_each: story block', () => {
+      const wf = workflow.workflow as ForEachBlock;
+      const storyBlock = wf.steps[0] as ForEachBlock;
+      expect(storyBlock.for_each).toBe('story');
+      expect(Array.isArray(storyBlock.steps)).toBe(true);
+    });
+
+    it('story block steps: create-story, implement, gate: quality, document', () => {
+      const wf = workflow.workflow as ForEachBlock;
+      const storyBlock = wf.steps[0] as ForEachBlock;
+      expect(storyBlock.steps[0]).toBe('create-story');
+      expect(storyBlock.steps[1]).toBe('implement');
+      const qualityGate = storyBlock.steps[2] as GateBlock;
+      expect(qualityGate.gate).toBe('quality');
+      expect(qualityGate.check).toEqual(['check', 'review']);
+      expect(qualityGate.fix).toEqual(['retry']);
+      expect(qualityGate.pass_when).toBe('consensus');
+      expect(qualityGate.max_retries).toBe(5);
+      expect(qualityGate.circuit_breaker).toBe('stagnation');
+      expect(storyBlock.steps[3]).toBe('document');
+    });
+
+    it('epic-level steps after story block: deploy, gate: verification, retro', () => {
+      const wf = workflow.workflow as ForEachBlock;
+      expect(wf.steps[1]).toBe('deploy');
+      const verificationGate = wf.steps[2] as GateBlock;
+      expect(verificationGate.gate).toBe('verification');
+      expect(verificationGate.check).toEqual(['verify']);
+      expect(verificationGate.fix).toEqual(['retry', 'document', 'deploy']);
+      expect(verificationGate.pass_when).toBe('consensus');
+      expect(verificationGate.max_retries).toBe(3);
+      expect(verificationGate.circuit_breaker).toBe('stagnation');
+      expect(wf.steps[3]).toBe('retro');
+    });
+
+    it('storyFlow and epicFlow are derived from the for_each workflow block (runtime compat)', () => {
+      // storyFlow: tasks inside the for_each: story block (gate converted to loop)
+      expect(workflow.storyFlow).toEqual([
+        'create-story',
+        'implement',
+        { loop: ['check', 'review', 'retry'] },
+        'document',
+      ]);
+      // epicFlow: story_flow sentinel + epic-level tasks/gates
+      expect(workflow.epicFlow).toEqual([
+        'story_flow',
+        'deploy',
+        { loop: ['verify', 'retry', 'document', 'deploy'] },
+        'retro',
+      ]);
     });
   });
 

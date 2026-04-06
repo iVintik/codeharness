@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, mkdirSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import os from 'node:os';
@@ -14,6 +14,7 @@ import {
   type LoopBlock,
   type FlowStep,
   type WorkflowPatch,
+  type GateBlock,
 } from '../workflow-parser.js';
 import { registerDriver, resetDrivers } from '../agents/drivers/factory.js';
 import type { AgentDriver } from '../agents/types.js';
@@ -25,6 +26,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   rmSync(testDir, { recursive: true, force: true });
 });
 
@@ -771,7 +773,7 @@ describe('resolveWorkflow', () => {
     expect(result.tasks.implement.agent).toBe('dev');
     expect(result.tasks.verify).toBeDefined();
     expect(result.tasks.verify.agent).toBe('evaluator');
-    expect(result.flow.length).toBeGreaterThan(0);
+    expect(result.workflow).toBeDefined();
   });
 
   it('deep-merges overrides from project patch onto embedded base', () => {
@@ -830,22 +832,32 @@ overrides:
     const patchContent = `
 extends: embedded://default
 replace:
-  story_flow:
-    - implement
-    - verify
-  epic_flow:
-    - story_flow
+  workflow:
+    for_each: epic
+    steps:
+      - for_each: story
+        steps:
+          - implement
+          - verify
 `;
     writeFileSync(join(patchDir, 'default.patch.yaml'), patchContent, 'utf-8');
 
     const result = resolveWorkflow({ cwd: testDir });
 
-    // story_flow fully replaced — no loop block from embedded default
-    expect(result.storyFlow).toEqual(['implement', 'verify']);
-    expect(result.epicFlow).toEqual(['story_flow']);
+    // workflow fully replaced — simplified structure with just 2 story steps
+    const wf = result.workflow as import('../workflow-execution.js').ForEachBlock;
+    expect(wf.for_each).toBe('epic');
+    const storyBlock = wf.steps[0] as import('../workflow-execution.js').ForEachBlock;
+    expect(storyBlock.for_each).toBe('story');
+    expect(storyBlock.steps).toEqual(['implement', 'verify']);
+    expect(wf.steps).toHaveLength(1);
   });
 
   it('applies user patch before project patch (ordering)', () => {
+    const originalHome = process.env.HOME;
+    const fakeHome = join(testDir, 'fake-home');
+    process.env.HOME = fakeHome;
+
     // Create user-level patch
     const userPatchDir = join(os.homedir(), '.codeharness', 'workflows');
     const userPatchPath = join(userPatchDir, 'default.patch.yaml');
@@ -886,6 +898,8 @@ overrides:
       expect(result.tasks.implement.session).toBe('continue');
       expect(result.tasks.implement.max_budget_usd).toBe(7.0);
     } finally {
+      process.env.HOME = originalHome;
+
       // Cleanup user patch
       if (userPatchExisted && originalUserPatch !== undefined) {
         writeFileSync(userPatchPath, originalUserPatch, 'utf-8');
@@ -932,17 +946,21 @@ replace:
     }
   });
 
-  it('throws WorkflowParseError when merged result has dangling task refs in story_flow', () => {
+  it('throws WorkflowParseError when merged result has dangling task refs in workflow steps', () => {
     const patchDir = join(testDir, '.codeharness', 'workflows');
     mkdirSync(patchDir, { recursive: true });
 
-    // Replace story_flow with ref to non-existent task, but keep tasks valid
+    // Replace workflow block with a step referencing a non-existent task
     const patchContent = `
 extends: embedded://default
 replace:
-  story_flow:
-    - implement
-    - nonexistent_task
+  workflow:
+    for_each: epic
+    steps:
+      - for_each: story
+        steps:
+          - implement
+          - nonexistent_task
 `;
     writeFileSync(join(patchDir, 'default.patch.yaml'), patchContent, 'utf-8');
 
@@ -1095,7 +1113,7 @@ epic_flow:
       // Should load embedded default without error
       expect(result.tasks).toBeDefined();
       expect(result.tasks.implement).toBeDefined();
-      expect(result.flow.length).toBeGreaterThan(0);
+      expect(result.workflow).toBeDefined();
     });
 
     it('custom workflow with extends key is NOT treated as full custom (falls to patch resolution)', () => {
@@ -1444,7 +1462,7 @@ epic_flow:
       const result = resolveWorkflow({ cwd: testDir });
       expect(result.tasks).toBeDefined();
       expect(result.tasks.implement).toBeDefined();
-      expect(result.flow.length).toBeGreaterThan(0);
+      expect(result.workflow).toBeDefined();
     });
 
     it('existing flow-ref checks still work (regression guard)', () => {
@@ -1714,7 +1732,7 @@ epic_flow:
     });
 
     // ResolvedWorkflow shape when using workflow: format
-    it('workflow: format returns empty storyFlow/epicFlow/flow arrays', () => {
+    it('workflow: format derives storyFlow/epicFlow from the for_each block', () => {
       const yaml = `
 tasks:
   retro:
@@ -1726,8 +1744,11 @@ workflow:
 `;
       const filePath = writeYaml('fe-shape.yaml', yaml);
       const result = parseWorkflow(filePath);
+      // storyFlow is empty — no for_each: story block present
       expect(result.storyFlow).toEqual([]);
-      expect(result.epicFlow).toEqual([]);
+      // epicFlow contains the single epic-level task
+      expect(result.epicFlow).toEqual(['retro']);
+      // flow is still empty (legacy field)
       expect(result.flow).toEqual([]);
       expect(result.tasks.retro).toBeDefined();
       expect(result.execution).toBeDefined();
@@ -1751,6 +1772,393 @@ execution:
       const result = parseWorkflow(filePath);
       expect(result.execution.max_parallel).toBe(2);
       expect(result.execution.isolation).toBe('worktree');
+    });
+  });
+
+  // ---- Story 22-2: gate block parsing ----
+
+  describe('gate block parsing (story 22-2)', () => {
+    // AC 1: gate with all fields parses successfully
+    it('AC1: gate with all fields parses successfully and returns correct GateBlock', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+    source_access: true
+  check:
+    agent: checker
+    driver: codex
+    source_access: true
+  review:
+    agent: reviewer
+    driver: codex
+    source_access: true
+  retry:
+    agent: dev
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - gate: quality
+          check: [check, review]
+          fix: [retry]
+          pass_when: consensus
+          max_retries: 5
+          circuit_breaker: stagnation
+`;
+      const filePath = writeYaml('gate-full.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.workflow).toBeDefined();
+      const storyBlock = result.workflow!.steps[0] as { for_each: string; steps: unknown[] };
+      expect(storyBlock.for_each).toBe('story');
+      const gate = storyBlock.steps[1] as GateBlock;
+      expect(gate.gate).toBe('quality');
+      expect(gate.check).toEqual(['check', 'review']);
+      expect(gate.fix).toEqual(['retry']);
+      expect(gate.pass_when).toBe('consensus');
+      expect(gate.max_retries).toBe(5);
+      expect(gate.circuit_breaker).toBe('stagnation');
+    });
+
+    // AC 2: gate with only name + check (defaults applied)
+    it('AC2: gate with only name and check list applies defaults for omitted fields', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+      check: [check]
+`;
+      const filePath = writeYaml('gate-minimal.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.workflow).toBeDefined();
+      const gate = result.workflow!.steps[1] as GateBlock;
+      expect(gate.gate).toBe('quality');
+      expect(gate.check).toEqual(['check']);
+      expect(gate.fix).toEqual([]);
+      expect(gate.pass_when).toBe('consensus');
+      expect(gate.max_retries).toBe(3);
+      expect(gate.circuit_breaker).toBe('stagnation');
+    });
+
+    // AC 3: gate with no name (empty string) → error mentioning "gate" and "name" / "named"
+    it('AC3: gate with empty name throws WorkflowParseError mentioning gate', () => {
+      const yaml = `
+tasks:
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - gate: ""
+      check: [check]
+`;
+      const filePath = writeYaml('gate-empty-name.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message.toLowerCase()).toMatch(/gate/);
+      }
+    });
+
+    // AC 3b: gate with null name → error
+    it('AC3b: gate with null name (gate: ~) throws WorkflowParseError', () => {
+      const yaml = `
+tasks:
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - gate: ~
+      check: [check]
+`;
+      const filePath = writeYaml('gate-null-name.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+    });
+
+    // AC 4: gate with empty check list → error mentioning "check"
+    it('AC4: gate with empty check list throws WorkflowParseError mentioning check', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+      check: []
+`;
+      const filePath = writeYaml('gate-empty-check.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message.toLowerCase()).toMatch(/check/);
+      }
+    });
+
+    // AC 5: gate with no check key at all → error mentioning "check"
+    it('AC5: gate with missing check key throws WorkflowParseError mentioning check', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+`;
+      const filePath = writeYaml('gate-no-check.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message.toLowerCase()).toMatch(/check/);
+      }
+    });
+
+    // AC 6: gate check references unknown task → error with task name in message
+    it('AC6: gate check referencing unknown task throws error with task name', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+      check: [ghost-checker]
+`;
+      const filePath = writeYaml('gate-unknown-check.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toMatch(/ghost-checker/);
+      }
+    });
+
+    // AC 7: gate fix references unknown task → error with task name in message
+    it('AC7: gate fix referencing unknown task throws error with task name', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+      check: [check]
+      fix: [ghost-fixer]
+`;
+      const filePath = writeYaml('gate-unknown-fix.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message).toMatch(/ghost-fixer/);
+      }
+    });
+
+    // AC 8: gate with pass_when: majority parses successfully
+    it('AC8a: gate with pass_when: majority parses successfully', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+      check: [check]
+      pass_when: majority
+`;
+      const filePath = writeYaml('gate-majority.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      const gate = result.workflow!.steps[1] as GateBlock;
+      expect(gate.pass_when).toBe('majority');
+    });
+
+    it('AC8b: gate with pass_when: any_pass parses successfully', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+      check: [check]
+      pass_when: any_pass
+`;
+      const filePath = writeYaml('gate-any-pass.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      const gate = result.workflow!.steps[1] as GateBlock;
+      expect(gate.pass_when).toBe('any_pass');
+    });
+
+    // AC 9: gate with invalid pass_when → error mentioning "pass_when"
+    it('AC9: gate with invalid pass_when throws WorkflowParseError mentioning pass_when', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+      check: [check]
+      pass_when: invalid_value
+`;
+      const filePath = writeYaml('gate-invalid-pass-when.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message.toLowerCase()).toMatch(/pass_when/);
+      }
+    });
+
+    // AC 10: gate with max_retries: 0 → error mentioning "max_retries"
+    it('AC10: gate with max_retries: 0 throws WorkflowParseError mentioning max_retries', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: quality
+      check: [check]
+      max_retries: 0
+`;
+      const filePath = writeYaml('gate-zero-retries.yaml', yaml);
+      expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
+      try {
+        parseWorkflow(filePath);
+      } catch (err) {
+        const pe = err as WorkflowParseError;
+        expect(pe.message.toLowerCase()).toMatch(/max_retries/);
+      }
+    });
+
+    // AC 11: multiple gates at different nesting levels parse successfully
+    it('AC11: gates at different nesting levels (epic and story) both parse successfully', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  check:
+    agent: checker
+    source_access: true
+  verify:
+    agent: evaluator
+    source_access: true
+  retry:
+    agent: dev
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - gate: quality
+          check: [check]
+          fix: [retry]
+    - gate: verification
+      check: [verify]
+`;
+      const filePath = writeYaml('gate-multi-level.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      expect(result.workflow).toBeDefined();
+      // Inner gate inside for_each: story
+      const storyBlock = result.workflow!.steps[0] as { for_each: string; steps: unknown[] };
+      const innerGate = storyBlock.steps[1] as GateBlock;
+      expect(innerGate.gate).toBe('quality');
+      // Outer gate at for_each: epic level
+      const outerGate = result.workflow!.steps[1] as GateBlock;
+      expect(outerGate.gate).toBe('verification');
+    });
+
+    // AC 12: backward compatibility — old story_flow/epic_flow format still parses
+    it('AC12: old story_flow/epic_flow format still parses without errors', () => {
+      const filePath = writeYaml('gate-legacy-compat.yaml', minimalYaml);
+      const result = parseWorkflow(filePath);
+      expect(result.storyFlow).toBeDefined();
+      expect(result.epicFlow).toBeDefined();
+      expect(result.workflow).toBeUndefined();
+    });
+
+    // GateBlock is fully populated (all fields present in returned object)
+    it('returned GateBlock always has all fields populated (even with defaults)', () => {
+      const yaml = `
+tasks:
+  implement:
+    agent: dev
+  check:
+    agent: checker
+    source_access: true
+workflow:
+  for_each: epic
+  steps:
+    - implement
+    - gate: mygate
+      check: [check]
+`;
+      const filePath = writeYaml('gate-defaults-check.yaml', yaml);
+      const result = parseWorkflow(filePath);
+      const gate = result.workflow!.steps[1] as GateBlock;
+      // All fields must be defined (no undefined)
+      expect(gate.gate).toBe('mygate');
+      expect(gate.check).toEqual(['check']);
+      expect(gate.fix).toEqual([]);
+      expect(gate.pass_when).toBe('consensus');
+      expect(gate.max_retries).toBe(3);
+      expect(gate.circuit_breaker).toBe('stagnation');
     });
   });
 });

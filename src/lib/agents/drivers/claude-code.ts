@@ -216,13 +216,29 @@ export class ClaudeCodeDriver implements AgentDriver {
       queryOptions.plugins = [...opts.plugins];
     }
 
-    // Timeout handling via AbortController
+    // Timeout and external cancellation share one AbortController so the SDK
+    // terminates the in-flight subprocess immediately on SIGINT.
     let abortController: AbortController | undefined;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let timedOut = false;
+    let abortListener: (() => void) | undefined;
 
-    if (opts.timeout) {
+    if (opts.timeout || opts.abortSignal) {
       abortController = new AbortController();
+    }
+
+    if (opts.abortSignal && abortController) {
+      abortListener = () => abortController!.abort();
+      if (opts.abortSignal.aborted) {
+        abortController.abort();
+      } else {
+        opts.abortSignal.addEventListener('abort', abortListener, { once: true });
+      }
+    }
+
+    if (opts.timeout && abortController) {
       timeoutId = setTimeout(() => {
+        timedOut = true;
         abortController!.abort();
       }, opts.timeout);
     }
@@ -265,12 +281,18 @@ export class ClaudeCodeDriver implements AgentDriver {
         }
       }
     } catch (err: unknown) {
+      if (opts.abortSignal?.aborted && !timedOut) {
+        const abortError = new Error('Dispatch aborted');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
+
       const category = classifyError(err);
       const errorMessage = err instanceof Error ? err.message : String(err);
 
       // If abort was triggered by our timeout, classify as TIMEOUT
       const finalCategory =
-        abortController?.signal.aborted && category !== 'RATE_LIMIT'
+        timedOut && category !== 'RATE_LIMIT'
           ? 'TIMEOUT'
           : category;
 
@@ -290,6 +312,9 @@ export class ClaudeCodeDriver implements AgentDriver {
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
+      }
+      if (abortListener && opts.abortSignal) {
+        opts.abortSignal.removeEventListener('abort', abortListener);
       }
     }
 

@@ -28,16 +28,9 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
     }
     return loopBlock.loop[loopBlock.loop.length - 1];
   })();
-  // Reset evaluator scores and circuit breaker at the start of each loop block
-  // Each story's quality gate is independent — old scores must not poison new gates
-  if (currentState.iteration === 0) {
-    currentState = {
-      ...currentState,
-      evaluator_scores: [],
-      circuit_breaker: { triggered: false, reason: null, score_history: [] },
-    };
-    writeWorkflowState(currentState, projectDir);
-  }
+  // NOTE: evaluator_scores, circuit_breaker, and iteration are reset by the
+  // caller (storyFlowActor/epicStepActor) BEFORE invoking executeLoopBlock.
+  // Each loop block starts fresh.
   const allCurrentIterationDone = currentState.iteration > 0 && loopBlock.loop.every((tn) => {
     const t = config.workflow.tasks[tn];
     return !t || (storyFlowTasks?.has(tn) ? workItems.every((i) => isLoopTaskCompleted(currentState, tn, i.key, currentState.iteration)) : isLoopTaskCompleted(currentState, tn, RUN_SENTINEL, currentState.iteration));
@@ -210,6 +203,8 @@ const storyFlowActor = fromPromise(async ({ input }: { input: StoryFlowInput }):
   for (const storyStep of config.workflow.storyFlow) {
     if (halted || config.abortSignal?.aborted) { halted = true; break; }
     if (isLoopBlock(storyStep)) {
+      // Reset loop state — each loop block starts fresh (independent quality gate)
+      state = { ...state, iteration: 0, evaluator_scores: [], circuit_breaker: { triggered: false, reason: null, score_history: [] } };
       const loopResult = await executeLoopBlock(storyStep, state, config, [item], lastContract, storyFlowTasks);
       state = loopResult.state; errors.push(...loopResult.errors); tasksCompleted += loopResult.tasksCompleted; lastContract = loopResult.lastContract;
       if (loopResult.halted) { halted = true; break; }
@@ -276,6 +271,8 @@ const epicStepActor = fromPromise(async ({ input }: { input: EpicMachineContext 
     return { ...input, workflowState: state, errors, tasksCompleted, storiesProcessed, lastContract, accumulatedCostUsd, halted, currentStepIndex: currentStepIndex + 1 };
   }
   if (isLoopBlock(step)) {
+    // Reset loop state — each loop block starts fresh
+    state = { ...state, iteration: 0, evaluator_scores: [], circuit_breaker: { triggered: false, reason: null, score_history: [] } };
     const loopResult = await executeLoopBlock(step, state, config, epicItems, lastContract, storyFlowTasks);
     state = loopResult.state; errors.push(...loopResult.errors); tasksCompleted += loopResult.tasksCompleted; lastContract = loopResult.lastContract;
     for (const item of epicItems) storiesProcessed.add(item.key);

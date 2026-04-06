@@ -2,21 +2,12 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse, stringify } from 'yaml';
 import { warn } from './output.js';
+import type { WorkflowState } from './workflow-types.js';
+
+// Re-export canonical types so existing imports from workflow-state.ts continue to work.
+export type { TaskCheckpoint, WorkflowState } from './workflow-types.js';
 
 // --- Interfaces ---
-
-export interface TaskCheckpoint {
-  task_name: string;
-  story_key: string;
-  completed_at: string;
-  session_id?: string;
-  /** When present, indicates this checkpoint records a failed dispatch (not a success). */
-  error?: boolean;
-  /** Error message when error is true. */
-  error_message?: string;
-  /** Error code when error is true (e.g., DISPATCH, NETWORK, TIMEOUT). */
-  error_code?: string;
-}
 
 export interface EvaluatorScore {
   iteration: number;
@@ -31,17 +22,6 @@ export interface CircuitBreakerState {
   triggered: boolean;
   reason: string | null;
   score_history: number[];
-}
-
-export interface WorkflowState {
-  workflow_name: string;
-  started: string;
-  iteration: number;
-  phase: string;
-  tasks_completed: TaskCheckpoint[];
-  evaluator_scores: EvaluatorScore[];
-  circuit_breaker: CircuitBreakerState;
-  trace_ids?: string[];
 }
 
 // --- Constants ---

@@ -99,6 +99,7 @@ export interface DispatchOpts {
   readonly model: string;
   readonly cwd: string;
   readonly sourceAccess: boolean;
+  readonly abortSignal?: AbortSignal;
   readonly plugins?: readonly string[];
   readonly timeout?: number;
   readonly sessionId?: string;

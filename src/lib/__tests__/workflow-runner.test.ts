@@ -350,6 +350,11 @@ function setupDefaultMocks() {
     output: 'Done',
   });
 
+  mockCreateIsolatedWorkspace.mockResolvedValue({
+    toDispatchOptions: () => ({ cwd: '/isolated/workspace' }),
+    cleanup: vi.fn().mockResolvedValue(undefined),
+  });
+
   mockExistsSync.mockImplementation((path: string) => {
     if (path === '/project/sprint-status.yaml') return true;
     return false;

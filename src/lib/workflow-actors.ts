@@ -33,6 +33,13 @@ export function buildCoverageDeduplicationContext(contract: OutputContract | nul
   } catch { return null; } // IGNORE: state unreadable — best-effort
 }
 
+function normalizeTestResults(output: string, taskName: string) {
+  if (taskName !== 'implement') return null;
+  const results = parseTestOutput(output);
+  if (!results) return null;
+  return results.passed === 0 && results.failed === 0 && results.coverage === null ? null : results;
+}
+
 // ─── Null Task Core ──────────────────────────────────────────────────
 export async function nullTaskCore(input: NullTaskInput): Promise<DispatchOutput> {
   const { task: _task, taskName, storyKey, config, workflowState, previousContract, accumulatedCostUsd } = input;
@@ -70,11 +77,18 @@ export async function nullTaskCore(input: NullTaskInput): Promise<DispatchOutput
   const checkpoint: TaskCheckpoint = { task_name: taskName, story_key: storyKey, completed_at: new Date().toISOString() };
   const updatedState: WorkflowState = { ...workflowState, tasks_completed: [...workflowState.tasks_completed, checkpoint] };
   const durationMs = Date.now() - startMs;
-  const contract: OutputContract = {
-    version: 1, taskName, storyId: storyKey, driver: 'engine', model: 'null',
-    timestamp: new Date().toISOString(), cost_usd: 0, duration_ms: durationMs,
-    changedFiles: [], testResults: null, output: result.output ?? '', acceptanceCriteria: [],
-  };
+  let contract: OutputContract | null = null;
+  try {
+    contract = {
+      version: 1, taskName, storyId: storyKey, driver: 'engine', model: 'null',
+      timestamp: new Date().toISOString(), cost_usd: 0, duration_ms: durationMs,
+      changedFiles: [], testResults: null, output: result.output ?? '', acceptanceCriteria: [],
+    };
+    writeOutputContract(contract, join(projectDir, '.codeharness', 'contracts'));
+  } catch (err: unknown) {
+    warn(`workflow-actors: failed to write output contract for ${taskName}/${storyKey}: ${err instanceof Error ? err.message : String(err)}`);
+    contract = null;
+  }
   writeWorkflowState(updatedState, projectDir);
   return { output: result.output ?? '', cost: 0, changedFiles: [], sessionId: '', contract, updatedState };
 }
@@ -126,6 +140,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
 
   const dispatchOpts: DispatchOpts = {
     prompt, model, cwd, sourceAccess: task.source_access !== false,
+    ...(config.abortSignal ? { abortSignal: config.abortSignal } : {}),
     ...(sessionId ? { sessionId } : {}),
     ...(tracePrompt ? { appendSystemPrompt: tracePrompt } : {}),
     ...((task.plugins ?? definition.plugins) ? { plugins: task.plugins ?? definition.plugins } : {}),
@@ -197,7 +212,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
     contract = {
       version: 1, taskName, storyId: storyKey, driver: driverName, model,
       timestamp: new Date().toISOString(), cost_usd: cost > 0 ? cost : null, duration_ms: durationMs,
-      changedFiles: [...new Set(changedFiles)], testResults: taskName === 'implement' ? (parseTestOutput(output) ?? null) : null, output, acceptanceCriteria: getPendingAcceptanceCriteria(taskName, storyKey, projectDir, storyFiles),
+      changedFiles: [...new Set(changedFiles)], testResults: normalizeTestResults(output, taskName), output, acceptanceCriteria: getPendingAcceptanceCriteria(taskName, storyKey, projectDir, storyFiles),
     };
     writeOutputContract(contract, join(projectDir, '.codeharness', 'contracts'));
   } catch (err: unknown) {
@@ -212,4 +227,5 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
 
 // ─── XState Actors ───────────────────────────────────────────────────
 export const dispatchActor = fromPromise(async ({ input }: { input: DispatchInput }): Promise<DispatchOutput> => dispatchTaskCore(input));
-export const nullTaskDispatchActor = fromPromise(async ({ input }: { input: NullTaskInput }): Promise<DispatchOutput> => nullTaskCore(input));
+export const nullTaskActor = fromPromise(async ({ input }: { input: NullTaskInput }): Promise<DispatchOutput> => nullTaskCore(input));
+export const nullTaskDispatchActor = nullTaskActor;

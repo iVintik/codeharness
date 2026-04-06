@@ -190,6 +190,10 @@ export interface GateContext {
   halted: boolean;
   lastContract: OutputContract | null;
   accumulatedCostUsd: number;
+  /** Per-task raw output strings accumulated during the checking phase. */
+  verdicts: Record<string, string>;
+  /** When gate runs inside a for_each iteration, the current item key for namespacing storyKeys. */
+  parentItemKey?: string;
 }
 export interface EpicContext {
   epicId: string;
@@ -239,6 +243,22 @@ export interface LoopMachineContext {
 export type EpicMachineContext = EpicContext;
 export type RunMachineContext = RunContext;
 export interface LoopBlockResult { state: WorkflowState; errors: EngineError[]; tasksCompleted: number; halted: boolean; lastContract: OutputContract | null }
+
+/** Minimal iteration context shape for compiled for_each assign actions. */
+export interface IterationContext { currentIndex: number; items: WorkItem[]; item: WorkItem; [key: string]: unknown }
+/** Compiled XState invoke state config returned by `compileStep`. */
+export interface CompiledInvokeState {
+  invoke: {
+    src: string;
+    input: (args: { context: StoryContext }) => DispatchInput | NullTaskInput;
+    onDone: { target: string; actions: unknown };
+    onError: Array<{ guard?: string; target?: string; actions?: unknown }>;
+  };
+}
+/** Compiled XState compound state config returned by `compileGate`. */
+export interface CompiledGateState { initial: 'checking'; states: Record<string, unknown> }
+/** Compiled XState compound state config returned by `compileForEach`. */
+export interface CompiledForEachState { initial: 'processItem'; states: Record<string, unknown>; meta?: { scope: string } }
 
 export function isEngineError(value: unknown): value is EngineError {
   if (!value || typeof value !== 'object') return false;

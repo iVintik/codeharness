@@ -36,6 +36,48 @@
   },
   "additionalProperties": false,
   "definitions": {
+    "gateBlock": {
+      "type": "object",
+      "required": ["gate", "check"],
+      "properties": {
+        "gate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Gate name (must be non-empty)"
+        },
+        "check": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" },
+          "description": "Task names to run as check agents — at least one required"
+        },
+        "fix": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Task names to run on check failure (no nested gates)"
+        },
+        "pass_when": {
+          "type": "string",
+          "enum": ["consensus", "majority", "any_pass"],
+          "default": "consensus",
+          "description": "Condition for gate to pass"
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "description": "Maximum number of fix-retry cycles before circuit_breaker fires (minimum 1)"
+        },
+        "circuit_breaker": {
+          "type": "string",
+          "enum": ["stagnation"],
+          "default": "stagnation",
+          "description": "Circuit breaker strategy when max_retries is exhausted"
+        }
+      },
+      "additionalProperties": false
+    },
     "forEachBlock": {
       "type": "object",
       "required": ["for_each", "steps"],
@@ -56,10 +98,13 @@
               },
               {
                 "$ref": "#/definitions/forEachBlock"
+              },
+              {
+                "$ref": "#/definitions/gateBlock"
               }
             ]
           },
-          "description": "Steps to execute — task names or nested for_each blocks"
+          "description": "Steps to execute — task names, nested for_each blocks, or gate blocks"
         }
       },
       "additionalProperties": false

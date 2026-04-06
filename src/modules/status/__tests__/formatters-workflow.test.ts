@@ -142,9 +142,40 @@ describe('handleFullStatus — workflow engine section', () => {
     expect(output).toContain('Phase: executing');
     expect(output).toContain('Iteration: 2');
     expect(output).toContain('Tasks completed: 2');
+    expect(output).toContain('Workflow errors: 0');
     expect(output).toContain('Elapsed:');
     expect(output).toContain('Evaluator: 3/4 passed');
     expect(output).toContain('Circuit breaker: no');
+  });
+
+  it('lists workflow errors with taskName/storyKey/code', () => {
+    readWorkflowStateMock.mockReturnValue(makeActiveState({
+      tasks_completed: [
+        { task_name: 'implement', story_key: '5-1-story', completed_at: new Date().toISOString() },
+        {
+          task_name: 'telemetry',
+          story_key: '5-1-story',
+          completed_at: new Date().toISOString(),
+          error: true,
+          error_code: 'NULL_TASK_NOT_FOUND',
+          error_message: 'missing handler',
+        },
+        {
+          task_name: 'verify',
+          story_key: '__run__',
+          completed_at: new Date().toISOString(),
+          error: true,
+          error_code: 'NETWORK',
+          error_message: 'network down',
+        },
+      ],
+    }));
+    handleFullStatus(false);
+
+    const output = getLogOutput();
+    expect(output).toContain('Workflow errors: 2');
+    expect(output).toContain('telemetry/5-1-story [NULL_TASK_NOT_FOUND]');
+    expect(output).toContain('verify/__run__ [NETWORK]');
   });
 
   it('displays circuit breaker triggered state with reason', () => {
@@ -183,11 +214,39 @@ describe('handleFullStatusJson — workflow state', () => {
     expect(parsed.workflow.phase).toBe('executing');
     expect(parsed.workflow.iteration).toBe(2);
     expect(parsed.workflow.tasks_completed).toBe(2);
+    expect(parsed.workflow.errors).toEqual([]);
     expect(parsed.workflow.workflow_name).toBe('implement -> verify');
     expect(parsed.workflow.evaluator_scores).toHaveLength(1);
     expect(parsed.workflow.circuit_breaker.triggered).toBe(false);
     expect(parsed.workflow.elapsed_ms).toBeGreaterThan(0);
     expect(parsed.workflow.elapsed).toBeDefined();
+  });
+
+  it('includes detailed workflow errors in JSON', () => {
+    readWorkflowStateMock.mockReturnValue(makeActiveState({
+      tasks_completed: [
+        {
+          task_name: 'telemetry',
+          story_key: '5-1-story',
+          completed_at: new Date().toISOString(),
+          error: true,
+          error_code: 'NULL_TASK_NOT_FOUND',
+          error_message: 'missing handler',
+        },
+      ],
+    }));
+    handleFullStatus(true);
+
+    const jsonCall = consoleSpy.mock.calls[0]?.[0];
+    const parsed = JSON.parse(String(jsonCall));
+    expect(parsed.workflow.errors).toEqual([
+      {
+        taskName: 'telemetry',
+        storyKey: '5-1-story',
+        code: 'NULL_TASK_NOT_FOUND',
+        message: 'missing handler',
+      },
+    ]);
   });
 
   it('omits workflow field in JSON when no active run', () => {

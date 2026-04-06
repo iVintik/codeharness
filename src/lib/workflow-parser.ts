@@ -14,27 +14,13 @@ import {
   type FlowStep,
   type ForEachBlock,
   type ForEachFlowStep,
+  type GateBlock,
 } from './workflow-execution.js';
+import type { ResolvedWorkflow } from './workflow-types.js';
 
-// Re-export base types defined in workflow-execution.ts (they live there to avoid circular imports)
-export type { ResolvedTask, LoopBlock, FlowStep, ForEachBlock, ForEachFlowStep } from './workflow-execution.js';
-
-export interface ResolvedWorkflow {
-  tasks: Record<string, ResolvedTask>;
-  /** Story-level flow — runs for each story in the epic. */
-  storyFlow: FlowStep[];
-  /** Epic-level flow — runs once per epic. Contains 'story_flow' reference. */
-  epicFlow: FlowStep[];
-  /** Execution configuration (parallel, isolation, merge strategy). */
-  execution: ExecutionConfig;
-  /** @deprecated Flat flow for backward compat. Use storyFlow/epicFlow. */
-  flow: FlowStep[];
-  /**
-   * New-format workflow definition using for_each blocks.
-   * Present only when the YAML uses the `workflow:` key instead of `story_flow`/`epic_flow`.
-   */
-  workflow?: ForEachBlock;
-}
+// Re-export base types; workflow-execution.ts and workflow-types.ts are the canonical sources.
+export type { ResolvedTask, LoopBlock, FlowStep, ForEachBlock, ForEachFlowStep, GateBlock } from './workflow-execution.js';
+export type { ResolvedWorkflow } from './workflow-types.js';
 
 // --- Error Class ---
 
@@ -85,15 +71,106 @@ function parseForEachFlow(
     ) {
       const nested = parseForEachFlow(step, taskNames, stepPath, errors);
       parsedSteps.push(nested);
+    } else if (
+      typeof step === 'object' &&
+      step !== null &&
+      'gate' in step
+    ) {
+      const g = step as Record<string, unknown>;
+      const checkTasks = (g.check as string[]) ?? [];
+      const fixTasks = (g.fix as string[]) ?? [];
+
+      // Validate check task references
+      for (let j = 0; j < checkTasks.length; j++) {
+        if (!taskNames.has(checkTasks[j])) {
+          errors.push({
+            path: `${stepPath}.check[${j}]`,
+            message: `Gate check task "${checkTasks[j]}" at ${stepPath}.check[${j}] not defined in tasks`,
+          });
+        }
+      }
+
+      // Validate fix task references
+      for (let j = 0; j < fixTasks.length; j++) {
+        if (!taskNames.has(fixTasks[j])) {
+          errors.push({
+            path: `${stepPath}.fix[${j}]`,
+            message: `Gate fix task "${fixTasks[j]}" at ${stepPath}.fix[${j}] not defined in tasks`,
+          });
+        }
+      }
+
+      const gateBlock: GateBlock = {
+        gate: g.gate as string,
+        check: checkTasks,
+        fix: fixTasks,
+        pass_when: (g.pass_when as GateBlock['pass_when']) ?? 'consensus',
+        max_retries: (g.max_retries as number) ?? 3,
+        circuit_breaker: (g.circuit_breaker as GateBlock['circuit_breaker']) ?? 'stagnation',
+      };
+      parsedSteps.push(gateBlock);
     } else {
       errors.push({
         path: stepPath,
-        message: `Invalid step at ${stepPath}: expected task name or for_each block`,
+        message: `Invalid step at ${stepPath}: expected task name, for_each block, or gate block`,
       });
     }
   }
 
   return { for_each: scope, steps: parsedSteps };
+}
+
+// --- New-format to Legacy Derivation ---
+
+/**
+ * Derive legacy `storyFlow` and `epicFlow` from a new-format `ForEachBlock`.
+ *
+ * The new `workflow: { for_each: epic, steps: [...] }` format is richer than the
+ * legacy `story_flow`/`epic_flow` flat lists, but the runtime executes via the legacy
+ * fields. This function bridges the gap so both formats are runtime-compatible:
+ *
+ * - Top-level `for_each: story` block → produces storyFlow steps + adds `'story_flow'` sentinel to epicFlow
+ * - Top-level string steps → epic-level task (added to epicFlow)
+ * - GateBlock at any level → converted to LoopBlock `{ loop: [...check, ...fix] }`
+ */
+function deriveFlowsFromForEach(workflowBlock: ForEachBlock): { storyFlow: FlowStep[]; epicFlow: FlowStep[] } {
+  const storyFlow: FlowStep[] = [];
+  const epicFlow: FlowStep[] = [];
+
+  for (const step of workflowBlock.steps) {
+    if (typeof step === 'string') {
+      epicFlow.push(step);
+    } else if ('for_each' in step) {
+      const nested = step as ForEachBlock;
+      if (nested.for_each === 'story') {
+        // Story-level block: add sentinel to epicFlow, extract storyFlow steps
+        epicFlow.push('story_flow');
+        for (const storyStep of nested.steps) {
+          if (typeof storyStep === 'string') {
+            storyFlow.push(storyStep);
+          } else if ('gate' in storyStep) {
+            const gate = storyStep as GateBlock;
+            storyFlow.push({ loop: [...gate.check, ...gate.fix] });
+          }
+          // Deeper for_each nesting at story level is not expected; skip.
+        }
+      } else {
+        // Non-story for_each at epic level: treat as inline epic step expansion
+        for (const innerStep of nested.steps) {
+          if (typeof innerStep === 'string') epicFlow.push(innerStep);
+          else if ('gate' in innerStep) {
+            const gate = innerStep as GateBlock;
+            epicFlow.push({ loop: [...gate.check, ...gate.fix] });
+          }
+        }
+      }
+    } else if ('gate' in step) {
+      const gate = step as GateBlock;
+      epicFlow.push({ loop: [...gate.check, ...gate.fix] });
+    }
+  }
+
+  return { storyFlow, epicFlow };
 }
 
 // --- Shared Validation & Resolution ---
@@ -131,10 +208,19 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
 
   const result = validateWorkflowSchema(parsed);
   if (!result.valid) {
-    const details = result.errors.map((e) => `${e.path}: ${e.message}`).join('; ');
+    const normalizedErrors = result.errors.map((e) => {
+      if (e.path.endsWith('/gate')) {
+        return {
+          path: e.path,
+          message: 'gate name must be a non-empty string',
+        };
+      }
+      return { path: e.path, message: e.message };
+    });
+    const details = normalizedErrors.map((e) => `${e.path}: ${e.message}`).join('; ');
     throw new WorkflowParseError(
       `Schema validation failed: ${details}`,
-      result.errors.map((e) => ({ path: e.path, message: e.message })),
+      normalizedErrors,
     );
   }
 
@@ -177,10 +263,11 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
       throw err;
     }
 
+    const { storyFlow, epicFlow } = deriveFlowsFromForEach(workflowBlock);
     return {
       tasks: resolvedTasks,
-      storyFlow: [],
-      epicFlow: [],
+      storyFlow,
+      epicFlow,
       execution,
       flow: [],
       workflow: workflowBlock,

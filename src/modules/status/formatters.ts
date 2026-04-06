@@ -483,6 +483,8 @@ function printWorkflowState(): void {
   console.log(`  Phase: ${state.phase}`);
   console.log(`  Iteration: ${state.iteration}`);
   console.log(`  Tasks completed: ${state.tasks_completed.length}`);
+  const workflowErrors = getWorkflowErrors(state);
+  console.log(`  Workflow errors: ${workflowErrors.length}`);
 
   if (state.phase === 'executing' && state.started) {
     const elapsed = Date.now() - Date.parse(state.started);
@@ -495,6 +497,12 @@ function printWorkflowState(): void {
   }
 
   console.log(`  Circuit breaker: ${state.circuit_breaker.triggered ? 'TRIGGERED' : 'no'}${state.circuit_breaker.triggered && state.circuit_breaker.reason ? ` — ${state.circuit_breaker.reason}` : ''}`);
+  if (workflowErrors.length > 0) {
+    console.log('  Errors:');
+    for (const err of workflowErrors) {
+      console.log(`    ${err.taskName}/${err.storyKey} [${err.code}]${err.message ? ` ${err.message}` : ''}`);
+    }
+  }
   console.log('');
 }
 
@@ -511,6 +519,7 @@ function getWorkflowStateData(): Record<string, unknown> | null {
     iteration: state.iteration,
     started: state.started,
     tasks_completed: state.tasks_completed.length,
+    errors: getWorkflowErrors(state),
     evaluator_scores: state.evaluator_scores,
     circuit_breaker: state.circuit_breaker,
   };
@@ -521,6 +530,22 @@ function getWorkflowStateData(): Record<string, unknown> | null {
   }
 
   return data;
+}
+
+function getWorkflowErrors(state: ReturnType<typeof readWorkflowState>): Array<{
+  taskName: string;
+  storyKey: string;
+  code: string;
+  message: string | null;
+}> {
+  return state.tasks_completed
+    .filter((checkpoint) => checkpoint.error)
+    .map((checkpoint) => ({
+      taskName: checkpoint.task_name,
+      storyKey: checkpoint.story_key,
+      code: checkpoint.error_code ?? 'UNKNOWN',
+      message: checkpoint.error_message ?? null,
+    }));
 }
 
 // ─── Sprint State Helpers ────────────────────────────────────────────────────

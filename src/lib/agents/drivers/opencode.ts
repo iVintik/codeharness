@@ -237,10 +237,24 @@ export class OpenCodeDriver implements AgentDriver {
     let yieldedResult = false;
     let timedOut = false;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let aborted = false;
+    let abortListener: (() => void) | undefined;
 
     const proc = spawn('opencode', args, {
       stdio: ['ignore', 'pipe', 'pipe'],
     });
+
+    if (opts.abortSignal) {
+      abortListener = () => {
+        aborted = true;
+        proc.kill('SIGINT');
+      };
+      if (opts.abortSignal.aborted) {
+        abortListener();
+      } else {
+        opts.abortSignal.addEventListener('abort', abortListener, { once: true });
+      }
+    }
 
     // Timeout handling
     if (opts.timeout) {
@@ -288,6 +302,12 @@ export class OpenCodeDriver implements AgentDriver {
       // Wait for process to close (promise was registered before readline started)
       const exitCode = await closePromise;
 
+      if (aborted && !timedOut) {
+        const abortError = new Error('Dispatch aborted');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
+
       // Handle non-zero exit
       if (exitCode !== null && exitCode !== 0 && !yieldedResult) {
         const errorText = stderrData || `opencode exited with code ${exitCode}`;
@@ -304,6 +324,12 @@ export class OpenCodeDriver implements AgentDriver {
         yieldedResult = true;
       }
     } catch (err: unknown) {
+      if ((aborted && !timedOut) || (err instanceof Error && err.name === 'AbortError')) {
+        const abortError = err instanceof Error ? err : new Error('Dispatch aborted');
+        abortError.name = 'AbortError';
+        throw abortError;
+      }
+
       const errorMessage = err instanceof Error ? err.message : String(err);
       const category = timedOut ? 'TIMEOUT' : classifyError(err);
 
@@ -319,6 +345,9 @@ export class OpenCodeDriver implements AgentDriver {
     } finally {
       if (timeoutId) {
         clearTimeout(timeoutId);
+      }
+      if (abortListener && opts.abortSignal) {
+        opts.abortSignal.removeEventListener('abort', abortListener);
       }
     }
 

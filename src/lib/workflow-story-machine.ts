@@ -49,7 +49,7 @@ const storyStepActor = fromPromise(async ({ input, signal }: { input: StoryConte
 
       const gateActor = createActor(gateMachine, { input: gateCtx });
       gateActor.start();
-      const gateSnap = await waitFor(gateActor, (s) => s.status === 'done', { timeout: 1_800_000 });
+      const gateSnap = await waitFor(gateActor, (s) => s.status === 'done', {});
       const gateOut = gateSnap.output as GateOutput;
 
       // Merge gate output back into story context

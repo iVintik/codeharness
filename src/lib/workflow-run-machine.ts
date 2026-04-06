@@ -78,7 +78,7 @@ const runEpicActor = fromPromise(async ({ input, signal }: { input: RunContext; 
   let epicOut: EpicOutput;
   try {
     actor.start();
-    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 1_800_000 });
+    const snap = await waitFor(actor, (s) => s.status === 'done', {});
     epicOut = snap.output as EpicOutput;
   } finally {
     signal.removeEventListener('abort', onAbort);

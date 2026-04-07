@@ -48,7 +48,7 @@ export interface CompletedToolEntry {
   isText?: boolean;
 }
 
-export type StoryStatusValue = 'done' | 'in-progress' | 'pending' | 'failed' | 'blocked';
+export type StoryStatusValue = 'done' | 'checked' | 'in-progress' | 'pending' | 'failed' | 'blocked';
 
 export interface StoryStatusEntry {
   key: string;
@@ -143,20 +143,24 @@ export function Header({ info, laneCount }: { info: SprintInfo | null; laneCount
   return <Text>{left}{' '.repeat(pad)}<Text dimColor>{right}</Text></Text>;
 }
 
-/** Progress bar with verified (green) and in-progress (yellow) segments. */
-export function ProgressBar({ done, total, inProgress }: { done: number; total: number; inProgress?: number }) {
+/** Progress bar: done (green), checked (cyan), in-progress (yellow), remaining (dim). */
+export function ProgressBar({ done, total, inProgress, checked }: { done: number; total: number; inProgress?: number; checked?: number }) {
   const ip = inProgress ?? 0;
+  const ck = checked ?? 0;
   const labelParts: string[] = [];
   if (done > 0) labelParts.push(`${done}✓`);
+  if (ck > 0) labelParts.push(`${ck}☑`);
   if (ip > 0) labelParts.push(`${ip}⚡`);
   const label = `${labelParts.join(' ')} / ${total}`;
   const barWidth = Math.max(8, (process.stdout.columns || 80) - label.length - 4);
   const doneFilled = total > 0 ? Math.round(barWidth * done / total) : 0;
+  const ckFilled = total > 0 ? Math.round(barWidth * ck / total) : 0;
   const ipFilled = total > 0 ? Math.round(barWidth * ip / total) : 0;
-  const empty = Math.max(0, barWidth - doneFilled - ipFilled);
+  const empty = Math.max(0, barWidth - doneFilled - ckFilled - ipFilled);
   return (
     <Text>
       <Text color="green">{'\u2588'.repeat(doneFilled)}</Text>
+      <Text color="cyan">{'\u2588'.repeat(ckFilled)}</Text>
       <Text color="yellow">{'\u2588'.repeat(ipFilled)}</Text>
       <Text dimColor>{'\u2591'.repeat(empty)}</Text>
       {` ${label}`}

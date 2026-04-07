@@ -78,7 +78,7 @@ export function App({ state, onCycleLane, onQuit }: { state: RendererState; onCy
       ) : (
         <>
           <Separator />
-          <ProgressBar done={state.sprintInfo?.done ?? 0} total={state.sprintInfo?.total ?? 0} inProgress={state.stories.filter(s => s.status === 'in-progress').length} />
+          <ProgressBar done={state.sprintInfo?.done ?? 0} total={state.sprintInfo?.total ?? 0} inProgress={state.stories.filter(s => s.status === 'in-progress').length} checked={state.stories.filter(s => s.status === 'checked').length} />
           <EpicInfo info={state.sprintInfo} stories={state.stories} />
           <StoryContext entries={state.storyContext ?? []} />
           <Separator />

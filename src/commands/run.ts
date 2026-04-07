@@ -226,10 +226,11 @@ export function registerRunCommand(program: Command): void {
       };
 
       // Build initial story list from sprint status
-      const storyEntries: Array<{ key: string; status: 'done' | 'in-progress' | 'pending' | 'failed' }> = [];
+      const storyEntries: Array<{ key: string; status: 'done' | 'in-progress' | 'pending' | 'failed' | 'checked' }> = [];
       for (const [key, status] of Object.entries(statuses)) {
         if (key.startsWith('epic-')) continue;
         if (status === 'done') storyEntries.push({ key, status: 'done' });
+        else if (status === 'checked') storyEntries.push({ key, status: 'checked' });
         else if (status === 'in-progress') storyEntries.push({ key, status: 'in-progress' });
         else if (status === 'backlog' || status === 'ready-for-dev') storyEntries.push({ key, status: 'pending' });
         else if (status === 'failed') storyEntries.push({ key, status: 'failed' });
@@ -275,9 +276,7 @@ export function registerRunCommand(program: Command): void {
           // Mark as 'checked' (passed quality gate) — sprint-level verify promotes to 'done'
           updateStoryStatus(event.storyKey, 'checked');
           const idx = storyEntries.findIndex(s => s.key === event.storyKey);
-          if (idx >= 0) { storyEntries[idx] = { ...storyEntries[idx], status: 'done' }; renderer.updateStories([...storyEntries]); }
-          storiesDone++;
-          renderer.updateSprintState({ done: storiesDone });
+          if (idx >= 0) { storyEntries[idx] = { ...storyEntries[idx], status: 'checked' }; renderer.updateStories([...storyEntries]); }
         }
       };
 

@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 33,
-    "done": 33,
+    "done": 24,
     "failed": 0,
     "blocked": 0,
     "inProgress": null
@@ -153,55 +153,55 @@
       "lastError": null
     },
     "26-1-xstate-snapshot-persistence": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 3,
       "lastAttempt": "2026-04-06T17:27:08.030Z",
       "lastError": null
     },
     "26-2-snapshot-resume-config-hash-validation": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 11,
       "lastAttempt": "2026-04-07T03:19:48.213Z",
       "lastError": null
     },
     "26-3-semantic-checkpoint-log": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 11,
       "lastAttempt": "2026-04-07T03:25:00.333Z",
       "lastError": null
     },
     "26-4-clear-persistence-on-completion": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 11,
       "lastAttempt": "2026-04-07T03:30:15.610Z",
       "lastError": null
     },
     "27-1-pure-visualizer-function": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 3,
       "lastAttempt": "2026-04-07T03:41:09.138Z",
       "lastError": null
     },
     "27-2-derive-position-from-snapshot-state-path": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 3,
       "lastAttempt": "2026-04-07T03:51:25.420Z",
       "lastError": null
     },
     "27-3-wire-inspect-api-to-visualizer": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 3,
       "lastAttempt": "2026-04-07T04:01:48.900Z",
       "lastError": null
     },
     "27-4-sideband-streaming-to-tui": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 3,
       "lastAttempt": "2026-04-07T04:14:40.534Z",
       "lastError": null
     },
     "27-5-simplify-run-ts-remove-hand-tracked-state": {
-      "status": "done",
+      "status": "in-progress",
       "attempts": 3,
       "lastAttempt": "2026-04-07T04:28:06.530Z",
       "lastError": null
@@ -243,7 +243,7 @@
       "name": "Persistence & Resume",
       "status": "in-progress",
       "storiesTotal": 4,
-      "storiesDone": 1
+      "storiesDone": 0
     },
     "epic-27": {
       "name": "TUI Visualization & Integration",

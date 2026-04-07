@@ -45,16 +45,16 @@ development_status:
   25-5-wire-run-workflow-actor-to-compiled-machines: done
 
   # Epic 26
-  epic-26: done
-  26-1-xstate-snapshot-persistence: done
-  26-2-snapshot-resume-config-hash-validation: done
-  26-3-semantic-checkpoint-log: done
-  26-4-clear-persistence-on-completion: done
+  epic-26: backlog
+  26-1-xstate-snapshot-persistence: in-progress
+  26-2-snapshot-resume-config-hash-validation: in-progress
+  26-3-semantic-checkpoint-log: in-progress
+  26-4-clear-persistence-on-completion: in-progress
 
   # Epic 27
-  epic-27: done
-  27-1-pure-visualizer-function: done
-  27-2-derive-position-from-snapshot-state-path: done
-  27-3-wire-inspect-api-to-visualizer: done
-  27-4-sideband-streaming-to-tui: done
-  27-5-simplify-run-ts-remove-hand-tracked-state: done
+  epic-27: backlog
+  27-1-pure-visualizer-function: in-progress
+  27-2-derive-position-from-snapshot-state-path: in-progress
+  27-3-wire-inspect-api-to-visualizer: in-progress
+  27-4-sideband-streaming-to-tui: in-progress
+  27-5-simplify-run-ts-remove-hand-tracked-state: in-progress

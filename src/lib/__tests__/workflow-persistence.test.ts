@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as fs from 'node:fs';
-import { saveSnapshot, loadSnapshot, clearSnapshot, computeConfigHash } from '../workflow-persistence.js';
+import { saveSnapshot, loadSnapshot, clearSnapshot, computeConfigHash, appendCheckpoint, loadCheckpointLog, clearCheckpointLog, clearAllPersistence, cleanStaleTmpFiles } from '../workflow-persistence.js';
 import type { XStateWorkflowSnapshot } from '../workflow-persistence.js';
 import { warn } from '../output.js';
 import type { EngineConfig } from '../workflow-types.js';
@@ -23,6 +23,7 @@ vi.mock('node:fs', async (importOriginal) => {
     mkdirSync: vi.fn(),
     unlinkSync: vi.fn(),
     renameSync: vi.fn(),
+    appendFileSync: vi.fn(),
   };
 });
 
@@ -231,6 +232,197 @@ describe('workflow-persistence', () => {
 
       clearSnapshot('/tmp/project');
       expect(fs.unlinkSync).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── checkpoint log ────────────────────────────────────────────────
+
+  describe('checkpoint log', () => {
+    describe('appendCheckpoint', () => {
+      it('appends a JSONL line to the checkpoint file', () => {
+        appendCheckpoint({ storyKey: 'story-1', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' }, '/tmp/project');
+        expect(fs.appendFileSync).toHaveBeenCalledWith(
+          '/tmp/project/.codeharness/workflow-checkpoints.jsonl',
+          expect.stringMatching(/^\{.*\}\n$/),
+          'utf-8',
+        );
+      });
+
+      it('creates .codeharness dir if missing', () => {
+        appendCheckpoint({ storyKey: 'story-1', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' }, '/tmp/project');
+        expect(fs.mkdirSync).toHaveBeenCalledWith('/tmp/project/.codeharness', { recursive: true });
+      });
+
+      it('appended line is valid JSON with correct fields', () => {
+        const entry = { storyKey: 'story-2', taskName: 'verify', completedAt: '2026-02-01T00:00:00.000Z', costUsd: 0.05 };
+        appendCheckpoint(entry, '/tmp/project');
+        const written = vi.mocked(fs.appendFileSync).mock.calls[0][1] as string;
+        const parsed = JSON.parse(written.trim()) as typeof entry;
+        expect(parsed.storyKey).toBe('story-2');
+        expect(parsed.taskName).toBe('verify');
+        expect(parsed.costUsd).toBe(0.05);
+      });
+
+      it('multiple calls append multiple lines', () => {
+        appendCheckpoint({ storyKey: 'story-1', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' }, '/tmp/project');
+        appendCheckpoint({ storyKey: 'story-1', taskName: 'verify', completedAt: '2026-01-01T00:01:00.000Z' }, '/tmp/project');
+        expect(fs.appendFileSync).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    describe('loadCheckpointLog', () => {
+      it('returns empty array when file does not exist', () => {
+        vi.mocked(fs.existsSync).mockReturnValue(false);
+        const result = loadCheckpointLog('/tmp/project');
+        expect(result).toEqual([]);
+      });
+
+      it('reads and parses valid JSONL entries', () => {
+        vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('workflow-checkpoints.jsonl'));
+        const lines = [
+          JSON.stringify({ storyKey: 'story-1', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' }),
+          JSON.stringify({ storyKey: 'story-1', taskName: 'verify', completedAt: '2026-01-01T00:01:00.000Z' }),
+        ].join('\n') + '\n';
+        vi.mocked(fs.readFileSync).mockReturnValue(lines);
+        const result = loadCheckpointLog('/tmp/project');
+        expect(result).toHaveLength(2);
+        expect(result[0].storyKey).toBe('story-1');
+        expect(result[0].taskName).toBe('implement');
+        expect(result[1].taskName).toBe('verify');
+      });
+
+      it('skips corrupt (non-JSON) lines with a warning', () => {
+        vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('workflow-checkpoints.jsonl'));
+        const lines = [
+          JSON.stringify({ storyKey: 'story-1', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' }),
+          'NOT_VALID_JSON',
+          JSON.stringify({ storyKey: 'story-2', taskName: 'verify', completedAt: '2026-01-01T00:01:00.000Z' }),
+        ].join('\n') + '\n';
+        vi.mocked(fs.readFileSync).mockReturnValue(lines);
+        const result = loadCheckpointLog('/tmp/project');
+        expect(result).toHaveLength(2);
+        expect(warn).toHaveBeenCalledWith(expect.stringMatching(/corrupt checkpoint entry/i));
+      });
+
+      it('returns empty array for an empty file', () => {
+        vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('workflow-checkpoints.jsonl'));
+        vi.mocked(fs.readFileSync).mockReturnValue('');
+        const result = loadCheckpointLog('/tmp/project');
+        expect(result).toEqual([]);
+      });
+    });
+
+    describe('clearCheckpointLog', () => {
+      it('deletes the checkpoint file when it exists', () => {
+        vi.mocked(fs.existsSync).mockReturnValue(true);
+        clearCheckpointLog('/tmp/project');
+        expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/project/.codeharness/workflow-checkpoints.jsonl');
+      });
+
+      it('does nothing when file does not exist', () => {
+        vi.mocked(fs.existsSync).mockReturnValue(false);
+        clearCheckpointLog('/tmp/project');
+        expect(fs.unlinkSync).not.toHaveBeenCalled();
+      });
+    });
+  });
+
+  // ── cleanStaleTmpFiles ────────────────────────────────────────────
+
+  describe('cleanStaleTmpFiles', () => {
+    it('deletes the .tmp file when it exists', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+
+      cleanStaleTmpFiles('/tmp/project');
+      expect(fs.unlinkSync).toHaveBeenCalledWith(
+        '/tmp/project/.codeharness/workflow-snapshot.json.tmp',
+      );
+    });
+
+    it('does nothing when .tmp file does not exist', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+
+      cleanStaleTmpFiles('/tmp/project');
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it('swallows errors silently (best-effort)', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.unlinkSync).mockImplementation(() => { throw new Error('EPERM'); });
+
+      expect(() => cleanStaleTmpFiles('/tmp/project')).not.toThrow();
+    });
+
+    it('uses cwd when no projectDir provided', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+
+      cleanStaleTmpFiles();
+      expect(fs.unlinkSync).toHaveBeenCalledWith(
+        expect.stringContaining('workflow-snapshot.json.tmp'),
+      );
+    });
+  });
+
+  // ── clearAllPersistence ───────────────────────────────────────────
+  // NOTE: unlinkSync must be explicitly mocked in each test here because
+  // Vitest 4's restoreMocks:true default resets it to the real fs.unlinkSync
+  // between tests. Without explicit mocking, real unlinkSync throws ENOENT
+  // for non-existent test paths, which the try/catch silences — leaving
+  // snapshotCleared/checkpointCleared as false.
+
+  describe('clearAllPersistence', () => {
+    it('deletes both snapshot and checkpoint files when both exist', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.unlinkSync).mockImplementation(() => undefined); // ensure no-op
+
+      const result = clearAllPersistence('/tmp/project');
+      expect(result).toEqual({ snapshotCleared: true, checkpointCleared: true });
+      expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/project/.codeharness/workflow-snapshot.json');
+      expect(fs.unlinkSync).toHaveBeenCalledWith('/tmp/project/.codeharness/workflow-checkpoints.jsonl');
+    });
+
+    it('returns snapshotCleared: false, checkpointCleared: false when neither file exists', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false);
+      vi.mocked(fs.unlinkSync).mockImplementation(() => undefined);
+
+      const result = clearAllPersistence('/tmp/project');
+      expect(result).toEqual({ snapshotCleared: false, checkpointCleared: false });
+      expect(fs.unlinkSync).not.toHaveBeenCalled();
+    });
+
+    it('also cleans the .tmp file when it exists', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.unlinkSync).mockImplementation(() => undefined);
+
+      clearAllPersistence('/tmp/project');
+      expect(fs.unlinkSync).toHaveBeenCalledWith(
+        '/tmp/project/.codeharness/workflow-snapshot.json.tmp',
+      );
+    });
+
+    it('continues and clears checkpoint even when snapshot unlink throws', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      let snapshotThrown = false;
+      vi.mocked(fs.unlinkSync).mockImplementation((p) => {
+        if (String(p).endsWith('workflow-snapshot.json') && !String(p).endsWith('.tmp')) {
+          snapshotThrown = true;
+          throw new Error('EPERM');
+        }
+      });
+
+      const result = clearAllPersistence('/tmp/project');
+      expect(snapshotThrown).toBe(true);
+      expect(result.snapshotCleared).toBe(false);
+      expect(result.checkpointCleared).toBe(true);
+    });
+
+    it('returns snapshotCleared: false when all unlink calls throw', () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.unlinkSync).mockImplementation(() => { throw new Error('EACCES'); });
+
+      const result = clearAllPersistence('/tmp/project');
+      expect(result.snapshotCleared).toBe(false);
+      expect(result.checkpointCleared).toBe(false);
     });
   });
 });

@@ -34,7 +34,8 @@ vi.mock('../workflow-actors.js', () => ({
   nullTaskDispatchActor: undefined,
   buildCoverageDeduplicationContext: vi.fn().mockReturnValue(null),
 }));
-vi.mock('../output.js', () => ({ warn: vi.fn(), log: vi.fn(), error: vi.fn() }));
+vi.mock('../output.js', () => ({ warn: vi.fn(), info: vi.fn(), log: vi.fn(), error: vi.fn() }));
+vi.mock('../workflow-persistence.js', () => ({ appendCheckpoint: vi.fn() }));
 vi.mock('../workflow-state.js', () => ({
   writeWorkflowState: vi.fn(),
   readWorkflowState: vi.fn(),
@@ -239,5 +240,32 @@ describe('storyMachine', () => {
     expect(snap.value).toBe('done');
     expect(snap.output?.tasksCompleted).toBe(0);
     expect(mockDispatchTaskCore).not.toHaveBeenCalled();
+  });
+
+  describe('checkpoint skip guard', () => {
+    it('task in completedTasks is skipped: no dispatch, tasksCompleted stays 0', async () => {
+      const completedTasks = new Set(['story-1::task-a']);
+      const { snap } = await run(makeInput({ storyFlow: ['task-a'], completedTasks }));
+      expect(snap.value).toBe('done');
+      expect(snap.output?.tasksCompleted).toBe(0);
+      expect(mockDispatchTaskCore).not.toHaveBeenCalled();
+    });
+
+    it('task NOT in completedTasks is dispatched normally', async () => {
+      mockDispatchTaskCore.mockResolvedValueOnce(makeOut());
+      const completedTasks = new Set(['story-1::task-b']);
+      const { snap } = await run(makeInput({ storyFlow: ['task-a'], completedTasks }));
+      expect(snap.value).toBe('done');
+      expect(snap.output?.tasksCompleted).toBe(1);
+      expect(mockDispatchTaskCore).toHaveBeenCalledOnce();
+    });
+
+    it('completedTasks undefined: no tasks skipped (backward compat)', async () => {
+      mockDispatchTaskCore.mockResolvedValueOnce(makeOut());
+      const { snap } = await run(makeInput({ storyFlow: ['task-a'] }));
+      expect(snap.value).toBe('done');
+      expect(snap.output?.tasksCompleted).toBe(1);
+      expect(mockDispatchTaskCore).toHaveBeenCalledOnce();
+    });
   });
 });

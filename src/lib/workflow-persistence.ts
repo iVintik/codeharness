@@ -11,10 +11,10 @@
  */
 
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { warn } from './output.js';
-import type { EngineConfig } from './workflow-types.js';
+import type { CheckpointEntry, EngineConfig } from './workflow-types.js';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -35,6 +35,7 @@ export type WorkflowSnapshot = XStateWorkflowSnapshot;
 const STATE_DIR = '.codeharness';
 const SNAPSHOT_FILE = 'workflow-snapshot.json';
 const OLD_YAML_FILE = 'workflow-state.yaml';
+const CHECKPOINT_FILE = 'workflow-checkpoints.jsonl';
 
 // ─── Config Hash ─────────────────────────────────────────────────────
 
@@ -170,6 +171,116 @@ export function clearSnapshot(projectDir?: string): void {
     }
   } catch { // IGNORE: best-effort cleanup — stale file won't cause data loss
   }
+}
+
+// ─── Checkpoint Log ──────────────────────────────────────────────────
+
+/**
+ * Append one checkpoint entry to the JSONL checkpoint log.
+ * Creates .codeharness/ dir if missing.
+ * Each write is a complete JSON line — crash-safe append-only format.
+ */
+export function appendCheckpoint(entry: CheckpointEntry, projectDir?: string): void {
+  const baseDir = projectDir ?? process.cwd();
+  const stateDir = join(baseDir, STATE_DIR);
+  mkdirSync(stateDir, { recursive: true });
+  const checkpointPath = join(stateDir, CHECKPOINT_FILE);
+  appendFileSync(checkpointPath, JSON.stringify(entry) + '\n', 'utf-8');
+}
+
+/**
+ * Load all checkpoint entries from the JSONL log.
+ * Skips blank lines and corrupt (non-JSON) lines with a warning.
+ * Returns empty array if file does not exist.
+ */
+export function loadCheckpointLog(projectDir?: string): CheckpointEntry[] {
+  const baseDir = projectDir ?? process.cwd();
+  const checkpointPath = join(baseDir, STATE_DIR, CHECKPOINT_FILE);
+  if (!existsSync(checkpointPath)) return [];
+  let raw: string;
+  try {
+    raw = readFileSync(checkpointPath, 'utf-8');
+  } catch { // IGNORE: unreadable file — treat as no checkpoints
+    warn('workflow-persistence: Could not read workflow-checkpoints.jsonl — starting with no checkpoints');
+    return [];
+  }
+  const entries: CheckpointEntry[] = [];
+  for (const line of raw.split('\n')) {
+    if (!line.trim()) continue;
+    try {
+      entries.push(JSON.parse(line) as CheckpointEntry);
+    } catch { // IGNORE: corrupt line — skip with warning, do not crash
+      warn(`workflow-persistence: corrupt checkpoint entry skipped (invalid JSON): ${line.slice(0, 80)}`);
+    }
+  }
+  return entries;
+}
+
+/**
+ * Delete the checkpoint log after successful workflow completion.
+ * Best-effort: swallows errors.
+ */
+export function clearCheckpointLog(projectDir?: string): void {
+  const baseDir = projectDir ?? process.cwd();
+  const checkpointPath = join(baseDir, STATE_DIR, CHECKPOINT_FILE);
+  try {
+    if (existsSync(checkpointPath)) unlinkSync(checkpointPath);
+  } catch { // IGNORE: best-effort cleanup
+  }
+}
+
+// ─── Cleanup Utilities ───────────────────────────────────────────────
+
+/**
+ * Delete the stale .tmp file left from a previous crashed atomic write.
+ *
+ * Called at run startup (before snapshot load) and inside clearAllPersistence.
+ * Best-effort: swallows errors — a leftover .tmp file is harmless.
+ */
+export function cleanStaleTmpFiles(projectDir?: string): void {
+  const baseDir = projectDir ?? process.cwd();
+  const tmpPath = join(baseDir, STATE_DIR, `${SNAPSHOT_FILE}.tmp`);
+  try {
+    if (existsSync(tmpPath)) unlinkSync(tmpPath);
+  } catch { // IGNORE: best-effort .tmp cleanup
+  }
+}
+
+/**
+ * Clear all persistence files after successful workflow completion.
+ *
+ * Consolidates clearSnapshot() + clearCheckpointLog() into a single operation.
+ * Also cleans any stale .tmp file. Each sub-operation is independent — if one
+ * fails the other still runs. Returns which files were actually deleted so the
+ * caller can emit meaningful CLI feedback.
+ *
+ * @see architecture-xstate-engine.md AD3: Persistence
+ */
+export function clearAllPersistence(projectDir?: string): { snapshotCleared: boolean; checkpointCleared: boolean } {
+  cleanStaleTmpFiles(projectDir);
+  const baseDir = projectDir ?? process.cwd();
+  let snapshotCleared = false;
+  let checkpointCleared = false;
+
+  try {
+    const snapshotPath = join(baseDir, STATE_DIR, SNAPSHOT_FILE);
+    if (existsSync(snapshotPath)) {
+      unlinkSync(snapshotPath);
+      snapshotCleared = true;
+    }
+  } catch { // IGNORE: best-effort snapshot cleanup
+  }
+
+  try {
+    const checkpointPath = join(baseDir, STATE_DIR, CHECKPOINT_FILE);
+    if (existsSync(checkpointPath)) {
+      unlinkSync(checkpointPath);
+      checkpointCleared = true;
+    }
+  } catch { // IGNORE: best-effort checkpoint cleanup
+  }
+
+  return { snapshotCleared, checkpointCleared };
 }
 
 // ─── Validation ──────────────────────────────────────────────────────

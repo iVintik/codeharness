@@ -147,7 +147,7 @@ vi.mock('../state.js', () => ({
   writeState: mockWriteState,
 }));
 
-vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null), clearSnapshot: vi.fn(), computeConfigHash: vi.fn(() => 'test-hash') }));
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null), clearSnapshot: vi.fn(), computeConfigHash: vi.fn(() => 'test-hash'), clearAllPersistence: vi.fn(() => ({ snapshotCleared: false, checkpointCleared: false })), cleanStaleTmpFiles: vi.fn(), clearCheckpointLog: vi.fn(), loadCheckpointLog: vi.fn(() => []) }));
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 

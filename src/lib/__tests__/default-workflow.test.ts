@@ -144,17 +144,10 @@ describe('default embedded workflow', () => {
       expect(storyBlock.steps[3]).toBe('document');
     });
 
-    it('epic-level steps after story block: deploy, gate: verification, retro', () => {
+    it('epic-level steps after story block: retro only', () => {
       const wf = workflow.workflow as ForEachBlock;
-      expect(wf.steps[1]).toBe('deploy');
-      const verificationGate = wf.steps[2] as GateBlock;
-      expect(verificationGate.gate).toBe('verification');
-      expect(verificationGate.check).toEqual(['verify']);
-      expect(verificationGate.fix).toEqual(['retry', 'document', 'deploy']);
-      expect(verificationGate.pass_when).toBe('consensus');
-      expect(verificationGate.max_retries).toBe(3);
-      expect(verificationGate.circuit_breaker).toBe('stagnation');
-      expect(wf.steps[3]).toBe('retro');
+      expect(wf.steps[1]).toBe('retro');
+      expect(wf.steps).toHaveLength(2);
     });
 
     it('storyFlow and epicFlow are derived from the for_each workflow block (runtime compat)', () => {
@@ -165,11 +158,9 @@ describe('default embedded workflow', () => {
         { loop: ['check', 'review', 'retry'] },
         'document',
       ]);
-      // epicFlow: story_flow sentinel + epic-level tasks/gates
+      // epicFlow: story_flow sentinel + retro (no deploy/verify)
       expect(workflow.epicFlow).toEqual([
         'story_flow',
-        'deploy',
-        { loop: ['verify', 'retry', 'document', 'deploy'] },
         'retro',
       ]);
     });

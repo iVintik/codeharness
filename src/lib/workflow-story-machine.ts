@@ -4,7 +4,8 @@ import { setup, assign, fromPromise, createActor, waitFor } from 'xstate';
 import { DispatchError } from './agent-dispatch.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { HALT_ERROR_CODES, handleDispatchError, isTaskCompleted, recordErrorInState } from './workflow-compiler.js';
-import { warn } from './output.js';
+import { warn, info } from './output.js';
+import { appendCheckpoint } from './workflow-persistence.js';
 import { writeWorkflowState } from './workflow-state.js';
 import { gateMachine } from './workflow-gate-machine.js';
 import type { GateOutput } from './workflow-gate-machine.js';
@@ -73,6 +74,13 @@ const storyStepActor = fromPromise(async ({ input, signal }: { input: StoryConte
       if (!task) { warn(`story-machine: task "${taskName}" not found in workflow tasks, skipping`); continue; }
       if (isTaskCompleted(ctx.workflowState, taskName, storyKey)) { warn(`story-machine: skipping completed task ${taskName} for ${storyKey}`); continue; }
 
+      // Checkpoint skip guard: skip tasks completed in a previous run (config-change resume)
+      const completedTasks = ctx.completedTasks ?? new Set<string>();
+      if (completedTasks.has(`${storyKey}::${taskName}`)) {
+        info(`workflow-runner: Skipping ${taskName} for ${storyKey} — checkpoint found`);
+        continue;
+      }
+
       const projectDir = ctx.config.projectDir ?? process.cwd();
       let out: DispatchOutput;
       try {
@@ -82,6 +90,11 @@ const storyStepActor = fromPromise(async ({ input, signal }: { input: StoryConte
           const definition = ctx.config.agents[task.agent];
           if (!definition) { warn(`story-machine: agent "${task.agent}" not found for "${taskName}", skipping`); continue; }
           out = await dispatchTaskCore({ task, taskName, storyKey, definition, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd });
+        }
+        // Append checkpoint entry after successful task completion
+        try {
+          appendCheckpoint({ storyKey, taskName, completedAt: new Date().toISOString() }, projectDir);
+        } catch { // IGNORE: checkpoint append is best-effort
         }
         ctx = {
           ...ctx,

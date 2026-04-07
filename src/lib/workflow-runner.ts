@@ -7,7 +7,7 @@ import { checkCapabilityConflicts } from './agents/capability-check.js';
 import type { ResolvedWorkflow } from './workflow-parser.js';
 import { parse } from 'yaml';
 import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
-import { saveSnapshot, clearSnapshot, computeConfigHash } from './workflow-persistence.js';
+import { saveSnapshot, loadSnapshot, clearSnapshot, clearCheckpointLog, computeConfigHash, loadCheckpointLog, clearAllPersistence, cleanStaleTmpFiles } from './workflow-persistence.js';
 import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth } from './workflow-types.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
 
@@ -92,8 +92,10 @@ export async function checkDriverHealth(workflow: ResolvedWorkflow, timeoutMs?: 
 export async function runWorkflowActor(config: EngineConfig): Promise<EngineResult> {
   const startMs = Date.now();
   const projectDir = config.projectDir ?? process.cwd();
+  cleanStaleTmpFiles(projectDir);
   let state = readWorkflowState(projectDir);
   if (state.phase === 'completed') {
+    clearAllPersistence(projectDir);
     return { success: true, tasksCompleted: 0, storiesProcessed: 0, errors: [], durationMs: 0 };
   }
   if (state.phase === 'error' || state.phase === 'failed') {
@@ -123,6 +125,36 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     if (!epicGroups.has(epicId)) epicGroups.set(epicId, []);
     epicGroups.get(epicId)!.push(item);
   }
+  const configHash = computeConfigHash(config);
+  const savedSnapshot = loadSnapshot(projectDir);
+  let resumeSnapshot: unknown = null;
+  const completedTasks = new Set<string>();
+  if (savedSnapshot !== null) {
+    if (savedSnapshot.configHash === configHash) {
+      info('workflow-runner: Resuming from snapshot — config hash matches');
+      resumeSnapshot = savedSnapshot.snapshot;
+    } else {
+      warn(`workflow-runner: Snapshot config changed (saved: ${savedSnapshot.configHash.slice(0, 8)}, current: ${configHash.slice(0, 8)}) — starting fresh`);
+      try { clearSnapshot(projectDir); }
+      catch { // IGNORE: best-effort cleanup — stale snapshot removal is non-critical
+      }
+      const checkpointEntries = loadCheckpointLog(projectDir);
+      for (const entry of checkpointEntries) {
+        completedTasks.add(`${entry.storyKey}::${entry.taskName}`);
+      }
+      if (completedTasks.size > 0) {
+        info(`workflow-runner: Loaded ${completedTasks.size} checkpoint(s) — will skip completed tasks`);
+      }
+    }
+  } else {
+    // No snapshot — check for orphaned checkpoint log (snapshot cleared but checkpoint clear failed).
+    // These entries are stale and would cause incorrect skips if used on a future config-mismatch resume.
+    const orphanedEntries = loadCheckpointLog(projectDir);
+    if (orphanedEntries.length > 0) {
+      warn('workflow-runner: Clearing orphaned checkpoint log — no snapshot present');
+      clearCheckpointLog(projectDir);
+    }
+  }
   const runInput: RunMachineContext = {
     config, storyFlowTasks,
     epicEntries: [...epicGroups.entries()],
@@ -134,10 +166,11 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     lastContract: null,
     accumulatedCostUsd: 0,
     halted: false,
+    completedTasks,
   };
-  const configHash = computeConfigHash(config);
   const finalOutput = await new Promise<RunOutput>((resolve) => {
-    const actor = createActor(runMachine, { input: runInput });
+     
+    const actor = createActor(runMachine, resumeSnapshot !== null ? { input: runInput, snapshot: resumeSnapshot as any } : { input: runInput });
     actor.subscribe({
       next: () => {
         // Save XState snapshot after every state transition (task completions,
@@ -164,11 +197,12 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   writeWorkflowState(state, projectDir);
   const loopTerminated = state.phase === 'max-iterations' || state.phase === 'circuit-breaker';
   const success = errors.length === 0 && !loopTerminated && state.phase !== 'interrupted';
-  // Clear snapshot on clean success — preserve on halt/error/interrupt for story 26-2 resume.
+  // Clear all persistence on clean success — preserve on halt/error/interrupt for resume.
   if (success) {
-    try { clearSnapshot(projectDir); }
-    catch { // IGNORE: snapshot cleanup is best-effort — a stale file on disk does not cause data loss
-    }
+    const cleared = clearAllPersistence(projectDir);
+    info(`workflow-runner: Persistence cleared — snapshot: ${cleared.snapshotCleared ? 'yes' : 'no'}, checkpoints: ${cleared.checkpointCleared ? 'yes' : 'no'}`);
+  } else {
+    info('workflow-runner: Persistence preserved for resume — snapshot and checkpoint log kept on disk');
   }
   return {
     success,

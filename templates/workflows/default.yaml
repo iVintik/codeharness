@@ -68,11 +68,4 @@ workflow:
           max_retries: 5
           circuit_breaker: stagnation
         - document
-    - deploy
-    - gate: verification
-      check: [verify]
-      fix: [retry, document, deploy]
-      pass_when: consensus
-      max_retries: 3
-      circuit_breaker: stagnation
     - retro

@@ -75,6 +75,14 @@ export interface TaskCheckpoint {
   error_message?: string;
   error_code?: string;
 }
+export interface CheckpointEntry {
+  storyKey: string;
+  taskName: string;
+  completedAt: string;
+  verdict?: 'pass' | 'fail';
+  costUsd?: number;
+}
+export type CheckpointLog = CheckpointEntry[];
 export interface EvaluatorScore { iteration: number; passed: number; failed: number; unknown: number; total: number; timestamp: string }
 export interface CircuitBreakerState { triggered: boolean; reason: string | null; score_history: number[] }
 export interface WorkflowState {
@@ -182,6 +190,7 @@ export interface StoryContext {
   lastContract: OutputContract | null;
   accumulatedCostUsd: number;
   storyFlowTasks: Set<string>;
+  completedTasks?: Set<string>;
 }
 export interface GateContext {
   gate: GateConfig;
@@ -211,6 +220,7 @@ export interface EpicContext {
   accumulatedCostUsd: number;
   halted: boolean;
   currentStepIndex: number;
+  completedTasks?: Set<string>;
 }
 export interface RunContext {
   config: EngineConfig;
@@ -224,8 +234,9 @@ export interface RunContext {
   lastContract: OutputContract | null;
   accumulatedCostUsd: number;
   halted: boolean;
+  completedTasks?: Set<string>;
 }
-export type StoryFlowInput = Pick<StoryContext, 'item' | 'config' | 'workflowState' | 'lastContract' | 'accumulatedCostUsd' | 'storyFlowTasks'>;
+export type StoryFlowInput = Pick<StoryContext, 'item' | 'config' | 'workflowState' | 'lastContract' | 'accumulatedCostUsd' | 'storyFlowTasks' | 'completedTasks'>;
 export type StoryFlowOutput = Pick<StoryContext, 'workflowState' | 'errors' | 'tasksCompleted' | 'lastContract' | 'accumulatedCostUsd' | 'halted'>;
 export interface LoopMachineContext {
   config: EngineConfig;

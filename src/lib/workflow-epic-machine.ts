@@ -117,6 +117,7 @@ const epicStoryActor = fromPromise(async ({ input, signal }: { input: EpicContex
     lastContract: input.lastContract,
     accumulatedCostUsd: input.accumulatedCostUsd,
     storyFlowTasks: input.storyFlowTasks,
+    completedTasks: input.completedTasks ?? new Set<string>(),
   };
   const actor = createActor(storyMachine, { input: storyInput });
 

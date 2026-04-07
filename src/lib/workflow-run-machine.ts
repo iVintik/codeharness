@@ -69,6 +69,7 @@ const runEpicActor = fromPromise(async ({ input, signal }: { input: RunContext; 
     accumulatedCostUsd: input.accumulatedCostUsd,
     halted: false,
     currentStepIndex: 0,
+    completedTasks: input.completedTasks ?? new Set<string>(),
   };
 
   const actor = createActor(epicMachine, { input: epicInput });

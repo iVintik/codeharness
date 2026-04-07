@@ -3,6 +3,8 @@
 import { setup, assign, fromPromise } from 'xstate';
 import { DispatchError } from './agent-dispatch.js';
 import { parseVerdict } from './verdict-parser.js';
+import type { VerdictMetrics } from './verdict-parser.js';
+import { evaluateMetricsProgress } from './circuit-breaker.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { HALT_ERROR_CODES, isEngineError } from './workflow-compiler.js';
 import { warn } from './output.js';
@@ -55,6 +57,28 @@ function computeVerdictScore(verdicts: Record<string, string>, iteration: number
     passed += p.score.passed; failed += p.score.failed; unknown += p.score.unknown;
   }
   return { iteration, passed, failed, unknown, total: (passed + failed + unknown) || 1, timestamp: new Date().toISOString() };
+}
+
+/** Merge metrics from all check/review outputs in this iteration. */
+function mergeMetricsFromVerdicts(verdicts: Record<string, string>): VerdictMetrics | null {
+  let hasAny = false;
+  let testsPassed = 0;
+  let testsFailed = 0;
+  let lintWarnings = 0;
+  let issues = 0;
+
+  for (const output of Object.values(verdicts)) {
+    const parsed = parseVerdict(output);
+    if (parsed.metrics) {
+      hasAny = true;
+      testsPassed = Math.max(testsPassed, parsed.metrics.testsPassed);
+      testsFailed = Math.max(testsFailed, parsed.metrics.testsFailed);
+      lintWarnings += parsed.metrics.lintWarnings;
+      issues += parsed.metrics.issues;
+    }
+  }
+
+  return hasAny ? { testsPassed, testsFailed, lintWarnings, issues } : null;
 }
 
 // ─── Phase Actors ────────────────────────────────────────────────────────────
@@ -156,6 +180,8 @@ export const gateMachine = setup({
     },
     /** True when iteration count has reached max_retries. */
     maxRetries: ({ context }) => context.workflowState.iteration >= context.gate.max_retries,
+    /** True when metrics-based circuit breaker detects real stagnation (3+ identical iterations). */
+    circuitBreaker: ({ context }) => context.workflowState.circuit_breaker.triggered,
     /** True when the actor threw an AbortError (user-initiated abort signal). */
     isAbortError: ({ event }) => {
       const err = (event as { error?: unknown }).error;
@@ -204,13 +230,26 @@ export const gateMachine = setup({
         const newIteration = context.workflowState.iteration + 1;
         const score = computeVerdictScore(context.verdicts, newIteration);
         const newScores = [...context.workflowState.evaluator_scores, score];
-        // No circuit breaker — max_retries is the only exit. Each retry gets fresh
-        // findings and may approach the fix differently.
-        return { workflowState: { ...context.workflowState, iteration: newIteration, evaluator_scores: newScores } };
+
+        // Collect structured metrics from check/review outputs for circuit breaker
+        const iterationMetrics = mergeMetricsFromVerdicts(context.verdicts);
+        const metricsHistory = [...(context.metricsHistory ?? []), iterationMetrics];
+
+        // Circuit breaker: halt if ALL metrics unchanged for 3 consecutive iterations
+        const cbDecision = evaluateMetricsProgress(metricsHistory);
+        const newCb = cbDecision.halt
+          ? { triggered: true, reason: cbDecision.reason, score_history: newScores.map(s => s.passed) }
+          : context.workflowState.circuit_breaker;
+
+        return {
+          workflowState: { ...context.workflowState, iteration: newIteration, evaluator_scores: newScores, circuit_breaker: newCb },
+          metricsHistory,
+        };
       }),
       always: [
         { guard: 'allPassed', target: 'passed' },
         { guard: 'maxRetries', target: 'maxedOut' },
+        { guard: 'circuitBreaker', target: 'maxedOut' },  // stagnation → same as maxedOut (not halt)
         { target: 'fixing' },
       ],
     },

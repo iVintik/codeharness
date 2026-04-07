@@ -4,12 +4,21 @@
  * Every agent outputs: <verdict>pass</verdict> or <verdict>fail</verdict>
  * Optionally: <issues>...</issues> for details on failures
  * Optionally: <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC
+ * Optionally: <metrics tests-passed="N" tests-failed="N" lint-warnings="N" issues="N" />
  *
  * One format. No JSON. No fallbacks.
  * No verdict tag = fail.
  */
 
 // --- Interfaces ---
+
+/** Structured metrics from check/review agents for progress tracking. */
+export interface VerdictMetrics {
+  testsPassed: number;
+  testsFailed: number;
+  lintWarnings: number;
+  issues: number;
+}
 
 export interface EvaluatorVerdict {
   verdict: 'pass' | 'fail';
@@ -29,6 +38,8 @@ export interface EvaluatorVerdict {
       reasoning: string;
     };
   }>;
+  /** Structured metrics for progress tracking. Null if agent didn't output <metrics>. */
+  metrics: VerdictMetrics | null;
 }
 
 // --- Functions ---
@@ -97,10 +108,37 @@ export function parseVerdict(output: string): EvaluatorVerdict {
     else { failed = 1; }
   }
 
+  // Parse <metrics tests-passed="N" tests-failed="N" lint-warnings="N" issues="N" />
+  const metrics = parseMetrics(output);
+
   return {
     verdict: verdictValue,
     score: { passed, failed, unknown, total },
     findings,
+    metrics,
+  };
+}
+
+/**
+ * Parse structured metrics from agent output.
+ * Format: <metrics tests-passed="N" tests-failed="N" lint-warnings="N" issues="N" />
+ * All attributes optional. Returns null if no <metrics> tag found.
+ */
+export function parseMetrics(output: string): VerdictMetrics | null {
+  const match = /<metrics\s+([^>]*)\/?>/i.exec(output);
+  if (!match) return null;
+
+  const attrs = match[1];
+  const getAttr = (name: string): number => {
+    const m = new RegExp(`${name}="(\\d+)"`, 'i').exec(attrs);
+    return m ? parseInt(m[1], 10) : 0;
+  };
+
+  return {
+    testsPassed: getAttr('tests-passed'),
+    testsFailed: getAttr('tests-failed'),
+    lintWarnings: getAttr('lint-warnings'),
+    issues: getAttr('issues'),
   };
 }
 

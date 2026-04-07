@@ -210,6 +210,8 @@ export interface GateContext {
   verdicts: Record<string, string>;
   /** When gate runs inside a for_each iteration, the current item key for namespacing storyKeys. */
   parentItemKey?: string;
+  /** Metrics history for circuit breaker — one entry per iteration. */
+  metricsHistory?: Array<import('./verdict-parser.js').VerdictMetrics | null>;
 }
 export interface EpicContext {
   epicId: string;

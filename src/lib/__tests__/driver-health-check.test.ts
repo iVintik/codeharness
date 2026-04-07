@@ -98,7 +98,7 @@ vi.mock('../session-manager.js', () => ({
   recordSessionId: mockRecordSessionId,
 }));
 
-vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null), clearSnapshot: vi.fn(), computeConfigHash: vi.fn(() => 'test-hash'), clearAllPersistence: vi.fn(() => ({ snapshotCleared: false, checkpointCleared: false })), cleanStaleTmpFiles: vi.fn(), clearCheckpointLog: vi.fn(), loadCheckpointLog: vi.fn(() => []) }));
+vi.mock('../workflow-persistence.js', () => ({ saveSnapshot: vi.fn(), loadSnapshot: vi.fn(() => null), clearSnapshot: vi.fn(), computeConfigHash: vi.fn(() => 'test-hash'), clearAllPersistence: vi.fn(() => ({ snapshotCleared: false, checkpointCleared: false })), snapshotFileExists: vi.fn(() => false), cleanStaleTmpFiles: vi.fn(), clearCheckpointLog: vi.fn(), loadCheckpointLog: vi.fn(() => []) }));
 
 vi.mock('../output.js', () => ({
   warn: mockWarn,
@@ -368,7 +368,10 @@ describe('runWorkflowActor — health check integration', () => {
     vi.useRealTimers();
   });
 
-  it('skips health checks for completed workflows', async () => {
+  it('phase=completed starts a fresh run — health check runs before dispatch (AC #3)', async () => {
+    // Old behavior: early-return, no health check. New behavior: phase=completed
+    // is a request to re-run; clearAllPersistence is called and the run proceeds
+    // normally including health checks.
     mockReadWorkflowState.mockReturnValue({
       workflow_name: '',
       started: '',
@@ -379,6 +382,9 @@ describe('runWorkflowActor — health check integration', () => {
       circuit_breaker: { triggered: false, reason: null, score_history: [] },
       trace_ids: [],
     });
+
+    const healthyDriver = makeMockDriver('claude-code', makeHealthy());
+    mockGetDriver.mockReturnValue(healthyDriver);
 
     const config: EngineConfig = {
       workflow: makeWorkflow({
@@ -395,7 +401,7 @@ describe('runWorkflowActor — health check integration', () => {
 
     expect(result.success).toBe(true);
     expect(result.tasksCompleted).toBe(0);
-    // getDriver should NOT have been called (no health check)
+    // Completed phase is terminal — health checks must not run on the no-op path.
     expect(mockGetDriver).not.toHaveBeenCalled();
   });
 

@@ -1,4 +1,4 @@
-/** Shared workflow engine types. Keep dependency-free. */
+/** Shared workflow engine types. Keep dependency-free (no imports). */
 
 export type ErrorCategory = 'RATE_LIMIT' | 'NETWORK' | 'AUTH' | 'TIMEOUT' | 'UNKNOWN';
 export type GatePassStrategy = 'consensus' | 'all_pass' | 'majority' | 'any_pass';
@@ -138,8 +138,6 @@ export interface EngineEvent {
   costUsd?: number;
   /** Pre-rendered single-line ANSI visualization string (workflow-viz events). */
   vizString?: string;
-  /** Raw WorkflowPosition from snapshotToPosition (workflow-viz events). Typed as unknown to avoid circular import from workflow-visualizer.ts. */
-  position?: unknown;
 }
 export interface EngineConfig {
   workflow: ResolvedWorkflow;

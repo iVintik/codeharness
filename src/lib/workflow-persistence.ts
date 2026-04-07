@@ -105,6 +105,18 @@ export function saveSnapshot(
  *
  * Detects old YAML state files and warns (fresh start required).
  */
+/**
+ * Returns true if a snapshot file exists on disk (regardless of validity).
+ *
+ * Used by the runner to distinguish a *missing* snapshot (no file — normal
+ * first run or post-success) from a *corrupt* snapshot (file present but
+ * `loadSnapshot` returned null), so the two cases can be handled differently.
+ */
+export function snapshotFileExists(projectDir?: string): boolean {
+  const baseDir = projectDir ?? process.cwd();
+  return existsSync(join(baseDir, STATE_DIR, SNAPSHOT_FILE));
+}
+
 export function loadSnapshot(projectDir?: string): XStateWorkflowSnapshot | null {
   const baseDir = projectDir ?? process.cwd();
   const stateDir = join(baseDir, STATE_DIR);

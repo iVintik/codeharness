@@ -10,6 +10,7 @@ import { createActor, waitFor } from 'xstate';
 import { storyMachine } from '../workflow-story-machine.js';
 import type { StoryFlowInput, EngineConfig, OutputContract, GateConfig } from '../workflow-types.js';
 import type { WorkflowState } from '../workflow-state.js';
+import { appendCheckpoint } from '../workflow-persistence.js';
 
 // ─── Hoisted Mocks ───────────────────────────────────────────────────
 
@@ -266,6 +267,87 @@ describe('storyMachine', () => {
       expect(snap.value).toBe('done');
       expect(snap.output?.tasksCompleted).toBe(1);
       expect(mockDispatchTaskCore).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('gate checkpoint', () => {
+    it('gate in completedTasks is skipped only when a successful gate completion record exists', async () => {
+      const workflowState = makeWorkflowState({
+        tasks_completed: [{ task_name: 'g1', story_key: 'story-1', completed_at: '2024-01-01T00:00:00.000Z' }],
+      });
+      const completedTasks = new Set(['story-1::g1']);
+      const { snap } = await run(makeInput({ storyFlow: [makeGate()], completedTasks, workflowState }));
+      expect(snap.value).toBe('done');
+      expect(snap.output?.tasksCompleted).toBe(0);
+      expect(mockDispatchTaskCore).not.toHaveBeenCalled();
+    });
+
+    it('gate in completedTasks is NOT skipped when no successful gate completion record exists', async () => {
+      mockDispatchTaskCore.mockResolvedValueOnce({ ...makeOut(), output: PASS, contract: makeContract(PASS) });
+      const completedTasks = new Set(['story-1::g1']);
+      const { snap } = await run(makeInput({ storyFlow: [makeGate()], completedTasks }));
+      expect(snap.value).toBe('done');
+      expect(snap.output?.tasksCompleted).toBe(1);
+      expect(mockDispatchTaskCore).toHaveBeenCalledOnce();
+      expect(appendCheckpoint).toHaveBeenCalledOnce();
+    });
+
+    it('gate NOT in completedTasks runs normally and appends checkpoint on pass', async () => {
+      mockDispatchTaskCore.mockResolvedValueOnce({ ...makeOut(), output: PASS, contract: makeContract(PASS) });
+      const { snap } = await run(makeInput({ storyFlow: [makeGate()] }));
+      expect(snap.value).toBe('done');
+      expect(appendCheckpoint).toHaveBeenCalledOnce();
+      expect(appendCheckpoint).toHaveBeenCalledWith(
+        expect.objectContaining({ storyKey: 'story-1', taskName: 'g1' }),
+        expect.any(String),
+      );
+    });
+
+    it('gate that maxes out (not halted) does NOT append checkpoint', async () => {
+      // check-task returns a failing verdict so gate never passes — maxes out after max_retries=1
+      mockDispatchTaskCore
+        .mockResolvedValueOnce({ ...makeOut(), output: '<verdict>fail</verdict>', contract: makeContract('<verdict>fail</verdict>') })
+        .mockResolvedValueOnce(makeOut()); // fix-task (ignored at max_retries)
+      const gate = makeGate({ max_retries: 1 });
+      const { snap } = await run(makeInput({ storyFlow: [gate] }));
+      expect(snap.value).toBe('done');
+      expect(appendCheckpoint).not.toHaveBeenCalled();
+    });
+
+    it('gate that halts does NOT append checkpoint', async () => {
+      // check-task throws halt error → gate halts → no checkpoint
+      mockDispatchTaskCore.mockRejectedValueOnce(
+        new MockDispatchError('rate limit', 'RATE_LIMIT', 'test-agent', null),
+      );
+      const { snap } = await run(makeInput({ storyFlow: [makeGate()] }));
+      expect(snap.value).toBe('halted');
+      expect(appendCheckpoint).not.toHaveBeenCalled();
+    });
+
+    it('gate checkpoint skip works alongside task checkpoint skip in mixed flow', async () => {
+      // Gate g1 is already checkpointed, task-a is not
+      mockDispatchTaskCore.mockResolvedValueOnce(makeOut()); // task-a
+      const workflowState = makeWorkflowState({
+        tasks_completed: [{ task_name: 'g1', story_key: 'story-1', completed_at: '2024-01-01T00:00:00.000Z' }],
+      });
+      const completedTasks = new Set(['story-1::g1']);
+      const { snap } = await run(makeInput({ storyFlow: [makeGate(), 'task-a'], completedTasks, workflowState }));
+      expect(snap.value).toBe('done');
+      expect(snap.output?.tasksCompleted).toBe(1);
+      // Only task-a was dispatched (gate was skipped)
+      expect(mockDispatchTaskCore).toHaveBeenCalledOnce();
+      expect(mockDispatchTaskCore.mock.calls[0][0]).toMatchObject({ taskName: 'task-a' });
+    });
+
+    it('maxedOut gate is not skipped on resume even if completedTasks contains a stale entry', async () => {
+      mockDispatchTaskCore.mockResolvedValueOnce({ ...makeOut(), output: '<verdict>fail</verdict>', contract: makeContract('<verdict>fail</verdict>') });
+      const completedTasks = new Set(['story-1::g1']);
+      const gate = makeGate({ max_retries: 1 });
+      const { snap } = await run(makeInput({ storyFlow: [gate], completedTasks }));
+      expect(snap.value).toBe('done');
+      expect(snap.output?.tasksCompleted).toBe(1);
+      expect(mockDispatchTaskCore).toHaveBeenCalledOnce();
+      expect(appendCheckpoint).not.toHaveBeenCalled();
     });
   });
 });

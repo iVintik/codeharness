@@ -8,7 +8,7 @@
 import type { ResolvedWorkflow } from './workflow-types.js';
 import { isGateConfig } from './workflow-types.js';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Visualizer types ────────────────────────────────────────────────────────
 
 export interface StepStatus {
   name: string;
@@ -16,13 +16,7 @@ export interface StepStatus {
   isGate?: boolean;
 }
 
-export interface GateInfo {
-  name: string;
-  iteration: number;
-  maxRetries: number;
-  passed: number;
-  failed: number;
-}
+export interface GateInfo { name: string; iteration: number; maxRetries: number; passed: number; failed: number }
 
 export interface WorkflowPosition {
   level: 'run' | 'epic' | 'story' | 'gate';
@@ -107,14 +101,13 @@ function computeWindow(totalSteps: number, activeIdx: number, maxSlots: number):
     return { start: 0, end: totalSteps, collapsedBefore: 0, collapsedAfter: 0 };
   }
 
-  // Centre window on the active step
+  // Center window on active step, then clamp and backfill so exactly maxSlots steps are visible.
+  // When near the end of the flow, the window slides back to keep maxSlots visible (no underfill).
   const half = Math.floor(maxSlots / 2);
-  let start = activeIdx - half;
-  let end = start + maxSlots;
-
-  if (start < 0) { end -= start; start = 0; }
-  if (end > totalSteps) { start -= (end - totalSteps); end = totalSteps; }
-  if (start < 0) start = 0;
+  const idealStart = activeIdx - half;
+  // Clamp: never start before 0, and never leave fewer than maxSlots steps after start.
+  const start = Math.max(0, Math.min(idealStart, totalSteps - maxSlots));
+  const end = start + maxSlots;
 
   return {
     start,
@@ -251,6 +244,10 @@ export function snapshotToPosition(snapshot: unknown, workflow: ResolvedWorkflow
     if (snapshot === null || snapshot === undefined || typeof snapshot !== 'object') return empty;
     const ctx = p(snapshot, 'context');
     const val = p(snapshot, 'value');
+    // Reject snapshots with unrecognised state values — they are unparseable
+    const KNOWN = ['processingEpic', 'checkNextEpic', 'allDone', 'halted', 'interrupted'];
+    if (typeof val !== 'string' || !KNOWN.includes(val)) return empty;
+
     const t: 'done' | 'halted' | 'active' = val === 'allDone' ? 'done' : (val === 'halted' || p(ctx, 'halted') === true) ? 'halted' : 'active';
 
     const epicEntries  = p(ctx, 'epicEntries');
@@ -266,25 +263,28 @@ export function snapshotToPosition(snapshot: unknown, workflow: ResolvedWorkflow
     const storiesDone = totalStories !== undefined && storyIndex !== undefined && storyIndex > totalStories;
     const rawStep = p(ctx, 'currentStepIndex');
     const ai    = typeof rawStep === 'number' ? rawStep : 0;
-    const flow  = workflow.storyFlow.length > 0 ? workflow.storyFlow : workflow.epicFlow;
+    const flow  = (storiesDone && workflow.epicFlow.length > 0)
+      ? workflow.epicFlow
+      : workflow.storyFlow.length > 0 ? workflow.storyFlow : workflow.epicFlow;
     const steps = buildFlowSteps(flow, ai, t);
 
+    // Gate info is derived from the workflow config (active step) + workflowState scores.
+    // context.gate is not present on persisted run/epic/story contexts — only GateContext has it.
     let gate: GateInfo | undefined;
-    const go = p(ctx, 'gate');
-    if (go !== null && typeof go === 'object') {
-      const gn = p(go, 'gate'), mr = p(go, 'max_retries');
-      if (typeof gn === 'string' && typeof mr === 'number') {
-        const ws = p(ctx, 'workflowState');
-        const sc = p(ws, 'evaluator_scores');
-        const ls = Array.isArray(sc) && sc.length > 0 ? sc[sc.length - 1] : null;
-        const ir = p(ws, 'iteration');
-        gate = { name: gn, iteration: typeof ir === 'number' ? ir : 0, maxRetries: mr,
-          passed: typeof p(ls, 'passed') === 'number' ? (p(ls, 'passed') as number) : 0,
-          failed: typeof p(ls, 'failed') === 'number' ? (p(ls, 'failed') as number) : 0 };
-      }
+    const activeFlowStep = flow[ai];
+    if (t === 'active' && activeFlowStep && isGateConfig(activeFlowStep)) {
+      const ws = p(ctx, 'workflowState');
+      const sc = p(ws, 'evaluator_scores');
+      const ls = Array.isArray(sc) && sc.length > 0 ? sc[sc.length - 1] : null;
+      const ir = p(ws, 'iteration');
+      gate = { name: activeFlowStep.gate,
+        iteration: typeof ir === 'number' ? ir : 0,
+        maxRetries: activeFlowStep.max_retries,
+        passed: typeof p(ls, 'passed') === 'number' ? (p(ls, 'passed') as number) : 0,
+        failed: typeof p(ls, 'failed') === 'number' ? (p(ls, 'failed') as number) : 0 };
     }
 
-    const level: WorkflowPosition['level'] = gate ? 'gate' : storyIndex !== undefined ? 'story' : epicIndex !== undefined ? 'epic' : 'run';
+    const level: WorkflowPosition['level'] = gate ? 'gate' : storiesDone ? 'epic' : storyIndex !== undefined ? 'story' : epicIndex !== undefined ? 'epic' : 'run';
     return { level,
       ...(epicId !== undefined ? { epicId } : {}), ...(epicIndex !== undefined ? { epicIndex } : {}),
       ...(totalEpics !== undefined ? { totalEpics } : {}), ...(storyIndex !== undefined ? { storyIndex } : {}),

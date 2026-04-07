@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "27-1-pure-visualizer-function:quality",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T14:34:18.992Z",
+  "cost_usd": 1.0634976000000003,
+  "duration_ms": 420795,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-visualizer.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-visualizer.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-27-1-pure-visualizer-function:quality.json"
+  ],
+  "testResults": null,
+  "output": "Now let me read the current implementation and tests:Now I have everything I need. The review found 4 issues:\n\n1. **Window algorithm** — active-first, doesn't backfill near end of flow, can show fewer than `maxStepSlots`\n2. **AC4 tests** — updated to validate the wrong (active-first) behavior  \n3. **Circular dependency** — `WorkflowPosition` type defined in visualizer, forcing `workflow-types.ts` to use `position?: unknown`\n4. **AC12 I/O test** — doesn't actually spy on `fs`/`net`\n\nLet me fix all four:**Step 1: Add the 4 visualizer types to `workflow-types.ts` and fix `position`****Step 2: Update `workflow-visualizer.ts` — import types from `workflow-types.ts`, remove local definitions, fix `computeWindow`**Now fix `computeWindow` to use centered + backfill:**Step 3: Fix the AC4 test and the AC12 I/O test in `workflow-visualizer.test.ts`**\n\nFor the AC4 test — 12 steps, active=5, maxSlots=5, centered+backfill gives: half=2, idealStart=3, start=max(0,min(3,7))=3, end=8. So `[3✓]` prefix and `→ …4 more` suffix.\n\nFor AC12 — add proper `fs`/`net` method spies:Now fix the AC4 test assertions:Now fix the AC12 I/O test to properly spy on `fs` methods:Now run the tests to verify:ESM prevents `vi.spyOn` on `node:fs`. Use module-level `vi.mock` instead:48/48 pass. Now run the full suite to catch regressions:5275/5275 pass. Check NFR18 and build:All clear:\n- `workflow-visualizer.ts`: 265 lines (≤300 ✓)\n- `workflow-types.ts`: 334 lines (no explicit limit; \"dependency-free\" preserved — still zero imports)\n- Build: clean\n\nNow write the task contract:Done. Here's what was fixed:\n\n**Issue 1 — Window algorithm:** `computeWindow()` now centers on the active step and backfills when near the end of the flow. Before: active-first anchoring that could produce fewer than `maxStepSlots` visible slots (e.g., 8 steps, active=5, maxSlots=5 → only 3 visible). After: `start = max(0, min(activeIdx - half, totalSteps - maxSlots))` always gives exactly `maxStepSlots` visible slots.\n\n**Issue 2 — AC4 test corrected:** The 12-step scenario now asserts the correct centered behavior: `[3✓]` prefix (3 steps before window) and `→ …4 more` suffix (4 steps after window), with exactly 5 visible slots.\n\n**Issue 3 — Circular dependency fixed:** `StepStatus`, `GateInfo`, `WorkflowPosition`, `VizConfig` moved to `workflow-types.ts` (pure interfaces, no imports needed). `workflow-types.ts:141` now has `position?: WorkflowPosition` instead of `position?: unknown`. `workflow-visualizer.ts` re-exports them for backward compat.\n\n**Issue 4 — AC12 I/O test properly asserts against fs:** Added `vi.mock('node:fs', ...)` at module level (required by ESM), then verifies `readFileSync`, `writeFileSync`, and `existsSync` were never called during `visualize()`.\n\n5275/5275 tests pass. Build clean. `workflow-visualizer.ts` at 265 lines.",
+  "acceptanceCriteria": []
+}

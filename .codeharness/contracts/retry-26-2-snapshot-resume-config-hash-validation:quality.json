@@ -4,11 +4,11 @@
   "storyId": "26-2-snapshot-resume-config-hash-validation:quality",
   "driver": "claude-code",
   "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-07T10:29:47.512Z",
-  "cost_usd": 0.16203345000000002,
-  "duration_ms": 218278,
+  "timestamp": "2026-04-07T12:17:55.940Z",
+  "cost_usd": 0.1495362,
+  "duration_ms": 356406,
   "changedFiles": [],
   "testResults": null,
-  "output": "Both fixes are in and all 73 tests pass.\n\n**What changed:**\n\n1. **`workflow-runner.ts`** — Added a shape guard before XState restore. Snapshots missing required XState fields (e.g. tampered or malformed payloads with a matching hash) now log a warning and fall back to a fresh run instead of crashing.\n\n2. **`workflow-runner.test.ts`** — The AC1 test now builds a real persisted XState snapshot and asserts `createActor` receives it, proving the actual restore path is exercised — not just logging side-effects.",
+  "output": "Both fixes are applied and tests pass.\n\n**What was fixed in `src/lib/workflow-runner.ts`:**\n\n1. **High — null guard bypass** (~line 40): Guard now checks `candidate.context !== null && typeof candidate.context === 'object'`, so null-context snapshots are rejected and trigger a fresh start instead of reaching `createActor`.\n\n2. **Medium — stale persistence on invalid-payload fresh-start** (~lines 178–184): The invalid-payload branch now calls `clearSnapshot()` and `clearCheckpointLog()` before resetting state, matching the behaviour of the corrupt-snapshot path.\n\n**Test results:**\n- 5262 unit tests across 198 files — all passed\n- Build clean\n- 2 pre-existing BATS failures in `coverage_gate.bats` (cases 19–20) — unrelated to this story",
   "acceptanceCriteria": []
 }

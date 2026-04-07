@@ -40,6 +40,7 @@ const {
   mockReadStateWithBody,
   mockWriteState,
   mockLoadSnapshot,
+  mockSnapshotFileExists,
   mockSaveSnapshot,
   mockClearSnapshot,
   mockComputeConfigHash,
@@ -72,6 +73,7 @@ const {
   mockReadStateWithBody: vi.fn(),
   mockWriteState: vi.fn(),
   mockLoadSnapshot: vi.fn(() => null),
+  mockSnapshotFileExists: vi.fn(() => false),
   mockSaveSnapshot: vi.fn(),
   mockClearSnapshot: vi.fn(),
   mockComputeConfigHash: vi.fn(() => 'test-hash-aabbccdd'),
@@ -179,6 +181,7 @@ vi.mock('../state.js', () => ({
 vi.mock('../workflow-persistence.js', () => ({
   saveSnapshot: mockSaveSnapshot,
   loadSnapshot: mockLoadSnapshot,
+  snapshotFileExists: mockSnapshotFileExists,
   clearSnapshot: mockClearSnapshot,
   computeConfigHash: mockComputeConfigHash,
   appendCheckpoint: mockAppendCheckpoint,
@@ -368,6 +371,8 @@ function setupDefaultMocks() {
   mockReadWorkflowState.mockReturnValue(makeDefaultState());
   mockWriteWorkflowState.mockImplementation(() => {});
   mockLoadSnapshot.mockReturnValue(null);
+  mockSnapshotFileExists.mockReturnValue(false);
+  mockLoadCheckpointLog.mockReturnValue([]);
   mockClearSnapshot.mockImplementation(() => {});
   mockClearAllPersistence.mockReturnValue({ snapshotCleared: true, checkpointCleared: true });
   mockCleanStaleTmpFiles.mockImplementation(() => {});
@@ -1134,16 +1139,25 @@ describe('runWorkflowActor', () => {
     expect(result.errors[0].message).toBe('string error');
   });
 
-  it('returns early when phase is completed', async () => {
+  it('returns early when phase is completed after clearing persistence', async () => {
     mockReadWorkflowState.mockReturnValueOnce({
       ...makeDefaultState(),
       phase: 'completed',
     });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
 
-    const result = await runWorkflowActor(makeConfig());
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
     expect(result.success).toBe(true);
     expect(result.tasksCompleted).toBe(0);
+    expect(result.storiesProcessed).toBe(0);
+    expect(result.errors).toEqual([]);
     expect(result.durationMs).toBe(0);
+    expect(mockClearAllPersistence).toHaveBeenCalledWith('/project');
+    expect(mockGetDriver).not.toHaveBeenCalled();
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
   });
 
   it('fails fast on health check failure', async () => {
@@ -1359,24 +1373,26 @@ describe('crash recovery & resume', () => {
     expect(result.tasksCompleted).toBe(1);
   });
 
-  it('phase: completed returns early with tasksCompleted: 0 (AC #6)', async () => {
+  it('phase: completed clears persistence and skips health checks and dispatch', async () => {
     mockReadWorkflowState.mockReturnValue(
       makeDefaultState({
         phase: 'completed',
         started: '2026-04-03T00:00:00Z',
       }),
     );
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
 
-    const config = makeConfig();
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    });
     const result = await runWorkflowActor(config);
 
     expect(result.success).toBe(true);
-    expect(result.tasksCompleted).toBe(0);
-    expect(result.storiesProcessed).toBe(0);
     expect(result.errors).toEqual([]);
-    expect(result.durationMs).toBe(0);
+    expect(result.tasksCompleted).toBe(0);
+    expect(mockClearAllPersistence).toHaveBeenCalledWith('/project');
+    expect(mockGetDriver).not.toHaveBeenCalled();
     expect(mockDriverDispatch).not.toHaveBeenCalled();
-    expect(mockWriteWorkflowState).not.toHaveBeenCalled();
   });
 
   it('tuple matching preserves per-run tasks after per-story completion', async () => {
@@ -1647,7 +1663,7 @@ describe('snapshot resume (story 26-2)', () => {
       expect.stringMatching(/config changed/),
     );
     expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringMatching(/starting fresh/),
+      expect.stringMatching(/checkpoint log for resume/),
     );
   });
 
@@ -1714,6 +1730,76 @@ describe('snapshot resume (story 26-2)', () => {
     expect(mockInfo).not.toHaveBeenCalledWith(expect.stringContaining('Resuming'));
   });
 
+  it('corrupt snapshot file with stale tasks_completed — re-dispatches from task 1 (AC #4)', async () => {
+    // Regression for Bug 1: snapshot file exists but loadSnapshot() returns null
+    // (corrupt file). If workflow-state.yaml has stale tasks_completed from the
+    // previous run, those entries must NOT cause task-1 to be skipped — the run
+    // must start fresh from the beginning.
+    mockSnapshotFileExists.mockReturnValue(true);  // file exists (corrupt)
+    mockLoadSnapshot.mockReturnValue(null);         // but is unreadable
+    mockReadWorkflowState.mockReturnValue(makeDefaultState({
+      phase: 'interrupted',
+      tasks_completed: [
+        { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-06T08:00:00.000Z' },
+      ],
+    }));
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    // Task must NOT be skipped despite being in stale tasks_completed — fresh start required
+    expect(mockDriverDispatch).toHaveBeenCalled();
+  });
+
+  it('failed phase + no snapshot file → no "Resuming from failed state" log (Bug 2)', async () => {
+    // Regression: "Resuming from failed state" was logged before the snapshot check,
+    // so it appeared even when config change / corrupt snapshot forced a fresh start.
+    // The log must only appear when we actually resume from a valid snapshot.
+    mockReadWorkflowState.mockReturnValue(makeDefaultState({
+      phase: 'failed',
+      tasks_completed: [
+        { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-06T07:00:00.000Z', error: 'rate-limit' },
+      ],
+    }));
+    mockLoadSnapshot.mockReturnValue(null);
+    mockSnapshotFileExists.mockReturnValue(false);
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    // No contradictory "Resuming" message when fresh-starting after failure
+    expect(mockInfo).not.toHaveBeenCalledWith(expect.stringContaining('Resuming from failed state'));
+  });
+
+  it('failed phase + config-mismatch snapshot → no "Resuming from failed state" log (Bug 2 mismatch path)', async () => {
+    // Config mismatch forces a fresh start even from a failed state — the
+    // "Resuming from failed state" log must not appear when we end up fresh.
+    mockReadWorkflowState.mockReturnValue(makeDefaultState({
+      phase: 'failed',
+      tasks_completed: [
+        { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-06T07:00:00.000Z', error: 'timeout' },
+      ],
+    }));
+    mockComputeConfigHash.mockReturnValue('new-hash-55667788');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: null,
+      configHash: 'old-hash-11223344',
+      savedAt: '2026-04-06T06:00:00.000Z',
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    expect(mockInfo).not.toHaveBeenCalledWith(expect.stringContaining('Resuming from failed state'));
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('config changed'));
+  });
+
   it('warns and starts fresh when matching-hash snapshot payload is not restorable', async () => {
     mockComputeConfigHash.mockReturnValue('abc12345deadbeef');
     mockLoadSnapshot.mockReturnValue({
@@ -1736,6 +1822,58 @@ describe('snapshot resume (story 26-2)', () => {
     expect(mockInfo).not.toHaveBeenCalledWith(
       expect.stringContaining('Resuming from snapshot'),
     );
+  });
+
+  it('matching-hash invalid payload + checkpoint entries: task skipped via fallback (AC #5)', async () => {
+    // When the snapshot payload is not restorable but config hash matched, the
+    // checkpoint log is the durable fallback — completed tasks must be skipped.
+    mockComputeConfigHash.mockReturnValue('abc12345deadbeef');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: { context: {} }, // invalid — no status/value
+      configHash: 'abc12345deadbeef',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockLoadCheckpointLog.mockReturnValue([
+      { storyKey: '5-1-foo', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' },
+    ]);
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    // Checkpoint log is loaded as fallback
+    expect(mockLoadCheckpointLog).toHaveBeenCalled();
+    expect(mockInfo).toHaveBeenCalledWith(
+      expect.stringMatching(/Loaded \d+ checkpoint.*invalid snapshot payload/i),
+    );
+    // Previously completed task is skipped — driver not dispatched
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
+    // Checkpoint log is NOT cleared — it is the durable safety net
+    expect(mockClearCheckpointLog).not.toHaveBeenCalled();
+  });
+
+  it('corrupt snapshot file (hadSnapshotFile=true, loadSnapshot=null) + checkpoint entries: task skipped via fallback', async () => {
+    // When snapshot file exists but is unreadable (loadSnapshot returns null),
+    // the checkpoint log must be loaded as the durable fallback, not cleared.
+    mockSnapshotFileExists.mockReturnValue(true);
+    mockLoadSnapshot.mockReturnValue(null);
+    mockLoadCheckpointLog.mockReturnValue([
+      { storyKey: '5-1-foo', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' },
+    ]);
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    // Checkpoint log is loaded, not cleared
+    expect(mockClearCheckpointLog).not.toHaveBeenCalled();
+    expect(mockInfo).toHaveBeenCalledWith(
+      expect.stringMatching(/Loaded \d+ checkpoint.*corrupt snapshot/i),
+    );
+    // Previously completed task is skipped — driver not dispatched
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
   });
 
   it('loadSnapshot is always called on every run', async () => {
@@ -1842,6 +1980,169 @@ describe('snapshot resume (story 26-2)', () => {
       expect.stringContaining('abcdef12'),
     );
   });
+
+  it('saveSnapshot called during resumed actor state transitions (AC #5)', async () => {
+    // When a run resumes from a snapshot, the actor still emits state transitions
+    // and the subscribe callback must still call saveSnapshot after each one.
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    });
+    const snapshot = makeRestorableSnapshot(config);
+    mockComputeConfigHash.mockReturnValue('matchhash12345678');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot,
+      configHash: 'matchhash12345678',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(config);
+
+    // saveSnapshot is called from the actor.subscribe next/complete callbacks —
+    // at least one call must happen during a resumed run (terminal snapshot at completion).
+    expect(mockSaveSnapshot).toHaveBeenCalled();
+  });
+
+  it('clearAllPersistence called after successful resumed completion (AC #6)', async () => {
+    // A resumed run that completes all remaining tasks successfully must clear
+    // the snapshot file — there is nothing left to resume.
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    });
+    const snapshot = makeRestorableSnapshot(config);
+    mockComputeConfigHash.mockReturnValue('matchhash12345678');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot,
+      configHash: 'matchhash12345678',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockClearAllPersistence.mockReturnValue({ snapshotCleared: true, checkpointCleared: true });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    const result = await runWorkflowActor(config);
+
+    expect(result.success).toBe(true);
+    expect(mockClearAllPersistence).toHaveBeenCalledWith('/project');
+    expect(mockInfo).toHaveBeenCalledWith(expect.stringMatching(/Persistence cleared/i));
+  });
+
+  it('clearAllPersistence NOT called after resumed run that errors (AC #7)', async () => {
+    // A resumed run that encounters an error must preserve the snapshot so the
+    // operator can attempt to resume again after fixing the issue.
+    const { DispatchError } = await import('../agent-dispatch.js');
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    });
+    const snapshot = makeRestorableSnapshot(config);
+    mockComputeConfigHash.mockReturnValue('matchhash12345678');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot,
+      configHash: 'matchhash12345678',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockDriverDispatch.mockImplementation(() => makeDriverStreamError(
+      new DispatchError('dispatch fail', 'UNKNOWN', 'dev', new Error('inner')),
+    ));
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    const result = await runWorkflowActor(config);
+
+    expect(result.success).toBe(false);
+    expect(mockClearAllPersistence).not.toHaveBeenCalled();
+    expect(mockInfo).toHaveBeenCalledWith(expect.stringContaining('Persistence preserved for resume'));
+  });
+
+  it('config mismatch resets stale tasks_completed — previously-completed task IS dispatched (AC #2)', async () => {
+    // Regression: when config hash mismatches the runner used to pass the stale
+    // workflow-state (including old tasks_completed) into runInput, causing tasks
+    // to be silently skipped by isTaskCompleted(). After the fix the in-memory
+    // state is reset so tasks_completed is empty and dispatch fires.
+    mockComputeConfigHash.mockReturnValue('new-hash-99001122');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: null,
+      configHash: 'old-hash-aabbccdd',
+      savedAt: '2026-04-06T09:00:00.000Z',
+    });
+    // Simulate prior run that already recorded implement for 5-1-foo
+    mockReadWorkflowState.mockReturnValue(makeDefaultState({
+      phase: 'executing',
+      tasks_completed: [
+        { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-06T08:00:00.000Z' },
+      ],
+    }));
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    // The task must NOT be skipped — driver dispatch should have been called.
+    expect(mockDriverDispatch).toHaveBeenCalled();
+    // No "skipping completed" warning — the stale entry was cleared
+    expect(mockWarn).not.toHaveBeenCalledWith(
+      expect.stringContaining('skipping completed task implement'),
+    );
+  });
+
+  it('phase=completed does NOT early-return — starts fresh run from task 1 (AC #3)', async () => {
+    // A completed workflow is already terminal. The runner should clear stale
+    // persistence and return without re-entering health checks or dispatch.
+    mockReadWorkflowState.mockReturnValue(makeDefaultState({
+      phase: 'completed',
+      tasks_completed: [
+        { task_name: 'implement', story_key: '5-1-foo', completed_at: '2026-04-06T08:00:00.000Z' },
+      ],
+    }));
+    mockLoadSnapshot.mockReturnValue(null);
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    expect(result.success).toBe(true);
+    expect(result.tasksCompleted).toBe(0);
+    expect(mockClearAllPersistence).toHaveBeenCalledWith('/project');
+    expect(mockGetDriver).not.toHaveBeenCalled();
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
+  });
+
+  it('loadSnapshot always called on every run — each run independently checks for latest snapshot (AC #8)', async () => {
+    // AC #8 multi-interrupt resume chain: each run calls loadSnapshot independently,
+    // so the second resume automatically picks up the snapshot that was updated
+    // (via saveSnapshot) during the first resume run. No special handling needed —
+    // the invariant is that loadSnapshot is always called once per run.
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    });
+
+    // First run (simulate resume 1)
+    const snapshot = makeRestorableSnapshot(config);
+    mockComputeConfigHash.mockReturnValue('stablehash00001111');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot,
+      configHash: 'stablehash00001111',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    await runWorkflowActor(config);
+    expect(mockLoadSnapshot).toHaveBeenCalledTimes(1);
+
+    // Second run (simulate resume 2) — loadSnapshot called again, independently
+    vi.clearAllMocks();
+    setupDefaultMocks();
+    mockComputeConfigHash.mockReturnValue('stablehash00001111');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot,
+      configHash: 'stablehash00001111',
+      savedAt: '2026-04-06T10:05:00.000Z', // updated savedAt from previous run's save
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(config);
+    expect(mockLoadSnapshot).toHaveBeenCalledTimes(1);
+    expect(mockInfo).toHaveBeenCalledWith(expect.stringContaining('Resuming from snapshot'));
+  });
 });
 
 describe('resume with checkpoint log', () => {
@@ -1850,10 +2151,10 @@ describe('resume with checkpoint log', () => {
     setupDefaultMocks();
   });
 
-  it('config mismatch: clearCheckpointLog called and stale entries do NOT skip tasks (AC #2)', async () => {
-    // Story 26-2 AC2: on config change, start fresh from task 1. Checkpoint log
-    // fallback is deferred to story 26-3 — stale checkpoint entries must NOT be
-    // used to skip tasks when the config hash has changed.
+  it('config mismatch: checkpoint log loaded for semantic skip-based resume (AC #2)', async () => {
+    // Story 26-3 AC2: on config change, load checkpoint log and use it for skip-based resume.
+    // The XState snapshot belongs to the old config but checkpoints are config-agnostic —
+    // tasks listed in the log must be skipped so only remaining work is dispatched.
     mockComputeConfigHash.mockReturnValue('new-hash-12345678');
     mockLoadSnapshot.mockReturnValue({
       snapshot: null,
@@ -1861,8 +2162,7 @@ describe('resume with checkpoint log', () => {
       savedAt: '2026-04-05T00:00:00.000Z',
     });
     mockLoadCheckpointLog.mockReturnValue([
-      { storyKey: 'story-1', taskName: 'implement', completedAt: '2026-04-05T01:00:00.000Z' },
-      { storyKey: 'story-1', taskName: 'verify', completedAt: '2026-04-05T02:00:00.000Z' },
+      { storyKey: '5-1-foo', taskName: 'implement', completedAt: '2026-04-05T01:00:00.000Z' },
     ]);
     mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
 
@@ -1870,16 +2170,19 @@ describe('resume with checkpoint log', () => {
       workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
     }));
 
-    // Stale checkpoint log must be cleared, not used for task skipping
-    expect(mockClearCheckpointLog).toHaveBeenCalledWith('/project');
-    expect(mockInfo).not.toHaveBeenCalledWith(
+    // Checkpoint log must NOT be cleared — entries are used for semantic task skipping
+    expect(mockClearCheckpointLog).not.toHaveBeenCalled();
+    // Info log confirms checkpoints were loaded
+    expect(mockInfo).toHaveBeenCalledWith(
       expect.stringMatching(/Loaded \d+ checkpoint/i),
     );
+    // The previously completed task is skipped — driver is not dispatched
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
   });
 
-  it('config mismatch + no checkpoint entries: clearCheckpointLog still called (AC #2)', async () => {
-    // Checkpoint log must always be cleared on config mismatch, even if empty,
-    // to ensure no stale state persists across config changes.
+  it('config mismatch + empty checkpoint log: clearCheckpointLog NOT called, no skip log (AC #2)', async () => {
+    // When config changes but no checkpoints exist, the runner starts fresh.
+    // clearCheckpointLog must NOT be called — there is nothing to clear and nothing to skip.
     mockComputeConfigHash.mockReturnValue('new-hash-12345678');
     mockLoadSnapshot.mockReturnValue({
       snapshot: null,
@@ -1893,30 +2196,31 @@ describe('resume with checkpoint log', () => {
       workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
     }));
 
-    expect(mockClearCheckpointLog).toHaveBeenCalledWith('/project');
+    expect(mockClearCheckpointLog).not.toHaveBeenCalled();
     expect(mockInfo).not.toHaveBeenCalledWith(
       expect.stringMatching(/Loaded \d+ checkpoint/i),
     );
   });
 
-  it('config match (snapshot resume): checkpoint log NOT loaded for task skipping', async () => {
-    // When config hashes match, loadCheckpointLog must NOT be called for task-skip purposes.
-    // It may be called to check for orphaned checkpoints (null snapshot path), but not here.
+  it('config match, invalid payload: checkpoint log loaded as fallback (not skipped)', async () => {
+    // When config hashes match but the snapshot payload is not restorable,
+    // the checkpoint log is the durable fallback (AD3 safety net) and MUST be loaded.
     mockComputeConfigHash.mockReturnValue('matching-hash-1234');
-    // Return null snapshot so XState doesn't try to restore a fake snapshot object
+    // snapshot: null fails isRestorableXStateSnapshot → goes into invalid-payload branch
     mockLoadSnapshot.mockReturnValue({
       snapshot: null,
       configHash: 'matching-hash-1234',
       savedAt: '2026-04-05T00:00:00.000Z',
     });
+    mockLoadCheckpointLog.mockReturnValue([]);
     mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
 
     await runWorkflowActor(makeConfig({
       workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
     }));
 
-    // loadCheckpointLog is NOT called in the matching-hash branch
-    expect(mockLoadCheckpointLog).not.toHaveBeenCalled();
+    // loadCheckpointLog IS called — invalid payload falls back to checkpoint log
+    expect(mockLoadCheckpointLog).toHaveBeenCalled();
   });
 
   it('successful completion: clearAllPersistence called (not individual clear functions)', async () => {
@@ -2019,20 +2323,28 @@ describe('persistence cleanup (story 26-4)', () => {
     );
   });
 
-  it('re-entry after completed phase: clearAllPersistence called before early return (AC #5)', async () => {
+  it('re-entry after completed phase: clearAllPersistence called before early return', async () => {
     mockReadWorkflowState.mockReturnValue(makeDefaultState({ phase: 'completed' }));
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
 
-    const result = await runWorkflowActor(makeConfig());
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
 
     expect(result.success).toBe(true);
     expect(result.tasksCompleted).toBe(0);
     expect(mockClearAllPersistence).toHaveBeenCalledWith('/project');
+    expect(mockGetDriver).not.toHaveBeenCalled();
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
   });
 
-  it('orphaned checkpoint log (no snapshot): clearCheckpointLog called with warning (AC #6 T6)', async () => {
+  it('no snapshot + orphaned checkpoint entries: log is cleared and run starts fresh (AC #6)', async () => {
+    // Story 26-4 AC6: when no snapshot exists but a checkpoint log is present,
+    // the checkpoint log is orphaned stale state and must be cleared so the run
+    // starts with an empty completedTasks set.
     mockLoadSnapshot.mockReturnValue(null);
     mockLoadCheckpointLog.mockReturnValue([
-      { storyKey: 'story-1', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' },
+      { storyKey: '5-1-foo', taskName: 'implement', completedAt: '2026-01-01T00:00:00.000Z' },
     ]);
     mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
 
@@ -2040,10 +2352,12 @@ describe('persistence cleanup (story 26-4)', () => {
       workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
     }));
 
-    expect(mockWarn).toHaveBeenCalledWith(
-      expect.stringContaining('Clearing orphaned checkpoint log'),
-    );
     expect(mockClearCheckpointLog).toHaveBeenCalledWith('/project');
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringMatching(/Clearing orphaned checkpoint log.*no snapshot file exists/i),
+    );
+    // Fresh run — stale checkpoint entries do not populate completedTasks, so the task dispatches.
+    expect(mockDriverDispatch).toHaveBeenCalled();
   });
 
   it('no orphan warning when no snapshot and empty checkpoint log (fresh start)', async () => {
@@ -2093,3 +2407,41 @@ describe('persistence cleanup (story 26-4)', () => {
     );
   });
 });
+
+  it('config-change resume: tasks_completed synthesized from checkpoint log so gate skip guard can fire (bug fix)', async () => {
+    // Regression: when config hash mismatches, the runner was clearing tasks_completed to [].
+    // The gate skip guard in workflow-story-machine.ts requires BOTH completedTasks set AND
+    // a hasSuccessfulGateCompletionRecord (checks tasks_completed). Clearing tasks_completed
+    // breaks the dual-condition, so gates always re-execute on config-change resume.
+    // Fix: synthesize tasks_completed from checkpoint log entries instead of clearing to [].
+    mockComputeConfigHash.mockReturnValue('new-hash-12345678');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: null,
+      configHash: 'old-hash-aabbccdd',
+      savedAt: '2026-04-06T09:00:00.000Z',
+    });
+    mockLoadCheckpointLog.mockReturnValue([
+      { storyKey: '5-1-foo', taskName: 'quality-gate', completedAt: '2026-04-06T08:00:00.000Z' },
+      { storyKey: '5-1-foo', taskName: 'implement', completedAt: '2026-04-06T07:00:00.000Z' },
+    ]);
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+    mockCreateActor.mockClear();
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    // runInput.workflowState.tasks_completed must contain synthesized entries from checkpoint log
+    const callArgs = mockCreateActor.mock.calls[0];
+    const runInput: RunMachineContext = callArgs[1].input;
+    expect(runInput.workflowState.tasks_completed).toHaveLength(2);
+    expect(runInput.workflowState.tasks_completed).toContainEqual(
+      expect.objectContaining({ task_name: 'quality-gate', story_key: '5-1-foo' }),
+    );
+    expect(runInput.workflowState.tasks_completed).toContainEqual(
+      expect.objectContaining({ task_name: 'implement', story_key: '5-1-foo' }),
+    );
+    // completedTasks set must also be populated for the first part of the AND condition
+    expect(runInput.completedTasks.has('5-1-foo::quality-gate')).toBe(true);
+    expect(runInput.completedTasks.has('5-1-foo::implement')).toBe(true);
+  });

@@ -22,6 +22,7 @@ const {
   mockInfo,
   mockWarn,
   mockLoadSnapshot,
+  mockSnapshotFileExists,
   mockClearAllPersistence,
   mockCleanStaleTmpFiles,
   mockComputeConfigHash,
@@ -38,6 +39,7 @@ const {
   mockInfo: vi.fn(),
   mockWarn: vi.fn(),
   mockLoadSnapshot: vi.fn(() => null),
+  mockSnapshotFileExists: vi.fn(() => false),
   mockClearAllPersistence: vi.fn(() => ({ snapshotCleared: true, checkpointCleared: true })),
   mockCleanStaleTmpFiles: vi.fn(),
   mockComputeConfigHash: vi.fn(() => 'hash-aabb'),
@@ -73,6 +75,7 @@ vi.mock('../workflow-state.js', () => ({
 vi.mock('../workflow-persistence.js', () => ({
   saveSnapshot: vi.fn(),
   loadSnapshot: mockLoadSnapshot,
+  snapshotFileExists: mockSnapshotFileExists,
   clearSnapshot: mockClearSnapshot,
   computeConfigHash: mockComputeConfigHash,
   appendCheckpoint: vi.fn(),

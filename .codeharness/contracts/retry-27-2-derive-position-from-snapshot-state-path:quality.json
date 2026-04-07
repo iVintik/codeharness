@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "27-2-derive-position-from-snapshot-state-path:quality",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T14:47:26.290Z",
+  "cost_usd": 1.02807225,
+  "duration_ms": 347921,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-visualizer.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-visualizer.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-27-2-derive-position-from-snapshot-state-path:quality.json"
+  ],
+  "testResults": null,
+  "output": "Now I have a full picture of all three issues. Let me fix them:\n\n1. **AC12**: `snapshotToPosition({garbage: true})` returns populated steps — needs validation on `val`\n2. **AC3**: Gate parsing reads `context.gate` which doesn't exist on real machine contexts — should derive from workflow config\n3. **Architecture**: `StepStatus`/`GateInfo`/`WorkflowPosition`/`VizConfig` were moved to `workflow-types.ts` — must stay in `workflow-visualizer.ts`**Step 1: Remove visualizer types from `workflow-types.ts` and remove the `position` field from EngineEvent.**Now remove the `position?: WorkflowPosition` field from EngineEvent:**Step 2: Update `workflow-visualizer.ts` — move types in, fix import, fix `snapshotToPosition`.**Now fix `snapshotToPosition` — add valid-state guard and replace `context.gate` lookup with workflow-config-derived gate:**Step 3: Fix the test file — update AC3 fixture (remove `context.gate`) and strengthen AC12 assertion.**Now fix the AC12 malformed-object test to actually assert empty steps:Now run the build and tests to verify everything passes:Build passes. Now run the tests:48/48 tests pass. Now verify the line count constraint (NFR18: ≤ 300 lines):302 lines — 2 over the 300-line NFR18 limit. Need to trim. Let me look at the file:296 lines — under 300. Final check:Now write the retry contract:All three issues resolved:\n\n**What changed:**\n\n1. **AC12 fix** (`workflow-visualizer.ts`): Added a `KNOWN` states guard — any snapshot whose `value` isn't one of `processingEpic | checkNextEpic | allDone | halted | interrupted` now returns `{ steps: [], activeStepIndex: 0 }` immediately. `snapshotToPosition({ garbage: true }, workflow)` now returns empty steps instead of a populated active flow.\n\n2. **AC3 fix** (`workflow-visualizer.ts`): Removed the `context.gate` lookup entirely. Gate name and `max_retries` are now derived from the workflow config (`flow[activeStepIndex]` via `isGateConfig()`), which is the correct source for persisted snapshots. Iteration and pass/fail counts still come from `context.workflowState.evaluator_scores`. Test fixture updated to remove the synthetic `context.gate` field.\n\n3. **Architecture fix** (`workflow-types.ts` + `workflow-visualizer.ts`): Moved `StepStatus`, `GateInfo`, `WorkflowPosition`, `VizConfig` back to `workflow-visualizer.ts`. Removed them from `workflow-types.ts` along with the premature `position?: WorkflowPosition` field on `EngineEvent`. `workflow-visualizer.ts` now only imports `ResolvedWorkflow` and `isGateConfig` from `workflow-types`.\n\n**Result:** build exits 0, 48/48 tests pass, `workflow-visualizer.ts` is 296 lines (≤ 300 NFR18).",
+  "acceptanceCriteria": []
+}

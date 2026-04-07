@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "26-3-semantic-checkpoint-log:quality",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T13:07:07.677Z",
+  "cost_usd": 0.69469155,
+  "duration_ms": 206299,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-story-machine.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-story-machine.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now let me read the review proof and the gate machine to understand the full picture:Now let me check the existing tests for story machine:Now I have a clear picture. Let me check the `StoryContext` type to confirm `completedTasks` is there:Now I understand the full issue. The fix is:\n1. Add checkpoint skip guard before running gate steps\n2. Add checkpoint append after gate completes (when not halted)\n3. Add tests for gate checkpoint behaviorNow add the checkpoint append after gate completes (not halted):Now let me verify the final shape of the gate path looks correct:Good. Now let me add tests for the gate checkpoint behavior:Now I'll add the gate checkpoint tests at the end of the test file:Now add the gate checkpoint tests before the closing `});`:20 tests pass (was 15 before — 5 new gate checkpoint tests added). Now run the full suite:5269 tests pass (7 more than the 5262 before — 5 gate checkpoint tests + 2 others that were previously failing are now accounted for). Zero failures.Retry complete. Here's what was fixed:\n\n**Root cause (from the failed review):** Gate steps in `storyStepActor` had no checkpoint skip guard and no checkpoint append — only plain string tasks did.\n\n**Changes made to `workflow-story-machine.ts`:**\n1. **Skip guard before running a gate** — checks `completedTasks.has(`${storyKey}::${step.gate}`)` and skips the entire gate if already checkpointed from a prior run\n2. **Checkpoint append after gate completes** — after `if (gateOut.halted) break`, appends a checkpoint entry for the gate name. Correctly fires only on clean completion (passed/maxed-out), not on halt/interrupt\n\n**5 new tests added to `workflow-story-machine.test.ts`:**\n- Gate in `completedTasks` is skipped (no dispatch)\n- Gate not checkpointed runs and appends checkpoint on pass\n- Gate that maxes out (not halted) appends checkpoint\n- Gate that halts does NOT append checkpoint\n- Mixed flow: gate skip + task dispatch work together\n\nBuild: ✅ | Tests: 5269/5269 ✅",
+  "acceptanceCriteria": []
+}

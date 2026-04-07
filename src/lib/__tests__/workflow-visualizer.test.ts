@@ -6,9 +6,21 @@
  * edge cases, and purity (no I/O).
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { visualize, stripAnsi, snapshotToPosition } from '../workflow-visualizer.js';
 import type { WorkflowPosition, StepStatus } from '../workflow-visualizer.js';
+
+// Mock node:fs at module level (ESM prevents vi.spyOn on namespace exports).
+// All tests in this file are pure-function tests that never need real fs.
+vi.mock('node:fs', () => ({
+  default: {},
+  readFileSync: vi.fn(() => Buffer.from('')),
+  writeFileSync: vi.fn(),
+  existsSync: vi.fn(() => false),
+  mkdirSync: vi.fn(),
+  unlinkSync: vi.fn(),
+}));
+import * as nodeFs from 'node:fs';
 import type { ResolvedWorkflow } from '../workflow-types.js';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -127,10 +139,10 @@ describe('gate rendering', () => {
 
 describe('sliding window', () => {
   it('shows [N✓] prefix and …N more suffix when steps exceed maxStepSlots', () => {
-    // 8 steps, active at index 3 (4th), maxStepSlots=5
-    // window: half=2 → start=1, end=6 → collapsedBefore=1, collapsedAfter=2
+    // 10 steps, active at index 3, maxStepSlots=5
+    // active-first anchoring: start=3, end=8, collapsedBefore=3, collapsedAfter=2
     const steps = makeSteps(
-      ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7'],
+      ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9'],
       3,
     );
     const pos: WorkflowPosition = { level: 'story', steps, activeStepIndex: 3 };
@@ -138,8 +150,30 @@ describe('sliding window', () => {
     const plain = stripped(result);
     // Should have some collapsed prefix
     expect(plain).toMatch(/\[\d+✓\]/);
-    // Should have trailing suffix
+    // Should have trailing suffix (2 steps after the 5-slot window)
     expect(plain).toMatch(/…\d+ more/);
+  });
+
+  it('centers window on active step and backfills to always show exactly maxStepSlots (AC4)', () => {
+    // AC4: 12 steps total, active at index 5, maxStepSlots=5.
+    // Centered+backfill: half=2, idealStart=5-2=3, start=max(0,min(3,7))=3, end=8.
+    // Visible: [3,4,5,6,7] = 5 slots. collapsedBefore=3, collapsedAfter=4.
+    // Produces [3✓] prefix and → …4 more suffix, with exactly 5 visible step slots.
+    const steps = makeSteps(
+      ['s0', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11'],
+      5,
+    );
+    const pos: WorkflowPosition = { level: 'story', steps, activeStepIndex: 5 };
+    const result = visualize(pos, { maxStepSlots: 5, maxWidth: 120 });
+    const plain = stripped(result);
+    // 3 done steps before the centered window must be collapsed into [3✓]
+    expect(plain).toMatch(/^\[3✓\]/);
+    // 4 steps beyond the 5-slot window appear as → …4 more
+    expect(plain).toMatch(/→ …4 more$/);
+    // Exactly 5 visible step slots in the window
+    const core = plain.replace(/^\[\d+✓\] → /, '').replace(/ → …\d+ more$/, '');
+    const tokens = core.split(' → ').filter(Boolean);
+    expect(tokens.length).toBe(5);
   });
 
   it('shows at most maxStepSlots visible step tokens', () => {
@@ -360,16 +394,23 @@ describe('edge cases', () => {
 // ─── AC12: Purity — no I/O ───────────────────────────────────────────────────
 
 describe('purity (no I/O)', () => {
-  it('does not call process.exit, fs, or net during visualize()', () => {
-    // We can't easily intercept fs/net here without mocking, but we verify
-    // the function has no dynamic requires and is synchronous.
+  it('does not call fs.readFileSync, fs.writeFileSync, or fs.existsSync during visualize()', () => {
+    // Reset mock call counts before this test
+    vi.mocked(nodeFs.readFileSync).mockClear();
+    vi.mocked(nodeFs.writeFileSync).mockClear();
+    vi.mocked(nodeFs.existsSync).mockClear();
+
     const steps = makeSteps(['a', 'b'], 0);
     const pos: WorkflowPosition = { level: 'story', steps, activeStepIndex: 0 };
 
-    // Should complete synchronously and return immediately
     let result: string | undefined;
     expect(() => { result = visualize(pos); }).not.toThrow();
     expect(typeof result).toBe('string');
+
+    // Verify no filesystem calls were made — visualize() is a pure function
+    expect(nodeFs.readFileSync).not.toHaveBeenCalled();
+    expect(nodeFs.writeFileSync).not.toHaveBeenCalled();
+    expect(nodeFs.existsSync).not.toHaveBeenCalled();
   });
 
   it('returns same output for same input (deterministic)', () => {
@@ -447,6 +488,9 @@ describe('snapshotToPosition — active processing', () => {
 
 describe('snapshotToPosition — gate parsing', () => {
   it('AC3: extracts gate info with iteration and pass/fail counts', () => {
+    // Gate name/config comes from workflow config (storyFlow[currentStepIndex]).
+    // Iteration and scores come from workflowState in context.
+    // There is NO context.gate field on real persisted run/epic/story snapshots.
     const snapshot = {
       value: 'processingEpic',
       context: {
@@ -454,7 +498,6 @@ describe('snapshotToPosition — gate parsing', () => {
         epicId: 'e1',
         epicItems: [{}],
         currentStoryIndex: 0,
-        gate: { gate: 'quality', check: ['check'], fix: ['retry'], pass_when: 'consensus', max_retries: 5, circuit_breaker: 'stagnation' },
         workflowState: {
           iteration: 2,
           evaluator_scores: [{ iteration: 2, passed: 1, failed: 1, unknown: 0, total: 2, timestamp: '' }],
@@ -507,6 +550,22 @@ describe('snapshotToPosition — terminal states', () => {
 });
 
 describe('snapshotToPosition — epic-level steps', () => {
+  it('AC7: level is "epic" (not "story") when storiesDone=true', () => {
+    const snapshot = {
+      value: 'processingEpic',
+      context: {
+        epicId: 'e1',
+        epicItems: [{}],        // 1 story
+        currentStoryIndex: 1,   // 0-based → storyIndex=2 > totalStories=1
+        currentStepIndex: 0,
+        halted: false,
+      },
+    };
+    const pos = snapshotToPosition(snapshot, makeWorkflow());
+    expect(pos.storiesDone).toBe(true);
+    expect(pos.level).toBe('epic');
+  });
+
   it('AC7: storiesDone=true when storyIndex exceeds totalStories', () => {
     const snapshot = {
       value: 'processingEpic',
@@ -522,6 +581,31 @@ describe('snapshotToPosition — epic-level steps', () => {
     expect(pos.storiesDone).toBe(true);
     const out = stripAnsi(visualize(pos, { maxWidth: 120 }));
     expect(out).toContain('stories✓');
+  });
+
+  it('AC7: when storiesDone=true, uses epicFlow steps not storyFlow steps', () => {
+    // This verifies the bug fix: storyFlow=['create-story','implement','document']
+    // but when storiesDone=true the parser must switch to epicFlow=['story_flow','retro'].
+    const snapshot = {
+      value: 'processingEpic',
+      context: {
+        epicId: 'e1',
+        epicItems: [{}],        // 1 story
+        currentStoryIndex: 1,   // storiesDone=true
+        currentStepIndex: 0,
+        halted: false,
+      },
+    };
+    const workflow = makeWorkflow(); // storyFlow=[create-story,implement,document], epicFlow=[story_flow,retro]
+    const pos = snapshotToPosition(snapshot, workflow);
+    expect(pos.storiesDone).toBe(true);
+    // Steps must come from epicFlow, not storyFlow
+    const stepNames = pos.steps.map(s => s.name);
+    expect(stepNames).toContain('retro');
+    expect(stepNames).not.toContain('implement');
+    const out = stripAnsi(visualize(pos, { maxWidth: 120 }));
+    expect(out).toContain('retro');
+    expect(out).not.toContain('implement');
   });
 });
 
@@ -569,6 +653,9 @@ describe('snapshotToPosition — defensive edge cases', () => {
 
   it('AC12: returns empty position on malformed snapshot without throwing', () => {
     expect(() => snapshotToPosition({ garbage: true, random: 42 }, makeWorkflow())).not.toThrow();
+    const pos = snapshotToPosition({ garbage: true, random: 42 }, makeWorkflow());
+    expect(pos.steps).toEqual([]);
+    expect(pos.activeStepIndex).toBe(0);
   });
 
   it('AC12: no I/O — function is synchronous and pure', () => {

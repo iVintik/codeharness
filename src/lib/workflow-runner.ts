@@ -7,7 +7,7 @@ import { checkCapabilityConflicts } from './agents/capability-check.js';
 import type { ResolvedWorkflow } from './workflow-parser.js';
 import { parse } from 'yaml';
 import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
-import { saveSnapshot, loadSnapshot, clearSnapshot, clearCheckpointLog, computeConfigHash, loadCheckpointLog, clearAllPersistence, cleanStaleTmpFiles } from './workflow-persistence.js';
+import { saveSnapshot, loadSnapshot, snapshotFileExists, clearSnapshot, computeConfigHash, loadCheckpointLog, clearCheckpointLog, clearAllPersistence, cleanStaleTmpFiles } from './workflow-persistence.js';
 import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth, GateConfig } from './workflow-types.js';
 import { isTaskCompleted } from './workflow-compiler.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
@@ -38,6 +38,7 @@ function isRestorableXStateSnapshot(snapshot: unknown): snapshot is Record<strin
     candidate.value !== null &&
     candidate.value !== undefined &&
     Object.hasOwn(candidate, 'context') &&
+    candidate.context !== null &&
     typeof candidate.context === 'object'
   );
 }
@@ -126,13 +127,15 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   cleanStaleTmpFiles(projectDir);
   let state = readWorkflowState(projectDir);
   if (state.phase === 'completed') {
+    // Previous run completed — clear any stale persistence and no-op.
     clearAllPersistence(projectDir);
     return { success: true, tasksCompleted: 0, storiesProcessed: 0, errors: [], durationMs: 0 };
   }
-  if (state.phase === 'error' || state.phase === 'failed') {
-    const errorCount = state.tasks_completed.filter(t => t.error).length;
-    if (!config.onEvent) info(`Resuming from ${state.phase} state — ${errorCount} previous error(s)`);
-  }
+  // Capture phase BEFORE overwriting — used later to emit resume-context log only
+  // when we actually resume from a snapshot (not when we start fresh). Emitting
+  // "Resuming from failed state" before the snapshot check can produce contradictory
+  // messages when a config change or corrupt file forces a fresh start instead.
+  const priorPhase = state.phase;
   state = { ...state, phase: 'executing', started: state.started || new Date().toISOString(), workflow_name: config.workflow.storyFlow.filter((s) => typeof s === 'string').join(' -> ') };
   writeWorkflowState(state, projectDir);
   try { await checkDriverHealth(config.workflow); } catch (err: unknown) {
@@ -157,6 +160,11 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     epicGroups.get(epicId)!.push(item);
   }
   const configHash = computeConfigHash(config);
+  // Check file existence BEFORE loadSnapshot so we can distinguish a missing
+  // snapshot (no file — normal first run or post-success; YAML crash-recovery
+  // still applies) from a corrupt one (file present but unreadable/invalid —
+  // must reset tasks_completed and start fresh per AC #4).
+  const hadSnapshotFile = snapshotFileExists(projectDir);
   const savedSnapshot = loadSnapshot(projectDir);
   let resumeSnapshot: unknown = null;
   const completedTasks = new Set<string>();
@@ -166,28 +174,78 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
         info('workflow-runner: Resuming from snapshot — config hash matches');
         resumeSnapshot = savedSnapshot.snapshot;
       } else {
-        warn('workflow-runner: Snapshot payload is invalid for restore — starting fresh');
+        warn('workflow-runner: Snapshot payload is invalid for restore — falling back to checkpoint log');
+        try { clearSnapshot(projectDir); }
+        catch { // IGNORE: best-effort cleanup — stale snapshot removal is non-critical
+        }
+        // Config hash matched so checkpoint entries are still valid — load them as
+        // the durable fallback (AD3 safety net) rather than discarding them.
+        const checkpoints = loadCheckpointLog(projectDir);
+        if (checkpoints.length > 0) {
+          info(`workflow-runner: Loaded ${checkpoints.length} checkpoint(s) for semantic skip-based resume (invalid snapshot payload)`);
+          for (const entry of checkpoints) {
+            completedTasks.add(`${entry.storyKey}::${entry.taskName}`);
+          }
+        }
+        // Synthesize tasks_completed from checkpoint log so the gate skip guard
+        // (hasSuccessfulGateCompletionRecord in workflow-story-machine.ts) can fire.
+        // Clearing to [] here would break the AND condition on gate checkpoint skip.
+        const synthesized1 = checkpoints.map(e => ({ task_name: e.taskName, story_key: e.storyKey, completed_at: e.completedAt }));
+        state = { ...state, tasks_completed: synthesized1, iteration: 0, evaluator_scores: [], circuit_breaker: { triggered: false, reason: null, score_history: [] }, trace_ids: state.trace_ids ?? [] };
+        writeWorkflowState(state, projectDir);
       }
     } else {
-      warn(`workflow-runner: Snapshot config changed (saved: ${savedSnapshot.configHash.slice(0, 8)}, current: ${configHash.slice(0, 8)}) — starting fresh`);
+      // Config changed — XState snapshot is stale but the checkpoint log is config-agnostic.
+      // Load checkpoints for semantic skip-based resume (story 26-3 AC2/3/5/8/11).
+      const checkpoints = loadCheckpointLog(projectDir);
+      warn(`workflow-runner: Snapshot config changed (saved: ${savedSnapshot.configHash.slice(0, 8)}, current: ${configHash.slice(0, 8)}) — using checkpoint log for resume`);
       try { clearSnapshot(projectDir); }
       catch { // IGNORE: best-effort cleanup — stale snapshot removal is non-critical
       }
-      // Stale checkpoint entries belong to the old config — clear them so they
-      // do not survive into the fresh run. Checkpoint log fallback (story 26-3)
-      // is deferred; on config change we always start from task 1.
-      try { clearCheckpointLog(projectDir); }
-      catch { // IGNORE: best-effort checkpoint log clear — must not block a fresh start
+      if (checkpoints.length > 0) {
+        info(`workflow-runner: Loaded ${checkpoints.length} checkpoint(s) for semantic skip-based resume`);
+        for (const entry of checkpoints) {
+          completedTasks.add(`${entry.storyKey}::${entry.taskName}`);
+        }
       }
+      // Synthesize tasks_completed from checkpoint log so the gate skip guard
+      // (hasSuccessfulGateCompletionRecord in workflow-story-machine.ts) can fire.
+      // Clearing to [] here would break the AND condition on gate checkpoint skip.
+      const synthesized2 = checkpoints.map(e => ({ task_name: e.taskName, story_key: e.storyKey, completed_at: e.completedAt }));
+      state = { ...state, tasks_completed: synthesized2, iteration: 0, evaluator_scores: [], circuit_breaker: { triggered: false, reason: null, score_history: [] }, trace_ids: state.trace_ids ?? [] };
+      writeWorkflowState(state, projectDir);
     }
-  } else {
-    // No snapshot — check for orphaned checkpoint log (snapshot cleared but checkpoint clear failed).
-    // These entries are stale and would cause incorrect skips if used on a future config-mismatch resume.
+  } else if (hadSnapshotFile) {
+    // Snapshot file existed but loadSnapshot() returned null → corrupt or
+    // unreadable file. Load checkpoint log as the durable fallback (AD3 safety
+    // net). The checkpoint log is config-agnostic so its entries remain valid
+    // even though we cannot read the snapshot's configHash.
     const orphanedEntries = loadCheckpointLog(projectDir);
     if (orphanedEntries.length > 0) {
-      warn('workflow-runner: Clearing orphaned checkpoint log — no snapshot present');
+      info(`workflow-runner: Loaded ${orphanedEntries.length} checkpoint(s) for semantic skip-based resume (corrupt snapshot)`);
+      for (const entry of orphanedEntries) {
+        completedTasks.add(`${entry.storyKey}::${entry.taskName}`);
+      }
+    }
+    const synthesized3 = orphanedEntries.map(e => ({ task_name: e.taskName, story_key: e.storyKey, completed_at: e.completedAt }));
+    state = { ...state, tasks_completed: synthesized3, iteration: 0, evaluator_scores: [], circuit_breaker: { triggered: false, reason: null, score_history: [] }, trace_ids: state.trace_ids ?? [] };
+    writeWorkflowState(state, projectDir);
+  } else {
+    // No snapshot file — any leftover checkpoint log is orphaned stale state from a
+    // prior run whose success cleanup only partially completed. Clear it so the next
+    // run starts fresh instead of semantically skipping tasks from stale entries.
+    const checkpoints = loadCheckpointLog(projectDir);
+    if (checkpoints.length > 0) {
+      warn(`workflow-runner: Clearing orphaned checkpoint log with ${checkpoints.length} checkpoint(s) because no snapshot file exists`);
       clearCheckpointLog(projectDir);
     }
+  }
+  // Emit resume-context log only when we actually have a valid snapshot to resume
+  // from. Logging "Resuming from failed state" before the snapshot check produced
+  // contradictory output when config change or corruption forced a fresh start.
+  if (resumeSnapshot !== null && (priorPhase === 'error' || priorPhase === 'failed')) {
+    const errorCount = state.tasks_completed.filter(t => t.error).length;
+    if (!config.onEvent) info(`Resuming from ${priorPhase} state — ${errorCount} previous error(s)`);
   }
   const runInput: RunMachineContext = {
     config, storyFlowTasks,

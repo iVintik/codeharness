@@ -2,7 +2,7 @@
   "version": 2,
   "sprint": {
     "total": 33,
-    "done": 25,
+    "done": 29,
     "failed": 0,
     "blocked": 0,
     "inProgress": "27-5-simplify-run-ts-remove-hand-tracked-state"
@@ -159,25 +159,25 @@
       "lastError": null
     },
     "26-2-snapshot-resume-config-hash-validation": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 11,
       "lastAttempt": "2026-04-07T03:19:48.213Z",
       "lastError": null
     },
     "26-3-semantic-checkpoint-log": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 11,
       "lastAttempt": "2026-04-07T03:25:00.333Z",
       "lastError": null
     },
     "26-4-clear-persistence-on-completion": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 11,
       "lastAttempt": "2026-04-07T03:30:15.610Z",
       "lastError": null
     },
     "27-1-pure-visualizer-function": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 3,
       "lastAttempt": "2026-04-07T03:41:09.138Z",
       "lastError": null

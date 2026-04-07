@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "27-1-pure-visualizer-function:quality",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T14:37:17.250Z",
+  "cost_usd": null,
+  "duration_ms": 127507,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m reviewing the implementation for `27-1-pure-visualizer-function:quality` by locating the story artifacts and the related code paths first, then I’ll inspect correctness, security, architecture fit, and AC coverage before issuing a verdict.I’ve identified the story spec and the implementation surface. Next I’m reading the story acceptance criteria alongside `workflow-visualizer` and its tests to check whether the current code actually satisfies story 27-1, not just whether the broader Epic 27 work compiles.The spec and tests are diverging in one place already: the story’s AC4 defines an active-first window that collapses the first 5 completed steps for an 8-step flow, while the implementation/test suite now enforce a centered window instead. I’m checking whether that’s an intentional design update with coverage elsewhere or a plain acceptance-criteria miss.I have one concrete spec miss. I’m running lint as well so the metrics tag isn’t guessing, then I’ll finalize the review with exact findings and AC coverage status.1. High: AC4 is not implemented as specified. [`src/lib/workflow-visualizer.ts:73`](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-visualizer.ts#L73) centers the sliding window around `activeStepIndex`, so for the story’s required case of 8 steps with the 6th step active and `maxStepSlots=5`, it yields `collapsedBefore=3` and `collapsedAfter=0`. The AC requires an active-first window with a `[5✓]` prefix and a `…2 more` suffix. The test suite was changed to validate the centered behavior instead of the story requirement in [`src/lib/__tests__/workflow-visualizer.test.ts:157`](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-visualizer.test.ts#L157), so this miss is currently masked.\n\nNo direct security issue stood out in this implementation. The module boundary is otherwise acceptable: the renderer remains pure and does not pull in runner or machine modules. `npm run build`, `npm run lint`, and the visualizer unit suite all pass locally, but AC coverage is incomplete because AC4 is asserted against different semantics than the story defines.\n\n<verdict>fail</verdict>\n<issues>\nAC4 sliding-window behavior does not match the story specification. The implementation uses centered windowing, while the acceptance criteria require collapsing the first 5 completed steps and showing the remaining 2 steps after the active slot for the canonical 8-step example. The tests were updated to the new behavior instead of protecting the original AC.\n</issues>\n<metrics tests-passed=\"48\" tests-failed=\"0\" lint-warnings=\"0\" issues=\"1\" />",
+  "acceptanceCriteria": []
+}

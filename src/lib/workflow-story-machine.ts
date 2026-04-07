@@ -23,11 +23,22 @@ import type { StoryContext, StoryFlowInput, StoryFlowOutput, GateContext, Dispat
 const storyStepActor = fromPromise(async ({ input, signal }: { input: StoryContext; signal: AbortSignal }): Promise<StoryContext> => {
   let ctx: StoryContext = { ...input, config: { ...input.config, abortSignal: signal } };
   const storyKey = ctx.item.key;
+  const hasSuccessfulGateCompletionRecord = (taskName: string): boolean =>
+    ctx.workflowState.tasks_completed.some(
+      (checkpoint) => checkpoint.task_name === taskName && checkpoint.story_key === storyKey && !checkpoint.error,
+    );
 
   for (const step of ctx.config.workflow.storyFlow) {
     if (signal.aborted) throw Object.assign(new Error('Story interrupted'), { name: 'AbortError' });
 
     if (isGateConfig(step)) {
+      // Checkpoint skip guard: skip gates completed in a previous run (config-change resume)
+      const completedTasksForGate = ctx.completedTasks ?? new Set<string>();
+      if (completedTasksForGate.has(`${storyKey}::${step.gate}`) && hasSuccessfulGateCompletionRecord(step.gate)) {
+        info(`workflow-runner: Skipping ${step.gate} for ${storyKey} — checkpoint found`);
+        continue;
+      }
+
       // Build gate context, reset iteration/scores/cb for fresh gate
       const gateWorkflowState = {
         ...ctx.workflowState,
@@ -52,11 +63,20 @@ const storyStepActor = fromPromise(async ({ input, signal }: { input: StoryConte
       gateActor.start();
       const gateSnap = await waitFor(gateActor, (s) => s.status === 'done', {});
       const gateOut = gateSnap.output as GateOutput;
+      const gatePassed = gateSnap.value === 'passed';
 
       // Merge gate output back into story context
       ctx = {
         ...ctx,
-        workflowState: gateOut.workflowState,
+        workflowState: gatePassed
+          ? {
+            ...gateOut.workflowState,
+            tasks_completed: [
+              ...gateOut.workflowState.tasks_completed,
+              { task_name: step.gate, story_key: storyKey, completed_at: new Date().toISOString() },
+            ],
+          }
+          : gateOut.workflowState,
         errors: [...ctx.errors, ...gateOut.errors],
         tasksCompleted: ctx.tasksCompleted + gateOut.tasksCompleted,
         lastContract: gateOut.lastContract,
@@ -65,6 +85,14 @@ const storyStepActor = fromPromise(async ({ input, signal }: { input: StoryConte
       };
 
       if (gateOut.halted) break;
+
+      if (gatePassed) {
+        try {
+          const projectDir = ctx.config.projectDir ?? process.cwd();
+          appendCheckpoint({ storyKey, taskName: step.gate, completedAt: new Date().toISOString() }, projectDir);
+        } catch { // IGNORE: checkpoint append is best-effort
+        }
+      }
       continue;
     }
 

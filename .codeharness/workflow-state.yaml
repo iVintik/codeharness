@@ -1,0 +1,141 @@
+workflow_name: create-story -> implement -> document
+started: 2026-04-07T03:15:38.593Z
+iteration: 0
+phase: completed
+tasks_completed:
+  - task_name: create-story
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-07T03:18:41.777Z
+    session_id: 7fe6e584-174f-43af-8178-b3d342d402cb
+  - task_name: implement
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-07T03:19:48.198Z
+    session_id: e376bf25-8934-4d32-9cf6-8eba2cd5e1be
+  - task_name: document
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-07T03:20:19.267Z
+    session_id: 38463b1b-2135-4216-b1a5-8ebb4cd07eb7
+  - task_name: create-story
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-07T03:23:46.829Z
+    session_id: 57a6c249-d32b-4130-bcf4-cee558d04823
+  - task_name: implement
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-07T03:25:00.318Z
+    session_id: 76f3bad9-b071-47cc-8e44-92a384b1865b
+  - task_name: document
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-07T03:26:23.119Z
+    session_id: 3318934e-59b6-4501-afd3-02c36002c723
+  - task_name: create-story
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-07T03:29:17.849Z
+    session_id: 34b6fbeb-798c-4ee5-be7c-89217c388570
+  - task_name: implement
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-07T03:30:15.593Z
+    session_id: 03621b73-e51c-47de-beab-b66ebf422719
+  - task_name: document
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-07T03:31:15.069Z
+    session_id: ac9ec223-27b7-432c-8f88-ace136059eb1
+  - task_name: retro
+    story_key: __epic_26__
+    completed_at: 2026-04-07T03:34:00.377Z
+    session_id: 2a005fb0-8541-4d8e-8baf-f5611e84b613
+  - task_name: create-story
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-07T03:37:36.833Z
+    session_id: 3d112020-1ad7-4156-bbbc-1a15d8479046
+  - task_name: implement
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-07T03:41:09.123Z
+    session_id: cdd2751a-94f9-432d-9126-58d35652328f
+  - task_name: document
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-07T03:41:35.059Z
+    session_id: f0be9655-556d-4220-b84f-9441c28dda77
+  - task_name: create-story
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-07T03:45:12.669Z
+    session_id: 84e05058-d7c2-4bbb-9379-50fd30c7a639
+  - task_name: implement
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-07T03:51:25.405Z
+    session_id: eb26e5e3-f727-4a8d-93fe-61f03967807e
+  - task_name: document
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-07T03:52:00.014Z
+    session_id: 3642fb16-7246-43d4-9969-a92a9d500b93
+  - task_name: create-story
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-07T03:55:29.464Z
+    session_id: 7faa6f08-3d82-4637-ab3c-05e8c34c69cc
+  - task_name: implement
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-07T04:01:48.883Z
+    session_id: bb892257-7238-48a8-88a4-09bf0ceca464
+  - task_name: document
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-07T04:02:58.758Z
+    session_id: bf1976e8-c416-4878-ae50-9084cb83eddf
+  - task_name: create-story
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-07T04:09:27.350Z
+    session_id: eb0edbc3-5ba8-4386-8f02-32f0703fbcfc
+  - task_name: implement
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-07T04:14:40.519Z
+    session_id: c9721d9f-699d-42a8-9149-7f5eb7b819f1
+  - task_name: document
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-07T04:16:43.943Z
+    session_id: fb5ef97f-cda8-480e-aead-2b03f3cb334b
+  - task_name: create-story
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-07T04:20:05.298Z
+    session_id: 336f7d47-ab16-4480-a1e8-b60c5eec7a5f
+  - task_name: implement
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-07T04:28:06.515Z
+    session_id: 41741e6a-fbda-4816-aa82-a97b9150e19e
+  - task_name: document
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-07T04:29:27.062Z
+    session_id: c566deff-418f-4e86-b7a5-11f80a27abfa
+  - task_name: retro
+    story_key: __epic_27__
+    completed_at: 2026-04-07T04:33:51.077Z
+    session_id: 050d9f91-34d2-4a5c-a00c-ec3c1929a984
+evaluator_scores: []
+circuit_breaker:
+  triggered: false
+  reason: null
+  score_history: []
+trace_ids:
+  - ch-run-1775531738592-0-create-story
+  - ch-run-1775531738592-0-implement
+  - ch-run-1775531738592-0-document
+  - ch-run-1775531738592-0-create-story
+  - ch-run-1775531738592-0-implement
+  - ch-run-1775531738592-0-document
+  - ch-run-1775531738592-0-create-story
+  - ch-run-1775531738592-0-implement
+  - ch-run-1775531738592-0-document
+  - ch-run-1775531738592-0-retro
+  - ch-run-1775531738592-0-create-story
+  - ch-run-1775531738592-0-implement
+  - ch-run-1775531738592-0-document
+  - ch-run-1775531738592-0-create-story
+  - ch-run-1775531738592-0-implement
+  - ch-run-1775531738592-0-document
+  - ch-run-1775531738592-0-create-story
+  - ch-run-1775531738592-0-implement
+  - ch-run-1775531738592-0-document
+  - ch-run-1775531738592-0-create-story
+  - ch-run-1775531738592-0-implement
+  - ch-run-1775531738592-0-document
+  - ch-run-1775531738592-0-create-story
+  - ch-run-1775531738592-0-implement
+  - ch-run-1775531738592-0-document
+  - ch-run-1775531738592-0-retro

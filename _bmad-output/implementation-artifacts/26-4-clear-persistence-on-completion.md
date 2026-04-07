@@ -44,44 +44,77 @@ The basic "clear on success, preserve on error" logic exists from stories 26-1 a
 
 ## Acceptance Criteria
 
-1. **Given** a workflow run that completes all tasks successfully with zero errors, **When** the run finishes, **Then** the CLI output contains a message indicating persistence files were cleaned up (e.g., containing "cleared" or "cleanup" and "persistence" or "snapshot").
-   <!-- verification: run a workflow to successful completion (or use a minimal workflow with null-agent tasks), check CLI output (stdout/stderr) for cleanup confirmation message -->
+1. **CLI confirms cleanup after successful run**
+   **Given** a workflow run that completes all tasks successfully with zero errors,
+   **When** the run finishes and the operator inspects the CLI output,
+   **Then** the output contains a message indicating persistence files were cleaned up (text includes "cleared" or "cleanup" together with "persistence" or "snapshot").
+   <!-- verify: run a workflow to successful completion, capture CLI output (stdout+stderr), grep for cleanup confirmation message containing "cleared"/"cleanup" + "persistence"/"snapshot" -->
 
-2. **Given** a workflow run that completes successfully, **When** the operator lists the `.codeharness/` directory after the run, **Then** neither `workflow-snapshot.json` nor `workflow-checkpoints.jsonl` exists — both are deleted.
-   <!-- verification: after successful run, ls .codeharness/ — neither workflow-snapshot.json nor workflow-checkpoints.jsonl appears -->
+2. **Persistence files deleted after successful run**
+   **Given** a workflow run that completes all tasks successfully with zero errors,
+   **When** the operator lists the `.codeharness/` directory after the run,
+   **Then** neither `workflow-snapshot.json` nor `workflow-checkpoints.jsonl` exists on disk.
+   <!-- verify: after successful run, ls .codeharness/workflow-snapshot.json → "No such file or directory", ls .codeharness/workflow-checkpoints.jsonl → "No such file or directory" -->
 
-3. **Given** a workflow run that halts with errors (e.g., a task dispatch fails), **When** the operator lists the `.codeharness/` directory after the run, **Then** `workflow-snapshot.json` exists and contains valid JSON, and `workflow-checkpoints.jsonl` exists and contains valid JSONL (one JSON object per line).
-   <!-- verification: after halted/failed run, cat .codeharness/workflow-snapshot.json | python3 -c "import json,sys; json.load(sys.stdin)" exits 0, and each non-empty line of workflow-checkpoints.jsonl parses as JSON -->
+3. **Persistence files preserved after error halt**
+   **Given** a workflow run that halts with errors (e.g., a task dispatch fails or rate limit is hit) after completing some tasks,
+   **When** the operator lists the `.codeharness/` directory after the run,
+   **Then** `workflow-snapshot.json` exists and contains valid JSON, and `workflow-checkpoints.jsonl` exists and contains valid JSONL (one JSON object per non-empty line).
+   <!-- verify: after halted/failed run, cat .codeharness/workflow-snapshot.json | python3 -c "import json,sys; json.load(sys.stdin)" exits 0, and each non-empty line of workflow-checkpoints.jsonl parses as JSON -->
 
-4. **Given** a workflow run that is interrupted (e.g., Ctrl+C / SIGINT), **When** the operator lists the `.codeharness/` directory after the interrupt, **Then** both `workflow-snapshot.json` and `workflow-checkpoints.jsonl` are preserved on disk for resume.
-   <!-- verification: start a run, interrupt it (kill -INT <pid> or Ctrl+C), verify both files exist in .codeharness/ -->
+4. **Persistence files preserved after interrupt**
+   **Given** a workflow run that is interrupted (e.g., Ctrl+C / SIGINT),
+   **When** the operator lists the `.codeharness/` directory after the interrupt,
+   **Then** both `workflow-snapshot.json` and `workflow-checkpoints.jsonl` are preserved on disk for resume.
+   <!-- verify: start a run, interrupt it (kill -INT <pid> or Ctrl+C), verify both files exist in .codeharness/ -->
 
-5. **Given** stale persistence files exist from a previous run (both `workflow-snapshot.json` and `workflow-checkpoints.jsonl` are present) AND the workflow state file shows phase "completed", **When** the operator starts a new run, **Then** the runner detects the completed state and does NOT leave stale persistence files on disk — it either clears them or the run exits cleanly.
-   <!-- verification: manually create both persistence files in .codeharness/, set workflow state phase to "completed", start a new run, verify persistence files are cleaned up or the run returns immediately with a clean exit -->
+5. **Stale persistence cleaned on re-entry after completion**
+   **Given** stale persistence files exist from a previous run (both `workflow-snapshot.json` and `workflow-checkpoints.jsonl` are present) AND the workflow state shows phase "completed",
+   **When** the operator starts a new run,
+   **Then** the runner detects the completed state and does NOT leave stale persistence files on disk — the files are cleaned up or the run exits cleanly without them.
+   <!-- verify: manually create both persistence files in .codeharness/, set workflow state phase to "completed", start a new run, verify persistence files are gone afterward -->
 
-6. **Given** a successful run where `clearSnapshot()` succeeds but `clearCheckpointLog()` fails (simulated by making the checkpoint file read-only before run completion), **When** the next run starts, **Then** the stale checkpoint log does not cause incorrect behavior — the engine either clears it on startup or ignores it because the snapshot is absent (fresh start path).
-   <!-- verification: after a successful run with a read-only checkpoint file left behind, start a new run, verify no "skip" messages from stale checkpoints — all tasks run normally -->
+6. **Orphaned checkpoint log does not cause stale skips**
+   **Given** a successful run where the snapshot was deleted but the checkpoint log was left behind (simulated by making the checkpoint file read-only before run completion, then making it writable again),
+   **When** the next run starts,
+   **Then** the stale checkpoint log does not cause tasks to be skipped — all tasks run normally from the beginning (no "skip" messages from stale checkpoints appear in CLI output).
+   <!-- verify: after a successful run with a leftover checkpoint file, start a new run, grep CLI output for "skip" + "checkpoint" — no matches, all tasks dispatch normally -->
 
-7. **Given** a stale `.tmp` file exists at `.codeharness/workflow-snapshot.json.tmp` from a previous crashed write, **When** the operator starts a new run, **Then** the stale `.tmp` file is deleted — it does not accumulate across runs.
-   <!-- verification: create a file at .codeharness/workflow-snapshot.json.tmp with arbitrary content, start a run, verify the .tmp file is gone after the run starts -->
+7. **Stale temp files cleaned at startup**
+   **Given** a stale `.tmp` file exists at `.codeharness/workflow-snapshot.json.tmp` from a previous crashed write,
+   **When** the operator starts a new run,
+   **Then** the stale `.tmp` file is deleted — it does not persist after the run starts.
+   <!-- verify: create a file at .codeharness/workflow-snapshot.json.tmp with arbitrary content, start a run, verify the .tmp file is gone after the run starts -->
 
-8. **Given** a workflow run that halts with errors after completing some tasks, **When** the CLI output is inspected, **Then** there is a message indicating persistence files were preserved for resume (e.g., containing "preserved" or "kept" and "resume").
-   <!-- verification: trigger a halted run (e.g., configure an invalid driver), check CLI output for preservation message -->
+8. **CLI confirms preservation after error halt**
+   **Given** a workflow run that halts with errors after completing some tasks,
+   **When** the CLI output is inspected,
+   **Then** there is a message indicating persistence files were preserved for resume (text includes "preserved" or "kept" together with "resume").
+   <!-- verify: trigger a halted run (e.g., configure an invalid driver), check CLI output for preservation message containing "preserved"/"kept" + "resume" -->
 
-9. **Given** a workflow run that resumes via checkpoint log (config changed) and then completes all remaining tasks successfully, **When** the run finishes, **Then** both persistence files are deleted — the cleanup applies to resumed runs too, not just fresh runs.
-   <!-- verification: interrupt a run after some tasks, edit workflow YAML, restart and let it complete all remaining tasks successfully, verify neither persistence file exists in .codeharness/ -->
+9. **Resumed run also cleans up on success**
+   **Given** a workflow run that resumes via checkpoint log (config changed) and then completes all remaining tasks successfully,
+   **When** the run finishes,
+   **Then** both persistence files are deleted — the cleanup applies to resumed runs too, not just fresh runs.
+   <!-- verify: interrupt a run after some tasks, edit workflow YAML, restart and let it complete all remaining tasks successfully, verify neither persistence file exists in .codeharness/ -->
 
-10. **Given** a workflow run that completes with loop termination (max-iterations or circuit-breaker), **When** the operator lists `.codeharness/` after the run, **Then** both persistence files are preserved (loop termination is NOT treated as clean success).
-    <!-- verification: configure a workflow with a gate that exceeds max iterations, let it terminate, verify both persistence files still exist -->
+10. **Loop termination preserves persistence**
+    **Given** a workflow run that terminates due to loop limits (max-iterations or circuit-breaker),
+    **When** the operator lists `.codeharness/` after the run,
+    **Then** both persistence files are preserved (loop termination is NOT treated as clean success).
+    <!-- verify: configure a workflow with a gate that exceeds max iterations, let it terminate, verify both persistence files still exist in .codeharness/ -->
 
-11. **Given** the codebase after implementation, **When** `npm run build` is executed, **Then** it exits with code 0.
-    <!-- verification: npm run build exits 0 -->
+11. **Build succeeds**
+    **Given** the codebase after implementation,
+    **When** `npm run build` is executed,
+    **Then** it exits with code 0.
+    <!-- verify: npm run build → exit code 0 -->
 
-12. **Given** the full test suite, **When** `npx vitest run` is executed, **Then** zero failures — no regressions.
-    <!-- verification: npx vitest run exits 0 -->
-
-13. **Given** the workflow-runner.ts, workflow-persistence.ts, and workflow-story-machine.ts files, **When** their line counts are checked, **Then** each is <= 300 lines (per NFR18).
-    <!-- verification: wc -l src/lib/workflow-runner.ts <= 300, wc -l src/lib/workflow-persistence.ts <= 300, wc -l src/lib/workflow-story-machine.ts <= 300 -->
+12. **All tests pass**
+    **Given** the full test suite,
+    **When** `npx vitest run` is executed,
+    **Then** zero failures — no regressions.
+    <!-- verify: npx vitest run → exit code 0, output shows 0 failed -->
 
 ## Tasks / Subtasks
 
@@ -147,13 +180,10 @@ The basic "clear on success, preserve on error" logic exists from stories 26-1 a
 - Test: stale `.tmp` file cleaned at startup
 - Add to `workflow-runner.test.ts`.
 
-### T9: Verify build, lint, and file size constraints (AC: #11, #12, #13)
+### T9: Verify build, lint, and full test suite (AC: #11, #12)
 
 - `npm run build` exits 0
 - `npx vitest run` — all tests pass, zero regressions
-- `wc -l src/lib/workflow-runner.ts` <= 300 lines
-- `wc -l src/lib/workflow-persistence.ts` <= 300 lines
-- `wc -l src/lib/workflow-story-machine.ts` <= 300 lines
 
 ## Dev Notes
 

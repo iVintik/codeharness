@@ -4,13 +4,13 @@
   "storyId": "26-3-semantic-checkpoint-log",
   "driver": "claude-code",
   "model": "claude-opus-4-6",
-  "timestamp": "2026-04-06T18:27:25.834Z",
-  "cost_usd": 0.6316431499999999,
-  "duration_ms": 194941,
+  "timestamp": "2026-04-07T03:23:46.829Z",
+  "cost_usd": 0.53132495,
+  "duration_ms": 207545,
   "changedFiles": [
     "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/26-3-semantic-checkpoint-log.md"
   ],
   "testResults": null,
-  "output": "Now let me check the current state of the relevant source files to understand what exists:Now let me check the story template patch and the 26-1 story for complete format reference:Now I have everything. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/26-3-semantic-checkpoint-log.md`.\n\n**Summary:**\n- **14 ACs** — all blind-verifiable via CLI output inspection (`docker logs`/`docker exec`), file system checks (`cat`, `ls`, `wc -l`), and contract directory inspection. Zero references to source code internals, data structures, or complexity.\n- **10 tasks** covering: types, persistence functions (append/load/clear JSONL), checkpoint appending on task completion, completed-tasks set construction on config-mismatch resume, skip guard in story machine, cleanup on success, snapshot fast-path precedence, and full test coverage.\n- **Dev notes** cover: JSONL format rationale, machine hierarchy flow for the completedTasks set, snapshot-vs-checkpoint decision table, gate checkpoint limitations, file size budget, and Set serialization gotcha.\n\nKey design decisions:\n- Checkpoint log at `.codeharness/workflow-checkpoints.jsonl` — append-only JSONL, crash-safe\n- Only consulted when snapshot is invalid (config hash mismatch) — snapshot is always the fast path\n- Skip guard is pure function in story machine, consistent with architecture's guard rules\n- Both files cleaned up on successful completion, preserved on error/halt/interrupt",
+  "output": "Let me read the AD3 persistence section and the sibling stories for full context.Now I have full context. The existing 26-3 story has ACs that reference internals (guards, dispatch actors, line counts, source files). I need to rewrite it with blind-QA-friendly ACs.Done. Key changes from the original story spec:\n\n**Removed/rewritten ACs:**\n- **Old AC #11** (referenced \"guard returns true\", \"dispatch actor\", \"driver process spawned\") → **New AC #11** reframed as observable behavior: \"no dispatch output appears for story X / implement\"\n- **Old AC #14** (checked source file line counts — implementation detail) → **Removed entirely**. File size constraints are dev concerns, not blind-QA-verifiable behavior.\n\n**All 13 ACs are now verifiable by a blind QA agent using:**\n- `cat` / `ls` on `.codeharness/` files (AC #1, #8, #9, #10)\n- CLI output grep for specific text patterns (AC #2, #3, #4, #5, #6, #7, #11)\n- `npm run build` / `npx vitest run` exit codes (AC #12, #13)\n\n**No AC references:** source code paths, internal data structures, guard functions, O(1) complexity, line counts, or implementation details.",
   "acceptanceCriteria": []
 }

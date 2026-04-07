@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "taskName": "document",
+  "storyId": "27-5-simplify-run-ts-remove-hand-tracked-state",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-07T04:29:27.062Z",
+  "cost_usd": 0.2218927,
+  "duration_ms": 80531,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "<user-docs>\n\n# Story 27-5: Simplified TUI State Management\n\n## What Changed\n\nThe `codeharness run` TUI (terminal user interface) now derives all display state directly from the workflow engine instead of maintaining its own shadow copies. This is an internal simplification — the TUI displays the same information as before, but the underlying code is leaner and eliminates an entire class of state-synchronization bugs.\n\n## What You See During `codeharness run`\n\nThe TUI layout remains unchanged:\n\n```\ncodeharness run │ 3m 42s │ $0.18 spent │ [q to quit]\n────────────────────────────────────────────────────────\nEpic 17 [2/4]  create✓ → ⟲implement… → check → doc\n────────────────────────────────────────────────────────\n ▍ Using tool: Edit src/lib/parser.ts …\n────────────────────────────────────────────────────────\n ● story-42  Creating parser module    $0.08\n ✓ story-41  Done                      $0.10\n ○ story-43  Pending\n```\n\n### Header\n\nShows the current run's elapsed time, accumulated cost, and a quit hint. The elapsed timer ticks continuously — it no longer freezes during long-running tasks.\n\n### Workflow Visualization Row\n\nA single-line, color-coded pipeline of the current story's (or epic's) tasks:\n\n- **Bold** = currently active task\n- **Dim + ✓** = completed task\n- **Red + ✗** = failed task\n- **Dim + ⊘** = skipped task\n\nWhen a story completes and the next story begins, this row resets cleanly — no leftover markers from the previous story bleed through.\n\nWhen all stories finish and epic-level tasks begin (deploy, verify, retro), the row switches to show the epic-level pipeline automatically.\n\n### Activity Section\n\nReal-time streaming output from the currently running task — tool calls, text output, progress indicators. Unchanged from previous behavior.\n\n### Story List\n\nShows each story's status (done, in-progress, pending, failed) with per-story cost. Unchanged from previous behavior.\n\n## Behavioral Improvements\n\n### Cost tracking is monotonic\nThe accumulated cost in the header only increases when a task finishes. It does not jump, reset, or show intermediate values mid-task.\n\n### Error display is informative\nWhen a task fails (driver error, rate limit, etc.), the TUI shows the failed task name and story key. The story list marks that story red, and the workflow row marks the failed step with ✗. The UI does not crash or freeze.\n\n### Quiet mode matches full mode\nRunning `codeharness run --quiet` suppresses the TUI but prints a final summary with the same total cost, stories processed, tasks completed, and elapsed time that the full TUI header would have shown.\n\n## No Action Required\n\nThis change is fully internal. There are no new flags, no configuration changes, and no migration steps. If you update `codeharness`, the improved TUI state management is active immediately.\n\n</user-docs>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow with multiple story-level tasks (e.g., `create-story`, `implement`, `check`, `document`), **When** the user runs `codeharness run` and a task starts, **Then** the TUI header displays the current task name and story key — matching the task name shown in the workflow visualization row. The header and the workflow row agree on which task is active. <!-- verification: codeharness run on a multi-task workflow → observe header shows task name (e.g., \"implement\") that matches the highlighted step in the workflow visualization row -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow run processing multiple stories, **When** story N completes and story N+1 begins, **Then** the workflow visualization row resets to show the new story's task pipeline from the beginning (first task active), and the header updates to show the new story key. No stale state from story N appears in the visualization. <!-- verification: codeharness run on a multi-story sprint → watch the workflow visualization row reset when a new story starts; confirm no leftover \"done\" markers from the previous story persist in the new story's pipeline -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow with both story-level and epic-level tasks (e.g., `deploy`, `verify`, `retro` after all stories), **When** the engine transitions from story processing to epic-level tasks, **Then** the workflow visualization row updates to show the epic-level pipeline, and the header reflects the epic-level task name. The transition is visible without manual intervention. <!-- verification: codeharness run on a workflow with epic-level steps → observe the workflow visualization row changes from showing story tasks to showing epic tasks (e.g., \"deploy → ⟲verify → retro\") when all stories are done -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow run that has completed 3 tasks with known costs, **When** the user observes the TUI header after the 3rd task completes, **Then** the accumulated cost shown in the header equals the sum of all completed task costs. The cost only increases when a task finishes — it does not jump, reset, or show intermediate values. <!-- verification: codeharness run → note the cost after each task completes; verify it increases monotonically and the final value equals the sum of individual task costs -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a workflow run in progress, **When** the user observes the TUI for 10+ seconds without any task starting or completing, **Then** the elapsed time counter in the header continues to update (it does not freeze). The rest of the header remains stable — no flickering, no stale task names appearing. <!-- verification: codeharness run → during a long-running task, watch the header; confirm elapsed time ticks up and no other header fields change unexpectedly -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a workflow run in `--quiet` mode, **When** the run completes, **Then** the final summary line shows the correct total cost, stories processed count, tasks completed count, and elapsed time — identical to what the non-quiet TUI header would have shown at completion. <!-- verification: codeharness run --quiet → compare the final summary output (cost, stories, tasks, time) against a non-quiet run of the same workflow; values should match -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a workflow where a dispatch task fails (e.g., driver error, rate limit), **When** the failure occurs, **Then** the TUI shows an error message identifying the failed task name and story key, the story list marks that story as failed (red), and the workflow visualization row marks that step as failed. No crash, no frozen UI. <!-- verification: codeharness run on a workflow where a task is expected to fail → observe error message appears with task name and story key; story list shows failed status; workflow row shows failed step marker -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** `src/commands/run.ts` after this story is implemented, **When** a developer searches the `onEvent` handler for the variables `inEpicPhase`, `taskStates`, `taskMeta`, `storyFlowTasks`, `epicLoopTasks`, or `headerRefresh`, **Then** none of these variables exist in the file. The `onEvent` handler body is reduced to forwarding events and tracking only `totalCostUsd` and `storiesDone`. <!-- verification: grep -c \"inEpicPhase\\|taskStates\\|taskMeta\\|storyFlowTasks\\|epicLoopTasks\\|headerRefresh\" src/commands/run.ts → returns 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** `src/commands/run.ts` after this story is implemented, **When** a developer counts the lines in the file, **Then** it is shorter than its current 610 lines. Target: ≤400 lines (the `onEvent` handler alone should shrink from ~150 lines to ~50 lines). <!-- verification: wc -l src/commands/run.ts → value is ≤ 400 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the `renderer.updateWorkflowState()` method (legacy hand-tracked flow graph), **When** the developer searches `run.ts` for calls to `updateWorkflowState`, **Then** zero calls remain in the sequential execution path. All workflow visualization goes through `updateWorkflowRow()` (inspect API path). <!-- verification: grep -c \"updateWorkflowState\" src/commands/run.ts → returns 0 (in sequential path; parallel path may retain it temporarily) -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the full test suite, **When** `npm test` is executed, **Then** all existing tests pass with zero regressions. <!-- verification: npm test exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the build pipeline, **When** `npm run build` is executed, **Then** the build succeeds with exit code 0. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    }
+  ]
+}

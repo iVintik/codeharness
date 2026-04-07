@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "27-1-pure-visualizer-function",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-07T03:37:36.833Z",
+  "cost_usd": 1.0009314,
+  "duration_ms": 216422,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/27-1-pure-visualizer-function.md"
+  ],
+  "testResults": null,
+  "output": "Now let me check the current state of the relevant source files:Now let me look at a recent completed story to see the exact format expected:Now I have everything I need. Let me also check what files exist in the machines directory to understand the current state:Now let me check what the run.ts (TUI) currently looks like to understand the hand-tracked state that will eventually be replaced:I have all the context needed. Now let me write the story spec.Story spec written to `_bmad-output/implementation-artifacts/27-1-pure-visualizer-function.md`.\n\n**Summary:**\n- 12 ACs, all verifiable via `npm run build`, `npx vitest run`, or `wc -l` — no source code inspection required by QA\n- 7 tasks: types (T1), scope prefix (T2), step rendering (T3), gate rendering (T4), sliding window (T5), width enforcement + entry point (T6), tests (T7)\n- Deliberately decoupled from snapshot parsing — accepts `WorkflowPosition` struct, not raw XState snapshot. Story 27-2 builds the parser bridge.\n- Respects NFR18 (≤300 lines), NFR8 (≤120 chars max width), and the pure-function mandate from AD5",
+  "acceptanceCriteria": []
+}

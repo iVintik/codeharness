@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "27-3-wire-inspect-api-to-visualizer",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T04:01:48.883Z",
+  "cost_usd": 1.3089174000000001,
+  "duration_ms": 379405,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/ink-components.tsx",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/ink-renderer.tsx",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/run.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-inspect.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now let me check run.ts and existing tests:Let me look at the end of the workflow-runner test file to understand mock patterns:Now I have a full picture. Let me implement the story:Now update workflow-runner.ts to add the inspect callback:Now update the `createActor` call to add the inspect callback with debounce:That snapshot type is complex — let me simplify:The structure got mangled. Let me read and fix:Now add `updateWorkflowRow` to `RendererState` in ink-components.tsx and to the `RendererHandle` in ink-renderer.tsx:Now update the `RendererHandle` interface and implementation in ink-renderer.tsx:Now add `updateWorkflowRow` to the noop handle:Now add the `updateWorkflowRow` implementation in the active renderer's returned handle and add the function:Now add `updateWorkflowRow` to the returned handle object:Now handle `workflow-viz` in `run.ts`. Find the `onEvent` handler:Now write the tests. Let me create a new test file for the inspect wiring:Now I'll create the test file for inspect wiring. I'll use a mock of `xstate` to capture the inspect callback directly:Now let's build and check for TypeScript errors:Build is clean. Now run the tests:All 13 tests pass. Now run the full test suite to check for regressions:All 5279 tests pass. Now run ESLint fix and verify:Zero warnings. Let me also verify the line count of workflow-runner.ts is within the 300-line budget:230 lines — well within the 300-line budget (AC #9). Let me do a final verification of the changed files:Everything is clean. Let me give a summary of what was implemented:\n\n---\n\n**Story 27-3 implementation complete.**\n\n### Changes made:\n\n**`src/lib/workflow-types.ts`**\n- Added `'workflow-viz'` to `EngineEvent.type` union\n- Added `vizString?: string` and `position?: unknown` optional fields to `EngineEvent`\n\n**`src/lib/workflow-runner.ts`**\n- Imported `snapshotToPosition` and `visualize` from `workflow-visualizer.js`\n- Replaced direct `createActor()` call with an `actorOptions` object that includes an `inspect` callback\n- Callback: filters for `@xstate.snapshot` events, debounces on `snapshot.value` changes (context-only updates like cost accumulation are suppressed), calls `snapshotToPosition` + `visualize`, emits `workflow-viz` engine event via `config.onEvent`\n- Wrapped in try/catch — any error in the callback is silently ignored\n- Line count: 230 (budget: 300) ✓\n\n**`src/lib/ink-components.tsx`**\n- Added `workflowVizLine?: string` to `RendererState`\n\n**`src/lib/ink-renderer.tsx`**\n- Added `updateWorkflowRow(vizLine: string): void` to `RendererHandle` interface\n- Added noop implementation\n- Added active implementation (updates `state.workflowVizLine` and rerenders)\n\n**`src/commands/run.ts`**\n- Added `workflow-viz` handler in `onEvent`: calls `renderer.updateWorkflowRow(event.vizString)` when event arrives\n\n**`src/lib/__tests__/workflow-inspect.test.ts`** (new, 13 tests)\n- Mocks xstate's `createActor` to capture the `inspect` option\n- Tests: inspect is wired, non-snapshot events ignored, debounce (same value), debounce (different values), `workflow-viz` event shape, no-handler safety, error resilience (snapshotToPosition throws, visualize throws, malformed snapshot), NFR8 width passthrough, sentinel taskName/storyKey\n\n**Results:** Build ✓ · 5279/5279 tests pass · 0 ESLint warnings",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the `codeharness` CLI is installed, **When** the user runs `npm run build`, **Then** the build completes successfully with exit code 0 and no new TypeScript errors are introduced. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow run is started with `codeharness run`, **When** the XState run machine transitions from one state to another (e.g., idle → processingEpic), **Then** the TUI displays a single-line workflow visualization string containing step names from the workflow config, with the active step visually distinguished from completed and pending steps. <!-- verification: codeharness run (with a test workflow), observe terminal output shows a line like \"Epic 1 [1/N] create…\" with active step highlighted; or: run tests that mock renderer and assert updateWorkflowRow called with a non-empty string on state transition -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow run is executing and the machine fires an `@xstate.snapshot` event where only context values changed (e.g., cost accumulation, contract update) but the state `value` did NOT change, **When** the inspect callback fires, **Then** the visualizer is NOT called and the TUI workflow row is NOT updated. <!-- verification: npx vitest run -- run or workflow-runner — test creates actor with inspect callback, triggers multiple context-only updates, asserts visualize() call count is 0 for those updates -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow run is executing and the machine transitions to a new state (e.g., from `processingEpic` to `checkNextEpic`), **When** the inspect callback fires, **Then** the visualizer IS called and the TUI workflow row IS updated with a new visualization string reflecting the new state. <!-- verification: npx vitest run — test creates actor with inspect callback, triggers state transition, asserts visualize() was called and renderer received the visualization string -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** the inspect callback is wired to the run machine actor, **When** `createActor()` is called in `runWorkflowActor()`, **Then** the `inspect` option is provided in the actor options and accepts the `@xstate.snapshot` event type. <!-- verification: npx vitest run — test verifies createActor is called with an inspect option; or: read workflow-runner.ts and confirm inspect is present in createActor options -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** the TUI renderer receives a workflow visualization string from the inspect callback, **When** the string is displayed, **Then** it is a single line ≤ 120 characters wide (per NFR8) and contains recognizable step names from the workflow configuration. <!-- verification: npx vitest run -- workflow-visualizer — existing tests already verify width constraint; new integration test confirms the string passed to renderer meets NFR8 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** the inspect callback fires and `snapshotToPosition()` receives a snapshot it cannot parse (e.g., early in actor startup before context is populated), **When** the callback runs, **Then** no error is thrown and the TUI continues to function — the visualization row may show an empty or minimal fallback string but does not crash. <!-- verification: npx vitest run — test triggers inspect callback with an incomplete/empty snapshot, asserts no exception and renderer.updateWorkflowRow called with a string (possibly empty) -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all existing tests still pass (zero regressions) AND new tests for the inspect wiring pass. <!-- verification: npx vitest run exits 0, new test file or test cases exist and pass -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the `workflow-runner.ts` file after this story, **When** its line count is checked, **Then** it is ≤ 300 lines (per NFR18). <!-- verification: wc -l src/lib/workflow-runner.ts ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a new `EngineEvent` type `workflow-viz` (or equivalent) is emitted from the inspect callback, **When** the `onEvent` handler in `run.ts` receives it, **Then** it can extract the visualization string and pass it to the renderer — the event includes at minimum the rendered string and the raw `WorkflowPosition`. <!-- verification: npx vitest run — test constructs a workflow-viz event and asserts it has the expected shape with vizString and position fields -->",
+      "status": "pending"
+    }
+  ]
+}

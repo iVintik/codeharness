@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "27-3-wire-inspect-api-to-visualizer",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-07T03:55:29.464Z",
+  "cost_usd": 0.84091585,
+  "duration_ms": 209424,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/27-3-wire-inspect-api-to-visualizer.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read more of `run.ts` to understand the inspect API wiring context, and also look at the workflow-runner for how actors are created:Now I have enough context. Let me also check the EngineConfig type for the `inspect` callback pattern and how events are structured:Now I have comprehensive understanding. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/27-3-wire-inspect-api-to-visualizer.md`.\n\n**Summary of what's in it:**\n\n- **10 acceptance criteria** — all verifiable via `npm run build`, `npx vitest run`, `wc -l`, or observable TUI behavior. No references to source code internals, O(1) complexity, or data structures. Every AC describes what a user/QA agent can observe or measure.\n- **7 tasks**: wire `inspect` callback on `createActor()`, implement state-value debounce, emit `workflow-viz` engine event, handle it in `run.ts`, add `updateWorkflowRow()` to `RendererHandle`, defensive error handling, and comprehensive tests.\n- **Dev notes** covering: XState inspect API shape, debounce strategy (check `snapshot.value`), two-path coexistence (old hand-tracked + new inspect-driven), line budget (214/300), import discipline, and renderer API evolution rationale.",
+  "acceptanceCriteria": []
+}

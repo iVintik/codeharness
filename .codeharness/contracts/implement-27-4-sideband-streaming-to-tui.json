@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "27-4-sideband-streaming-to-tui",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T04:14:40.519Z",
+  "cost_usd": 1.0808252,
+  "duration_ms": 313152,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/ink-renderer.test.tsx",
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/27-4-sideband-streaming-to-tui.md"
+  ],
+  "testResults": null,
+  "output": "Good. The implementation is largely already in place. Now let me look at the specific test files to understand what's missing and needs to be added.Now let me look at the `_getState` debug method in ink-renderer to understand how to write state verification tests:Now I have all the information I need. Let me look at the end of the existing `workflow-actors.test.ts` to find where to add new tests:Now I understand exactly what's needed. Let me check the RendererState type:Let me see the end of the ink-renderer test file:Good. The `ink-renderer.test.tsx` ends at line 1100. Now let me add the story 27-4 tests. I'll add them to both test files:Now I'll add the story 27-4 tests to both files:Now add tests to `ink-renderer.test.tsx`:Now let's run the tests to see if they pass:All 155 tests pass. Now let's run the full test suite and then the lint checks:All 5287 tests pass. Now run the lint checks:Zero lint warnings. Now run the build:Build succeeds. Now update the story spec with completion notes:Story 27-4 complete. Here's what was done:\n\n**Findings:** The sideband plumbing was already fully implemented end-to-end — `dispatchTaskCore` emits `dispatch-start`, `stream-event` (one per driver event), and `dispatch-end` via `config.onEvent`; all compiled machines (story, epic, gate) thread `config.onEvent` through; the renderer's `updateWorkflowRow()` and `update()` write to independent state fields (`workflowVizLine` vs activity state); quiet mode returns a `noopHandle` with all methods including `updateWorkflowRow` as no-ops.\n\n**What was added (8 new integration tests):**\n\nIn `workflow-actors.test.ts` — 5 tests in new `\"sideband streaming to TUI (story 27-4)\"` block:\n1. `stream-event` emitted for each StreamEvent type (text, tool-start, tool-complete, result) with correct `taskName`, `storyKey`, `driverName`, and `streamEvent` payload\n2. `dispatch-start` includes `storyKey` and `model` fields\n3. `dispatch-end` emitted after all `stream-event`s with `elapsedMs >= 0` and correct `costUsd`\n4. `dispatch-end` NOT emitted when driver generator throws mid-stream\n5. No crash when `config.onEvent` is undefined\n\nIn `ink-renderer.test.tsx` — 3 tests in new `\"sideband streaming to TUI — renderer (story 27-4)\"` block:\n1. Quiet mode noop handle has `updateWorkflowRow` as a function (no-op)\n2. `updateWorkflowRow()` and `update()` operate on independent state fields with no interference\n3. `update()` after `updateWorkflowRow()` does not clear `workflowVizLine`\n\n**Results:** 5287/5287 tests pass, zero lint warnings, build succeeds.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow with at least one task configured to use a real driver (e.g., `claude-code`), **When** the user runs `codeharness run`, **Then** the TUI activity section updates in real time showing tool names and text output as the agent works — the user does not need to wait for the task to finish to see activity. <!-- verification: codeharness run on a project with at least one real task → observe terminal shows live tool calls and text chunks scrolling during task execution -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow run is in progress, **When** a dispatch task starts, **Then** the TUI header area updates to show the current task name (e.g., `create-story`, `implement`) and the story key being processed. <!-- verification: codeharness run → observe header changes to show each task name as it starts; compare against the task names in the workflow YAML -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow run is in progress, **When** a dispatch task completes, **Then** the TUI displays the elapsed time and accumulated cost for the run. The cost value increments with each completed task. <!-- verification: codeharness run → observe cost counter increases after each task completes; note elapsed time shown in header or status area -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow with multiple stories (e.g., 3 stories in an epic), **When** the run progresses through stories sequentially, **Then** the TUI shows the story key changing as each new story starts, and the story list section marks completed stories as done and the current story as in-progress. <!-- verification: codeharness run on a multi-story sprint → observe story list shows done/in-progress/pending states updating as run progresses -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** the user runs `codeharness run --quiet`, **When** tasks execute and stream events are emitted, **Then** no TUI output is displayed — the terminal remains silent until the run completes with a final summary. <!-- verification: codeharness run --quiet → observe no live TUI rendering; only final JSON or summary appears after run finishes -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** the workflow visualization row (from story 27-3's inspect API wiring) is displayed, **When** a dispatch task streams tool calls and text simultaneously, **Then** both the workflow visualization row and the activity section update independently — the visualization row reflects state transitions while the activity section shows streaming tool output, with no visual glitching or overwriting between them. <!-- verification: codeharness run → observe workflow visualization line (e.g., \"Epic 1 [1/3] create… → build → test\") stays stable at its row position while the activity section below updates with live tool calls -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a workflow with a gate block (e.g., `gate: quality` with check and fix tasks), **When** the gate's check tasks dispatch and stream, **Then** the TUI shows real-time streaming output from those check tasks the same way it shows output from regular story tasks. <!-- verification: codeharness run on a workflow with a gate → observe gate check tasks produce live TUI activity (tool names, text) during their execution, not just after completion -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a workflow with epic-level tasks (tasks outside the `for_each: story` block, like `deploy` or `retro`), **When** those epic-level tasks dispatch, **Then** the TUI shows their streaming output and updates the task name in the header, just like story-level tasks. <!-- verification: codeharness run on a workflow with epic-level steps → observe epic tasks stream output and header reflects the epic task name -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the full test suite, **When** `npm test` is executed, **Then** all existing tests pass with zero regressions. <!-- verification: npm test exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the build pipeline, **When** `npm run build` is executed, **Then** the build succeeds with exit code 0. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    }
+  ]
+}

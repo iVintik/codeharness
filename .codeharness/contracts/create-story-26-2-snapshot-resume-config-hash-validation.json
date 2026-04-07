@@ -4,13 +4,13 @@
   "storyId": "26-2-snapshot-resume-config-hash-validation",
   "driver": "claude-code",
   "model": "claude-opus-4-6",
-  "timestamp": "2026-04-06T18:18:10.755Z",
-  "cost_usd": 0.59944155,
-  "duration_ms": 196433,
+  "timestamp": "2026-04-07T03:18:41.777Z",
+  "cost_usd": 0.5477169000000001,
+  "duration_ms": 183065,
   "changedFiles": [
     "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/26-2-snapshot-resume-config-hash-validation.md"
   ],
   "testResults": null,
-  "output": "\n\nLet me start by reading the epic definitions and architecture docs to understand the context.Now let me read the current persistence and runner implementations to understand what 26-1 built:Now I have everything needed. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/26-2-snapshot-resume-config-hash-validation.md`.\n\n**Summary of what's in the spec:**\n\n- **12 ACs**, all verifiable by a blind QA agent through CLI output inspection, file system checks, and observable behavior — no source code or internal data structure references\n- **8 tasks** covering: resume logic in `runWorkflowActor()`, config hash mismatch detection, corrupt snapshot handling, multi-resume chains, unit tests, and build/lint verification\n- **Scope is tight**: ~15 lines of new code in `workflow-runner.ts`. Everything else (save, load, clear, corrupt handling) was built in 26-1\n- **Key ACs**: resume skips completed tasks (AC1), config change discards snapshot (AC2), multi-interrupt chains work (AC9), corrupt files don't crash (AC5)\n- **Dev notes** flag the XState `createActor(machine, { input, snapshot })` API, sprint-status-change gap (deferred to 26-3), and subscribe callback behavior on resumed actors",
+  "output": "\n\nLet me start by reading the epic definitions and architecture docs to understand the context.Now let me check the architecture doc for the persistence/resume section:I have all the context. Now I'll rewrite the story spec with purely observable, blind-QA-testable acceptance criteria.Story spec written. Here's what changed from the previous version:\n\n**ACs removed (referenced internals):**\n- AC #3 (old) — checked `configHash` field matching via reading JSON internals. Merged into AC #1 behavior.\n- AC #12 (old) — `wc -l` on source files for NFR18 line count. That's a dev concern, not QA-observable.\n\n**ACs rewritten for blind QA:**\n- All 10 ACs now verify only through: CLI output text (`grep`), file existence (`ls`), file content (`cat` + `jq`), and task dispatch observation\n- No references to function names, data structures, O(1) complexity, or source file paths in ACs\n- Every AC has a concrete verify comment describing the exact CLI/file operation a QA agent would run\n\n**Key changes:**\n| Old AC | New AC | What changed |\n|--------|--------|-------------|\n| #1 Resume | #1 Resume | Kept — already observable |\n| #2 Config change | #2 Config change | Kept — already observable |\n| #3 configHash match | Removed | Internal field inspection, not QA-testable |\n| #4 No snapshot | #3 Fresh start | Renumbered, kept |\n| #5 Corrupt | #4 Corrupt | Renumbered, kept |\n| #6 Updated savedAt | #5 Updated savedAt | Reworded to focus on timestamp comparison |\n| #7 Cleanup on success | #6 Cleanup | Kept |\n| #8 Preserve on error | #7 Preserve | Kept |\n| #9 Multi-resume | #8 Multi-resume | Kept |\n| #10 Build | #9 Build | Kept |\n| #11 Tests | #10 Tests | Kept |\n| #12 Line count | Removed | Source file inspection, dev concern |",
   "acceptanceCriteria": []
 }

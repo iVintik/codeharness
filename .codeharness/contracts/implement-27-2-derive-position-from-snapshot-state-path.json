@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "27-2-derive-position-from-snapshot-state-path",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T03:51:25.405Z",
+  "cost_usd": 1.1635492500000004,
+  "duration_ms": 372722,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-visualizer.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-visualizer.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now I have all the context I need. Let me implement the `snapshotToPosition()` function and its tests.Now add `snapshotToPosition()` at the end of the file:Now add `snapshotToPosition()` after `visualize()`:Now let me check the line count:329 lines, but the limit is 300. I need to compress the implementation by ~30 lines:Still 7 over. Let me squeeze more:295 lines — under 300. Now let me write the tests:Now append the `snapshotToPosition` test suite at the end of the test file:Now let's run the build and tests:The tests expect empty steps on `null`/`undefined` snapshots. Fix the early-return detection:All 45 tests pass. Now run the full test suite, then lint:One test failing - looks like a catch block rule. Let me check which test:The catch block needs an `// IGNORE:` comment:All 5266 tests pass. Now lint:Zero warnings. Final checks:Story 27-2 is done. Summary:\n\n**Implemented `snapshotToPosition(snapshot, workflow)` in `src/lib/workflow-visualizer.ts`:**\n- Extracts run/epic/story/step position from XState persisted snapshot context fields\n- Handles all terminal states: `allDone` (all steps done), `halted` (active step → failed), `interrupted` (active step → active)\n- Parses gate info from `gate` config + `workflowState.evaluator_scores`\n- Detects `storiesDone` when `storyIndex > totalStories`\n- Supports flat workflows (no epic/story fields)\n- Defensive: returns empty position on null/undefined/malformed snapshots without throwing\n\n**Tests added to `workflow-visualizer.test.ts`:** 15 new test cases covering all ACs (active processing, gate parsing, all terminal states, epic-level steps, flat workflow, step enumeration, defensive edge cases, pipeline integration).\n\n**Stats:**\n- File: 296 lines (≤ 300 ✓)\n- Tests: 5266 pass (0 regressions ✓)\n- Lint: 0 warnings ✓\n- Build: exit 0 ✓",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the `codeharness` CLI is installed, **When** the user runs `npm run build`, **Then** the build completes successfully with exit code 0 and the visualizer module is loadable. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a persisted snapshot from a run that is actively processing its 2nd epic (of 4 total) while on story 3 of 6 at step index 1 (the `implement` step), **When** `snapshotToPosition()` is called with that snapshot and the workflow config, **Then** the returned `WorkflowPosition` has `epicIndex: 2`, `totalEpics: 4`, `storyIndex: 3`, `totalStories: 6`, and `activeStepIndex: 1`, **And** passing the result to `visualize()` produces output containing `Epic` and `[3/6]`. <!-- verification: npx vitest run -- workflow-visualizer — test constructs snapshot fixture, calls snapshotToPosition, asserts fields, pipes to visualize() and checks output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a persisted snapshot from a run where the story machine is inside a gate named `quality` at iteration 2 of 5 with 1 check passed and 1 check failed, **When** `snapshotToPosition()` is called, **Then** the returned position has `gate` set with `name: 'quality'`, `iteration: 2`, `maxRetries: 5`, `passed: 1`, `failed: 1`, **And** passing the result to `visualize()` produces output containing `⟲quality(2/5 1✓1✗)`. <!-- verification: npx vitest run -- workflow-visualizer — test constructs gate snapshot fixture, calls snapshotToPosition, asserts gate fields, pipes to visualize() -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a persisted snapshot where the run machine is in state `allDone` (all epics completed), **When** `snapshotToPosition()` is called, **Then** the returned position has all steps marked with status `done` and no step is `active`, **And** passing the result to `visualize()` produces output where every step has the `✓` marker. <!-- verification: npx vitest run -- workflow-visualizer — test constructs allDone snapshot, asserts all steps done, visualize output has no \"…\" active marker -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a persisted snapshot where the run machine is in state `halted` due to an error, **When** `snapshotToPosition()` is called, **Then** the returned position has the step that was active at halt time marked with status `failed`, **And** passing the result to `visualize()` produces output containing `✗`. <!-- verification: npx vitest run -- workflow-visualizer — test constructs halted snapshot, asserts failed step, visualize output contains \"✗\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a persisted snapshot where the run machine is in state `interrupted`, **When** `snapshotToPosition()` is called, **Then** the returned position has the step that was active at interrupt time marked with a non-`done` status (either `active` or `failed`), **And** the function does not throw an error. <!-- verification: npx vitest run -- workflow-visualizer — test constructs interrupted snapshot, asserts no exception, asserts position has non-done active step -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a persisted snapshot from a run where all stories in an epic are done and the engine is processing epic-level step `deploy`, **When** `snapshotToPosition()` is called, **Then** the returned position has `storiesDone: true`, **And** passing the result to `visualize()` produces output containing `stories✓`. <!-- verification: npx vitest run -- workflow-visualizer — test constructs epic-level-step snapshot, asserts storiesDone true, visualize output contains \"stories✓\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a persisted snapshot from a single-level workflow (no `for_each` nesting — flat step list), **When** `snapshotToPosition()` is called, **Then** the returned position has no `epicId`, no `storyIndex`, and no `totalStories`, **And** passing the result to `visualize()` produces output with no `Epic` prefix. <!-- verification: npx vitest run -- workflow-visualizer — test constructs flat workflow snapshot, asserts no epic fields, visualize output has no \"Epic\" prefix -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a persisted snapshot with the `steps` derived from the workflow config (`storyFlow` + `epicFlow`), **When** `snapshotToPosition()` is called, **Then** the `steps` array in the returned position matches the task/gate names from the workflow config in order, with correct `isGate` flags on gate steps. <!-- verification: npx vitest run -- workflow-visualizer — test constructs snapshot, asserts steps array names match workflow config storyFlow order -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all existing tests still pass (zero regressions) AND new tests for `snapshotToPosition()` pass — covering: active processing, gate parsing, terminal states (allDone/halted/interrupted), epic-level steps, flat workflows, step enumeration. <!-- verification: npx vitest run exits 0, new test cases exist and pass -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the `workflow-visualizer.ts` file after this story, **When** its line count is checked, **Then** it is ≤ 300 lines (per NFR18). <!-- verification: wc -l src/lib/workflow-visualizer.ts ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the `snapshotToPosition()` function, **When** called with any input (including malformed or null snapshots), **Then** it performs no I/O and does not throw — it returns a safe default position with an empty steps array if the snapshot is unparseable. <!-- verification: npx vitest run -- workflow-visualizer — test confirms no I/O, test confirms no throw on null/undefined/garbage input -->",
+      "status": "pending"
+    }
+  ]
+}

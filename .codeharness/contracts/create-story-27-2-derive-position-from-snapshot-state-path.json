@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "27-2-derive-position-from-snapshot-state-path",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-07T03:45:12.669Z",
+  "cost_usd": 0.90137,
+  "duration_ms": 217583,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/27-2-derive-position-from-snapshot-state-path.md"
+  ],
+  "testResults": null,
+  "output": "Now let me look at the XState snapshot structure and machine state paths to understand what `snapshotToPosition()` needs to parse:Now let me look at the XState snapshot format to understand what the state path looks like:Now let me check the existing workflow-snapshot.json to see the actual XState snapshot structure:Now I have enough context. The key insight is that the current machines use `fromPromise` actors (not hierarchical XState child machines), so the snapshot `value` is a flat state name like `\"processingEpic\"`, and the nested state info is in the `context` fields (`currentEpicIndex`, `currentStoryIndex`, `currentStepIndex`, etc.). The `snapshotToPosition()` function needs to parse this context to derive a `WorkflowPosition`.\n\nLet me check the existing story spec for 27-1 one more time to see its format, then look at the existing implementation artifacts directory:Now I have all the context I need. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/27-2-derive-position-from-snapshot-state-path.md`.\n\n**Summary:**\n- 12 ACs, all testable via `npx vitest run` or `wc -l` — no source code inspection, no internal data structure references in the verification path\n- Each AC follows the Given/When/Then pattern and verifies observable output: the `WorkflowPosition` struct fields and the `visualize()` output string\n- 6 tasks covering: snapshot analysis, core parser, step enumeration, gate extraction, defensive edge cases, and comprehensive tests\n- Dev notes flag the key gotcha: machines use `fromPromise` actors so child state is in context fields, not in nested `value` paths — the function name says \"state path\" but the real source is context indices\n- Line budget tracked: 71 lines available in the visualizer file before hitting NFR18's 300-line cap",
+  "acceptanceCriteria": []
+}

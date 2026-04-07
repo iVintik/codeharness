@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "taskName": "document",
+  "storyId": "27-4-sideband-streaming-to-tui",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-07T04:16:43.943Z",
+  "cost_usd": 0.37673325,
+  "duration_ms": 123408,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "<user-docs>\n\n# Real-Time Streaming in the TUI\n\n**Story 27-4 · Epic 27: TUI Visualization & Integration**\n\nWhen you run `codeharness run`, the terminal now shows live agent activity as it happens — tool calls, text output, cost accumulation, and task transitions — without waiting for tasks to finish.\n\n---\n\n## What You See\n\nThe TUI is organized into sections, top to bottom:\n\n### Header\n\n```\ncodeharness run | 1m 23s elapsed | $4.52 spent                  [q to quit]\n```\n\n- **Elapsed time** counts up from the start of the run.\n- **Cost** accumulates as each task completes. When a task finishes, its cost is added and the header refreshes immediately.\n- **Task name and story key** update in real time as each new task begins (e.g., `implement` on story `2-4-password-reset`).\n\n### Progress Bar\n\n```\n█████████░░░░░░░░░░░░░░ 5✓ 2⚡ / 12\n```\n\nShows done (green), in-progress (yellow), and pending (dimmed) stories at a glance.\n\n### Story Context Window\n\n```\n  Prev: 2-3-login-form ✓\n  This: 2-4-password-reset\n  Next: 2-5-oauth-integration\n```\n\nA 3-story sliding window showing where you are in the sprint. Completed stories get a green checkmark; the current story is highlighted in cyan.\n\n### Workflow Visualization Row\n\n```\n  create-story ✓ → implement ⚡ → check → review → document\n```\n\nA single-line task pipeline showing each task's status:\n- **✓** (green) — completed\n- **⚡** (cyan, with spinner) — active\n- **×** (red) — failed\n\nThis row stays stable at its position while the activity section below scrolls with live output. The two update independently — no visual glitching.\n\n### Activity Section\n\nThis is the live streaming area. As the agent works, you see its actions in real time:\n\n```\n  ✓ [ReadFile] src/index.ts\n  ✓ [WriteFile] src/utils.ts\n  💭 Analyzing the test output to identify the root cause...\n  ⚡ [Bash] npm test (claude-code) ⠙\n```\n\n| Symbol | Meaning |\n|--------|---------|\n| ✓ (green) | Completed tool call |\n| 💭 | Agent's text/thought output |\n| ⚡ (yellow + spinner) | Currently active tool |\n| ⏳ | API retry in progress (shows wait time) |\n\nTool arguments are truncated to 60 characters for readability. The last 50 completed tools are retained; older ones collapse into a summary line.\n\n---\n\n## What Streams and When\n\nEvents arrive **during task execution**, not after completion:\n\n1. **Task starts** → Header updates with the task name and story key.\n2. **Agent produces text** → Thought bubbles appear in the activity section.\n3. **Agent calls a tool** → Tool name appears with an animated spinner.\n4. **Tool completes** → Tool moves to the completed list with a checkmark.\n5. **Task finishes** → Cost increments in the header; workflow row marks the task done.\n\nThis applies to all task types:\n- **Story tasks** (inside `for_each: story`) — e.g., `create-story`, `implement`\n- **Gate tasks** (check and fix tasks in `gate:` blocks) — stream identically to regular tasks\n- **Epic-level tasks** (outside the story loop) — e.g., `deploy`, `retro` — stream output and update the header just like story tasks\n\n---\n\n## Quiet Mode\n\n```\ncodeharness run --quiet\n```\n\nSuppresses all TUI output. The terminal stays silent while the workflow executes. Only a final summary appears when the run completes.\n\nEngine events still flow internally — quiet mode only affects terminal rendering.\n\n---\n\n## Multi-Lane Mode\n\nWhen running parallel epics, the TUI shows a lane summary:\n\n```\nLane 1: Payment Processing │ 3-2-checkout     ⚡ implement   │ $4.23 / 45s\nLane 2: Email Service      │ 4-1-smtp-config  ⚡ check       │ $2.15 / 30s\nLane 3: Admin Dashboard    │ 5-2-user-list    ⚡ document    │ $1.10 / 20s\n```\n\nPress **Ctrl+L** to cycle through lanes and see detailed activity for each one.\n\n---\n\n## Key Details\n\n- **Update rate:** Activity section refreshes at up to 10 fps.\n- **Driver label:** The driver name (e.g., `claude-code`, `codex`) appears in dimmed text next to active tools.\n- **Retries:** API retries display a countdown: `⏳ API retry 2 (waiting 1250ms)`.\n- **Failures:** Failed tasks appear in red with ✗. Error messages surface as story-level warnings.\n- **No interference:** The workflow visualization row (from the inspect channel) and the activity section (from the streaming channel) write to independent state — they never overwrite each other.\n\n</user-docs>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow with at least one task configured to use a real driver (e.g., `claude-code`), **When** the user runs `codeharness run`, **Then** the TUI activity section updates in real time showing tool names and text output as the agent works — the user does not need to wait for the task to finish to see activity. <!-- verification: codeharness run on a project with at least one real task → observe terminal shows live tool calls and text chunks scrolling during task execution -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow run is in progress, **When** a dispatch task starts, **Then** the TUI header area updates to show the current task name (e.g., `create-story`, `implement`) and the story key being processed. <!-- verification: codeharness run → observe header changes to show each task name as it starts; compare against the task names in the workflow YAML -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow run is in progress, **When** a dispatch task completes, **Then** the TUI displays the elapsed time and accumulated cost for the run. The cost value increments with each completed task. <!-- verification: codeharness run → observe cost counter increases after each task completes; note elapsed time shown in header or status area -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow with multiple stories (e.g., 3 stories in an epic), **When** the run progresses through stories sequentially, **Then** the TUI shows the story key changing as each new story starts, and the story list section marks completed stories as done and the current story as in-progress. <!-- verification: codeharness run on a multi-story sprint → observe story list shows done/in-progress/pending states updating as run progresses -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** the user runs `codeharness run --quiet`, **When** tasks execute and stream events are emitted, **Then** no TUI output is displayed — the terminal remains silent until the run completes with a final summary. <!-- verification: codeharness run --quiet → observe no live TUI rendering; only final JSON or summary appears after run finishes -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** the workflow visualization row (from story 27-3's inspect API wiring) is displayed, **When** a dispatch task streams tool calls and text simultaneously, **Then** both the workflow visualization row and the activity section update independently — the visualization row reflects state transitions while the activity section shows streaming tool output, with no visual glitching or overwriting between them. <!-- verification: codeharness run → observe workflow visualization line (e.g., \"Epic 1 [1/3] create… → build → test\") stays stable at its row position while the activity section below updates with live tool calls -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a workflow with a gate block (e.g., `gate: quality` with check and fix tasks), **When** the gate's check tasks dispatch and stream, **Then** the TUI shows real-time streaming output from those check tasks the same way it shows output from regular story tasks. <!-- verification: codeharness run on a workflow with a gate → observe gate check tasks produce live TUI activity (tool names, text) during their execution, not just after completion -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a workflow with epic-level tasks (tasks outside the `for_each: story` block, like `deploy` or `retro`), **When** those epic-level tasks dispatch, **Then** the TUI shows their streaming output and updates the task name in the header, just like story-level tasks. <!-- verification: codeharness run on a workflow with epic-level steps → observe epic tasks stream output and header reflects the epic task name -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the full test suite, **When** `npm test` is executed, **Then** all existing tests pass with zero regressions. <!-- verification: npm test exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the build pipeline, **When** `npm run build` is executed, **Then** the build succeeds with exit code 0. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    }
+  ]
+}

@@ -2,10 +2,10 @@
   "version": 2,
   "sprint": {
     "total": 33,
-    "done": 25,
+    "done": 33,
     "failed": 0,
     "blocked": 0,
-    "inProgress": "26-4-clear-persistence-on-completion"
+    "inProgress": null
   },
   "stories": {
     "21-1-extract-workflow-actors": {
@@ -159,51 +159,51 @@
       "lastError": null
     },
     "26-2-snapshot-resume-config-hash-validation": {
-      "status": "in-progress",
-      "attempts": 8,
-      "lastAttempt": "2026-04-06T20:06:49.990Z",
+      "status": "done",
+      "attempts": 11,
+      "lastAttempt": "2026-04-07T03:19:48.213Z",
       "lastError": null
     },
     "26-3-semantic-checkpoint-log": {
-      "status": "in-progress",
-      "attempts": 8,
-      "lastAttempt": "2026-04-06T20:08:55.769Z",
+      "status": "done",
+      "attempts": 11,
+      "lastAttempt": "2026-04-07T03:25:00.333Z",
       "lastError": null
     },
     "26-4-clear-persistence-on-completion": {
-      "status": "in-progress",
-      "attempts": 8,
-      "lastAttempt": "2026-04-06T20:10:51.991Z",
+      "status": "done",
+      "attempts": 11,
+      "lastAttempt": "2026-04-07T03:30:15.610Z",
       "lastError": null
     },
     "27-1-pure-visualizer-function": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 3,
+      "lastAttempt": "2026-04-07T03:41:09.138Z",
       "lastError": null
     },
     "27-2-derive-position-from-snapshot-state-path": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 3,
+      "lastAttempt": "2026-04-07T03:51:25.420Z",
       "lastError": null
     },
     "27-3-wire-inspect-api-to-visualizer": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 3,
+      "lastAttempt": "2026-04-07T04:01:48.900Z",
       "lastError": null
     },
     "27-4-sideband-streaming-to-tui": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 3,
+      "lastAttempt": "2026-04-07T04:14:40.534Z",
       "lastError": null
     },
     "27-5-simplify-run-ts-remove-hand-tracked-state": {
-      "status": "backlog",
-      "attempts": 0,
-      "lastAttempt": null,
+      "status": "done",
+      "attempts": 3,
+      "lastAttempt": "2026-04-07T04:28:06.530Z",
       "lastError": null
     }
   },

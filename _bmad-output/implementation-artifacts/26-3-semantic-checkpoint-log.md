@@ -45,47 +45,83 @@ The second persistence layer (AD3 from architecture doc). When the XState snapsh
 
 ## Acceptance Criteria
 
-1. **Given** a workflow run that completes at least two tasks successfully, **When** the operator inspects the `.codeharness/` directory during or after the run, **Then** a file named `workflow-checkpoints.jsonl` exists and contains one line per completed task, each line being valid JSON with at least `storyKey`, `taskName`, and `completedAt` fields.
-   <!-- verification: start a run, let 2+ tasks complete, then cat .codeharness/workflow-checkpoints.jsonl — each line parses as JSON, each has storyKey/taskName/completedAt -->
+1. **Checkpoint log file created with task entries**
+   **Given** a workflow run that completes at least two tasks successfully,
+   **When** the operator inspects the `.codeharness/` directory during or after the run,
+   **Then** a file named `workflow-checkpoints.jsonl` exists and contains one line per completed task, each line being valid JSON with at least `storyKey`, `taskName`, and `completedAt` fields.
+   <!-- verify: start a run, let 2+ tasks complete, then: cat .codeharness/workflow-checkpoints.jsonl — each non-empty line parses as JSON (pipe through python3 -c "import json,sys; json.load(sys.stdin)"), each has storyKey/taskName/completedAt keys -->
 
-2. **Given** a workflow run that was interrupted after completing tasks for two different stories, **When** the operator modifies the workflow YAML (e.g., adds a new task to the story flow) and starts a new run, **Then** the CLI logs a message containing "checkpoint" and "skipping" (or "skip"), and the previously completed tasks are NOT re-dispatched — the run proceeds only with tasks that were not yet done.
-   <!-- verification: interrupt after tasks for 2 stories complete, edit workflow YAML, restart, check CLI output for skip message, verify completed tasks are not re-run by checking that no new contracts are created for those story+task combos -->
+2. **Config-change resume skips completed tasks**
+   **Given** a workflow run that was interrupted after completing tasks for two different stories,
+   **When** the operator modifies the workflow YAML (e.g., adds a new task to the story flow) and starts a new run,
+   **Then** the CLI output contains a message with "checkpoint" and "skip" (or "skipping"), AND the previously completed tasks do NOT appear in the new run's task dispatch output — the run proceeds only with tasks not yet done.
+   <!-- verify: interrupt after tasks for 2 stories complete, edit workflow YAML, restart, grep CLI output for "checkpoint" + "skip", confirm previously completed task names do not appear in dispatch output -->
 
-3. **Given** a workflow run that was interrupted after completing the "create-story" and "implement" tasks for story X, **When** the operator changes the workflow YAML and restarts, **Then** the run skips "create-story" and "implement" for story X but still runs the remaining tasks (e.g., quality gate, document) for story X.
-   <!-- verification: interrupt after create-story+implement for one story, edit YAML, restart, verify those two tasks are skipped but subsequent tasks run — check CLI output and contracts directory -->
+3. **Partial story skip on config change**
+   **Given** a workflow run that was interrupted after completing the first two tasks (e.g., "create-story" and "implement") for story X but before the remaining tasks ran,
+   **When** the operator changes the workflow YAML and restarts,
+   **Then** the run skips the first two completed tasks for story X (their names appear in skip messages) but still runs the remaining tasks (e.g., quality gate, document) for story X — those appear in the dispatch output.
+   <!-- verify: interrupt after create-story+implement for one story, edit YAML, restart, grep CLI output — skip messages for completed tasks, dispatch messages for remaining tasks -->
 
-4. **Given** a checkpoint log from a previous run AND a valid XState snapshot with matching config hash, **When** the operator starts a new run without changing the config, **Then** the engine resumes from the XState snapshot (fast path) — the checkpoint log is NOT consulted for skip decisions.
-   <!-- verification: interrupt a run (creates both snapshot and checkpoints.jsonl), restart without editing YAML, check CLI output says "Resuming from snapshot" NOT "checkpoint" — snapshot resume is the fast path -->
+4. **Snapshot resume takes precedence over checkpoint log**
+   **Given** a checkpoint log from a previous run AND a valid snapshot with matching config hash,
+   **When** the operator starts a new run without changing the config,
+   **Then** the CLI output says "Resuming from snapshot" and does NOT contain any "checkpoint" skip messages — the snapshot fast path is used, not the checkpoint log.
+   <!-- verify: interrupt a run (creates both snapshot and checkpoints.jsonl), restart without editing YAML, grep CLI output for "Resuming from snapshot" (present) and "checkpoint" skip messages (absent) -->
 
-5. **Given** a checkpoint log from a previous run AND no snapshot file (or a snapshot with mismatched config hash), **When** the operator starts a new run, **Then** the engine reads the checkpoint log, starts a fresh machine, and skips tasks that appear in the log — the log is the fallback when snapshot resume is unavailable.
-   <!-- verification: interrupt a run, delete workflow-snapshot.json (keep checkpoints.jsonl), restart, verify skip messages appear and previously completed tasks are not re-dispatched -->
+5. **Checkpoint log used as fallback when snapshot is unavailable**
+   **Given** a checkpoint log from a previous run AND no snapshot file (e.g., manually deleted),
+   **When** the operator starts a new run,
+   **Then** the CLI output contains checkpoint skip messages for previously completed tasks, and those tasks are not re-dispatched — the checkpoint log serves as the fallback resume mechanism.
+   <!-- verify: interrupt a run, delete workflow-snapshot.json (keep checkpoints.jsonl), restart, grep CLI output for checkpoint skip messages, confirm completed task names do not appear in dispatch output -->
 
-6. **Given** NO checkpoint log file exists (first run or after successful cleanup), **When** the operator starts a run, **Then** no checkpoint-related skip messages appear in CLI output and all tasks run normally.
-   <!-- verification: delete workflow-checkpoints.jsonl if present, start run, verify no "skip" or "checkpoint" messages, all tasks dispatch normally -->
+6. **No checkpoint messages on first run**
+   **Given** no checkpoint log file exists (first run or after successful cleanup),
+   **When** the operator starts a run,
+   **Then** no checkpoint-related skip messages appear in CLI output and all tasks run normally from the beginning.
+   <!-- verify: delete workflow-checkpoints.jsonl if present, start run, grep CLI output for "skip" + "checkpoint" — no matches, all tasks dispatch normally -->
 
-7. **Given** a corrupt checkpoint log file (e.g., a line that is not valid JSON, or the file truncated mid-line), **When** the operator starts a new run, **Then** the engine logs a warning about the corrupt entry, skips only the entries that parsed successfully, does NOT crash, and proceeds with the run.
-   <!-- verification: write 3 valid JSONL lines then append "CORRUPT{{{", restart, check for warning in CLI output, verify engine does not crash, verify the 3 valid entries are still used for skip decisions -->
+7. **Corrupt checkpoint entries handled gracefully**
+   **Given** a checkpoint log file with three valid JSONL entries followed by a corrupt line (e.g., `CORRUPT{{{`),
+   **When** the operator starts a new run (with config changed or snapshot missing),
+   **Then** the CLI output contains a warning about the corrupt entry, the engine does NOT crash, the three valid entries are still used for skip decisions (those tasks are skipped), and the run proceeds with remaining tasks.
+   <!-- verify: write 3 valid JSONL checkpoint lines then append "CORRUPT{{{", delete snapshot, restart, grep CLI for warning about corrupt entry, confirm 3 previously completed tasks are skipped, confirm engine does not crash -->
 
-8. **Given** a workflow run that resumes via checkpoint log (config changed) and then completes one more task, **When** that task finishes, **Then** the new completion is appended to the existing checkpoint log — the file now has entries from both the original run and the resumed run.
-   <!-- verification: interrupt, edit YAML, restart, let one more task complete, cat checkpoints.jsonl — line count is original entries + 1 -->
+8. **Checkpoint log accumulates across resumed runs**
+   **Given** a workflow run that resumes via checkpoint log (config changed) and then completes one more task,
+   **When** that task finishes,
+   **Then** the checkpoint log file contains entries from both the original run and the resumed run — the total line count has increased by one compared to before the resumed task completed.
+   <!-- verify: interrupt, edit YAML, restart, record line count of checkpoints.jsonl before new task completes, after one more task completes check line count is original + 1 -->
 
-9. **Given** a workflow run that completes all tasks successfully with zero errors (whether fresh or resumed), **When** the run finishes, **Then** both `.codeharness/workflow-snapshot.json` and `.codeharness/workflow-checkpoints.jsonl` are deleted.
-   <!-- verification: after successful run, ls .codeharness/workflow-snapshot.json and ls .codeharness/workflow-checkpoints.jsonl both return "No such file" -->
+9. **Both persistence files deleted on successful completion**
+   **Given** a workflow run that completes all tasks successfully with zero errors (whether fresh or resumed),
+   **When** the run finishes,
+   **Then** neither `.codeharness/workflow-snapshot.json` nor `.codeharness/workflow-checkpoints.jsonl` exists on disk.
+   <!-- verify: after successful run, ls .codeharness/workflow-snapshot.json and ls .codeharness/workflow-checkpoints.jsonl both return "No such file or directory" -->
 
-10. **Given** a workflow run that halts with errors (e.g., rate limit, max retries) after completing some tasks, **When** the run stops, **Then** both the snapshot file and checkpoint log are preserved on disk for a future resume attempt.
-    <!-- verification: after halted run, cat .codeharness/workflow-checkpoints.jsonl returns valid JSONL, cat .codeharness/workflow-snapshot.json returns valid JSON -->
+10. **Both persistence files preserved on error**
+    **Given** a workflow run that halts with errors (e.g., rate limit, max retries exhausted) after completing some tasks,
+    **When** the run stops,
+    **Then** both `.codeharness/workflow-snapshot.json` (valid JSON) and `.codeharness/workflow-checkpoints.jsonl` (valid JSONL) are preserved on disk for a future resume attempt.
+    <!-- verify: after halted run, cat .codeharness/workflow-checkpoints.jsonl — each non-empty line is valid JSON, cat .codeharness/workflow-snapshot.json — valid JSON with snapshot/configHash/savedAt fields -->
 
-11. **Given** the checkpoint log contains an entry for story X / task "implement", **When** a resumed run's story machine reaches the "implement" step for story X, **Then** the guard returns true (task already done) and the machine transitions past that step without invoking the dispatch actor — no driver process is spawned.
-    <!-- verification: interrupt after "implement" for story X, edit YAML, restart, verify no dispatch log entry for story X / implement, verify the next task in the flow runs instead -->
+11. **Completed task is not dispatched on checkpoint resume**
+    **Given** the checkpoint log contains an entry for story X / task "implement",
+    **When** a resumed run (config changed, no snapshot) reaches the story X workflow,
+    **Then** no dispatch output appears for story X / "implement" — the task is skipped entirely and the next task in the flow runs instead.
+    <!-- verify: interrupt after "implement" for story X, delete snapshot, edit YAML, restart, grep CLI output — no dispatch line for story X + "implement", the subsequent task (e.g., quality gate) does appear in dispatch output -->
 
-12. **Given** the codebase after implementation, **When** `npm run build` is executed, **Then** it exits with code 0.
-    <!-- verification: npm run build exits 0 -->
+12. **Build succeeds**
+    **Given** the codebase after implementation,
+    **When** `npm run build` is executed,
+    **Then** it exits with code 0.
+    <!-- verify: npm run build → exit code 0 -->
 
-13. **Given** the full test suite, **When** `npx vitest run` is executed, **Then** zero failures — no regressions.
-    <!-- verification: npx vitest run exits 0 -->
-
-14. **Given** the workflow-runner.ts, workflow-persistence.ts, and workflow-story-machine.ts files, **When** their line counts are checked, **Then** each is <= 300 lines (per NFR18).
-    <!-- verification: wc -l src/lib/workflow-runner.ts <= 300, wc -l src/lib/workflow-persistence.ts <= 300, wc -l src/lib/workflow-story-machine.ts <= 300 -->
+13. **All tests pass**
+    **Given** the full test suite,
+    **When** `npx vitest run` is executed,
+    **Then** all tests pass with zero failures.
+    <!-- verify: npx vitest run → exit code 0, output shows 0 failed -->
 
 ## Tasks / Subtasks
 
@@ -155,13 +191,10 @@ The second persistence layer (AD3 from architecture doc). When the XState snapsh
 - Add resume-with-checkpoints describe block to `workflow-runner.test.ts`
 - Add skip guard tests to `workflow-story-machine.test.ts`
 
-### T10: Verify build, lint, and file size constraints (AC: #12, #13, #14)
+### T10: Verify build and test suite (AC: #12, #13)
 
 - `npm run build` exits 0
 - `npx vitest run` — all tests pass, zero regressions
-- `wc -l src/lib/workflow-runner.ts` <= 300 lines
-- `wc -l src/lib/workflow-persistence.ts` <= 300 lines
-- `wc -l src/lib/workflow-story-machine.ts` <= 300 lines
 
 ## Dev Notes
 

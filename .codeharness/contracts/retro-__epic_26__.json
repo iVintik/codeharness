@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "retro",
+  "storyId": "__epic_26__",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-07T03:34:00.377Z",
+  "cost_usd": 0.7972492499999999,
+  "duration_ms": 165282,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/epic-26-retrospective.md"
+  ],
+  "testResults": null,
+  "output": "Now let me gather all the story files, the epic definition, previous retrospectives, and the git log for Epic 26.Now let me gather the git log, verification proofs, and check for any previous retrospective.Now I have enough data. Let me read the previous retrospective's action items and check verifications for completeness.Now I have all the data I need. Let me write the retrospective.\n\nBob (Scrum Master): \"Welcome to the retrospective. I see from sprint-status.yaml that Epic 26 — Persistence & Resume — is complete. All 4 stories are marked done. Is that the epic you want to review today?\"\n\nAssuming your confirmation — here's the full retrospective:\n\n---Retrospective written to `_bmad-output/implementation-artifacts/epic-26-retrospective.md`.\n\n**TL;DR of findings:**\n\n**What worked:**\n- Clean 4-story sequencing — each built on the previous with no rework\n- Story 26-1 was a clean first implementation (20 tests, zero regressions)\n- Thorough ACs (10-13 per story with concrete verification instructions)\n- Architecture decisions paid off — machines stayed untouched across all 4 stories\n- 743 total lines across 3 files for a complete dual-layer persistence system\n\n**What failed:**\n- Zero story-level git commits (same failure as Epic 22, action item A4 still unaddressed)\n- Story 26-2 missing dev agent record\n- Story 26-1 missing verification proof\n- Story 26-4 status header stuck at \"review\", ACs all show \"pending\"\n\n**Critical action items:**\n1. **A1**: Create per-story git commits during harness runs — third epic with this problem\n2. **A2**: Split `workflow-persistence.ts` (297/300 lines) before any new persistence features\n3. **A3-A6**: Housekeeping — update statuses, fill missing records, confirm verifications\n\n**For Epic 27:** Watch the inspect API — it currently serves snapshot persistence and will need to also serve TUI visualization. May need a multiplexer. Story 27-5 (remove hand-tracked state) should be last due to refactoring risk.",
+  "acceptanceCriteria": []
+}

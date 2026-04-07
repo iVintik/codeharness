@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "retro",
+  "storyId": "__epic_27__",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-07T04:33:51.077Z",
+  "cost_usd": 0.77615175,
+  "duration_ms": 263986,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/epic-27-retrospective.md"
+  ],
+  "testResults": null,
+  "output": "Now let me gather more data on Epic 27's actual implementation.Now let me check the epic-level metrics and previous retro action items.Now I have all the data. Let me write the retrospective.\n\n---\n\nBob (Scrum Master): \"Welcome to the retrospective. Based on sprint-status.yaml, Epic 27 — TUI Visualization & Integration — all 5 stories marked done. This is the final epic (epic 7 of 7) in the XState engine redesign (epics 21–27). Let me compile the review.\"\n\n---Bob (Scrum Master): \"Retrospective complete. Here's the summary:\"\n\n**Epic 27 — TUI Visualization & Integration: DONE.** Final epic of the XState engine redesign (epics 21–27).\n\n### Key Results\n- **5,287 tests passing** (199 files), build green\n- Hand-tracked state fully eliminated: `inEpicPhase`, `taskStates`, `taskMeta`, `storyFlowTasks`, `epicLoopTasks`, `headerRefresh` — all **gone** (AC8 ✅)\n- `updateWorkflowState()` calls — **zero** (AC10 ✅)\n- `run.ts` reduced from 610 → 486 lines — **missed ≤400 target** (AC9 ❌)\n\n### What Worked\n1. Clean 5-story dependency chain — no rework between stories\n2. Architecture decisions (AD5) mapped directly to implementation\n3. Pure function approach enabled 35+ visualizer tests\n4. The XState engine redesign is **fully complete** — 7 epics, ~35 stories, monolith eliminated\n\n### What Failed\n1. **`run.ts` at 486 lines** — NFR18 violation, AC9 miss\n2. **Zero story-level git commits — third epic in a row** (epics 22, 26, 27)\n3. Behavioral ACs (AC1–AC7) unverified — need interactive observation\n4. Story spec statuses never updated from \"ready-for-dev\"\n\n### Top Action Items\n| # | Action | Priority |\n|---|--------|----------|\n| A1 | Build per-story git commits into the harness as a feature | High |\n| A2 | Split `run.ts` (486 lines → target ≤250) | Medium |\n| A3 | Verify behavioral ACs interactively | Medium |\n| A6 | Auto-generate verification proofs during implementation | Medium |\n\nRetrospective saved to `_bmad-output/implementation-artifacts/epic-27-retrospective.md`.",
+  "acceptanceCriteria": []
+}

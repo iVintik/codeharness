@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "taskName": "document",
+  "storyId": "27-1-pure-visualizer-function",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-07T03:41:35.059Z",
+  "cost_usd": 0.15466375,
+  "duration_ms": 25920,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "<user-docs>\n\n## Workflow Visualizer\n\nThe workflow visualizer renders the current state of a running workflow as a single-line, color-coded progress indicator. It appears in the CLI status line during `codeharness run`, giving you a real-time view of where execution is without scrolling through logs.\n\n### What it shows\n\nA typical output looks like:\n\n```\nEpic 17 [3/6] analyze✓ → impl… → test → deploy\n```\n\nThis tells you:\n- **Epic 17** is being processed, currently on **story 3 of 6**\n- The `analyze` step is **done** (✓)\n- The `impl` step is **active** (…) — work is happening here now\n- `test` and `deploy` are **pending** — not started yet\n\n### Step indicators\n\nEach step in the workflow is annotated with a status symbol:\n\n| Symbol | Meaning | Appearance |\n|--------|---------|------------|\n| `✓` | Done | Dimmed text |\n| `…` | Active (running now) | Bold text |\n| `✗` | Failed | Red text |\n| `⊘` | Skipped | Dimmed text |\n| *(none)* | Pending | Plain text |\n\n### Gate rendering\n\nWhen a step involves a quality gate (retry loop with pass/fail checks), it renders with iteration and verdict details:\n\n```\n⟲quality(2/5 1✓1✗)…\n```\n\nThis means: the `quality` gate is on iteration 2 of 5, with 1 check passed and 1 check failed so far.\n\n### Sliding window\n\nWorkflows with many steps don't clutter the display. When steps exceed the visible window (default: 5 slots), the visualizer collapses them:\n\n```\n[5✓] deploy… → cleanup → → …2 more\n```\n\n- `[5✓]` — 5 completed steps are collapsed at the start\n- `→ …2 more` — 2 steps remain beyond the visible window\n\n### Scope prefix\n\nFor nested workflows (epics containing stories), the line starts with a scope prefix showing which epic and story you're on:\n\n```\nEpic 17 [3/6] analyze✓ → impl…\n```\n\nFor flat (single-level) workflows, there is no prefix — steps render directly.\n\n### Stories-done indicator\n\nWhen all stories within an epic are finished and execution moves to epic-level steps, the output shows:\n\n```\nEpic 17 stories✓ → deploy… → notify\n```\n\n### Task name truncation\n\nStep names longer than 8 characters are truncated to keep the line compact. For example, `create-story` becomes `create-…`. This threshold is configurable.\n\n### Width enforcement\n\nThe output never exceeds the configured width (default 80, hard cap 120 characters, measured without color codes). If the line is too long, the visualizer progressively:\n\n1. Shortens task names\n2. Reduces the number of visible step slots\n3. Hard-truncates as a last resort\n\n### Configuration\n\nThree settings control the visualizer's behavior:\n\n| Setting | Default | Description |\n|---------|---------|-------------|\n| `maxWidth` | 80 | Maximum line width (capped at 120) |\n| `maxStepSlots` | 5 | Maximum number of step slots visible before collapsing |\n| `taskNameMaxLen` | 8 | Maximum characters for step names before truncation |\n\nThese are set internally by the harness. No user configuration is needed — the defaults work well for standard terminal widths.\n\n</user-docs>",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the `codeharness` CLI is installed, **When** the user runs `npx codeharness run --help` (or the test suite), **Then** the build succeeds and the visualizer module is loadable — `npm run build` exits with code 0. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow position indicating \"processing story 3 of 6 in Epic 17, active on the `implement` step (step index 1 of 4)\", **When** the visualize function is called with a maxWidth of 80, **Then** the output string starts with `Epic 17 [3/6]` and contains `impl` (the truncated task name) highlighted as the active step, and the total string length (excluding ANSI escape codes) does not exceed 80 characters. <!-- verification: npx vitest run -- workflow-visualizer — test asserts output starts with \"Epic 17 [3/6]\", contains \"impl\", and stripped length ≤ 80 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow position inside a gate named `quality` at iteration 2 of 5 with 1 check passed and 1 check failed, **When** the visualize function is called, **Then** the output contains the substring `⟲quality(2/5 1✓1✗)` (or equivalent with the gate name, iteration, and verdict counts). <!-- verification: npx vitest run -- workflow-visualizer — test asserts gate rendering substring present -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow with 8 total steps where the active step is at index 5 (6th step), **When** the visualize function is called with maxStepSlots of 5, **Then** the output begins with a prefix like `[5✓]` (indicating 5 completed steps are collapsed) and ends with a suffix like `→ …2 more` (indicating 2 remaining steps beyond the window), and shows at most 5 step slots in the visible portion. <!-- verification: npx vitest run -- workflow-visualizer — test asserts [N✓] prefix, …N more suffix, ≤5 visible slots -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a workflow position where all story-level steps are complete and the engine is on epic-level step `deploy`, **When** the visualize function is called, **Then** the output shows `stories✓` (or equivalent summary of completed story iteration) followed by the epic-level step rendering. <!-- verification: npx vitest run -- workflow-visualizer — test asserts \"stories✓\" appears before epic-level steps -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a workflow position in a single-level flow (no nested `for_each`), **When** the visualize function is called, **Then** the output has NO scope prefix — it starts directly with the step rendering. <!-- verification: npx vitest run -- workflow-visualizer — test asserts no \"Epic\" prefix for flat flows -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a workflow position where the active step has a task name longer than 8 characters (e.g., `create-story`), **When** the visualize function is called with the default taskNameMaxLen of 8, **Then** the task name is truncated to 8 characters or fewer in the output (e.g., `create-s` or `create…`). <!-- verification: npx vitest run -- workflow-visualizer — test asserts truncated name ≤ 8 chars -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** any valid workflow position (including edge cases: first step, last step, single step, gate at iteration 0, gate with all checks passed), **When** the visualize function is called with maxWidth of 120, **Then** the output string length (excluding ANSI escape codes) never exceeds 120 characters. <!-- verification: npx vitest run -- workflow-visualizer — parametric test over edge cases, all stripped lengths ≤ 120 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a workflow position where a step has failed (halted), **When** the visualize function is called, **Then** the failed step is rendered differently from completed and pending steps (e.g., marked with `✗` or rendered in a distinct style), and the distinction is visible in plain text output. <!-- verification: npx vitest run -- workflow-visualizer — test asserts failed step contains \"✗\" or distinct marker -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all existing tests still pass (zero regressions) AND new tests for the visualizer module pass — covering: basic rendering, gate rendering, sliding window, scope prefix, truncation, width limits, edge cases. <!-- verification: npx vitest run exits 0, new test file exists and passes -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the `workflow-visualizer.ts` file, **When** its line count is checked, **Then** it is ≤ 300 lines (per NFR18). <!-- verification: wc -l src/lib/workflow-visualizer.ts ≤ 300 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the visualizer function, **When** called with any input, **Then** it performs no I/O (no file reads, no network calls, no process spawning) — it is a pure function from input data to output string. <!-- verification: npx vitest run -- workflow-visualizer — test confirms function has no I/O side effects (mocked fs/net unused) -->",
+      "status": "pending"
+    }
+  ]
+}

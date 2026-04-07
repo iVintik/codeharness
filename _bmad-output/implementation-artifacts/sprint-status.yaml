@@ -46,15 +46,15 @@ development_status:
 
   # Epic 26
   epic-26: backlog
-  26-1-xstate-snapshot-persistence: review
-  26-2-snapshot-resume-config-hash-validation: in-progress
-  26-3-semantic-checkpoint-log: in-progress
-  26-4-clear-persistence-on-completion: in-progress
+  26-1-xstate-snapshot-persistence: checked
+  26-2-snapshot-resume-config-hash-validation: checked
+  26-3-semantic-checkpoint-log: checked
+  26-4-clear-persistence-on-completion: checked
 
   # Epic 27
   epic-27: backlog
-  27-1-pure-visualizer-function: in-progress
-  27-2-derive-position-from-snapshot-state-path: in-progress
-  27-3-wire-inspect-api-to-visualizer: in-progress
-  27-4-sideband-streaming-to-tui: in-progress
-  27-5-simplify-run-ts-remove-hand-tracked-state: in-progress
+  27-1-pure-visualizer-function: checked
+  27-2-derive-position-from-snapshot-state-path: checked
+  27-3-wire-inspect-api-to-visualizer: checked
+  27-4-sideband-streaming-to-tui: checked
+  27-5-simplify-run-ts-remove-hand-tracked-state: checked

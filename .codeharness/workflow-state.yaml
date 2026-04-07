@@ -1,7 +1,7 @@
 workflow_name: create-story -> implement -> document
 started: 2026-04-07T03:15:38.593Z
 iteration: 0
-phase: completed
+phase: idle
 tasks_completed:
   - task_name: create-story
     story_key: 26-2-snapshot-resume-config-hash-validation

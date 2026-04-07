@@ -149,8 +149,8 @@ function deriveFlowsFromForEach(workflowBlock: ForEachBlock): { storyFlow: FlowS
           if (typeof storyStep === 'string') {
             storyFlow.push(storyStep);
           } else if ('gate' in storyStep) {
-            const gate = storyStep as GateBlock;
-            storyFlow.push({ loop: [...gate.check, ...gate.fix] });
+            // Keep GateConfig as-is — the story machine handles gates natively
+            storyFlow.push(storyStep as FlowStep);
           }
           // Deeper for_each nesting at story level is not expected; skip.
         }

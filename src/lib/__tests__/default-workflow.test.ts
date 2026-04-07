@@ -151,13 +151,12 @@ describe('default embedded workflow', () => {
     });
 
     it('storyFlow and epicFlow are derived from the for_each workflow block (runtime compat)', () => {
-      // storyFlow: tasks inside the for_each: story block (gate converted to loop)
-      expect(workflow.storyFlow).toEqual([
-        'create-story',
-        'implement',
-        { loop: ['check', 'review', 'retry'] },
-        'document',
-      ]);
+      // storyFlow: tasks inside the for_each: story block (gate kept as GateConfig)
+      expect(workflow.storyFlow).toHaveLength(4);
+      expect(workflow.storyFlow[0]).toBe('create-story');
+      expect(workflow.storyFlow[1]).toBe('implement');
+      expect((workflow.storyFlow[2] as GateBlock).gate).toBe('quality');
+      expect(workflow.storyFlow[3]).toBe('document');
       // epicFlow: story_flow sentinel + retro (no deploy/verify)
       expect(workflow.epicFlow).toEqual([
         'story_flow',

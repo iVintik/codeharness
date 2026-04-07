@@ -125,7 +125,7 @@ export class WorkflowError extends Error implements EngineError {
 
 export interface WorkItem { key: string; title?: string; source: 'sprint' | 'issues' }
 export interface EngineEvent {
-  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip' | 'story-done' | 'epic-verified';
+  type: 'dispatch-start' | 'dispatch-end' | 'dispatch-error' | 'stream-event' | 'task-skip' | 'story-done' | 'epic-verified' | 'workflow-viz';
   taskName: string;
   storyKey: string;
   verdictPassed?: boolean;
@@ -135,6 +135,10 @@ export interface EngineEvent {
   error?: { code: string; message: string };
   elapsedMs?: number;
   costUsd?: number;
+  /** Pre-rendered single-line ANSI visualization string (workflow-viz events). */
+  vizString?: string;
+  /** Raw WorkflowPosition from snapshotToPosition (workflow-viz events). Typed as unknown to avoid circular import from workflow-visualizer.ts. */
+  position?: unknown;
 }
 export interface EngineConfig {
   workflow: ResolvedWorkflow;

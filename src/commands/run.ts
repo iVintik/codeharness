@@ -13,6 +13,7 @@ import { readWorkflowState, writeWorkflowState } from '../lib/workflow-state.js'
 import { WorktreeManager } from '../lib/worktree-manager.js';
 import { LanePool } from '../lib/lane-pool.js';
 import { startRenderer } from '../lib/ink-renderer.js';
+import type { SprintInfo } from '../lib/ink-renderer.js';
 import type { EpicDescriptor, ExecuteEpicFn, LaneEvent } from '../lib/lane-pool.js';
 import type { EngineConfig, EngineEvent } from '../lib/workflow-types.js';
 import type { SubagentDefinition } from '../lib/agent-resolver.js';
@@ -59,6 +60,13 @@ export function buildEpicDescriptors(state: SprintState): EpicDescriptor[] {
       slug: `epic-${epicId}`,
       stories,
     }));
+}
+
+/** Translate sentinel story keys to readable display names. */
+function toDisplayKey(storyKey: string): string {
+  if (storyKey.startsWith('__epic_')) return `Epic ${storyKey.replace('__epic_', '').replace('__', '')} — verification`;
+  if (storyKey === '__run__') return 'Run';
+  return storyKey;
 }
 
 export function registerRunCommand(program: Command): void {
@@ -242,73 +250,28 @@ export function registerRunCommand(program: Command): void {
       process.on('SIGINT', onInterrupt);
       process.on('SIGTERM', onInterrupt);
 
-
-      // 7b. Build TUI event bridge — tracks cumulative state across dispatches
+      // 7b. Build TUI event bridge — derives all display state from engine events (XState source of truth)
       const sessionStartMs = Date.now();
       let totalCostUsd = 0;
       let storiesDone = counts.done;
-      let currentStoryKey = '';
-      let currentTaskName = '';
 
-      // Track display-friendly versions for header refresh
-      let displayEpicId = '';
-      let displayStoryKeyForHeader = '';
+      // Last sprint info snapshot — updated on each dispatch event, used for elapsed-time refresh
+      let lastSprintInfo: SprintInfo = {
+        storyKey: '',
+        phase: 'executing',
+        done: counts.done,
+        total: counts.total,
+        totalCost: 0,
+      };
 
-      // Periodic header refresh (elapsed time, story status)
-      const headerRefresh = setInterval(() => {
-        if (interrupted) return;
-        const epic = displayEpicId ? epicData[displayEpicId] : undefined;
-        renderer.updateSprintState({
-          storyKey: displayStoryKeyForHeader || currentStoryKey,
-          phase: currentTaskName,
-          done: storiesDone,
-          total: counts.total,
-          totalCost: totalCostUsd,
-          elapsed: formatElapsed(Date.now() - sessionStartMs),
-          epicId: displayEpicId || undefined,
-          epicTitle: epic?.name,
-          epicStoriesDone: epic?.storiesDone,
-          epicStoriesTotal: epic?.storiesTotal,
-        });
+      // Periodic elapsed time refresh — renderer heartbeat re-renders but doesn't recompute elapsed
+      const elapsedRefresh = setInterval(() => {
+        if (!interrupted) {
+          renderer.updateSprintState({ ...lastSprintInfo, elapsed: formatElapsed(Date.now() - sessionStartMs) });
+        }
       }, 2_000);
-      // Load epic data for TUI context
-      const epicData: Record<string, { name?: string; storiesDone: number; storiesTotal: number }> = {};
-      const sprintStateResult = getSprintState();
-      if (sprintStateResult.success) {
-        for (const [epicKey, epic] of Object.entries(sprintStateResult.data.epics ?? {})) {
-          const epicId = epicKey.replace('epic-', '');
-          const e = epic as { name?: string; storiesDone?: number; storiesTotal?: number };
-          epicData[epicId] = { name: e.name, storiesDone: e.storiesDone ?? 0, storiesTotal: e.storiesTotal ?? 0 };
-        }
-      }
 
-      // Build task sets from the hierarchical flow (include loop tasks)
-      const storyFlowTasks = new Set<string>();
-      for (const step of parsedWorkflow.storyFlow) {
-        if (typeof step === 'string') storyFlowTasks.add(step);
-        if (typeof step === 'object' && 'loop' in step) {
-          for (const lt of (step as { loop: string[] }).loop) storyFlowTasks.add(lt);
-        }
-      }
-      const epicLoopTasks = new Set<string>();
-      for (const step of parsedWorkflow.epicFlow) {
-        if (typeof step === 'object' && 'loop' in step) {
-          for (const lt of (step as { loop: string[] }).loop) epicLoopTasks.add(lt);
-        }
-      }
-
-      let inEpicPhase = false; // true when engine moves past story_flow to epic-level tasks
-      const taskStates: Record<string, 'pending' | 'active' | 'done' | 'failed'> = {};
-      const taskMeta: Record<string, { driver?: string; costUsd?: number | null; elapsedMs?: number | null }> = {};
-      // Initialize tasks from both flows
-      for (const [tn, task] of Object.entries(parsedWorkflow.tasks)) {
-        taskStates[tn] = 'pending';
-        if (epicLoopTasks.has(tn)) taskStates[`loop:${tn}`] = 'pending';
-        const driverLabel = task.model ?? task.driver ?? 'claude-code';
-        taskMeta[tn] = { driver: driverLabel };
-        if (epicLoopTasks.has(tn)) taskMeta[`loop:${tn}`] = { driver: driverLabel };
-      }
-      // Build initial story list from sprint status (Record<string, string>: key → status)
+      // Build initial story list from sprint status
       const storyEntries: Array<{ key: string; status: 'done' | 'in-progress' | 'pending' | 'failed' }> = [];
       for (const [key, status] of Object.entries(statuses)) {
         if (key.startsWith('epic-')) continue; // skip epic-level entries
@@ -318,112 +281,39 @@ export function registerRunCommand(program: Command): void {
         else if (status === 'failed') storyEntries.push({ key, status: 'failed' });
       }
       renderer.updateStories(storyEntries);
-      // Initial workflow graph — show story_flow pipeline
-      renderer.updateWorkflowState(parsedWorkflow.storyFlow, null, { ...taskStates }, { ...taskMeta });
 
       const onEvent = (event: EngineEvent): void => {
         if (event.type === 'stream-event' && event.streamEvent) {
           renderer.update(event.streamEvent, event.driverName);
         }
+        if (event.type === 'workflow-viz' && event.vizString !== undefined) {
+          renderer.updateWorkflowRow(event.vizString);
+        }
         if (event.type === 'dispatch-start') {
-          const isStoryTask = storyFlowTasks.has(event.taskName);
-          const isEpicTask = !isStoryTask;
-
-          // New story in story_flow: reset story task states
-          if (isStoryTask && event.storyKey !== currentStoryKey) {
-            inEpicPhase = false;
-            for (const tn of storyFlowTasks) {
-              taskStates[tn] = 'pending';
-            }
-          }
-          // Entering epic phase (verify, retro, or loop tasks)
-          if (isEpicTask && !inEpicPhase) {
-            inEpicPhase = true;
-          }
-
-          currentStoryKey = event.storyKey;
-          currentTaskName = event.taskName;
-
-          // Determine state key: loop tasks use 'loop:' prefix when in epic loop
-          const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName) && taskStates[event.taskName] === 'done';
-          const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
-
-          // Translate sentinel keys to display names with epic name
-          let epicId: string;
-          let displayStoryKey: string;
-          if (event.storyKey.startsWith('__epic_')) {
-            epicId = event.storyKey.replace('__epic_', '').replace('__', '');
-            const epicName = epicData[epicId]?.name;
-            displayStoryKey = epicName ? `${epicName} — verification` : `Epic ${epicId} verification`;
-          } else if (event.storyKey === '__run__') {
-            epicId = currentStoryKey ? extractEpicId(currentStoryKey) : '';
-            const epicName = epicId ? epicData[epicId]?.name : undefined;
-            displayStoryKey = epicName ?? (epicId ? `Epic ${epicId}` : 'Run');
-          } else {
-            epicId = extractEpicId(event.storyKey);
-            displayStoryKey = event.storyKey;
-          }
-          // Update display state for header refresh
-          displayEpicId = epicId;
-          displayStoryKeyForHeader = displayStoryKey;
-
-          const epic = epicData[epicId];
-          renderer.updateSprintState({
-            storyKey: displayStoryKey,
+          const info: SprintInfo = {
+            storyKey: toDisplayKey(event.storyKey),
             phase: event.taskName,
             done: storiesDone,
             total: counts.total,
             totalCost: totalCostUsd,
             elapsed: formatElapsed(Date.now() - sessionStartMs),
-            epicId,
-            epicTitle: epic?.name,
-            epicStoriesDone: epic?.storiesDone ?? 0,
-            epicStoriesTotal: epic?.storiesTotal ?? 0,
-          });
-          taskStates[stateKey] = 'active';
-
-          // Show story_flow pipeline during story phase, epicFlow during epic phase
-          const displayFlow = inEpicPhase ? parsedWorkflow.epicFlow : parsedWorkflow.storyFlow;
-          renderer.updateWorkflowState(displayFlow, event.taskName, { ...taskStates }, { ...taskMeta });
-
+          };
+          lastSprintInfo = info;
+          renderer.updateSprintState(info);
           // Mark story as in-progress
-          if (isStoryTask) {
+          const idx = storyEntries.findIndex(s => s.key === event.storyKey);
+          if (idx >= 0 && storyEntries[idx].status === 'pending') {
+            storyEntries[idx] = { ...storyEntries[idx], status: 'in-progress' };
             updateStoryStatus(event.storyKey, 'in-progress');
-            const idx = storyEntries.findIndex(s => s.key === event.storyKey);
-            if (idx >= 0 && storyEntries[idx].status === 'pending') {
-              storyEntries[idx] = { ...storyEntries[idx], status: 'in-progress' };
-              renderer.updateStories([...storyEntries]);
-            }
-          }
-          // During epic phase, show epic's stories as context
-          if (isEpicTask) {
             renderer.updateStories([...storyEntries]);
           }
         }
         if (event.type === 'dispatch-end') {
           totalCostUsd += event.costUsd ?? 0;
-          const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName) && taskStates[event.taskName] === 'done';
-          const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
-          taskStates[stateKey] = 'done';
-          taskMeta[stateKey] = {
-            ...taskMeta[stateKey],
-            costUsd: (taskMeta[stateKey]?.costUsd ?? 0) + (event.costUsd ?? 0),
-            elapsedMs: (taskMeta[stateKey]?.elapsedMs ?? 0) + (event.elapsedMs ?? 0),
-          };
-
-          const displayFlow = inEpicPhase ? parsedWorkflow.epicFlow : parsedWorkflow.storyFlow;
-          renderer.updateWorkflowState(displayFlow, event.taskName, { ...taskStates }, { ...taskMeta });
-
-          // Update header
-          renderer.updateSprintState({
-            storyKey: event.storyKey,
-            phase: event.taskName,
-            done: storiesDone,
-            total: counts.total,
-            totalCost: totalCostUsd,
-          });
-
-          // Epic-level verify completion → show quality scores (do NOT mark stories done here)
+          const updated: SprintInfo = { ...lastSprintInfo, done: storiesDone, total: counts.total, totalCost: totalCostUsd };
+          lastSprintInfo = updated;
+          renderer.updateSprintState(updated);
+          // Epic-level verify completion message
           if (event.taskName === 'verify' && event.storyKey.startsWith('__epic_')) {
             renderer.addMessage({
               type: 'ok',
@@ -433,17 +323,11 @@ export function registerRunCommand(program: Command): void {
           }
         }
         if (event.type === 'dispatch-error') {
-          const inLoop = inEpicPhase && epicLoopTasks.has(event.taskName);
-          const stateKey = inLoop ? `loop:${event.taskName}` : event.taskName;
-          taskStates[stateKey] = 'failed';
-          const displayFlow = inEpicPhase ? parsedWorkflow.epicFlow : parsedWorkflow.storyFlow;
-          renderer.updateWorkflowState(displayFlow, event.taskName, { ...taskStates }, { ...taskMeta });
           renderer.addMessage({
             type: 'fail',
             key: event.storyKey,
             message: `[${event.taskName}] ${event.error?.message ?? 'unknown error'}`,
           });
-          // Mark story as failed
           updateStoryStatus(event.storyKey, 'failed');
           const idx = storyEntries.findIndex(s => s.key === event.storyKey);
           if (idx >= 0) {
@@ -459,11 +343,6 @@ export function registerRunCommand(program: Command): void {
           if (idx >= 0) {
             storyEntries[idx] = { ...storyEntries[idx], status: 'done' };
             renderer.updateStories([...storyEntries]);
-          }
-          // Update epic done count
-          const epicId = extractEpicId(event.storyKey);
-          if (epicData[epicId]) {
-            epicData[epicId].storiesDone = (epicData[epicId].storiesDone ?? 0) + 1;
           }
         }
       };
@@ -575,10 +454,10 @@ export function registerRunCommand(program: Command): void {
           process.exitCode = 1;
         }
       } else {
-        // --- Sequential execution path (AC #8) — existing single-engine behavior ---
+        // --- Sequential execution path --- existing single-engine behavior
         try {
           const result = await runWorkflowActor(config);
-          clearInterval(headerRefresh);
+          clearInterval(elapsedRefresh);
           process.removeListener('SIGINT', onInterrupt);
           process.removeListener('SIGTERM', onInterrupt);
           renderer.cleanup();
@@ -596,7 +475,7 @@ export function registerRunCommand(program: Command): void {
             process.exitCode = 1;
           }
         } catch (err: unknown) {
-          clearInterval(headerRefresh);
+          clearInterval(elapsedRefresh);
           renderer.cleanup();
           const msg = err instanceof Error ? err.message : String(err);
           fail(`Workflow engine error: ${msg}`, outputOpts);

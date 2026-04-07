@@ -10,6 +10,7 @@ import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
 import { saveSnapshot, loadSnapshot, clearSnapshot, clearCheckpointLog, computeConfigHash, loadCheckpointLog, clearAllPersistence, cleanStaleTmpFiles } from './workflow-persistence.js';
 import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth } from './workflow-types.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
+import { snapshotToPosition, visualize } from './workflow-visualizer.js';
 
 export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): WorkItem[] {
   const items: WorkItem[] = [];
@@ -169,8 +170,23 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     completedTasks,
   };
   const finalOutput = await new Promise<RunOutput>((resolve) => {
+    let lastStateValue: unknown = null;
      
-    const actor = createActor(runMachine, resumeSnapshot !== null ? { input: runInput, snapshot: resumeSnapshot as any } : { input: runInput });
+    const actorOptions: any = { input: runInput };
+    if (resumeSnapshot !== null) actorOptions.snapshot = resumeSnapshot;
+    actorOptions.inspect = (inspectionEvent: { type: string; snapshot?: unknown }) => {
+        try {
+          if (inspectionEvent.type !== '@xstate.snapshot') return;
+          const snap = inspectionEvent.snapshot as Record<string, unknown> | undefined;
+          const value = snap?.value;
+          if (value === lastStateValue) return; // debounce: skip context-only changes
+          lastStateValue = value;
+          const position = snapshotToPosition(snap, config.workflow);
+          const vizString = visualize(position);
+          config.onEvent?.({ type: 'workflow-viz', taskName: '', storyKey: '', vizString, position });
+        } catch { /* IGNORE: inspect callback must never crash the workflow runner */ }
+    };
+    const actor = createActor(runMachine, actorOptions);
     actor.subscribe({
       next: () => {
         // Save XState snapshot after every state transition (task completions,

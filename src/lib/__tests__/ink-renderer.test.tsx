@@ -1097,3 +1097,64 @@ describe('per-story cost accumulation (controller integration)', () => {
     expect(stories[0].costByDriver).toEqual({ 'claude-code': 0.30 });
   });
 });
+
+// ─── story 27-4: sideband streaming to TUI (renderer side) ───────────
+
+describe('sideband streaming to TUI — renderer (story 27-4)', () => {
+  let handle: RendererHandle;
+
+  afterEach(() => {
+    handle?.cleanup();
+  });
+
+  // T6-5: quiet mode noop includes updateWorkflowRow
+  it('T6-5: quiet mode no-op handle has updateWorkflowRow as a no-op', () => {
+    handle = startRenderer({ quiet: true });
+    // Must not throw, and must exist on the handle
+    expect(typeof handle.updateWorkflowRow).toBe('function');
+    handle.updateWorkflowRow('\u001b[32mEpic 1 [1/3] create → build → test\u001b[0m');
+  });
+
+  // T6-6: updateWorkflowRow and update() write to independent state fields
+  it('T6-6: updateWorkflowRow and update() operate on independent state fields with no interference', () => {
+    handle = startRenderer({ _forceTTY: true });
+
+    // Call updateWorkflowRow first — sets workflowVizLine
+    const vizLine = 'Epic 1 [1/3] create → build → test';
+    handle.updateWorkflowRow(vizLine);
+
+    // Call update() with streaming events — modifies activity state
+    handle.update({ type: 'tool-start', name: 'Bash', id: 'tool1' });
+    handle.update({ type: 'tool-input', partial: '{"command":"npm test"}' });
+    handle.update({ type: 'tool-complete' });
+    handle.update({ type: 'text', text: 'All tests passed' });
+
+    const state = handle._getState!();
+
+    // workflowVizLine set by updateWorkflowRow is preserved
+    expect(state.workflowVizLine).toBe(vizLine);
+
+    // Activity state set by update() is also present
+    expect(state.completedTools.length).toBeGreaterThan(0);
+    expect(state.completedTools[0].name).toBe('Bash');
+    expect(state.lastThought).toBe('All tests passed');
+
+    // Now call updateWorkflowRow again — must not wipe activity state
+    handle.updateWorkflowRow('Epic 1 [2/3] create → build → test');
+    const stateAfter = handle._getState!();
+    expect(stateAfter.completedTools.length).toBeGreaterThan(0);
+    expect(stateAfter.workflowVizLine).toBe('Epic 1 [2/3] create → build → test');
+  });
+
+  // T6-7: update() does not overwrite workflowVizLine set by updateWorkflowRow
+  it('T6-7: update() after updateWorkflowRow does not clear workflowVizLine', () => {
+    handle = startRenderer({ _forceTTY: true });
+
+    handle.updateWorkflowRow('viz-snapshot-1');
+    handle.update({ type: 'text', text: 'streaming text chunk' });
+
+    const state = handle._getState!();
+    expect(state.workflowVizLine).toBe('viz-snapshot-1');
+    expect(state.lastThought).toBe('streaming text chunk');
+  });
+});

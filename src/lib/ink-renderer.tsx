@@ -56,6 +56,8 @@ export interface RendererHandle {
   updateStories(stories: StoryStatusEntry[]): void;
   addMessage(msg: StoryMessage): void;
   updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>, taskMeta?: Record<string, TaskNodeMeta>): void;
+  /** Update the workflow visualization row with a pre-rendered ANSI string (from inspect API). */
+  updateWorkflowRow(vizLine: string): void;
   processLaneEvent(event: LaneEvent): void;
   updateMergeState(mergeState: MergeState | null): void;
   cleanup(): void;
@@ -75,6 +77,7 @@ const noopHandle: RendererHandle = {
   updateStories() {},
   addMessage() {},
   updateWorkflowState() {},
+  updateWorkflowRow() {},
   processLaneEvent() {},
   updateMergeState() {},
   cleanup() {},
@@ -603,12 +606,19 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     rerender();
   }
 
+  function updateWorkflowRow(vizLine: string): void {
+    if (cleaned) return;
+    state.workflowVizLine = vizLine;
+    rerender();
+  }
+
   return {
     update,
     updateSprintState,
     updateStories,
     addMessage,
     updateWorkflowState,
+    updateWorkflowRow,
     processLaneEvent,
     updateMergeState,
     cleanup: cleanupFull,

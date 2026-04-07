@@ -1340,3 +1340,130 @@ describe('contract chaining (story 23-3)', () => {
     expect(result.contract?.testResults?.failed).toBe(0);
   });
 });
+
+// ─── story 27-4: sideband streaming to TUI ───────────────────────────
+
+describe('sideband streaming to TUI (story 27-4)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+    mockGetPendingAcceptanceCriteria.mockReturnValue([]);
+  });
+
+  function makeDispatchInput27(overrides?: object) {
+    return {
+      task: makeTask(),
+      taskName: 'implement',
+      storyKey: '5-1-foo',
+      definition: makeDefinition(),
+      config: makeConfig(),
+      workflowState: makeDefaultState(),
+      previousContract: null,
+      ...overrides,
+    };
+  }
+
+  // T6-1: stream-event emitted for each StreamEvent type from driver
+  it('T6-1: emits stream-event for each StreamEvent yielded by driver (text, tool-start, tool-complete, result)', async () => {
+    const events: object[] = [];
+    const config = makeConfig({ onEvent: (e) => events.push(e) });
+
+    mockDriverDispatch.mockImplementation(() =>
+      (async function* () {
+        yield { type: 'text' as const, text: 'thinking...' };
+        yield { type: 'tool-start' as const, name: 'Bash', id: 'tool1' };
+        yield { type: 'tool-complete' as const };
+        yield { type: 'result' as const, cost: 0.02, sessionId: 'sess-xyz' };
+      })(),
+    );
+
+    await dispatchTaskCore({ ...makeDispatchInput27(), config });
+
+    const streamEvents = events.filter((e) => (e as { type: string }).type === 'stream-event');
+    expect(streamEvents).toHaveLength(4);
+    expect(streamEvents[0]).toMatchObject({
+      type: 'stream-event',
+      taskName: 'implement',
+      storyKey: '5-1-foo',
+      driverName: 'claude-code',
+      streamEvent: { type: 'text', text: 'thinking...' },
+    });
+    expect(streamEvents[1]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'tool-start', name: 'Bash' } });
+    expect(streamEvents[2]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'tool-complete' } });
+    expect(streamEvents[3]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'result', cost: 0.02 } });
+  });
+
+  // T6-2: dispatch-start includes storyKey and model
+  it('T6-2: dispatch-start event includes storyKey and model', async () => {
+    const events: object[] = [];
+    const config = makeConfig({ onEvent: (e) => events.push(e) });
+
+    await dispatchTaskCore({ ...makeDispatchInput27(), config });
+
+    const startEvent = events.find((e) => (e as { type: string }).type === 'dispatch-start');
+    expect(startEvent).toMatchObject({
+      type: 'dispatch-start',
+      taskName: 'implement',
+      storyKey: '5-1-foo',
+      driverName: 'claude-code',
+      model: 'claude-sonnet-4-20250514',
+    });
+  });
+
+  // T6-3: dispatch-end emitted after all stream-events with correct fields
+  it('T6-3: dispatch-end is emitted after all stream-events with elapsedMs >= 0 and costUsd from result', async () => {
+    const events: object[] = [];
+    const config = makeConfig({ onEvent: (e) => events.push(e) });
+
+    mockDriverDispatch.mockImplementation(() =>
+      (async function* () {
+        yield { type: 'text' as const, text: 'done' };
+        yield { type: 'result' as const, cost: 0.07, sessionId: 'sess-end' };
+      })(),
+    );
+
+    await dispatchTaskCore({ ...makeDispatchInput27(), config });
+
+    const eventTypes = events.map((e) => (e as { type: string }).type);
+    const endIdx = eventTypes.lastIndexOf('dispatch-end');
+    const streamIndices = eventTypes
+      .map((t, i) => (t === 'stream-event' ? i : -1))
+      .filter((i) => i >= 0);
+
+    // dispatch-end must come after all stream-events
+    expect(endIdx).toBeGreaterThan(Math.max(...streamIndices));
+
+    const endEvent = events[endIdx] as Record<string, unknown>;
+    expect(typeof endEvent.elapsedMs).toBe('number');
+    expect((endEvent.elapsedMs as number)).toBeGreaterThanOrEqual(0);
+    expect(endEvent.costUsd).toBe(0.07);
+    expect(endEvent.storyKey).toBe('5-1-foo');
+  });
+
+  // T6-4: dispatch-end NOT emitted when driver throws mid-stream
+  it('T6-4: dispatch-end is NOT emitted when driver generator throws mid-stream', async () => {
+    const events: object[] = [];
+    const config = makeConfig({ onEvent: (e) => events.push(e) });
+
+    mockDriverDispatch.mockImplementation(() =>
+      (async function* () {
+        yield { type: 'text' as const, text: 'starting...' };
+        throw new Error('driver crashed mid-stream');
+      })(),
+    );
+
+    await expect(dispatchTaskCore({ ...makeDispatchInput27(), config })).rejects.toThrow('driver crashed mid-stream');
+
+    const eventTypes = events.map((e) => (e as { type: string }).type);
+    expect(eventTypes).not.toContain('dispatch-end');
+    // dispatch-start was emitted before the stream started
+    expect(eventTypes).toContain('dispatch-start');
+  });
+
+  // T6-5: stream-event not emitted when config has no onEvent
+  it('T6-5: no stream-event emitted (and no crash) when config.onEvent is undefined', async () => {
+    const config = makeConfig({ onEvent: undefined });
+
+    await expect(dispatchTaskCore({ ...makeDispatchInput27(), config })).resolves.not.toThrow();
+  });
+});

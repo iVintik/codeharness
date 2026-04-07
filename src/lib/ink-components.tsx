@@ -104,6 +104,8 @@ export interface RendererState {
   activeLaneId?: string | null;
   /** Total number of active lanes (for lane indicator display). */
   laneCount?: number;
+  /** Pre-rendered single-line workflow visualization string (from inspect API, story 27-3). */
+  workflowVizLine?: string;
 }
 
 // --- Layout Components ---

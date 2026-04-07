@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "taskName": "create-story",
+  "storyId": "26-4-clear-persistence-on-completion",
+  "driver": "claude-code",
+  "model": "claude-opus-4-6",
+  "timestamp": "2026-04-06T18:43:43.906Z",
+  "cost_usd": 0.9951548999999997,
+  "duration_ms": 254881,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/26-4-clear-persistence-on-completion.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the key reference files in detail.Now let me read the epic definition and architecture doc for the relevant sections.Let me find the actual epic 26 definition more precisely.The epic 26 uses a different numbering in the epics file. Let me search for the XState-related epic directly.Now I have enough context. Let me look at the existing story 26-1 for format reference and understand what 26-4 specifically needs to do.Now I have a comprehensive understanding. Let me look at what cleanup logic currently exists vs what 26-4 should refine.I have enough context. Let me write the story spec.Story spec written at `_bmad-output/implementation-artifacts/26-4-clear-persistence-on-completion.md`.\n\n**13 ACs**, all verifiable by a blind QA agent:\n- AC1-2: Successful run → CLI cleanup message + files deleted (check stdout + `ls`)\n- AC3-4: Failed/interrupted run → files preserved (check `ls` + `cat`)\n- AC5: Re-entry after 'completed' phase → stale files cleaned\n- AC6: Orphaned checkpoint log (no snapshot) → no incorrect skips on next run\n- AC7: Stale `.tmp` file → cleaned at startup\n- AC8: Failed run → CLI preserve message\n- AC9: Resumed run that completes → files cleaned\n- AC10: Loop termination → treated as non-success, files preserved\n- AC11-13: Build/test/file-size gates\n\n**9 tasks** covering: `clearAllPersistence()` consolidation, `cleanStaleTmpFiles()`, orphaned checkpoint handling, re-entry cleanup, startup cleanup, and full unit test coverage.\n\nNo AC references source code internals, data structures, or complexity. All are verifiable via CLI output inspection, `ls`, `cat`, and `wc -l`.",
+  "acceptanceCriteria": []
+}

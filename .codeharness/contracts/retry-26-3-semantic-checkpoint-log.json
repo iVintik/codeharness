@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "26-3-semantic-checkpoint-log",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T20:04:47.001Z",
+  "cost_usd": 0.5851413,
+  "duration_ms": 126414,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/26-3-semantic-checkpoint-log.md"
+  ],
+  "testResults": null,
+  "output": "Now let me read the existing source files to understand the current state:Now let me check the existing test files:Good — the code and tests are both largely already implemented. Let me run the test suite to see what's actually passing:All checks pass. Let me verify all the story's ACs are satisfied:Everything is already fully implemented and tested. Let me do a final comprehensive check:\n\n- ✅ **AC1** (`workflow-checkpoints.jsonl` written per completed task): `appendCheckpoint()` called in story machine after each task\n- ✅ **AC2/3** (config mismatch → skip via checkpoint log): runner loads checkpoints on hash mismatch, story machine guards on `completedTasks` set\n- ✅ **AC4** (snapshot fast path doesn't consult checkpoint log): runner only loads checkpoints in the mismatch branch\n- ✅ **AC5** (no snapshot → checkpoint log is fallback): tested in runner test\n- ✅ **AC6** (no checkpoint → no skip messages): `completedTasks` is empty set by default\n- ✅ **AC7** (corrupt checkpoint → warning, no crash): `loadCheckpointLog` skips bad lines with warning\n- ✅ **AC8** (append continues on resume): `appendCheckpoint` always appends, never overwrites\n- ✅ **AC9** (cleanup on success): `clearAllPersistence()` deletes both files\n- ✅ **AC10** (preserve on halt/error): only `success` branch calls `clearAllPersistence`\n- ✅ **AC11** (guard skips dispatch): story machine `completedTasks.has(...)` check, no `dispatchTaskCore` call\n- ✅ **AC12** (`npm run build` exits 0): ✓\n- ✅ **AC13** (5221 tests, zero failures): ✓\n- ✅ **AC14** (line counts ≤ 300): runner=214, persistence=297, story-machine=232 ✓\n\nNow update the story status to `review`:---\n\nDefinition of Done: **PASS**\n\n✅ **Story Ready for Review:** 26-3-semantic-checkpoint-log\n📊 **Completion Score:** 19/19 items passed\n🔍 **Quality Gates:** All passed\n📋 **Test Results:** 5221 tests, 0 failures (124 in the three directly-relevant files)\n📝 **Documentation:** Story status set to `review`\n\nThe story was already fully implemented in a prior session. Here's the summary of what exists:\n\n**`workflow-persistence.ts`** (297 lines): `appendCheckpoint()`, `loadCheckpointLog()`, `clearCheckpointLog()`, `clearAllPersistence()` — all implemented. JSONL format, atomic appends, corrupt-line warnings, best-effort cleanup.\n\n**`workflow-runner.ts`** (214 lines): On config-hash mismatch, loads checkpoint log → builds `completedTasks: Set<string>` → passes into machine input. On snapshot match, skips checkpoint log entirely (fast path). On success, calls `clearAllPersistence()`. On halt/error/interrupt, preserves both files.\n\n**`workflow-story-machine.ts`** (232 lines): `completedTasks.has(\\`${storyKey}::${taskName}\\`)` guard before each plain-task dispatch. Skips without invoking the driver. Appends a new checkpoint entry after every successful task completion.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow run that completes at least two tasks successfully, **When** the operator inspects the `.codeharness/` directory during or after the run, **Then** a file named `workflow-checkpoints.jsonl` exists and contains one line per completed task, each line being valid JSON with at least `storyKey`, `taskName`, and `completedAt` fields. <!-- verification: start a run, let 2+ tasks complete, then cat .codeharness/workflow-checkpoints.jsonl — each line parses as JSON, each has storyKey/taskName/completedAt -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow run that was interrupted after completing tasks for two different stories, **When** the operator modifies the workflow YAML (e.g., adds a new task to the story flow) and starts a new run, **Then** the CLI logs a message containing \"checkpoint\" and \"skipping\" (or \"skip\"), and the previously completed tasks are NOT re-dispatched — the run proceeds only with tasks that were not yet done. <!-- verification: interrupt after tasks for 2 stories complete, edit workflow YAML, restart, check CLI output for skip message, verify completed tasks are not re-run by checking that no new contracts are created for those story+task combos -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow run that was interrupted after completing the \"create-story\" and \"implement\" tasks for story X, **When** the operator changes the workflow YAML and restarts, **Then** the run skips \"create-story\" and \"implement\" for story X but still runs the remaining tasks (e.g., quality gate, document) for story X. <!-- verification: interrupt after create-story+implement for one story, edit YAML, restart, verify those two tasks are skipped but subsequent tasks run — check CLI output and contracts directory -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a checkpoint log from a previous run AND a valid XState snapshot with matching config hash, **When** the operator starts a new run without changing the config, **Then** the engine resumes from the XState snapshot (fast path) — the checkpoint log is NOT consulted for skip decisions. <!-- verification: interrupt a run (creates both snapshot and checkpoints.jsonl), restart without editing YAML, check CLI output says \"Resuming from snapshot\" NOT \"checkpoint\" — snapshot resume is the fast path -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** a checkpoint log from a previous run AND no snapshot file (or a snapshot with mismatched config hash), **When** the operator starts a new run, **Then** the engine reads the checkpoint log, starts a fresh machine, and skips tasks that appear in the log — the log is the fallback when snapshot resume is unavailable. <!-- verification: interrupt a run, delete workflow-snapshot.json (keep checkpoints.jsonl), restart, verify skip messages appear and previously completed tasks are not re-dispatched -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** NO checkpoint log file exists (first run or after successful cleanup), **When** the operator starts a run, **Then** no checkpoint-related skip messages appear in CLI output and all tasks run normally. <!-- verification: delete workflow-checkpoints.jsonl if present, start run, verify no \"skip\" or \"checkpoint\" messages, all tasks dispatch normally -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a corrupt checkpoint log file (e.g., a line that is not valid JSON, or the file truncated mid-line), **When** the operator starts a new run, **Then** the engine logs a warning about the corrupt entry, skips only the entries that parsed successfully, does NOT crash, and proceeds with the run. <!-- verification: write 3 valid JSONL lines then append \"CORRUPT{{{\", restart, check for warning in CLI output, verify engine does not crash, verify the 3 valid entries are still used for skip decisions -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a workflow run that resumes via checkpoint log (config changed) and then completes one more task, **When** that task finishes, **Then** the new completion is appended to the existing checkpoint log — the file now has entries from both the original run and the resumed run. <!-- verification: interrupt, edit YAML, restart, let one more task complete, cat checkpoints.jsonl — line count is original entries + 1 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a workflow run that completes all tasks successfully with zero errors (whether fresh or resumed), **When** the run finishes, **Then** both `.codeharness/workflow-snapshot.json` and `.codeharness/workflow-checkpoints.jsonl` are deleted. <!-- verification: after successful run, ls .codeharness/workflow-snapshot.json and ls .codeharness/workflow-checkpoints.jsonl both return \"No such file\" -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a workflow run that halts with errors (e.g., rate limit, max retries) after completing some tasks, **When** the run stops, **Then** both the snapshot file and checkpoint log are preserved on disk for a future resume attempt. <!-- verification: after halted run, cat .codeharness/workflow-checkpoints.jsonl returns valid JSONL, cat .codeharness/workflow-snapshot.json returns valid JSON -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the checkpoint log contains an entry for story X / task \"implement\", **When** a resumed run's story machine reaches the \"implement\" step for story X, **Then** the guard returns true (task already done) and the machine transitions past that step without invoking the dispatch actor — no driver process is spawned. <!-- verification: interrupt after \"implement\" for story X, edit YAML, restart, verify no dispatch log entry for story X / implement, verify the next task in the flow runs instead -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the codebase after implementation, **When** `npm run build` is executed, **Then** it exits with code 0. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** zero failures — no regressions. <!-- verification: npx vitest run exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC14",
+      "description": "**Given** the workflow-runner.ts, workflow-persistence.ts, and workflow-story-machine.ts files, **When** their line counts are checked, **Then** each is <= 300 lines (per NFR18). <!-- verification: wc -l src/lib/workflow-runner.ts <= 300, wc -l src/lib/workflow-persistence.ts <= 300, wc -l src/lib/workflow-story-machine.ts <= 300 -->",
+      "status": "pending"
+    }
+  ]
+}

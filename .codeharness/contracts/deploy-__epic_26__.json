@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "taskName": "deploy",
+  "storyId": "__epic_26__",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T20:13:21.347Z",
+  "cost_usd": 0.12281714999999999,
+  "duration_ms": 50609,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "All services are up. Here's the report:\n\n<deploy-report>\n## Status: ✅ All services healthy — pre-existing shared stack\n\n**Provisioning result:** `docker-compose.harness.yml` startup was attempted but aborted — ports 9428 and 8428 are already bound by an identical shared stack (`codeharness-shared-*`) that has been running for 12 days. No action needed; the environment is fully operational.\n\n---\n\n## Containers\n\n| Container | Image | Status | Uptime |\n|---|---|---|---|\n| `codeharness-shared-victoria-logs-1` | `victoriametrics/victoria-logs:v1.15.0-victorialogs` | ✅ running | 12 days |\n| `codeharness-shared-victoria-metrics-1` | `victoriametrics/victoria-metrics:v1.106.1` | ✅ running | 12 days |\n| `codeharness-shared-otel-collector-1` | `otel/opentelemetry-collector-contrib:0.96.0` | ✅ running | 12 days |\n| `codeharness-verify` | `codeharness-verify` | ✅ running | 8 days |\n\n---\n\n## URLs\n\n| Service | URL | Purpose |\n|---|---|---|\n| VictoriaLogs | http://localhost:9428 | Log ingestion & query |\n| VictoriaMetrics | http://localhost:8428 | Metrics storage & query |\n| OTLP gRPC | localhost:4317 | Trace/metric ingest (gRPC) |\n| OTLP HTTP | localhost:4318 | Trace/metric ingest (HTTP) |\n| Jaeger UI | http://localhost:16686 | Trace visualization |\n\n---\n\n## Credentials\n\nNone — all services are unauthenticated (local dev stack).\n\n---\n\n## Health\n\n| Service | Endpoint | Result |\n|---|---|---|\n| VictoriaLogs | `GET /health` | `OK` ✅ |\n| VictoriaMetrics | `GET /health` | `OK` ✅ |\n| OTel Collector | port 4317 (gRPC) | reachable ✅ |\n\n---\n\n## Notes\n\n- **Port conflict:** `docker-compose.harness.yml` defines the same ports as the already-running shared stack. They cannot both bind simultaneously. The shared stack is functionally identical (same image versions), so no new stack is needed.\n- **`codeharness-verify`** container is also running (8 days) — no healthcheck configured on that container.\n- No credentials, no volumes to initialize, no migrations to run.\n</deploy-report>",
+  "acceptanceCriteria": []
+}

@@ -47,9 +47,9 @@ development_status:
   # Epic 26
   epic-26: backlog
   26-1-xstate-snapshot-persistence: done
-  26-2-snapshot-resume-config-hash-validation: backlog
-  26-3-semantic-checkpoint-log: backlog
-  26-4-clear-persistence-on-completion: backlog
+  26-2-snapshot-resume-config-hash-validation: done
+  26-3-semantic-checkpoint-log: done
+  26-4-clear-persistence-on-completion: done
 
   # Epic 27
   epic-27: backlog

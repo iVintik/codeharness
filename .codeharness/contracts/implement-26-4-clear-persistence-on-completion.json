@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "taskName": "implement",
+  "storyId": "26-4-clear-persistence-on-completion",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-06T19:17:11.657Z",
+  "cost_usd": 5.299281600000002,
+  "duration_ms": 2007734,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-persistence.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-persistence.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-runner.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/driver-health-check.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/null-task-engine.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/story-flow-execution.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machines.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now let me look at the existing test files:Let me check the rest of the runner test to understand what's there:Now I have a full understanding of the codebase. Let me implement the story.Now update the runner:Now add the orphaned checkpoint handling in the snapshot load section:Now replace the success-path cleanup with `clearAllPersistence` + CLI feedback:Let me verify the runner looks correct:Good. Now let me add tests for the new persistence functions:Now add the new test sections at the end of the file:Now update the runner test file. First add the new mocks to the hoisted block:Now add the new mocks to `setupDefaultMocks()`:Now update the existing test `'successful completion: clearCheckpointLog called'` to check `clearAllPersistence` instead:Now fix the test that checks for \"no info about checkpoints\" — after my change, the success message contains \"checkpoints\":Now I need to add the new hoisted mock variables to the destructured declaration. Let me check how it looks:I need to add the new mocks to the destructured variable declaration:Now add the new test describe block at the end of the file (before the final closing):Now add the new describe block for story 26-4 at the end of the file:Now let's run the tests and build:Zero warnings. Now run the targeted tests:The persistence tests are failing because `existsSync` returns `false` for the snapshot path. Let me debug:The issue is that `mockImplementation` with conditional path-checking doesn't work well with `vi.clearAllMocks()`. Let me rewrite the `clearAllPersistence` tests using `mockReturnValue`/`mockReturnValueOnce` patterns that match the existing working tests:Also fix the `cleanStaleTmpFiles` tests to not use `mockImplementation`:The issue is that `vi.clearAllMocks()` in Vitest 4 clears `mockReturnValueOnce` queues. Let me use `mockReturnValue` which is stable across the Vitest lifecycle, like the rest of the test file does:Let me check the actual implementation to make sure it's correct:The issue is subtle. Let me investigate by checking if `mockImplementation(() => true)` versus `mockReturnValue(true)` behaves differently for multiple calls:Let me add a targeted debug test inside the same describe structure to isolate the issue:The debug test passes, but the actual function fails. The issue is likely that `unlinkSync` throws because it's been restored to the real implementation. Let me verify by adding a mock for `unlinkSync` explicitly in the test:Found it — `unlinkSync` gets restored to the real fs implementation between tests, and the try/catch silences the ENOENT. Fix is to explicitly mock it in each test. Let me update all affected `clearAllPersistence` tests:All 109 tests pass. Now run lint, build, and the full test suite:Let me check what's failing to distinguish pre-existing failures from regressions:The git stash reverted my changes. Let me restore them:The failures are in integration test files that also mock `workflow-persistence.js` but don't have the new functions mocked. Let me check:The integration tests mock `workflow-persistence.js` without the new `clearAllPersistence`/`cleanStaleTmpFiles` functions. I need to add them to all those mocks:The sed escaping didn't work. Let me use the Edit tool for each file:Now run the full test suite:5221/5221 tests passing. Now the final lint check:Zero lint warnings. Let me also verify the file size constraints from AC#13:All within the 300-line NFR18 limit.Story 26-4 is complete. Here's a summary of what was implemented:\n\n---\n\n## Story 26-4: Clear persistence on completion — Done\n\n### Changes made\n\n**`workflow-persistence.ts`** (+53 lines → 297 total):\n- Added `cleanStaleTmpFiles(projectDir?)` — deletes stale `.tmp` file at startup, best-effort\n- Added `clearAllPersistence(projectDir?)` — consolidates snapshot + checkpoint cleanup into one call, also cleans `.tmp`, each sub-operation independent (separate try/catch), returns `{ snapshotCleared, checkpointCleared }`\n\n**`workflow-runner.ts`** (+9 lines → 214 total):\n- **T5**: `cleanStaleTmpFiles(projectDir)` called at run startup (before snapshot load)\n- **T4**: `clearAllPersistence(projectDir)` called on re-entry after `phase === 'completed'`\n- **T6**: When no snapshot exists but checkpoint log has entries → warn + clear orphaned checkpoint\n- **T3**: Success path now uses `clearAllPersistence()` with info log \"Persistence cleared — snapshot: yes, checkpoints: yes\"\n- **T3**: Non-success path logs \"Persistence preserved for resume — snapshot and checkpoint log kept on disk\"\n\n**`workflow-persistence.test.ts`** (+82 tests total, +13 new):\n- Tests for `cleanStaleTmpFiles`: exists, absent, error-swallow, uses cwd\n- Tests for `clearAllPersistence`: both exist, neither exist, .tmp cleanup, independence on error, all-throw case\n- Root cause note: Vitest 4's `restoreMocks: true` default restores `unlinkSync` to real fs — tests explicitly mock it\n\n**`workflow-runner.test.ts`** (+12 new tests, 1 updated):\n- Successful run → `clearAllPersistence` called + \"Persistence cleared\" info\n- Failed/interrupted/loop-terminated → `clearAllPersistence` NOT called + \"preserved\" info\n- Re-entry after 'completed' → `clearAllPersistence` called\n- Orphaned checkpoint (null snapshot, non-empty log) → `clearCheckpointLog` + warning\n- No orphan warning on clean fresh start\n- `cleanStaleTmpFiles` called on every invocation (including completed early-return)\n- Info log reflects actual cleared state\n\n**5 integration test files** updated to include `clearAllPersistence`, `cleanStaleTmpFiles`, `clearCheckpointLog`, `loadCheckpointLog` in their `workflow-persistence.js` mocks.\n\n**Results**: 5221/5221 tests pass, zero lint warnings, build succeeds, all files ≤300 lines.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** a workflow run that completes all tasks successfully with zero errors, **When** the run finishes, **Then** the CLI output contains a message indicating persistence files were cleaned up (e.g., containing \"cleared\" or \"cleanup\" and \"persistence\" or \"snapshot\"). <!-- verification: run a workflow to successful completion (or use a minimal workflow with null-agent tasks), check CLI output (stdout/stderr) for cleanup confirmation message -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** a workflow run that completes successfully, **When** the operator lists the `.codeharness/` directory after the run, **Then** neither `workflow-snapshot.json` nor `workflow-checkpoints.jsonl` exists — both are deleted. <!-- verification: after successful run, ls .codeharness/ — neither workflow-snapshot.json nor workflow-checkpoints.jsonl appears -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** a workflow run that halts with errors (e.g., a task dispatch fails), **When** the operator lists the `.codeharness/` directory after the run, **Then** `workflow-snapshot.json` exists and contains valid JSON, and `workflow-checkpoints.jsonl` exists and contains valid JSONL (one JSON object per line). <!-- verification: after halted/failed run, cat .codeharness/workflow-snapshot.json | python3 -c \"import json,sys; json.load(sys.stdin)\" exits 0, and each non-empty line of workflow-checkpoints.jsonl parses as JSON -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** a workflow run that is interrupted (e.g., Ctrl+C / SIGINT), **When** the operator lists the `.codeharness/` directory after the interrupt, **Then** both `workflow-snapshot.json` and `workflow-checkpoints.jsonl` are preserved on disk for resume. <!-- verification: start a run, interrupt it (kill -INT <pid> or Ctrl+C), verify both files exist in .codeharness/ -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** stale persistence files exist from a previous run (both `workflow-snapshot.json` and `workflow-checkpoints.jsonl` are present) AND the workflow state file shows phase \"completed\", **When** the operator starts a new run, **Then** the runner detects the completed state and does NOT leave stale persistence files on disk — it either clears them or the run exits cleanly. <!-- verification: manually create both persistence files in .codeharness/, set workflow state phase to \"completed\", start a new run, verify persistence files are cleaned up or the run returns immediately with a clean exit -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** a successful run where `clearSnapshot()` succeeds but `clearCheckpointLog()` fails (simulated by making the checkpoint file read-only before run completion), **When** the next run starts, **Then** the stale checkpoint log does not cause incorrect behavior — the engine either clears it on startup or ignores it because the snapshot is absent (fresh start path). <!-- verification: after a successful run with a read-only checkpoint file left behind, start a new run, verify no \"skip\" messages from stale checkpoints — all tasks run normally -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** a stale `.tmp` file exists at `.codeharness/workflow-snapshot.json.tmp` from a previous crashed write, **When** the operator starts a new run, **Then** the stale `.tmp` file is deleted — it does not accumulate across runs. <!-- verification: create a file at .codeharness/workflow-snapshot.json.tmp with arbitrary content, start a run, verify the .tmp file is gone after the run starts -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** a workflow run that halts with errors after completing some tasks, **When** the CLI output is inspected, **Then** there is a message indicating persistence files were preserved for resume (e.g., containing \"preserved\" or \"kept\" and \"resume\"). <!-- verification: trigger a halted run (e.g., configure an invalid driver), check CLI output for preservation message -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** a workflow run that resumes via checkpoint log (config changed) and then completes all remaining tasks successfully, **When** the run finishes, **Then** both persistence files are deleted — the cleanup applies to resumed runs too, not just fresh runs. <!-- verification: interrupt a run after some tasks, edit workflow YAML, restart and let it complete all remaining tasks successfully, verify neither persistence file exists in .codeharness/ -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** a workflow run that completes with loop termination (max-iterations or circuit-breaker), **When** the operator lists `.codeharness/` after the run, **Then** both persistence files are preserved (loop termination is NOT treated as clean success). <!-- verification: configure a workflow with a gate that exceeds max iterations, let it terminate, verify both persistence files still exist -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the codebase after implementation, **When** `npm run build` is executed, **Then** it exits with code 0. <!-- verification: npm run build exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** zero failures — no regressions. <!-- verification: npx vitest run exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** the workflow-runner.ts, workflow-persistence.ts, and workflow-story-machine.ts files, **When** their line counts are checked, **Then** each is <= 300 lines (per NFR18). <!-- verification: wc -l src/lib/workflow-runner.ts <= 300, wc -l src/lib/workflow-persistence.ts <= 300, wc -l src/lib/workflow-story-machine.ts <= 300 -->",
+      "status": "pending"
+    }
+  ]
+}

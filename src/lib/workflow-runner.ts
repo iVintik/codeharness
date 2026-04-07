@@ -195,7 +195,9 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
         try {
           const pos = buildSyntheticPosition(ev.storyKey, ev.taskName, epicEntries, config);
           if (pos) origOnEvent({ type: 'workflow-viz', taskName: ev.taskName, storyKey: ev.storyKey, vizString: visualize(pos), position: pos });
-        } catch { /* IGNORE: synthetic viz is best-effort */ }
+        } catch (vizErr) { // IGNORE: synthetic viz is best-effort
+          warn(`workflow-runner: synthetic viz error: ${vizErr instanceof Error ? vizErr.message : String(vizErr)}`);
+        }
       }
     }};
   }

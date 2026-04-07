@@ -82,7 +82,7 @@ export function App({ state, onCycleLane, onQuit }: { state: RendererState; onCy
           <EpicInfo info={state.sprintInfo} stories={state.stories} />
           <StoryContext entries={state.storyContext ?? []} />
           <Separator />
-          <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} />
+          {state.workflowVizLine ? <Text>{state.workflowVizLine}</Text> : <WorkflowGraph flow={state.workflowFlow} currentTask={state.currentTaskName} taskStates={state.taskStates} />}
           <Separator />
           <ActivitySection completedTools={state.completedTools} activeTool={state.activeTool} activeDriverName={state.activeDriverName} lastThought={state.lastThought} retryInfo={state.retryInfo} availableHeight={availableHeight} />
         </>

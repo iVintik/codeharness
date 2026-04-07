@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "__run__",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T20:08:00.876Z",
+  "cost_usd": 1.38571245,
+  "duration_ms": 437764,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "Verification passed — all 10 ACs green.\n\nThe previous failure was a red herring: the verifier ran in a blank temp directory instead of the actual project. This time it ran against `/Users/ivintik/dev/personal/codeharness` directly.\n\nProof doc written to `verification/__run__-proof.md`.",
+  "acceptanceCriteria": []
+}

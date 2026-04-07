@@ -2,7 +2,7 @@
 
 # Story 26-1: XState snapshot persistence via `getPersistedSnapshot()`
 
-Status: done
+Status: review
 
 ## Story
 

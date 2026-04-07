@@ -1,1013 +1,7 @@
 {
   "snapshot": {
-    "status": "done",
-    "output": {
-      "workflowState": {
-        "workflow_name": "create-story -> implement -> document",
-        "started": "2026-04-07T03:15:38.593Z",
-        "iteration": 5,
-        "phase": "executing",
-        "tasks_completed": [
-          {
-            "task_name": "create-story",
-            "story_key": "26-2-snapshot-resume-config-hash-validation",
-            "completed_at": "2026-04-07T03:18:41.777Z",
-            "session_id": "7fe6e584-174f-43af-8178-b3d342d402cb"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "26-2-snapshot-resume-config-hash-validation",
-            "completed_at": "2026-04-07T03:19:48.198Z",
-            "session_id": "e376bf25-8934-4d32-9cf6-8eba2cd5e1be"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "26-3-semantic-checkpoint-log",
-            "completed_at": "2026-04-07T03:23:46.829Z",
-            "session_id": "57a6c249-d32b-4130-bcf4-cee558d04823"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "26-3-semantic-checkpoint-log",
-            "completed_at": "2026-04-07T03:25:00.318Z",
-            "session_id": "76f3bad9-b071-47cc-8e44-92a384b1865b"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "26-4-clear-persistence-on-completion",
-            "completed_at": "2026-04-07T03:29:17.849Z",
-            "session_id": "34b6fbeb-798c-4ee5-be7c-89217c388570"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "26-4-clear-persistence-on-completion",
-            "completed_at": "2026-04-07T03:30:15.593Z",
-            "session_id": "03621b73-e51c-47de-beab-b66ebf422719"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-1-pure-visualizer-function",
-            "completed_at": "2026-04-07T03:37:36.833Z",
-            "session_id": "3d112020-1ad7-4156-bbbc-1a15d8479046"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-1-pure-visualizer-function",
-            "completed_at": "2026-04-07T03:41:09.123Z",
-            "session_id": "cdd2751a-94f9-432d-9126-58d35652328f"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-2-derive-position-from-snapshot-state-path",
-            "completed_at": "2026-04-07T03:45:12.669Z",
-            "session_id": "84e05058-d7c2-4bbb-9379-50fd30c7a639"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-2-derive-position-from-snapshot-state-path",
-            "completed_at": "2026-04-07T03:51:25.405Z",
-            "session_id": "eb26e5e3-f727-4a8d-93fe-61f03967807e"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-3-wire-inspect-api-to-visualizer",
-            "completed_at": "2026-04-07T03:55:29.464Z",
-            "session_id": "7faa6f08-3d82-4637-ab3c-05e8c34c69cc"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-3-wire-inspect-api-to-visualizer",
-            "completed_at": "2026-04-07T04:01:48.883Z",
-            "session_id": "bb892257-7238-48a8-88a4-09bf0ceca464"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-4-sideband-streaming-to-tui",
-            "completed_at": "2026-04-07T04:09:27.350Z",
-            "session_id": "eb0edbc3-5ba8-4386-8f02-32f0703fbcfc"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-4-sideband-streaming-to-tui",
-            "completed_at": "2026-04-07T04:14:40.519Z",
-            "session_id": "c9721d9f-699d-42a8-9149-7f5eb7b819f1"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state",
-            "completed_at": "2026-04-07T04:20:05.298Z",
-            "session_id": "336f7d47-ab16-4480-a1e8-b60c5eec7a5f"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state",
-            "completed_at": "2026-04-07T04:28:06.515Z",
-            "session_id": "41741e6a-fbda-4816-aa82-a97b9150e19e"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-07T06:35:26.373Z",
-            "session_id": "1515f0ac-63ed-4bd1-ba19-2d682a0b49df"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-07T06:36:47.884Z",
-            "session_id": "7f0946ac-0de2-4f49-8f44-c05f642c8da9"
-          },
-          {
-            "task_name": "document",
-            "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-07T07:28:06.908Z",
-            "session_id": "6115a782-fe1d-415e-845b-c82b54aae2c0"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:23:36.157Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:26:09.215Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:29:47.512Z",
-            "session_id": "e32091c1-27a4-48fe-8159-b827c9e25fa9"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:30:39.843Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:32:40.605Z"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:32:39.600Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:34:53.106Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:37:58.693Z",
-            "session_id": "9b4675aa-38f7-4b2f-82f7-10ca963a7a2d"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:39:22.786Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:42:30.161Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:50:09.573Z",
-            "session_id": "f8ca01b4-7fa6-437a-9fb0-867fa3066b40"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:51:15.448Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:54:41.354Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:08:12.029Z",
-            "session_id": "8ac23abb-5829-4ed2-b443-3ec1e5712b2a"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:09:04.270Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:11:59.517Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:17:55.940Z",
-            "session_id": "bb28b856-52e8-4c00-a8f9-816ba2b88915"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:19:03.333Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:21:45.172Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "26-2-snapshot-resume-config-hash-validation",
-            "completed_at": "2026-04-07T12:22:51.784Z",
-            "session_id": "6aed2bc6-5687-4327-b17e-045fcf3069a3"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:23:49.495Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:25:57.311Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:31:09.204Z",
-            "session_id": "c79f40f7-be1a-442c-ae49-09828e52129c"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:32:05.523Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:35:09.347Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:43:22.373Z",
-            "session_id": "a6732b4c-6826-4af8-94b6-c957940ecbf7"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:44:38.652Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:47:23.279Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:58:19.506Z",
-            "session_id": "b6123ca3-3d84-4563-af1b-b93dffee3363"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:00:09.112Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:03:41.365Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:07:07.677Z",
-            "session_id": "9c88e96d-19d0-4ec6-8212-2fcc299df645"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:08:09.867Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:11:39.014Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "26-3-semantic-checkpoint-log",
-            "completed_at": "2026-04-07T13:13:07.271Z",
-            "session_id": "7d29602c-20f6-402c-89ab-76bdb72a0d11"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:14:16.013Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:15:54.796Z",
-            "session_id": "b5a6c8a7-c6a3-4ca4-a8b3-ed66982ad0a9"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:16:58.943Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:20:57.617Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:23:23.161Z",
-            "session_id": "1617652f-94bc-4cbe-a8fb-e153760b669d"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:24:33.112Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:28:29.047Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:37:41.030Z",
-            "session_id": "85028fd1-27d1-4aec-8005-ff70206a213a"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:39:12.165Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:41:17.283Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:51:25.566Z",
-            "session_id": "b3789769-3daa-4b28-b65c-6af9e87be1e4"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:52:39.191Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:54:50.612Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "26-4-clear-persistence-on-completion",
-            "completed_at": "2026-04-07T13:55:40.706Z",
-            "session_id": "09302141-1a5d-460c-bf1b-4f0f76641012"
-          },
-          {
-            "task_name": "retro",
-            "story_key": "__epic_26__",
-            "completed_at": "2026-04-07T13:58:17.723Z",
-            "session_id": "7ebab5b5-0f16-4103-9a53-2a6b3b1aa846"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T13:59:47.844Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:02:15.943Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:10:00.952Z",
-            "session_id": "28d86a63-c9e6-46db-8b92-80fc09497b92"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:10:50.777Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:12:32.261Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:17:34.134Z",
-            "session_id": "e60f99f7-18ff-45b8-a804-f80a3281be04"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:18:32.364Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:21:22.253Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:23:31.267Z",
-            "session_id": "7f0bac03-ea0d-46ea-b069-b52b90241667"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:24:22.046Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:27:18.184Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:34:18.992Z",
-            "session_id": "8cec1fb6-c8f9-4009-a1f1-45fa5de633f6"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:35:09.732Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:37:17.250Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-1-pure-visualizer-function",
-            "completed_at": "2026-04-07T14:38:34.508Z",
-            "session_id": "050342a9-f4da-4323-aeaf-7bd76582b480"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:39:28.607Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:41:38.356Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:47:26.290Z",
-            "session_id": "0aa03efe-3437-47af-a78d-b519779829e3"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:48:23.856Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:52:02.786Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T15:12:36.430Z",
-            "session_id": "27da2ade-71ba-4cb9-b21e-6fc83c8866d4"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T15:13:27.647Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T15:16:25.554Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-2-derive-position-from-snapshot-state-path",
-            "completed_at": "2026-04-07T15:17:06.999Z",
-            "session_id": "ee6e9812-be16-4d5f-9498-a78627ada5af"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:17:53.326Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:19:33.481Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:30:33.041Z",
-            "session_id": "eefc1d38-4436-42bc-a783-e23c6cc33498"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:31:24.453Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:34:21.087Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:40:46.100Z",
-            "session_id": "86ea63f5-7935-4a47-80b5-675a0675c65e"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:41:43.810Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:44:27.674Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:57:13.709Z",
-            "session_id": "04b569ae-18bb-4620-ba81-69af3d1c2c5a"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:58:05.239Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T16:01:27.429Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T16:18:40.565Z",
-            "session_id": "0104243e-2d95-4f50-9f05-231628a106e1"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T16:19:29.083Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T16:22:49.171Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-3-wire-inspect-api-to-visualizer",
-            "completed_at": "2026-04-07T16:23:54.711Z",
-            "session_id": "f627e4bf-3408-4a57-8094-3f0c19363241"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:24:50.426Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:27:39.292Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:30:27.729Z",
-            "session_id": "9bad23f1-5ec8-4ccf-8bf8-db627895048e"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:31:17.281Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:33:56.147Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:39:38.801Z",
-            "session_id": "8a3ca042-3a33-423c-9924-5e9476cdcd3b"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:40:40.522Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:43:49.766Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:50:41.597Z",
-            "session_id": "bd3c781e-cc0c-4e75-b436-cd2d0d890b53"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:51:37.511Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:54:37.516Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:59:52.117Z",
-            "session_id": "2033305c-c496-49d2-b33d-11f846595b4d"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T17:00:40.321Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T17:05:12.656Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-4-sideband-streaming-to-tui",
-            "completed_at": "2026-04-07T17:05:48.707Z",
-            "session_id": "ef523afb-3721-40ad-879d-53ca9c3fa2d3"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:06:51.512Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:09:26.388Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:14:59.591Z",
-            "session_id": "cf6600b5-29ba-4eef-ad11-888d09ca44ae"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:15:50.739Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:18:21.087Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:25:12.242Z",
-            "session_id": "ed869f62-6be6-4d31-9883-de352c5b4ec4"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:26:06.699Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:29:05.187Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:52:21.332Z",
-            "session_id": "bc131b6a-9a32-4c48-90c3-c07b8b0febbb"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:53:18.445Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:55:40.515Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T18:07:36.055Z",
-            "session_id": "75f05868-854a-48ee-9c90-9f3cb92c47f0"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T18:08:33.384Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T18:12:34.496Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state",
-            "completed_at": "2026-04-07T18:13:31.269Z",
-            "session_id": "5a10c94c-cff8-40f8-9a04-413b3488e0c2"
-          },
-          {
-            "task_name": "retro",
-            "story_key": "__epic_27__",
-            "completed_at": "2026-04-07T18:15:56.892Z",
-            "session_id": "db8177af-8258-4381-9711-a02924d14b3c"
-          }
-        ],
-        "evaluator_scores": [
-          {
-            "iteration": 1,
-            "passed": 1,
-            "failed": 1,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T17:09:26.392Z"
-          },
-          {
-            "iteration": 2,
-            "passed": 1,
-            "failed": 1,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T17:18:21.093Z"
-          },
-          {
-            "iteration": 3,
-            "passed": 0,
-            "failed": 2,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T17:29:05.193Z"
-          },
-          {
-            "iteration": 4,
-            "passed": 1,
-            "failed": 1,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T17:55:40.522Z"
-          },
-          {
-            "iteration": 5,
-            "passed": 2,
-            "failed": 0,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T18:12:34.505Z"
-          }
-        ],
-        "circuit_breaker": {
-          "triggered": false,
-          "reason": null,
-          "score_history": []
-        },
-        "trace_ids": [
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-retro",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-retro",
-          "ch-run-1775543522253-0-create-story",
-          "ch-run-1775543522253-0-implement",
-          "ch-run-1775543522253-0-check",
-          "ch-run-1775543522253-0-review",
-          "ch-run-1775543522253-1-retry",
-          "ch-run-1775543522253-1-check",
-          "ch-run-1775543522253-1-review",
-          "ch-run-1775544651159-0-check",
-          "ch-run-1775544651159-0-review",
-          "ch-run-1775544651159-1-retry",
-          "ch-run-1775544651159-1-check",
-          "ch-run-1775544651159-1-review",
-          "ch-run-1775545835914-0-check",
-          "ch-run-1775545835914-0-review",
-          "ch-run-1775545835914-1-retry",
-          "ch-run-1775545835914-1-check",
-          "ch-run-1775545835914-1-review",
-          "ch-run-1775546583710-0-check",
-          "ch-run-1775546583710-0-review",
-          "ch-run-1775546583710-1-document",
-          "ch-run-1775546583710-0-check",
-          "ch-run-1775546583710-0-review",
-          "ch-run-1775546583710-1-retry",
-          "ch-run-1775546583710-1-check",
-          "ch-run-1775546583710-1-review",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-5-retro",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-5-retro"
-        ]
-      },
-      "errors": [
-        {
-          "taskName": "review",
-          "storyKey": "26-4-clear-persistence-on-completion:quality",
-          "code": "UNKNOWN",
-          "message": "Reading additional input from stdin...\n"
-        }
-      ],
-      "tasksCompleted": 115,
-      "storiesProcessed": {},
-      "lastContract": {
-        "version": 1,
-        "taskName": "retro",
-        "storyId": "__epic_27__",
-        "driver": "claude-code",
-        "model": "claude-opus-4-6",
-        "timestamp": "2026-04-07T18:15:56.892Z",
-        "cost_usd": 0.764758,
-        "duration_ms": 145603,
-        "changedFiles": [],
-        "testResults": null,
-        "output": "Now let me gather the actual project data for epic 27.Good, epic 27 is complete with all 5 stories done. Let me now read all story files and the existing retro, plus find the epic definition and any previous retro.Now let me get the epic definition, previous retro, and check git log for epic 27 work.I see there's already an existing retrospective document at `_bmad-output/implementation-artifacts/epic-27-retrospective.md`. Let me check the previous retro and look for epic 28 to complete the analysis.I now have all the context. The retrospective already exists and is thorough. Let me now run the facilitated party-mode retrospective as Bob (SM).\n\n---\n\n═══════════════════════════════════════════════════════════\n🔄 TEAM RETROSPECTIVE — Epic 27: TUI Visualization & Integration\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"Welcome to the retrospective. Epic 27 is complete — all 5 stories done. This was the **final epic** in the 7-epic XState engine redesign. Let me set the stage.\"\n\n**EPIC 27 SUMMARY:**\n\n| Metric | Value |\n|--------|-------|\n| Stories | 5/5 completed (100%) |\n| Tests added | +66 (5,221 → 5,287) |\n| Test files | 199 |\n| Build | Clean ✅ |\n| XState engine status | **COMPLETE** — Epics 21–27 all done |\n\n**What was delivered:**\n- 27-1: Pure `visualize()` function (229 lines → 296 lines final)\n- 27-2: `snapshotToPosition()` snapshot parser\n- 27-3: XState `inspect` API wiring + `workflow-viz` engine events\n- 27-4: Sideband streaming validation (8 integration tests)\n- 27-5: Hand-tracked state removal (610 → 486 lines, 6 mutable vars eliminated)\n\nAlice (Product Owner): \"All 5 stories done, and this wraps up the entire XState engine redesign. Seven epics. That's a milestone.\"\n\nCharlie (Senior Dev): \"The numbers are good. But AC9 failed — run.ts is 486 lines, not the ≤400 target.\"\n\nDana (QA Engineer): \"And behavioral ACs 1 through 7 are still unverified. No one's actually watched the TUI do a multi-story run with the new code.\"\n\nBob (Scrum Master): \"Both valid. Let's get into it.\"\n\n═══════════════════════════════════════════════════════════\n\n**EPIC 26 RETRO ACTION ITEM FOLLOW-THROUGH:**\n\n| # | Action | Status |\n|---|--------|--------|\n| A1 | Per-story git commits during harness runs | ❌ **Third consecutive failure** |\n| A2 | Split `workflow-persistence.ts` | ⏳ Deferred (no persistence changes in E27) |\n| A3 | Update 26-4 status header to \"done\" | ❌ Not done |\n| A4 | Verify story 26-1 ACs | ⏳ Unknown |\n| A5 | Add dev agent record to story 26-2 | ⏳ Unknown |\n| A6 | Confirm 26-4 AC statuses | ⏳ Unknown |\n\nCharlie (Senior Dev): *grimacing* \"A1 — three epics in a row. We keep saying 'commit per story' and we keep not doing it.\"\n\nBob (Scrum Master): \"That's because it's a **process rule being asked of an autonomous system**. The harness doesn't know how to `git commit`. This is a product feature, not a human discipline issue.\"\n\nElena (Junior Dev): \"So can we stop writing it as an action item and start writing it as a story?\"\n\nBob (Scrum Master): \"Exactly. That's lesson L3 from the existing retro — and I agree with it completely.\"\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"Let's hear from everyone. **What went well?**\"\n\nAlice (Product Owner): \"The story dependency chain was flawless. 27-1 → 27-2 → 27-3 → 27-4 → 27-5, each building cleanly on the last. No rework of prior stories. Same pattern we got right in Epic 26.\"\n\nCharlie (Senior Dev): \"The **pure function architecture** (AD5) was a home run. `visualize()` and `snapshotToPosition()` are pure — no I/O, no state. 35+ tests for the visualizer alone. Tests run in milliseconds because there's nothing to mock.\"\n\nDana (QA Engineer): \"The test suite never regressed. 66 new tests, zero breaks. Seven epics of infrastructure work and the build never went red.\"\n\nElena (Junior Dev): \"I'm proud of story 27-4. The sideband wiring was already in place — I just had to verify it and plug gaps. 8 integration tests written, all passing. The architecture predicted correctly that the plumbing was mostly done.\"\n\nBob (Scrum Master): \"And the big picture — the monolith is gone. 1,426-line `workflow-machine.ts` → 9 focused modules, real XState machines, dual-layer persistence, inspect-driven visualization. That's a successful redesign.\"\n\nBob (Scrum Master): \"Now — **what didn't go well?**\"\n\nCharlie (Senior Dev): \"AC9. We said run.ts would be ≤400 lines. It's 486. The pre-flight checks, parallel execution path, option parsing, and quiet-mode summary reporting are bulkier than we estimated.\"\n\nAlice (Product Owner): *frustrated* \"This is the same pattern. Line count targets are always optimistic. The architecture said the visualizer would be ~150 lines — it's 296. We consistently underestimate by 30-50%.\"\n\nBob (Scrum Master): \"Pattern P2. We've now seen it across multiple stories and epics.\"\n\nDana (QA Engineer): \"My bigger concern: **AC1 through AC7 are behavioral**. They require watching the TUI during a real multi-story run. No one's done that. The structural ACs pass (grep says zero hand-tracked vars, build passes), but do the story transitions actually look right? Does the workflow row reset? Does cost accumulate correctly? We don't know.\"\n\nCharlie (Senior Dev): \"And stories 27-1 through 27-4 have no verification proof documents. We verified 27-5 because it was the final story, but the foundation stories got a pass.\"\n\nElena (Junior Dev): *hesitates* \"Also... the story spec files all still say `Status: ready-for-dev`. We've flagged this in two retros now.\"\n\nBob (Scrum Master): \"Three patterns repeating: no commits, no proofs, no status updates. All three are **harness automation gaps**, not human discipline failures.\"\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"Let me summarize the **key patterns** from the deep story analysis.\"\n\n**PATTERNS:**\n\n| # | Pattern | Frequency | Impact |\n|---|---------|-----------|--------|\n| P1 | Per-story git commits absent | 3 epics (22, 26, 27) | Git history is a black box. No per-story revert possible. |\n| P2 | Line count targets optimistic by 30-50% | Every epic | ACs fail on count targets despite good code quality |\n| P3 | Story spec files write-once | Every epic | Specs don't reflect actual completion state |\n| P4 | Pure function architecture enables clean testing | Epics 27 (and prior) | 35+ tests for visualizer, all fast, no mocks needed |\n| P5 | Final-epic cleanup stories are high-value | Epic 27 story 5 | Net simplification: -13 mutable vars, eliminated entire bug class |\n| P6 | Behavioral ACs go unverified | Epics 26, 27 | User-facing behavior unproven |\n\nCharlie (Senior Dev): \"P4 is the one I want to carry forward. Pure functions for everything that can be pure. The visualizer tests are the fastest, most reliable tests in the whole suite.\"\n\nDana (QA Engineer): \"P6 is my concern. We can grep for variable names, but we can't grep for 'the TUI looks right during a story transition.' That needs real execution and observation.\"\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"The XState engine redesign is **complete**. Let me share the final ledger.\"\n\n**XState Engine Redesign — By the Numbers:**\n\n| Metric | Before (pre-Epic 21) | After (post-Epic 27) | Delta |\n|--------|---------------------|---------------------|-------|\n| Monolith | 1,426 lines | Deleted | −1,426 |\n| Modules | 1 file | 9 focused modules | +8 |\n| Tests | ~4,976 | 5,287 | +311 |\n| Test files | ~183 | 199 | +16 |\n| Hand-tracked TUI vars | ~15 mutable variables | 2 (`totalCostUsd`, `storiesDone`) | −13 |\n| Machine type | Imperative wrappers | Real XState machines | Architecture upgrade |\n| Persistence | Basic JSON dump | Dual-layer (snapshot + checkpoint) | Crash-resilient |\n| Visualization | Hand-tracked flow graph | Inspect API → pure function | Single source of truth |\n\n**Architecture Decisions That Held:**\n- AD2: `fromPromise` actors for dispatch ✅\n- AD3: Dual-layer persistence ✅\n- AD4: `for_each` via guard-driven transitions ✅\n- AD5: Pure visualizer + inspect API ✅\n- AD6: Recursive compiler ✅\n\nAll 5 ADs survived contact with implementation. Zero design pivots across 7 epics.\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"Now — since this was the final XState epic, there's no 'Epic 28' in the XState plan. But there's technical debt and harness tooling gaps to address.\"\n\n**TECHNICAL DEBT:**\n\n| # | Item | Severity | Action |\n|---|------|----------|--------|\n| D1 | `run.ts` at 486 lines (NFR18 = 300) | **High** | Split: extract parallel path + pre-flight |\n| D2 | `workflow-persistence.ts` at 297/300 | Medium | Split: snapshot + checkpoint |\n| D3 | `workflow-visualizer.ts` at 296/300 | Medium | Split: renderer + position-parser |\n| D4 | Behavioral ACs (27-5 AC1–7) unverified | Medium | Interactive verification session |\n| D5 | No checkpoint log compaction | Low | Carried from E26 |\n| D6 | Gate iteration not restored on resume | Low | Carried from E26 |\n\n═══════════════════════════════════════════════════════════\n📝 **ACTION ITEMS**\n═══════════════════════════════════════════════════════════\n\n| # | Action | Owner | Priority |\n|---|--------|-------|----------|\n| **A1** | **Build per-story git commit into the harness** — this is now a **product feature**, not a process rule. After tests pass, stage + commit with `feat(X-Y): title`. Three epics prove manual process fails. | Dev | **High** |\n| **A2** | **Split `run.ts`** — extract parallel path into `run-parallel.ts`, pre-flight into helper. Target: ≤250 lines. This is the only NFR18-violating file. | Dev | **High** |\n| **A3** | **Verify behavioral ACs interactively** — run `codeharness run` on multi-story workflow. Observe: header ↔ workflow row agreement, story transition reset, epic-level switch, monotonic cost, timer ticking, quiet summary, error display. Document with screenshots or log capture. | QA | **Medium** |\n| **A4** | **Split ceiling-pressure modules** — `workflow-persistence.ts` (297) and `workflow-visualizer.ts` (296). Both need splits before any feature additions. | Dev | **Medium** |\n| **A5** | **Generate verification proofs during implementation** — make harness emit proof doc after each story's tests pass. Captures: AC statuses, test counts, file changes, build status. | Dev | **Medium** |\n| **A6** | **Update story spec status headers** — build into harness story completion flow. All 5 E27 stories still say `ready-for-dev`. | Dev | **Low** |\n| **A7** | **Future line count ACs: use \"reduced by X%\" criterion** instead of absolute counts. Absolute targets consistently miss by 30-50%. | SM | **Low** |\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"That's our retro. The XState engine redesign is done — 7 epics, ~35 stories, 311 new tests, zero design pivots. The architecture held. The process gaps are real but they're all solvable with harness features, not human discipline.\"\n\nAlice (Product Owner): \"This is a strong foundation. What we ship next will be built on real state machines, not hand-tracked spaghetti.\"\n\nCharlie (Senior Dev): \"Agreed. A2 and A4 should happen before we pile more features on. The ceiling-pressure modules will bite us otherwise.\"\n\nDana (QA Engineer): \"And A3 — I want to actually see this thing run before we declare victory.\"\n\nBob (Scrum Master): \"Fair. The structural evidence is solid. The behavioral evidence is pending. Let's get that done.\"\n\nDo you want me to write this to `_bmad-output/implementation-artifacts/epic-27-retrospective.md` (replacing the existing auto-generated one), or do you have reactions to any of these findings first?",
-        "acceptanceCriteria": []
-      },
-      "accumulatedCostUsd": 41.42487965,
-      "halted": false
-    },
-    "value": "allDone",
+    "status": "active",
+    "value": "processingEpic",
     "historyValue": {},
     "context": {
       "config": {
@@ -1239,7 +233,7 @@
         },
         "sprintStatusPath": "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml",
         "issuesPath": "/Users/ivintik/dev/personal/codeharness/.codeharness/issues.yaml",
-        "runId": "run-1775561482405",
+        "runId": "run-1775589105768",
         "projectDir": "/Users/ivintik/dev/personal/codeharness",
         "abortSignal": {},
         "maxIterations": 50
@@ -1249,6 +243,10 @@
         [
           "26",
           [
+            {
+              "key": "26-1-xstate-snapshot-persistence",
+              "source": "sprint"
+            },
             {
               "key": "26-2-snapshot-resume-config-hash-validation",
               "source": "sprint"
@@ -1289,1015 +287,346 @@
           ]
         ]
       ],
-      "currentEpicIndex": 2,
+      "currentEpicIndex": 0,
       "workflowState": {
         "workflow_name": "create-story -> implement -> document",
-        "started": "2026-04-07T03:15:38.593Z",
-        "iteration": 5,
+        "started": "2026-04-07T19:11:45.768Z",
+        "iteration": 0,
         "phase": "executing",
-        "tasks_completed": [
-          {
-            "task_name": "create-story",
-            "story_key": "26-2-snapshot-resume-config-hash-validation",
-            "completed_at": "2026-04-07T03:18:41.777Z",
-            "session_id": "7fe6e584-174f-43af-8178-b3d342d402cb"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "26-2-snapshot-resume-config-hash-validation",
-            "completed_at": "2026-04-07T03:19:48.198Z",
-            "session_id": "e376bf25-8934-4d32-9cf6-8eba2cd5e1be"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "26-3-semantic-checkpoint-log",
-            "completed_at": "2026-04-07T03:23:46.829Z",
-            "session_id": "57a6c249-d32b-4130-bcf4-cee558d04823"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "26-3-semantic-checkpoint-log",
-            "completed_at": "2026-04-07T03:25:00.318Z",
-            "session_id": "76f3bad9-b071-47cc-8e44-92a384b1865b"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "26-4-clear-persistence-on-completion",
-            "completed_at": "2026-04-07T03:29:17.849Z",
-            "session_id": "34b6fbeb-798c-4ee5-be7c-89217c388570"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "26-4-clear-persistence-on-completion",
-            "completed_at": "2026-04-07T03:30:15.593Z",
-            "session_id": "03621b73-e51c-47de-beab-b66ebf422719"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-1-pure-visualizer-function",
-            "completed_at": "2026-04-07T03:37:36.833Z",
-            "session_id": "3d112020-1ad7-4156-bbbc-1a15d8479046"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-1-pure-visualizer-function",
-            "completed_at": "2026-04-07T03:41:09.123Z",
-            "session_id": "cdd2751a-94f9-432d-9126-58d35652328f"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-2-derive-position-from-snapshot-state-path",
-            "completed_at": "2026-04-07T03:45:12.669Z",
-            "session_id": "84e05058-d7c2-4bbb-9379-50fd30c7a639"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-2-derive-position-from-snapshot-state-path",
-            "completed_at": "2026-04-07T03:51:25.405Z",
-            "session_id": "eb26e5e3-f727-4a8d-93fe-61f03967807e"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-3-wire-inspect-api-to-visualizer",
-            "completed_at": "2026-04-07T03:55:29.464Z",
-            "session_id": "7faa6f08-3d82-4637-ab3c-05e8c34c69cc"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-3-wire-inspect-api-to-visualizer",
-            "completed_at": "2026-04-07T04:01:48.883Z",
-            "session_id": "bb892257-7238-48a8-88a4-09bf0ceca464"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-4-sideband-streaming-to-tui",
-            "completed_at": "2026-04-07T04:09:27.350Z",
-            "session_id": "eb0edbc3-5ba8-4386-8f02-32f0703fbcfc"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-4-sideband-streaming-to-tui",
-            "completed_at": "2026-04-07T04:14:40.519Z",
-            "session_id": "c9721d9f-699d-42a8-9149-7f5eb7b819f1"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state",
-            "completed_at": "2026-04-07T04:20:05.298Z",
-            "session_id": "336f7d47-ab16-4480-a1e8-b60c5eec7a5f"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state",
-            "completed_at": "2026-04-07T04:28:06.515Z",
-            "session_id": "41741e6a-fbda-4816-aa82-a97b9150e19e"
-          },
-          {
-            "task_name": "create-story",
-            "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-07T06:35:26.373Z",
-            "session_id": "1515f0ac-63ed-4bd1-ba19-2d682a0b49df"
-          },
-          {
-            "task_name": "implement",
-            "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-07T06:36:47.884Z",
-            "session_id": "7f0946ac-0de2-4f49-8f44-c05f642c8da9"
-          },
-          {
-            "task_name": "document",
-            "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-07T07:28:06.908Z",
-            "session_id": "6115a782-fe1d-415e-845b-c82b54aae2c0"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:23:36.157Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:26:09.215Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:29:47.512Z",
-            "session_id": "e32091c1-27a4-48fe-8159-b827c9e25fa9"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:30:39.843Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T10:32:40.605Z"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:32:39.600Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:34:53.106Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:37:58.693Z",
-            "session_id": "9b4675aa-38f7-4b2f-82f7-10ca963a7a2d"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:39:22.786Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:42:30.161Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:50:09.573Z",
-            "session_id": "f8ca01b4-7fa6-437a-9fb0-867fa3066b40"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:51:15.448Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T11:54:41.354Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:08:12.029Z",
-            "session_id": "8ac23abb-5829-4ed2-b443-3ec1e5712b2a"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:09:04.270Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:11:59.517Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:17:55.940Z",
-            "session_id": "bb28b856-52e8-4c00-a8f9-816ba2b88915"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:19:03.333Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
-            "completed_at": "2026-04-07T12:21:45.172Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "26-2-snapshot-resume-config-hash-validation",
-            "completed_at": "2026-04-07T12:22:51.784Z",
-            "session_id": "6aed2bc6-5687-4327-b17e-045fcf3069a3"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:23:49.495Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:25:57.311Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:31:09.204Z",
-            "session_id": "c79f40f7-be1a-442c-ae49-09828e52129c"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:32:05.523Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:35:09.347Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:43:22.373Z",
-            "session_id": "a6732b4c-6826-4af8-94b6-c957940ecbf7"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:44:38.652Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:47:23.279Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T12:58:19.506Z",
-            "session_id": "b6123ca3-3d84-4563-af1b-b93dffee3363"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:00:09.112Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:03:41.365Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:07:07.677Z",
-            "session_id": "9c88e96d-19d0-4ec6-8212-2fcc299df645"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:08:09.867Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-3-semantic-checkpoint-log:quality",
-            "completed_at": "2026-04-07T13:11:39.014Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "26-3-semantic-checkpoint-log",
-            "completed_at": "2026-04-07T13:13:07.271Z",
-            "session_id": "7d29602c-20f6-402c-89ab-76bdb72a0d11"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:14:16.013Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:15:54.796Z",
-            "session_id": "b5a6c8a7-c6a3-4ca4-a8b3-ed66982ad0a9"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:16:58.943Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:20:57.617Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:23:23.161Z",
-            "session_id": "1617652f-94bc-4cbe-a8fb-e153760b669d"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:24:33.112Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:28:29.047Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:37:41.030Z",
-            "session_id": "85028fd1-27d1-4aec-8005-ff70206a213a"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:39:12.165Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:41:17.283Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:51:25.566Z",
-            "session_id": "b3789769-3daa-4b28-b65c-6af9e87be1e4"
-          },
-          {
-            "task_name": "check",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:52:39.191Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "26-4-clear-persistence-on-completion:quality",
-            "completed_at": "2026-04-07T13:54:50.612Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "26-4-clear-persistence-on-completion",
-            "completed_at": "2026-04-07T13:55:40.706Z",
-            "session_id": "09302141-1a5d-460c-bf1b-4f0f76641012"
-          },
-          {
-            "task_name": "retro",
-            "story_key": "__epic_26__",
-            "completed_at": "2026-04-07T13:58:17.723Z",
-            "session_id": "7ebab5b5-0f16-4103-9a53-2a6b3b1aa846"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T13:59:47.844Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:02:15.943Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:10:00.952Z",
-            "session_id": "28d86a63-c9e6-46db-8b92-80fc09497b92"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:10:50.777Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:12:32.261Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:17:34.134Z",
-            "session_id": "e60f99f7-18ff-45b8-a804-f80a3281be04"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:18:32.364Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:21:22.253Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:23:31.267Z",
-            "session_id": "7f0bac03-ea0d-46ea-b069-b52b90241667"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:24:22.046Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:27:18.184Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:34:18.992Z",
-            "session_id": "8cec1fb6-c8f9-4009-a1f1-45fa5de633f6"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:35:09.732Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-1-pure-visualizer-function:quality",
-            "completed_at": "2026-04-07T14:37:17.250Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-1-pure-visualizer-function",
-            "completed_at": "2026-04-07T14:38:34.508Z",
-            "session_id": "050342a9-f4da-4323-aeaf-7bd76582b480"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:39:28.607Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:41:38.356Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:47:26.290Z",
-            "session_id": "0aa03efe-3437-47af-a78d-b519779829e3"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:48:23.856Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T14:52:02.786Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T15:12:36.430Z",
-            "session_id": "27da2ade-71ba-4cb9-b21e-6fc83c8866d4"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T15:13:27.647Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-2-derive-position-from-snapshot-state-path:quality",
-            "completed_at": "2026-04-07T15:16:25.554Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-2-derive-position-from-snapshot-state-path",
-            "completed_at": "2026-04-07T15:17:06.999Z",
-            "session_id": "ee6e9812-be16-4d5f-9498-a78627ada5af"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:17:53.326Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:19:33.481Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:30:33.041Z",
-            "session_id": "eefc1d38-4436-42bc-a783-e23c6cc33498"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:31:24.453Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:34:21.087Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:40:46.100Z",
-            "session_id": "86ea63f5-7935-4a47-80b5-675a0675c65e"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:41:43.810Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:44:27.674Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:57:13.709Z",
-            "session_id": "04b569ae-18bb-4620-ba81-69af3d1c2c5a"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T15:58:05.239Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T16:01:27.429Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T16:18:40.565Z",
-            "session_id": "0104243e-2d95-4f50-9f05-231628a106e1"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T16:19:29.083Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-3-wire-inspect-api-to-visualizer:quality",
-            "completed_at": "2026-04-07T16:22:49.171Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-3-wire-inspect-api-to-visualizer",
-            "completed_at": "2026-04-07T16:23:54.711Z",
-            "session_id": "f627e4bf-3408-4a57-8094-3f0c19363241"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:24:50.426Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:27:39.292Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:30:27.729Z",
-            "session_id": "9bad23f1-5ec8-4ccf-8bf8-db627895048e"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:31:17.281Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:33:56.147Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:39:38.801Z",
-            "session_id": "8a3ca042-3a33-423c-9924-5e9476cdcd3b"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:40:40.522Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:43:49.766Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:50:41.597Z",
-            "session_id": "bd3c781e-cc0c-4e75-b436-cd2d0d890b53"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:51:37.511Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:54:37.516Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T16:59:52.117Z",
-            "session_id": "2033305c-c496-49d2-b33d-11f846595b4d"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T17:00:40.321Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-4-sideband-streaming-to-tui:quality",
-            "completed_at": "2026-04-07T17:05:12.656Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-4-sideband-streaming-to-tui",
-            "completed_at": "2026-04-07T17:05:48.707Z",
-            "session_id": "ef523afb-3721-40ad-879d-53ca9c3fa2d3"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:06:51.512Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:09:26.388Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:14:59.591Z",
-            "session_id": "cf6600b5-29ba-4eef-ad11-888d09ca44ae"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:15:50.739Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:18:21.087Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:25:12.242Z",
-            "session_id": "ed869f62-6be6-4d31-9883-de352c5b4ec4"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:26:06.699Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:29:05.187Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:52:21.332Z",
-            "session_id": "bc131b6a-9a32-4c48-90c3-c07b8b0febbb"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:53:18.445Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T17:55:40.515Z"
-          },
-          {
-            "task_name": "retry",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T18:07:36.055Z",
-            "session_id": "75f05868-854a-48ee-9c90-9f3cb92c47f0"
-          },
-          {
-            "task_name": "check",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T18:08:33.384Z"
-          },
-          {
-            "task_name": "review",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
-            "completed_at": "2026-04-07T18:12:34.496Z"
-          },
-          {
-            "task_name": "document",
-            "story_key": "27-5-simplify-run-ts-remove-hand-tracked-state",
-            "completed_at": "2026-04-07T18:13:31.269Z",
-            "session_id": "5a10c94c-cff8-40f8-9a04-413b3488e0c2"
-          },
-          {
-            "task_name": "retro",
-            "story_key": "__epic_27__",
-            "completed_at": "2026-04-07T18:15:56.892Z",
-            "session_id": "db8177af-8258-4381-9711-a02924d14b3c"
-          }
-        ],
-        "evaluator_scores": [
-          {
-            "iteration": 1,
-            "passed": 1,
-            "failed": 1,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T17:09:26.392Z"
-          },
-          {
-            "iteration": 2,
-            "passed": 1,
-            "failed": 1,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T17:18:21.093Z"
-          },
-          {
-            "iteration": 3,
-            "passed": 0,
-            "failed": 2,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T17:29:05.193Z"
-          },
-          {
-            "iteration": 4,
-            "passed": 1,
-            "failed": 1,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T17:55:40.522Z"
-          },
-          {
-            "iteration": 5,
-            "passed": 2,
-            "failed": 0,
-            "unknown": 0,
-            "total": 2,
-            "timestamp": "2026-04-07T18:12:34.505Z"
-          }
-        ],
+        "tasks_completed": [],
+        "evaluator_scores": [],
         "circuit_breaker": {
           "triggered": false,
           "reason": null,
           "score_history": []
         },
-        "trace_ids": [
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-retro",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-create-story",
-          "ch-run-1775531738592-0-implement",
-          "ch-run-1775531738592-0-document",
-          "ch-run-1775531738592-0-retro",
-          "ch-run-1775543522253-0-create-story",
-          "ch-run-1775543522253-0-implement",
-          "ch-run-1775543522253-0-check",
-          "ch-run-1775543522253-0-review",
-          "ch-run-1775543522253-1-retry",
-          "ch-run-1775543522253-1-check",
-          "ch-run-1775543522253-1-review",
-          "ch-run-1775544651159-0-check",
-          "ch-run-1775544651159-0-review",
-          "ch-run-1775544651159-1-retry",
-          "ch-run-1775544651159-1-check",
-          "ch-run-1775544651159-1-review",
-          "ch-run-1775545835914-0-check",
-          "ch-run-1775545835914-0-review",
-          "ch-run-1775545835914-1-retry",
-          "ch-run-1775545835914-1-check",
-          "ch-run-1775545835914-1-review",
-          "ch-run-1775546583710-0-check",
-          "ch-run-1775546583710-0-review",
-          "ch-run-1775546583710-1-document",
-          "ch-run-1775546583710-0-check",
-          "ch-run-1775546583710-0-review",
-          "ch-run-1775546583710-1-retry",
-          "ch-run-1775546583710-1-check",
-          "ch-run-1775546583710-1-review",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-5-retro",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-0-check",
-          "ch-run-1775561482405-0-review",
-          "ch-run-1775561482405-1-retry",
-          "ch-run-1775561482405-1-check",
-          "ch-run-1775561482405-1-review",
-          "ch-run-1775561482405-2-retry",
-          "ch-run-1775561482405-2-check",
-          "ch-run-1775561482405-2-review",
-          "ch-run-1775561482405-3-retry",
-          "ch-run-1775561482405-3-check",
-          "ch-run-1775561482405-3-review",
-          "ch-run-1775561482405-4-retry",
-          "ch-run-1775561482405-4-check",
-          "ch-run-1775561482405-4-review",
-          "ch-run-1775561482405-5-document",
-          "ch-run-1775561482405-5-retro"
-        ]
+        "trace_ids": []
       },
-      "errors": [
-        {
-          "taskName": "review",
-          "storyKey": "26-4-clear-persistence-on-completion:quality",
-          "code": "UNKNOWN",
-          "message": "Reading additional input from stdin...\n"
-        }
-      ],
-      "tasksCompleted": 115,
+      "errors": [],
+      "tasksCompleted": 0,
       "storiesProcessed": {},
-      "lastContract": {
-        "version": 1,
-        "taskName": "retro",
-        "storyId": "__epic_27__",
-        "driver": "claude-code",
-        "model": "claude-opus-4-6",
-        "timestamp": "2026-04-07T18:15:56.892Z",
-        "cost_usd": 0.764758,
-        "duration_ms": 145603,
-        "changedFiles": [],
-        "testResults": null,
-        "output": "Now let me gather the actual project data for epic 27.Good, epic 27 is complete with all 5 stories done. Let me now read all story files and the existing retro, plus find the epic definition and any previous retro.Now let me get the epic definition, previous retro, and check git log for epic 27 work.I see there's already an existing retrospective document at `_bmad-output/implementation-artifacts/epic-27-retrospective.md`. Let me check the previous retro and look for epic 28 to complete the analysis.I now have all the context. The retrospective already exists and is thorough. Let me now run the facilitated party-mode retrospective as Bob (SM).\n\n---\n\n═══════════════════════════════════════════════════════════\n🔄 TEAM RETROSPECTIVE — Epic 27: TUI Visualization & Integration\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"Welcome to the retrospective. Epic 27 is complete — all 5 stories done. This was the **final epic** in the 7-epic XState engine redesign. Let me set the stage.\"\n\n**EPIC 27 SUMMARY:**\n\n| Metric | Value |\n|--------|-------|\n| Stories | 5/5 completed (100%) |\n| Tests added | +66 (5,221 → 5,287) |\n| Test files | 199 |\n| Build | Clean ✅ |\n| XState engine status | **COMPLETE** — Epics 21–27 all done |\n\n**What was delivered:**\n- 27-1: Pure `visualize()` function (229 lines → 296 lines final)\n- 27-2: `snapshotToPosition()` snapshot parser\n- 27-3: XState `inspect` API wiring + `workflow-viz` engine events\n- 27-4: Sideband streaming validation (8 integration tests)\n- 27-5: Hand-tracked state removal (610 → 486 lines, 6 mutable vars eliminated)\n\nAlice (Product Owner): \"All 5 stories done, and this wraps up the entire XState engine redesign. Seven epics. That's a milestone.\"\n\nCharlie (Senior Dev): \"The numbers are good. But AC9 failed — run.ts is 486 lines, not the ≤400 target.\"\n\nDana (QA Engineer): \"And behavioral ACs 1 through 7 are still unverified. No one's actually watched the TUI do a multi-story run with the new code.\"\n\nBob (Scrum Master): \"Both valid. Let's get into it.\"\n\n═══════════════════════════════════════════════════════════\n\n**EPIC 26 RETRO ACTION ITEM FOLLOW-THROUGH:**\n\n| # | Action | Status |\n|---|--------|--------|\n| A1 | Per-story git commits during harness runs | ❌ **Third consecutive failure** |\n| A2 | Split `workflow-persistence.ts` | ⏳ Deferred (no persistence changes in E27) |\n| A3 | Update 26-4 status header to \"done\" | ❌ Not done |\n| A4 | Verify story 26-1 ACs | ⏳ Unknown |\n| A5 | Add dev agent record to story 26-2 | ⏳ Unknown |\n| A6 | Confirm 26-4 AC statuses | ⏳ Unknown |\n\nCharlie (Senior Dev): *grimacing* \"A1 — three epics in a row. We keep saying 'commit per story' and we keep not doing it.\"\n\nBob (Scrum Master): \"That's because it's a **process rule being asked of an autonomous system**. The harness doesn't know how to `git commit`. This is a product feature, not a human discipline issue.\"\n\nElena (Junior Dev): \"So can we stop writing it as an action item and start writing it as a story?\"\n\nBob (Scrum Master): \"Exactly. That's lesson L3 from the existing retro — and I agree with it completely.\"\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"Let's hear from everyone. **What went well?**\"\n\nAlice (Product Owner): \"The story dependency chain was flawless. 27-1 → 27-2 → 27-3 → 27-4 → 27-5, each building cleanly on the last. No rework of prior stories. Same pattern we got right in Epic 26.\"\n\nCharlie (Senior Dev): \"The **pure function architecture** (AD5) was a home run. `visualize()` and `snapshotToPosition()` are pure — no I/O, no state. 35+ tests for the visualizer alone. Tests run in milliseconds because there's nothing to mock.\"\n\nDana (QA Engineer): \"The test suite never regressed. 66 new tests, zero breaks. Seven epics of infrastructure work and the build never went red.\"\n\nElena (Junior Dev): \"I'm proud of story 27-4. The sideband wiring was already in place — I just had to verify it and plug gaps. 8 integration tests written, all passing. The architecture predicted correctly that the plumbing was mostly done.\"\n\nBob (Scrum Master): \"And the big picture — the monolith is gone. 1,426-line `workflow-machine.ts` → 9 focused modules, real XState machines, dual-layer persistence, inspect-driven visualization. That's a successful redesign.\"\n\nBob (Scrum Master): \"Now — **what didn't go well?**\"\n\nCharlie (Senior Dev): \"AC9. We said run.ts would be ≤400 lines. It's 486. The pre-flight checks, parallel execution path, option parsing, and quiet-mode summary reporting are bulkier than we estimated.\"\n\nAlice (Product Owner): *frustrated* \"This is the same pattern. Line count targets are always optimistic. The architecture said the visualizer would be ~150 lines — it's 296. We consistently underestimate by 30-50%.\"\n\nBob (Scrum Master): \"Pattern P2. We've now seen it across multiple stories and epics.\"\n\nDana (QA Engineer): \"My bigger concern: **AC1 through AC7 are behavioral**. They require watching the TUI during a real multi-story run. No one's done that. The structural ACs pass (grep says zero hand-tracked vars, build passes), but do the story transitions actually look right? Does the workflow row reset? Does cost accumulate correctly? We don't know.\"\n\nCharlie (Senior Dev): \"And stories 27-1 through 27-4 have no verification proof documents. We verified 27-5 because it was the final story, but the foundation stories got a pass.\"\n\nElena (Junior Dev): *hesitates* \"Also... the story spec files all still say `Status: ready-for-dev`. We've flagged this in two retros now.\"\n\nBob (Scrum Master): \"Three patterns repeating: no commits, no proofs, no status updates. All three are **harness automation gaps**, not human discipline failures.\"\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"Let me summarize the **key patterns** from the deep story analysis.\"\n\n**PATTERNS:**\n\n| # | Pattern | Frequency | Impact |\n|---|---------|-----------|--------|\n| P1 | Per-story git commits absent | 3 epics (22, 26, 27) | Git history is a black box. No per-story revert possible. |\n| P2 | Line count targets optimistic by 30-50% | Every epic | ACs fail on count targets despite good code quality |\n| P3 | Story spec files write-once | Every epic | Specs don't reflect actual completion state |\n| P4 | Pure function architecture enables clean testing | Epics 27 (and prior) | 35+ tests for visualizer, all fast, no mocks needed |\n| P5 | Final-epic cleanup stories are high-value | Epic 27 story 5 | Net simplification: -13 mutable vars, eliminated entire bug class |\n| P6 | Behavioral ACs go unverified | Epics 26, 27 | User-facing behavior unproven |\n\nCharlie (Senior Dev): \"P4 is the one I want to carry forward. Pure functions for everything that can be pure. The visualizer tests are the fastest, most reliable tests in the whole suite.\"\n\nDana (QA Engineer): \"P6 is my concern. We can grep for variable names, but we can't grep for 'the TUI looks right during a story transition.' That needs real execution and observation.\"\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"The XState engine redesign is **complete**. Let me share the final ledger.\"\n\n**XState Engine Redesign — By the Numbers:**\n\n| Metric | Before (pre-Epic 21) | After (post-Epic 27) | Delta |\n|--------|---------------------|---------------------|-------|\n| Monolith | 1,426 lines | Deleted | −1,426 |\n| Modules | 1 file | 9 focused modules | +8 |\n| Tests | ~4,976 | 5,287 | +311 |\n| Test files | ~183 | 199 | +16 |\n| Hand-tracked TUI vars | ~15 mutable variables | 2 (`totalCostUsd`, `storiesDone`) | −13 |\n| Machine type | Imperative wrappers | Real XState machines | Architecture upgrade |\n| Persistence | Basic JSON dump | Dual-layer (snapshot + checkpoint) | Crash-resilient |\n| Visualization | Hand-tracked flow graph | Inspect API → pure function | Single source of truth |\n\n**Architecture Decisions That Held:**\n- AD2: `fromPromise` actors for dispatch ✅\n- AD3: Dual-layer persistence ✅\n- AD4: `for_each` via guard-driven transitions ✅\n- AD5: Pure visualizer + inspect API ✅\n- AD6: Recursive compiler ✅\n\nAll 5 ADs survived contact with implementation. Zero design pivots across 7 epics.\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"Now — since this was the final XState epic, there's no 'Epic 28' in the XState plan. But there's technical debt and harness tooling gaps to address.\"\n\n**TECHNICAL DEBT:**\n\n| # | Item | Severity | Action |\n|---|------|----------|--------|\n| D1 | `run.ts` at 486 lines (NFR18 = 300) | **High** | Split: extract parallel path + pre-flight |\n| D2 | `workflow-persistence.ts` at 297/300 | Medium | Split: snapshot + checkpoint |\n| D3 | `workflow-visualizer.ts` at 296/300 | Medium | Split: renderer + position-parser |\n| D4 | Behavioral ACs (27-5 AC1–7) unverified | Medium | Interactive verification session |\n| D5 | No checkpoint log compaction | Low | Carried from E26 |\n| D6 | Gate iteration not restored on resume | Low | Carried from E26 |\n\n═══════════════════════════════════════════════════════════\n📝 **ACTION ITEMS**\n═══════════════════════════════════════════════════════════\n\n| # | Action | Owner | Priority |\n|---|--------|-------|----------|\n| **A1** | **Build per-story git commit into the harness** — this is now a **product feature**, not a process rule. After tests pass, stage + commit with `feat(X-Y): title`. Three epics prove manual process fails. | Dev | **High** |\n| **A2** | **Split `run.ts`** — extract parallel path into `run-parallel.ts`, pre-flight into helper. Target: ≤250 lines. This is the only NFR18-violating file. | Dev | **High** |\n| **A3** | **Verify behavioral ACs interactively** — run `codeharness run` on multi-story workflow. Observe: header ↔ workflow row agreement, story transition reset, epic-level switch, monotonic cost, timer ticking, quiet summary, error display. Document with screenshots or log capture. | QA | **Medium** |\n| **A4** | **Split ceiling-pressure modules** — `workflow-persistence.ts` (297) and `workflow-visualizer.ts` (296). Both need splits before any feature additions. | Dev | **Medium** |\n| **A5** | **Generate verification proofs during implementation** — make harness emit proof doc after each story's tests pass. Captures: AC statuses, test counts, file changes, build status. | Dev | **Medium** |\n| **A6** | **Update story spec status headers** — build into harness story completion flow. All 5 E27 stories still say `ready-for-dev`. | Dev | **Low** |\n| **A7** | **Future line count ACs: use \"reduced by X%\" criterion** instead of absolute counts. Absolute targets consistently miss by 30-50%. | SM | **Low** |\n\n═══════════════════════════════════════════════════════════\n\nBob (Scrum Master): \"That's our retro. The XState engine redesign is done — 7 epics, ~35 stories, 311 new tests, zero design pivots. The architecture held. The process gaps are real but they're all solvable with harness features, not human discipline.\"\n\nAlice (Product Owner): \"This is a strong foundation. What we ship next will be built on real state machines, not hand-tracked spaghetti.\"\n\nCharlie (Senior Dev): \"Agreed. A2 and A4 should happen before we pile more features on. The ceiling-pressure modules will bite us otherwise.\"\n\nDana (QA Engineer): \"And A3 — I want to actually see this thing run before we declare victory.\"\n\nBob (Scrum Master): \"Fair. The structural evidence is solid. The behavioral evidence is pending. Let's get that done.\"\n\nDo you want me to write this to `_bmad-output/implementation-artifacts/epic-27-retrospective.md` (replacing the existing auto-generated one), or do you have reactions to any of these findings first?",
-        "acceptanceCriteria": []
-      },
-      "accumulatedCostUsd": 41.42487965,
+      "lastContract": null,
+      "accumulatedCostUsd": 0,
       "halted": false,
       "completedTasks": {}
     },
-    "children": {}
+    "children": {
+      "0.run.processingEpic": {
+        "snapshot": {
+          "status": "active",
+          "input": {
+            "config": {
+              "workflow": {
+                "tasks": {
+                  "create-story": {
+                    "agent": "story-creator",
+                    "session": "fresh",
+                    "source_access": true,
+                    "timeout_minutes": 15,
+                    "model": "claude-opus-4-6"
+                  },
+                  "implement": {
+                    "agent": "dev",
+                    "session": "fresh",
+                    "source_access": true,
+                    "timeout_minutes": 30,
+                    "model": "claude-sonnet-4-6"
+                  },
+                  "check": {
+                    "agent": "checker",
+                    "session": "fresh",
+                    "source_access": true,
+                    "timeout_minutes": 10,
+                    "driver": "codex"
+                  },
+                  "review": {
+                    "agent": "reviewer",
+                    "session": "fresh",
+                    "source_access": true,
+                    "timeout_minutes": 10,
+                    "driver": "codex"
+                  },
+                  "document": {
+                    "agent": "documenter",
+                    "session": "fresh",
+                    "source_access": true,
+                    "timeout_minutes": 15,
+                    "model": "claude-opus-4-6"
+                  },
+                  "deploy": {
+                    "agent": "deployer",
+                    "session": "fresh",
+                    "source_access": true,
+                    "timeout_minutes": 30,
+                    "model": "claude-sonnet-4-6"
+                  },
+                  "verify": {
+                    "agent": "evaluator",
+                    "session": "fresh",
+                    "source_access": false,
+                    "timeout_minutes": 30,
+                    "driver": "codex"
+                  },
+                  "retry": {
+                    "agent": "dev",
+                    "session": "fresh",
+                    "source_access": true,
+                    "timeout_minutes": 15,
+                    "model": "claude-sonnet-4-6"
+                  },
+                  "retro": {
+                    "agent": "retro",
+                    "session": "fresh",
+                    "source_access": true,
+                    "timeout_minutes": 15,
+                    "model": "claude-opus-4-6"
+                  }
+                },
+                "storyFlow": [
+                  "create-story",
+                  "implement",
+                  {
+                    "gate": "quality",
+                    "check": [
+                      "check",
+                      "review"
+                    ],
+                    "fix": [
+                      "retry"
+                    ],
+                    "pass_when": "consensus",
+                    "max_retries": 5,
+                    "circuit_breaker": "stagnation"
+                  },
+                  "document"
+                ],
+                "epicFlow": [
+                  "story_flow",
+                  "retro"
+                ],
+                "sprintFlow": [
+                  "deploy",
+                  {
+                    "gate": "verification",
+                    "check": [
+                      "verify"
+                    ],
+                    "fix": [
+                      "retry",
+                      "document",
+                      "deploy"
+                    ],
+                    "pass_when": "consensus",
+                    "max_retries": 3,
+                    "circuit_breaker": "stagnation"
+                  }
+                ],
+                "execution": {
+                  "max_parallel": 1,
+                  "isolation": "none",
+                  "merge_strategy": "merge-commit",
+                  "epic_strategy": "sequential",
+                  "story_strategy": "sequential"
+                },
+                "workflow": {
+                  "steps": [
+                    {
+                      "for_each": "epic",
+                      "steps": [
+                        {
+                          "for_each": "story",
+                          "steps": [
+                            "create-story",
+                            "implement",
+                            {
+                              "gate": "quality",
+                              "check": [
+                                "check",
+                                "review"
+                              ],
+                              "fix": [
+                                "retry"
+                              ],
+                              "pass_when": "consensus",
+                              "max_retries": 5,
+                              "circuit_breaker": "stagnation"
+                            },
+                            "document"
+                          ]
+                        },
+                        "retro"
+                      ]
+                    },
+                    "deploy",
+                    {
+                      "gate": "verification",
+                      "check": [
+                        "verify"
+                      ],
+                      "fix": [
+                        "retry",
+                        "document",
+                        "deploy"
+                      ],
+                      "pass_when": "consensus",
+                      "max_retries": 3,
+                      "circuit_breaker": "stagnation"
+                    }
+                  ]
+                }
+              },
+              "agents": {
+                "story-creator": {
+                  "name": "story-creator",
+                  "model": "claude-sonnet-4-6",
+                  "instructions": "You are Technical scrum master who creates detailed, unambiguous story specs.\nReads epic definitions, architecture docs, and existing code to produce\nstories that a developer agent can execute without clarification.\n\n\nCommunication style: Precise, structured. Every AC is testable. Every task maps to an AC. No ambiguity.\n\nPrinciples:\n- Every acceptance criterion must be independently verifiable\n- Tasks must be ordered by dependency — no circular references\n- Dev notes must cite specific files, modules, and patterns from the codebase\n- Story scope must match the epic definition exactly — no scope creep, no missing requirements\n- Reference architecture decisions and constraints that affect implementation\n\n## Role\n\nYou are creating an implementation-ready story file. The developer agent will execute this story without asking questions — every detail must be explicit.\n\n## Input\n\n1. Read the sprint plan / epic definitions to find the next story to create\n2. Read architecture docs for technical constraints\n3. Read the existing codebase to understand current patterns, naming conventions, and module structure\n4. Read any previous story files in this epic for consistency\n\n## Story Creation Process\n\n1. **Identify the story** from the sprint plan — find the next unwritten story\n2. **Read all referenced source material** — PRD sections, architecture decisions, UX specs cited in the epic\n3. **Scan the codebase** — understand existing patterns, file structure, test conventions\n4. **Write the story file** using the project's story template\n\n## Story Quality Requirements\n\n- **Acceptance Criteria**: Each AC must be a concrete, testable condition. Use Given/When/Then or equivalent. Number them sequentially.\n- **Tasks/Subtasks**: Ordered implementation steps. Each task references which AC(s) it satisfies. Include test-writing tasks.\n- **Dev Notes**: Cite specific files to modify, patterns to follow, architecture constraints. Include file paths.\n- **Testing Requirements**: Specify what to test, expected coverage, test file locations.\n\n## Anti-Patterns to Avoid\n\n- Vague ACs like \"system should handle errors gracefully\" — specify WHICH errors and HOW\n- Tasks without AC mapping — every task must trace to at least one AC\n- Missing edge cases — think about failure modes, not just happy path\n- Ignoring existing code patterns — the dev agent must follow established conventions\n\n## Output\n\nWrap your story spec in `<story-spec>...</story-spec>` tags. This is machine-parsed.\n\nWrite the story file to the implementation artifacts directory following the project's naming convention.\nMark the story as `ready-for-dev` in the sprint status.\n",
+                  "disallowedTools": [],
+                  "bare": true
+                },
+                "dev": {
+                  "name": "dev",
+                  "model": "claude-sonnet-4-6",
+                  "instructions": "You are Executes approved stories with strict adherence to story details and team standards and practices.\n\nCommunication style: Ultra-succinct. Speaks in file paths and AC IDs - every statement citable. No fluff, all precision.\n\nPrinciples:\n- All existing and new tests must pass 100% before story is ready for review\n- Every task/subtask must be covered by comprehensive unit tests before marking an item complete",
+                  "disallowedTools": [],
+                  "bare": true
+                },
+                "checker": {
+                  "name": "checker",
+                  "model": "claude-sonnet-4-6",
+                  "instructions": "You are CI bot that runs the project's test suite, linter, and coverage tool.\nReports results objectively — no interpretation, no fixes, just facts.\n\n\nCommunication style: Machine-like. Commands run, output captured, pass/fail reported.\n\nPrinciples:\n- Run the project's actual test command (npm test, pytest, cargo test, etc.)\n- Run the project's linter if configured (eslint, ruff, clippy, etc.)\n- Check coverage against target if configured\n- Report exact command, exit code, and output for each check\n- Never fix code — only report results\n\n## Role\n\nYou are running automated checks on the implementation. Run tests, linter, and coverage. Report results.\n\n## Process\n\n1. **Detect check commands** from the project (package.json scripts, pyproject.toml, Makefile, etc.)\n2. **Run tests**: execute the test command, capture output and exit code\n3. **Run linter**: execute the lint command if available\n4. **Check coverage**: if a coverage target exists, verify it's met\n\n## Output Format\n\nOutput a single JSON object:\n\n```json\n{\n  \"verdict\": \"pass\" | \"fail\",\n  \"checks\": [\n    {\n      \"name\": \"tests\",\n      \"command\": \"npm test\",\n      \"exit_code\": 0,\n      \"passed\": true,\n      \"summary\": \"42 tests passed\"\n    },\n    {\n      \"name\": \"lint\",\n      \"command\": \"npm run lint\",\n      \"exit_code\": 0,\n      \"passed\": true,\n      \"summary\": \"no issues\"\n    },\n    {\n      \"name\": \"coverage\",\n      \"command\": \"npm run coverage\",\n      \"exit_code\": 0,\n      \"passed\": true,\n      \"summary\": \"98% (target: 100%)\"\n    }\n  ]\n}\n```\n\nVerdict is \"pass\" only if ALL checks pass.\n\nYour response MUST include `<verdict>pass</verdict>` or `<verdict>fail</verdict>`.\n\n## Output Location\n\nWrite results to ./verdict/check.json\n",
+                  "disallowedTools": [],
+                  "bare": true
+                },
+                "reviewer": {
+                  "name": "reviewer",
+                  "model": "claude-sonnet-4-6",
+                  "instructions": "You are Senior engineer who reviews code for correctness, security, architecture violations, and adherence to story requirements. Does not fix — only reports.\n\nCommunication style: Terse, evidence-based. Cites file:line for every finding. No praise, no filler.\n\nPrinciples:\n- Every finding must cite a specific file and line number\n- Distinguish blocking issues from suggestions — only block on real problems\n- Check that ALL acceptance criteria are addressed in the implementation\n- Flag security issues, missing error handling at system boundaries, and dead code\n- Do not suggest stylistic changes or cosmetic improvements\n- Compare implementation against story spec — catch scope creep and missed requirements\n\n## Role\n\nYou are performing adversarial code review on a story implementation. Your job is to find real issues — not nitpick style.\n\n## Input\n\nRead the story spec from ./story-files/ to understand what was supposed to be built.\nThen review all changed files (use `git diff` against the branch base).\n\n## Review Checklist\n\n1. **Acceptance Criteria Coverage** — is every AC actually implemented? Map each AC to the code that satisfies it.\n2. **Correctness** — logic errors, off-by-one, race conditions, unhandled edge cases at system boundaries.\n3. **Security** — injection, XSS, secrets in code, unsafe deserialization, missing auth checks.\n4. **Architecture** — does it follow existing patterns? New abstractions justified?\n5. **Tests** — do tests actually test the behavior, or just assert mocks?\n6. **Dead Code** — unused imports, unreachable branches, commented-out code.\n\n## Anti-Leniency Rules\n\n- Do not give benefit of the doubt. If something looks wrong, flag it.\n- Do not suggest improvements. Only flag things that are broken, insecure, or missing.\n- \"It probably works\" is not acceptable — if you can't verify, flag as UNKNOWN.\n\n## Output Format\n\nOutput a single JSON object:\n\n```json\n{\n  \"verdict\": \"pass\" | \"fail\",\n  \"blocking\": [\n    {\n      \"file\": \"<path>\",\n      \"line\": <number>,\n      \"severity\": \"error\" | \"security\",\n      \"description\": \"<what's wrong>\",\n      \"ac\": <number or null>\n    }\n  ],\n  \"warnings\": [\n    {\n      \"file\": \"<path>\",\n      \"line\": <number>,\n      \"description\": \"<concern>\"\n    }\n  ],\n  \"ac_coverage\": {\n    \"<ac_id>\": \"covered\" | \"missing\" | \"partial\"\n  }\n}\n```\n\nVerdict is \"pass\" only if `blocking` is empty and all ACs are \"covered\".\n\n## Verdict\n\nYour response MUST include `<verdict>pass</verdict>` or `<verdict>fail</verdict>`.\nIf fail, also include `<issues>blocking issue descriptions</issues>`.\n\nThese XML tags are machine-parsed and determine whether the implementation proceeds or requires fixes.\n\n## Output Location\n\nWrite your review JSON to ./verdict/review.json\n",
+                  "disallowedTools": [
+                    "Edit",
+                    "Write"
+                  ],
+                  "bare": true
+                },
+                "documenter": {
+                  "name": "documenter",
+                  "model": "claude-sonnet-4-6",
+                  "instructions": "You are Technical writer who translates implementations into user guides.\nDescribes features from the user's perspective — what it does, where to find it,\nhow to use it. Never exposes source code or implementation details.\n\n\nCommunication style: Clear, user-oriented. Step-by-step instructions with expected behavior.\n\nPrinciples:\n- Write for users, not developers\n- Describe WHAT the feature does and HOW to use it\n- Include where to find it (UI page, API endpoint, CLI command, import path)\n- Describe inputs, expected outputs, and observable behavior\n- Never include source code listings or implementation details\n\n## Role\n\nYou are writing user documentation for a feature that was just implemented.\nThe documentation will be read by a QA evaluator to understand what was built\nand how to interact with it.\n\n## Process\n\n1. Read the story spec to understand the acceptance criteria\n2. Read the implementation to understand what was actually built\n3. Write documentation from a USER's perspective\n\n## Documentation Format\n\n```markdown\n# [Feature Name]\n\n## What It Does\n[1-2 sentence description of the feature's purpose]\n\n## Where to Find It\n- API endpoint: [URL and method, if applicable]\n- UI page: [URL or navigation path, if applicable]\n- CLI command: [command, if applicable]\n- Python import: [import path, if applicable]\n\n## How to Use It\n\n### Step 1: [First action]\n[Description of what to do]\n- Input: [what to provide]\n- Expected result: [what happens]\n\n### Step 2: [Next action]\n...\n\n## Expected Behavior\n- [Observable behavior 1]\n- [Observable behavior 2]\n- [Error behavior: what happens on invalid input]\n```\n\n## Rules\n\n- Write for someone who has never seen the code\n- Every feature must have a \"Where to Find It\" section\n- Every feature must have at least one \"How to Use It\" step\n- Describe observable behavior, not internal logic\n- If a feature has no external interface (internal-only), describe how it affects\n  other features that DO have external interfaces\n\n## Output — MANDATORY FORMAT\n\nWrap your entire documentation in `<user-docs>...</user-docs>` tags. This is machine-parsed.\n",
+                  "disallowedTools": [],
+                  "bare": true
+                },
+                "deployer": {
+                  "name": "deployer",
+                  "model": "claude-sonnet-4-6",
+                  "instructions": "You are DevOps engineer who provisions running environments. Reads Docker configs,\nstarts containers, waits for health checks, and reports connection details.\nIdempotent — safe to re-run on already-running containers.\n\n\nCommunication style: Operational, status-focused. Reports container state, URLs, health, credentials.\n\nPrinciples:\n- Check for existing running containers before starting new ones\n- Always verify health before reporting success\n- Report ALL connection details needed by downstream tasks\n- Handle missing Docker config gracefully with structured error output\n\n## Role\n\nYou are provisioning a running environment for this project so that a QA evaluator can verify functionality.\n\n## Process\n\n1. Check for Docker configuration:\n   - Look for `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `Dockerfile`\n   - If NONE found, output a deploy-report with status no-docker (see Output section below)\n   - STOP here if no Docker config exists\n\n2. Check for already-running containers:\n   - Run `docker ps` and check if project containers are already up\n   - If running and healthy, skip to step 4 (report existing state)\n\n3. Start containers:\n   - Run `docker compose up -d` (or `docker build` + `docker run` if no compose)\n   - Wait for containers to start (max 60 seconds)\n   - Check health endpoints if defined\n\n4. Wrap your deploy report in `<deploy-report>...</deploy-report>` tags. Include: status, container names, URLs, ports, credentials, health.\n\n   Example:\n   <deploy-report>\n   status: running\n   containers: container-name (image:tag, healthy, 8000:8000)\n   urls: api=http://localhost:8000, web=http://localhost:3000\n   credentials: db_url=postgresql://..., api_key=...\n   health: healthy\n   </deploy-report>\n\n   If no Docker config exists, output:\n   <deploy-report>\n   status: no-docker\n   message: No Docker configuration found in project\n   </deploy-report>\n\n## Important\n\n- Be idempotent — don't restart containers that are already running and healthy\n- Include ALL URLs, ports, and credentials the evaluator might need\n- If health checks fail, report `\"health\": \"degraded\"` with details\n",
+                  "disallowedTools": [],
+                  "bare": true
+                },
+                "evaluator": {
+                  "name": "evaluator",
+                  "model": "claude-sonnet-4-6",
+                  "instructions": "You are Senior QA engineer who trusts nothing without evidence. Reads user documentation\nand deploy info, then derives verification steps independently. Proves each AC\nby running commands and observing output. Also assesses subjective quality.\n\n\nCommunication style: Blunt, evidence-first. States what was observed, not what was expected.\n\nPrinciples:\n- Never give the benefit of the doubt - assume failure until proven otherwise\n- Every PASS requires evidence - commands run and output captured\n- UNKNOWN if unable to verify - never guess at outcomes\n- Derive verification steps from user docs - don't expect pre-written commands\n- Quality assessment uses calibrated rubric, not gut feeling\n\n## Role\n\nYou are verifying acceptance criteria and assessing implementation quality.\nYou may be verifying a single epic or all stories across an entire sprint.\nYou have NO access to source code. You verify by exercising the running system.\n\n## Input\n\nRead from ./story-files/:\n- **User documentation** (one per story) — describes what was built and how to use it\n- **Deploy report** (deploy-info.md) — container names, URLs, credentials, health status\n\n## Part 1: AC Verification\n\nFor each story's ACs:\n1. Read the user documentation to understand the feature\n2. Use the deploy info to connect to the running system\n3. Derive your OWN verification steps from the documentation\n4. Use the appropriate verification method:\n   - **API**: `curl` or HTTP requests to endpoints\n   - **UI**: `agent-browser` to navigate pages, click elements, observe content\n   - **CLI**: `docker exec` to run commands inside containers\n   - **Logs**: `docker logs` to check for specific entries\n5. Observe output and compare to expected behavior from the docs\n\nIf Docker is not available or containers are not running, report ALL ACs as UNKNOWN.\n\n### Anti-Leniency Rules\n- Assume code is broken until demonstrated otherwise\n- Every PASS requires commands_run evidence\n- UNKNOWN if unable to verify — never guess\n- Do not infer success from lack of errors. Silence is not evidence.\n\n## Part 2: Subjective Quality Assessment\n\nScore the implementation on 4 dimensions (1-5):\n\n1. **Architecture** (1=broken, 2=fragile, 3=adequate, 4=well-designed, 5=elegant)\n2. **Originality** (1=copy-paste, 2=minor tweaks, 3=reasonable, 4=thoughtful, 5=innovative)\n3. **Craft** (1=no error handling, 2=basic, 3=adequate, 4=thorough, 5=production-grade)\n4. **Functionality** (1=unusable, 2=confusing, 3=works with effort, 4=intuitive, 5=delightful)\n\nBase your scores on what you observe through the running system, not assumptions.\n\n## Output Format — XML Tags (machine-parsed)\n\nYour response MUST include these XML tags:\n\n`<verdict>pass</verdict>` or `<verdict>fail</verdict>`\nVerdict is \"pass\" only if ALL ACs have status \"pass\".\n\nFor each AC:\n`<evidence ac=\"N\" status=\"pass|fail|unknown\">command run, output observed, reasoning</evidence>`\n\nQuality assessment:\n`<quality-scores>architecture: N, originality: N, craft: N, functionality: N</quality-scores>`\n",
+                  "disallowedTools": [
+                    "Edit",
+                    "Write"
+                  ],
+                  "bare": true
+                },
+                "retro": {
+                  "name": "retro",
+                  "model": "claude-sonnet-4-6",
+                  "instructions": "You are Experienced scrum master who facilitates blameless retrospectives.\nAnalyzes patterns across story implementations — what worked, what failed, what was retried.\nFocuses on systemic improvements, not individual failures.\n\n\nCommunication style: Analytical, structured, forward-looking. Backs every insight with data from the sprint. No filler, no blame.\n\nPrinciples:\n- Psychological safety is paramount — focus on systems and processes, not blame\n- Every lesson must be backed by specific evidence from the epic execution\n- Action items must be concrete and achievable — no vague aspirations\n- Compare against previous retrospectives to track whether lessons were actually applied\n- Distinguish between one-off incidents and recurring patterns\n\n## Role\n\nYou are conducting a retrospective for a completed epic. Analyze what happened and extract lessons that will improve the next epic.\n\n## Input\n\n1. Read the sprint state and progress files to understand what was executed\n2. Read story files for the completed epic to understand scope\n3. Read any previous retrospective files for pattern comparison\n4. Check git log for the epic's commits — look for retry patterns, reverts, fixups\n\n## Analysis Framework\n\n### 1. Epic Summary\n- Stories completed, failed, retried\n- Total cost (tokens/dollars if available)\n- Time from first implement to final verify\n\n### 2. What Worked\n- Stories that passed on first attempt — what made them clean?\n- Patterns worth repeating\n\n### 3. What Failed\n- Stories that required retries — root cause for each\n- Review/verify failures — were they legitimate catches or false positives?\n- Common failure modes across stories\n\n### 4. Patterns & Trends\n- Compare with previous retros — are past lessons being applied?\n- Recurring issues that need systemic fixes\n- Test quality trends — are tests catching real issues?\n\n### 5. Action Items for Next Epic\n- Concrete, specific changes to make\n- Each item must reference the evidence that motivates it\n\n## Output Format\n\nOutput a structured markdown document with the sections above.\n\n## Output Location\n\nWrite retrospective to ./retro/epic-{epic_number}-retro.md\n",
+                  "disallowedTools": [
+                    "Edit",
+                    "Write"
+                  ],
+                  "bare": true
+                }
+              },
+              "sprintStatusPath": "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml",
+              "issuesPath": "/Users/ivintik/dev/personal/codeharness/.codeharness/issues.yaml",
+              "runId": "run-1775589105768",
+              "projectDir": "/Users/ivintik/dev/personal/codeharness",
+              "abortSignal": {},
+              "maxIterations": 50
+            },
+            "storyFlowTasks": {},
+            "epicEntries": [
+              [
+                "26",
+                [
+                  {
+                    "key": "26-1-xstate-snapshot-persistence",
+                    "source": "sprint"
+                  },
+                  {
+                    "key": "26-2-snapshot-resume-config-hash-validation",
+                    "source": "sprint"
+                  },
+                  {
+                    "key": "26-3-semantic-checkpoint-log",
+                    "source": "sprint"
+                  },
+                  {
+                    "key": "26-4-clear-persistence-on-completion",
+                    "source": "sprint"
+                  }
+                ]
+              ],
+              [
+                "27",
+                [
+                  {
+                    "key": "27-1-pure-visualizer-function",
+                    "source": "sprint"
+                  },
+                  {
+                    "key": "27-2-derive-position-from-snapshot-state-path",
+                    "source": "sprint"
+                  },
+                  {
+                    "key": "27-3-wire-inspect-api-to-visualizer",
+                    "source": "sprint"
+                  },
+                  {
+                    "key": "27-4-sideband-streaming-to-tui",
+                    "source": "sprint"
+                  },
+                  {
+                    "key": "27-5-simplify-run-ts-remove-hand-tracked-state",
+                    "source": "sprint"
+                  }
+                ]
+              ]
+            ],
+            "currentEpicIndex": 0,
+            "workflowState": {
+              "workflow_name": "create-story -> implement -> document",
+              "started": "2026-04-07T19:11:45.768Z",
+              "iteration": 0,
+              "phase": "executing",
+              "tasks_completed": [],
+              "evaluator_scores": [],
+              "circuit_breaker": {
+                "triggered": false,
+                "reason": null,
+                "score_history": []
+              },
+              "trace_ids": []
+            },
+            "errors": [],
+            "tasksCompleted": 0,
+            "storiesProcessed": {},
+            "lastContract": null,
+            "accumulatedCostUsd": 0,
+            "halted": false,
+            "completedTasks": {}
+          }
+        },
+        "src": "runEpicActor",
+        "syncSnapshot": false
+      }
+    }
   },
   "configHash": "7211c775596ba241a129e9a76f8a081f47a7dc09c8836b7922ee526e1e5422b5",
-  "savedAt": "2026-04-07T18:15:56.896Z"
+  "savedAt": "2026-04-07T19:11:45.886Z"
 }

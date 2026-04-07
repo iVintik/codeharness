@@ -1,126 +1,19 @@
 /** Workflow runner — composition root: pre-flight, work items, runWorkflowActor(). */
 import { createActor } from 'xstate';
-import { readFileSync, existsSync } from 'node:fs';
 import { warn, info } from './output.js';
-import { getDriver } from './agents/drivers/factory.js';
 import { checkCapabilityConflicts } from './agents/capability-check.js';
-import type { ResolvedWorkflow } from './workflow-parser.js';
-import { parse } from 'yaml';
 import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
-import { saveSnapshot, loadSnapshot, snapshotFileExists, clearSnapshot, computeConfigHash, loadCheckpointLog, clearCheckpointLog, clearAllPersistence, cleanStaleTmpFiles } from './workflow-persistence.js';
-import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth, GateConfig } from './workflow-types.js';
+import { saveSnapshot, loadSnapshot, snapshotFileExists, clearSnapshot, computeConfigHash, loadCheckpointLog, clearCheckpointLog, clearAllPersistence, cleanStaleTmpFiles, isRestorableXStateSnapshot } from './workflow-persistence.js';
+import type { EngineConfig, RunMachineContext, EngineResult, EngineError, GateConfig } from './workflow-types.js';
 import { isTaskCompleted } from './workflow-compiler.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
 import { snapshotToPosition, visualize } from './workflow-visualizer.js';
 
-/** Valid XState v5 actor status values present in persisted snapshots. */
-const XSTATE_SNAPSHOT_STATUSES = new Set(['active', 'done', 'error', 'stopped']);
+// Re-export public helpers so existing imports from workflow-runner continue to work.
+export { loadWorkItems } from './workflow-work-items.js';
+export { checkDriverHealth } from './workflow-driver-health.js';
 
-/**
- * Type-guard: accepts only well-formed XState v5 persisted snapshots.
- *
- * A real XState v5 persisted snapshot (from `actor.getPersistedSnapshot()`)
- * always has all three of: `status` (a known XState status string), `value`
- * (a non-null state value), and `context` (an object).  Requiring all three
- * rejects partial objects like `{ value: 'x' }` or `{ context: {} }` that
- * would cause createActor to throw or produce undefined behaviour.
- */
-function isRestorableXStateSnapshot(snapshot: unknown): snapshot is Record<string, unknown> {
-  if (!snapshot || typeof snapshot !== 'object') return false;
-  const candidate = snapshot as Record<string, unknown>;
-
-  return (
-    Object.hasOwn(candidate, 'status') &&
-    typeof candidate.status === 'string' &&
-    XSTATE_SNAPSHOT_STATUSES.has(candidate.status) &&
-    Object.hasOwn(candidate, 'value') &&
-    candidate.value !== null &&
-    candidate.value !== undefined &&
-    Object.hasOwn(candidate, 'context') &&
-    candidate.context !== null &&
-    typeof candidate.context === 'object'
-  );
-}
-
-export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): WorkItem[] {
-  const items: WorkItem[] = [];
-  if (existsSync(sprintStatusPath)) {
-    let raw: string;
-    try { raw = readFileSync(sprintStatusPath, 'utf-8'); }
-    catch { // IGNORE: file read failure, warn and return empty list
-      warn(`workflow-machine: could not read sprint-status.yaml at ${sprintStatusPath}`); return items;
-    }
-    let parsed: unknown;
-    try { parsed = parse(raw); }
-    catch { // IGNORE: YAML parse failure, warn and return empty list
-      warn(`workflow-machine: invalid YAML in sprint-status.yaml at ${sprintStatusPath}`); return items;
-    }
-    if (parsed && typeof parsed === 'object') {
-      const data = parsed as Record<string, unknown>;
-      const devStatus = data.development_status as Record<string, unknown> | undefined;
-      if (devStatus && typeof devStatus === 'object') {
-        for (const [key, status] of Object.entries(devStatus)) {
-          if (key.startsWith('epic-')) continue;
-          if (key.endsWith('-retrospective')) continue;
-          if (status === 'backlog' || status === 'ready-for-dev' || status === 'in-progress')
-            items.push({ key, source: 'sprint' });
-        }
-      }
-    }
-  }
-  if (issuesPath && existsSync(issuesPath)) {
-    let raw: string;
-    try { raw = readFileSync(issuesPath, 'utf-8'); }
-    catch { // IGNORE: file read failure, warn and return items collected so far
-      warn(`workflow-machine: could not read issues.yaml at ${issuesPath}`); return items;
-    }
-    let parsed: unknown;
-    try { parsed = parse(raw); }
-    catch { // IGNORE: YAML parse failure, warn and return items collected so far
-      warn(`workflow-machine: invalid YAML in issues.yaml at ${issuesPath}`); return items;
-    }
-    if (parsed && typeof parsed === 'object') {
-      const data = parsed as Record<string, unknown>;
-      const issuesList = data.issues as Array<Record<string, unknown>> | undefined;
-      if (Array.isArray(issuesList)) {
-        for (const issue of issuesList) {
-          if (issue && typeof issue === 'object') {
-            const status = issue.status as string | undefined;
-            if (status === 'backlog' || status === 'ready-for-dev' || status === 'in-progress')
-              items.push({ key: issue.id as string, title: issue.title as string | undefined, source: 'issues' });
-          }
-        }
-      }
-    }
-  }
-  return items;
-}
-export async function checkDriverHealth(workflow: ResolvedWorkflow, timeoutMs?: number): Promise<void> {
-  const driverNames = new Set<string>(
-    Object.values(workflow.tasks).filter(t => t.agent !== null).map(t => t.driver ?? 'claude-code'),
-  );
-  const drivers = new Map<string, ReturnType<typeof getDriver>>();
-  for (const name of driverNames) drivers.set(name, getDriver(name));
-  interface HealthResult { name: string; health: DriverHealth }
-  const responded = new Set<string>();
-  const healthChecks = Promise.all([...drivers.entries()].map(async ([name, driver]): Promise<HealthResult> => {
-    const health = await driver.healthCheck();
-    responded.add(name);
-    return { name, health };
-  }));
-  const effectiveTimeout = timeoutMs ?? 5000;
-  let timer: ReturnType<typeof setTimeout>;
-  const timeoutPromise = new Promise<'timeout'>((resolve) => { timer = setTimeout(() => resolve('timeout'), effectiveTimeout); });
-  const result = await Promise.race([healthChecks, timeoutPromise]);
-  if (result === 'timeout') {
-    const pending = [...driverNames].filter((n) => !responded.has(n));
-    throw new Error(`Driver health check timed out after ${effectiveTimeout}ms. Drivers: ${(pending.length > 0 ? pending : [...driverNames]).join(', ')}`);
-  }
-  clearTimeout(timer!);
-  const failures = result.filter((r) => !r.health.available);
-  if (failures.length > 0) throw new Error(`Driver health check failed: ${failures.map((f) => `${f.name}: ${f.health.error ?? 'unavailable'}`).join('; ')}`);
-}
 export async function runWorkflowActor(config: EngineConfig): Promise<EngineResult> {
   const startMs = Date.now();
   const projectDir = config.projectDir ?? process.cwd();
@@ -138,7 +31,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   const priorPhase = state.phase;
   state = { ...state, phase: 'executing', started: state.started || new Date().toISOString(), workflow_name: config.workflow.storyFlow.filter((s) => typeof s === 'string').join(' -> ') };
   writeWorkflowState(state, projectDir);
-  try { await checkDriverHealth(config.workflow); } catch (err: unknown) {
+  try { await (await import('./workflow-driver-health.js')).checkDriverHealth(config.workflow); } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     state = { ...state, phase: 'failed' };
     const errors: EngineError[] = [{ taskName: '__health_check__', storyKey: '__health_check__', code: 'HEALTH_CHECK', message }];
@@ -146,6 +39,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     return { success: false, tasksCompleted: 0, storiesProcessed: 0, errors, durationMs: Date.now() - startMs };
   }
   for (const cw of checkCapabilityConflicts(config.workflow)) warn(cw.message);
+  const { loadWorkItems } = await import('./workflow-work-items.js');
   const workItems = loadWorkItems(config.sprintStatusPath, config.issuesPath);
   const storyFlowTasks = new Set<string>();
   for (const step of config.workflow.storyFlow) {
@@ -153,7 +47,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     if (typeof step === 'object' && 'loop' in step)
       for (const lt of (step as { loop: string[] }).loop) storyFlowTasks.add(lt);
   }
-  const epicGroups = new Map<string, WorkItem[]>();
+  const epicGroups = new Map<string, import('./workflow-types.js').WorkItem[]>();
   for (const item of workItems) {
     const epicId = item.key.match(/^(\d+)-/)?.[1] ?? 'unknown';
     if (!epicGroups.has(epicId)) epicGroups.set(epicId, []);
@@ -262,20 +156,23 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   };
   const finalOutput = await new Promise<RunOutput>((resolve) => {
     let lastStateValue: unknown = null;
-     
     const actorOptions: any = { input: runInput };
     if (resumeSnapshot !== null) actorOptions.snapshot = resumeSnapshot;
-    actorOptions.inspect = (inspectionEvent: { type: string; snapshot?: unknown }) => {
+    actorOptions.inspect = (inspectionEvent: { type: string; actorRef?: unknown; snapshot?: unknown }) => {
         try {
           if (inspectionEvent.type !== '@xstate.snapshot') return;
           const snap = inspectionEvent.snapshot as Record<string, unknown> | undefined;
-          const value = snap?.value;
+          // Serialize value to string for debounce — handles compound XState state values
+          // (e.g. { iteratingStories: 'processStory' }) as well as simple string states.
+          const value = JSON.stringify(snap?.value ?? null);
           if (value === lastStateValue) return; // debounce: skip context-only changes
           lastStateValue = value;
           const position = snapshotToPosition(snap, config.workflow);
           const vizString = visualize(position);
           config.onEvent?.({ type: 'workflow-viz', taskName: '', storyKey: '', vizString, position });
-        } catch { /* IGNORE: inspect callback must never crash the workflow runner */ }
+        } catch (vizErr) { // IGNORE: inspect callback must never crash the workflow runner
+          warn(`workflow-runner: viz error: ${vizErr instanceof Error ? vizErr.message : String(vizErr)}`);
+        }
     };
     const actor = createActor(runMachine, actorOptions);
     actor.subscribe({

@@ -110,9 +110,9 @@ export function installBmad(dir?: string): BmadInstallResult {
     };
   }
 
-  const cmdStr = 'npx bmad-method install --yes --tools claude-code';
+  const cmdStr = `npx bmad-method install --yes --directory ${root} --modules bmm --tools claude-code`;
   try {
-    execFileSync('npx', ['bmad-method', 'install', '--yes', '--tools', 'claude-code'], {
+    execFileSync('npx', ['bmad-method', 'install', '--yes', '--directory', root, '--modules', 'bmm', '--tools', 'claude-code'], {
       stdio: 'pipe',
       timeout: 120_000, // 2 min — npx may need to download the package first time
       cwd: root,

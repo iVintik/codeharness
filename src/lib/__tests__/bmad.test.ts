@@ -140,7 +140,7 @@ describe('installBmad', () => {
     const result = installBmad(testDir);
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'npx',
-      ['bmad-method', 'install', '--yes', '--tools', 'claude-code'],
+      ['bmad-method', 'install', '--yes', '--directory', testDir, '--modules', 'bmm', '--tools', 'claude-code'],
       expect.objectContaining({ cwd: testDir, stdio: 'pipe', timeout: 120_000 }),
     );
     expect(result.status).toBe('installed');
@@ -174,7 +174,7 @@ describe('installBmad', () => {
       installBmad(testDir);
     } catch (err) {
       const bmadErr = err as BmadError;
-      expect(bmadErr.command).toBe('npx bmad-method install --yes --tools claude-code');
+      expect(bmadErr.command).toContain('npx bmad-method install --yes --directory');
       expect(bmadErr.originalMessage).toBe('npx not found');
     }
   });

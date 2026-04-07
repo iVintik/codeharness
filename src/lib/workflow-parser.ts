@@ -117,14 +117,13 @@ function parseForEachFlow(
   return { for_each: scope, steps: parsedSteps };
 }
 
-// --- New-format to Legacy Derivation ---
+// --- Derive storyFlow/epicFlow from ForEachBlock ---
 
 /**
- * Derive legacy `storyFlow` and `epicFlow` from a new-format `ForEachBlock`.
+ * Derive flat `storyFlow` and `epicFlow` arrays from a `ForEachBlock` workflow.
  *
- * The new `workflow: { for_each: epic, steps: [...] }` format is richer than the
- * legacy `story_flow`/`epic_flow` flat lists, but the runtime executes via the legacy
- * fields. This function bridges the gap so both formats are runtime-compatible:
+ * The runtime (story machine, epic machine) iterates these flat lists.
+ * This function extracts them from the structured for_each tree:
  *
  * - Top-level `for_each: story` block → produces storyFlow steps + adds `'story_flow'` sentinel to epicFlow
  * - Top-level string steps → epic-level task (added to epicFlow)
@@ -326,8 +325,7 @@ export function parseWorkflow(filePath: string): ResolvedWorkflow {
   return parseWorkflowData(parsed);
 }
 
-// --- Re-exports for backward compatibility ---
-// All symbols that were previously exported from this file and moved to sub-modules.
+// --- Re-exports ---
 
 export type { ExecutionConfig, HierarchicalFlow } from './workflow-execution.js';
 export {

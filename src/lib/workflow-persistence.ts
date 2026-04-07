@@ -27,8 +27,6 @@ export interface XStateWorkflowSnapshot {
   savedAt: string;
 }
 
-/** @deprecated Use XStateWorkflowSnapshot. Kept for test compatibility. */
-export type WorkflowSnapshot = XStateWorkflowSnapshot;
 
 // ─── Constants ───────────────────────────────────────────────────────
 

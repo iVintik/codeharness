@@ -3,11 +3,8 @@ import { listDrivers } from './agents/drivers/factory.js';
 import { listEmbeddedAgents, resolveAgent, AgentResolveError } from './agent-resolver.js';
 import type { ResolvedTask, LoopBlock, ExecutionConfig, ForEachConfig, GateConfig } from './workflow-types.js';
 
-// Re-export base types so existing imports from workflow-execution.ts continue to work.
 export type { ResolvedTask, LoopBlock, ExecutionConfig } from './workflow-types.js';
-/** @deprecated Use ForEachConfig from workflow-types.ts. */
 export type ForEachBlock = ForEachConfig;
-/** @deprecated Use GateConfig from workflow-types.ts. */
 export type GateBlock = GateConfig;
 export type FlowStep = string | LoopBlock;
 

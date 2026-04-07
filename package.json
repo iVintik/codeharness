@@ -1,6 +1,6 @@
 {
   "name": "codeharness",
-  "version": "0.38.1",
+  "version": "0.39.0",
   "type": "module",
   "description": "CLI for codeharness — makes autonomous coding agents produce software that actually works",
   "bin": {

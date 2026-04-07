@@ -40,12 +40,12 @@ function resolveStoryKey(ctx: GateContext): string {
  * Uses a manual controller to avoid AbortSignal.any() compatibility issues.
  */
 function mergeSignals(existing: AbortSignal | undefined, next: AbortSignal): AbortSignal {
-  if (!existing) return next;
+  if (!existing || typeof existing.addEventListener !== 'function') return next;
   const ctrl = new AbortController();
   if (existing.aborted || next.aborted) { ctrl.abort(); return ctrl.signal; }
   const abort = () => ctrl.abort();
   existing.addEventListener('abort', abort, { once: true });
-  next.addEventListener('abort', abort, { once: true });
+  if (typeof next.addEventListener === 'function') next.addEventListener('abort', abort, { once: true });
   return ctrl.signal;
 }
 

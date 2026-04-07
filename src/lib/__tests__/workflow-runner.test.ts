@@ -6,8 +6,10 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as xstate from 'xstate';
 import { runWorkflowActor, loadWorkItems, checkDriverHealth } from '../workflow-runner.js';
-import type { EngineConfig, WorkItem } from '../workflow-types.js';
+import { runMachine } from '../workflow-run-machine.js';
+import type { EngineConfig, RunMachineContext, WorkItem } from '../workflow-types.js';
 import type { WorkflowState } from '../workflow-state.js';
 import type { ResolvedWorkflow, ResolvedTask, ExecutionConfig } from '../workflow-parser.js';
 import type { SubagentDefinition } from '../agent-resolver.js';
@@ -41,6 +43,7 @@ const {
   mockSaveSnapshot,
   mockClearSnapshot,
   mockComputeConfigHash,
+  mockCreateActor,
   mockAppendCheckpoint,
   mockLoadCheckpointLog,
   mockClearCheckpointLog,
@@ -72,12 +75,22 @@ const {
   mockSaveSnapshot: vi.fn(),
   mockClearSnapshot: vi.fn(),
   mockComputeConfigHash: vi.fn(() => 'test-hash-aabbccdd'),
+  mockCreateActor: vi.fn(),
   mockAppendCheckpoint: vi.fn(),
   mockLoadCheckpointLog: vi.fn(() => []),
   mockClearCheckpointLog: vi.fn(),
   mockClearAllPersistence: vi.fn(() => ({ snapshotCleared: true, checkpointCleared: true })),
   mockCleanStaleTmpFiles: vi.fn(),
 }));
+
+vi.mock('xstate', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('xstate')>();
+  mockCreateActor.mockImplementation((...args: Parameters<typeof actual.createActor>) => actual.createActor(...args));
+  return {
+    ...actual,
+    createActor: mockCreateActor,
+  };
+});
 
 vi.mock('../agent-dispatch.js', () => ({
   dispatchAgent: mockDispatchAgent,
@@ -313,6 +326,42 @@ function makeConfig(overrides?: Partial<EngineConfig>): EngineConfig {
     projectDir: '/project',
     ...overrides,
   };
+}
+
+function makeRestorableSnapshot(config: EngineConfig, workflowState = makeDefaultState()) {
+  const storyFlowTasks = new Set<string>();
+  for (const step of config.workflow.storyFlow) {
+    if (typeof step === 'string') storyFlowTasks.add(step);
+    if (typeof step === 'object' && 'loop' in step) {
+      for (const loopTask of step.loop) storyFlowTasks.add(loopTask);
+    }
+  }
+
+  const epicEntries: [string, WorkItem[]][] = [[
+    '5',
+    [{ key: '5-1-foo', source: 'sprint' }],
+  ]];
+
+  const input: RunMachineContext = {
+    config,
+    storyFlowTasks,
+    epicEntries,
+    currentEpicIndex: 0,
+    workflowState,
+    errors: [],
+    tasksCompleted: 0,
+    storiesProcessed: new Set<string>(),
+    lastContract: null,
+    accumulatedCostUsd: 0,
+    halted: false,
+    completedTasks: new Set<string>(),
+  };
+
+  const actor = xstate.createActor(runMachine, { input });
+  actor.start();
+  const snapshot = actor.getPersistedSnapshot();
+  actor.stop();
+  return snapshot;
 }
 
 function setupDefaultMocks() {
@@ -1552,9 +1601,15 @@ describe('snapshot resume (story 26-2)', () => {
   });
 
   it('logs "Resuming from snapshot" when saved configHash matches current hash (AC #1)', async () => {
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    });
+    const snapshot = makeRestorableSnapshot(config);
+    mockCreateActor.mockClear();
+
     mockComputeConfigHash.mockReturnValue('abc12345deadbeef');
     mockLoadSnapshot.mockReturnValue({
-      snapshot: null,
+      snapshot,
       configHash: 'abc12345deadbeef',
       savedAt: '2026-04-06T10:00:00.000Z',
     });
@@ -1562,12 +1617,14 @@ describe('snapshot resume (story 26-2)', () => {
       development_status: { '5-1-foo': 'ready-for-dev' },
     });
 
-    await runWorkflowActor(makeConfig({
-      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
-    }));
+    await runWorkflowActor(config);
 
     expect(mockInfo).toHaveBeenCalledWith(
       expect.stringContaining('Resuming from snapshot'),
+    );
+    expect(mockCreateActor).toHaveBeenCalledWith(
+      runMachine,
+      expect.objectContaining({ snapshot }),
     );
   });
 
@@ -1657,6 +1714,30 @@ describe('snapshot resume (story 26-2)', () => {
     expect(mockInfo).not.toHaveBeenCalledWith(expect.stringContaining('Resuming'));
   });
 
+  it('warns and starts fresh when matching-hash snapshot payload is not restorable', async () => {
+    mockComputeConfigHash.mockReturnValue('abc12345deadbeef');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: { context: {} },
+      configHash: 'abc12345deadbeef',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockParse.mockReturnValue({
+      development_status: { '5-1-foo': 'ready-for-dev' },
+    });
+
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    expect(result.success).toBe(true);
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('Snapshot payload is invalid for restore'),
+    );
+    expect(mockInfo).not.toHaveBeenCalledWith(
+      expect.stringContaining('Resuming from snapshot'),
+    );
+  });
+
   it('loadSnapshot is always called on every run', async () => {
     mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
 
@@ -1665,6 +1746,80 @@ describe('snapshot resume (story 26-2)', () => {
     }));
 
     expect(mockLoadSnapshot).toHaveBeenCalledOnce();
+  });
+
+  it('rejects snapshot with only value key (no status/context) — guard is not just value-check', async () => {
+    // Regression guard: objects with only a `value` key are NOT valid XState v5 snapshots.
+    // The old guard accepted { value: 'x' } — the new guard requires status+value+context.
+    mockComputeConfigHash.mockReturnValue('abc12345deadbeef');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: { value: 'running' }, // malformed — missing status and context
+      configHash: 'abc12345deadbeef',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('Snapshot payload is invalid for restore'));
+    expect(mockInfo).not.toHaveBeenCalledWith(expect.stringContaining('Resuming from snapshot'));
+  });
+
+  it('rejects snapshot with status+context but no value key', async () => {
+    // Regression guard: objects missing `value` are not valid XState v5 snapshots.
+    mockComputeConfigHash.mockReturnValue('abc12345deadbeef');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: { status: 'active', context: {} }, // malformed — missing value
+      configHash: 'abc12345deadbeef',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('Snapshot payload is invalid for restore'));
+    expect(mockInfo).not.toHaveBeenCalledWith(expect.stringContaining('Resuming from snapshot'));
+  });
+
+  it('rejects snapshot with unknown status string', async () => {
+    // Regression guard: status must be a known XState v5 value ('active','done','error','stopped').
+    mockComputeConfigHash.mockReturnValue('abc12345deadbeef');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: { status: 'running', value: 'someState', context: {} }, // 'running' is not a valid XState status
+      configHash: 'abc12345deadbeef',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    expect(mockWarn).toHaveBeenCalledWith(expect.stringContaining('Snapshot payload is invalid for restore'));
+    expect(mockInfo).not.toHaveBeenCalledWith(expect.stringContaining('Resuming from snapshot'));
+  });
+
+  it('accepts well-formed XState v5 snapshot with status, value, and context', async () => {
+    // A snapshot with all three required fields and a known status should be accepted.
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    });
+    const snapshot = makeRestorableSnapshot(config);
+    mockComputeConfigHash.mockReturnValue('abc12345deadbeef');
+    mockLoadSnapshot.mockReturnValue({
+      snapshot,
+      configHash: 'abc12345deadbeef',
+      savedAt: '2026-04-06T10:00:00.000Z',
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    await runWorkflowActor(config);
+
+    expect(mockInfo).toHaveBeenCalledWith(expect.stringContaining('Resuming from snapshot'));
   });
 
   it('warning includes abbreviated hashes of both saved and current configHash (AC #2)', async () => {

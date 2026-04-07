@@ -15,8 +15,9 @@ function toRunError(err: unknown, taskName: string, storyKey: string): EngineErr
 /** Combine an external AbortSignal with XState's actor signal safely. */
 function mergeSignals(existing: AbortSignal | undefined, next: AbortSignal): AbortSignal {
   if (!existing) return next;
+  // Guard: existing might not be a real AbortSignal (e.g., deserialized from snapshot)
+  if (typeof existing.addEventListener !== 'function') return next;
 
-  // Create our own controller — avoids AbortSignal.any() compatibility issues
   const ctrl = new AbortController();
   if (existing.aborted || next.aborted) {
     ctrl.abort();
@@ -25,7 +26,9 @@ function mergeSignals(existing: AbortSignal | undefined, next: AbortSignal): Abo
 
   const abort = () => ctrl.abort();
   existing.addEventListener('abort', abort, { once: true });
-  next.addEventListener('abort', abort, { once: true });
+  if (typeof next.addEventListener === 'function') {
+    next.addEventListener('abort', abort, { once: true });
+  }
   return ctrl.signal;
 }
 

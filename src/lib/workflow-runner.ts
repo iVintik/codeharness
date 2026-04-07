@@ -14,6 +14,34 @@ import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
 import { snapshotToPosition, visualize } from './workflow-visualizer.js';
 
+/** Valid XState v5 actor status values present in persisted snapshots. */
+const XSTATE_SNAPSHOT_STATUSES = new Set(['active', 'done', 'error', 'stopped']);
+
+/**
+ * Type-guard: accepts only well-formed XState v5 persisted snapshots.
+ *
+ * A real XState v5 persisted snapshot (from `actor.getPersistedSnapshot()`)
+ * always has all three of: `status` (a known XState status string), `value`
+ * (a non-null state value), and `context` (an object).  Requiring all three
+ * rejects partial objects like `{ value: 'x' }` or `{ context: {} }` that
+ * would cause createActor to throw or produce undefined behaviour.
+ */
+function isRestorableXStateSnapshot(snapshot: unknown): snapshot is Record<string, unknown> {
+  if (!snapshot || typeof snapshot !== 'object') return false;
+  const candidate = snapshot as Record<string, unknown>;
+
+  return (
+    Object.hasOwn(candidate, 'status') &&
+    typeof candidate.status === 'string' &&
+    XSTATE_SNAPSHOT_STATUSES.has(candidate.status) &&
+    Object.hasOwn(candidate, 'value') &&
+    candidate.value !== null &&
+    candidate.value !== undefined &&
+    Object.hasOwn(candidate, 'context') &&
+    typeof candidate.context === 'object'
+  );
+}
+
 export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): WorkItem[] {
   const items: WorkItem[] = [];
   if (existsSync(sprintStatusPath)) {
@@ -134,8 +162,12 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   const completedTasks = new Set<string>();
   if (savedSnapshot !== null) {
     if (savedSnapshot.configHash === configHash) {
-      info('workflow-runner: Resuming from snapshot — config hash matches');
-      resumeSnapshot = savedSnapshot.snapshot;
+      if (isRestorableXStateSnapshot(savedSnapshot.snapshot)) {
+        info('workflow-runner: Resuming from snapshot — config hash matches');
+        resumeSnapshot = savedSnapshot.snapshot;
+      } else {
+        warn('workflow-runner: Snapshot payload is invalid for restore — starting fresh');
+      }
     } else {
       warn(`workflow-runner: Snapshot config changed (saved: ${savedSnapshot.configHash.slice(0, 8)}, current: ${configHash.slice(0, 8)}) — starting fresh`);
       try { clearSnapshot(projectDir); }

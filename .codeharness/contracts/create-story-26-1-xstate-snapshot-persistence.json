@@ -4,13 +4,13 @@
   "storyId": "26-1-xstate-snapshot-persistence",
   "driver": "claude-code",
   "model": "claude-opus-4-6",
-  "timestamp": "2026-04-06T17:20:40.193Z",
-  "cost_usd": 1.0080702000000001,
-  "duration_ms": 223915,
+  "timestamp": "2026-04-07T06:35:26.374Z",
+  "cost_usd": 0.657277,
+  "duration_ms": 204012,
   "changedFiles": [
     "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/26-1-xstate-snapshot-persistence.md"
   ],
   "testResults": null,
-  "output": "Now let me read the key files:Now let me read the story template and existing implementation files:Now let me look at a recent completed story for format reference:Now let me check what Epic 26 actually is — the user referenced \"26-1-xstate-snapshot-persistence\" which maps to Epic 5 (Persistence & Resume) in the XState engine epic breakdown. Let me also check what's been implemented and what exists for persistence:Now I have all the context. Let me write the story spec:Story spec written to `_bmad-output/implementation-artifacts/26-1-xstate-snapshot-persistence.md`.\n\n**Summary:**\n\n- **13 ACs**, all verifiable by a blind QA agent using `ls`, `cat`, `jq`, `wc -l`, `npm run build`, `npx vitest run`, and file system inspection — no source code or internal data structure references\n- **10 tasks** covering: config hash computation, upgraded snapshot format, atomic writes, corrupt file handling, inspect callback wiring, interrupt save, completion cleanup, directory creation, unit tests, and build verification\n- **Scope**: upgrades `workflow-persistence.ts` and wires `workflow-runner.ts` — no machine file changes\n- **Explicitly deferred**: resume from snapshot (26-2), checkpoint log (26-3), completion cleanup edge cases (26-4)",
+  "output": "The story already exists. Let me read it along with key reference docs to understand what needs to be rewritten.Now let me check the story template for format reference:I have all the context. The existing story has been implemented but the user wants a rewritten version with blind-QA-testable ACs. Let me write it.Done. Here's what changed from the previous version:\n\n**Removed:**\n- **AC #13** (line count check via `wc -l src/lib/workflow-persistence.ts`) — references source code directly, not verifiable by blind QA. The NFR18 constraint is still enforced in T10 as a dev task.\n\n**Rewritten for blind-QA observability:**\n- **AC #2** — removed ambiguity about \"after the run\", now specifies \"after the run halts or is interrupted\" (since AC #5 says the file is deleted on success). Added explicit `jq` verification command.\n- **AC #4** — clarified monitoring method (`stat` or `ls -l`), removed assumption about reading file content mid-run.\n- **AC #8** — added the exact corruption command (`truncate -s 50`) so QA can reproduce. Specified where to look for the warning (stderr/logs).\n- **AC #10** — clarified the two valid outcomes (loads prior snapshot OR starts fresh) and what to check in logs.\n\n**All 12 ACs are now verifiable via:**\n- `ls`, `cat`, `jq`, `stat` — file system inspection (CLI)\n- `kill`, `truncate`, `rm -rf` — fault injection (CLI)\n- `npm run build`, `npx vitest run` — build/test gates (CLI)\n- Process signal sending (Ctrl+C / `kill -9`) — interrupt testing\n- Log/stderr inspection — warning message checks\n\nNo AC references internal types, data structures, complexity, or source file paths.",
   "acceptanceCriteria": []
 }

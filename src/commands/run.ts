@@ -128,7 +128,7 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      if (counts.ready === 0) {
+      if (counts.ready === 0 && counts.inProgress === 0) {
         fail('No stories ready for execution', outputOpts);
         process.exitCode = 1;
         return;

@@ -228,8 +228,8 @@ export const gateMachine = setup({
       },
     },
     passed: { type: 'final' },
-    maxedOut: { type: 'final', entry: assign({ halted: true }) },
-    halted: { type: 'final', entry: assign({ halted: true }) },
-    interrupted: { type: 'final', entry: assign({ halted: true }) },
+    maxedOut: { type: 'final' },  // NOT halted — story failed, but epic continues to next story
+    halted: { type: 'final', entry: assign({ halted: true }) },  // real halt (RATE_LIMIT, NETWORK)
+    interrupted: { type: 'final', entry: assign({ halted: true }) },  // user interrupt
   },
 });

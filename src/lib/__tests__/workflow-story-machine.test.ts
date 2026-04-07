@@ -147,13 +147,13 @@ describe('storyMachine', () => {
     expect(snap.value).toBe('done');
   });
 
-  it('gate step that halts (maxRetries): story reaches halted and gate output merged', async () => {
-    // max_retries=1: check fails → iteration=1 >= max_retries → maxedOut → halted=true → story halted
+  it('gate step that maxes out (maxRetries): story completes without halt, remaining steps skipped', async () => {
+    // max_retries=1: check fails → iteration=1 >= max_retries → maxedOut (NOT halted)
+    // Story skips remaining steps but does NOT halt the epic
     mockDispatchTaskCore.mockResolvedValueOnce({ ...makeOut(), output: '<verdict>fail</verdict>', contract: makeContract('<verdict>fail</verdict>') });
     const gate = makeGate({ max_retries: 1 });
     const { snap } = await run(makeInput({ storyFlow: [gate] }));
-    expect(snap.value).toBe('halted');
-    expect(snap.output?.halted).toBe(true);
+    expect(snap.output?.halted).toBe(false);
   });
 
   it('gate step that halts via halt error: story reaches halted with gate errors merged', async () => {

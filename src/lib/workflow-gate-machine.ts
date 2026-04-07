@@ -36,17 +36,13 @@ function resolveStoryKey(ctx: GateContext): string {
 
 /**
  * Combine two AbortSignals so either one aborting aborts the result.
- * Falls back to a manual controller when AbortSignal.any is unavailable.
+ * Uses a manual controller to avoid AbortSignal.any() compatibility issues.
  */
 function mergeSignals(existing: AbortSignal | undefined, next: AbortSignal): AbortSignal {
   if (!existing) return next;
-  // AbortSignal.any is available in Node 20.3+ and modern browsers
-  if (typeof (AbortSignal as { any?: unknown }).any === 'function') {
-    return (AbortSignal as { any: (s: AbortSignal[]) => AbortSignal }).any([existing, next]);
-  }
   const ctrl = new AbortController();
-  const abort = () => ctrl.abort();
   if (existing.aborted || next.aborted) { ctrl.abort(); return ctrl.signal; }
+  const abort = () => ctrl.abort();
   existing.addEventListener('abort', abort, { once: true });
   next.addEventListener('abort', abort, { once: true });
   return ctrl.signal;

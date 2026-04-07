@@ -12,12 +12,11 @@ function toRunError(err: unknown, taskName: string, storyKey: string): EngineErr
   return isEngineError(err) ? err : handleDispatchError(err, taskName, storyKey);
 }
 
+/** Combine an external AbortSignal with XState's actor signal safely. */
 function mergeSignals(existing: AbortSignal | undefined, next: AbortSignal): AbortSignal {
   if (!existing) return next;
-  if (typeof (AbortSignal as { any?: unknown }).any === 'function') {
-    return (AbortSignal as { any: (signals: AbortSignal[]) => AbortSignal }).any([existing, next]);
-  }
 
+  // Create our own controller — avoids AbortSignal.any() compatibility issues
   const ctrl = new AbortController();
   if (existing.aborted || next.aborted) {
     ctrl.abort();

@@ -40,6 +40,7 @@ function makeConfig(overrides?: Partial<EngineConfig['workflow']>): EngineConfig
       tasks: { implement: { agent: 'dev', session: 'fresh', source_access: true } },
       storyFlow: ['implement'],
       epicFlow: ['story_flow'],
+      sprintFlow: [],
       execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', epic_strategy: 'sequential', story_strategy: 'sequential' },
       flow: ['implement'],
       ...overrides,

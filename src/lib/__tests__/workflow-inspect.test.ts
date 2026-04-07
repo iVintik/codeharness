@@ -46,9 +46,13 @@ const {
   mockClearSnapshot: vi.fn(),
 }));
 
-vi.mock('xstate', () => ({
-  createActor: mockCreateActor,
-}));
+vi.mock('xstate', async (importOriginal) => {
+  const actual = await importOriginal() as Record<string, unknown>;
+  return {
+    ...actual,
+    createActor: mockCreateActor,
+  };
+});
 
 vi.mock('../workflow-visualizer.js', () => ({
   snapshotToPosition: mockSnapshotToPosition,
@@ -120,6 +124,7 @@ function makeWorkflow(): ResolvedWorkflow {
     flow: ['implement'],
     storyFlow: ['implement'],
     epicFlow: ['story_flow'],
+    sprintFlow: [],
     execution: defaultExecution,
   };
 }

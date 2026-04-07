@@ -396,6 +396,7 @@ function makeWorkflow(storyFlow: ResolvedWorkflow['storyFlow'] = ['create-story'
     tasks: {},
     storyFlow,
     epicFlow: ['story_flow', 'retro'],
+    sprintFlow: [],
     execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', epic_strategy: 'sequential', story_strategy: 'sequential' },
     flow: [],
   };

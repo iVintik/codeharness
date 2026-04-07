@@ -11,10 +11,11 @@ describe('default embedded workflow', () => {
       expect(existsSync(defaultWorkflowPath)).toBe(true);
     });
 
-    it('contains tasks and workflow/for_each top-level keys', () => {
+    it('contains tasks and workflow/steps top-level keys', () => {
       const raw = readFileSync(defaultWorkflowPath, 'utf-8');
       expect(raw).toContain('tasks:');
       expect(raw).toContain('workflow:');
+      expect(raw).toContain('steps:');
       expect(raw).toContain('for_each: epic');
     });
 
@@ -116,22 +117,24 @@ describe('default embedded workflow', () => {
       workflow = parseWorkflow(defaultWorkflowPath);
     });
 
-    it('top-level workflow block uses for_each: epic', () => {
+    it('top-level workflow block has steps array (sprint-level)', () => {
       const wf = workflow.workflow as ForEachBlock;
-      expect(wf.for_each).toBe('epic');
+      expect(wf.for_each).toBeUndefined();
       expect(Array.isArray(wf.steps)).toBe(true);
     });
 
-    it('first step is a for_each: story block', () => {
+    it('first step is a for_each: epic block', () => {
       const wf = workflow.workflow as ForEachBlock;
-      const storyBlock = wf.steps[0] as ForEachBlock;
-      expect(storyBlock.for_each).toBe('story');
-      expect(Array.isArray(storyBlock.steps)).toBe(true);
+      const epicBlock = wf.steps[0] as ForEachBlock;
+      expect(epicBlock.for_each).toBe('epic');
+      expect(Array.isArray(epicBlock.steps)).toBe(true);
     });
 
-    it('story block steps: create-story, implement, gate: quality, document', () => {
+    it('epic block contains for_each: story with correct steps', () => {
       const wf = workflow.workflow as ForEachBlock;
-      const storyBlock = wf.steps[0] as ForEachBlock;
+      const epicBlock = wf.steps[0] as ForEachBlock;
+      const storyBlock = epicBlock.steps[0] as ForEachBlock;
+      expect(storyBlock.for_each).toBe('story');
       expect(storyBlock.steps[0]).toBe('create-story');
       expect(storyBlock.steps[1]).toBe('implement');
       const qualityGate = storyBlock.steps[2] as GateBlock;
@@ -146,8 +149,19 @@ describe('default embedded workflow', () => {
 
     it('epic-level steps after story block: retro only', () => {
       const wf = workflow.workflow as ForEachBlock;
-      expect(wf.steps[1]).toBe('retro');
-      expect(wf.steps).toHaveLength(2);
+      const epicBlock = wf.steps[0] as ForEachBlock;
+      expect(epicBlock.steps[1]).toBe('retro');
+      expect(epicBlock.steps).toHaveLength(2);
+    });
+
+    it('sprint-level steps after epic block: deploy and verification gate', () => {
+      const wf = workflow.workflow as ForEachBlock;
+      expect(wf.steps[1]).toBe('deploy');
+      const verificationGate = wf.steps[2] as GateBlock;
+      expect(verificationGate.gate).toBe('verification');
+      expect(verificationGate.check).toEqual(['verify']);
+      expect(verificationGate.fix).toEqual(['retry', 'document', 'deploy']);
+      expect(wf.steps).toHaveLength(3);
     });
 
     it('storyFlow and epicFlow are derived from the for_each workflow block (runtime compat)', () => {
@@ -157,11 +171,15 @@ describe('default embedded workflow', () => {
       expect(workflow.storyFlow[1]).toBe('implement');
       expect((workflow.storyFlow[2] as GateBlock).gate).toBe('quality');
       expect(workflow.storyFlow[3]).toBe('document');
-      // epicFlow: story_flow sentinel + retro (no deploy/verify)
+      // epicFlow: story_flow sentinel + retro
       expect(workflow.epicFlow).toEqual([
         'story_flow',
         'retro',
       ]);
+      // sprintFlow: deploy + verification gate
+      expect(workflow.sprintFlow).toHaveLength(2);
+      expect(workflow.sprintFlow[0]).toBe('deploy');
+      expect((workflow.sprintFlow[1] as GateBlock).gate).toBe('verification');
     });
   });
 

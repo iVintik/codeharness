@@ -71,7 +71,7 @@ function makeInput(overrides: Partial<GateContext> = {}): GateContext {
         'check-task': { agent: 'test-agent', session: 'fresh', source_access: true },
         'fix-task': { agent: 'test-agent', session: 'fresh', source_access: true },
       },
-      storyFlow: [], epicFlow: [], execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'rebase', epic_strategy: 'sequential', story_strategy: 'sequential' }, flow: [],
+      storyFlow: [], epicFlow: [], sprintFlow: [], execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'rebase', epic_strategy: 'sequential', story_strategy: 'sequential' }, flow: [],
     },
     agents: { 'test-agent': { name: 'test-agent', model: 'test-model', instructions: '', disallowedTools: [], bare: true } },
     sprintStatusPath: '/tmp/test', runId: 'test-run',

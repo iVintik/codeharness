@@ -8,7 +8,9 @@ import type { ResolvedWorkflow } from './workflow-parser.js';
 import { parse } from 'yaml';
 import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
 import { saveSnapshot, loadSnapshot, clearSnapshot, clearCheckpointLog, computeConfigHash, loadCheckpointLog, clearAllPersistence, cleanStaleTmpFiles } from './workflow-persistence.js';
-import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth } from './workflow-types.js';
+import type { EngineConfig, RunMachineContext, EngineResult, EngineError, WorkItem, DriverHealth, GateConfig } from './workflow-types.js';
+import { isTaskCompleted } from './workflow-compiler.js';
+import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
 import { snapshotToPosition, visualize } from './workflow-visualizer.js';
 
@@ -200,7 +202,48 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     actor.start();
   });
   state = finalOutput.workflowState;
-  const { errors, tasksCompleted, storiesProcessed } = finalOutput;
+  let { errors, tasksCompleted } = finalOutput;
+  const { storiesProcessed } = finalOutput;
+
+  // --- Sprint-level steps (run ONCE after all epics complete) ---
+  if (config.workflow.sprintFlow.length > 0 && !finalOutput.halted && state.phase !== 'interrupted') {
+    for (const step of config.workflow.sprintFlow) {
+      if (config.abortSignal?.aborted) break;
+      if (typeof step === 'string') {
+        // Plain task (deploy, retro, etc.)
+        const task = config.workflow.tasks[step];
+        if (!task) { warn(`workflow-runner: sprint task "${step}" not found, skipping`); continue; }
+        if (isTaskCompleted(state, step, '__sprint__')) continue;
+        const definition = task.agent ? config.agents[task.agent] : undefined;
+        if (task.agent && !definition) { warn(`workflow-runner: agent "${task.agent}" not found for sprint task "${step}", skipping`); continue; }
+        try {
+          const dr = task.agent === null
+            ? await nullTaskCore({ task, taskName: step, storyKey: '__sprint__', config, workflowState: state, previousContract: finalOutput.lastContract, accumulatedCostUsd: finalOutput.accumulatedCostUsd })
+            : await dispatchTaskCore({ task, taskName: step, storyKey: '__sprint__', definition: definition!, config, workflowState: state, previousContract: finalOutput.lastContract, accumulatedCostUsd: finalOutput.accumulatedCostUsd });
+          state = dr.updatedState;
+          tasksCompleted++;
+        } catch (err: unknown) { // IGNORE: sprint task failure — record and continue
+          const msg = err instanceof Error ? err.message : String(err);
+          errors = [...errors, { taskName: step, storyKey: '__sprint__', code: 'SPRINT_TASK_ERROR', message: msg }];
+          warn(`workflow-runner: sprint task "${step}" failed: ${msg}`);
+        }
+      } else if (typeof step === 'object' && step !== null && 'gate' in step) {
+        // Gate at sprint level — use the gate machine
+        const gateConfig = step as GateConfig;
+        info(`workflow-runner: running sprint gate "${gateConfig.gate}"`);
+        // Reset loop state for fresh gate
+        state = { ...state, iteration: 0, evaluator_scores: [], circuit_breaker: { triggered: false, reason: null, score_history: [] } };
+        const { executeLoopBlock } = await import('./workflow-machines.js');
+        const loopBlock = { loop: [...gateConfig.check, ...gateConfig.fix] };
+        const allItems = [...storiesProcessed].map(k => ({ key: k, source: 'sprint' as const }));
+        const loopResult = await executeLoopBlock(loopBlock, state, { ...config, maxIterations: gateConfig.max_retries }, allItems, finalOutput.lastContract, storyFlowTasks);
+        state = loopResult.state;
+        errors = [...errors, ...loopResult.errors];
+        tasksCompleted += loopResult.tasksCompleted;
+      }
+    }
+  }
+
   if (state.phase !== 'interrupted' && errors.length === 0 && state.phase !== 'max-iterations' && state.phase !== 'circuit-breaker') {
     state = { ...state, phase: 'completed' };
   } else if (state.phase === 'executing') {

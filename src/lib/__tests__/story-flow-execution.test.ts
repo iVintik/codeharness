@@ -217,6 +217,7 @@ function makeWorkflow(partial: {
       execution: defaultExecution,
       storyFlow: partial.storyFlow ?? partial.flow,
       epicFlow: partial.epicFlow ?? ['story_flow'],
+      sprintFlow: [],
     };
   }
 
@@ -249,6 +250,7 @@ function makeWorkflow(partial: {
     execution: defaultExecution,
     storyFlow,
     epicFlow,
+    sprintFlow: [],
   };
 }
 
@@ -755,6 +757,7 @@ describe('Story Flow Execution (Story 16-6)', () => {
           flow: [],
           storyFlow: [],
           epicFlow: [],
+          sprintFlow: [],
           execution: defaultExecution,
         },
       });

@@ -96,6 +96,7 @@ function makeRunInput(overrides: {
       },
       storyFlow,
       epicFlow,
+      sprintFlow: [],
       execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'rebase', epic_strategy: 'sequential', story_strategy: 'sequential' },
       flow: [],
     },

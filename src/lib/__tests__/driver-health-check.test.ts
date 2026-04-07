@@ -135,6 +135,7 @@ function makeWorkflow(partial: { tasks: Record<string, ResolvedTask>; flow: (str
     execution: defaultExecution,
     storyFlow: partial.flow,
     epicFlow: ['story_flow'],
+    sprintFlow: [],
   };
 }
 
@@ -476,6 +477,7 @@ describe('runWorkflowActor — health check integration', () => {
         execution: defaultExecution,
         storyFlow: ['implement'],
         epicFlow: ['story_flow'],
+        sprintFlow: [],
       },
       agents: { dev: { name: 'dev', model: 'test', instructions: '', disallowedTools: [], bare: true } },
       sprintStatusPath: '/tmp/sprint-status.yaml',

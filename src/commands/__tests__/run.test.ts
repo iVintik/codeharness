@@ -49,6 +49,7 @@ const {
       flow: ['implement'],
       storyFlow: ['implement'],
       epicFlow: ['story_flow'],
+      sprintFlow: [],
     })),
     resolveWorkflowMock: vi.fn(() => ({
       tasks: {
@@ -57,6 +58,7 @@ const {
       flow: ['implement'],
       storyFlow: ['implement'],
       epicFlow: ['story_flow'],
+      sprintFlow: [],
     })),
     resolveAgentMock: vi.fn(() => ({
       name: 'dev',
@@ -170,6 +172,7 @@ describe('run command', () => {
       flow: ['implement'],
       storyFlow: ['implement'],
       epicFlow: ['story_flow'],
+      sprintFlow: [],
     });
     resolveWorkflowMock.mockReset();
     resolveWorkflowMock.mockReturnValue({
@@ -179,6 +182,7 @@ describe('run command', () => {
       flow: ['implement'],
       storyFlow: ['implement'],
       epicFlow: ['story_flow'],
+      sprintFlow: [],
     });
     resolveAgentMock.mockReset();
     resolveAgentMock.mockReturnValue({

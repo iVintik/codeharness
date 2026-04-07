@@ -44,7 +44,7 @@ function parseForEachFlow(
   errors: Array<{ path: string; message: string }>,
 ): ForEachBlock {
   const b = block as Record<string, unknown>;
-  const scope = b.for_each as string;
+  const scope = b.for_each as string | undefined;
   const rawSteps = b.steps as unknown[];
 
   const parsedSteps: ForEachFlowStep[] = [];
@@ -129,44 +129,59 @@ function parseForEachFlow(
  * - Top-level string steps → epic-level task (added to epicFlow)
  * - GateBlock at any level → converted to LoopBlock `{ loop: [...check, ...fix] }`
  */
-function deriveFlowsFromForEach(workflowBlock: ForEachBlock): { storyFlow: FlowStep[]; epicFlow: FlowStep[] } {
+function deriveFlowsFromForEach(workflowBlock: ForEachBlock): { storyFlow: FlowStep[]; epicFlow: FlowStep[]; sprintFlow: FlowStep[] } {
   const storyFlow: FlowStep[] = [];
   const epicFlow: FlowStep[] = [];
+  const sprintFlow: FlowStep[] = [];
 
-  for (const step of workflowBlock.steps) {
+  // If the top-level block has for_each: epic, process its steps as epic-level
+  // If no for_each (plain steps block), find the for_each: epic inside
+  const isTopLevelEpic = workflowBlock.for_each === 'epic';
+  const topSteps = workflowBlock.steps;
+
+  if (isTopLevelEpic) {
+    // Top-level IS the epic iteration — all steps are epic-level
+    extractEpicSteps(topSteps, storyFlow, epicFlow);
+  } else {
+    // Top-level is sprint-level — find for_each: epic inside, rest is sprint-level
+    for (const step of topSteps) {
+      if (typeof step === 'object' && step !== null && 'for_each' in step) {
+        const nested = step as ForEachBlock;
+        if (nested.for_each === 'epic') {
+          extractEpicSteps(nested.steps, storyFlow, epicFlow);
+        }
+      } else if (typeof step === 'string') {
+        sprintFlow.push(step);
+      } else if (typeof step === 'object' && step !== null && 'gate' in step) {
+        sprintFlow.push(step as FlowStep);
+      }
+    }
+  }
+
+  return { storyFlow, epicFlow, sprintFlow };
+}
+
+/** Extract storyFlow and epicFlow from the steps inside a for_each: epic block. */
+function extractEpicSteps(steps: FlowStep[], storyFlow: FlowStep[], epicFlow: FlowStep[]): void {
+  for (const step of steps) {
     if (typeof step === 'string') {
       epicFlow.push(step);
-    } else if ('for_each' in step) {
+    } else if (typeof step === 'object' && step !== null && 'for_each' in step) {
       const nested = step as ForEachBlock;
       if (nested.for_each === 'story') {
-        // Story-level block: add sentinel to epicFlow, extract storyFlow steps
         epicFlow.push('story_flow');
         for (const storyStep of nested.steps) {
           if (typeof storyStep === 'string') {
             storyFlow.push(storyStep);
-          } else if ('gate' in storyStep) {
-            // Keep GateConfig as-is — the story machine handles gates natively
+          } else if (typeof storyStep === 'object' && storyStep !== null && 'gate' in storyStep) {
             storyFlow.push(storyStep as FlowStep);
-          }
-          // Deeper for_each nesting at story level is not expected; skip.
-        }
-      } else {
-        // Non-story for_each at epic level: treat as inline epic step expansion
-        for (const innerStep of nested.steps) {
-          if (typeof innerStep === 'string') epicFlow.push(innerStep);
-          else if ('gate' in innerStep) {
-            const gate = innerStep as GateBlock;
-            epicFlow.push({ loop: [...gate.check, ...gate.fix] });
           }
         }
       }
-    } else if ('gate' in step) {
-      const gate = step as GateBlock;
-      epicFlow.push({ loop: [...gate.check, ...gate.fix] });
+    } else if (typeof step === 'object' && step !== null && 'gate' in step) {
+      epicFlow.push(step as FlowStep);
     }
   }
-
-  return { storyFlow, epicFlow };
 }
 
 // --- Shared Validation & Resolution ---
@@ -250,11 +265,12 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
       throw err;
     }
 
-    const { storyFlow, epicFlow } = deriveFlowsFromForEach(workflowBlock);
+    const { storyFlow, epicFlow, sprintFlow } = deriveFlowsFromForEach(workflowBlock);
     return {
       tasks: resolvedTasks,
       storyFlow,
       epicFlow,
+      sprintFlow,
       execution,
       workflow: workflowBlock,
     };

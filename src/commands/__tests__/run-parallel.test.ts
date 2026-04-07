@@ -55,12 +55,14 @@ const {
       execution?: { epic_strategy: string; max_parallel: number; isolation: string; merge_strategy: string; story_strategy: string };
       storyFlow: string[];
       epicFlow: string[];
+      sprintFlow: string[];
     } => ({
       tasks: { implement: { agent: 'dev', session: 'fresh', source_access: true } },
       flow: ['implement'],
       execution: { epic_strategy: 'sequential', max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', story_strategy: 'sequential' },
       storyFlow: ['implement'],
       epicFlow: [],
+      sprintFlow: [],
     })),
     resolveAgentMock: vi.fn((_name?: unknown) => ({
       name: 'dev',
@@ -258,6 +260,7 @@ describe('run command — parallel execution (Story 17.3)', () => {
       execution: { epic_strategy: 'parallel', max_parallel: maxParallel, isolation: 'none', merge_strategy: 'merge-commit', story_strategy: 'sequential' },
       storyFlow: ['implement'],
       epicFlow: [],
+      sprintFlow: [],
     });
   }
 
@@ -268,6 +271,7 @@ describe('run command — parallel execution (Story 17.3)', () => {
       execution: { epic_strategy: 'sequential', max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', story_strategy: 'sequential' },
       storyFlow: ['implement'],
       epicFlow: [],
+      sprintFlow: [],
     });
   }
 
@@ -421,6 +425,7 @@ describe('run command — parallel execution (Story 17.3)', () => {
         flow: ['implement'],
         storyFlow: ['implement'],
         epicFlow: [],
+        sprintFlow: [],
         execution: undefined,
         // No execution config — should use sequential path
       });
@@ -613,6 +618,7 @@ describe('run command — parallel execution (Story 17.3)', () => {
         execution: { epic_strategy: 'parallel', max_parallel: 2, isolation: 'none', merge_strategy: 'merge-commit', story_strategy: 'sequential' },
         storyFlow: ['implement'],
         epicFlow: [],
+        sprintFlow: [],
       });
       getSprintStateMock.mockReturnValue({
         success: true,

@@ -47,7 +47,7 @@ export interface ResolvedTask {
 
 export interface LoopBlock { loop: string[] }
 export interface GateConfig { gate: string; check: string[]; fix: string[]; pass_when: GatePassStrategy; max_retries: number; circuit_breaker: string }
-export interface ForEachConfig { for_each: string; steps: FlowStep[] }
+export interface ForEachConfig { for_each?: string; steps: FlowStep[] }
 export type FlowStep = string | LoopBlock | GateConfig | ForEachConfig;
 
 export interface ExecutionConfig {
@@ -61,6 +61,8 @@ export interface ResolvedWorkflow {
   tasks: Record<string, ResolvedTask>;
   storyFlow: FlowStep[];
   epicFlow: FlowStep[];
+  /** Sprint-level steps that run ONCE after all epics complete (deploy, verify gate). */
+  sprintFlow: FlowStep[];
   execution: ExecutionConfig;
   workflow?: ForEachConfig;
 }

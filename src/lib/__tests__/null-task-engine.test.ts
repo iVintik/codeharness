@@ -232,6 +232,7 @@ function makeWorkflow(partial: {
     execution: defaultExecution,
     storyFlow,
     epicFlow,
+    sprintFlow: [],
   };
 }
 
@@ -266,6 +267,7 @@ function makeNullTaskWorkflow(partial: {
     execution: defaultExecution,
     storyFlow: storyFlow as (string | { loop: string[] })[],
     epicFlow: epicFlowSteps,
+    sprintFlow: [],
   };
 }
 

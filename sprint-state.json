@@ -243,7 +243,7 @@
       "name": "Persistence & Resume",
       "status": "in-progress",
       "storiesTotal": 4,
-      "storiesDone": 0
+      "storiesDone": 1
     },
     "epic-27": {
       "name": "TUI Visualization & Integration",

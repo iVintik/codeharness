@@ -1,127 +1,145 @@
 # Verification Proof: 26-2-snapshot-resume-config-hash-validation
 
-*2026-04-06T19:20:48Z by Showboat 0.6.1*
-<!-- showboat-id: abe874c6-98ae-44a1-8121-753011f13741 -->
+*2026-04-07T10:35:17Z by Showboat 0.6.1*
+<!-- showboat-id: 9466c686-645a-4417-a5ea-218751d022e4 -->
 
-## Story: Snapshot Resume with Config Hash Validation (26-2)
+## Story: Snapshot resume with config hash validation
+
+Retry run — fixing HIGH issue from review: isRestorableXStateSnapshot guard was too weak.
 
 Acceptance Criteria:
-1. Interrupted run → restart with same config → logs 'Resuming from snapshot' → previously completed tasks NOT re-executed
-2. Saved snapshot → YAML modified → logs 'config changed' and 'starting fresh' → starts from first task
-3. Saved snapshot's configHash matches hash engine computes for current config
-4. No snapshot → CLI does NOT log resume messages → starts from first task normally
-5. Corrupt snapshot → logs warning with 'corrupt' or 'invalid' → does NOT crash → starts fresh
-6. Resumed run completes one more task → snapshot's savedAt is newer than original
-7. Resumed run completes all tasks → snapshot file is deleted
-8. Resumed run halts on error → snapshot file is preserved on disk
-9. Two consecutive interrupt+resume cycles → third run resumes from latest snapshot
-10. npm run build exits 0
-11. npx vitest run exits 0, zero failures
-12. workflow-runner.ts <= 300 lines, workflow-persistence.ts <= 300 lines
+1. Resume on matching config — CLI shows 'Resuming from snapshot', completed tasks not re-executed
+2. Discard snapshot on config change — CLI shows 'config changed' and 'starting fresh'
+3. Fresh start when no snapshot exists — no resume message, run starts normally
+4. Graceful handling of corrupt snapshot — warning logged, process does not crash
+5. Snapshot updated after resumed task completion — savedAt timestamp newer after resume
+6. Snapshot cleaned up after successful resumed completion — file removed on success
+7. Snapshot preserved after error on resumed run — file remains with valid JSON
+8. Multi-interrupt resume chain — neither completed task re-executed on third run
+9. Build succeeds — npm run build exits 0
+10. All tests pass — npx vitest run exits 0
+
+## Changes made in this retry:
+- Strengthened isRestorableXStateSnapshot() to require all three XState v5 fields: status (known value), value (non-null), and context (object)
+- Added XSTATE_SNAPSHOT_STATUSES constant with valid XState v5 status values
+- Added 4 new unit tests: rejects { value: 'x' } alone, rejects { status, context } without value, rejects unknown status string, confirms well-formed snapshot is accepted
 
 ```bash
-npx vitest run --no-color 2>&1 | grep -E 'Test Files|Tests '
+npx vitest run src/lib/__tests__/workflow-runner.test.ts 2>&1 | tail -10
 ```
 
 ```output
- Test Files  197 passed (197)
-      Tests  5221 passed (5221)
+
+[1m[46m RUN [49m[22m [36mv4.1.0 [39m[90m/Users/ivintik/dev/personal/codeharness/src[39m
+
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m77 passed[39m[22m[90m (77)[39m
+[2m   Start at [22m 14:35:33
+[2m   Duration [22m 385ms[2m (transform 215ms, setup 0ms, import 271ms, tests 36ms, environment 0ms)[22m
+
 ```
 
 ```bash
-npm run build --silent 2>&1 | grep 'Build success' | wc -l | tr -d ' '
+npm run build 2>&1 | tail -5
 ```
 
 ```output
-3
+ESM dist/chunk-SGI72IOQ.js             110.24 KB
+ESM ⚡️ Build success in 32ms
+DTS Build start
+DTS ⚡️ Build success in 906ms
+DTS dist/modules/observability/index.d.ts 15.70 KB
 ```
 
 ```bash
-wc -l /Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts /Users/ivintik/dev/personal/codeharness/src/lib/workflow-persistence.ts | grep -v total
+npx vitest run 2>&1 | tail -5
 ```
 
 ```output
-     214 /Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts
-     297 /Users/ivintik/dev/personal/codeharness/src/lib/workflow-persistence.ts
+[2m Test Files [22m [1m[32m198 passed[39m[22m[90m (198)[39m
+[2m      Tests [22m [1m[32m5253 passed[39m[22m[90m (5253)[39m
+[2m   Start at [22m 14:35:40
+[2m   Duration [22m 10.17s[2m (transform 5.22s, setup 0ms, import 15.10s, tests 35.05s, environment 20ms)[22m
+
 ```
 
 ```bash
-npx vitest run --no-color --reporter=verbose src/lib/__tests__/workflow-runner.test.ts 2>&1 | grep 'snapshot resume (story 26-2)' | sed 's/ [0-9]*ms$//' | head -10
+grep -n 'XSTATE_SNAPSHOT_STATUSES\|isRestorableXStateSnapshot\|active.*done.*error.*stopped' /Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts | head -15
 ```
 
 ```output
- ✓ lib/__tests__/workflow-runner.test.ts > snapshot resume (story 26-2) > starts fresh and does NOT log resume message when no snapshot exists (AC #4)
- ✓ lib/__tests__/workflow-runner.test.ts > snapshot resume (story 26-2) > logs "Resuming from snapshot" when saved configHash matches current hash (AC #1)
- ✓ lib/__tests__/workflow-runner.test.ts > snapshot resume (story 26-2) > logs "config changed" and "starting fresh" when configHash mismatches (AC #2)
- ✓ lib/__tests__/workflow-runner.test.ts > snapshot resume (story 26-2) > calls clearSnapshot when configHash mismatches (AC #2)
- ✓ lib/__tests__/workflow-runner.test.ts > snapshot resume (story 26-2) > does NOT call clearSnapshot when hashes match (AC #3)
- ✓ lib/__tests__/workflow-runner.test.ts > snapshot resume (story 26-2) > starts fresh without crashing when loadSnapshot returns null (corrupt file) (AC #5)
- ✓ lib/__tests__/workflow-runner.test.ts > snapshot resume (story 26-2) > loadSnapshot is always called on every run
- ✓ lib/__tests__/workflow-runner.test.ts > snapshot resume (story 26-2) > warning includes abbreviated hashes of both saved and current configHash (AC #2)
+18:const XSTATE_SNAPSHOT_STATUSES = new Set(['active', 'done', 'error', 'stopped']);
+29:function isRestorableXStateSnapshot(snapshot: unknown): snapshot is Record<string, unknown> {
+36:    XSTATE_SNAPSHOT_STATUSES.has(candidate.status) &&
+165:      if (isRestorableXStateSnapshot(savedSnapshot.snapshot)) {
 ```
 
 ```bash
-npx vitest run --no-color --reporter=verbose src/lib/__tests__/workflow-runner.test.ts 2>&1 | grep 'persistence cleanup (story 26-4)' | sed 's/ [0-9]*ms$//' | head -12
+npx vitest run src/lib/__tests__/workflow-runner.test.ts 2>&1 | grep -E 'Test Files|Tests ' | head -3
 ```
 
 ```output
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > successful run: clearAllPersistence called and "Persistence cleared" info logged (AC #1, #2)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > failed run: clearAllPersistence NOT called, "preserved" info logged (AC #8)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > interrupted run: clearAllPersistence NOT called, "preserved" info logged (AC #4)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > loop terminated (max-iterations): clearAllPersistence NOT called, "preserved" info logged (AC #10)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > re-entry after completed phase: clearAllPersistence called before early return (AC #5)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > orphaned checkpoint log (no snapshot): clearCheckpointLog called with warning (AC #6 T6)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > no orphan warning when no snapshot and empty checkpoint log (fresh start)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > cleanStaleTmpFiles called at run startup on every invocation (AC #7)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > cleanStaleTmpFiles called even on completed early-return path (AC #7)
- ✓ lib/__tests__/workflow-runner.test.ts > persistence cleanup (story 26-4) > success: info log reflects what was actually cleared from clearAllPersistence result
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m77 passed[39m[22m[90m (77)[39m
 ```
 
 ```bash
-grep -c 'Resuming from snapshot\|config changed.*starting fresh' /Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts
+npm run build 2>&1 | grep -E 'Build success|error' | head -5
 ```
 
 ```output
-2
+ESM ⚡️ Build success in 6ms
+ESM ⚡️ Build success in 31ms
+DTS ⚡️ Build success in 811ms
 ```
 
 ```bash
-grep -c 'corrupt.*starting fresh\|invalid.*starting fresh' /Users/ivintik/dev/personal/codeharness/src/lib/workflow-persistence.ts
+npx vitest run 2>&1 | grep -E 'Test Files|Tests ' | head -3
 ```
 
 ```output
-3
+[2m Test Files [22m [1m[32m198 passed[39m[22m[90m (198)[39m
+[2m      Tests [22m [1m[32m5253 passed[39m[22m[90m (5253)[39m
 ```
 
 ```bash
-grep -c 'resumeSnapshot !== null.*snapshot.*resumeSnapshot' /Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts
+grep -n 'XSTATE_SNAPSHOT_STATUSES\|isRestorableXStateSnapshot' /Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts | head -10
 ```
 
 ```output
-1
+18:const XSTATE_SNAPSHOT_STATUSES = new Set(['active', 'done', 'error', 'stopped']);
+29:function isRestorableXStateSnapshot(snapshot: unknown): snapshot is Record<string, unknown> {
+36:    XSTATE_SNAPSHOT_STATUSES.has(candidate.status) &&
+165:      if (isRestorableXStateSnapshot(savedSnapshot.snapshot)) {
 ```
 
-## Verdict: PASS
+```bash
+grep -n 'Resuming from snapshot\|config changed\|starting fresh\|Snapshot payload is invalid' /Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts
+```
 
-- Total ACs: 12
-- Verified: 12
-- Failed: 0
-- Tests: 5221 passed (197 test files), zero failures
-- Build: exits 0
-- Line counts: workflow-runner.ts 214 lines, workflow-persistence.ts 297 lines (both <= 300)
-- Showboat verify: reproducible (exit 0)
+```output
+166:        info('workflow-runner: Resuming from snapshot — config hash matches');
+169:        warn('workflow-runner: Snapshot payload is invalid for restore — starting fresh');
+172:      warn(`workflow-runner: Snapshot config changed (saved: ${savedSnapshot.configHash.slice(0, 8)}, current: ${configHash.slice(0, 8)}) — starting fresh`);
+```
 
-### AC Evidence Summary
+```bash
+npx vitest run src/lib/__tests__/workflow-runner.test.ts --reporter=verbose 2>&1 | grep -E 'snapshot resume .story 26-2|rejects snapshot|accepts well-formed' | head -15
+```
 
-AC1 (resume logs 'Resuming from snapshot'): source line 134 + test 'logs Resuming from snapshot when saved configHash matches current hash (AC #1)' passes
-AC2 (hash mismatch logs 'config changed' and 'starting fresh'): source line 137 + tests pass
-AC3 (configHash in snapshot matches computed hash): createActor receives snapshot only when hashes match, clearSnapshot not called — test passes
-AC4 (no snapshot = no resume messages): test 'starts fresh and does NOT log resume message when no snapshot exists (AC #4)' passes
-AC5 (corrupt snapshot = warn + no crash): persistence.ts lines 136, 144, 149 emit warnings; loadSnapshot returns null; runner treats null as fresh start — test passes
-AC6 (savedAt updated on resumed run completing a task): saveSnapshot called in actor.subscribe callback on every state transition (line 178) — covered by persistence cleanup tests
-AC7 (snapshot deleted on clean completion): clearAllPersistence called when success=true (line 202) — test 'successful run: clearAllPersistence called' passes
-AC8 (snapshot preserved on error/halt): clearAllPersistence NOT called when errors.length > 0 or interrupted — test 'failed run: clearAllPersistence NOT called' passes
-AC9 (multi-resume: latest snapshot used): loadSnapshot called on every run start (line 129); each state transition overwrites snapshot (line 178); second resume picks up latest
-AC10 (build exits 0): npm run build exits 0, Build success confirmed
-AC11 (vitest exits 0, zero failures): 197 test files, 5221 tests — all passed
-AC12 (line counts <= 300): workflow-runner.ts 214 lines, workflow-persistence.ts 297 lines
+```output
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mstarts fresh and does NOT log resume message when no snapshot exists (AC #4)[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mlogs "Resuming from snapshot" when saved configHash matches current hash (AC #1)[32m 1[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mlogs "config changed" and "starting fresh" when configHash mismatches (AC #2)[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mcalls clearSnapshot when configHash mismatches (AC #2)[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mdoes NOT call clearSnapshot when hashes match (AC #3)[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mstarts fresh without crashing when loadSnapshot returns null (corrupt file) (AC #5)[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mwarns and starts fresh when matching-hash snapshot payload is not restorable[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mloadSnapshot is always called on every run[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mrejects snapshot with only value key (no status/context) — guard is not just value-check[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mrejects snapshot with status+context but no value key[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mrejects snapshot with unknown status string[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22maccepts well-formed XState v5 snapshot with status, value, and context[32m 0[2mms[22m[39m
+ [32m✓[39m lib/__tests__/workflow-runner.test.ts[2m > [22msnapshot resume (story 26-2)[2m > [22mwarning includes abbreviated hashes of both saved and current configHash (AC #2)[32m 0[2mms[22m[39m
+```

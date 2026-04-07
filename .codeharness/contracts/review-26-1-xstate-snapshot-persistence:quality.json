@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "taskName": "review",
+  "storyId": "26-1-xstate-snapshot-persistence:quality",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T07:26:54.508Z",
+  "cost_usd": null,
+  "duration_ms": 147681,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m locating the changes for `26-1-xstate-snapshot-persistence:quality` and reading the touched code before judging correctness, security, architecture fit, and acceptance coverage.I found the implementation in `workflow-persistence.ts`, `workflow-runner.ts`, and their tests. Next I’m reading the story spec and the exact diff to check whether the code actually matches the intended persistence behavior.The main change set is narrow. I’m checking whether the new resume merge logic changes runtime behavior outside story 26-1, because that’s where a correctness regression is most likely.I’ve isolated the behavioral change: snapshot validation tightened, config hashing changed, and resume now backfills disk-only completions after actor restore. I’m running the focused test files to see whether that new merge path holds up under the existing engine semantics.No findings.\n\nI reviewed the changes in [workflow-persistence.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-persistence.ts), [workflow-runner.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts), [workflow-persistence.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-persistence.test.ts), and [workflow-runner.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-runner.test.ts). The implementation looks correct for the stated intent: stricter snapshot validation, deterministic hash invalidation that now covers agent definitions, terminal interrupt snapshot persistence, and resume-time recovery of disk-only completions for sprint-level work. I did not find a security issue or an architecture violation in this change set.\n\nAC coverage looks adequate at the unit level: the added tests cover agent-driven hash invalidation, invalid snapshot payload rejection, invalid timestamps, terminal interrupted snapshot persistence, and the sprint-resume recovery path. I also ran `npm run test:unit -- src/lib/__tests__/workflow-persistence.test.ts src/lib/__tests__/workflow-runner.test.ts` and `npm run build`; both passed. Residual gap: I did not run the full integration suite here, so end-to-end proof for CLI-level ACs still depends on broader test coverage outside this review.\n\n<verdict>pass</verdict>",
+  "acceptanceCriteria": []
+}

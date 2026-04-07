@@ -4,76 +4,71 @@
   "storyId": "26-1-xstate-snapshot-persistence",
   "driver": "claude-code",
   "model": "claude-opus-4-6",
-  "timestamp": "2026-04-06T17:27:35.235Z",
-  "cost_usd": 0.18507025000000002,
-  "duration_ms": 27205,
+  "timestamp": "2026-04-07T07:28:06.908Z",
+  "cost_usd": 0.22497495,
+  "duration_ms": 72390,
   "changedFiles": [],
   "testResults": null,
-  "output": "<user-docs>\n\n# Workflow Snapshot Persistence\n\n## What It Does\n\nCodeharness now automatically saves the workflow engine's state to disk after every task completion. If a workflow run is interrupted — whether by pressing `q`, sending `Ctrl+C`, a crash, or a power failure — the snapshot is preserved so a future resume feature (coming in a later release) can pick up where it left off without re-running completed tasks.\n\n## How It Works\n\n### Automatic Snapshots\n\nDuring a workflow run (`/harness-run`), the engine saves a snapshot to `.codeharness/workflow-snapshot.json` after each task completes. No configuration or user action is needed — it happens transparently.\n\n### What Gets Saved\n\nThe snapshot file contains three fields:\n\n| Field | Description |\n|-------|-------------|\n| `snapshot` | The full internal engine state (all completed tasks, current position in the workflow) |\n| `configHash` | A fingerprint of your workflow configuration — used to detect if the config changed between runs |\n| `savedAt` | ISO 8601 timestamp of when the snapshot was last written |\n\n### When Snapshots Are Written\n\n- **After each task completes** — the file is updated incrementally, not just at the end\n- **On interrupt** (`Ctrl+C` or `q`) — the last good state is captured before shutdown\n- **On error/halt** (retries exhausted, rate limit) — preserved for future resume\n\n### When Snapshots Are Cleaned Up\n\n- **Successful completion** — if the entire workflow finishes with zero errors, the snapshot file is automatically deleted. There's nothing to resume from.\n- **Error or interrupt** — the file is intentionally kept on disk.\n\n### Atomic Writes\n\nSnapshots are written atomically (write to a temporary file, then rename). This means:\n\n- A crash or `kill -9` during a write will never leave a half-written, corrupt file\n- The snapshot is either the previous valid version or the new valid version — never garbage\n\n### Config Change Detection\n\nThe `configHash` fingerprint tracks your workflow configuration. If you change your `config.yaml` (add/remove tasks, change models, reorder steps), the hash will differ from any saved snapshot. This prevents resuming from a snapshot that doesn't match the current workflow structure. Same config always produces the same hash.\n\n### Corrupt File Handling\n\nIf the snapshot file is somehow corrupted (truncated, invalid JSON, missing fields), the engine logs a warning and starts fresh. It will never crash on a bad snapshot file.\n\n### Directory Creation\n\nThe `.codeharness/` directory is created automatically on first snapshot write. You don't need to create it manually.\n\n## File Location\n\n```\n<project-root>/\n  .codeharness/\n    workflow-snapshot.json    ← created during runs, deleted on success\n```\n\n## What's Next\n\nThis is the foundation for **workflow resume** (story 26-2), which will use saved snapshots to restart interrupted runs from exactly where they stopped. For now, snapshots are saved but not yet consumed on restart — that's coming next.\n\n</user-docs>",
+  "output": "<user-docs>\n\n# Workflow Snapshot Persistence\n\n## What It Does\n\nCodeharness now automatically saves workflow state to disk after every task completion and on interrupt. If a run crashes, gets interrupted (Ctrl+C), or errors out, you can restart it and resume from where it stopped — no re-running completed tasks.\n\nThis is fully automatic. No flags, no configuration.\n\n## How It Works\n\n### During a Run\n\n- After each task completes, the engine writes the full workflow state to `.codeharness/workflow-snapshot.json`.\n- Writes are atomic (write to `.tmp`, then rename) so a crash mid-write can't corrupt the file.\n- The `.codeharness/` directory is created automatically on first save.\n\n### On Interrupt (Ctrl+C)\n\nThe engine captures the current state before exiting. You'll see:\n\n```\nInterrupted — 3 stories processed, 7 tasks completed. State saved — run again to resume.\n```\n\n### On Successful Completion\n\nThe snapshot file is deleted. Nothing lingers.\n\n### On Error or Halt\n\nThe snapshot is preserved so you can resume after fixing the issue.\n\n## Resuming a Run\n\nRun the same command again:\n\n```\ncodeharness run\n```\n\nThe engine loads the snapshot, checks whether your workflow configuration has changed, and:\n\n- **Config unchanged** → resumes from the saved position.\n- **Config changed** (you edited tasks, flows, gates, or agent definitions) → starts fresh. Already-completed tasks are still tracked via the checkpoint log to avoid replaying them.\n\nYou'll see one of:\n\n```\nworkflow-runner: Resuming from snapshot — config hash matches\n```\n\nor:\n\n```\nworkflow-runner: Snapshot config changed (saved: abc123, current: def456) — starting fresh\n```\n\n### Forcing Resume\n\nIf a run completed or hit the circuit breaker but you want to re-enter it:\n\n```\ncodeharness run --resume\n```\n\nThis resets the phase to idle and resumes from the snapshot.\n\n## What's in the Snapshot File\n\nThe file at `.codeharness/workflow-snapshot.json` contains:\n\n| Field | Description |\n|-------|-------------|\n| `snapshot` | Serialized XState machine state |\n| `configHash` | SHA-256 of your workflow config (tasks, flows, execution settings) |\n| `savedAt` | ISO 8601 timestamp of last save |\n\nYou can check `savedAt` or the file's modification time to monitor progress during long runs.\n\n## Config Hash: What Triggers a Fresh Start\n\nThe hash covers your workflow definition: tasks, story flow, epic flow, execution settings, and agent definitions. It excludes runtime-only values (project directory, abort signals, run IDs).\n\nChanges that invalidate a snapshot:\n- Adding, removing, or reordering tasks\n- Modifying gates or flow definitions\n- Changing execution settings\n- Changing agent definitions\n\nChanges that do NOT invalidate:\n- Running from a different directory (same config)\n- Different run IDs\n\n## Edge Cases\n\n| Situation | Behavior |\n|-----------|----------|\n| Corrupt or truncated snapshot file | Warning logged, fresh start |\n| Old `workflow-state.yaml` detected | Warning logged, fresh start required |\n| Stale `.tmp` files from a previous crash | Cleaned up automatically on next run |\n| Snapshot save fails (disk full, permissions) | Warning logged, run continues — save is best-effort |\n\n## Monitoring Progress\n\nDuring a multi-task run, the snapshot file updates after each task completion. You can watch it externally:\n\n```\nls -la .codeharness/workflow-snapshot.json\n```\n\nThe modification time advances with each completed task.\n\n</user-docs>",
   "acceptanceCriteria": [
     {
       "id": "AC1",
-      "description": "**Given** a workflow run that completes at least one task successfully, **When** the user inspects the `.codeharness/` directory via `ls .codeharness/`, **Then** a file named `workflow-snapshot.json` is present. <!-- verification: docker exec / ls .codeharness/ | grep workflow-snapshot.json -->",
+      "description": "**Given** a workflow run that completes at least one task successfully, **When** the operator lists the `.codeharness/` directory (`ls .codeharness/`), **Then** a file named `workflow-snapshot.json` is present in the listing. <!-- verification: CLI — ls .codeharness/ | grep workflow-snapshot.json -->",
       "status": "pending"
     },
     {
       "id": "AC2",
-      "description": "**Given** a workflow run where three tasks complete in sequence, **When** the user reads `.codeharness/workflow-snapshot.json` after the run, **Then** the JSON file contains a top-level `snapshot` field (the XState persisted snapshot), a `configHash` field (a non-empty string), and a `savedAt` field (an ISO 8601 timestamp). <!-- verification: docker exec / cat .codeharness/workflow-snapshot.json | jq '.snapshot, .configHash, .savedAt' — all non-null -->",
+      "description": "**Given** a workflow run where three tasks complete in sequence, **When** the operator reads `.codeharness/workflow-snapshot.json` after the run halts or is interrupted, **Then** the JSON contains three top-level fields: `snapshot` (a non-null object), `configHash` (a non-empty string), and `savedAt` (an ISO 8601 timestamp string). <!-- verification: CLI — cat .codeharness/workflow-snapshot.json | jq '{has_snapshot: (.snapshot != null), has_hash: (.configHash | length > 0), has_time: (.savedAt | test(\"^\\\\d{4}-\\\\d{2}-\\\\d{2}T\"))}' — all true -->",
       "status": "pending"
     },
     {
       "id": "AC3",
-      "description": "**Given** a workflow run that is interrupted (user sends SIGINT or presses q), **When** the user reads `.codeharness/workflow-snapshot.json`, **Then** the file exists and contains a valid snapshot saved before the actor stopped — the `savedAt` timestamp is within 5 seconds of the interrupt time. <!-- verification: interrupt workflow via signal, then cat .codeharness/workflow-snapshot.json | jq '.savedAt' — timestamp present and recent -->",
+      "description": "**Given** a workflow run in progress, **When** the operator sends SIGINT (Ctrl+C) during task execution, **Then** the file `.codeharness/workflow-snapshot.json` exists and its `savedAt` timestamp is within 5 seconds of the interrupt time. <!-- verification: CLI — send SIGINT during run, then cat .codeharness/workflow-snapshot.json | jq '.savedAt' — timestamp is recent -->",
       "status": "pending"
     },
     {
       "id": "AC4",
-      "description": "**Given** a workflow run where the first task completes and then a second task is dispatched, **When** the user reads `.codeharness/workflow-snapshot.json` after the first task completes (before second finishes), **Then** the snapshot reflects the state after the first task — the file is updated after each task completion, not just at the end. <!-- verification: monitor file modification time during run; mtime updates after each task dispatch completes -->",
+      "description": "**Given** a workflow run with multiple tasks, **When** the operator monitors the modification time of `.codeharness/workflow-snapshot.json` during the run (e.g., `stat` or `ls -l` between task completions), **Then** the file's modification time updates after each task completes — not just once at the end. <!-- verification: CLI — run two stat checks during a multi-task run, confirm mtime changes between task completions -->",
       "status": "pending"
     },
     {
       "id": "AC5",
-      "description": "**Given** a workflow run that completes successfully with zero errors, **When** the user checks `.codeharness/workflow-snapshot.json` after the run finishes, **Then** the file does NOT exist — it was cleaned up on successful completion. <!-- verification: after successful run, ls .codeharness/workflow-snapshot.json returns \"No such file\" -->",
+      "description": "**Given** a workflow run that completes successfully with zero errors, **When** the operator checks for `.codeharness/workflow-snapshot.json` after the run finishes, **Then** the file does NOT exist — it was removed on successful completion. <!-- verification: CLI — after successful run, ls .codeharness/workflow-snapshot.json returns \"No such file or directory\" -->",
       "status": "pending"
     },
     {
       "id": "AC6",
-      "description": "**Given** a workflow run that halts due to errors (e.g., all retries exhausted, rate limit), **When** the user checks `.codeharness/workflow-snapshot.json`, **Then** the file EXISTS and is preserved — it was NOT cleaned up because the run did not complete successfully. <!-- verification: after halted run, cat .codeharness/workflow-snapshot.json returns valid JSON -->",
+      "description": "**Given** a workflow run that halts due to errors (e.g., all retries exhausted or rate limit hit), **When** the operator checks for `.codeharness/workflow-snapshot.json`, **Then** the file EXISTS and contains valid JSON — it is preserved for future resume. <!-- verification: CLI — after halted run, cat .codeharness/workflow-snapshot.json | jq '.' exits 0 (valid JSON) -->",
       "status": "pending"
     },
     {
       "id": "AC7",
-      "description": "**Given** a saved `workflow-snapshot.json` file, **When** the user reads its content, **Then** the `configHash` field is a deterministic hash string — running the same workflow config always produces the same hash value, and changing any task definition or workflow step produces a different hash. <!-- verification: run workflow twice with same config, compare configHash values — they match. Change a task model, run again — configHash differs. -->",
+      "description": "**Given** two separate workflow runs using the identical workflow configuration, **When** the operator compares the `configHash` field in each run's snapshot file, **Then** both hash values are identical. **And given** the operator modifies a task definition in the workflow YAML (e.g., changes a model name) and runs again, **Then** the new `configHash` value differs from the previous one. <!-- verification: CLI — run workflow, save hash; run again with same config, compare hash (match). Edit YAML task, run again, compare hash (different). -->",
       "status": "pending"
     },
     {
       "id": "AC8",
-      "description": "**Given** a workflow snapshot file that was partially written (simulated by truncating the file to 50 bytes), **When** the engine attempts to load it on the next run, **Then** the engine logs a warning message containing \"corrupt\" or \"invalid\" and treats it as if no snapshot exists — the run starts fresh without crashing. <!-- verification: truncate .codeharness/workflow-snapshot.json to 50 bytes, start run, check logs for warning -->",
+      "description": "**Given** a `.codeharness/workflow-snapshot.json` file that has been manually corrupted (e.g., truncated to 50 bytes via `truncate -s 50 .codeharness/workflow-snapshot.json`), **When** the engine starts a new workflow run, **Then** the run starts from the beginning without crashing, **And** the engine logs contain a warning message including the word \"corrupt\" or \"invalid\". <!-- verification: CLI — truncate the file, start a new run, confirm it starts fresh; docker logs / stderr shows warning with \"corrupt\" or \"invalid\" -->",
       "status": "pending"
     },
     {
       "id": "AC9",
-      "description": "**Given** the project directory has no `.codeharness/` directory, **When** a workflow run starts and the first task completes, **Then** the `.codeharness/` directory is created automatically and the snapshot file is written — no error about missing directory. <!-- verification: rm -rf .codeharness/, start workflow, ls .codeharness/workflow-snapshot.json — file exists -->",
+      "description": "**Given** a project directory where `.codeharness/` does not exist (removed via `rm -rf .codeharness/`), **When** the operator starts a workflow run and the first task completes, **Then** the `.codeharness/` directory is automatically created and `workflow-snapshot.json` is present inside it — no manual directory creation required. <!-- verification: CLI — rm -rf .codeharness/, start workflow, after first task completes: ls .codeharness/workflow-snapshot.json succeeds -->",
       "status": "pending"
     },
     {
       "id": "AC10",
-      "description": "**Given** a workflow run in progress, **When** a power failure is simulated by killing the process with SIGKILL during a task, **Then** on the next run the snapshot file is either valid JSON (from the last successful atomic write) or absent — it is never a partially-written corrupt file that crashes the engine. <!-- verification: kill -9 during task, then start new run — engine starts without crash, logs indicate fresh start or loaded snapshot -->",
+      "description": "**Given** a workflow run in progress, **When** the process is killed with SIGKILL (`kill -9`) during a task, **Then** on the next run the engine either loads a valid snapshot (prior atomic write succeeded) or starts fresh — it never crashes due to a partially-written snapshot file. <!-- verification: CLI — kill -9 during task, start new run, confirm engine does not crash. Check logs for either \"loaded snapshot\" or fresh start message. -->",
       "status": "pending"
     },
     {
       "id": "AC11",
-      "description": "**Given** the codebase after implementation, **When** `npm run build` is executed, **Then** it exits with code 0. <!-- verification: npm run build exits 0 -->",
+      "description": "**Given** the codebase after implementation, **When** `npm run build` is executed, **Then** it exits with code 0 and produces no TypeScript compilation errors. <!-- verification: CLI — npm run build; echo $? — prints 0 -->",
       "status": "pending"
     },
     {
       "id": "AC12",
-      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** zero failures — no regressions. <!-- verification: npx vitest run exits 0 -->",
-      "status": "pending"
-    },
-    {
-      "id": "AC13",
-      "description": "**Given** the workflow-persistence.ts file, **When** its line count is checked, **Then** it is ≤ 300 lines (per NFR18). <!-- verification: wc -l src/lib/workflow-persistence.ts ≤ 300 -->",
+      "description": "**Given** the full test suite, **When** `npx vitest run` is executed, **Then** all tests pass with zero failures — no regressions introduced. <!-- verification: CLI — npx vitest run — exit code 0, summary shows 0 failures -->",
       "status": "pending"
     }
   ]

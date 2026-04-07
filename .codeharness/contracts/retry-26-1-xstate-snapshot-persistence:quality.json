@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "26-1-xstate-snapshot-persistence:quality",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T07:17:45.087Z",
+  "cost_usd": 0.5099995500000001,
+  "duration_ms": 156349,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-runner.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now I understand the context. The `retry` task uses the `dev` agent to fix issues found during the `review`. Let me read the implementation files to understand what needs fixing.Now let me read the test file and understand the sprint gate issue from the review:Now I understand the issue. The backfill logic at line 220-221 filters only for `story_key === '__sprint__'`, but sprint gate loop blocks record completions under individual story keys (e.g., `26-1-...`). Those are missed on resume.\n\nThe fix: remove the `__sprint__` filter so all disk tasks not already in the XState context are recovered.Now let's verify the build and tests pass:One test expects the old message string. Let me update it:All 5248 tests pass. Here's what was fixed:\n\n**Root cause:** The sprint backfill filter `t.story_key === '__sprint__'` was too narrow. Sprint gate loop blocks process individual stories and record completions under their story keys (e.g. `26-1-xstate-snapshot-persistence`), not `__sprint__`. On resume after an interrupt during a sprint gate iteration, those completions would be missed and the gate tasks replayed.\n\n**Fix:** Removed the `story_key === '__sprint__'` predicate — the backfill now recovers **all** disk tasks not already in the XState context. This correctly handles both plain sprint tasks (`__sprint__`) and sprint gate per-story tasks. Safe because the backfill only runs when `resumeSnapshot !== null` (same-config resume from the same run).",
+  "acceptanceCriteria": []
+}

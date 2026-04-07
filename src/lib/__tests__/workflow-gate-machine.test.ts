@@ -262,3 +262,85 @@ describe('gateMachine', () => {
     expect(snap.value).toBe('interrupted');
   });
 });
+
+// ─── story 27-4: dispatch-error emission from gate machine ────────────────────
+
+describe('gateMachine dispatch-error emission (story 27-4)', () => {
+  beforeEach(() => { vi.resetAllMocks(); });
+
+  it('emits dispatch-error via config.onEvent when a check task throws a non-halt error', async () => {
+    const events: object[] = [];
+    const input = makeInput({
+      config: {
+        ...makeInput().config,
+        onEvent: (e: object) => events.push(e),
+      } as unknown as GateContext['config'],
+    });
+
+    mockDispatchTaskCore.mockRejectedValueOnce(new Error('check-task-failed'));
+    // With the error caught, the gate has no verdicts → maxedOut after max_retries
+    mockDispatchTaskCore.mockResolvedValue(makeOut(PASS)); // subsequent attempts if any
+
+    const { snap } = await run(input);
+    // Gate does not halt on non-halt errors; it maxes out or continues
+    expect(['maxedOut', 'passed']).toContain(snap.value);
+
+    const errorEvents = events.filter((e) => (e as { type: string }).type === 'dispatch-error');
+    expect(errorEvents).toHaveLength(1);
+    expect(errorEvents[0]).toMatchObject({
+      type: 'dispatch-error',
+      taskName: 'check-task',
+      error: expect.objectContaining({ message: 'check-task-failed' }),
+    });
+  });
+
+  it('does NOT emit dispatch-error for halt-level errors (they propagate as throws)', async () => {
+    const events: object[] = [];
+    const input = makeInput({
+      config: {
+        ...makeInput().config,
+        onEvent: (e: object) => events.push(e),
+      } as unknown as GateContext['config'],
+    });
+
+    mockDispatchTaskCore.mockRejectedValueOnce(
+      new MockDispatchError('rate limit', 'RATE_LIMIT', 'test-agent', null),
+    );
+
+    const { snap } = await run(input);
+    expect(snap.value).toBe('halted');
+    const errorEvents = events.filter((e) => (e as { type: string }).type === 'dispatch-error');
+    // RATE_LIMIT errors propagate and are not caught by the non-halt path
+    expect(errorEvents).toHaveLength(0);
+  });
+
+  it('emits dispatch-error via config.onEvent when a fix task throws a non-halt error', async () => {
+    const events: object[] = [];
+    const input = makeInput({
+      gate: { gate: 'g1', check: ['check-task'], fix: ['fix-task'], pass_when: 'all_pass', max_retries: 2, circuit_breaker: 'default' },
+      config: {
+        ...makeInput().config,
+        onEvent: (e: object) => events.push(e),
+      } as unknown as GateContext['config'],
+    });
+
+    // First check cycle: check-task returns fail → moves to fix
+    mockDispatchTaskCore
+      .mockResolvedValueOnce(makeOut(FAIL))      // check-task: fail verdict
+      .mockRejectedValueOnce(new Error('fix-task-failed')); // fix-task: throws
+
+    const { snap } = await run(input);
+    // Fix error is non-halt, so gate continues to next check cycle or maxes out
+    expect(['maxedOut', 'passed']).toContain(snap.value);
+
+    const fixErrorEvents = events.filter(
+      (e) => (e as { type: string }).type === 'dispatch-error' && (e as { taskName: string }).taskName === 'fix-task',
+    );
+    expect(fixErrorEvents).toHaveLength(1);
+    expect(fixErrorEvents[0]).toMatchObject({
+      type: 'dispatch-error',
+      taskName: 'fix-task',
+      error: expect.objectContaining({ message: 'fix-task-failed' }),
+    });
+  });
+});

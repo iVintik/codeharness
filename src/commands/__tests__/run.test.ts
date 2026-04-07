@@ -608,6 +608,91 @@ describe('run command', () => {
       expect(writeWorkflowStateMock).not.toHaveBeenCalled();
       expect(executeWorkflowMock).toHaveBeenCalled();
     });
+
+    // ── story 27-4: config.onEvent → renderer bridge ──────────────────────────
+
+    it('EngineConfig includes onEvent handler that routes stream-event to renderer.update (story 27-4)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(executeWorkflowMock).toHaveBeenCalled();
+      const config = executeWorkflowMock.mock.calls[0][0];
+      expect(typeof config.onEvent).toBe('function');
+
+      // The renderer mock is captured from startRendererMock
+      const rendererHandle = startRendererMock.mock.results[0].value;
+
+      // Invoke onEvent with a stream-event — should route to renderer.update()
+      config.onEvent({
+        type: 'stream-event',
+        taskName: 'implement',
+        storyKey: '1-1-story',
+        driverName: 'claude-code',
+        streamEvent: { type: 'text', text: 'hello from agent' },
+      });
+      expect(rendererHandle.update).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'text', text: 'hello from agent' }),
+        'claude-code',
+      );
+    });
+
+    it('EngineConfig.onEvent routes dispatch-error to renderer.addMessage and marks story failed (story 27-4)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      const config = executeWorkflowMock.mock.calls[0][0];
+      const rendererHandle = startRendererMock.mock.results[0].value;
+
+      config.onEvent({
+        type: 'dispatch-error',
+        taskName: 'implement',
+        storyKey: '1-1-story',
+        error: { code: 'UNKNOWN', message: 'task exploded' },
+      });
+
+      expect(rendererHandle.addMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'fail', message: expect.stringContaining('task exploded') }),
+      );
+      expect(rendererHandle.updateStories).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ key: '1-1-story', status: 'failed' })]),
+      );
+    });
+
+    it('gate dispatch-error (storyKey with colon) shows warn message but does NOT mark story failed (story 27-4 review)', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      const config = executeWorkflowMock.mock.calls[0][0];
+      const rendererHandle = startRendererMock.mock.results[0].value;
+
+      // Gate machine emits dispatch-error with namespaced storyKey (e.g. "1-1-story:quality")
+      config.onEvent({
+        type: 'dispatch-error',
+        taskName: 'review',
+        storyKey: '1-1-story:quality',
+        error: { code: 'UNKNOWN', message: 'check failed, retrying' },
+      });
+
+      // Must show the error as a warning — not a failure
+      expect(rendererHandle.addMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'warn', message: expect.stringContaining('check failed, retrying') }),
+      );
+      // Must NOT mark the story as failed — gate is still in its retry loop
+      const allUpdateStoriesCalls = rendererHandle.updateStories.mock.calls.flat(2);
+      const failedEntries = allUpdateStoriesCalls.filter(
+        (e: { key?: string; status?: string }) => e.key === '1-1-story' && e.status === 'failed'
+      );
+      expect(failedEntries).toHaveLength(0);
+    });
   });
 
   describe('--workflow option (Story 9.2)', () => {

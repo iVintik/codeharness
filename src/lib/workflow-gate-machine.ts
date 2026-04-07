@@ -108,7 +108,9 @@ const checkPhaseActor = fromPromise(async ({ input, signal }: { input: GateConte
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') throw err;
       if (err instanceof DispatchError && HALT_ERROR_CODES.has(err.code)) throw err;
-      ctx = { ...ctx, errors: [...ctx.errors, toGateError(err, taskName, storyKey)] };
+      const gateErr = toGateError(err, taskName, storyKey);
+      if (ctx.config.onEvent) ctx.config.onEvent({ type: 'dispatch-error', taskName, storyKey, error: { code: gateErr.code, message: gateErr.message } });
+      ctx = { ...ctx, errors: [...ctx.errors, gateErr] };
     }
   }
   return ctx;
@@ -138,7 +140,9 @@ const fixPhaseActor = fromPromise(async ({ input, signal }: { input: GateContext
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') throw err;
       if (err instanceof DispatchError && HALT_ERROR_CODES.has(err.code)) throw err;
-      ctx = { ...ctx, errors: [...ctx.errors, toGateError(err, taskName, storyKey)] };
+      const gateErr = toGateError(err, taskName, storyKey);
+      if (ctx.config.onEvent) ctx.config.onEvent({ type: 'dispatch-error', taskName, storyKey, error: { code: gateErr.code, message: gateErr.message } });
+      ctx = { ...ctx, errors: [...ctx.errors, gateErr] };
     }
   }
   return ctx;

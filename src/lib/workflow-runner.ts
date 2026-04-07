@@ -4,15 +4,55 @@ import { warn, info } from './output.js';
 import { checkCapabilityConflicts } from './agents/capability-check.js';
 import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
 import { saveSnapshot, loadSnapshot, snapshotFileExists, clearSnapshot, computeConfigHash, loadCheckpointLog, clearCheckpointLog, clearAllPersistence, cleanStaleTmpFiles, isRestorableXStateSnapshot } from './workflow-persistence.js';
-import type { EngineConfig, RunMachineContext, EngineResult, EngineError, GateConfig } from './workflow-types.js';
+import type { EngineConfig, EngineEvent, RunMachineContext, EngineResult, EngineError, GateConfig, WorkItem } from './workflow-types.js';
+import { isGateConfig } from './workflow-types.js';
 import { isTaskCompleted } from './workflow-compiler.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
-import { snapshotToPosition, visualize } from './workflow-visualizer.js';
+import { snapshotToPosition, visualize, type WorkflowPosition } from './workflow-visualizer.js';
 
 // Re-export public helpers so existing imports from workflow-runner continue to work.
 export { loadWorkItems } from './workflow-work-items.js';
 export { checkDriverHealth } from './workflow-driver-health.js';
+
+/** Compute a synthetic WorkflowPosition from a dispatch-start event's storyKey + taskName.
+ *  Sub-actors run inside fromPromise and don't emit XState inspect events, so the viz row
+ *  would only update at epic boundaries without this. Handles story, gate, and epic keys.
+ *  Pure, no I/O, returns null on miss. */
+function buildSyntheticPosition(sk: string, tn: string, ee: Array<[string, WorkItem[]]>, cfg: EngineConfig): WorkflowPosition | null {
+  try {
+    // Classify dispatch type from storyKey shape
+    const colonIdx = sk.indexOf(':');
+    const isGate = colonIdx >= 0;
+    const isEpicLevel = sk.startsWith('__epic_');
+    // Gate key: "parent:gateName" — strip suffix to find story; flow step = gate name
+    const parentKey = isGate ? sk.slice(0, colonIdx) : sk;
+    const gateName = isGate ? sk.slice(colonIdx + 1) : null;
+    // Epic-level tasks use epicFlow; story/gate tasks use storyFlow
+    const flow = isEpicLevel ? cfg.workflow.epicFlow : cfg.workflow.storyFlow;
+    // Active step in flow: gate name for gate events, task name for regular events
+    const flowStepName = isGate ? gateName! : tn;
+    let epicId: string | undefined, si: number | undefined, ts: number | undefined;
+    if (isEpicLevel) {
+      const m = sk.match(/^__epic_(.+)__$/);
+      epicId = m ? m[1] : undefined;
+    } else {
+      for (const [eid, items] of ee) { const idx = items.findIndex(i => i.key === parentKey); if (idx >= 0) { epicId = eid; si = idx + 1; ts = items.length; break; } }
+      if (epicId === undefined) return null;
+    }
+    const ai = flow.map(s => typeof s === 'string' ? s : isGateConfig(s) ? s.gate : null).indexOf(flowStepName);
+    if (ai < 0) return null;
+    const steps = flow.reduce<WorkflowPosition['steps']>((acc, step, i) => {
+      const name = typeof step === 'string' ? step : isGateConfig(step) ? step.gate : null;
+      if (!name) return acc;
+      return [...acc, { name, status: (i < ai ? 'done' : i === ai ? 'active' : 'pending'), ...(isGateConfig(step) ? { isGate: true } : {}) }];
+    }, []);
+    return { level: isEpicLevel ? 'epic' : 'story', ...(epicId ? { epicId } : {}), ...(si !== undefined ? { storyIndex: si } : {}), ...(ts !== undefined ? { totalStories: ts } : {}), steps, activeStepIndex: ai };
+  } catch { return null; } // IGNORE: synthetic viz is best-effort
+}
+
+/** @internal Exported for unit tests only. */
+export { buildSyntheticPosition as _buildSyntheticPositionForTest };
 
 export async function runWorkflowActor(config: EngineConfig): Promise<EngineResult> {
   const startMs = Date.now();
@@ -47,7 +87,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     if (typeof step === 'object' && 'loop' in step)
       for (const lt of (step as { loop: string[] }).loop) storyFlowTasks.add(lt);
   }
-  const epicGroups = new Map<string, import('./workflow-types.js').WorkItem[]>();
+  const epicGroups = new Map<string, WorkItem[]>();
   for (const item of workItems) {
     const epicId = item.key.match(/^(\d+)-/)?.[1] ?? 'unknown';
     if (!epicGroups.has(epicId)) epicGroups.set(epicId, []);
@@ -141,9 +181,27 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     const errorCount = state.tasks_completed.filter(t => t.error).length;
     if (!config.onEvent) info(`Resuming from ${priorPhase} state — ${errorCount} previous error(s)`);
   }
+  // Capture epicEntries before wrapping config.onEvent — both the interceptor and runInput need it.
+  const epicEntries: Array<[string, WorkItem[]]> = [...epicGroups.entries()];
+  // Wrap config.onEvent to emit synthetic workflow-viz on dispatch-start.
+  // Sub-actors (epic, story, gate) run inside fromPromise and don't emit XState
+  // inspect events — without this, the viz row only updates at epic boundaries.
+  // MUST be done before runInput is created so runInput.config uses the wrapped onEvent.
+  const origOnEvent = config.onEvent;
+  if (origOnEvent) {
+    config = { ...config, onEvent: (ev: EngineEvent) => {
+      origOnEvent(ev);
+      if (ev.type === 'dispatch-start') {
+        try {
+          const pos = buildSyntheticPosition(ev.storyKey, ev.taskName, epicEntries, config);
+          if (pos) origOnEvent({ type: 'workflow-viz', taskName: ev.taskName, storyKey: ev.storyKey, vizString: visualize(pos), position: pos });
+        } catch { /* IGNORE: synthetic viz is best-effort */ }
+      }
+    }};
+  }
   const runInput: RunMachineContext = {
     config, storyFlowTasks,
-    epicEntries: [...epicGroups.entries()],
+    epicEntries,
     currentEpicIndex: 0,
     workflowState: state,
     errors: [],
@@ -156,17 +214,27 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   };
   const finalOutput = await new Promise<RunOutput>((resolve) => {
     let lastStateValue: unknown = null;
+    // Captured after actor creation so we can filter inspect events to the root actor only
+    // (gate/child machine snapshots must not drive the workflow visualizer — story 27-4 review).
+    let rootActorRef: unknown = null;
     const actorOptions: any = { input: runInput };
     if (resumeSnapshot !== null) actorOptions.snapshot = resumeSnapshot;
     actorOptions.inspect = (inspectionEvent: { type: string; actorRef?: unknown; snapshot?: unknown }) => {
         try {
           if (inspectionEvent.type !== '@xstate.snapshot') return;
+          // Only process snapshots from the root run actor. Child machine snapshots
+          // (gate, epic, story actors) have different shapes and produce incorrect
+          // viz output when processed through snapshotToPosition.
+          if (rootActorRef !== null && inspectionEvent.actorRef !== rootActorRef) return;
           const snap = inspectionEvent.snapshot as Record<string, unknown> | undefined;
-          // Serialize value to string for debounce — handles compound XState state values
-          // (e.g. { iteratingStories: 'processStory' }) as well as simple string states.
-          const value = JSON.stringify(snap?.value ?? null);
-          if (value === lastStateValue) return; // debounce: skip context-only changes
-          lastStateValue = value;
+          // Debounce key = value + tasks_completed count. Root stays in 'processingEpic'
+          // all epic; context-only advances (task/story progress) must still emit viz.
+          const snapCtx = snap?.context as Record<string, unknown> | undefined;
+          const snapWs = snapCtx?.workflowState as Record<string, unknown> | undefined;
+          const completedCount = Array.isArray(snapWs?.tasks_completed) ? (snapWs.tasks_completed as unknown[]).length : 0;
+          const stateKey = `${JSON.stringify(snap?.value ?? null)}:${completedCount}`;
+          if (stateKey === lastStateValue) return; // debounce: skip truly unchanged snapshots
+          lastStateValue = stateKey;
           const position = snapshotToPosition(snap, config.workflow);
           const vizString = visualize(position);
           config.onEvent?.({ type: 'workflow-viz', taskName: '', storyKey: '', vizString, position });
@@ -175,6 +243,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
         }
     };
     const actor = createActor(runMachine, actorOptions);
+    rootActorRef = actor;
     actor.subscribe({
       next: () => {
         // Save XState snapshot after every state transition (task completions,

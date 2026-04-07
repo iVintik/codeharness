@@ -2,10 +2,10 @@
   "version": 2,
   "sprint": {
     "total": 33,
-    "done": 29,
+    "done": 33,
     "failed": 0,
     "blocked": 0,
-    "inProgress": "27-5-simplify-run-ts-remove-hand-tracked-state"
+    "inProgress": null
   },
   "stories": {
     "21-1-extract-workflow-actors": {
@@ -183,25 +183,25 @@
       "lastError": null
     },
     "27-2-derive-position-from-snapshot-state-path": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 3,
       "lastAttempt": "2026-04-07T03:51:25.420Z",
       "lastError": null
     },
     "27-3-wire-inspect-api-to-visualizer": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 3,
       "lastAttempt": "2026-04-07T04:01:48.900Z",
       "lastError": null
     },
     "27-4-sideband-streaming-to-tui": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 3,
       "lastAttempt": "2026-04-07T04:14:40.534Z",
       "lastError": null
     },
     "27-5-simplify-run-ts-remove-hand-tracked-state": {
-      "status": "in-progress",
+      "status": "done",
       "attempts": 3,
       "lastAttempt": "2026-04-07T04:28:06.530Z",
       "lastError": null

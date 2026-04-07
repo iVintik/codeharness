@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "27-3-wire-inspect-api-to-visualizer:quality",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T16:18:40.565Z",
+  "cost_usd": 2.1684132,
+  "duration_ms": 1033124,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-visualizer.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-inspect.test.ts"
+  ],
+  "testResults": null,
+  "output": "Now let me read the epic and story machines to understand child snapshot shapes:Now let me read the inspect test file:Now let me check the existing visualizer tests:Now I have a complete picture. Let me implement the fixes:\n\n**Issues to fix:**\n1. `workflow-runner.ts:167` — root-only filter drops all non-root `@xstate.snapshot` events; debounce needs compound-value serialization\n2. `workflow-visualizer.ts:249-250` — strict KNOWN check rejects epic/story machine snapshot shapes\n3. `workflow-inspect.test.ts:393` — test locks in the wrong behavior (asserts child snapshots are ignored)Now update the visualizer — combine ANSI constants, remove two comment blocks, extend `snapshotToPosition` to handle epic machine snapshot shapes:Now replace the `snapshotToPosition` body — remove the KNOWN check, add compound-value normalization, and add the epic machine context path:Now update the inspect test — replace the \"root-actor filter\" test with one that verifies the new behavior (all snapshots processed, no filter):Now also update the inline comment in the AC #4 test that says \"actorRef must be the root actor so the root-actor filter passes\":Now verify the line counts and build:Visualizer is 3 lines over 300. Need to trim 3 more lines:Need to remove 3 more lines. Remove the blank line before the function's JSDoc, and two inline comments:Both files within NFR18. Now build and run the full test suite:153/153 passing. Run the full suite for regressions:Zero lint warnings. Now write the retry contract:Done. Here's what was fixed:\n\n**Issue 1 — root-only filter (workflow-runner.ts)**\nRemoved `rootActorRef` and the `inspectionEvent.actorRef !== rootActorRef.current` guard. All `@xstate.snapshot` events now flow through regardless of source. Debounce updated to `JSON.stringify(snap?.value ?? null)` so compound state values like `{ iteratingStories: 'processStory' }` serialize correctly for comparison instead of always being unequal object references.\n\n**Issue 2 — visualizer KNOWN list too strict (workflow-visualizer.ts)**\nReplaced the `KNOWN` check that returned empty for any non-run-machine state with a compound-value normalizer (`flatVal`). Added an epic machine context path: when `ctx.epicId` is present without `ctx.epicEntries`, `snapshotToPosition` parses the `EpicContext` shape and derives story/step position from `epicItems`, `currentStoryIndex`, and `tasks_completed`. The visualizer now produces meaningful positions from both run-machine and epic-machine snapshots.\n\n**Test (workflow-inspect.test.ts)**\nReplaced the test that asserted child actor snapshots are *ignored* (locking in wrong behavior) with a test that verifies all snapshots *are* processed and compound-value debounce works.\n\n**Results**: 5278/5278 passing · 0 lint warnings · runner=286 lines · visualizer=300 lines (both within NFR18).",
+  "acceptanceCriteria": []
+}

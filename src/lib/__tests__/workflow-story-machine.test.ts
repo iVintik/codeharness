@@ -351,3 +351,75 @@ describe('storyMachine', () => {
     });
   });
 });
+
+// ─── story 27-4: dispatch-error emission from story machine ───────────────────
+
+describe('storyMachine dispatch-error emission (story 27-4)', () => {
+  beforeEach(() => { vi.clearAllMocks(); });
+
+  it('emits dispatch-error via config.onEvent when a plain task throws a non-abort error', async () => {
+    const events: object[] = [];
+    const config = {
+      workflow: {
+        tasks: { 'task-a': { agent: 'test-agent', session: 'fresh', source_access: true } },
+        storyFlow: ['task-a'],
+        epicFlow: [], sprintFlow: [], execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'rebase', epic_strategy: 'sequential', story_strategy: 'sequential' }, flow: [],
+      },
+      agents: { 'test-agent': { name: 'test-agent', model: 'test-model', instructions: '', disallowedTools: [], bare: true } },
+      sprintStatusPath: '/tmp/test', runId: 'test-run',
+      onEvent: (e: object) => events.push(e),
+    } as unknown as import('../workflow-types.js').EngineConfig;
+
+    mockDispatchTaskCore.mockRejectedValueOnce(new Error('task-failed'));
+
+    const input: StoryFlowInput = {
+      item: { key: 'story-1', source: 'sprint' },
+      config,
+      workflowState: makeWorkflowState(),
+      lastContract: null,
+      accumulatedCostUsd: 0,
+      storyFlowTasks: new Set<string>(),
+    };
+    const actor = createActor(storyMachine, { input });
+    actor.start();
+    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 5000 });
+
+    expect(snap.value).toBe('halted');
+    const errorEvents = events.filter((e) => (e as { type: string }).type === 'dispatch-error');
+    expect(errorEvents).toHaveLength(1);
+    expect(errorEvents[0]).toMatchObject({
+      type: 'dispatch-error',
+      taskName: 'task-a',
+      storyKey: 'story-1',
+      error: { message: 'task-failed' },
+    });
+  });
+
+  it('does NOT emit dispatch-error when config.onEvent is undefined (no crash)', async () => {
+    const config = {
+      workflow: {
+        tasks: { 'task-a': { agent: 'test-agent', session: 'fresh', source_access: true } },
+        storyFlow: ['task-a'],
+        epicFlow: [], sprintFlow: [], execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'rebase', epic_strategy: 'sequential', story_strategy: 'sequential' }, flow: [],
+      },
+      agents: { 'test-agent': { name: 'test-agent', model: 'test-model', instructions: '', disallowedTools: [], bare: true } },
+      sprintStatusPath: '/tmp/test', runId: 'test-run',
+    } as unknown as import('../workflow-types.js').EngineConfig;
+
+    mockDispatchTaskCore.mockRejectedValueOnce(new Error('task-failed-no-handler'));
+
+    const input: StoryFlowInput = {
+      item: { key: 'story-1', source: 'sprint' },
+      config,
+      workflowState: makeWorkflowState(),
+      lastContract: null,
+      accumulatedCostUsd: 0,
+      storyFlowTasks: new Set<string>(),
+    };
+    const actor = createActor(storyMachine, { input });
+    actor.start();
+    const snap = await waitFor(actor, (s) => s.status === 'done', { timeout: 5000 });
+    // Should still halt cleanly without crashing
+    expect(snap.value).toBe('halted');
+  });
+});

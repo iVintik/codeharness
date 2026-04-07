@@ -136,6 +136,7 @@ const storyStepActor = fromPromise(async ({ input, signal }: { input: StoryConte
         const engineError = handleDispatchError(err, taskName, storyKey);
         const updatedState = recordErrorInState(ctx.workflowState, taskName, storyKey, engineError);
         writeWorkflowState(updatedState, projectDir);
+        if (ctx.config.onEvent) ctx.config.onEvent({ type: 'dispatch-error', taskName, storyKey, error: { code: engineError.code, message: engineError.message } });
         // Any plain-task error halts the story — no retry at story level.
         ctx = { ...ctx, workflowState: updatedState, errors: [...ctx.errors, engineError], halted: true };
         break;

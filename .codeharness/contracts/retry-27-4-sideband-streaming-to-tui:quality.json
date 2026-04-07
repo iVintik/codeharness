@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "27-4-sideband-streaming-to-tui:quality",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T16:59:52.117Z",
+  "cost_usd": 0.8989097999999999,
+  "duration_ms": 314586,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/run.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-inspect.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/__tests__/run.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/verification/27-4-sideband-streaming-to-tui-proof.md"
+  ],
+  "testResults": null,
+  "output": "Now I have a clear picture of both issues. Let me look at the inspect test structure and the run test to plan the full fix:Now I have everything. Let me implement both fixes:Now fix the `run.ts` dispatch-error handler:Now let me add tests for both fixes. First, let's look at the inspect test to find where to add the actorRef filter test:There's an existing test that asserts the wrong behavior (no root-actor filter). I need to replace it with the correct one:Now update the run.test.ts to add the gate dispatch-error test and update the existing one:Now let's run the tests to verify:All 57 tests pass. Now run the full suite:5286 tests pass (198 files), zero failures. Now build:Build succeeds. Now update the proof document:Now write the contract file:Done. Here's what was fixed in this retry:\n\n**Issue 1 (High) — Child machine snapshots overwriting workflow viz**:\n- `workflow-runner.ts`: added `let rootActorRef: unknown = null` captured as `rootActorRef = actor` after `createActor()`. Inspect callback now early-returns if `inspectionEvent.actorRef !== rootActorRef`, so gate/epic/story child snapshots never reach `snapshotToPosition()`.\n- `workflow-inspect.test.ts`: replaced the incorrect \"no root-actor filter\" test with a correct \"root-actor filter\" test that verifies child actor snapshots don't trigger `visualize()` and root actor snapshots do.\n\n**Issue 2 (Medium) — Recoverable gate errors marking story as terminal failure**:\n- `run.ts`: gate machine errors have `:` in `storyKey` (e.g., `\"story:quality\"`). Added `const isGateError = event.storyKey.includes(':')`. Gate errors → `type: 'warn'`, no status mutation. Story terminal errors → `type: 'fail'`, `status: 'failed'` as before.\n- `run.test.ts`: added test asserting that `dispatch-error` with `storyKey: '1-1-story:quality'` produces a `warn` message and does not set any story entry to `failed`.\n\n**Result**: 5286 tests pass (198 files), build succeeds.",
+  "acceptanceCriteria": []
+}

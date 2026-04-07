@@ -305,3 +305,34 @@ function isValidSnapshot(value: unknown): value is XStateWorkflowSnapshot {
 
   return true;
 }
+
+// ─── XState snapshot validation ──────────────────────────────────────────────
+
+/** Valid XState v5 actor status values present in persisted snapshots. */
+const XSTATE_SNAPSHOT_STATUSES = new Set(['active', 'done', 'error', 'stopped']);
+
+/**
+ * Type-guard: accepts only well-formed XState v5 persisted snapshots.
+ *
+ * A real XState v5 persisted snapshot (from `actor.getPersistedSnapshot()`)
+ * always has all three of: `status` (a known XState status string), `value`
+ * (a non-null state value), and `context` (an object).  Requiring all three
+ * rejects partial objects like `{ value: 'x' }` or `{ context: {} }` that
+ * would cause createActor to throw or produce undefined behaviour.
+ */
+export function isRestorableXStateSnapshot(snapshot: unknown): snapshot is Record<string, unknown> {
+  if (!snapshot || typeof snapshot !== 'object') return false;
+  const candidate = snapshot as Record<string, unknown>;
+
+  return (
+    Object.hasOwn(candidate, 'status') &&
+    typeof candidate.status === 'string' &&
+    XSTATE_SNAPSHOT_STATUSES.has(candidate.status) &&
+    Object.hasOwn(candidate, 'value') &&
+    candidate.value !== null &&
+    candidate.value !== undefined &&
+    Object.hasOwn(candidate, 'context') &&
+    candidate.context !== null &&
+    typeof candidate.context === 'object'
+  );
+}

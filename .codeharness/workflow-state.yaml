@@ -1,6 +1,6 @@
 workflow_name: create-story -> implement -> document
 started: 2026-04-07T03:15:38.593Z
-iteration: 1
+iteration: 5
 phase: executing
 tasks_completed:
   - task_name: create-story
@@ -312,13 +312,209 @@ tasks_completed:
   - task_name: review
     story_key: 27-2-derive-position-from-snapshot-state-path:quality
     completed_at: 2026-04-07T14:52:02.786Z
+  - task_name: retry
+    story_key: 27-2-derive-position-from-snapshot-state-path:quality
+    completed_at: 2026-04-07T15:12:36.430Z
+    session_id: 27da2ade-71ba-4cb9-b21e-6fc83c8866d4
+  - task_name: check
+    story_key: 27-2-derive-position-from-snapshot-state-path:quality
+    completed_at: 2026-04-07T15:13:27.647Z
+  - task_name: review
+    story_key: 27-2-derive-position-from-snapshot-state-path:quality
+    completed_at: 2026-04-07T15:16:25.554Z
+  - task_name: document
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-07T15:17:06.999Z
+    session_id: ee6e9812-be16-4d5f-9498-a78627ada5af
+  - task_name: check
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:17:53.326Z
+  - task_name: review
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:19:33.481Z
+  - task_name: retry
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:30:33.041Z
+    session_id: eefc1d38-4436-42bc-a783-e23c6cc33498
+  - task_name: check
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:31:24.453Z
+  - task_name: review
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:34:21.087Z
+  - task_name: retry
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:40:46.100Z
+    session_id: 86ea63f5-7935-4a47-80b5-675a0675c65e
+  - task_name: check
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:41:43.810Z
+  - task_name: review
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:44:27.674Z
+  - task_name: retry
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:57:13.709Z
+    session_id: 04b569ae-18bb-4620-ba81-69af3d1c2c5a
+  - task_name: check
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T15:58:05.239Z
+  - task_name: review
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T16:01:27.429Z
+  - task_name: retry
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T16:18:40.565Z
+    session_id: 0104243e-2d95-4f50-9f05-231628a106e1
+  - task_name: check
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T16:19:29.083Z
+  - task_name: review
+    story_key: 27-3-wire-inspect-api-to-visualizer:quality
+    completed_at: 2026-04-07T16:22:49.171Z
+  - task_name: document
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-07T16:23:54.711Z
+    session_id: f627e4bf-3408-4a57-8094-3f0c19363241
+  - task_name: check
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:24:50.426Z
+  - task_name: review
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:27:39.292Z
+  - task_name: retry
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:30:27.729Z
+    session_id: 9bad23f1-5ec8-4ccf-8bf8-db627895048e
+  - task_name: check
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:31:17.281Z
+  - task_name: review
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:33:56.147Z
+  - task_name: retry
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:39:38.801Z
+    session_id: 8a3ca042-3a33-423c-9924-5e9476cdcd3b
+  - task_name: check
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:40:40.522Z
+  - task_name: review
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:43:49.766Z
+  - task_name: retry
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:50:41.597Z
+    session_id: bd3c781e-cc0c-4e75-b436-cd2d0d890b53
+  - task_name: check
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:51:37.511Z
+  - task_name: review
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:54:37.516Z
+  - task_name: retry
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T16:59:52.117Z
+    session_id: 2033305c-c496-49d2-b33d-11f846595b4d
+  - task_name: check
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T17:00:40.321Z
+  - task_name: review
+    story_key: 27-4-sideband-streaming-to-tui:quality
+    completed_at: 2026-04-07T17:05:12.656Z
+  - task_name: document
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-07T17:05:48.707Z
+    session_id: ef523afb-3721-40ad-879d-53ca9c3fa2d3
+  - task_name: check
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:06:51.512Z
+  - task_name: review
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:09:26.388Z
+  - task_name: retry
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:14:59.591Z
+    session_id: cf6600b5-29ba-4eef-ad11-888d09ca44ae
+  - task_name: check
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:15:50.739Z
+  - task_name: review
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:18:21.087Z
+  - task_name: retry
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:25:12.242Z
+    session_id: ed869f62-6be6-4d31-9883-de352c5b4ec4
+  - task_name: check
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:26:06.699Z
+  - task_name: review
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:29:05.187Z
+  - task_name: retry
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:52:21.332Z
+    session_id: bc131b6a-9a32-4c48-90c3-c07b8b0febbb
+  - task_name: check
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:53:18.445Z
+  - task_name: review
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T17:55:40.515Z
+  - task_name: retry
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T18:07:36.055Z
+    session_id: 75f05868-854a-48ee-9c90-9f3cb92c47f0
+  - task_name: check
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T18:08:33.384Z
+  - task_name: review
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state:quality
+    completed_at: 2026-04-07T18:12:34.496Z
+  - task_name: document
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-07T18:13:31.269Z
+    session_id: 5a10c94c-cff8-40f8-9a04-413b3488e0c2
+  - task_name: retro
+    story_key: __epic_27__
+    completed_at: 2026-04-07T18:15:56.892Z
+    session_id: db8177af-8258-4381-9711-a02924d14b3c
+  - task_name: deploy
+    story_key: __sprint__
+    completed_at: 2026-04-07T18:18:05.425Z
+    session_id: b96f8888-08a5-42b9-af76-3d053069cb7b
 evaluator_scores:
   - iteration: 1
     passed: 1
     failed: 1
     unknown: 0
     total: 2
-    timestamp: 2026-04-07T14:41:38.358Z
+    timestamp: 2026-04-07T17:09:26.392Z
+  - iteration: 2
+    passed: 1
+    failed: 1
+    unknown: 0
+    total: 2
+    timestamp: 2026-04-07T17:18:21.093Z
+  - iteration: 3
+    passed: 0
+    failed: 2
+    unknown: 0
+    total: 2
+    timestamp: 2026-04-07T17:29:05.193Z
+  - iteration: 4
+    passed: 1
+    failed: 1
+    unknown: 0
+    total: 2
+    timestamp: 2026-04-07T17:55:40.522Z
+  - iteration: 5
+    passed: 2
+    failed: 0
+    unknown: 0
+    total: 2
+    timestamp: 2026-04-07T18:12:34.505Z
 circuit_breaker:
   triggered: false
   reason: null
@@ -440,3 +636,54 @@ trace_ids:
   - ch-run-1775561482405-1-retry
   - ch-run-1775561482405-1-check
   - ch-run-1775561482405-1-review
+  - ch-run-1775561482405-2-retry
+  - ch-run-1775561482405-2-check
+  - ch-run-1775561482405-2-review
+  - ch-run-1775561482405-3-document
+  - ch-run-1775561482405-0-check
+  - ch-run-1775561482405-0-review
+  - ch-run-1775561482405-1-retry
+  - ch-run-1775561482405-1-check
+  - ch-run-1775561482405-1-review
+  - ch-run-1775561482405-2-retry
+  - ch-run-1775561482405-2-check
+  - ch-run-1775561482405-2-review
+  - ch-run-1775561482405-3-retry
+  - ch-run-1775561482405-3-check
+  - ch-run-1775561482405-3-review
+  - ch-run-1775561482405-4-retry
+  - ch-run-1775561482405-4-check
+  - ch-run-1775561482405-4-review
+  - ch-run-1775561482405-5-document
+  - ch-run-1775561482405-0-check
+  - ch-run-1775561482405-0-review
+  - ch-run-1775561482405-1-retry
+  - ch-run-1775561482405-1-check
+  - ch-run-1775561482405-1-review
+  - ch-run-1775561482405-2-retry
+  - ch-run-1775561482405-2-check
+  - ch-run-1775561482405-2-review
+  - ch-run-1775561482405-3-retry
+  - ch-run-1775561482405-3-check
+  - ch-run-1775561482405-3-review
+  - ch-run-1775561482405-4-retry
+  - ch-run-1775561482405-4-check
+  - ch-run-1775561482405-4-review
+  - ch-run-1775561482405-5-document
+  - ch-run-1775561482405-0-check
+  - ch-run-1775561482405-0-review
+  - ch-run-1775561482405-1-retry
+  - ch-run-1775561482405-1-check
+  - ch-run-1775561482405-1-review
+  - ch-run-1775561482405-2-retry
+  - ch-run-1775561482405-2-check
+  - ch-run-1775561482405-2-review
+  - ch-run-1775561482405-3-retry
+  - ch-run-1775561482405-3-check
+  - ch-run-1775561482405-3-review
+  - ch-run-1775561482405-4-retry
+  - ch-run-1775561482405-4-check
+  - ch-run-1775561482405-4-review
+  - ch-run-1775561482405-5-document
+  - ch-run-1775561482405-5-retro
+  - ch-run-1775561482405-5-deploy

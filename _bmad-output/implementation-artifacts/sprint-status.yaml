@@ -52,9 +52,9 @@ development_status:
   26-4-clear-persistence-on-completion: done
 
   # Epic 27
-  epic-27: backlog
+  epic-27: done
   27-1-pure-visualizer-function: done
-  27-2-derive-position-from-snapshot-state-path: in-progress
-  27-3-wire-inspect-api-to-visualizer: in-progress
-  27-4-sideband-streaming-to-tui: in-progress
-  27-5-simplify-run-ts-remove-hand-tracked-state: in-progress
+  27-2-derive-position-from-snapshot-state-path: done
+  27-3-wire-inspect-api-to-visualizer: done
+  27-4-sideband-streaming-to-tui: done
+  27-5-simplify-run-ts-remove-hand-tracked-state: done

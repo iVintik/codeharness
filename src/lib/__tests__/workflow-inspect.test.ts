@@ -158,16 +158,17 @@ function makeDefaultState(overrides?: Partial<WorkflowState>): WorkflowState {
   };
 }
 
-type InspectCallback = (event: { type: string; snapshot?: unknown }) => void;
+type InspectCallback = (event: { type: string; actorRef?: unknown; snapshot?: unknown }) => void;
 
 /**
  * Configures mockCreateActor so that:
  * - It captures the `inspect` option from actorOptions
  * - It returns a mock actor that resolves immediately with a valid output
- * Returns a getter for the captured inspect callback.
+ * Returns a getter for the captured inspect callback AND the mock actor (to use as actorRef).
  */
-function setupActorMock(): { getInspectCb: () => InspectCallback | undefined } {
+function setupActorMock(): { getInspectCb: () => InspectCallback | undefined; getMockActor: () => unknown } {
   let capturedInspect: InspectCallback | undefined;
+  let createdActor: unknown;
 
   const mockOutput = {
     workflowState: makeDefaultState({ phase: 'completed' }),
@@ -182,7 +183,7 @@ function setupActorMock(): { getInspectCb: () => InspectCallback | undefined } {
   mockCreateActor.mockImplementation((_, opts: { inspect?: InspectCallback } = {}) => {
     capturedInspect = opts?.inspect;
     const subscribers: Array<{ next?: () => void; complete?: () => void }> = [];
-    return {
+    const actor = {
       subscribe: (handlers: { next?: () => void; complete?: () => void }) => {
         subscribers.push(handlers);
       },
@@ -193,9 +194,11 @@ function setupActorMock(): { getInspectCb: () => InspectCallback | undefined } {
       getPersistedSnapshot: () => ({}),
       getSnapshot: () => ({ output: mockOutput }),
     };
+    createdActor = actor;
+    return actor;
   });
 
-  return { getInspectCb: () => capturedInspect };
+  return { getInspectCb: () => capturedInspect, getMockActor: () => createdActor };
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────
@@ -242,58 +245,60 @@ describe('inspect API wiring (story 27-3)', () => {
   });
 
   it('inspect callback calls visualize on first @xstate.snapshot event (AC #4)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     await runWorkflowActor(makeConfig());
 
     const inspect = getInspectCb()!;
-    inspect({ type: '@xstate.snapshot', snapshot: { value: 'processingEpic', context: {} } });
+    inspect({ type: '@xstate.snapshot', actorRef: getMockActor(), snapshot: { value: 'processingEpic', context: {} } });
 
     expect(mockSnapshotToPosition).toHaveBeenCalledTimes(1);
     expect(mockVisualize).toHaveBeenCalledTimes(1);
   });
 
   it('debounce: same state value triggers visualize only once (AC #3)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     await runWorkflowActor(makeConfig());
 
     const inspect = getInspectCb()!;
+    const rootActor = getMockActor();
     const snap = { value: 'processingEpic', context: { accumulatedCostUsd: 1.5 } };
 
-    inspect({ type: '@xstate.snapshot', snapshot: snap });
-    inspect({ type: '@xstate.snapshot', snapshot: { ...snap, context: { accumulatedCostUsd: 2.0 } } });
-    inspect({ type: '@xstate.snapshot', snapshot: { ...snap, context: { accumulatedCostUsd: 3.0 } } });
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: snap });
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: { ...snap, context: { accumulatedCostUsd: 2.0 } } });
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: { ...snap, context: { accumulatedCostUsd: 3.0 } } });
 
     // Only the first call (new state value) should trigger visualize
     expect(mockVisualize).toHaveBeenCalledTimes(1);
   });
 
   it('debounce: different state values each trigger visualize (AC #4)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     await runWorkflowActor(makeConfig());
 
     const inspect = getInspectCb()!;
-    inspect({ type: '@xstate.snapshot', snapshot: { value: 'idle', context: {} } });
-    inspect({ type: '@xstate.snapshot', snapshot: { value: 'processingEpic', context: {} } });
-    inspect({ type: '@xstate.snapshot', snapshot: { value: 'checkNextEpic', context: {} } });
+    const rootActor = getMockActor();
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: { value: 'idle', context: {} } });
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: { value: 'processingEpic', context: {} } });
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: { value: 'checkNextEpic', context: {} } });
 
     expect(mockVisualize).toHaveBeenCalledTimes(3);
   });
 
   it('inspect callback emits workflow-viz event with vizString and position (AC #10)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const events: EngineEvent[] = [];
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     await runWorkflowActor(makeConfig({ onEvent: (e) => events.push(e) }));
 
     const inspect = getInspectCb()!;
-    inspect({ type: '@xstate.snapshot', snapshot: { value: 'processingEpic', context: {} } });
+    inspect({ type: '@xstate.snapshot', actorRef: getMockActor(), snapshot: { value: 'processingEpic', context: {} } });
 
     const vizEvents = events.filter(e => e.type === 'workflow-viz');
     expect(vizEvents).toHaveLength(1);
@@ -302,18 +307,18 @@ describe('inspect API wiring (story 27-3)', () => {
   });
 
   it('inspect callback does not emit event when no onEvent handler is set (AC #5)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     // No onEvent in config — should not throw
     await expect(runWorkflowActor(makeConfig())).resolves.toBeDefined();
 
     const inspect = getInspectCb()!;
-    expect(() => inspect({ type: '@xstate.snapshot', snapshot: { value: 'idle', context: {} } })).not.toThrow();
+    expect(() => inspect({ type: '@xstate.snapshot', actorRef: getMockActor(), snapshot: { value: 'idle', context: {} } })).not.toThrow();
   });
 
   it('error resilience: snapshotToPosition throws, callback does not propagate (AC #7)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     mockSnapshotToPosition.mockImplementation(() => { throw new Error('parse failure'); });
@@ -321,11 +326,11 @@ describe('inspect API wiring (story 27-3)', () => {
     await runWorkflowActor(makeConfig());
 
     const inspect = getInspectCb()!;
-    expect(() => inspect({ type: '@xstate.snapshot', snapshot: { value: 'processingEpic', context: {} } })).not.toThrow();
+    expect(() => inspect({ type: '@xstate.snapshot', actorRef: getMockActor(), snapshot: { value: 'processingEpic', context: {} } })).not.toThrow();
   });
 
   it('error resilience: visualize throws, callback does not propagate (AC #7)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     mockVisualize.mockImplementation(() => { throw new Error('render failure'); });
@@ -333,23 +338,24 @@ describe('inspect API wiring (story 27-3)', () => {
     await runWorkflowActor(makeConfig());
 
     const inspect = getInspectCb()!;
-    expect(() => inspect({ type: '@xstate.snapshot', snapshot: { value: 'processingEpic', context: {} } })).not.toThrow();
+    expect(() => inspect({ type: '@xstate.snapshot', actorRef: getMockActor(), snapshot: { value: 'processingEpic', context: {} } })).not.toThrow();
   });
 
   it('error resilience: malformed snapshot (no value field), callback does not throw (AC #7)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     await runWorkflowActor(makeConfig());
 
     const inspect = getInspectCb()!;
-    expect(() => inspect({ type: '@xstate.snapshot', snapshot: {} })).not.toThrow();
-    expect(() => inspect({ type: '@xstate.snapshot', snapshot: null })).not.toThrow();
-    expect(() => inspect({ type: '@xstate.snapshot' })).not.toThrow();
+    const rootActor = getMockActor();
+    expect(() => inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: {} })).not.toThrow();
+    expect(() => inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: null })).not.toThrow();
+    expect(() => inspect({ type: '@xstate.snapshot', actorRef: rootActor })).not.toThrow();
   });
 
   it('vizString passed to onEvent satisfies NFR8 width ≤ 120 stripped chars (AC #6)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const events: EngineEvent[] = [];
     const longViz = 'Epic 1 [1/2] ' + 'implement…'.repeat(5);
     mockVisualize.mockReturnValue(longViz);
@@ -358,7 +364,7 @@ describe('inspect API wiring (story 27-3)', () => {
     await runWorkflowActor(makeConfig({ onEvent: (e) => events.push(e) }));
 
     const inspect = getInspectCb()!;
-    inspect({ type: '@xstate.snapshot', snapshot: { value: 'processingEpic', context: {} } });
+    inspect({ type: '@xstate.snapshot', actorRef: getMockActor(), snapshot: { value: 'processingEpic', context: {} } });
 
     const vizEvents = events.filter(e => e.type === 'workflow-viz');
     expect(vizEvents).toHaveLength(1);
@@ -368,19 +374,50 @@ describe('inspect API wiring (story 27-3)', () => {
   });
 
   it('workflow-viz event has empty taskName and storyKey sentinel values (AC #10)', async () => {
-    const { getInspectCb } = setupActorMock();
+    const { getInspectCb, getMockActor } = setupActorMock();
     const events: EngineEvent[] = [];
     const { runWorkflowActor } = await import('../workflow-runner.js');
 
     await runWorkflowActor(makeConfig({ onEvent: (e) => events.push(e) }));
 
     const inspect = getInspectCb()!;
-    inspect({ type: '@xstate.snapshot', snapshot: { value: 'processingEpic', context: {} } });
+    inspect({ type: '@xstate.snapshot', actorRef: getMockActor(), snapshot: { value: 'processingEpic', context: {} } });
 
     const vizEvent = events.find(e => e.type === 'workflow-viz');
     expect(vizEvent).toBeDefined();
     expect(vizEvent!.taskName).toBe('');
     expect(vizEvent!.storyKey).toBe('');
+  });
+
+  it('root-actor filter: child machine snapshots are skipped, only root actor snapshots drive viz (story 27-4 review)', async () => {
+    const { getInspectCb, getMockActor } = setupActorMock();
+    const { runWorkflowActor } = await import('../workflow-runner.js');
+
+    await runWorkflowActor(makeConfig());
+
+    const inspect = getInspectCb()!;
+    const rootActor = getMockActor();
+
+    // Child/gate actor snapshot: different actorRef — must be filtered out
+    const childActorRef = { id: 'child-gate-actor' };
+    inspect({ type: '@xstate.snapshot', actorRef: childActorRef, snapshot: { value: 'checking', context: {} } });
+    expect(mockVisualize).not.toHaveBeenCalled();
+
+    // Another child actor — still filtered
+    inspect({ type: '@xstate.snapshot', actorRef: { id: 'epic-actor' }, snapshot: { value: 'processStory', context: {} } });
+    expect(mockVisualize).not.toHaveBeenCalled();
+
+    // Root actor snapshot — should be processed
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: { value: 'processingEpic', context: {} } });
+    expect(mockVisualize).toHaveBeenCalledTimes(1);
+
+    // Root actor, same value → debounced (no extra call)
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: { value: 'processingEpic', context: { x: 2 } } });
+    expect(mockVisualize).toHaveBeenCalledTimes(1);
+
+    // Root actor, new value → processed
+    inspect({ type: '@xstate.snapshot', actorRef: rootActor, snapshot: { value: 'checkNextEpic', context: {} } });
+    expect(mockVisualize).toHaveBeenCalledTimes(2);
   });
 });
 

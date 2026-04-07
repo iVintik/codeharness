@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as xstate from 'xstate';
-import { runWorkflowActor, loadWorkItems, checkDriverHealth } from '../workflow-runner.js';
+import { runWorkflowActor, loadWorkItems, checkDriverHealth, _buildSyntheticPositionForTest as buildSyntheticPosition } from '../workflow-runner.js';
 import { runMachine } from '../workflow-run-machine.js';
 import type { EngineConfig, RunMachineContext, WorkItem } from '../workflow-types.js';
 import type { WorkflowState } from '../workflow-state.js';
@@ -178,18 +178,22 @@ vi.mock('../state.js', () => ({
   writeState: mockWriteState,
 }));
 
-vi.mock('../workflow-persistence.js', () => ({
-  saveSnapshot: mockSaveSnapshot,
-  loadSnapshot: mockLoadSnapshot,
-  snapshotFileExists: mockSnapshotFileExists,
-  clearSnapshot: mockClearSnapshot,
-  computeConfigHash: mockComputeConfigHash,
-  appendCheckpoint: mockAppendCheckpoint,
-  loadCheckpointLog: mockLoadCheckpointLog,
-  clearCheckpointLog: mockClearCheckpointLog,
-  clearAllPersistence: mockClearAllPersistence,
-  cleanStaleTmpFiles: mockCleanStaleTmpFiles,
-}));
+vi.mock('../workflow-persistence.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../workflow-persistence.js')>();
+  return {
+    saveSnapshot: mockSaveSnapshot,
+    loadSnapshot: mockLoadSnapshot,
+    snapshotFileExists: mockSnapshotFileExists,
+    clearSnapshot: mockClearSnapshot,
+    computeConfigHash: mockComputeConfigHash,
+    appendCheckpoint: mockAppendCheckpoint,
+    loadCheckpointLog: mockLoadCheckpointLog,
+    clearCheckpointLog: mockClearCheckpointLog,
+    clearAllPersistence: mockClearAllPersistence,
+    cleanStaleTmpFiles: mockCleanStaleTmpFiles,
+    isRestorableXStateSnapshot: actual.isRestorableXStateSnapshot,
+  };
+});
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
@@ -2445,3 +2449,165 @@ describe('persistence cleanup (story 26-4)', () => {
     expect(runInput.completedTasks.has('5-1-foo::quality-gate')).toBe(true);
     expect(runInput.completedTasks.has('5-1-foo::implement')).toBe(true);
   });
+
+describe('synthetic workflow-viz interceptor (story 27-5)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it('emits workflow-viz event on dispatch-start for story in epicEntries', async () => {
+    const events: Array<{ type: string; vizString?: string; storyKey: string; taskName: string }> = [];
+    mockParse.mockReturnValue({ development_status: { '3-1-foo': 'ready-for-dev' } });
+
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+      onEvent: (ev) => events.push(ev),
+    });
+
+    await runWorkflowActor(config);
+
+    const vizEvents = events.filter(e => e.type === 'workflow-viz');
+    expect(vizEvents.length).toBeGreaterThan(0);
+    // At least one workflow-viz should be triggered by dispatch-start with storyKey 3-1-foo
+    const storyViz = vizEvents.find(e => e.storyKey === '3-1-foo');
+    expect(storyViz).toBeDefined();
+    expect(storyViz?.vizString).toBeTruthy();
+  });
+
+  it('workflow-viz from dispatch-start shows active step for the current task', async () => {
+    const events: Array<{ type: string; vizString?: string; storyKey: string; taskName: string; position?: unknown }> = [];
+    mockParse.mockReturnValue({ development_status: { '3-1-foo': 'ready-for-dev' } });
+
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+      onEvent: (ev) => events.push(ev),
+    });
+
+    await runWorkflowActor(config);
+
+    const storyViz = events.filter(e => e.type === 'workflow-viz' && e.storyKey === '3-1-foo');
+    expect(storyViz.length).toBeGreaterThan(0);
+    const pos = storyViz[0]?.position as { steps?: Array<{ name: string; status: string }> } | undefined;
+    const implementStep = pos?.steps?.find(s => s.name === 'implement');
+    expect(implementStep?.status).toBe('active');
+  });
+
+  it('does not emit synthetic workflow-viz when onEvent is not set', async () => {
+    // Verify no crash when onEvent is absent
+    mockParse.mockReturnValue({ development_status: { '3-1-foo': 'ready-for-dev' } });
+
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    });
+    // Should complete without throwing
+    const result = await runWorkflowActor(config);
+    expect(result.success).toBe(true);
+  });
+
+  it('forwards original dispatch-start event before emitting synthetic viz', async () => {
+    const eventTypes: string[] = [];
+    mockParse.mockReturnValue({ development_status: { '3-1-foo': 'ready-for-dev' } });
+
+    const config = makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+      onEvent: (ev) => eventTypes.push(ev.type),
+    });
+
+    await runWorkflowActor(config);
+
+    const dispatchIdx = eventTypes.indexOf('dispatch-start');
+    const vizIdx = eventTypes.indexOf('workflow-viz');
+    expect(dispatchIdx).toBeGreaterThanOrEqual(0);
+    expect(vizIdx).toBeGreaterThan(dispatchIdx); // viz follows dispatch-start
+  });
+});
+
+describe('buildSyntheticPosition (story 27-5 gate/epic fix)', () => {
+  const epicEntries: Array<[string, import('../workflow-types.js').WorkItem[]]> = [
+    ['3', [{ key: '3-1-foo', source: 'sprint' }, { key: '3-2-bar', source: 'sprint' }]],
+  ];
+
+  function makeFlow(steps: string[]): import('../workflow-parser.js').ResolvedWorkflow {
+    return {
+      tasks: {},
+      flow: steps,
+      storyFlow: steps,
+      epicFlow: ['story_flow', ...steps],
+      sprintFlow: [],
+      execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', epic_strategy: 'sequential', story_strategy: 'sequential' },
+    };
+  }
+
+  function makeFlowWithGate(storySteps: string[], gateName: string): import('../workflow-parser.js').ResolvedWorkflow {
+    const gateConfig = { gate: gateName, check: ['check'], fix: ['fix'], max_retries: 3 };
+    return {
+      tasks: {},
+      flow: storySteps,
+      storyFlow: [...storySteps, gateConfig],
+      epicFlow: ['story_flow'],
+      sprintFlow: [],
+      execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', epic_strategy: 'sequential', story_strategy: 'sequential' },
+    };
+  }
+
+  it('returns position for regular story storyKey', () => {
+    const cfg = { workflow: makeFlow(['implement', 'review']) } as unknown as import('../workflow-types.js').EngineConfig;
+    const pos = buildSyntheticPosition('3-1-foo', 'implement', epicEntries, cfg);
+    expect(pos).not.toBeNull();
+    expect(pos?.level).toBe('story');
+    expect(pos?.epicId).toBe('3');
+    expect(pos?.storyIndex).toBe(1);
+    expect(pos?.steps.find(s => s.name === 'implement')?.status).toBe('active');
+  });
+
+  it('handles gate storyKey — uses gate name as active step', () => {
+    const cfg = { workflow: makeFlowWithGate(['implement'], 'quality') } as unknown as import('../workflow-types.js').EngineConfig;
+    // Gate dispatch: storyKey = "3-1-foo:quality", taskName = "check" (a task inside the gate)
+    const pos = buildSyntheticPosition('3-1-foo:quality', 'check', epicEntries, cfg);
+    expect(pos).not.toBeNull();
+    expect(pos?.level).toBe('story');
+    expect(pos?.epicId).toBe('3');
+    // The active step should be 'quality' (the gate), not 'check' (the internal task)
+    expect(pos?.steps.find(s => s.name === 'quality')?.status).toBe('active');
+    expect(pos?.steps.find(s => s.name === 'implement')?.status).toBe('done');
+  });
+
+  it('handles epic storyKey — uses epicFlow', () => {
+    const epicFlow = ['story_flow', 'deploy', 'notify'];
+    const cfg = {
+      workflow: {
+        tasks: {},
+        flow: [],
+        storyFlow: ['implement'],
+        epicFlow,
+        sprintFlow: [],
+        execution: { max_parallel: 1, isolation: 'none', merge_strategy: 'merge-commit', epic_strategy: 'sequential', story_strategy: 'sequential' },
+      },
+    } as unknown as import('../workflow-types.js').EngineConfig;
+    const pos = buildSyntheticPosition('__epic_3__', 'deploy', epicEntries, cfg);
+    expect(pos).not.toBeNull();
+    expect(pos?.level).toBe('epic');
+    expect(pos?.epicId).toBe('3');
+    expect(pos?.steps.find(s => s.name === 'deploy')?.status).toBe('active');
+    expect(pos?.steps.find(s => s.name === 'notify')?.status).toBe('pending');
+  });
+
+  it('returns null when parent key not found in epicEntries for story', () => {
+    const cfg = { workflow: makeFlow(['implement']) } as unknown as import('../workflow-types.js').EngineConfig;
+    const pos = buildSyntheticPosition('99-1-unknown', 'implement', epicEntries, cfg);
+    expect(pos).toBeNull();
+  });
+
+  it('returns null when taskName not found in flow', () => {
+    const cfg = { workflow: makeFlow(['implement']) } as unknown as import('../workflow-types.js').EngineConfig;
+    const pos = buildSyntheticPosition('3-1-foo', 'nonexistent', epicEntries, cfg);
+    expect(pos).toBeNull();
+  });
+
+  it('returns null for gate storyKey when gate name not in storyFlow', () => {
+    const cfg = { workflow: makeFlow(['implement']) } as unknown as import('../workflow-types.js').EngineConfig;
+    const pos = buildSyntheticPosition('3-1-foo:unknown-gate', 'check', epicEntries, cfg);
+    expect(pos).toBeNull();
+  });
+});

@@ -458,16 +458,28 @@ function makeRunSnapshot(overrides: Record<string, unknown> = {}): unknown {
 }
 
 describe('snapshotToPosition — active processing', () => {
-  it('AC2: extracts epic/story/step indices from context', () => {
+  it('AC2: extracts epic/story/step indices from epicEntries and tasks_completed', () => {
+    // Real run-machine snapshot shape: epicEntries[currentEpicIndex] gives [epicId, epicItems].
+    // Story/step position is derived from workflowState.tasks_completed.
+    const stories = ['e2-s1', 'e2-s2', 'e2-s3', 'e2-s4', 'e2-s5', 'e2-s6'].map(k => ({ key: k }));
     const snapshot = {
       value: 'processingEpic',
       context: {
         currentEpicIndex: 1,  // 0-based → epicIndex=2
-        epicEntries: [['e1', []], ['e2', []], ['e3', []], ['e4', []]],
-        epicId: 'e2',
-        epicItems: [{}, {}, {}, {}, {}, {}],         // 6 stories
-        currentStoryIndex: 2,                          // 0-based → storyIndex=3
-        currentStepIndex: 1,                           // step index 1 = 'implement'
+        epicEntries: [['e1', []], ['e2', stories], ['e3', []], ['e4', []]],
+        workflowState: {
+          tasks_completed: [
+            // stories 0 and 1 fully done
+            { task_name: 'create-story', story_key: 'e2-s1' },
+            { task_name: 'implement',    story_key: 'e2-s1' },
+            { task_name: 'document',     story_key: 'e2-s1' },
+            { task_name: 'create-story', story_key: 'e2-s2' },
+            { task_name: 'implement',    story_key: 'e2-s2' },
+            { task_name: 'document',     story_key: 'e2-s2' },
+            // story 2 (index 2): create-story done → active step is 'implement' (index 1)
+            { task_name: 'create-story', story_key: 'e2-s3' },
+          ],
+        },
         halted: false,
       },
     };
@@ -487,20 +499,22 @@ describe('snapshotToPosition — active processing', () => {
 });
 
 describe('snapshotToPosition — gate parsing', () => {
-  it('AC3: extracts gate info with iteration and pass/fail counts', () => {
-    // Gate name/config comes from workflow config (storyFlow[currentStepIndex]).
-    // Iteration and scores come from workflowState in context.
-    // There is NO context.gate field on real persisted run/epic/story snapshots.
+  it('AC3: extracts gate info from epicEntries, tasks_completed, and workflowState scores', () => {
+    // Gate position: create-story + implement done, quality gate active.
+    // Iteration/scores from workflowState (run-level context field).
     const snapshot = {
       value: 'processingEpic',
       context: {
-        currentStepIndex: 2,
-        epicId: 'e1',
-        epicItems: [{}],
-        currentStoryIndex: 0,
+        currentEpicIndex: 0,
+        epicEntries: [['e1', [{ key: 'e1-s1' }]]],
         workflowState: {
           iteration: 2,
           evaluator_scores: [{ iteration: 2, passed: 1, failed: 1, unknown: 0, total: 2, timestamp: '' }],
+          tasks_completed: [
+            { task_name: 'create-story', story_key: 'e1-s1' },
+            { task_name: 'implement',    story_key: 'e1-s1' },
+            // 'quality' gate not yet complete → active step index 2
+          ],
         },
         halted: false,
       },
@@ -531,10 +545,16 @@ describe('snapshotToPosition — terminal states', () => {
     expect(out).not.toContain('…');  // no active marker
   });
 
-  it('AC5: halted marks active step as failed', () => {
+  it('AC5: halted marks active step as failed (derived from tasks_completed)', () => {
+    // Real shape: step 0 (plan) done, step 1 (build) was active when halted.
     const snap = {
       value: 'halted',
-      context: { currentStepIndex: 1, halted: true },
+      context: {
+        currentEpicIndex: 0,
+        epicEntries: [['ep1', [{ key: 's1' }]]],
+        workflowState: { tasks_completed: [{ task_name: 'plan', story_key: 's1' }] },
+        halted: true,
+      },
     };
     const pos = snapshotToPosition(snap, makeWorkflow(['plan', 'build', 'deploy']));
     expect(pos.steps[1]?.status).toBe('failed');
@@ -542,7 +562,16 @@ describe('snapshotToPosition — terminal states', () => {
   });
 
   it('AC6: interrupted does not throw and active step is not done', () => {
-    const snap = { value: 'interrupted', context: { currentStepIndex: 1, halted: false } };
+    // Real shape: step 0 done, step 1 was in-progress when interrupted.
+    const snap = {
+      value: 'interrupted',
+      context: {
+        currentEpicIndex: 0,
+        epicEntries: [['ep1', [{ key: 's1' }]]],
+        workflowState: { tasks_completed: [{ task_name: 'plan', story_key: 's1' }] },
+        halted: false,
+      },
+    };
     let pos: ReturnType<typeof snapshotToPosition> | undefined;
     expect(() => { pos = snapshotToPosition(snap, makeWorkflow(['plan', 'build', 'deploy'])); }).not.toThrow();
     expect(pos!.steps[1]?.status).not.toBe('done');
@@ -551,13 +580,19 @@ describe('snapshotToPosition — terminal states', () => {
 
 describe('snapshotToPosition — epic-level steps', () => {
   it('AC7: level is "epic" (not "story") when storiesDone=true', () => {
+    // storiesDone is true when all stories in the epic have completed all storyFlow steps.
     const snapshot = {
       value: 'processingEpic',
       context: {
-        epicId: 'e1',
-        epicItems: [{}],        // 1 story
-        currentStoryIndex: 1,   // 0-based → storyIndex=2 > totalStories=1
-        currentStepIndex: 0,
+        currentEpicIndex: 0,
+        epicEntries: [['e1', [{ key: 'e1-s1' }]]],
+        workflowState: {
+          tasks_completed: [
+            { task_name: 'create-story', story_key: 'e1-s1' },
+            { task_name: 'implement',    story_key: 'e1-s1' },
+            { task_name: 'document',     story_key: 'e1-s1' },
+          ],
+        },
         halted: false,
       },
     };
@@ -566,14 +601,19 @@ describe('snapshotToPosition — epic-level steps', () => {
     expect(pos.level).toBe('epic');
   });
 
-  it('AC7: storiesDone=true when storyIndex exceeds totalStories', () => {
+  it('AC7: storiesDone=true when all storyFlow steps are complete', () => {
     const snapshot = {
       value: 'processingEpic',
       context: {
-        epicId: 'e1',
-        epicItems: [{}],        // 1 story
-        currentStoryIndex: 1,   // 0-based → storyIndex=2 > totalStories=1
-        currentStepIndex: 0,
+        currentEpicIndex: 0,
+        epicEntries: [['e1', [{ key: 'e1-s1' }]]],
+        workflowState: {
+          tasks_completed: [
+            { task_name: 'create-story', story_key: 'e1-s1' },
+            { task_name: 'implement',    story_key: 'e1-s1' },
+            { task_name: 'document',     story_key: 'e1-s1' },
+          ],
+        },
         halted: false,
       },
     };
@@ -589,10 +629,15 @@ describe('snapshotToPosition — epic-level steps', () => {
     const snapshot = {
       value: 'processingEpic',
       context: {
-        epicId: 'e1',
-        epicItems: [{}],        // 1 story
-        currentStoryIndex: 1,   // storiesDone=true
-        currentStepIndex: 0,
+        currentEpicIndex: 0,
+        epicEntries: [['e1', [{ key: 'e1-s1' }]]],
+        workflowState: {
+          tasks_completed: [
+            { task_name: 'create-story', story_key: 'e1-s1' },
+            { task_name: 'implement',    story_key: 'e1-s1' },
+            { task_name: 'document',     story_key: 'e1-s1' },
+          ],
+        },
         halted: false,
       },
     };
@@ -606,6 +651,66 @@ describe('snapshotToPosition — epic-level steps', () => {
     const out = stripAnsi(visualize(pos, { maxWidth: 120 }));
     expect(out).toContain('retro');
     expect(out).not.toContain('implement');
+  });
+});
+
+describe('snapshotToPosition — epic-level step advancement', () => {
+  it('AC7: advances past first epicFlow step when story_flow sentinel task is complete', () => {
+    // Bug fix: after all stories done, epicFlow steps must advance based on
+    // __epic_X__ sentinel tasks, not stay stuck at index 0.
+    const snapshot = {
+      value: 'processingEpic',
+      context: {
+        currentEpicIndex: 0,
+        epicEntries: [['e1', [{ key: 'e1-s1' }]]],
+        workflowState: {
+          tasks_completed: [
+            // All storyFlow tasks done for the single story
+            { task_name: 'create-story', story_key: 'e1-s1' },
+            { task_name: 'implement',    story_key: 'e1-s1' },
+            { task_name: 'document',     story_key: 'e1-s1' },
+            // epicFlow step 0 (story_flow) is also done via the sentinel key
+            { task_name: 'story_flow',   story_key: '__epic_e1__' },
+          ],
+        },
+        halted: false,
+      },
+    };
+    const workflow = makeWorkflow(); // epicFlow=['story_flow','retro']
+    const pos = snapshotToPosition(snapshot, workflow);
+    expect(pos.storiesDone).toBe(true);
+    // Active step should be 'retro' (index 1), not 'story_flow' (index 0)
+    expect(pos.activeStepIndex).toBe(1);
+    const stepNames = pos.steps.map(s => s.name);
+    expect(stepNames).toContain('retro');
+    const retroStep = pos.steps.find(s => s.name === 'retro');
+    expect(retroStep?.status).toBe('active');
+    const storyFlowStep = pos.steps.find(s => s.name === 'story_flow');
+    expect(storyFlowStep?.status).toBe('done');
+  });
+
+  it('AC7: all epicFlow steps done shows all steps as done', () => {
+    const snapshot = {
+      value: 'processingEpic',
+      context: {
+        currentEpicIndex: 0,
+        epicEntries: [['e1', [{ key: 'e1-s1' }]]],
+        workflowState: {
+          tasks_completed: [
+            { task_name: 'create-story', story_key: 'e1-s1' },
+            { task_name: 'implement',    story_key: 'e1-s1' },
+            { task_name: 'document',     story_key: 'e1-s1' },
+            { task_name: 'story_flow',   story_key: '__epic_e1__' },
+            { task_name: 'retro',        story_key: '__epic_e1__' },
+          ],
+        },
+        halted: false,
+      },
+    };
+    const workflow = makeWorkflow(); // epicFlow=['story_flow','retro']
+    const pos = snapshotToPosition(snapshot, workflow);
+    expect(pos.storiesDone).toBe(true);
+    expect(pos.steps.every(s => s.status === 'done')).toBe(true);
   });
 });
 
@@ -668,15 +773,17 @@ describe('snapshotToPosition — defensive edge cases', () => {
 
 describe('snapshotToPosition — pipeline integration', () => {
   it('AC2/AC10: snapshotToPosition → visualize produces valid string output', () => {
+    // Real run-machine snapshot: epicEntries[0]=[epicId, stories], tasks_completed drives position.
     const snapshot = {
       value: 'processingEpic',
       context: {
         currentEpicIndex: 0,
-        epicEntries: [['e1', []], ['e2', []]],
-        epicId: 'e1',
-        epicItems: [{}, {}],
-        currentStoryIndex: 0,
-        currentStepIndex: 1,
+        epicEntries: [['e1', [{ key: 'e1-s1' }, { key: 'e1-s2' }]], ['e2', []]],
+        workflowState: {
+          tasks_completed: [
+            { task_name: 'plan', story_key: 'e1-s1' },  // step 0 done → active on step 1
+          ],
+        },
         halted: false,
       },
     };

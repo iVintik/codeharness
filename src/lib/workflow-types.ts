@@ -138,6 +138,8 @@ export interface EngineEvent {
   costUsd?: number;
   /** Pre-rendered single-line ANSI visualization string (workflow-viz events). */
   vizString?: string;
+  /** Raw workflow position snapshot (workflow-viz events). Typed as unknown to avoid circular import with workflow-visualizer.ts. Cast to WorkflowPosition when consuming. */
+  position?: unknown;
 }
 export interface EngineConfig {
   workflow: ResolvedWorkflow;

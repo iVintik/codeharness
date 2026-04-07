@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "27-5-simplify-run-ts-remove-hand-tracked-state:quality",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T18:07:36.055Z",
+  "cost_usd": 2.3363502,
+  "duration_ms": 715524,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/ink-renderer.tsx",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/run.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-runner.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-27-5-simplify-run-ts-remove-hand-tracked-state:quality.json"
+  ],
+  "testResults": null,
+  "output": "Now let me read the story spec and the gate/epic machine files to understand the full context.Let me check the tests for `run.ts` and look at what `WorkflowPosition` looks like to make sure `epicFlow` is available in the config:Now I have everything I need. Let me implement all three fixes:Now I'll make all the changes. Starting with `workflow-runner.ts`:Now update `ink-renderer.tsx` to support partial sprint state updates and auto-compute elapsed:Now update the heartbeat and `updateSprintState` implementation:Now update `updateSprintState` to do partial-merge semantics:Now update `run.ts` for all three fixes. First, let me update the `startRenderer` call and remove `lastSprintInfo`/`elapsedRefresh`:Now simplify the `onEvent` handler to remove `lastSprintInfo` references:Now add total cost to the quiet-mode summary strings (Issue 2 — AC6):Now let me also remove the `SprintInfo` type import from run.ts since we no longer use it:Now let's verify the changes and run the tests:Build passes. Now run the tests:All 5290 tests pass. Now let me add tests for the new `buildSyntheticPosition` behavior (gate + epic keys):Let me export `buildSyntheticPosition` for testing and add unit tests:Now add the test export after the function:Now add unit tests for gate and epic key handling. Let me append to the test file:Now let me add the unit tests at the end of the test file:All 99 tests pass (93 original + 6 new). Let me also run the renderer and run.ts tests:All passing. Let me run the full test suite:5296 tests pass (5290 original + 6 new). Let me also verify the specific AC checks:All AC checks pass:\n- AC8: 0 forbidden variables (including `lastSprintInfo`, `elapsedRefresh`)\n- AC9: 388 lines ≤ 400 ✓\n- AC10: 0 `updateWorkflowState` calls ✓\n\nNow let me write the contract for this retry task:All 3 review issues fixed. Here's the summary:\n\n**Issue 1 (High) — `buildSyntheticPosition()` gate/epic handling:**\n- Rewrote the function to classify `storyKey` by shape: gate keys (contain `:`), epic keys (`__epic_...__`), regular stories\n- Gate events: strips the gate suffix to find the parent story in epicEntries, uses the gate name as the active step in `storyFlow`\n- Epic events: uses `epicFlow` instead of `storyFlow`, extracts epicId from the sentinel key\n- Added 6 unit tests; exported function as `_buildSyntheticPositionForTest`\n\n**Issue 2 (Medium) — Quiet-mode missing cost (AC6):**\n- Added `$${totalCostUsd.toFixed(2)} spent` to all 3 completion summary lines (interrupted, success, failure)\n\n**Issue 3 (Medium) — `lastSprintInfo` hand-tracked state (AC8):**\n- Added `sessionStartMs?: number` to `RendererOptions`; renderer heartbeat auto-computes elapsed — no external interval needed\n- Changed `updateSprintState` to accept `Partial<SprintInfo>` with merge semantics (undefined fields preserve existing values)\n- Removed `lastSprintInfo` and `elapsedRefresh` from `run.ts`; event handlers now push only the fields they own\n- `run.ts` is 388 lines, 0 forbidden variables, 0 `updateWorkflowState` calls\n\n**5296 tests pass, build clean.**",
+  "acceptanceCriteria": []
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "taskName": "check",
+  "storyId": "27-4-sideband-streaming-to-tui:quality",
+  "driver": "codex",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T17:00:40.321Z",
+  "cost_usd": null,
+  "duration_ms": 48190,
+  "changedFiles": [],
+  "testResults": null,
+  "output": "I’m checking the available scripts first, then I’ll run the project’s test suite and linter so I can report actual counts rather than infer them.The repo exposes `lint`, `test:unit`, and `test` for integration via Bats. I’m running all three so the verdict covers the full automated checks the project defines.Lint is still running, unit tests are still executing, and the integration suite has started returning results. I’m waiting for all three to finish so the counts line up with the final metrics tag.Unit tests and lint are clean so far. The only remaining piece is the tail of the Bats integration run, which I’m polling now to get the exact pass/fail counts for the final metrics.<verdict>pass</verdict>\n\nRan `npm run lint`, `npm run test:unit`, and `npm test`.\n\n`eslint src/` exited 0 with no reported warnings.\n`vitest` passed `5286` tests across `198` files.\n`bats tests/` passed `47` integration tests.\n\n<metrics tests-passed=\"5333\" tests-failed=\"0\" lint-warnings=\"0\" issues=\"0\" />",
+  "acceptanceCriteria": []
+}

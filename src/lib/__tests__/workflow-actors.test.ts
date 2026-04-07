@@ -1365,8 +1365,8 @@ describe('sideband streaming to TUI (story 27-4)', () => {
     };
   }
 
-  // T6-1: stream-event emitted for each StreamEvent type from driver
-  it('T6-1: emits stream-event for each StreamEvent yielded by driver (text, tool-start, tool-complete, result)', async () => {
+  // T6-1: stream-event emitted for each StreamEvent type from driver (all 6 discriminants)
+  it('T6-1: emits stream-event for each StreamEvent yielded by driver (text, tool-start, tool-input, tool-complete, retry, result)', async () => {
     const events: object[] = [];
     const config = makeConfig({ onEvent: (e) => events.push(e) });
 
@@ -1374,7 +1374,9 @@ describe('sideband streaming to TUI (story 27-4)', () => {
       (async function* () {
         yield { type: 'text' as const, text: 'thinking...' };
         yield { type: 'tool-start' as const, name: 'Bash', id: 'tool1' };
+        yield { type: 'tool-input' as const, partial: '{"command":"npm test"}' };
         yield { type: 'tool-complete' as const };
+        yield { type: 'retry' as const, attempt: 1, reason: 'rate-limit' };
         yield { type: 'result' as const, cost: 0.02, sessionId: 'sess-xyz' };
       })(),
     );
@@ -1382,7 +1384,7 @@ describe('sideband streaming to TUI (story 27-4)', () => {
     await dispatchTaskCore({ ...makeDispatchInput27(), config });
 
     const streamEvents = events.filter((e) => (e as { type: string }).type === 'stream-event');
-    expect(streamEvents).toHaveLength(4);
+    expect(streamEvents).toHaveLength(6);
     expect(streamEvents[0]).toMatchObject({
       type: 'stream-event',
       taskName: 'implement',
@@ -1391,8 +1393,10 @@ describe('sideband streaming to TUI (story 27-4)', () => {
       streamEvent: { type: 'text', text: 'thinking...' },
     });
     expect(streamEvents[1]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'tool-start', name: 'Bash' } });
-    expect(streamEvents[2]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'tool-complete' } });
-    expect(streamEvents[3]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'result', cost: 0.02 } });
+    expect(streamEvents[2]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'tool-input', partial: '{"command":"npm test"}' } });
+    expect(streamEvents[3]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'tool-complete' } });
+    expect(streamEvents[4]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'retry', attempt: 1 } });
+    expect(streamEvents[5]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'result', cost: 0.02 } });
   });
 
   // T6-2: dispatch-start includes storyKey and model

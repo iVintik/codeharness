@@ -167,20 +167,20 @@ The sideband plumbing exists across files but has never been integration-tested 
 <!-- CODEHARNESS-PATCH-START:story-verification -->
 ## Verification Requirements
 
-- [ ] Showboat proof document created (verification/27-4-sideband-streaming-to-tui-proof.md)
-- [ ] All acceptance criteria verified with real-world evidence via CLI execution
-- [ ] Test coverage meets target (100%)
+- [x] Showboat proof document created (verification/27-4-sideband-streaming-to-tui-proof.md)
+- [x] All acceptance criteria verified with real-world evidence via CLI execution
+- [x] Test coverage meets target (100%)
 
 ## Documentation Requirements
 
-- [ ] Relevant AGENTS.md files updated
-- [ ] Exec-plan created in docs/exec-plans/active/27-4-sideband-streaming-to-tui.md
+- [x] Relevant AGENTS.md files updated
+- [x] Exec-plan created in docs/exec-plans/active/27-4-sideband-streaming-to-tui.md
 
 ## Testing Requirements
 
-- [ ] Unit tests written for all new/changed code
-- [ ] Integration tests for sideband event flow
-- [ ] Coverage target: 100%
+- [x] Unit tests written for all new/changed code
+- [x] Integration tests for sideband event flow
+- [x] Coverage target: 100%
 <!-- CODEHARNESS-PATCH-END:story-verification -->
 
 ## Dev Agent Record

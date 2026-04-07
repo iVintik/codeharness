@@ -10,6 +10,7 @@
 import React from 'react';
 import { render as inkRender } from 'ink';
 import type { StreamEvent } from './agents/stream-parser.js';
+import { formatElapsed } from './run-helpers.js';
 import {
   App,
   type SprintInfo,
@@ -30,6 +31,8 @@ import type { MergeState } from './ink-merge-status.js';
 export interface RendererOptions {
   quiet?: boolean;
   sprintState?: SprintInfo;
+  /** Session start timestamp (ms). When provided, renderer heartbeat auto-computes elapsed time. */
+  sessionStartMs?: number;
   /** Called when user presses 'q' to quit. */
   onQuit?: () => void;
   /** @internal Force TTY mode for testing. Not part of the public API. */
@@ -52,7 +55,7 @@ export interface LaneActivityState {
 
 export interface RendererHandle {
   update(event: StreamEvent, driverName?: string, laneId?: string): void;
-  updateSprintState(state: SprintInfo | undefined): void;
+  updateSprintState(state: Partial<SprintInfo> | undefined): void;
   updateStories(stories: StoryStatusEntry[]): void;
   addMessage(msg: StoryMessage): void;
   updateWorkflowState(flow: FlowStep[], currentTask: string | null, taskStates: Record<string, TaskNodeState>, taskMeta?: Record<string, TaskNodeMeta>): void;
@@ -156,8 +159,16 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
   // Heartbeat: periodic re-renders for spinner animation even when no events flow.
   // Runs every 500ms — spinner frame derives from Date.now() so it still animates.
+  // Also auto-computes elapsed time when sessionStartMs is provided (eliminates
+  // the need for a separate elapsed-refresh interval in run.ts).
+  const heartbeatSessionStartMs = options?.sessionStartMs;
   const heartbeat = setInterval(() => {
-    if (!cleaned) rerender();
+    if (!cleaned) {
+      if (heartbeatSessionStartMs !== undefined && state.sprintInfo) {
+        state.sprintInfo = { ...state.sprintInfo, elapsed: formatElapsed(Date.now() - heartbeatSessionStartMs) };
+      }
+      rerender();
+    }
   }, 500);
 
   // SIGINT/SIGTERM: cleanup Ink and stop heartbeat, but do NOT re-send signal.
@@ -494,17 +505,16 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     process.removeListener('SIGTERM', onSigterm);
   }
 
-  function updateSprintState(sprintState: SprintInfo | undefined): void {
+  function updateSprintState(sprintState: Partial<SprintInfo> | undefined): void {
     if (cleaned) return;
-    if (sprintState && state.sprintInfo) {
-      state.sprintInfo = {
-        ...sprintState,
-        totalCost: sprintState.totalCost ?? state.sprintInfo.totalCost,
-        acProgress: sprintState.acProgress ?? state.sprintInfo.acProgress,
-        currentCommand: sprintState.currentCommand ?? state.sprintInfo.currentCommand,
-      };
+    if (sprintState !== undefined && sprintState !== null) {
+      // Partial-merge: preserve existing fields when incoming values are undefined.
+      // This allows callers to push cost-only or done-count-only updates without
+      // losing storyKey, phase, or other display fields already in state.
+      const defined = Object.fromEntries(Object.entries(sprintState).filter(([, v]) => v !== undefined));
+      state.sprintInfo = state.sprintInfo ? { ...state.sprintInfo, ...defined } : (sprintState as SprintInfo);
     } else {
-      state.sprintInfo = sprintState ?? null;
+      state.sprintInfo = null;
     }
 
     const newKey = state.sprintInfo?.storyKey ?? null;

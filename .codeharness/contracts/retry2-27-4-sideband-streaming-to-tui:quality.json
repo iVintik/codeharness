@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "taskName": "retry",
+  "storyId": "27-4-sideband-streaming-to-tui:quality",
+  "driver": "claude-code",
+  "model": "claude-sonnet-4-6",
+  "timestamp": "2026-04-07T20:57:00.000Z",
+  "cost_usd": null,
+  "duration_ms": null,
+  "changedFiles": [
+    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-runner.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/run.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-inspect.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/src/commands/__tests__/run.test.ts",
+    "/Users/ivintik/dev/personal/codeharness/verification/27-4-sideband-streaming-to-tui-proof.md"
+  ],
+  "testResults": {
+    "passed": 5286,
+    "failed": 0,
+    "files": 198
+  },
+  "output": "Fixed two issues from quality review:\n\n1. HIGH: workflow-runner.ts inspect callback now filters by rootActorRef. Gate/child machine snapshots no longer drive workflow-viz. `rootActorRef = actor` captured after createActor(); guard added before snapshotToPosition(). Wrong 'no root-actor filter' test replaced with correct 'root-actor filter' test in workflow-inspect.test.ts.\n\n2. MEDIUM: run.ts dispatch-error handler now distinguishes gate errors (storyKey contains ':') from terminal story errors (no ':'). Gate errors use type:'warn' and do NOT mark story as failed. Story errors use type:'fail' and mark story failed (unchanged). New test in run.test.ts verifies gate dispatch-error uses 'warn' and leaves story status unchanged.\n\nResult: 5286 tests pass (198 files), build succeeds.",
+  "acceptanceCriteria": []
+}

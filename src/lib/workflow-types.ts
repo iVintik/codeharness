@@ -62,7 +62,6 @@ export interface ResolvedWorkflow {
   storyFlow: FlowStep[];
   epicFlow: FlowStep[];
   execution: ExecutionConfig;
-  flow: FlowStep[];
   workflow?: ForEachConfig;
 }
 

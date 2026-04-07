@@ -11,7 +11,6 @@ import {
   WorkflowParseError,
   type ResolvedWorkflow,
   type ResolvedTask,
-  type LoopBlock,
   type FlowStep,
   type WorkflowPatch,
   type GateBlock,
@@ -42,10 +41,12 @@ const minimalYaml = `
 tasks:
   implement:
     agent: dev
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
 
 const fullYaml = `
@@ -64,11 +65,13 @@ tasks:
     agent: evaluator
     session: continue
     source_access: false
-story_flow:
-  - implement
-  - verify
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - verify
 `;
 
 const loopYaml = `
@@ -79,20 +82,26 @@ tasks:
     agent: evaluator
   retry:
     agent: dev
-story_flow:
-  - implement
-  - verify
-  - loop:
-      - retry
-      - verify
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - verify
+        - gate: retry-gate
+          check: [verify]
+          fix: [retry]
+          pass_when: consensus
+          max_retries: 5
+          circuit_breaker: stagnation
 `;
 
 const emptyYaml = `
 tasks: {}
-story_flow: []
-epic_flow: []
+workflow:
+  for_each: epic
+  steps: []
 `;
 
 // --- Tests ---
@@ -104,10 +113,10 @@ describe('parseWorkflow', () => {
       const result = parseWorkflow(filePath);
 
       expect(result.tasks).toBeDefined();
-      expect(result.flow).toBeDefined();
+      expect(result.storyFlow).toBeDefined();
       expect(result.tasks.implement).toBeDefined();
       expect(result.tasks.implement.agent).toBe('dev');
-      expect(result.flow).toEqual(['implement']);
+      expect(result.storyFlow).toEqual(['implement']);
     });
 
     it('parses a full workflow with all optional fields (AC #1)', () => {
@@ -140,9 +149,9 @@ describe('parseWorkflow', () => {
       expect(task.max_budget_usd).toBeUndefined();
     });
 
-    it('rejects empty story_flow and epic_flow (epic_flow must contain story_flow ref)', () => {
+    it('rejects empty steps in workflow for_each block', () => {
       const filePath = writeYaml('empty.yaml', emptyYaml);
-      expect(() => parseWorkflow(filePath)).toThrow(/story_flow/);
+      expect(() => parseWorkflow(filePath)).toThrow(/steps/i);
     });
   });
 
@@ -166,10 +175,12 @@ describe('parseWorkflow', () => {
 tasks:
   implement:
     agent: "dev
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('unclosed.yaml', badYaml);
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
@@ -178,7 +189,7 @@ epic_flow:
 
   describe('schema validation failures (AC #3)', () => {
     it('throws WorkflowParseError when tasks is missing', () => {
-      const yaml = 'story_flow:\n  - implement\nepic_flow:\n  - story_flow\n';
+      const yaml = 'workflow:\n  for_each: epic\n  steps:\n    - implement\n';
       const filePath = writeYaml('no-tasks.yaml', yaml);
 
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
@@ -220,10 +231,12 @@ tasks:
   implement:
     agent: dev
     scope: per-story
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('bad-scope.yaml', yaml);
 
@@ -238,16 +251,18 @@ epic_flow:
   });
 
   describe('dangling task references (AC #4)', () => {
-    it('throws WorkflowParseError when story_flow references non-existent task', () => {
+    it('throws WorkflowParseError when workflow references non-existent task', () => {
       const yaml = `
 tasks:
   implement:
     agent: dev
-story_flow:
-  - implement
-  - nonexistent
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - nonexistent
 `;
       const filePath = writeYaml('dangling.yaml', yaml);
 
@@ -261,19 +276,21 @@ epic_flow:
       }
     });
 
-    it('throws WorkflowParseError when loop references non-existent task', () => {
+    it('throws WorkflowParseError when gate references non-existent task', () => {
       const yaml = `
 tasks:
   implement:
     agent: dev
-story_flow:
-  - implement
-  - loop:
-      - ghost_task
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - gate: quality
+          check: [ghost_task]
 `;
-      const filePath = writeYaml('dangling-loop.yaml', yaml);
+      const filePath = writeYaml('dangling-gate.yaml', yaml);
 
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
       try {
@@ -282,23 +299,26 @@ epic_flow:
         const pe = err as WorkflowParseError;
         expect(pe.message).toContain('Referential integrity errors');
         expect(pe.errors.some((e) => e.message.includes('ghost_task'))).toBe(true);
-        expect(pe.errors.some((e) => e.path.includes('loop'))).toBe(true);
       }
     });
   });
 
-  describe('loop blocks (AC #5)', () => {
-    it('resolves loop block with valid task references', () => {
+  describe('gate blocks (AC #5)', () => {
+    it('resolves gate block with valid task references', () => {
       const filePath = writeYaml('loop.yaml', loopYaml);
       const result = parseWorkflow(filePath);
 
-      expect(result.flow).toHaveLength(3);
-      expect(result.flow[0]).toBe('implement');
-      expect(result.flow[1]).toBe('verify');
+      expect(result.workflow).toBeDefined();
+      const storyBlock = result.workflow!.steps[0] as { for_each: string; steps: unknown[] };
+      expect(storyBlock.steps).toHaveLength(3);
+      expect(storyBlock.steps[0]).toBe('implement');
+      expect(storyBlock.steps[1]).toBe('verify');
 
-      const loopStep = result.flow[2] as LoopBlock;
-      expect(loopStep).toHaveProperty('loop');
-      expect(loopStep.loop).toEqual(['retry', 'verify']);
+      const gateStep = storyBlock.steps[2] as GateBlock;
+      expect(gateStep).toHaveProperty('gate');
+      expect(gateStep.gate).toBe('retry-gate');
+      expect(gateStep.check).toEqual(['verify']);
+      expect(gateStep.fix).toEqual(['retry']);
     });
   });
 
@@ -355,8 +375,9 @@ epic_flow:
       // storyFlow and epicFlow are FlowStep[]
       expect(Array.isArray(result.storyFlow)).toBe(true);
       expect(Array.isArray(result.epicFlow)).toBe(true);
-      // flow (deprecated compat) is FlowStep[]
-      expect(Array.isArray(result.flow)).toBe(true);
+
+      // workflow is defined for new format
+      expect(result.workflow).toBeDefined();
 
       // Each task has ResolvedTask properties
       const task: ResolvedTask = result.tasks.implement;
@@ -365,18 +386,18 @@ epic_flow:
       expect(typeof task.source_access).toBe('boolean');
     });
 
-    it('FlowStep is a union of string | LoopBlock', () => {
+    it('FlowStep is a union of string | GateConfig', () => {
       const filePath = writeYaml('flow-types.yaml', loopYaml);
       const result = parseWorkflow(filePath);
 
-      // String flow step
-      const stringStep: FlowStep = result.flow[0];
+      // storyFlow derived from for_each: story block
+      const stringStep: FlowStep = result.storyFlow[0];
       expect(typeof stringStep).toBe('string');
 
-      // LoopBlock flow step
-      const loopStep: FlowStep = result.flow[2];
-      expect(typeof loopStep).toBe('object');
-      expect((loopStep as LoopBlock).loop).toBeDefined();
+      // GateConfig flow step (derived from gate block)
+      const gateStep = result.storyFlow[2];
+      expect(typeof gateStep).toBe('object');
+      expect((gateStep as GateBlock).gate).toBeDefined();
     });
   });
 
@@ -396,10 +417,12 @@ tasks:
   implement:
     agent: dev
     driver: codex
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('driver.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -415,10 +438,12 @@ tasks:
   implement:
     agent: dev
     model: claude-opus-4
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('model.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -435,10 +460,12 @@ tasks:
     plugins:
       - gstack
       - omo
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('plugins.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -455,10 +482,12 @@ tasks:
     model: codex-mini
     plugins:
       - gstack
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('all-new.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -474,10 +503,12 @@ tasks:
   implement:
     agent: dev
     driver: 123
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('bad-driver.yaml', yaml);
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
@@ -495,10 +526,12 @@ tasks:
   implement:
     agent: dev
     model: true
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('bad-model.yaml', yaml);
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
@@ -516,10 +549,12 @@ tasks:
   implement:
     agent: dev
     plugins: not-array
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('bad-plugins.yaml', yaml);
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
@@ -540,10 +575,12 @@ tasks:
     model: codex-mini
     plugins:
       - gstack
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('additional-props.yaml', yaml);
       // Should NOT throw — new fields are recognized by schema
@@ -575,10 +612,12 @@ tasks:
     agent: dev
     plugins:
       - 123
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('bad-plugins-items.yaml', yaml);
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
@@ -596,10 +635,12 @@ tasks:
   implement:
     agent: dev
     plugins: []
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('empty-plugins.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -1017,10 +1058,12 @@ overrides:
 tasks:
   custom-task:
     agent: dev
-story_flow:
-  - custom-task
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - custom-task
 `, 'utf-8');
 
     const result = resolveWorkflow({ cwd: testDir });
@@ -1039,16 +1082,18 @@ epic_flow:
 tasks:
   deploy:
     agent: dev
-story_flow:
-  - deploy
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - deploy
 `, 'utf-8');
 
       const result = resolveWorkflow({ cwd: testDir, name: 'my-workflow' });
       expect(result.tasks.deploy).toBeDefined();
       expect(result.tasks.deploy.agent).toBe('dev');
-      expect(result.flow).toEqual(['deploy']);
+      expect(result.storyFlow).toEqual(['deploy']);
     });
 
     it('custom workflow fails schema validation — throws WorkflowParseError', () => {
@@ -1057,10 +1102,10 @@ epic_flow:
 
       // Missing tasks key entirely
       writeFileSync(join(customDir, 'bad-schema.yaml'), `
-story_flow:
-  - deploy
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - deploy
 `, 'utf-8');
 
       expect(() => resolveWorkflow({ cwd: testDir, name: 'bad-schema' })).toThrow(WorkflowParseError);
@@ -1081,11 +1126,13 @@ epic_flow:
 tasks:
   deploy:
     agent: dev
-story_flow:
-  - deploy
-  - nonexistent
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - deploy
+        - nonexistent
 `, 'utf-8');
 
       expect(() => resolveWorkflow({ cwd: testDir, name: 'dangling' })).toThrow(WorkflowParseError);
@@ -1150,10 +1197,12 @@ overrides:
 tasks:
   build:
     agent: qa
-story_flow:
-  - build
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - build
 `, 'utf-8');
 
       // Patch file that would change agent — should be ignored
@@ -1181,12 +1230,14 @@ tasks:
     agent: qa
   deploy:
     agent: architect
-story_flow:
-  - build
-  - test
-  - deploy
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - build
+        - test
+        - deploy
 `, 'utf-8');
 
       const result = resolveWorkflow({ cwd: testDir, name: 'multi-agent' });
@@ -1224,10 +1275,12 @@ tasks:
   implement:
     agent: dev
     driver: claude-code
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('valid-driver.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -1242,10 +1295,12 @@ tasks:
   implement:
     agent: dev
     driver: codex
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('invalid-driver.yaml', yaml);
 
@@ -1269,10 +1324,12 @@ tasks:
   implement:
     agent: dev
     driver: any-driver-name
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('empty-registry.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -1286,10 +1343,12 @@ epic_flow:
 tasks:
   implement:
     agent: dev
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('valid-agent.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -1301,10 +1360,12 @@ epic_flow:
 tasks:
   implement:
     agent: nonexistent-agent
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('invalid-agent.yaml', yaml);
 
@@ -1328,10 +1389,12 @@ epic_flow:
 tasks:
   task1:
     agent: ${agentName}
-story_flow:
-  - task1
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - task1
 `;
         const filePath = writeYaml(`agent-${agentName}.yaml`, yaml);
         const result = parseWorkflow(filePath);
@@ -1344,10 +1407,12 @@ epic_flow:
 tasks:
   implement:
     agent: nonexistent-agent
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
 `;
       const filePath = writeYaml('notfound-msg.yaml', yaml);
 
@@ -1377,11 +1442,13 @@ tasks:
     driver: nonexistent
   task2:
     agent: another-fake
-story_flow:
-  - task1
-  - task2
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - task1
+        - task2
 `;
       const filePath = writeYaml('multi-errors.yaml', yaml);
 
@@ -1406,11 +1473,13 @@ tasks:
   implement:
     agent: fake-agent
     driver: bad-driver
-story_flow:
-  - implement
-  - nonexistent-task
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - nonexistent-task
 `;
       const filePath = writeYaml('combined-errors.yaml', yaml);
 
@@ -1420,7 +1489,7 @@ epic_flow:
       } catch (err) {
         const pe = err as WorkflowParseError;
         // Flow dangling ref
-        expect(pe.errors.some((e) => e.path === '/story_flow/1' && e.message.includes('nonexistent-task'))).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('nonexistent-task'))).toBe(true);
         // Driver ref
         expect(pe.errors.some((e) => e.path === '/tasks/implement/driver' && e.message.includes('bad-driver'))).toBe(true);
         // Agent ref
@@ -1437,11 +1506,13 @@ tasks:
     agent: dev
   verify:
     agent: evaluator
-story_flow:
-  - implement
-  - verify
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - verify
 `;
       const filePath = writeYaml('no-driver.yaml', yaml);
       const result = parseWorkflow(filePath);
@@ -1470,11 +1541,13 @@ epic_flow:
 tasks:
   implement:
     agent: dev
-story_flow:
-  - implement
-  - ghost
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - ghost
 `;
       const filePath = writeYaml('flow-ref-regression.yaml', yaml);
 
@@ -1665,13 +1738,13 @@ workflow:
       }
     });
 
-    // AC 7: old story_flow/epic_flow format still works (backward compat)
-    it('AC7: old story_flow/epic_flow format still parses without errors', () => {
-      const filePath = writeYaml('fe-legacy.yaml', minimalYaml);
+    // AC 7: workflow format parses and populates storyFlow/epicFlow
+    it('AC7: workflow format parses and populates storyFlow/epicFlow', () => {
+      const filePath = writeYaml('fe-new-format.yaml', minimalYaml);
       const result = parseWorkflow(filePath);
       expect(result.storyFlow).toBeDefined();
       expect(result.epicFlow).toBeDefined();
-      expect(result.workflow).toBeUndefined();
+      expect(result.workflow).toBeDefined();
     });
 
     // AC 11: 3-level nesting parses successfully
@@ -1703,31 +1776,20 @@ workflow:
       expect(level2.steps[0]).toBe('leaf-task');
     });
 
-    // AC 12: both workflow: and story_flow: present → error (mutual exclusion)
-    it('AC12: workflow: and story_flow: together throw mutual exclusion error', () => {
+    // AC 12: missing workflow key throws error
+    it('AC12: missing workflow key throws error requiring for_each format', () => {
       const yaml = `
 tasks:
   implement:
     agent: dev
-  retro:
-    agent: dev
-workflow:
-  for_each: epic
-  steps:
-    - retro
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
 `;
-      const filePath = writeYaml('fe-both-formats.yaml', yaml);
+      const filePath = writeYaml('fe-no-workflow.yaml', yaml);
       expect(() => parseWorkflow(filePath)).toThrow(WorkflowParseError);
       try {
         parseWorkflow(filePath);
       } catch (err) {
         const pe = err as WorkflowParseError;
-        // Error should mention the conflict
-        expect(pe.message.toLowerCase()).toMatch(/workflow|story_flow|format|one/);
+        expect(pe.message.toLowerCase()).toMatch(/workflow|for_each|format/);
       }
     });
 
@@ -1748,8 +1810,6 @@ workflow:
       expect(result.storyFlow).toEqual([]);
       // epicFlow contains the single epic-level task
       expect(result.epicFlow).toEqual(['retro']);
-      // flow is still empty (legacy field)
-      expect(result.flow).toEqual([]);
       expect(result.tasks.retro).toBeDefined();
       expect(result.execution).toBeDefined();
     });
@@ -2124,13 +2184,13 @@ workflow:
       expect(outerGate.gate).toBe('verification');
     });
 
-    // AC 12: backward compatibility — old story_flow/epic_flow format still parses
-    it('AC12: old story_flow/epic_flow format still parses without errors', () => {
-      const filePath = writeYaml('gate-legacy-compat.yaml', minimalYaml);
+    // AC 12: workflow format with gates derives storyFlow/epicFlow
+    it('AC12: workflow format derives storyFlow and epicFlow correctly', () => {
+      const filePath = writeYaml('gate-new-format.yaml', minimalYaml);
       const result = parseWorkflow(filePath);
       expect(result.storyFlow).toBeDefined();
       expect(result.epicFlow).toBeDefined();
-      expect(result.workflow).toBeUndefined();
+      expect(result.workflow).toBeDefined();
     });
 
     // GateBlock is fully populated (all fields present in returned object)

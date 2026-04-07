@@ -39,18 +39,20 @@ tasks:
     session: fresh
     source_access: false
 
-story_flow:
-  - implement
-  - verify
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - verify
 `;
 
 const invalidWorkflowMissingTasks = `
-story_flow:
-  - implement
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - implement
 `;
 
 const danglingRefYaml = `
@@ -58,11 +60,13 @@ tasks:
   implement:
     agent: dev
 
-story_flow:
-  - implement
-  - nonexistent_task
-epic_flow:
-  - story_flow
+workflow:
+  for_each: epic
+  steps:
+    - for_each: story
+      steps:
+        - implement
+        - nonexistent_task
 `;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -139,7 +143,7 @@ describe('runSchemaValidation', () => {
       e.message.includes('nonexistent_task'),
     );
     expect(danglingError).toBeDefined();
-    expect(danglingError!.path).toContain('/story_flow/');
+    expect(danglingError!.path).toContain('workflow');
   });
 
   it('returns fail when .codeharness/workflows/ directory does not exist (AC #4)', () => {

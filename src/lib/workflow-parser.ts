@@ -3,13 +3,10 @@ import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { validateWorkflowSchema } from './schema-validate.js';
 import {
-  resolveHierarchicalFlow,
   resolveExecutionConfig,
-  validateFlowReferences,
   validateReferentialIntegrity,
   HierarchicalFlowError,
   type ExecutionConfig,
-  type HierarchicalFlow,
   type ResolvedTask,
   type FlowStep,
   type ForEachBlock,
@@ -188,20 +185,11 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
   ) {
     const obj = parsed as Record<string, unknown>;
     const hasWorkflowKey = 'workflow' in obj && obj.workflow !== undefined;
-    const hasLegacyKey = 'flow' in obj || 'story_flow' in obj || 'epic_flow' in obj;
 
-    if (!hasWorkflowKey && !hasLegacyKey) {
+    if (!hasWorkflowKey) {
       throw new WorkflowParseError(
-        'Schema validation failed: /: must have either "workflow" or "story_flow"',
-        [{ path: '/', message: 'must have either "workflow" or "story_flow"' }],
-      );
-    }
-
-    // Mutual exclusion: workflow: and story_flow:/epic_flow:/flow: cannot coexist
-    if (hasWorkflowKey && hasLegacyKey) {
-      throw new WorkflowParseError(
-        'Cannot use both "workflow" and legacy "story_flow"/"flow" format in the same file. Use one or the other.',
-        [{ path: '/', message: 'Only one workflow format is allowed: use "workflow" or "story_flow"/"flow", not both' }],
+        'Workflow must define "workflow" key with for_each format',
+        [{ path: '/', message: 'Missing "workflow" key — use for_each format' }],
       );
     }
   }
@@ -269,56 +257,12 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
       storyFlow,
       epicFlow,
       execution,
-      flow: [],
       workflow: workflowBlock,
     };
   }
 
-  // --- Legacy format: story_flow / epic_flow ---
-
-  const hasStoryFlow = 'story_flow' in data && data.story_flow !== undefined;
-  const hasEpicFlow = 'epic_flow' in data && data.epic_flow !== undefined;
-  if (!hasStoryFlow) {
-    throw new WorkflowParseError('Workflow must define "story_flow"', [{ path: '/', message: 'Missing "story_flow"' }]);
-  }
-  if (!hasEpicFlow) {
-    throw new WorkflowParseError('Workflow must define "epic_flow"', [{ path: '/', message: 'Missing "epic_flow"' }]);
-  }
-
-  const effectiveStoryFlow: unknown[] = data.story_flow ?? [];
-  const effectiveEpicFlow: unknown[] = data.epic_flow ?? [];
-
-  const taskNames = new Set(Object.keys(data.tasks));
-  const allErrors: Array<{ path: string; message: string }> = [];
-
-  validateFlowReferences(effectiveStoryFlow, taskNames, 'story_flow', allErrors, false);
-  validateFlowReferences(effectiveEpicFlow, taskNames, 'epic_flow', allErrors, true);
-  validateReferentialIntegrity(data, allErrors);
-
-  if (allErrors.length > 0) {
-    const details = allErrors.map((e) => e.message).join('; ');
-    throw new WorkflowParseError(`Referential integrity errors: ${details}`, allErrors);
-  }
-
-  const resolvedTasks = resolveTasksMap(data.tasks);
-
-  let hierarchical: HierarchicalFlow;
-  try {
-    hierarchical = resolveHierarchicalFlow(data, resolvedTasks);
-  } catch (err: unknown) {
-    if (err instanceof HierarchicalFlowError) {
-      throw new WorkflowParseError(err.message, [{ path: '/', message: err.message }]);
-    }
-    throw err;
-  }
-
-  return {
-    tasks: resolvedTasks,
-    storyFlow: hierarchical.storyFlow,
-    epicFlow: hierarchical.epicFlow,
-    execution: hierarchical.execution,
-    flow: hierarchical.storyFlow, // deprecated compat
-  };
+  // If we reach here, the workflow key was missing (caught above) or format is unknown
+  throw new WorkflowParseError('Workflow must use for_each format', [{ path: '/', message: 'Use workflow: with for_each blocks' }]);
 }
 
 /** Build the resolved tasks map from raw parsed task data. */

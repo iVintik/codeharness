@@ -289,7 +289,9 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     }
   }
   let { errors, tasksCompleted } = finalOutput;
-  const { storiesProcessed } = finalOutput;
+  // storiesProcessed may be a plain object after snapshot deserialization (Set doesn't survive JSON)
+  const rawSP = finalOutput.storiesProcessed;
+  const storiesProcessed: Set<string> = rawSP instanceof Set ? rawSP : new Set(Array.isArray(rawSP) ? rawSP : Object.keys(rawSP ?? {}));
 
   // --- Sprint-level steps (run ONCE after all epics complete) ---
   if (config.workflow.sprintFlow.length > 0 && !finalOutput.halted && state.phase !== 'interrupted') {
@@ -333,11 +335,6 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   // Promote 'checked' stories to 'done' after sprint-level steps complete (or if no sprint steps)
   if (!finalOutput.halted && state.phase !== 'interrupted' && errors.length === 0) {
     const { updateStoryStatus: updateStatus } = await import('../modules/sprint/index.js');
-    // Mark processed stories as done
-    for (const storyKey of storiesProcessed) {
-      updateStatus(storyKey, 'done');
-    }
-    // Also promote any checked stories that weren't in the run (from previous runs)
     const { loadCheckedStories: loadChecked } = await import('./workflow-work-items.js');
     const checkedStories = loadChecked(config.sprintStatusPath);
     for (const item of checkedStories) {

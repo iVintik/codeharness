@@ -34,13 +34,13 @@ tasks:
     session: fresh
     source_access: true
     model: claude-sonnet-4-6
-    timeout_minutes: 15
+    timeout_minutes: 30
   verify:
     agent: evaluator
     session: fresh
     source_access: false
     driver: codex
-    timeout_minutes: 20
+    timeout_minutes: 30
   retry:
     agent: dev
     session: fresh

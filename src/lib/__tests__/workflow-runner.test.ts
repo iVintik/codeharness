@@ -669,7 +669,7 @@ describe('runWorkflowActor', () => {
     expect(callOrder).toHaveLength(3);
     expect(callOrder[0]).toContain('Implement story 3-1-foo');
     expect(callOrder[1]).toContain('Implement story 3-2-bar');
-    expect(callOrder[2]).toContain('Verify the epic');
+    expect(callOrder[2]).toContain('Verify the stories for epic');
   });
 
   it('dispatches per-story task once per story (AC #3)', async () => {
@@ -735,7 +735,7 @@ describe('runWorkflowActor', () => {
 
   it('executes loop blocks instead of skipping them', async () => {
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Verify the epic')) {
+      if (opts.prompt.includes('Verify the stories for epic')) {
         return makeDriverStream('<evidence ac="1" status="pass">done</evidence><verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');
@@ -1397,7 +1397,7 @@ describe('crash recovery & resume', () => {
         iteration: 2,
         tasks_completed: [
           { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:00:00Z' },
-          { task_name: 'verify', story_key: '__run__', completed_at: '2026-04-03T00:01:00Z' },
+          { task_name: 'verify', story_key: '__epic_3__', completed_at: '2026-04-03T00:01:00Z' },
           { task_name: 'retry', story_key: '3-1-foo', completed_at: '2026-04-03T00:02:00Z' },
         ],
       }),
@@ -1408,7 +1408,7 @@ describe('crash recovery & resume', () => {
     });
 
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Verify the epic')) {
+      if (opts.prompt.includes('Verify the stories for epic')) {
         return makeDriverStream('<evidence ac="1" status="pass">ok</evidence> <evidence ac="2" status="pass">ok</evidence> <verdict>pass</verdict>', 'sess-v');
       }
       return makeDriverStream('ok', 'sess-r');

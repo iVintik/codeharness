@@ -9,9 +9,13 @@ export const TASK_PROMPTS: Record<string, (key: string) => string> = {
   'check': (key) => `Run automated checks for story ${key}. Execute the project's test suite and linter. Include <verdict>pass</verdict> or <verdict>fail</verdict> in your response.`,
   'review': (key) => `Review the implementation of story ${key}. Check for correctness, security issues, architecture violations, and AC coverage. Include <verdict>pass</verdict> or <verdict>fail</verdict> in your response. If fail, include <issues>...</issues>.`,
   'document': (key) => `Write user documentation for story ${key}. Describe what was built and how to use it from a user's perspective. No source code. Wrap documentation in <user-docs>...</user-docs> tags.`,
-  'deploy': () => `Provision the Docker environment for this project. Check for docker-compose.yml, start containers, verify health. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`,
-  'verify': () => `Verify the epic's stories using the user docs and deploy info in ./story-files/. For each AC, derive verification steps, run commands, observe output. Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`,
-  'retro': () => `Run a retrospective for this epic. Analyze what worked, what failed, patterns, and action items for next epic.`,
+  'deploy': (key) => key === '__sprint__'
+    ? `Deploy the entire sprint. Provision Docker environment, start all containers, verify health across all services. This runs ONCE after all epics are complete. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`
+    : `Provision the Docker environment for epic ${key}. Check for docker-compose.yml, start containers, verify health. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`,
+  'verify': (key) => key === '__sprint__'
+    ? `Verify ALL stories across ALL epics in this sprint. Read user docs and deploy info from ./story-files/. For EACH story's ACs, derive verification steps, run commands, observe output. This is the final sprint-level verification — every AC across every epic must be checked. Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`
+    : `Verify the stories for epic ${key} using the user docs and deploy info in ./story-files/. For each AC, derive verification steps, run commands, observe output. Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`,
+  'retro': (key) => `Run a retrospective for epic ${key}. Analyze what worked, what failed, patterns, and action items for next epic.`,
 };
 
 /** Tool names that indicate file writes. */

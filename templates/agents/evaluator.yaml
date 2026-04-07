@@ -25,7 +25,8 @@ disallowedTools:
 prompt_template: |
   ## Role
 
-  You are verifying an epic's acceptance criteria and assessing implementation quality.
+  You are verifying acceptance criteria and assessing implementation quality.
+  You may be verifying a single epic or all stories across an entire sprint.
   You have NO access to source code. You verify by exercising the running system.
 
   ## Input

@@ -141,12 +141,11 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
       try { clearSnapshot(projectDir); }
       catch { // IGNORE: best-effort cleanup — stale snapshot removal is non-critical
       }
-      const checkpointEntries = loadCheckpointLog(projectDir);
-      for (const entry of checkpointEntries) {
-        completedTasks.add(`${entry.storyKey}::${entry.taskName}`);
-      }
-      if (completedTasks.size > 0) {
-        info(`workflow-runner: Loaded ${completedTasks.size} checkpoint(s) — will skip completed tasks`);
+      // Stale checkpoint entries belong to the old config — clear them so they
+      // do not survive into the fresh run. Checkpoint log fallback (story 26-3)
+      // is deferred; on config change we always start from task 1.
+      try { clearCheckpointLog(projectDir); }
+      catch { // IGNORE: best-effort checkpoint log clear — must not block a fresh start
       }
     }
   } else {
@@ -197,11 +196,40 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
         catch { // IGNORE: snapshot save is best-effort — a failed save must never crash the workflow runner
         }
       },
-      complete: () => resolve(actor.getSnapshot().output!),
+      complete: () => {
+        try { saveSnapshot(actor.getPersistedSnapshot(), configHash, projectDir); }
+        catch { // IGNORE: terminal snapshot save is best-effort — completion must still resolve
+        }
+        resolve(actor.getSnapshot().output!);
+      },
     });
     actor.start();
   });
   state = finalOutput.workflowState;
+  // On snapshot-resume the XState actor restores its context from the snapshot,
+  // which was captured BEFORE any sprint-level work ran.  Sprint tasks write their
+  // completions to disk via dispatchTaskCore/nullTaskCore as they finish, so we
+  // recover those entries here to avoid replaying already-done sprint work after
+  // an interrupt that occurred during the sprint loop.
+  //
+  // NOTE: We recover ALL disk tasks that are not already in the XState context —
+  // not just __sprint__-keyed ones.  Sprint gate loop blocks execute tasks against
+  // individual story work items and record them under those story keys (e.g.
+  // "26-1-xstate-snapshot-persistence"), so a story_key === '__sprint__' filter
+  // would silently miss those completions and replay the gate iterations on resume.
+  if (resumeSnapshot !== null) {
+    const diskState = readWorkflowState(projectDir);
+    const existingKeys = new Set(
+      state.tasks_completed.map((t) => `${t.story_key}::${t.task_name}`),
+    );
+    const sprintCompletions = diskState.tasks_completed.filter(
+      (t) => !existingKeys.has(`${t.story_key}::${t.task_name}`),
+    );
+    if (sprintCompletions.length > 0) {
+      info(`workflow-runner: Restored ${sprintCompletions.length} post-machine completion(s) from disk (resume after sprint-level interrupt)`);
+      state = { ...state, tasks_completed: [...state.tasks_completed, ...sprintCompletions] };
+    }
+  }
   let { errors, tasksCompleted } = finalOutput;
   const { storiesProcessed } = finalOutput;
 

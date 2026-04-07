@@ -3,7 +3,6 @@
 import { setup, assign, fromPromise } from 'xstate';
 import { DispatchError } from './agent-dispatch.js';
 import { parseVerdict } from './verdict-parser.js';
-import { evaluateProgress } from './circuit-breaker.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { HALT_ERROR_CODES, isEngineError } from './workflow-compiler.js';
 import { warn } from './output.js';
@@ -157,8 +156,6 @@ export const gateMachine = setup({
     },
     /** True when iteration count has reached max_retries. */
     maxRetries: ({ context }) => context.workflowState.iteration >= context.gate.max_retries,
-    /** True when circuit breaker has been triggered (set by evaluate entry action). */
-    circuitBreaker: ({ context }) => context.workflowState.circuit_breaker.triggered,
     /** True when the actor threw an AbortError (user-initiated abort signal). */
     isAbortError: ({ event }) => {
       const err = (event as { error?: unknown }).error;
@@ -207,16 +204,13 @@ export const gateMachine = setup({
         const newIteration = context.workflowState.iteration + 1;
         const score = computeVerdictScore(context.verdicts, newIteration);
         const newScores = [...context.workflowState.evaluator_scores, score];
-        const cbDecision = evaluateProgress(newScores);
-        const newCb = cbDecision.halt
-          ? { triggered: true, reason: cbDecision.reason, score_history: cbDecision.scoreHistory }
-          : context.workflowState.circuit_breaker;
-        return { workflowState: { ...context.workflowState, iteration: newIteration, evaluator_scores: newScores, circuit_breaker: newCb } };
+        // No circuit breaker — max_retries is the only exit. Each retry gets fresh
+        // findings and may approach the fix differently.
+        return { workflowState: { ...context.workflowState, iteration: newIteration, evaluator_scores: newScores } };
       }),
       always: [
         { guard: 'allPassed', target: 'passed' },
         { guard: 'maxRetries', target: 'maxedOut' },
-        { guard: 'circuitBreaker', target: 'halted' },
         { target: 'fixing' },
       ],
     },

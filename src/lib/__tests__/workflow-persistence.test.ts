@@ -95,6 +95,34 @@ describe('workflow-persistence', () => {
       expect(computeConfigHash(a)).not.toBe(computeConfigHash(b));
     });
 
+    it('different agent definitions produce different hashes', () => {
+      const a = makeConfig();
+      const b = {
+        ...makeConfig(),
+        agents: {
+          dev: {
+            name: 'dev',
+            model: 'claude-sonnet-4-6',
+            instructions: 'original',
+            disallowedTools: [],
+            bare: true,
+          },
+        },
+      } as EngineConfig;
+      const c = {
+        ...b,
+        agents: {
+          dev: {
+            ...b.agents.dev,
+            instructions: 'changed',
+          },
+        },
+      } as EngineConfig;
+
+      expect(computeConfigHash(a)).not.toBe(computeConfigHash(b));
+      expect(computeConfigHash(b)).not.toBe(computeConfigHash(c));
+    });
+
     it('different storyFlow produces different hash', () => {
       const a = makeConfig({ storyFlow: ['implement'] });
       const b = makeConfig({ storyFlow: ['implement', 'verify'] });
@@ -199,6 +227,24 @@ describe('workflow-persistence', () => {
       const result = loadSnapshot('/tmp/project');
       expect(result).toBeNull();
       expect(warn).toHaveBeenCalled();
+    });
+
+    it('returns null for snapshot with null snapshot payload and logs warning', () => {
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('workflow-snapshot.json'));
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ snapshot: null, configHash: 'abc123', savedAt: '2026-01-01T00:00:00Z' }));
+
+      const result = loadSnapshot('/tmp/project');
+      expect(result).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/invalid/i));
+    });
+
+    it('returns null for snapshot with invalid savedAt timestamp and logs warning', () => {
+      vi.mocked(fs.existsSync).mockImplementation((p) => String(p).endsWith('workflow-snapshot.json'));
+      vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify({ snapshot: {}, configHash: 'abc123', savedAt: 'not-a-date' }));
+
+      const result = loadSnapshot('/tmp/project');
+      expect(result).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringMatching(/invalid/i));
     });
 
     it('warns about old YAML state file when snapshot does not exist', () => {

@@ -38,6 +38,7 @@ const {
   mockReadStateWithBody,
   mockWriteState,
   mockLoadSnapshot,
+  mockSaveSnapshot,
   mockClearSnapshot,
   mockComputeConfigHash,
   mockAppendCheckpoint,
@@ -68,6 +69,7 @@ const {
   mockReadStateWithBody: vi.fn(),
   mockWriteState: vi.fn(),
   mockLoadSnapshot: vi.fn(() => null),
+  mockSaveSnapshot: vi.fn(),
   mockClearSnapshot: vi.fn(),
   mockComputeConfigHash: vi.fn(() => 'test-hash-aabbccdd'),
   mockAppendCheckpoint: vi.fn(),
@@ -162,7 +164,7 @@ vi.mock('../state.js', () => ({
 }));
 
 vi.mock('../workflow-persistence.js', () => ({
-  saveSnapshot: vi.fn(),
+  saveSnapshot: mockSaveSnapshot,
   loadSnapshot: mockLoadSnapshot,
   clearSnapshot: mockClearSnapshot,
   computeConfigHash: mockComputeConfigHash,
@@ -242,6 +244,7 @@ function makeWorkflow(partial: {
   storyFlow?: (string | { loop: string[] })[];
   epicFlow?: (string | { loop: string[] })[];
   epicTasks?: string[];
+  sprintFlow?: string[];
 }): ResolvedWorkflow {
   if (partial.storyFlow || partial.epicFlow) {
     return {
@@ -250,7 +253,7 @@ function makeWorkflow(partial: {
       execution: defaultExecution,
       storyFlow: partial.storyFlow ?? partial.flow,
       epicFlow: partial.epicFlow ?? ['story_flow'],
-      sprintFlow: [],
+      sprintFlow: partial.sprintFlow ?? [],
     };
   }
 
@@ -288,7 +291,7 @@ function makeWorkflow(partial: {
     execution: defaultExecution,
     storyFlow,
     epicFlow,
-    sprintFlow: [],
+    sprintFlow: partial.sprintFlow ?? [],
   };
 }
 
@@ -1145,6 +1148,30 @@ describe('runWorkflowActor', () => {
     const lastPhase = (mockWriteWorkflowState.mock.calls.at(-1)?.[0] as WorkflowState).phase;
     expect(lastPhase).toBe('interrupted');
   });
+
+  it('writes a terminal interrupted snapshot on actor completion', async () => {
+    const ctrl = new AbortController();
+    ctrl.abort();
+
+    mockParse.mockReturnValue({
+      development_status: { '3-1-foo': 'ready-for-dev' },
+    });
+
+    await runWorkflowActor(makeConfig({
+      abortSignal: ctrl.signal,
+      workflow: makeWorkflow({
+        tasks: { implement: makeTask() },
+        flow: ['implement'],
+      }),
+    }));
+
+    expect(mockSaveSnapshot).toHaveBeenCalled();
+    expect(mockSaveSnapshot.mock.calls.at(-1)?.[0]).toEqual(
+      expect.objectContaining({ value: 'interrupted' }),
+    );
+    expect(mockSaveSnapshot.mock.calls.at(-1)?.[1]).toBe('test-hash-aabbccdd');
+    expect(mockSaveSnapshot.mock.calls.at(-1)?.[2]).toBe('/project');
+  });
 });
 
 describe('crash recovery & resume', () => {
@@ -1453,6 +1480,53 @@ describe('crash recovery & resume', () => {
     expect(mockDriverDispatch).toHaveBeenCalledTimes(3);
     expect(result.tasksCompleted).toBe(3);
   });
+
+  it('skips sprint task on snapshot-resume when completion was persisted to disk before interrupt (26-1)', async () => {
+    // Phase 1 — fresh run with no stories; captures a valid "allDone" XState snapshot
+    // so Phase 2 can restore the actor from it (simulating a prior interrupted run).
+    mockParse.mockReturnValue({});
+    const sprintWorkflow = makeWorkflow({
+      tasks: { deploy: makeTask() },
+      flow: [],
+      sprintFlow: ['deploy'],
+    });
+
+    await runWorkflowActor(makeConfig({ workflow: sprintWorkflow }));
+    // Grab the real XState persisted snapshot that was handed to saveSnapshot.
+    const capturedSnapshot = mockSaveSnapshot.mock.calls.at(-1)?.[0] as unknown;
+    expect(capturedSnapshot).toBeDefined();
+
+    vi.clearAllMocks();
+    setupDefaultMocks();
+
+    // Phase 2 — resume from the captured snapshot.
+    // Disk state already has "deploy/__sprint__" completed (written by dispatchTaskCore
+    // before the simulated interrupt).  The XState snapshot does NOT contain this because
+    // sprint tasks execute outside the actor boundary.
+    mockLoadSnapshot.mockReturnValue({
+      snapshot: capturedSnapshot,
+      configHash: 'test-hash-aabbccdd',
+      savedAt: '2026-04-07T00:00:00.000Z',
+    });
+    mockReadWorkflowState.mockReturnValue(
+      makeDefaultState({
+        phase: 'executing',
+        started: '2026-04-07T00:00:00Z',
+        tasks_completed: [
+          { task_name: 'deploy', story_key: '__sprint__', completed_at: '2026-04-07T00:00:00Z' },
+        ],
+      }),
+    );
+
+    const result = await runWorkflowActor(makeConfig({ workflow: sprintWorkflow }));
+
+    // deploy was already persisted on disk — must NOT be dispatched a second time.
+    expect(mockDriverDispatch).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(mockInfo).toHaveBeenCalledWith(
+      expect.stringContaining('Restored 1 post-machine completion(s) from disk'),
+    );
+  });
 });
 
 // ─── Story 26-2: Snapshot resume with config hash validation ─────────
@@ -1621,7 +1695,10 @@ describe('resume with checkpoint log', () => {
     setupDefaultMocks();
   });
 
-  it('config mismatch + checkpoint log: builds completedTasks set and logs info', async () => {
+  it('config mismatch: clearCheckpointLog called and stale entries do NOT skip tasks (AC #2)', async () => {
+    // Story 26-2 AC2: on config change, start fresh from task 1. Checkpoint log
+    // fallback is deferred to story 26-3 — stale checkpoint entries must NOT be
+    // used to skip tasks when the config hash has changed.
     mockComputeConfigHash.mockReturnValue('new-hash-12345678');
     mockLoadSnapshot.mockReturnValue({
       snapshot: null,
@@ -1638,13 +1715,16 @@ describe('resume with checkpoint log', () => {
       workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
     }));
 
-    expect(mockLoadCheckpointLog).toHaveBeenCalled();
-    expect(mockInfo).toHaveBeenCalledWith(
-      expect.stringMatching(/Loaded 2 checkpoint/),
+    // Stale checkpoint log must be cleared, not used for task skipping
+    expect(mockClearCheckpointLog).toHaveBeenCalledWith('/project');
+    expect(mockInfo).not.toHaveBeenCalledWith(
+      expect.stringMatching(/Loaded \d+ checkpoint/i),
     );
   });
 
-  it('config mismatch + no checkpoint entries: empty set, no info logged about checkpoints', async () => {
+  it('config mismatch + no checkpoint entries: clearCheckpointLog still called (AC #2)', async () => {
+    // Checkpoint log must always be cleared on config mismatch, even if empty,
+    // to ensure no stale state persists across config changes.
     mockComputeConfigHash.mockReturnValue('new-hash-12345678');
     mockLoadSnapshot.mockReturnValue({
       snapshot: null,
@@ -1658,7 +1738,7 @@ describe('resume with checkpoint log', () => {
       workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
     }));
 
-    expect(mockLoadCheckpointLog).toHaveBeenCalled();
+    expect(mockClearCheckpointLog).toHaveBeenCalledWith('/project');
     expect(mockInfo).not.toHaveBeenCalledWith(
       expect.stringMatching(/Loaded \d+ checkpoint/i),
     );

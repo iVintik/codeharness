@@ -46,7 +46,7 @@ const CHECKPOINT_FILE = 'workflow-checkpoints.jsonl';
  * a different hash so stale snapshots are invalidated on resume.
  */
 export function computeConfigHash(config: EngineConfig): string {
-  const stableJson = JSON.stringify(config.workflow, stableReplacer);
+  const stableJson = JSON.stringify({ workflow: config.workflow, agents: config.agents }, stableReplacer);
   return createHash('sha256').update(stableJson).digest('hex');
 }
 
@@ -287,9 +287,9 @@ function isValidSnapshot(value: unknown): value is XStateWorkflowSnapshot {
   if (!value || typeof value !== 'object') return false;
   const s = value as Record<string, unknown>;
 
-  if (!('snapshot' in s)) return false;
+  if (!s.snapshot || typeof s.snapshot !== 'object') return false;
   if (typeof s.configHash !== 'string' || s.configHash.length === 0) return false;
-  if (typeof s.savedAt !== 'string' || s.savedAt.length === 0) return false;
+  if (typeof s.savedAt !== 'string' || Number.isNaN(Date.parse(s.savedAt))) return false;
 
   return true;
 }

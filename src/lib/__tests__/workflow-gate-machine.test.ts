@@ -89,7 +89,7 @@ async function run(input: GateContext) {
 // ─── Tests ──────────────────────────────────────────────────────────
 
 describe('gateMachine', () => {
-  beforeEach(() => { vi.clearAllMocks(); });
+  beforeEach(() => { vi.resetAllMocks(); });
 
   it('gate with all-pass verdicts reaches passed final state', async () => {
     mockDispatchTaskCore.mockResolvedValueOnce(makeOut(PASS));
@@ -104,16 +104,17 @@ describe('gateMachine', () => {
     expect(snap.value).toBe('maxedOut');
   });
 
-  it('gate with circuit breaker triggered reaches halted final state', async () => {
-    // max_retries=5 so we don't hit that; two fail cycles triggers stagnation
-    // Must pass through input.workflowState so iteration accumulates across cycles
-    const input = makeInput({ gate: { gate: 'g1', check: ['check-task'], fix: ['fix-task'], pass_when: 'all_pass', max_retries: 5, circuit_breaker: 'default' } });
+  it('gate retries up to max_retries even with stagnating scores (no circuit breaker)', async () => {
+    // Two consecutive fails with same score — old circuit breaker would halt.
+    // Now it retries until max_retries. Set max_retries=2 so it exits at maxedOut.
+    const input = makeInput({ gate: { gate: 'g1', check: ['check-task'], fix: ['fix-task'], pass_when: 'all_pass', max_retries: 2, circuit_breaker: 'default' } });
     mockDispatchTaskCore
       .mockImplementationOnce((i: { workflowState: WorkflowState }) => Promise.resolve(makeOut(FAIL, i.workflowState)))
       .mockImplementationOnce((i: { workflowState: WorkflowState }) => Promise.resolve(makeOut('ok', i.workflowState)))
-      .mockImplementationOnce((i: { workflowState: WorkflowState }) => Promise.resolve(makeOut(FAIL, i.workflowState)));
+      .mockImplementationOnce((i: { workflowState: WorkflowState }) => Promise.resolve(makeOut(FAIL, i.workflowState)))
+      .mockImplementationOnce((i: { workflowState: WorkflowState }) => Promise.resolve(makeOut('ok', i.workflowState)));
     const { snap } = await run(input);
-    expect(snap.value).toBe('halted');
+    expect(snap.value).toBe('maxedOut');
   });
 
   it('INTERRUPT event transitions to interrupted final state', async () => {

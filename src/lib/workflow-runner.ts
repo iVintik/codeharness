@@ -12,7 +12,7 @@ import { runMachine, type RunOutput } from './workflow-run-machine.js';
 import { snapshotToPosition, visualize, type WorkflowPosition } from './workflow-visualizer.js';
 
 // Re-export public helpers so existing imports from workflow-runner continue to work.
-export { loadWorkItems } from './workflow-work-items.js';
+export { loadWorkItems, loadCheckedStories } from './workflow-work-items.js';
 export { checkDriverHealth } from './workflow-driver-health.js';
 
 /** Compute a synthetic WorkflowPosition from a dispatch-start event's storyKey + taskName.
@@ -331,8 +331,15 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   // Promote 'checked' stories to 'done' after sprint-level steps complete (or if no sprint steps)
   if (!finalOutput.halted && state.phase !== 'interrupted' && errors.length === 0) {
     const { updateStoryStatus: updateStatus } = await import('../modules/sprint/index.js');
+    // Mark processed stories as done
     for (const storyKey of storiesProcessed) {
       updateStatus(storyKey, 'done');
+    }
+    // Also promote any checked stories that weren't in the run (from previous runs)
+    const { loadCheckedStories: loadChecked } = await import('./workflow-work-items.js');
+    const checkedStories = loadChecked(config.sprintStatusPath);
+    for (const item of checkedStories) {
+      updateStatus(item.key, 'done');
     }
   }
 

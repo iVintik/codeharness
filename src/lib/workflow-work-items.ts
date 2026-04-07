@@ -28,7 +28,7 @@ export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): Wo
         for (const [key, status] of Object.entries(devStatus)) {
           if (key.startsWith('epic-')) continue;
           if (key.endsWith('-retrospective')) continue;
-          if (status === 'backlog' || status === 'ready-for-dev' || status === 'in-progress' || status === 'checked')
+          if (status === 'backlog' || status === 'ready-for-dev' || status === 'in-progress')
             items.push({ key, source: 'sprint' });
         }
       }
@@ -56,6 +56,27 @@ export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): Wo
               items.push({ key: issue.id as string, title: issue.title as string | undefined, source: 'issues' });
           }
         }
+      }
+    }
+  }
+  return items;
+}
+
+/** Load stories with 'checked' status — these passed story_flow but need sprint-level verification. */
+export function loadCheckedStories(sprintStatusPath: string): WorkItem[] {
+  const items: WorkItem[] = [];
+  if (!existsSync(sprintStatusPath)) return items;
+  let raw: string;
+  try { raw = readFileSync(sprintStatusPath, 'utf-8'); } catch { return items; } // IGNORE: unreadable
+  let parsed: unknown;
+  try { parsed = parse(raw); } catch { return items; } // IGNORE: malformed
+  if (parsed && typeof parsed === 'object') {
+    const data = parsed as Record<string, unknown>;
+    const devStatus = data.development_status as Record<string, unknown> | undefined;
+    if (devStatus && typeof devStatus === 'object') {
+      for (const [key, status] of Object.entries(devStatus)) {
+        if (key.startsWith('epic-') || key.endsWith('-retrospective')) continue;
+        if (status === 'checked') items.push({ key, source: 'sprint' });
       }
     }
   }

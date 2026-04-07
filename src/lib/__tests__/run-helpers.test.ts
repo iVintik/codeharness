@@ -142,7 +142,7 @@ describe('countStories', () => {
       '5-4-another': 'in-progress',
       'epic-5-retrospective': 'optional',
     });
-    expect(counts).toEqual({ total: 4, ready: 2, done: 1, inProgress: 1, verified: 0 });
+    expect(counts).toEqual({ total: 4, ready: 2, done: 1, inProgress: 1, checked: 0, verified: 0 });
   });
 
   it('ignores epic keys and retrospective keys', () => {
@@ -155,7 +155,7 @@ describe('countStories', () => {
   });
 
   it('returns zeros for empty statuses', () => {
-    expect(countStories({})).toEqual({ total: 0, ready: 0, done: 0, inProgress: 0, verified: 0 });
+    expect(countStories({})).toEqual({ total: 0, ready: 0, done: 0, inProgress: 0, checked: 0, verified: 0 });
   });
 
   it('counts review status as inProgress', () => {
@@ -168,7 +168,7 @@ describe('countStories', () => {
       '1-2-story': 'verifying',
       '1-3-story': 'done',
     });
-    expect(counts).toEqual({ total: 3, ready: 0, done: 1, inProgress: 0, verified: 2 });
+    expect(counts).toEqual({ total: 3, ready: 0, done: 1, inProgress: 0, checked: 0, verified: 2 });
   });
 });
 

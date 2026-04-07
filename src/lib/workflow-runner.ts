@@ -328,6 +328,14 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     }
   }
 
+  // Promote 'checked' stories to 'done' after sprint-level steps complete (or if no sprint steps)
+  if (!finalOutput.halted && state.phase !== 'interrupted' && errors.length === 0) {
+    const { updateStoryStatus: updateStatus } = await import('../modules/sprint/index.js');
+    for (const storyKey of storiesProcessed) {
+      updateStatus(storyKey, 'done');
+    }
+  }
+
   if (state.phase !== 'interrupted' && errors.length === 0 && state.phase !== 'max-iterations' && state.phase !== 'circuit-breaker') {
     state = { ...state, phase: 'completed' };
   } else if (state.phase === 'executing') {

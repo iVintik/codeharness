@@ -26,14 +26,14 @@ export function countStories(statuses: Record<string, string>): {
   ready: number;
   done: number;
   inProgress: number;
-   
+  checked: number;
   verified: number;
 } {
   let total = 0;
   let ready = 0;
   let done = 0;
   let inProgress = 0;
-   
+  let checked = 0;
   let verified = 0;
 
   for (const [key, status] of Object.entries(statuses)) {
@@ -42,10 +42,11 @@ export function countStories(statuses: Record<string, string>): {
     if (status === 'backlog' || status === 'ready-for-dev') ready++;
     else if (status === 'done') done++;
     else if (status === 'in-progress' || status === 'review') inProgress++;
+    else if (status === 'checked') checked++;
     else if (status === 'verifying') verified++;
   }
 
-  return { total, ready, done, inProgress, verified };
+  return { total, ready, done, inProgress, checked, verified };
 }
 
 // --- Elapsed Time Formatting (AC #6) ---

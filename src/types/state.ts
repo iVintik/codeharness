@@ -8,6 +8,7 @@ export type StoryStatus =
   | 'ready'
   | 'in-progress'
   | 'review'
+  | 'checked'
   | 'verifying'
   | 'done'
   | 'failed'

@@ -112,13 +112,13 @@ export function registerRunCommand(program: Command): void {
         return;
       }
 
-      if (counts.ready === 0 && counts.inProgress === 0) {
+      if (counts.ready === 0 && counts.inProgress === 0 && counts.checked === 0) {
         fail('No stories ready for execution', outputOpts);
         process.exitCode = 1;
         return;
       }
 
-      info(`Starting autonomous execution — ${counts.ready} ready, ${counts.inProgress} in progress, ${counts.verified} verified, ${counts.done}/${counts.total} done`, outputOpts);
+      info(`Starting autonomous execution — ${counts.ready} ready, ${counts.inProgress} in progress, ${counts.checked} checked, ${counts.done}/${counts.total} done`, outputOpts);
 
       const maxIterations = parseInt(options.maxIterations, 10);
       const timeout = parseInt(options.timeout, 10);
@@ -272,11 +272,11 @@ export function registerRunCommand(program: Command): void {
           }
         }
         if (event.type === 'story-done') {
-          storiesDone++;
-          updateStoryStatus(event.storyKey, 'done');
+          // Mark as 'checked' (passed quality gate) — sprint-level verify promotes to 'done'
+          updateStoryStatus(event.storyKey, 'checked');
           const idx = storyEntries.findIndex(s => s.key === event.storyKey);
           if (idx >= 0) { storyEntries[idx] = { ...storyEntries[idx], status: 'done' }; renderer.updateStories([...storyEntries]); }
-          // Update header immediately so progress count reflects the completed story
+          storiesDone++;
           renderer.updateSprintState({ done: storiesDone });
         }
       };

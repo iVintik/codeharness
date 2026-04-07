@@ -28,7 +28,7 @@ export function loadWorkItems(sprintStatusPath: string, issuesPath?: string): Wo
         for (const [key, status] of Object.entries(devStatus)) {
           if (key.startsWith('epic-')) continue;
           if (key.endsWith('-retrospective')) continue;
-          if (status === 'backlog' || status === 'ready-for-dev' || status === 'in-progress')
+          if (status === 'backlog' || status === 'ready-for-dev' || status === 'in-progress' || status === 'checked')
             items.push({ key, source: 'sprint' });
         }
       }

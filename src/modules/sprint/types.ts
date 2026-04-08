@@ -2,7 +2,7 @@
  * Types for the sprint module.
  */
 
-import type { StoryStatus, ActionItem, AcVerdict } from '../../types/state.js';
+import type { StoryStatus, ActionItem, AcVerdict, AcResult } from '../../types/state.js';
 
 /** Partial update for live run progress fields */
 export interface RunProgressUpdate {
@@ -23,6 +23,10 @@ export interface StorySelection {
 export interface StoryDetail {
   readonly error?: string;
   readonly proofPath?: string;
+  readonly acResults?: AcResult[];
+  readonly verifyVerdict?: AcVerdict;
+  readonly verifyScore?: number;
+  readonly verifiedAt?: string;
 }
 
 /** Info about a story blocked due to retry exhaustion */

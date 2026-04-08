@@ -435,7 +435,7 @@ describe('processVerifyResult', () => {
 
   it('returns action: "mark-done" when all pass', () => {
     mockedExistsSync.mockReturnValue(true);
-    mockedReadFileSync.mockReturnValueOnce(PROOF_ALL_PASS);
+    mockedReadFileSync.mockReturnValue(PROOF_ALL_PASS);
     mockState(3);
     mockedUpdateStoryStatus.mockReturnValue({ success: true, data: undefined });
 
@@ -447,7 +447,16 @@ describe('processVerifyResult', () => {
     expect(result.data.failingAcs).toHaveLength(0);
     expect(result.data.attempts).toBe(3);
 
-    expect(mockedUpdateStoryStatus).toHaveBeenCalledWith('3-3-test', 'done');
+    expect(mockedUpdateStoryStatus).toHaveBeenCalledWith('3-3-test', 'done', {
+      proofPath: expect.stringContaining('verification/3-3-test-proof.md'),
+      acResults: [
+        { id: 'AC1', verdict: 'pass' },
+        { id: 'AC2', verdict: 'pass' },
+      ],
+      verifyVerdict: 'pass',
+      verifyScore: 100,
+      verifiedAt: expect.any(String),
+    });
   });
 
   it('returns action: "mark-blocked" when attempts >= maxAttempts (default 10)', () => {
@@ -539,7 +548,7 @@ describe('processVerifyResult', () => {
 
   it('returns fail() when updateStoryStatus fails on mark-done', () => {
     mockedExistsSync.mockReturnValue(true);
-    mockedReadFileSync.mockReturnValueOnce(PROOF_ALL_PASS);
+    mockedReadFileSync.mockReturnValue(PROOF_ALL_PASS);
     mockState(1);
     mockedUpdateStoryStatus.mockReturnValue({
       success: false,

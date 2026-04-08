@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
 import type { FailingAc, FeedbackResult } from './types.js';
+import type { AcResult } from '../../types/state.js';
 import {
   getSprintState as getSprintStateImpl,
   updateStoryStatus as updateStoryStatusImpl,
@@ -85,6 +86,39 @@ export function parseProofForFailures(proofPath: string): Result<FailingAc[]> {
     const msg = err instanceof Error ? err.message : String(err);
     return fail(`Failed to parse proof: ${msg}`);
   }
+}
+
+function parseProofForAcResults(proofPath: string): Result<AcResult[]> {
+  try {
+    if (!existsSync(proofPath)) {
+      return fail(`Proof file not found: ${proofPath}`);
+    }
+    const content = readFileSync(proofPath, 'utf-8');
+    const results: AcResult[] = [];
+    const acPattern = /^## AC (\d+):[\s\S]*?\*\*Verdict:\*\*\s*(.+)$/gm;
+    let match: RegExpExecArray | null;
+    while ((match = acPattern.exec(content)) !== null) {
+      const rawVerdict = match[2].trim();
+      const verdict = rawVerdict === 'PASS'
+        ? 'pass'
+        : rawVerdict.includes('[ESCALATE]')
+          ? 'escalate'
+          : rawVerdict === 'PENDING'
+            ? 'pending'
+            : 'fail';
+      results.push({ id: `AC${match[1]}`, verdict });
+    }
+    return ok(results);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return fail(`Failed to parse proof AC results: ${msg}`);
+  }
+}
+
+function computeVerificationScore(acResults: ReadonlyArray<AcResult>): number {
+  if (acResults.length === 0) return 0;
+  const passed = acResults.filter((ac) => ac.verdict === 'pass').length;
+  return Math.round((passed / acResults.length) * 100);
 }
 
 /**
@@ -194,7 +228,17 @@ export function processVerifyResult(
 
     // All pass → mark done
     if (failingAcs.length === 0) {
-      const updateResult = updateStoryStatusImpl(storyKey, 'done');
+      const acResultsResult = parseProofForAcResults(proofPath);
+      if (!acResultsResult.success) {
+        return fail(acResultsResult.error);
+      }
+      const updateResult = updateStoryStatusImpl(storyKey, 'done', {
+        proofPath,
+        acResults: acResultsResult.data,
+        verifyVerdict: 'pass',
+        verifyScore: computeVerificationScore(acResultsResult.data),
+        verifiedAt: new Date().toISOString(),
+      });
       if (!updateResult.success) {
         return fail(updateResult.error);
       }

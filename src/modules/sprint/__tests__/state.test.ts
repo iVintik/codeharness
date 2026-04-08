@@ -207,7 +207,13 @@ describe('updateStoryStatus', () => {
     registerStory('story-1');
     registerStory('story-2');
     updateStoryStatus('story-1', 'in-progress');
-    updateStoryStatus('story-2', 'done');
+    updateStoryStatus('story-2', 'done', {
+      proofPath: 'docs/story-2-proof.md',
+      acResults: [{ id: 'AC1', verdict: 'pass' }],
+      verifyVerdict: 'pass',
+      verifyScore: 100,
+      verifiedAt: '2026-04-08T00:00:00.000Z',
+    });
 
     const state = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     expect(state.stories['story-1']).toBeDefined();
@@ -230,6 +236,10 @@ describe('updateStoryStatus', () => {
     registerStory('story-1');
     updateStoryStatus('story-1', 'done', {
       proofPath: 'docs/proof.md',
+      acResults: [{ id: 'AC1', verdict: 'pass' }],
+      verifyVerdict: 'pass',
+      verifyScore: 100,
+      verifiedAt: '2026-04-08T00:00:00.000Z',
     });
 
     const state = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
@@ -248,7 +258,13 @@ describe('updateStoryStatus', () => {
 
   it('uses atomic write (tmp then rename)', () => {
     registerStory('story-1');
-    updateStoryStatus('story-1', 'done');
+    updateStoryStatus('story-1', 'done', {
+      proofPath: 'docs/proof.md',
+      acResults: [{ id: 'AC1', verdict: 'pass' }],
+      verifyVerdict: 'pass',
+      verifyScore: 100,
+      verifiedAt: '2026-04-08T00:00:00.000Z',
+    });
     expect(existsSync(tmpFile())).toBe(false);
     expect(existsSync(stateFile())).toBe(true);
   });
@@ -272,9 +288,23 @@ describe('lastAttempt semantics and error paths', () => {
     const state1 = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     const firstAttemptTime = state1.stories['story-1'].lastAttempt;
     expect(firstAttemptTime).not.toBeNull();
-    updateStoryStatus('story-1', 'done');
+    updateStoryStatus('story-1', 'done', {
+      proofPath: 'docs/proof.md',
+      acResults: [{ id: 'AC1', verdict: 'pass' }],
+      verifyVerdict: 'pass',
+      verifyScore: 100,
+      verifiedAt: '2026-04-08T00:00:00.000Z',
+    });
     const state2 = JSON.parse(readFileSync(stateFile(), 'utf-8')) as SprintState;
     expect(state2.stories['story-1'].lastAttempt).toBe(firstAttemptTime);
+  });
+
+  it('rejects done transition without passing verification evidence', () => {
+    registerStory('story-1');
+    const result = updateStoryStatus('story-1', 'done');
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error).toContain('cannot be marked done without passing verification verdict and score');
   });
 
   it('writeStateAtomic returns fail on serialization error', () => {
@@ -302,7 +332,13 @@ describe('concurrent writes', () => {
     registerStory('concurrent-1');
     registerStory('concurrent-2');
     updateStoryStatus('concurrent-1', 'in-progress');
-    updateStoryStatus('concurrent-2', 'done');
+    updateStoryStatus('concurrent-2', 'done', {
+      proofPath: 'docs/concurrent-2-proof.md',
+      acResults: [{ id: 'AC1', verdict: 'pass' }],
+      verifyVerdict: 'pass',
+      verifyScore: 100,
+      verifiedAt: '2026-04-08T00:00:00.000Z',
+    });
 
     const raw = readFileSync(stateFile(), 'utf-8');
     expect(() => JSON.parse(raw)).not.toThrow();

@@ -31,6 +31,9 @@ export interface StoryState {
   readonly lastError: string | null;
   readonly proofPath: string | null;
   readonly acResults: AcResult[] | null;
+  readonly verifyVerdict: AcVerdict | null;
+  readonly verifyScore: number | null;
+  readonly verifiedAt: string | null;
 }
 
 /** Source of an action item */

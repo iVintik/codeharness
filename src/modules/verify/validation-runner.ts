@@ -69,6 +69,9 @@ export function createValidationSprint(): Result<ValidationSprintResult> {
           lastError: null,
           proofPath: null,
           acResults: null,
+          verifyVerdict: null,
+          verifyScore: null,
+          verifiedAt: null,
         };
         updatedStories[key] = initialState;
         acsAdded++;
@@ -278,6 +281,9 @@ export function processValidationResult(
       lastError: newError,
       proofPath: existing.proofPath,
       acResults: existing.acResults,
+      verifyVerdict: existing.verifyVerdict,
+      verifyScore: existing.verifyScore,
+      verifiedAt: existing.verifiedAt,
     };
 
     const updatedStories = { ...current.stories, [key]: updatedStory };

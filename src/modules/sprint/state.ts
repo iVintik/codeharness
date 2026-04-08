@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, renameSync, existsSync, unlinkSync } from 
 import { join, dirname } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
-import type { SprintState, StoryStatus, StoryState } from '../../types/state.js';
+import type { SprintState, StoryStatus, StoryState, AcResult } from '../../types/state.js';
 import type { StoryDetail, RunProgressUpdate } from './types.js';
 import { migrateFromOldFormat, migrateV1ToV2, parseStoryRetriesRecord, parseFlaggedStoriesList } from './migration.js';
 import { readSprintStatus } from '../../lib/sync/index.js';
@@ -90,7 +90,18 @@ function defaultStoryState(): StoryState {
     lastError: null,
     proofPath: null,
     acResults: null,
+    verifyVerdict: null,
+    verifyScore: null,
+    verifiedAt: null,
   };
+}
+
+function hasPassingVerificationEvidence(story: StoryState): boolean {
+  return Boolean(
+    story.verifyVerdict === 'pass'
+    && story.verifyScore !== null
+    && story.verifyScore >= 100,
+  );
 }
 
 /**
@@ -349,6 +360,29 @@ export function updateStoryStatus(
     return fail(`Story '${key}' does not exist in sprint state — refusing to create phantom entry`);
   }
 
+  if (status === 'done') {
+    const nextProofPath = detail?.proofPath ?? existingStory.proofPath;
+    const nextAcResults = detail?.acResults ?? existingStory.acResults;
+    const nextVerifyVerdict = detail?.verifyVerdict ?? existingStory.verifyVerdict;
+    const nextVerifyScore = detail?.verifyScore ?? existingStory.verifyScore;
+    const nextVerifiedAt = detail?.verifiedAt ?? existingStory.verifiedAt;
+    const candidate: StoryState = {
+      ...existingStory,
+      status,
+      attempts: existingStory.attempts,
+      lastAttempt: existingStory.lastAttempt,
+      lastError: detail?.error ?? existingStory.lastError,
+      proofPath: nextProofPath,
+      acResults: nextAcResults,
+      verifyVerdict: nextVerifyVerdict,
+      verifyScore: nextVerifyScore,
+      verifiedAt: nextVerifiedAt,
+    };
+    if (!hasPassingVerificationEvidence(candidate)) {
+      return fail(`Story '${key}' cannot be marked done without passing verification verdict and score`);
+    }
+  }
+
   const isNewAttempt = status === 'in-progress';
 
   const updatedStory: StoryState = {
@@ -362,7 +396,10 @@ export function updateStoryStatus(
       : existingStory.lastAttempt,
     lastError: detail?.error ?? existingStory.lastError,
     proofPath: detail?.proofPath ?? existingStory.proofPath,
-    acResults: existingStory.acResults,
+    acResults: detail?.acResults ?? existingStory.acResults,
+    verifyVerdict: detail?.verifyVerdict ?? existingStory.verifyVerdict,
+    verifyScore: detail?.verifyScore ?? existingStory.verifyScore,
+    verifiedAt: detail?.verifiedAt ?? existingStory.verifiedAt,
   };
 
   const updatedStories = { ...current.stories, [key]: updatedStory };
@@ -562,6 +599,18 @@ export function reconcileState(): Result<ReconciliationResult> {
     const updatedEpics: Record<string, import('../../types/state.js').EpicState> = { ...state.epics };
     for (const [epicKey, storyKeys] of epicStories) {
       const total = storyKeys.length;
+      for (const key of storyKeys) {
+        const story = state.stories[key];
+        if (story.status === 'done' && !hasPassingVerificationEvidence(story)) {
+          state.stories[key] = {
+            ...story,
+            status: 'checked',
+          };
+          changed = true;
+          corrections.push(`reopened unverified story ${key}: done→checked`);
+        }
+      }
+
       const doneCount = storyKeys.filter(k => state.stories[k].status === 'done').length;
       const failedCount = storyKeys.filter(k => state.stories[k].status === 'failed').length;
       const computedStatus = doneCount === total ? 'done'

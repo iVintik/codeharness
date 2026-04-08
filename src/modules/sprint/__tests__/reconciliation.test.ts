@@ -91,7 +91,7 @@ describe('reconcileState', () => {
         stories: {
           '1-1-feature-a': {
             status: 'done', attempts: 1, lastAttempt: null,
-            lastError: null, proofPath: null, acResults: null,
+            lastError: null, proofPath: 'verification/1-1-feature-a-proof.md', acResults: [{ id: 'AC1', verdict: 'pass' }], verifyVerdict: 'pass', verifyScore: 100, verifiedAt: '2026-04-08T00:00:00.000Z',
           },
           '1-2-feature-b': {
             status: 'backlog', attempts: 0, lastAttempt: null,
@@ -224,11 +224,11 @@ describe('reconcileState', () => {
         stories: {
           '5-1-alpha': {
             status: 'done', attempts: 1, lastAttempt: null,
-            lastError: null, proofPath: null, acResults: null,
+            lastError: null, proofPath: 'verification/5-1-alpha-proof.md', acResults: [{ id: 'AC1', verdict: 'pass' }], verifyVerdict: 'pass', verifyScore: 100, verifiedAt: '2026-04-08T00:00:00.000Z',
           },
           '5-2-beta': {
             status: 'done', attempts: 1, lastAttempt: null,
-            lastError: null, proofPath: null, acResults: null,
+            lastError: null, proofPath: 'verification/5-2-beta-proof.md', acResults: [{ id: 'AC1', verdict: 'pass' }], verifyVerdict: 'pass', verifyScore: 100, verifiedAt: '2026-04-08T00:00:00.000Z',
           },
           '6-1-gamma': {
             status: 'backlog', attempts: 0, lastAttempt: null,
@@ -265,7 +265,7 @@ describe('reconcileState', () => {
         stories: {
           '7-1-existing': {
             status: 'done', attempts: 1, lastAttempt: null,
-            lastError: null, proofPath: null, acResults: null,
+            lastError: null, proofPath: 'verification/7-1-existing-proof.md', acResults: [{ id: 'AC1', verdict: 'pass' }], verifyVerdict: 'pass', verifyScore: 100, verifiedAt: '2026-04-08T00:00:00.000Z',
           },
         },
         epics: {
@@ -289,7 +289,7 @@ describe('reconcileState', () => {
         stories: {
           '8-1-clean': {
             status: 'done', attempts: 1, lastAttempt: null,
-            lastError: null, proofPath: null, acResults: null,
+            lastError: null, proofPath: 'verification/8-1-clean-proof.md', acResults: [{ id: 'AC1', verdict: 'pass' }], verifyVerdict: 'pass', verifyScore: 100, verifiedAt: '2026-04-08T00:00:00.000Z',
           },
         },
         epics: {
@@ -325,6 +325,30 @@ describe('reconcileState', () => {
 
       const afterContent = readFileSync(stateFile(), 'utf-8');
       expect(afterContent).toBe(beforeContent);
+    });
+
+    it('reopens done stories without verification evidence back to checked', () => {
+      const state = makeState({
+        stories: {
+          '9-1-stale': {
+            status: 'done', attempts: 1, lastAttempt: null,
+            lastError: null, proofPath: null, acResults: null,
+          },
+        },
+        epics: {
+          'epic-9': { status: 'done', storiesTotal: 1, storiesDone: 1 },
+        },
+      });
+      writeState(state);
+
+      const result = reconcileState();
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+
+      expect(result.data.corrections).toContain('reopened unverified story 9-1-stale: done→checked');
+      const updated = readState();
+      expect(updated.stories['9-1-stale'].status).toBe('checked');
+      expect(updated.epics['epic-9'].status).toBe('in-progress');
     });
   });
 
@@ -407,7 +431,7 @@ describe('reconcileState', () => {
         stories: {
           '13-1-logged': {
             status: 'done', attempts: 1, lastAttempt: null,
-            lastError: null, proofPath: null, acResults: null,
+            lastError: null, proofPath: 'verification/13-1-logged-proof.md', acResults: [{ id: 'AC1', verdict: 'pass' }], verifyVerdict: 'pass', verifyScore: 100, verifiedAt: '2026-04-08T00:00:00.000Z',
           },
         },
         epics: {}, // Missing epic triggers correction
@@ -426,7 +450,7 @@ describe('reconcileState', () => {
         stories: {
           '14-1-quiet': {
             status: 'done', attempts: 1, lastAttempt: null,
-            lastError: null, proofPath: null, acResults: null,
+            lastError: null, proofPath: 'verification/14-1-quiet-proof.md', acResults: [{ id: 'AC1', verdict: 'pass' }], verifyVerdict: 'pass', verifyScore: 100, verifiedAt: '2026-04-08T00:00:00.000Z',
           },
         },
         epics: {

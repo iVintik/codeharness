@@ -50,6 +50,7 @@ const {
   mockClearCheckpointLog,
   mockClearAllPersistence,
   mockCleanStaleTmpFiles,
+  mockUpdateStoryStatus,
 } = vi.hoisted(() => ({
   mockDispatchAgent: vi.fn(),
   mockReadWorkflowState: vi.fn(),
@@ -83,6 +84,7 @@ const {
   mockClearCheckpointLog: vi.fn(),
   mockClearAllPersistence: vi.fn(() => ({ snapshotCleared: true, checkpointCleared: true })),
   mockCleanStaleTmpFiles: vi.fn(),
+  mockUpdateStoryStatus: vi.fn(),
 }));
 
 vi.mock('xstate', async (importOriginal) => {
@@ -195,6 +197,10 @@ vi.mock('../workflow-persistence.js', async (importOriginal) => {
   };
 });
 
+vi.mock('../../modules/sprint/index.js', () => ({
+  updateStoryStatus: mockUpdateStoryStatus,
+}));
+
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 function makeDriverStream(output: string, sessionId: string, opts?: { error?: string; errorCategory?: string }) {
@@ -265,7 +271,7 @@ function makeWorkflow(partial: {
   storyFlow?: (string | { loop: string[] })[];
   epicFlow?: (string | { loop: string[] })[];
   epicTasks?: string[];
-  sprintFlow?: string[];
+  sprintFlow?: Array<string | GateConfig>;
 }): ResolvedWorkflow {
   if (partial.storyFlow || partial.epicFlow) {
     return {
@@ -793,7 +799,7 @@ describe('runWorkflowActor', () => {
 
     await runWorkflowActor(config);
 
-    expect(mockWriteWorkflowState).toHaveBeenCalledTimes(3);
+    expect(mockWriteWorkflowState).toHaveBeenCalledTimes(4);
   });
 
   it('executes loop blocks instead of skipping them', async () => {
@@ -2009,6 +2015,38 @@ describe('snapshot resume (story 26-2)', () => {
     expect(mockSaveSnapshot).toHaveBeenCalled();
   });
 
+  it('logs a warning when transition snapshot save fails but continues running', async () => {
+    mockSaveSnapshot.mockImplementationOnce(() => {
+      throw new Error('disk full');
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    expect(result.success).toBe(true);
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to save transition snapshot: disk full'),
+    );
+  });
+
+  it('logs a warning when terminal snapshot save fails but still resolves', async () => {
+    mockSaveSnapshot.mockImplementation(() => {
+      throw new Error('permission denied');
+    });
+    mockParse.mockReturnValue({ development_status: { '5-1-foo': 'ready-for-dev' } });
+
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({ tasks: { implement: makeTask() }, flow: ['implement'] }),
+    }));
+
+    expect(result.success).toBe(true);
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to save terminal snapshot: permission denied'),
+    );
+  });
+
   it('clearAllPersistence called after successful resumed completion (AC #6)', async () => {
     // A resumed run that completes all remaining tasks successfully must clear
     // the snapshot file — there is nothing left to resume.
@@ -2260,6 +2298,8 @@ describe('persistence cleanup (story 26-4)', () => {
     }));
 
     expect(result.success).toBe(true);
+    expect(result.persistenceState).toBe('cleared');
+    expect(result.finalPhase).toBe('completed');
     expect(mockClearAllPersistence).toHaveBeenCalledWith('/project');
     expect(mockInfo).toHaveBeenCalledWith(
       expect.stringMatching(/Persistence cleared.*snapshot.*yes.*checkpoints.*yes/i),
@@ -2278,6 +2318,8 @@ describe('persistence cleanup (story 26-4)', () => {
     }));
 
     expect(result.success).toBe(false);
+    expect(result.persistenceState).toBe('preserved');
+    expect(result.finalPhase).toBe('error');
     expect(mockClearAllPersistence).not.toHaveBeenCalled();
     expect(mockInfo).toHaveBeenCalledWith(
       expect.stringContaining('Persistence preserved for resume'),
@@ -2295,6 +2337,8 @@ describe('persistence cleanup (story 26-4)', () => {
     }));
 
     expect(result.success).toBe(false);
+    expect(result.persistenceState).toBe('preserved');
+    expect(result.finalPhase).toBe('interrupted');
     expect(mockClearAllPersistence).not.toHaveBeenCalled();
     expect(mockInfo).toHaveBeenCalledWith(
       expect.stringContaining('Persistence preserved for resume'),
@@ -2411,6 +2455,91 @@ describe('persistence cleanup (story 26-4)', () => {
     expect(mockInfo).toHaveBeenCalledWith(
       expect.stringMatching(/snapshot: no.*checkpoints: no/i),
     );
+  });
+
+  it('retries failed sprint deploy via following gate fix tasks before promotion', async () => {
+    mockLoadSnapshot.mockReturnValue(null);
+    mockUpdateStoryStatus.mockReset();
+    mockParse.mockReturnValue({
+      development_status: {
+        '26-1-xstate-snapshot-persistence': 'checked',
+        '26-2-snapshot-resume-config-hash-validation': 'checked',
+      },
+    });
+
+    let deployAttempts = 0;
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Verify the stories for epic')) {
+        return makeDriverStream('<evidence ac="1" status="pass">ok</evidence><verdict>pass</verdict>', 'sess-verify');
+      }
+      if (opts.prompt.includes('Deploy the entire sprint.')) {
+        deployAttempts++;
+        if (deployAttempts === 1) return makeDriverStreamError(new Error('deploy failed'));
+        return makeDriverStream('deploy ok', 'sess-deploy');
+      }
+      return makeDriverStream('ok', 'sess-generic');
+    });
+
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({
+        tasks: {
+          implement: makeTask(),
+          retry: makeTask(),
+          document: makeTask(),
+          deploy: makeTask(),
+          verify: makeTask({ source_access: false }),
+        },
+        flow: ['implement'],
+        sprintFlow: ['deploy', { gate: 'verification', check: ['verify'], fix: ['retry', 'document', 'deploy'], max_retries: 3 } as GateConfig],
+      }),
+    }));
+
+    expect(result.success).toBe(true);
+    expect(result.errors).toHaveLength(0);
+    expect(deployAttempts).toBe(2);
+    expect(mockDriverDispatch).toHaveBeenCalledTimes(8);
+    expect(mockUpdateStoryStatus).toHaveBeenCalledWith('26-1-xstate-snapshot-persistence', 'done');
+    expect(mockUpdateStoryStatus).toHaveBeenCalledWith('26-2-snapshot-resume-config-hash-validation', 'done');
+  });
+
+  it('fails sprint run when deploy remediation exhausts retries', async () => {
+    mockLoadSnapshot.mockReturnValue(null);
+    mockUpdateStoryStatus.mockReset();
+    mockParse.mockReturnValue({
+      development_status: {
+        '26-1-xstate-snapshot-persistence': 'checked',
+      },
+    });
+
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Verify the stories for epic')) {
+        return makeDriverStream('<evidence ac="1" status="pass">ok</evidence><verdict>pass</verdict>', 'sess-verify');
+      }
+      if (opts.prompt.includes('Deploy the entire sprint.')) {
+        return makeDriverStreamError(new Error('deploy still failing'));
+      }
+      return makeDriverStream('ok', 'sess-generic');
+    });
+
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({
+        tasks: {
+          implement: makeTask(),
+          retry: makeTask(),
+          document: makeTask(),
+          deploy: makeTask(),
+          verify: makeTask({ source_access: false }),
+        },
+        flow: ['implement'],
+        sprintFlow: ['deploy', { gate: 'verification', check: ['verify'], fix: ['retry', 'document', 'deploy'], max_retries: 2 } as GateConfig],
+      }),
+    }));
+
+    expect(result.success).toBe(false);
+    expect(result.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ taskName: 'deploy', code: 'SPRINT_TASK_ERROR' }),
+    ]));
+    expect(mockUpdateStoryStatus).not.toHaveBeenCalled();
   });
 });
 

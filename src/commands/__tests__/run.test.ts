@@ -318,6 +318,63 @@ describe('run command', () => {
       expect(process.exitCode).toBeUndefined();
     });
 
+    it('prints truthful interrupt message when persistence was cleared after a late interrupt', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      let resolveRun: ((value: {
+        success: boolean;
+        tasksCompleted: number;
+        storiesProcessed: number;
+        errors: [];
+        durationMs: number;
+        finalPhase: string;
+        persistenceState: 'cleared' | 'preserved';
+      }) => void) | undefined;
+      executeWorkflowMock.mockImplementation(() => new Promise((resolve) => {
+        resolveRun = resolve;
+      }));
+
+      const runPromise = runCommand();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      process.emit('SIGINT', 'SIGINT');
+      resolveRun?.({ success: true, tasksCompleted: 3, storiesProcessed: 1, errors: [], durationMs: 60000, finalPhase: 'completed', persistenceState: 'cleared' });
+      await runPromise;
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Interrupted after current task finished'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('no resume state was kept'));
+      expect(process.exitCode).toBe(130);
+    });
+
+    it('prints resume message when interrupt preserved persistence', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      let resolveRun: ((value: {
+        success: boolean;
+        tasksCompleted: number;
+        storiesProcessed: number;
+        errors: [];
+        durationMs: number;
+        finalPhase: string;
+        persistenceState: 'cleared' | 'preserved';
+      }) => void) | undefined;
+      executeWorkflowMock.mockImplementation(() => new Promise((resolve) => {
+        resolveRun = resolve;
+      }));
+
+      const runPromise = runCommand();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      process.emit('SIGINT', 'SIGINT');
+      resolveRun?.({ success: false, tasksCompleted: 2, storiesProcessed: 1, errors: [], durationMs: 12000, finalPhase: 'interrupted', persistenceState: 'preserved' });
+      await runPromise;
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('State saved — run again to resume'));
+      expect(process.exitCode).toBe(130);
+    });
+
     it('constructs EngineConfig correctly from CLI options (AC #4)', async () => {
       mockPaths({ '.claude': true });
       readSprintStatusMock.mockReturnValue({ '1-1-story': 'backlog' });

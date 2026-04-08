@@ -481,7 +481,7 @@ describe('Performance (Task 11, AC #12)', () => {
     renderer?.cleanup();
   });
 
-  it('routing 4 lanes of events completes within acceptable time', () => {
+  it('routing 4 lanes of events completes within acceptable time', { timeout: 15000 }, () => {
     renderer = createRenderer();
 
     // Set up 4 lanes

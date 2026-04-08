@@ -19,12 +19,16 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
   let { currentState, tasksCompleted, lastContract, lastVerdict, accumulatedCostUsd } = input;
   const projectDir = config.projectDir ?? process.cwd();
   const RUN_SENTINEL = '__run__';
+  const verdictTaskNames = input.verdictTaskNames ?? new Set<string>();
   const lastAgentTaskInLoop = (() => {
-    for (let i = loopBlock.loop.length - 1; i >= 0; i--) {
-      const tn = loopBlock.loop[i]; const t = config.workflow.tasks[tn];
+    const preferredTasks = verdictTaskNames.size > 0
+      ? loopBlock.loop.filter((tn) => verdictTaskNames.has(tn))
+      : loopBlock.loop;
+    for (let i = preferredTasks.length - 1; i >= 0; i--) {
+      const tn = preferredTasks[i]; const t = config.workflow.tasks[tn];
       if (t && t.agent !== null) return tn;
     }
-    return loopBlock.loop[loopBlock.loop.length - 1];
+    return preferredTasks[preferredTasks.length - 1] ?? loopBlock.loop[loopBlock.loop.length - 1];
   })();
   // NOTE: evaluator_scores, circuit_breaker, and iteration are reset by the
   // caller (storyFlowActor/epicStepActor) BEFORE invoking executeLoopBlock.
@@ -144,8 +148,8 @@ const loopMachine = setup({
   },
 });
 
-export async function executeLoopBlock(loopBlock: LoopBlock, state: WorkflowState, config: EngineConfig, workItems: WorkItem[], initialContract?: OutputContract | null, storyFlowTasks?: Set<string>, onStreamEvent?: (event: StreamEvent, driverName?: string) => void): Promise<LoopBlockResult> {
-  const input: LoopMachineContext = { loopBlock, config, workItems, storyFlowTasks, onStreamEvent, maxIterations: config.maxIterations ?? DEFAULT_MAX_ITERATIONS, currentState: state, errors: [], tasksCompleted: 0, halted: false, lastContract: initialContract ?? null, lastVerdict: null, accumulatedCostUsd: 0 };
+export async function executeLoopBlock(loopBlock: LoopBlock, state: WorkflowState, config: EngineConfig, workItems: WorkItem[], initialContract?: OutputContract | null, storyFlowTasks?: Set<string>, onStreamEvent?: (event: StreamEvent, driverName?: string) => void, verdictTaskNames?: Set<string>): Promise<LoopBlockResult> {
+  const input: LoopMachineContext = { loopBlock, config, workItems, storyFlowTasks, verdictTaskNames, onStreamEvent, maxIterations: config.maxIterations ?? DEFAULT_MAX_ITERATIONS, currentState: state, errors: [], tasksCompleted: 0, halted: false, lastContract: initialContract ?? null, lastVerdict: null, accumulatedCostUsd: 0 };
   const actor = createActor(loopMachine, { input });
   return new Promise<LoopBlockResult>((resolve) => {
     actor.subscribe({ complete: () => {
@@ -160,5 +164,4 @@ export async function dispatchTask(task: ResolvedTask, taskName: string, storyKe
   const result = await dispatchTaskCore({ task, taskName, storyKey, definition, config, workflowState: state, previousContract: previousOutputContract ?? null, customPrompt });
   return result.updatedState;
 }
-
 

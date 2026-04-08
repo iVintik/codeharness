@@ -95,6 +95,7 @@ const runEpicActor = fromPromise(async ({ input, signal }: { input: RunContext; 
 
   const completedStoryKeys = new Set(
     epicOut.workflowState.tasks_completed
+      .filter((checkpoint) => !checkpoint.story_key.startsWith('__epic_'))
       .filter((checkpoint) => !checkpoint.error)
       .map((checkpoint) => checkpoint.story_key),
   );

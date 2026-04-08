@@ -9,6 +9,7 @@ import { warn } from './output.js';
 import { extractTag, parseVerdict } from './verdict-parser.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { buildRetryPrompt, DEFAULT_MAX_ITERATIONS, handleDispatchError, HALT_ERROR_CODES, isEngineError, isLoopTaskCompleted, isTaskCompleted, recordErrorInState } from './workflow-compiler.js';
+import { BUILTIN_EPIC_FLOW_TASKS } from './workflow-execution.js';
 import { gateMachine, type GateOutput } from './workflow-gate-machine.js';
 import { writeWorkflowState } from './workflow-state.js';
 import { storyMachine } from './workflow-story-machine.js';
@@ -185,6 +186,22 @@ const epicStepActor = fromPromise(async ({ input, signal }: { input: EpicContext
   }
 
   if (typeof step !== 'string') return ctx;
+  if (step === 'story_flow') {
+    if (!BUILTIN_EPIC_FLOW_TASKS.has(step)) return ctx;
+    if (isTaskCompleted(ctx.workflowState, step, epicSentinel)) return ctx;
+    const workflowState = {
+      ...ctx.workflowState,
+      tasks_completed: [
+        ...ctx.workflowState.tasks_completed,
+        { task_name: step, story_key: epicSentinel, completed_at: new Date().toISOString() },
+      ],
+    };
+    writeWorkflowState(workflowState, projectDir);
+    if (ctx.config.onEvent) {
+      ctx.config.onEvent({ type: 'dispatch-end', taskName: step, storyKey: epicSentinel, elapsedMs: 0, costUsd: 0 });
+    }
+    return { ...ctx, workflowState };
+  }
   const task = ctx.config.workflow.tasks[step];
   if (!task) { warn(`epic-machine: task "${step}" not found in workflow tasks, skipping`); return ctx; }
   if (isTaskCompleted(ctx.workflowState, step, epicSentinel)) return ctx;

@@ -365,7 +365,11 @@ export function registerRunCommand(program: Command): void {
           cleanupResources();
 
           if (interrupted) {
-            info(`Interrupted — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, $${totalCostUsd.toFixed(2)} spent. State saved — run again to resume.`, outputOpts);
+            if (result.persistenceState === 'preserved') {
+              info(`Interrupted — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, $${totalCostUsd.toFixed(2)} spent. State saved — run again to resume.`, outputOpts);
+            } else {
+              info(`Interrupted after current task finished — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, $${totalCostUsd.toFixed(2)} spent. Workflow already completed, so no resume state was kept.`, outputOpts);
+            }
             process.exitCode = 130;
           } else if (result.success) {
             ok(`Workflow completed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, $${totalCostUsd.toFixed(2)} spent in ${formatElapsed(result.durationMs)}`, outputOpts);

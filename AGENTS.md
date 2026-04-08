@@ -42,6 +42,30 @@ verification/           # Showboat proof documents
 - Sprint status: `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - Retry state: `ralph/.story_retries` (strict `key=count` format)
 
+## Git Commit Policy
+
+**All commits must be FULL and COMPLETE.**
+
+- Never commit version bumps (package.json) separately from code changes
+- Never leave tests failing in a commit
+- A commit should represent a complete, working state
+- Include all related changes in a single commit:
+  - Source code changes
+  - Test updates  
+  - Version bumps (if releasing)
+  - Documentation updates
+
+**Bad (partial commits):**
+```bash
+git add package.json && git commit -m "Bump version"
+git add src/ && git commit -m "Fix bug"
+```
+
+**Good (full commits):**
+```bash
+git add -A && git commit -m "Fix bug and bump version to 0.41.8"
+```
+
 ## Session Completion
 
 When ending a work session, you MUST:

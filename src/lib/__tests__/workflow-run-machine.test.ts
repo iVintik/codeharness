@@ -145,6 +145,27 @@ describe('runMachine', () => {
     expect(mockDispatchTaskCore.mock.calls[0][0]).toMatchObject({ storyKey: 'story-1' });
   });
 
+  it('marks story_flow sentinel complete after all stories in an epic finish', async () => {
+    mockDispatchTaskCore.mockResolvedValueOnce(makeOut());
+    const input = makeRunInput({
+      epicEntries: [['17', [{ key: 'story-1' }]]],
+      storyFlow: ['story-task'],
+      epicFlow: ['story_flow', 'deploy'],
+    });
+
+    const { snap } = await run(input);
+
+    expect(snap.value).toBe('allDone');
+    expect(snap.output?.workflowState.tasks_completed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ task_name: 'story_flow', story_key: '__epic_17__' }),
+      ]),
+    );
+    expect(mockDispatchTaskCore).toHaveBeenCalledTimes(2);
+    expect(mockDispatchTaskCore.mock.calls[0][0]).toMatchObject({ taskName: 'story-task', storyKey: 'story-1' });
+    expect(mockDispatchTaskCore.mock.calls[1][0]).toMatchObject({ taskName: 'deploy', storyKey: '__epic_17__' });
+  });
+
   it('run three sequential epics advances currentEpicIndex 0 to 1 to 2 and reaches allDone', async () => {
     mockDispatchTaskCore
       .mockResolvedValueOnce(makeOut())
@@ -363,7 +384,14 @@ describe('runMachine', () => {
     expect(snap.output?.storiesProcessed.has('story-17-1')).toBe(true);
     expect(snap.output?.storiesProcessed.has('story-18-1')).toBe(true);
     expect(calls).toHaveLength(2);
-    expect(calls[1]).toMatchObject({ workflowState: updatedState });
+    expect(calls[1]).toMatchObject({
+      workflowState: expect.objectContaining({
+        ...updatedState,
+        tasks_completed: expect.arrayContaining([
+          expect.objectContaining({ task_name: 'story_flow', story_key: '__epic_17__' }),
+        ]),
+      }),
+    });
   });
 
   it('run context flow passes previousContract and accumulatedCostUsd into the next epic', async () => {

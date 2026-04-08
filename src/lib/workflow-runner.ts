@@ -10,10 +10,16 @@ import { isTaskCompleted } from './workflow-compiler.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
 import { snapshotToPosition, visualize, type WorkflowPosition } from './workflow-visualizer.js';
+import { loadCheckedStories } from './workflow-work-items.js';
 
 // Re-export public helpers so existing imports from workflow-runner continue to work.
 export { loadWorkItems, loadCheckedStories } from './workflow-work-items.js';
 export { checkDriverHealth } from './workflow-driver-health.js';
+
+function warnSnapshotSaveFailure(stage: 'transition' | 'terminal', error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  warn(`workflow-runner: Failed to save ${stage} snapshot: ${message}`);
+}
 
 /** Compute a synthetic WorkflowPosition from a dispatch-start event's storyKey + taskName.
  *  Sub-actors run inside fromPromise and don't emit XState inspect events, so the viz row
@@ -54,6 +60,108 @@ function buildSyntheticPosition(sk: string, tn: string, ee: Array<[string, WorkI
 /** @internal Exported for unit tests only. */
 export { buildSyntheticPosition as _buildSyntheticPositionForTest };
 
+async function runSprintRepairTasks(
+  fixTasks: string[],
+  state: RunMachineContext['workflowState'],
+  config: EngineConfig,
+  previousContract: RunOutput['lastContract'],
+  storyFlowTasks: Set<string>,
+  remediationItems: WorkItem[],
+): Promise<{ state: RunMachineContext['workflowState']; tasksCompleted: number; lastContract: RunOutput['lastContract']; errors: EngineError[] }> {
+  let currentState = state;
+  let lastContract = previousContract;
+  let tasksCompleted = 0;
+  const errors: EngineError[] = [];
+
+  for (const taskName of fixTasks) {
+    if (config.abortSignal?.aborted) break;
+    const task = config.workflow.tasks[taskName];
+    if (!task) { warn(`workflow-runner: remediation task "${taskName}" not found, skipping`); continue; }
+    const definition = task.agent ? config.agents[task.agent] : undefined;
+    if (task.agent && !definition) { warn(`workflow-runner: agent "${task.agent}" not found for remediation task "${taskName}", skipping`); continue; }
+    const items = storyFlowTasks.has(taskName)
+      ? remediationItems
+      : [{ key: '__run__', source: 'sprint' as const }];
+    for (const item of items) {
+      try {
+        const result = task.agent === null
+          ? await nullTaskCore({ task, taskName, storyKey: item.key, config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd: 0 })
+          : await dispatchTaskCore({ task, taskName, storyKey: item.key, definition: definition!, config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd: 0 });
+        currentState = result.updatedState;
+        lastContract = result.contract;
+        tasksCompleted++;
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        errors.push({ taskName, storyKey: item.key, code: 'SPRINT_REMEDIATION_ERROR', message });
+      }
+    }
+  }
+
+  return { state: currentState, tasksCompleted, lastContract, errors };
+}
+
+async function runRetriableSprintTask(
+  step: string,
+  task: EngineConfig['workflow']['tasks'][string],
+  state: RunMachineContext['workflowState'],
+  config: EngineConfig,
+  previousContract: RunOutput['lastContract'],
+  storyFlowTasks: Set<string>,
+  remediationItems: WorkItem[],
+  remediationGate?: GateConfig,
+): Promise<{ state: RunMachineContext['workflowState']; tasksCompleted: number; lastContract: RunOutput['lastContract']; errors: EngineError[] }> {
+  const definition = task.agent ? config.agents[task.agent] : undefined;
+  if (task.agent && !definition) {
+    return {
+      state,
+      tasksCompleted: 0,
+      lastContract: previousContract,
+      errors: [{ taskName: step, storyKey: '__sprint__', code: 'SPRINT_TASK_ERROR', message: `agent "${task.agent}" not found for sprint task "${step}"` }],
+    };
+  }
+
+  let currentState = state;
+  let lastContract = previousContract;
+  let tasksCompleted = 0;
+  const maxAttempts = remediationGate?.max_retries ?? 1;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = task.agent === null
+        ? await nullTaskCore({ task, taskName: step, storyKey: '__sprint__', config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd: 0 })
+        : await dispatchTaskCore({ task, taskName: step, storyKey: '__sprint__', definition: definition!, config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd: 0 });
+      currentState = result.updatedState;
+      lastContract = result.contract;
+      tasksCompleted++;
+      return { state: currentState, tasksCompleted, lastContract, errors: [] };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!remediationGate || attempt === maxAttempts || config.abortSignal?.aborted) {
+        return {
+          state: currentState,
+          tasksCompleted,
+          lastContract,
+          errors: [{ taskName: step, storyKey: '__sprint__', code: 'SPRINT_TASK_ERROR', message }],
+        };
+      }
+
+      warn(`workflow-runner: sprint task "${step}" failed on attempt ${attempt}/${maxAttempts}: ${message}`);
+      const remediationPlan = remediationGate.fix.filter((taskName) => taskName !== step);
+      if (remediationPlan.length === 0) continue;
+
+      const remediation = await runSprintRepairTasks(remediationPlan, currentState, config, lastContract, storyFlowTasks, remediationItems);
+      currentState = remediation.state;
+      lastContract = remediation.lastContract;
+      tasksCompleted += remediation.tasksCompleted;
+      if (remediation.errors.length > 0) {
+        return { state: currentState, tasksCompleted, lastContract, errors: remediation.errors };
+      }
+    }
+  }
+
+  return { state: currentState, tasksCompleted, lastContract, errors: [] };
+}
+
 export async function runWorkflowActor(config: EngineConfig): Promise<EngineResult> {
   const startMs = Date.now();
   const projectDir = config.projectDir ?? process.cwd();
@@ -62,7 +170,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   if (state.phase === 'completed') {
     // Previous run completed — clear any stale persistence and no-op.
     clearAllPersistence(projectDir);
-    return { success: true, tasksCompleted: 0, storiesProcessed: 0, errors: [], durationMs: 0 };
+    return { success: true, tasksCompleted: 0, storiesProcessed: 0, errors: [], durationMs: 0, finalPhase: 'completed', persistenceState: 'cleared' };
   }
   // Capture phase BEFORE overwriting — used later to emit resume-context log only
   // when we actually resume from a snapshot (not when we start fresh). Emitting
@@ -76,7 +184,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     state = { ...state, phase: 'failed' };
     const errors: EngineError[] = [{ taskName: '__health_check__', storyKey: '__health_check__', code: 'HEALTH_CHECK', message }];
     writeWorkflowState(state, projectDir);
-    return { success: false, tasksCompleted: 0, storiesProcessed: 0, errors, durationMs: Date.now() - startMs };
+    return { success: false, tasksCompleted: 0, storiesProcessed: 0, errors, durationMs: Date.now() - startMs, finalPhase: 'failed', persistenceState: 'preserved' };
   }
   for (const cw of checkCapabilityConflicts(config.workflow)) warn(cw.message);
   const { loadWorkItems } = await import('./workflow-work-items.js');
@@ -84,6 +192,10 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   const storyFlowTasks = new Set<string>();
   for (const step of config.workflow.storyFlow) {
     if (typeof step === 'string') storyFlowTasks.add(step);
+    if (isGateConfig(step)) {
+      for (const taskName of step.check) storyFlowTasks.add(taskName);
+      for (const taskName of step.fix) storyFlowTasks.add(taskName);
+    }
     if (typeof step === 'object' && 'loop' in step)
       for (const lt of (step as { loop: string[] }).loop) storyFlowTasks.add(lt);
   }
@@ -219,9 +331,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     // Captured after actor creation so we can filter inspect events to the root actor only
     // (gate/child machine snapshots must not drive the workflow visualizer — story 27-4 review).
     let rootActorRef: unknown = null;
-    const actorOptions: any = { input: runInput };
-    if (resumeSnapshot !== null) actorOptions.snapshot = resumeSnapshot;
-    actorOptions.inspect = (inspectionEvent: { type: string; actorRef?: unknown; snapshot?: unknown }) => {
+    const inspect = (inspectionEvent: { type: string; actorRef?: unknown; snapshot?: unknown }) => {
         try {
           if (inspectionEvent.type !== '@xstate.snapshot') return;
           // Only process snapshots from the root run actor. Child machine snapshots
@@ -244,19 +354,23 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
           warn(`workflow-runner: viz error: ${vizErr instanceof Error ? vizErr.message : String(vizErr)}`);
         }
     };
-    const actor = createActor(runMachine, actorOptions);
+    const actor = resumeSnapshot !== null
+      ? createActor(runMachine, { input: runInput, snapshot: resumeSnapshot, inspect })
+      : createActor(runMachine, { input: runInput, inspect });
     rootActorRef = actor;
     actor.subscribe({
       next: () => {
         // Save XState snapshot after every state transition (task completions,
         // interrupt, halt). Atomic write ensures no corrupt file on crash.
         try { saveSnapshot(actor.getPersistedSnapshot(), configHash, projectDir); }
-        catch { // IGNORE: snapshot save is best-effort — a failed save must never crash the workflow runner
+        catch (error) {
+          warnSnapshotSaveFailure('transition', error);
         }
       },
       complete: () => {
         try { saveSnapshot(actor.getPersistedSnapshot(), configHash, projectDir); }
-        catch { // IGNORE: terminal snapshot save is best-effort — completion must still resolve
+        catch (error) {
+          warnSnapshotSaveFailure('terminal', error);
         }
         resolve(actor.getSnapshot().output!);
       },
@@ -295,25 +409,31 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
 
   // --- Sprint-level steps (run ONCE after all epics complete) ---
   if (config.workflow.sprintFlow.length > 0 && !finalOutput.halted && state.phase !== 'interrupted') {
-    for (const step of config.workflow.sprintFlow) {
+    const checkedStoryItems = loadCheckedStories(config.sprintStatusPath);
+    const remediationItems = checkedStoryItems.length > 0
+      ? checkedStoryItems
+      : [...storiesProcessed].map((k) => ({ key: k, source: 'sprint' as const }));
+    for (let stepIndex = 0; stepIndex < config.workflow.sprintFlow.length; stepIndex++) {
+      const step = config.workflow.sprintFlow[stepIndex];
       if (config.abortSignal?.aborted) break;
       if (typeof step === 'string') {
         // Plain task (deploy, retro, etc.)
         const task = config.workflow.tasks[step];
         if (!task) { warn(`workflow-runner: sprint task "${step}" not found, skipping`); continue; }
         if (isTaskCompleted(state, step, '__sprint__')) continue;
-        const definition = task.agent ? config.agents[task.agent] : undefined;
-        if (task.agent && !definition) { warn(`workflow-runner: agent "${task.agent}" not found for sprint task "${step}", skipping`); continue; }
-        try {
-          const dr = task.agent === null
-            ? await nullTaskCore({ task, taskName: step, storyKey: '__sprint__', config, workflowState: state, previousContract: finalOutput.lastContract, accumulatedCostUsd: finalOutput.accumulatedCostUsd })
-            : await dispatchTaskCore({ task, taskName: step, storyKey: '__sprint__', definition: definition!, config, workflowState: state, previousContract: finalOutput.lastContract, accumulatedCostUsd: finalOutput.accumulatedCostUsd });
-          state = dr.updatedState;
-          tasksCompleted++;
-        } catch (err: unknown) { // IGNORE: sprint task failure — record and continue
-          const msg = err instanceof Error ? err.message : String(err);
-          errors = [...errors, { taskName: step, storyKey: '__sprint__', code: 'SPRINT_TASK_ERROR', message: msg }];
-          warn(`workflow-runner: sprint task "${step}" failed: ${msg}`);
+        const nextStep = config.workflow.sprintFlow[stepIndex + 1];
+        const remediationGate = typeof nextStep === 'object' && nextStep !== null && 'gate' in nextStep
+          ? nextStep as GateConfig
+          : undefined;
+        const retryResult = await runRetriableSprintTask(step, task, state, config, finalOutput.lastContract, storyFlowTasks, remediationItems, remediationGate);
+        state = retryResult.state;
+        tasksCompleted += retryResult.tasksCompleted;
+        if (retryResult.lastContract) finalOutput.lastContract = retryResult.lastContract;
+        if (retryResult.errors.length > 0) {
+          errors = [...errors, ...retryResult.errors];
+          for (const error of retryResult.errors) {
+            warn(`workflow-runner: sprint task "${step}" failed: ${error.message}`);
+          }
         }
       } else if (typeof step === 'object' && step !== null && 'gate' in step) {
         // Gate at sprint level — use the gate machine
@@ -324,7 +444,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
         const { executeLoopBlock } = await import('./workflow-machines.js');
         const loopBlock = { loop: [...gateConfig.check, ...gateConfig.fix] };
         const allItems = [...storiesProcessed].map(k => ({ key: k, source: 'sprint' as const }));
-        const loopResult = await executeLoopBlock(loopBlock, state, { ...config, maxIterations: gateConfig.max_retries }, allItems, finalOutput.lastContract, storyFlowTasks);
+        const loopResult = await executeLoopBlock(loopBlock, state, { ...config, maxIterations: gateConfig.max_retries }, allItems, finalOutput.lastContract, storyFlowTasks, undefined, new Set(gateConfig.check));
         state = loopResult.state;
         errors = [...errors, ...loopResult.errors];
         tasksCompleted += loopResult.tasksCompleted;
@@ -355,6 +475,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   const loopTerminated = state.phase === 'max-iterations' || state.phase === 'circuit-breaker';
   const success = errors.length === 0 && !loopTerminated && state.phase !== 'interrupted';
   // Clear all persistence on clean success — preserve on halt/error/interrupt for resume.
+  const persistenceState: EngineResult['persistenceState'] = success ? 'cleared' : 'preserved';
   if (success) {
     const cleared = clearAllPersistence(projectDir);
     info(`workflow-runner: Persistence cleared — snapshot: ${cleared.snapshotCleared ? 'yes' : 'no'}, checkpoints: ${cleared.checkpointCleared ? 'yes' : 'no'}`);
@@ -367,5 +488,7 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     storiesProcessed: storiesProcessed.size,
     errors,
     durationMs: Date.now() - startMs,
+    finalPhase: state.phase,
+    persistenceState,
   };
 }

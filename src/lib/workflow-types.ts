@@ -152,7 +152,15 @@ export interface EngineConfig {
   onEvent?: (event: EngineEvent) => void;
   abortSignal?: AbortSignal;
 }
-export interface EngineResult { success: boolean; tasksCompleted: number; storiesProcessed: number; errors: EngineError[]; durationMs: number }
+export interface EngineResult {
+  success: boolean;
+  tasksCompleted: number;
+  storiesProcessed: number;
+  errors: EngineError[];
+  durationMs: number;
+  finalPhase?: string;
+  persistenceState?: 'cleared' | 'preserved';
+}
 
 export interface DispatchInput {
   task: ResolvedTask;
@@ -250,6 +258,7 @@ export interface LoopMachineContext {
   loopBlock: LoopBlock;
   workItems: WorkItem[];
   storyFlowTasks?: Set<string>;
+  verdictTaskNames?: Set<string>;
   onStreamEvent?: (event: StreamEvent, driverName?: string) => void;
   maxIterations: number;
   currentState: WorkflowState;

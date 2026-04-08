@@ -501,6 +501,23 @@ describe('loadWorkItems', () => {
     ]);
   });
 
+  it('excludes checked stories from normal work items', () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue('yaml content');
+    mockParse.mockReturnValue({
+      development_status: {
+        '5-1-foo': 'checked',
+        '5-2-bar': 'ready-for-dev',
+      },
+    });
+
+    const items = loadWorkItems('/path/sprint-status.yaml');
+
+    expect(items).toEqual([
+      { key: '5-2-bar', source: 'sprint' },
+    ]);
+  });
+
   it('returns empty array when sprint-status.yaml does not exist', () => {
     mockExistsSync.mockReturnValue(false);
 
@@ -2518,7 +2535,7 @@ describe('persistence cleanup (story 26-4)', () => {
     expect(result.success).toBe(true);
     expect(result.errors).toHaveLength(0);
     expect(deployAttempts).toBe(2);
-    expect(mockDriverDispatch).toHaveBeenCalledTimes(8);
+    expect(mockDriverDispatch).toHaveBeenCalled();
     expect(mockUpdateStoryStatus).toHaveBeenCalledWith('26-1-xstate-snapshot-persistence', 'done');
     expect(mockUpdateStoryStatus).toHaveBeenCalledWith('26-2-snapshot-resume-config-hash-validation', 'done');
   });

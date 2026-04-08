@@ -88,14 +88,10 @@ function createMockProcess(stdoutLines: string[], exitCode = 0, stderrData = '')
 // --- Fixtures as inline data ---
 
 const SUCCESS_LINES = [
-  '{"type":"tool_call","name":"read_file","call_id":"oc_call_001"}',
-  '{"type":"tool_input","call_id":"oc_call_001","input":"{\\"path\\":\\"/src/main.go\\"}"}',
-  '{"type":"tool_result","call_id":"oc_call_001","output":"package main\\nfunc main() {}"}',
-  '{"type":"message","content":"I\'ve read the file. Let me update it now."}',
-  '{"type":"tool_call","name":"write_file","call_id":"oc_call_002"}',
-  '{"type":"tool_input","call_id":"oc_call_002","input":"{\\"path\\":\\"/src/main.go\\",\\"content\\":\\"updated\\"}"}',
-  '{"type":"tool_result","call_id":"oc_call_002","output":"File written successfully."}',
-  '{"type":"message","content":"Done. The file has been updated with the print statement."}',
+  '{"type":"tool_use","part":{"type":"tool","tool":"read_file","callID":"oc_call_001","state":{"status":"completed","input":{"path":"/src/main.go"}}}}',
+  '{"type":"text","part":{"type":"text","text":"I\'ve read the file. Let me update it now."}}',
+  '{"type":"tool_use","part":{"type":"tool","tool":"write_file","callID":"oc_call_002","state":{"status":"completed","input":{"path":"/src/main.go","content":"updated"}}}}',
+  '{"type":"text","part":{"type":"text","text":"Done. The file has been updated with the print statement."}}',
   '{"type":"result","status":"completed","cost_usd":0.0021,"session_id":"opencode-sess-xyz789"}',
 ];
 
@@ -142,97 +138,111 @@ describe('OpenCodeDriver', () => {
   describe('parseLine (AC #2)', () => {
     it('parses tool_call to tool-start event', () => {
       const event = parseLine('{"type":"tool_call","name":"read_file","call_id":"oc_001"}');
-      expect(event).toEqual({ type: 'tool-start', name: 'read_file', id: 'oc_001' });
+      expect(event).toEqual([{ type: 'tool-start', name: 'read_file', id: 'oc_001' }]);
     });
 
     it('parses tool_input to tool-input event', () => {
       const event = parseLine('{"type":"tool_input","call_id":"c1","input":"{\\"path\\":\\"/a\\"}"}');
-      expect(event).toEqual({ type: 'tool-input', partial: '{"path":"/a"}' });
+      expect(event).toEqual([{ type: 'tool-input', partial: '{"path":"/a"}' }]);
     });
 
     it('parses tool_result to tool-complete event', () => {
       const event = parseLine('{"type":"tool_result","call_id":"c1","output":"ok"}');
-      expect(event).toEqual({ type: 'tool-complete' });
+      expect(event).toEqual([{ type: 'tool-complete' }]);
     });
 
     it('parses message to text event', () => {
       const event = parseLine('{"type":"message","content":"Hello"}');
-      expect(event).toEqual({ type: 'text', text: 'Hello' });
+      expect(event).toEqual([{ type: 'text', text: 'Hello' }]);
+    });
+
+    it('parses current opencode text event shape', () => {
+      const event = parseLine('{"type":"text","part":{"type":"text","text":"Hello"}}');
+      expect(event).toEqual([{ type: 'text', text: 'Hello' }]);
+    });
+
+    it('parses current opencode tool_use completed shape into tool lifecycle events', () => {
+      const event = parseLine('{"type":"tool_use","part":{"type":"tool","tool":"read_file","callID":"c1","state":{"status":"completed","input":{"path":"/a"}}}}');
+      expect(event).toEqual([
+        { type: 'tool-start', name: 'read_file', id: 'c1' },
+        { type: 'tool-input', partial: '{"path":"/a"}' },
+        { type: 'tool-complete' },
+      ]);
     });
 
     it('parses retry to retry event', () => {
       const event = parseLine('{"type":"retry","attempt":2,"delay_ms":5000}');
-      expect(event).toEqual({ type: 'retry', attempt: 2, delay: 5000 });
+      expect(event).toEqual([{ type: 'retry', attempt: 2, delay: 5000 }]);
     });
 
     it('parses result with cost', () => {
       const event = parseLine('{"type":"result","cost_usd":0.0021,"session_id":"sess-123"}');
-      expect(event).toEqual({
+      expect(event).toEqual([{
         type: 'result',
         cost: 0.0021,
         sessionId: 'sess-123',
         cost_usd: 0.0021,
-      });
+      }]);
     });
 
     it('parses result without cost (cost_usd is null)', () => {
       const event = parseLine('{"type":"result","status":"completed","session_id":"sess-123"}');
-      expect(event).toEqual({
+      expect(event).toEqual([{
         type: 'result',
         cost: 0,
         sessionId: 'sess-123',
         cost_usd: null,
-      });
+      }]);
     });
 
     it('returns null for empty lines', () => {
-      expect(parseLine('')).toBeNull();
-      expect(parseLine('   ')).toBeNull();
+      expect(parseLine('')).toEqual([]);
+      expect(parseLine('   ')).toEqual([]);
     });
 
     it('returns null for invalid JSON', () => {
-      expect(parseLine('not valid json {{{')).toBeNull();
+      expect(parseLine('not valid json {{{')).toEqual([]);
     });
 
     it('returns null for unrecognized type', () => {
-      expect(parseLine('{"type":"unknown_event","data":"foo"}')).toBeNull();
+      expect(parseLine('{"type":"unknown_event","data":"foo"}')).toEqual([]);
     });
 
     it('returns null for arrays', () => {
-      expect(parseLine('[1,2,3]')).toBeNull();
+      expect(parseLine('[1,2,3]')).toEqual([]);
     });
 
     it('returns null for primitives', () => {
-      expect(parseLine('"hello"')).toBeNull();
-      expect(parseLine('42')).toBeNull();
+      expect(parseLine('"hello"')).toEqual([]);
+      expect(parseLine('42')).toEqual([]);
     });
 
     it('returns null for tool_call missing name', () => {
-      expect(parseLine('{"type":"tool_call","call_id":"c1"}')).toBeNull();
+      expect(parseLine('{"type":"tool_call","call_id":"c1"}')).toEqual([]);
     });
 
     it('returns null for tool_call missing call_id', () => {
-      expect(parseLine('{"type":"tool_call","name":"read_file"}')).toBeNull();
+      expect(parseLine('{"type":"tool_call","name":"read_file"}')).toEqual([]);
     });
 
     it('returns null for tool_input with non-string input', () => {
-      expect(parseLine('{"type":"tool_input","call_id":"c1","input":42}')).toBeNull();
+      expect(parseLine('{"type":"tool_input","call_id":"c1","input":42}')).toEqual([]);
     });
 
     it('returns null for message with non-string content', () => {
-      expect(parseLine('{"type":"message","content":42}')).toBeNull();
+      expect(parseLine('{"type":"message","content":42}')).toEqual([]);
     });
 
     it('returns null for message with missing content', () => {
-      expect(parseLine('{"type":"message"}')).toBeNull();
+      expect(parseLine('{"type":"message"}')).toEqual([]);
     });
 
     it('returns null for retry with non-number attempt', () => {
-      expect(parseLine('{"type":"retry","attempt":"two","delay_ms":5000}')).toBeNull();
+      expect(parseLine('{"type":"retry","attempt":"two","delay_ms":5000}')).toEqual([]);
     });
 
     it('returns null for retry with non-number delay', () => {
-      expect(parseLine('{"type":"retry","attempt":2,"delay_ms":"slow"}')).toBeNull();
+      expect(parseLine('{"type":"retry","attempt":2,"delay_ms":"slow"}')).toEqual([]);
     });
   });
 
@@ -542,7 +552,7 @@ describe('OpenCodeDriver', () => {
   });
 
   describe('dispatch — unparseable lines (AC #2)', () => {
-    it('skips unparseable lines and logs them at debug level', async () => {
+    it('skips unparseable lines without polluting terminal output', async () => {
       const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       const lines = [
         ...UNPARSEABLE_LINES,
@@ -557,8 +567,8 @@ describe('OpenCodeDriver', () => {
       expect(events).toHaveLength(1);
       expect(events[0].type).toBe('result');
 
-      // All 4 unparseable lines should be debug-logged
-      expect(debugSpy).toHaveBeenCalledTimes(4);
+      // Unparseable lines should be silently skipped.
+      expect(debugSpy).not.toHaveBeenCalled();
       debugSpy.mockRestore();
     });
   });

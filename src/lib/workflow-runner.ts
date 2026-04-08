@@ -449,7 +449,9 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
         state = { ...state, iteration: 0, evaluator_scores: [], circuit_breaker: { triggered: false, reason: null, score_history: [] } };
         const { executeLoopBlock } = await import('./workflow-machines.js');
         const loopBlock = { loop: [...gateConfig.check, ...gateConfig.fix] };
-        const allItems = [...storiesProcessed].map(k => ({ key: k, source: 'sprint' as const }));
+        const allItems = remediationItems.length > 0
+          ? remediationItems
+          : [...storiesProcessed].map(k => ({ key: k, source: 'sprint' as const }));
         const loopResult = await executeLoopBlock(loopBlock, state, { ...config, maxIterations: gateConfig.max_retries }, allItems, finalOutput.lastContract, storyFlowTasks, undefined, new Set(gateConfig.check));
         state = loopResult.state;
         errors = [...errors, ...loopResult.errors];

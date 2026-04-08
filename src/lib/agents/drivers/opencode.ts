@@ -85,73 +85,103 @@ export function classifyError(err: unknown): ErrorCategory {
  * Parse a single line of OpenCode CLI NDJSON output into a StreamEvent.
  * Returns null for unrecognized or unparseable lines.
  */
-export function parseLine(line: string): StreamEvent | null {
+export function parseLine(line: string): StreamEvent[] {
   const trimmed = line.trim();
-  if (trimmed.length === 0) return null;
+  if (trimmed.length === 0) return [];
 
   let parsed: Record<string, unknown>;
   try {
     parsed = JSON.parse(trimmed) as Record<string, unknown>;
   } catch { // IGNORE: malformed JSON in CLI output — skip unparseable lines
-    return null;
+    return [];
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    return null;
+    return [];
   }
 
   const type = parsed.type as string | undefined;
+  const events: StreamEvent[] = [];
 
   if (type === 'tool_call') {
     const name = parsed.name;
     const callId = parsed.call_id;
     if (typeof name === 'string' && typeof callId === 'string') {
-      return { type: 'tool-start', name, id: callId };
+      return [{ type: 'tool-start', name, id: callId }];
     }
-    return null;
+    return [];
   }
 
   if (type === 'tool_input') {
     const input = parsed.input;
     if (typeof input === 'string') {
-      return { type: 'tool-input', partial: input };
+      return [{ type: 'tool-input', partial: input }];
     }
-    return null;
+    return [];
   }
 
   if (type === 'tool_result') {
-    return { type: 'tool-complete' };
+    return [{ type: 'tool-complete' }];
   }
 
   if (type === 'message') {
     const content = parsed.content;
     if (typeof content === 'string') {
-      return { type: 'text', text: content };
+      return [{ type: 'text', text: content }];
     }
-    return null;
+    return [];
+  }
+
+  if (type === 'text') {
+    const part = parsed.part as Record<string, unknown> | undefined;
+    const text = part?.text;
+    if (typeof text === 'string' && text.length > 0) {
+      return [{ type: 'text', text }];
+    }
+    return [];
+  }
+
+  if (type === 'tool_use') {
+    const part = parsed.part as Record<string, unknown> | undefined;
+    const tool = part?.tool;
+    const callId = part?.callID;
+    const state = part?.state as Record<string, unknown> | undefined;
+    if (typeof tool === 'string' && typeof callId === 'string') {
+      events.push({ type: 'tool-start', name: tool, id: callId });
+      const input = state?.input;
+      if (typeof input === 'string') {
+        events.push({ type: 'tool-input', partial: input });
+      } else if (input && typeof input === 'object') {
+        events.push({ type: 'tool-input', partial: JSON.stringify(input) });
+      }
+      if (state?.status === 'completed') {
+        events.push({ type: 'tool-complete' });
+      }
+    }
+    return events;
   }
 
   if (type === 'retry') {
     const attempt = parsed.attempt;
     const delay = parsed.delay_ms;
     if (typeof attempt === 'number' && typeof delay === 'number') {
-      return { type: 'retry', attempt, delay };
+      return [{ type: 'retry', attempt, delay }];
     }
-    return null;
+    return [];
   }
 
   if (type === 'result') {
     const costUsd = parsed.cost_usd;
     const sessionId = parsed.session_id;
-    return {
+    return [{
       type: 'result',
       cost: typeof costUsd === 'number' ? costUsd : 0,
       sessionId: typeof sessionId === 'string' ? sessionId : '',
       cost_usd: typeof costUsd === 'number' ? costUsd : null,
-    };
+    }];
   }
 
-  return null;
+  return [];
 }
 
 // --- Driver Implementation ---
@@ -284,22 +314,21 @@ export class OpenCodeDriver implements AgentDriver {
 
     try {
       for await (const line of rl) {
-        const event = parseLine(line);
-        if (event) {
-          // Capture cost from result events
-          if (event.type === 'result') {
-            const resultEvent = event as ResultEvent;
-            if (typeof resultEvent.cost_usd === 'number') {
-              this.lastCost = resultEvent.cost_usd;
+        const events = parseLine(line);
+        if (events.length > 0) {
+          for (const event of events) {
+            // Capture cost from result events
+            if (event.type === 'result') {
+              const resultEvent = event as ResultEvent;
+              if (typeof resultEvent.cost_usd === 'number') {
+                this.lastCost = resultEvent.cost_usd;
+              }
+              yield event;
+              yieldedResult = true;
+            } else {
+              yield event;
             }
-            yield event;
-            yieldedResult = true;
-          } else {
-            yield event;
           }
-        } else {
-          // Unparseable line — log at debug level and skip
-          console.debug('[OpenCodeDriver] Skipping unparseable line:', line);
         }
       }
 

@@ -711,7 +711,7 @@ describe('dispatchTaskCore (story 23-1)', () => {
 
     const startEvent = events.find((e) => (e as { type: string }).type === 'dispatch-start');
     expect(startEvent).toBeDefined();
-    expect(startEvent).toMatchObject({ type: 'dispatch-start', taskName: 'implement', driverName: 'claude-code' });
+    expect(startEvent).toMatchObject({ type: 'dispatch-start', taskName: 'implement', driverName: 'codex' });
   });
 
   // AC2: dispatch-end event contains taskName, elapsedMs, costUsd
@@ -787,7 +787,7 @@ describe('dispatchTaskCore (story 23-1)', () => {
     }
     expect(capturedContract?.taskName).toBe('implement');
     expect(capturedContract?.storyId).toBe('5-1-foo');
-    expect(capturedContract?.driver).toBe('claude-code');
+    expect(capturedContract?.driver).toBe('codex');
   });
 
   // AC6: driver errors are classified into typed codes
@@ -1389,7 +1389,7 @@ describe('sideband streaming to TUI (story 27-4)', () => {
       type: 'stream-event',
       taskName: 'implement',
       storyKey: '5-1-foo',
-      driverName: 'claude-code',
+      driverName: 'codex',
       streamEvent: { type: 'text', text: 'thinking...' },
     });
     expect(streamEvents[1]).toMatchObject({ type: 'stream-event', streamEvent: { type: 'tool-start', name: 'Bash' } });
@@ -1411,7 +1411,7 @@ describe('sideband streaming to TUI (story 27-4)', () => {
       type: 'dispatch-start',
       taskName: 'implement',
       storyKey: '5-1-foo',
-      driverName: 'claude-code',
+      driverName: 'codex',
       model: 'claude-sonnet-4-20250514',
     });
   });

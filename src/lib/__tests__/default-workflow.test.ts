@@ -57,12 +57,12 @@ describe('default embedded workflow', () => {
       expect(taskNames).toContain('retro');
     });
 
-    it('create-story task uses opencode driver with kimi-2.5 model', () => {
+    it('create-story task uses opencode driver with kimi-for-coding/k2p5 model', () => {
       const task = workflow.tasks['create-story'];
       expect(task.agent).toBe('story-creator');
       expect(task.source_access).toBe(true);
       expect(task.driver).toBe('opencode');
-      expect(task.model).toBe('kimi-2.5');
+      expect(task.model).toBe('kimi-for-coding/k2p5');
     });
 
     it('implement task uses codex driver with gpt-5.4 model', () => {
@@ -82,21 +82,21 @@ describe('default embedded workflow', () => {
       expect(task.model).toBe('gpt-5.4');
     });
 
-    it('review task uses reviewer agent with opencode driver and kimi-2.5 model', () => {
+    it('review task uses reviewer agent with opencode driver and kimi-for-coding/k2p5 model', () => {
       const task = workflow.tasks.review;
       expect(task.agent).toBe('reviewer');
       expect(task.source_access).toBe(true);
       expect(task.driver).toBe('opencode');
-      expect(task.model).toBe('kimi-2.5');
+      expect(task.model).toBe('kimi-for-coding/k2p5');
     });
 
-    it('verify task has source_access false and uses opencode driver with kimi-2.5 model', () => {
+    it('verify task has source_access false and uses opencode driver with kimi-for-coding/k2p5 model', () => {
       const task = workflow.tasks.verify;
       expect(task.agent).toBe('evaluator');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(false);
       expect(task.driver).toBe('opencode');
-      expect(task.model).toBe('kimi-2.5');
+      expect(task.model).toBe('kimi-for-coding/k2p5');
     });
 
     it('retry task uses codex driver with gpt-5.4 model', () => {
@@ -108,12 +108,12 @@ describe('default embedded workflow', () => {
       expect(task.model).toBe('gpt-5.4');
     });
 
-    it('retro task uses opencode driver with kimi-2.5 model', () => {
+    it('retro task uses opencode driver with kimi-for-coding/k2p5 model', () => {
       const task = workflow.tasks.retro;
       expect(task.agent).toBe('retro');
       expect(task.source_access).toBe(true);
       expect(task.driver).toBe('opencode');
-      expect(task.model).toBe('kimi-2.5');
+      expect(task.model).toBe('kimi-for-coding/k2p5');
     });
 
     it('document task uses codex driver with gpt-5.4 model', () => {

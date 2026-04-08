@@ -324,7 +324,7 @@ function setupDefaultMocks() {
     })();
   });
   mockGetDriver.mockReturnValue({
-    name: 'claude-code',
+    name: 'codex',
     defaultModel: 'claude-sonnet-4-20250514',
     capabilities: { supportsPlugins: true, supportsStreaming: true, costReporting: true, costTier: 3 },
     healthCheck: vi.fn().mockResolvedValue({ available: true, authenticated: true, version: '1.0.0' }),
@@ -686,7 +686,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
     it('does not call getDriver for tasks with agent: null', async () => {
       const workflow = makeWorkflow({
         tasks: {
-          implement: makeTask({ agent: 'dev' }),
+          implement: makeTask({ agent: 'dev', driver: 'codex' }),
           telemetry: makeTask({ agent: null }),
         },
         flow: ['implement', 'telemetry'],
@@ -694,7 +694,7 @@ describe('Null Task Engine Integration (Story 16-2)', () => {
 
       await checkDriverHealth(workflow);
 
-      // getDriver should be called for 'claude-code' (from implement) but NOT for telemetry
+      // getDriver should be called for 'codex' (from implement) but NOT for telemetry
       expect(mockGetDriver).toHaveBeenCalledTimes(1);
     });
   });

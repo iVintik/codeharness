@@ -280,22 +280,17 @@ describe('checkDriverHealth', () => {
     }
   });
 
-  it('defaults to claude-code when task has no driver field', async () => {
+  it('skips tasks that have no driver field', async () => {
     const workflow = makeWorkflow({
       tasks: {
-        task1: makeTask(), // no driver field — defaults to claude-code
+        task1: makeTask(), // no driver field — defaults to codex
         task2: makeTask(), // also no driver field
       },
       flow: ['task1', 'task2'],
     });
 
-    const driver = makeMockDriver('claude-code', makeHealthy());
-    mockGetDriver.mockReturnValue(driver);
-
     await expect(checkDriverHealth(workflow)).resolves.toBeUndefined();
-    expect(mockGetDriver).toHaveBeenCalledTimes(1);
-    expect(mockGetDriver).toHaveBeenCalledWith('claude-code');
-    expect(driver.healthCheck).toHaveBeenCalledOnce();
+    expect(mockGetDriver).not.toHaveBeenCalled();
   });
 
   it('throws on timeout when health check hangs', async () => {

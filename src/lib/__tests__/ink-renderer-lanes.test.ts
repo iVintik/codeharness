@@ -495,8 +495,8 @@ describe('Performance (Task 11, AC #12)', () => {
     // Send 100 events across 4 lanes
     for (let i = 0; i < eventCount; i++) {
       const laneId = `epic-${i % 4}`;
-      renderer.update(toolStart(`Tool${i}`), 'claude-code', laneId);
-      renderer.update(toolComplete(), 'claude-code', laneId);
+      renderer.update(toolStart(`Tool${i}`), 'codex', laneId);
+      renderer.update(toolComplete(), 'codex', laneId);
     }
 
     const elapsed = performance.now() - start;

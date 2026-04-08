@@ -640,7 +640,7 @@ describe('OpenCodeDriver', () => {
 
       const health = await driver.healthCheck();
       expect(health.available).toBe(true);
-      expect(health.authenticated).toBe(false);
+      expect(health.authenticated).toBe(true);
     });
   });
 

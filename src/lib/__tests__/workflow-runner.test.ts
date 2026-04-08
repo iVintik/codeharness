@@ -246,6 +246,7 @@ function makeTask(overrides?: Partial<ResolvedTask>): ResolvedTask {
     agent: 'dev',
     session: 'fresh',
     source_access: true,
+    driver: 'codex',
     ...overrides,
   };
 }
@@ -608,10 +609,10 @@ describe('checkDriverHealth', () => {
   });
 
   it('passes when all referenced drivers report available', async () => {
-    const claudeHealth = vi.fn().mockResolvedValue({ available: true });
+    const codexHealth = vi.fn().mockResolvedValue({ available: true });
     const opencodeHealth = vi.fn().mockResolvedValue({ available: true });
     mockGetDriver.mockImplementation((name: string) => ({
-      healthCheck: name === 'opencode' ? opencodeHealth : claudeHealth,
+      healthCheck: name === 'opencode' ? opencodeHealth : codexHealth,
     }));
 
     await expect(checkDriverHealth(makeWorkflow({
@@ -624,7 +625,8 @@ describe('checkDriverHealth', () => {
     }))).resolves.toBeUndefined();
 
     expect(mockGetDriver).toHaveBeenCalledTimes(2);
-    expect(claudeHealth).toHaveBeenCalledTimes(1);
+    expect(codexHealth).toHaveBeenCalledTimes(1);
+    expect(mockGetDriver).toHaveBeenCalledWith('codex');
     expect(opencodeHealth).toHaveBeenCalledTimes(1);
   });
 
@@ -1166,7 +1168,7 @@ describe('runWorkflowActor', () => {
 
   it('fails fast on health check failure', async () => {
     mockGetDriver.mockReturnValue({
-      name: 'claude-code',
+      name: 'codex',
       dispatch: vi.fn(),
       healthCheck: vi.fn().mockResolvedValue({ available: false, error: 'no driver' }),
     });
@@ -1179,7 +1181,7 @@ describe('runWorkflowActor', () => {
 
   it('writes failed phase when health check fails', async () => {
     mockGetDriver.mockReturnValue({
-      name: 'claude-code',
+      name: 'codex',
       dispatch: vi.fn(),
       healthCheck: vi.fn().mockResolvedValue({ available: false, error: 'offline' }),
     });

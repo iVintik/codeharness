@@ -991,7 +991,7 @@ describe('output contract writing (story 13-3)', () => {
     expect(contract.taskName).toBe('implement');
     expect(contract.storyId).toBe('5-1-foo');
     expect(contract.version).toBe(1);
-    expect(contract.driver).toBe('claude-code');
+    expect(contract.driver).toBe('codex');
     expect(contract.model).toBe('claude-sonnet-4-20250514');
   });
 

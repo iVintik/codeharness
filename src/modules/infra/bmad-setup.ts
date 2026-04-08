@@ -12,11 +12,12 @@ import {
 import { ok as okOutput, fail as failOutput, info, warn } from '../../lib/output.js';
 import type { Result } from '../../types/result.js';
 import { ok } from '../../types/result.js';
-import type { InitBmadResult } from './types.js';
+import type { AgentRuntime, InitBmadResult } from './types.js';
 
 interface BmadSetupOptions {
   readonly projectDir: string;
   readonly isJson: boolean;
+  readonly agentRuntime?: AgentRuntime;
 }
 
 /**
@@ -25,6 +26,7 @@ interface BmadSetupOptions {
  */
 export function setupBmad(opts: BmadSetupOptions): Result<InitBmadResult> {
   try {
+    const agentRuntime = opts.agentRuntime ?? 'claude-code';
     const bmadAlreadyInstalled = isBmadInstalled(opts.projectDir);
     let bmadResult: InitBmadResult;
 
@@ -44,7 +46,7 @@ export function setupBmad(opts: BmadSetupOptions): Result<InitBmadResult> {
         info('BMAD: already installed, patches verified');
       }
     } else {
-      const installResult = installBmad(opts.projectDir);
+      const installResult = installBmad(opts.projectDir, agentRuntime);
       const patchResults = applyAllPatches(opts.projectDir, { silent: opts.isJson });
       const patchNames = patchResults.filter(r => r.applied).map(r => r.patchName);
 

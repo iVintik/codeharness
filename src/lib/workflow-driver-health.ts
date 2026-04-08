@@ -10,7 +10,9 @@ import type { DriverHealth } from './workflow-types.js';
 
 export async function checkDriverHealth(workflow: ResolvedWorkflow, timeoutMs?: number): Promise<void> {
   const driverNames = new Set<string>(
-    Object.values(workflow.tasks).filter(t => t.agent !== null).map(t => t.driver ?? 'claude-code'),
+    Object.values(workflow.tasks)
+      .filter(t => t.agent !== null && t.driver !== undefined)
+      .map(t => t.driver!),
   );
   const drivers = new Map<string, ReturnType<typeof getDriver>>();
   for (const name of driverNames) drivers.set(name, getDriver(name));

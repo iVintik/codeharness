@@ -1,19 +1,20 @@
 # commands/
 
-Slash commands registered as Claude Code plugin commands. Each `.md` file defines one user-invocable command.
+Agent command playbooks. In Claude Code they can back slash commands; in Codex and other runtimes they serve as repo-local runbooks the agent can read and execute directly.
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
 | harness-init.md | `/harness-init` — detect stack, install deps, configure harness |
-| harness-run.md | `/harness-run` — start autonomous Ralph loop execution |
 | harness-teardown.md | `/harness-teardown` — cleanly remove harness artifacts |
-| harness-verify.md | `/harness-verify` — trigger verification for current story |
+| harness-onboard.md | `/harness-onboard` — scan an existing project and generate an onboarding plan |
+| harness-status.md | `/harness-status` — inspect harness health and sprint progress |
 
 ## Conventions
 
 - Each command is a markdown file with YAML frontmatter (`description:`)
 - Commands contain step-by-step instructions for the agent to execute
+- Commands should stay agent-agnostic unless a tool is genuinely runtime-specific
 - Output follows UX format: `[OK]`/`[FAIL]` status lines, `→` action hints
 - Commands reference scripts in `ralph/` for actual execution logic

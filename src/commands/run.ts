@@ -217,7 +217,7 @@ export function registerRunCommand(program: Command): void {
       process.on('SIGTERM', onInterrupt);
 
       let totalCostUsd = 0;
-      let storiesDone = counts.done;
+      const storiesDone = counts.done;
 
       const cleanupResources = (): void => {
         process.removeListener('SIGINT', onInterrupt);

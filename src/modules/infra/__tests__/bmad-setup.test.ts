@@ -57,6 +57,13 @@ describe('setupBmad', () => {
       expect(result.data.version).toBe('6.0.0');
       expect(result.data.patches_applied).toEqual(['story-verification']);
     }
+    expect(mockInstallBmad).toHaveBeenCalledWith('/tmp/test', 'claude-code');
+  });
+
+  it('passes codex runtime through to BMAD install', () => {
+    const result = setupBmad({ projectDir: '/tmp/test', isJson: false, agentRuntime: 'codex' });
+    expect(result.success).toBe(true);
+    expect(mockInstallBmad).toHaveBeenCalledWith('/tmp/test', 'codex');
   });
 
   it('verifies patches when already installed', () => {
@@ -176,7 +183,7 @@ describe('setupBmad', () => {
 
   it('applies patches immediately after fresh install', () => {
     const result = setupBmad({ projectDir: '/tmp/test', isJson: false });
-    expect(mockInstallBmad).toHaveBeenCalledWith('/tmp/test');
+    expect(mockInstallBmad).toHaveBeenCalledWith('/tmp/test', 'claude-code');
     expect(mockApplyAllPatches).toHaveBeenCalledWith('/tmp/test', { silent: false });
     expect(result.success).toBe(true);
     if (result.success) {

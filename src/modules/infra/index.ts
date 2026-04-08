@@ -10,7 +10,7 @@ import { ensureStack as ensureStackImpl, detectRunningStack, detectPortConflicts
 import { cleanupContainers as cleanupContainersImpl } from './container-cleanup.js';
 import { createObservabilityBackend } from './observability.js';
 
-export type { InitOptions, InitResult, StackStatus };
+export type { AgentRuntime, InitOptions, InitResult, StackStatus };
 export type { InitDockerResult, InitBmadResult, InitBeadsResult, InitDocumentationResult } from './types.js';
 export type { StackDetectionResult, PortConflictResult, CleanupResult } from './types.js';
 // Re-export doc helpers for backward compatibility

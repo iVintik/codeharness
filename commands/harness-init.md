@@ -41,7 +41,9 @@ The CLI does NOT handle BMAD installation or patch application. This is your res
 ### Check for existing BMAD
 
 1. If `_bmad/` directory exists → preserve it, apply patches
-2. If NO `_bmad/` → run `npx bmad-method install --yes --tools claude-code`
+2. If NO `_bmad/` → run `npx bmad-method install --yes --modules bmm --tools none`
+
+Use `--tools none` for Codex and other non-BMAD-native agent runtimes. codeharness exposes the runnable instructions through repo-local `AGENTS.md`, `commands/`, and `skills/` instead of relying on BMAD to generate IDE-specific command wrappers.
 
 ### Apply Harness Patches
 

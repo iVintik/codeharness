@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { jsonOutput } from '../lib/output.js';
 import { initProject } from '../modules/infra/index.js';
+import type { AgentRuntime } from '../modules/infra/index.js';
 import { isOk } from '../types/result.js';
 
 // Re-export helpers for backward compatibility (used by existing tests)
@@ -13,6 +14,8 @@ export {
 } from '../modules/infra/index.js';
 
 interface CommandInitOptions {
+  agentRuntime?: AgentRuntime;
+  codex?: boolean;
   frontend: boolean;
   database: boolean;
   api: boolean;
@@ -30,6 +33,8 @@ export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Initialize the harness in a project')
+    .option('--agent-runtime <runtime>', 'Agent runtime: claude-code or codex')
+    .option('--codex', 'Shortcut for --agent-runtime codex', false)
     .option('--no-frontend', 'Disable frontend enforcement')
     .option('--no-database', 'Disable database enforcement')
     .option('--no-api', 'Disable API enforcement')
@@ -44,9 +49,11 @@ export function registerInitCommand(program: Command): void {
     .action(async (options: CommandInitOptions, cmd: Command) => {
       const globalOpts = cmd.optsWithGlobals() as { json?: boolean };
       const isJson = globalOpts.json === true;
+      const agentRuntime = options.codex ? 'codex' : options.agentRuntime;
 
       const result = await initProject({
         projectDir: process.cwd(),
+        agentRuntime,
         frontend: options.frontend,
         database: options.database,
         api: options.api,

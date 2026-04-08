@@ -10,7 +10,7 @@ import { generateFile } from '../../lib/templates.js';
 import { readmeTemplate } from '../../templates/readme.js';
 import type { Result } from '../../types/result.js';
 import { ok, fail } from '../../types/result.js';
-import type { InitDocumentationResult } from './types.js';
+import type { AgentRuntime, InitDocumentationResult } from './types.js';
 import type { StackDetection } from '../../lib/stacks/index.js';
 import { getStackProvider } from '../../lib/stacks/index.js';
 import type { StackName } from '../../lib/stacks/index.js';
@@ -72,10 +72,33 @@ export function getCoverageTool(stack: string | null): 'c8' | 'coverage.py' | 'c
   return STATE_COVERAGE_TOOLS[stack] ?? 'c8';
 }
 
-export function generateAgentsMdContent(projectDir: string, stack: string | StackDetection[] | null): string {
+function getHarnessFileLines(agentRuntime: AgentRuntime): string[] {
+  const lines = [
+    '## Harness Files',
+    '',
+    '- `AGENTS.md` is the primary repo-local instruction file for coding agents',
+    '- `commands/` contains harness command playbooks the agent can read and execute directly',
+    '- `skills/` contains focused harness skills and operating procedures',
+  ];
+
+  if (agentRuntime === 'codex') {
+    lines.push('- Install BMAD with `npx bmad-method install --yes --modules bmm --tools none` for Codex');
+  } else {
+    lines.push('- Install BMAD with `npx bmad-method install --yes --modules bmm --tools claude-code` for Claude Code');
+  }
+
+  lines.push('');
+  return lines;
+}
+
+export function generateAgentsMdContent(
+  projectDir: string,
+  stack: string | StackDetection[] | null,
+  agentRuntime: AgentRuntime = 'claude-code',
+): string {
   // Multi-stack path: StackDetection[] with more than one entry
   if (Array.isArray(stack) && stack.length > 1) {
-    return generateMultiStackAgentsMd(projectDir, stack);
+    return generateMultiStackAgentsMd(projectDir, stack, agentRuntime);
   }
   // Single-element array: unwrap to string for backward-compatible single-stack output
   if (Array.isArray(stack)) {
@@ -121,8 +144,9 @@ export function generateAgentsMdContent(projectDir: string, stack: string | Stac
     '- All changes must pass tests before commit',
     '- Maintain test coverage targets',
     '- Follow existing code style and patterns',
-    '',
   );
+
+  lines.push(...getHarnessFileLines(agentRuntime));
 
   return lines.join('\n');
 }
@@ -151,7 +175,11 @@ function appendBuildTestCommands(lines: string[], stack: string, prefix: string)
   lines.push('```');
 }
 
-function generateMultiStackAgentsMd(projectDir: string, stacks: StackDetection[]): string {
+function generateMultiStackAgentsMd(
+  projectDir: string,
+  stacks: StackDetection[],
+  agentRuntime: AgentRuntime,
+): string {
   const projectName = basename(projectDir);
   const stackNames = stacks.map(s => stackDisplayName(s.stack));
 
@@ -194,8 +222,9 @@ function generateMultiStackAgentsMd(projectDir: string, stacks: StackDetection[]
     '- All changes must pass tests before commit',
     '- Maintain test coverage targets',
     '- Follow existing code style and patterns',
-    '',
   );
+
+  lines.push(...getHarnessFileLines(agentRuntime));
 
   return lines.join('\n');
 }
@@ -224,6 +253,7 @@ interface ScaffoldDocsOptions {
   readonly projectDir: string;
   readonly stack: string | null;
   readonly stacks?: StackDetection[];
+  readonly agentRuntime?: AgentRuntime;
   readonly isJson: boolean;
 }
 
@@ -237,7 +267,7 @@ export async function scaffoldDocs(opts: ScaffoldDocsOptions): Promise<Result<In
     const agentsMdPath = join(opts.projectDir, 'AGENTS.md');
     if (!existsSync(agentsMdPath)) {
       const stackArg = opts.stacks && opts.stacks.length > 1 ? opts.stacks : opts.stack;
-      const content = generateAgentsMdContent(opts.projectDir, stackArg);
+      const content = generateAgentsMdContent(opts.projectDir, stackArg, opts.agentRuntime ?? 'claude-code');
       generateFile(agentsMdPath, content);
       agentsMd = 'created';
     } else {

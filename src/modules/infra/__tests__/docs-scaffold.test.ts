@@ -189,6 +189,20 @@ describe('generateAgentsMdContent', () => {
     const content = generateAgentsMdContent(testDir, 'rust');
     expect(content).toContain('Rust');
   });
+
+  it('includes Claude Code BMAD guidance by default', () => {
+    const content = generateAgentsMdContent(testDir, 'nodejs');
+    expect(content).toContain('## Harness Files');
+    expect(content).toContain('commands/');
+    expect(content).toContain('skills/');
+    expect(content).toContain('--tools claude-code');
+  });
+
+  it('includes Codex BMAD guidance when requested', () => {
+    const content = generateAgentsMdContent(testDir, 'nodejs', 'codex');
+    expect(content).toContain('## Harness Files');
+    expect(content).toContain('--tools none');
+  });
 });
 
 describe('generateAgentsMdContent — multi-stack', () => {

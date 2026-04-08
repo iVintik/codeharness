@@ -353,6 +353,18 @@ describe('init command — AGENTS.md generation', () => {
     const content = readFileSync(agentsPath, 'utf-8');
     expect(content).toContain('Node.js');
     expect(content).toContain('npm');
+    expect(content).toContain('## Harness Files');
+    expect(content).toContain('--tools claude-code');
+  });
+
+  it('generates Codex-specific AGENTS.md guidance with --codex', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+
+    await runCli(['init', '--codex']);
+
+    const content = readFileSync(join(testDir, 'AGENTS.md'), 'utf-8');
+    expect(content).toContain('--tools none');
+    expect(mockInstallBmad).toHaveBeenLastCalledWith(process.cwd(), 'codex');
   });
 
   it('AGENTS.md content is under 100 lines', () => {

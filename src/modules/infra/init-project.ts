@@ -50,6 +50,7 @@ export async function initProject(opts: InitOptions): Promise<Result<InitResult>
 
 async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> {
   const { projectDir, json: isJson = false } = opts;
+  const agentRuntime = opts.agentRuntime ?? 'claude-code';
   const result: InitResult = {
     status: 'ok', stack: null, stacks: [],
     enforcement: { frontend: opts.frontend, database: opts.database, api: opts.api },
@@ -141,7 +142,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   result.beads = { status: 'skipped' as const, message: 'beads removed' };
 
   // --- BMAD installation ---
-  const bmadResult = setupBmad({ projectDir, isJson });
+  const bmadResult = setupBmad({ projectDir, isJson, agentRuntime });
   if (isOk(bmadResult)) result.bmad = bmadResult.data;
 
   // --- State file creation ---
@@ -163,7 +164,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   if (!isJson) okOutput('State file: .claude/codeharness.local.md created');
 
   // --- Documentation scaffold ---
-  const docsResult = await scaffoldDocs({ projectDir, stack, stacks: allStacks, isJson });
+  const docsResult = await scaffoldDocs({ projectDir, stack, stacks: allStacks, agentRuntime, isJson });
   if (isOk(docsResult)) result.documentation = docsResult.data;
 
   // --- Store observability backend choice ---

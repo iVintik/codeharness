@@ -343,6 +343,7 @@ export function resolveAgent(name: string, options?: { cwd?: string }): Resolved
 
 /**
  * Compile a ResolvedAgent into a SubagentDefinition for Agent SDK dispatch.
+ * Note: model is not set here - it comes from task config or driver default via resolveModel().
  */
 export function compileSubagentDefinition(agent: ResolvedAgent): SubagentDefinition {
   const parts: string[] = [];
@@ -365,7 +366,7 @@ export function compileSubagentDefinition(agent: ResolvedAgent): SubagentDefinit
 
   return {
     name: agent.name,
-    model: DEFAULT_MODEL,
+    model: '', // Intentionally empty - resolved at dispatch time via resolveModel()
     instructions: parts.join('\n\n'),
     disallowedTools: agent.disallowedTools ?? [],
     ...(agent.plugins?.length ? { plugins: agent.plugins } : {}),

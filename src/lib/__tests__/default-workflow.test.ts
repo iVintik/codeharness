@@ -57,56 +57,87 @@ describe('default embedded workflow', () => {
       expect(taskNames).toContain('retro');
     });
 
-    it('create-story task uses opus model', () => {
+    it('create-story task uses opencode driver with kimi-2.5 model', () => {
       const task = workflow.tasks['create-story'];
       expect(task.agent).toBe('story-creator');
       expect(task.source_access).toBe(true);
-      expect(task.model).toBe('claude-opus-4-6');
+      expect(task.driver).toBe('opencode');
+      expect(task.model).toBe('kimi-2.5');
     });
 
-    it('implement task uses sonnet model', () => {
+    it('implement task uses codex driver with gpt-5.4 model', () => {
       const task = workflow.tasks.implement;
       expect(task.agent).toBe('dev');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
-      expect(task.model).toBe('claude-sonnet-4-6');
+      expect(task.driver).toBe('codex');
+      expect(task.model).toBe('gpt-5.4');
     });
 
-    it('check task uses checker agent with codex driver', () => {
+    it('check task uses checker agent with codex driver and gpt-5.4 model', () => {
       const task = workflow.tasks.check;
       expect(task.agent).toBe('checker');
       expect(task.source_access).toBe(true);
       expect(task.driver).toBe('codex');
+      expect(task.model).toBe('gpt-5.4');
     });
 
-    it('review task uses reviewer agent with codex driver', () => {
+    it('review task uses reviewer agent with opencode driver and kimi-2.5 model', () => {
       const task = workflow.tasks.review;
       expect(task.agent).toBe('reviewer');
       expect(task.source_access).toBe(true);
-      expect(task.driver).toBe('codex');
+      expect(task.driver).toBe('opencode');
+      expect(task.model).toBe('kimi-2.5');
     });
 
-    it('verify task has source_access false', () => {
+    it('verify task has source_access false and uses opencode driver with kimi-2.5 model', () => {
       const task = workflow.tasks.verify;
       expect(task.agent).toBe('evaluator');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(false);
-      expect(task.driver).toBe('codex');
+      expect(task.driver).toBe('opencode');
+      expect(task.model).toBe('kimi-2.5');
     });
 
-    it('retry task uses sonnet model', () => {
+    it('retry task uses codex driver with gpt-5.4 model', () => {
       const task = workflow.tasks.retry;
       expect(task.agent).toBe('dev');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
-      expect(task.model).toBe('claude-sonnet-4-6');
+      expect(task.driver).toBe('codex');
+      expect(task.model).toBe('gpt-5.4');
     });
 
-    it('retro task uses opus model', () => {
+    it('retro task uses opencode driver with kimi-2.5 model', () => {
       const task = workflow.tasks.retro;
       expect(task.agent).toBe('retro');
       expect(task.source_access).toBe(true);
-      expect(task.model).toBe('claude-opus-4-6');
+      expect(task.driver).toBe('opencode');
+      expect(task.model).toBe('kimi-2.5');
+    });
+
+    it('document task uses codex driver with gpt-5.4 model', () => {
+      const task = workflow.tasks.document;
+      expect(task.agent).toBe('documenter');
+      expect(task.source_access).toBe(true);
+      expect(task.driver).toBe('codex');
+      expect(task.model).toBe('gpt-5.4');
+    });
+
+    it('deploy task uses codex driver with gpt-5.4 model', () => {
+      const task = workflow.tasks.deploy;
+      expect(task.agent).toBe('deployer');
+      expect(task.source_access).toBe(true);
+      expect(task.driver).toBe('codex');
+      expect(task.model).toBe('gpt-5.4');
+    });
+
+    it('defaults section sets codex driver and gpt-5.4 as fallback', () => {
+      // Read raw YAML to verify defaults section exists
+      const raw = readFileSync(defaultWorkflowPath, 'utf-8');
+      expect(raw).toContain('defaults:');
+      expect(raw).toContain('driver: codex');
+      expect(raw).toContain('model: gpt-5.4');
     });
   });
 

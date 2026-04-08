@@ -13,8 +13,20 @@ export const TASK_PROMPTS: Record<string, (key: string) => string> = {
     ? `Deploy the entire sprint. Provision Docker environment, start all containers, verify health across all services. This runs ONCE after all epics are complete. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`
     : `Provision the Docker environment for epic ${key}. Check for docker-compose.yml, start containers, verify health. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`,
   'verify': (key) => key === '__sprint__'
-    ? `Verify ALL stories across ALL epics in this sprint. Read user docs and deploy info from ./story-files/. For EACH story's ACs, derive verification steps, run commands, observe output. This is the final sprint-level verification — every AC across every epic must be checked. Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`
-    : `Verify the stories for epic ${key} using the user docs and deploy info in ./story-files/. For each AC, derive verification steps, run commands, observe output. Include <verdict>pass</verdict> or <verdict>fail</verdict>. Include <evidence ac="N" status="pass|fail|unknown">...</evidence> per AC. Include <quality-scores>...</quality-scores>.`,
+    ? `Verify ALL stories across ALL epics in this sprint. For EACH story's ACs: run the verification commands specified in AC comments (npm run build, npx vitest run, wc -l, grep, etc.), observe output, determine pass/fail. Budget: max 2 commands per AC. After checking ALL ACs, output your verdict.
+
+CRITICAL — your response MUST end with exactly one of these XML tags:
+<verdict>pass</verdict> if ALL ACs passed
+<verdict>fail</verdict> if ANY AC failed
+
+Also include: <metrics tests-passed="N" tests-failed="N" lint-warnings="N" issues="N" />`
+    : `Verify the stories for epic ${key}. For each AC: run verification commands, observe output, determine pass/fail. Budget: max 2 commands per AC. After checking ALL ACs, output your verdict.
+
+CRITICAL — your response MUST end with exactly one of these XML tags:
+<verdict>pass</verdict> if ALL ACs passed
+<verdict>fail</verdict> if ANY AC failed
+
+Also include: <metrics tests-passed="N" tests-failed="N" lint-warnings="N" issues="N" />`,
   'retro': (key) => `Run a retrospective for epic ${key}. Analyze what worked, what failed, patterns, and action items for next epic.`,
 };
 
@@ -22,4 +34,6 @@ export const TASK_PROMPTS: Record<string, (key: string) => string> = {
 export const FILE_WRITE_TOOL_NAMES = new Set([
   'Write', 'Edit', 'write_to_file', 'edit_file',
   'write', 'edit', 'WriteFile', 'EditFile',
+  // OpenCode tool names
+  'write_file', 'edit_file', 'create_file', 'apply_patch',
 ]);

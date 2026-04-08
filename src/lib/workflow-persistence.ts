@@ -64,6 +64,25 @@ function stableReplacer(_key: string, value: unknown): unknown {
 
 // ─── Save ────────────────────────────────────────────────────────────
 
+const SET_TYPE_MARKER = '__Set__';
+
+function setReplacer(_key: string, value: unknown): unknown {
+  if (value instanceof Set) {
+    return { [SET_TYPE_MARKER]: true, values: Array.from(value) };
+  }
+  return value;
+}
+
+function setReviver(_key: string, value: unknown): unknown {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const record = value as Record<string, unknown>;
+    if (record[SET_TYPE_MARKER] === true && Array.isArray(record.values)) {
+      return new Set(record.values);
+    }
+  }
+  return value;
+}
+
 /**
  * Save an XState persisted snapshot to disk atomically.
  *
@@ -90,7 +109,7 @@ export function saveSnapshot(
     savedAt: new Date().toISOString(),
   };
 
-  writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+  writeFileSync(tmpPath, JSON.stringify(data, setReplacer, 2), 'utf-8');
   renameSync(tmpPath, snapshotPath);
 }
 
@@ -149,7 +168,7 @@ export function loadSnapshot(projectDir?: string): XStateWorkflowSnapshot | null
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(raw, setReviver);
   } catch { // IGNORE: truncated/corrupt JSON — treat as no snapshot
     warn('workflow-persistence: corrupt workflow-snapshot.json (invalid JSON) — starting fresh');
     return null;

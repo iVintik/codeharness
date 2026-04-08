@@ -250,7 +250,8 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
       throw new WorkflowParseError(`Referential integrity errors: ${details}`, allErrors);
     }
 
-    const resolvedTasks = resolveTasksMap(data.tasks);
+    const defaults = (data.defaults as { driver?: string; model?: string } | undefined) ?? undefined;
+    const resolvedTasks = resolveTasksMap(data.tasks, defaults);
     const rawExecution = (data.execution != null && typeof data.execution === 'object')
       ? data.execution as Record<string, unknown>
       : {};
@@ -280,9 +281,10 @@ export function parseWorkflowData(parsed: unknown): ResolvedWorkflow {
   throw new WorkflowParseError('Workflow must use for_each format', [{ path: '/', message: 'Use workflow: with for_each blocks' }]);
 }
 
-/** Build the resolved tasks map from raw parsed task data. */
+/** Build the resolved tasks map from raw parsed task data, applying workflow defaults. */
 function resolveTasksMap(
   rawTasks: Record<string, Record<string, unknown>>,
+  defaults?: { driver?: string; model?: string },
 ): Record<string, ResolvedTask> {
   const resolvedTasks: Record<string, ResolvedTask> = {};
   for (const [taskName, task] of Object.entries(rawTasks)) {
@@ -296,8 +298,11 @@ function resolveTasksMap(
     if (task.output_contract !== undefined) resolved.output_contract = task.output_contract as Record<string, unknown>;
     if (task.max_budget_usd !== undefined) resolved.max_budget_usd = task.max_budget_usd as number;
     if (task.timeout_minutes !== undefined) resolved.timeout_minutes = task.timeout_minutes as number;
-    if (task.driver !== undefined) resolved.driver = task.driver as string;
-    if (task.model !== undefined) resolved.model = task.model as string;
+    // Apply defaults for driver/model if task doesn't specify them
+    const driver = task.driver ?? defaults?.driver;
+    if (driver != null) resolved.driver = driver as string;
+    const model = task.model ?? defaults?.model;
+    if (model != null) resolved.model = model as string;
     if (task.plugins !== undefined) resolved.plugins = task.plugins as string[];
     resolvedTasks[taskName] = resolved;
   }

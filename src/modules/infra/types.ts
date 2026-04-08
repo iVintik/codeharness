@@ -7,9 +7,12 @@ import type { DependencyResult } from '../../lib/deps.js';
 import type { OtlpResult } from '../../lib/observability/index.js';
 import type { DockerStartResult } from '../../lib/docker/index.js';
 
+export type AgentRuntime = 'claude-code' | 'codex';
+
 /** Options for project initialization */
 export interface InitOptions {
   readonly projectDir: string;
+  readonly agentRuntime?: AgentRuntime;
   readonly frontend: boolean;
   readonly database: boolean;
   readonly api: boolean;

@@ -27,7 +27,8 @@ export function checkCapabilityConflicts(workflow: ResolvedWorkflow): Capability
   const warnings: CapabilityWarning[] = [];
 
   for (const [taskName, task] of Object.entries(workflow.tasks)) {
-    const driverName = task.driver ?? 'claude-code';
+    const driverName = task.driver;
+    if (!driverName) continue;
 
     let driver;
     try {

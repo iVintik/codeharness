@@ -527,7 +527,7 @@ describe('agent-resolver', () => {
       const result = compileSubagentDefinition(agent);
 
       expect(result.name).toBe('test-agent');
-      expect(result.model).toBe('claude-sonnet-4-6');
+      expect(result.model).toBe('');
       expect(result.bare).toBe(true);
       expect(result.instructions).toContain('You are A test agent for unit tests');
       expect(result.instructions).toContain('Communication style: Direct and clear');
@@ -564,10 +564,10 @@ describe('agent-resolver', () => {
       expect(result.bare).toBe(true);
     });
 
-    it('sets default model', () => {
+    it('sets empty model to be resolved at dispatch time', () => {
       const agent = makeMinimalAgent();
       const result = compileSubagentDefinition(agent);
-      expect(result.model).toBe('claude-sonnet-4-6');
+      expect(result.model).toBe('');
     });
 
     it('compiles real embedded dev agent correctly', () => {

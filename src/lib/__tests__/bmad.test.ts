@@ -130,7 +130,7 @@ describe('detectBmadVersion', () => {
 });
 
 describe('installBmad', () => {
-  it('runs npx bmad-method install when _bmad/ does not exist', () => {
+  it('runs npx bmad-method install with claude-code by default when _bmad/ does not exist', () => {
     // Simulate npx bmad-method install creating the _bmad/ directory
     mockExecFileSync.mockImplementation(() => {
       mkdirSync(join(testDir, '_bmad'), { recursive: true });
@@ -144,6 +144,20 @@ describe('installBmad', () => {
       expect.objectContaining({ cwd: testDir, stdio: 'pipe', timeout: 120_000 }),
     );
     expect(result.status).toBe('installed');
+  });
+
+  it('uses --tools none for codex installs', () => {
+    mockExecFileSync.mockImplementation(() => {
+      mkdirSync(join(testDir, '_bmad'), { recursive: true });
+      return Buffer.from('');
+    });
+
+    installBmad(testDir, 'codex');
+    expect(mockExecFileSync).toHaveBeenCalledWith(
+      'npx',
+      ['bmad-method', 'install', '--yes', '--directory', testDir, '--modules', 'bmm', '--tools', 'none'],
+      expect.objectContaining({ cwd: testDir, stdio: 'pipe', timeout: 120_000 }),
+    );
   });
 
   it('skips when _bmad/ already exists and returns already-installed', () => {

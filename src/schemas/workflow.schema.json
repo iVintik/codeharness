@@ -32,6 +32,21 @@
       ],
       "description": "New-format workflow definition using for_each blocks or a top-level steps block (mutually exclusive with story_flow/epic_flow)"
     },
+    "defaults": {
+      "type": "object",
+      "description": "Default driver and model for tasks without explicit configuration",
+      "properties": {
+        "driver": {
+          "type": "string",
+          "description": "Default agent driver framework"
+        },
+        "model": {
+          "type": "string",
+          "description": "Default model for tasks"
+        }
+      },
+      "additionalProperties": false
+    },
     "execution": {
       "$ref": "#/definitions/execution",
       "description": "Execution configuration for parallel and isolation settings"

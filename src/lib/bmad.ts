@@ -1,8 +1,33 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import type { AgentRuntime } from '../modules/infra/index.js';
 import { PATCH_TEMPLATES } from '../templates/bmad-patches.js';
 import { warn } from './output.js';
+
+const BMAD_MODULES = 'bmm';
+
+function getBmadToolTarget(agentRuntime: AgentRuntime): string {
+  return agentRuntime === 'codex' ? 'none' : 'claude-code';
+}
+
+function getBmadInstallArgs(root: string, agentRuntime: AgentRuntime): string[] {
+  return [
+    'bmad-method',
+    'install',
+    '--yes',
+    '--directory',
+    root,
+    '--modules',
+    BMAD_MODULES,
+    '--tools',
+    getBmadToolTarget(agentRuntime),
+  ];
+}
+
+function getBmadInstallCommand(root: string, agentRuntime: AgentRuntime): string {
+  return `npx ${getBmadInstallArgs(root, agentRuntime).join(' ')}`;
+}
 
 export class BmadError extends Error {
   constructor(
@@ -98,7 +123,7 @@ export function detectBmadVersion(dir?: string): string | null {
  * If `_bmad/` already exists, skips installation and returns `already-installed`.
  * On failure, throws BmadError.
  */
-export function installBmad(dir?: string): BmadInstallResult {
+export function installBmad(dir?: string, agentRuntime: AgentRuntime = 'claude-code'): BmadInstallResult {
   const root = dir ?? process.cwd();
 
   if (isBmadInstalled(root)) {
@@ -110,9 +135,10 @@ export function installBmad(dir?: string): BmadInstallResult {
     };
   }
 
-  const cmdStr = `npx bmad-method install --yes --directory ${root} --modules bmm --tools claude-code`;
+  const cmdArgs = getBmadInstallArgs(root, agentRuntime);
+  const cmdStr = getBmadInstallCommand(root, agentRuntime);
   try {
-    execFileSync('npx', ['bmad-method', 'install', '--yes', '--directory', root, '--modules', 'bmm', '--tools', 'claude-code'], {
+    execFileSync('npx', cmdArgs, {
       stdio: 'pipe',
       timeout: 120_000, // 2 min — npx may need to download the package first time
       cwd: root,

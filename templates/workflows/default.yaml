@@ -3,56 +3,70 @@ tasks:
     agent: story-creator
     session: fresh
     source_access: true
-    model: claude-opus-4-6
+    driver: opencode
+    model: kimi-for-coding/k2p5
     timeout_minutes: 15
   implement:
     agent: dev
     session: fresh
     source_access: true
-    model: claude-sonnet-4-6
+    driver: codex
+    model: gpt-5.4
     timeout_minutes: 30
   check:
     agent: checker
     session: fresh
     source_access: true
     driver: codex
+    model: gpt-5.4
     timeout_minutes: 10
   review:
     agent: reviewer
     session: fresh
     source_access: true
-    driver: codex
+    driver: opencode
+    model: kimi-for-coding/k2p5
     timeout_minutes: 10
   document:
     agent: documenter
     session: fresh
     source_access: true
-    model: claude-opus-4-6
+    driver: codex
+    model: gpt-5.4
     timeout_minutes: 15
   deploy:
     agent: deployer
     session: fresh
     source_access: true
-    model: claude-sonnet-4-6
+    driver: codex
+    model: gpt-5.4
     timeout_minutes: 30
   verify:
     agent: evaluator
     session: fresh
     source_access: false
-    driver: codex
+    driver: opencode
+    model: kimi-for-coding/k2p5
     timeout_minutes: 30
   retry:
     agent: dev
     session: fresh
     source_access: true
-    model: claude-sonnet-4-6
+    driver: codex
+    model: gpt-5.4
     timeout_minutes: 15
   retro:
     agent: retro
     session: fresh
     source_access: true
-    model: claude-opus-4-6
+    driver: opencode
+    model: kimi-for-coding/k2p5
     timeout_minutes: 15
+
+# Default driver and model for any task without explicit configuration
+defaults:
+  driver: codex
+  model: gpt-5.4
 
 workflow:
   steps:

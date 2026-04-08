@@ -2,7 +2,7 @@
 
 # Story 27-1: Pure visualizer function — `visualize(snapshot, vizConfig) → string`
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -90,7 +90,7 @@ That takes an XState persisted snapshot (the `.snapshot` field from `XStateWorkf
 
 ### T1: Define `WorkflowPosition` type and `VizConfig` interface (AC: #6, #7, #8)
 
-- Add to `workflow-types.ts` (or create in `workflow-visualizer.ts` if types are visualizer-only):
+- [x] Add to `workflow-types.ts` (or create in `workflow-visualizer.ts` if types are visualizer-only):
   ```typescript
   interface WorkflowPosition {
     level: 'run' | 'epic' | 'story' | 'gate';
@@ -118,7 +118,7 @@ That takes an XState persisted snapshot (the `.snapshot` field from `XStateWorkf
 
 ### T2: Implement scope prefix rendering (AC: #2, #5, #6)
 
-- Scope prefix rules:
+- [x] Scope prefix rules:
   - Inside story iteration: `Epic {N} [{s}/{t}] ` where N=epicId, s=storyIndex, t=totalStories
   - On epic-level steps (stories done): `Epic {N} `
   - Single-level flow (no for_each): no prefix
@@ -126,7 +126,7 @@ That takes an XState persisted snapshot (the `.snapshot` field from `XStateWorkf
 
 ### T3: Implement step rendering with truncation (AC: #2, #7, #9)
 
-- For each visible step, render based on status:
+- [x] For each visible step, render based on status:
   - `done`: `name✓` (dim)
   - `active`: `name…` (bold)
   - `failed`: `name✗` (red)
@@ -137,7 +137,7 @@ That takes an XState persisted snapshot (the `.snapshot` field from `XStateWorkf
 
 ### T4: Implement gate rendering (AC: #3)
 
-- When the active step is a gate (position.gate is set):
+- [x] When the active step is a gate (position.gate is set):
   - Pending gate: `⟲{name}`
   - Active gate: `⟲{name}({iter}/{max} {P}✓{F}✗)…`
   - Completed gate: `⟲{name}✓`
@@ -145,7 +145,7 @@ That takes an XState persisted snapshot (the `.snapshot` field from `XStateWorkf
 
 ### T5: Implement sliding window (AC: #4, #8)
 
-- If `steps.length > maxStepSlots`:
+- [x] If `steps.length > maxStepSlots`:
   - Calculate window centered on `activeStepIndex`
   - Completed steps before window: `[{N}✓]` prefix
   - Steps after window: `→ …{N} more` suffix
@@ -154,7 +154,7 @@ That takes an XState persisted snapshot (the `.snapshot` field from `XStateWorkf
 
 ### T6: Implement width enforcement and `visualize()` entry point (AC: #8, #12)
 
-- `visualize(position: WorkflowPosition, vizConfig?: VizConfig): string`
+- [x] `visualize(position: WorkflowPosition, vizConfig?: VizConfig): string`
 - Compose: scope prefix + sliding window prefix + rendered steps + sliding window suffix
 - Measure stripped length (without ANSI codes)
 - If > maxWidth: progressively truncate task names, then reduce step slots
@@ -162,7 +162,7 @@ That takes an XState persisted snapshot (the `.snapshot` field from `XStateWorkf
 
 ### T7: Write comprehensive tests (AC: #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11)
 
-- Create `src/lib/__tests__/workflow-visualizer.test.ts`
+- [x] Create `src/lib/__tests__/workflow-visualizer.test.ts`
 - Test cases:
   1. Basic story rendering: epic prefix + steps with active marker
   2. Gate rendering: `⟲quality(2/5 1✓1✗)` format
@@ -182,5 +182,34 @@ That takes an XState persisted snapshot (the `.snapshot` field from `XStateWorkf
 - The architecture specifies color via ANSI (dim, bold, red, yellow). The pure function should return ANSI-colored strings. Tests should strip ANSI when checking length/content.
 - The `inspect` API wiring (story 27-3) will call `visualize()` on every `@xstate.snapshot` event. The visualizer must be fast — avoid allocations or regex in the hot path.
 - Epic 26 retrospective action item A1 (per-story git commits) is still outstanding. Make a commit for this story specifically.
+
+## Dev Agent Record
+
+### Implementation Plan
+
+- T1: `WorkflowPosition`, `StepStatus`, `GateInfo`, `VizConfig` interfaces defined in `workflow-visualizer.ts` (kept visualizer-only to avoid bloating `workflow-types.ts` which was near 300 lines from story 26).
+- T2: `buildScopePrefix()` renders `Epic N [s/t] ` for story context, `Epic N ` for epic-level, empty for flat flows. `stories✓ → ` prepended when `storiesDone` is true.
+- T3: `renderStep()` with ANSI styling per status; `truncateName()` truncates at `maxLen-1` chars + `…` ellipsis.
+- T4: `renderGateStep()` handles all four gate states; wired into `renderSteps()` at the active step index when `pos.gate` is set.
+- T5: `computeWindow()` centers on `activeStepIndex`, clamps to `[0, totalSteps-maxSlots]` to prevent underfill at end-of-flow.
+- T6: `visualize()` composes prefix + steps, then `enforceWidth()` progressively reduces nameMaxLen → slots → hard-truncate.
+- T7: 50 tests covering all ACs including purity (mocked `node:fs`), parametric width checks, edge cases.
+- Note: `snapshotToPosition()` was also present in the file (pre-implemented for story 27-2 scope), kept as-is.
+
+### Completion Notes
+
+- All T1–T7 tasks implemented. 50 tests pass, 5296 total tests pass, `npm run build` exits 0.
+- `workflow-visualizer.ts` is exactly 300 lines (NFR18 ≤300 satisfied).
+- Pure function confirmed: `node:fs` mocked in tests, no I/O calls executed.
+- AC1–AC12 all satisfied per test suite and build verification.
+
+## File List
+
+- `src/lib/workflow-visualizer.ts` (new)
+- `src/lib/__tests__/workflow-visualizer.test.ts` (new)
+
+## Change Log
+
+- 2026-04-08: Implemented story 27-1 — pure `visualize(pos, vizConfig) → string` function with ANSI rendering, sliding window, scope prefix, gate rendering, width enforcement. 50 tests added covering all ACs.
 
 </story-spec>

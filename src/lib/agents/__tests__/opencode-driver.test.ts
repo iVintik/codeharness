@@ -505,7 +505,7 @@ describe('OpenCodeDriver', () => {
       expect(mockSpawn).toHaveBeenCalledWith(
         'opencode',
         expect.arrayContaining(['--plugin', 'plugin-a', '--plugin', 'plugin-b']),
-        { stdio: ['ignore', 'pipe', 'pipe'] },
+        { stdio: ['ignore', 'pipe', 'pipe'], cwd: '/tmp/test' },
       );
     });
 
@@ -588,13 +588,16 @@ describe('OpenCodeDriver', () => {
   describe('healthCheck (AC #5)', () => {
     it('returns available: true when binary is found', async () => {
       mockExecFile.mockImplementation(
-        (cmd: string, args: string[], cb: (err: Error | null, result: { stdout: string }) => void) => {
+        (cmd: string, args: string[], optsOrCb: unknown, cb?: (err: Error | null, result: { stdout: string }) => void) => {
+          // Handle both (cmd, args, callback) and (cmd, args, options, callback) signatures
+          const callback = cb ?? (optsOrCb as (err: Error | null, result: { stdout: string }) => void);
           if (cmd === 'which') {
-            cb(null, { stdout: '/usr/local/bin/opencode\n' });
+            callback(null, { stdout: '/usr/local/bin/opencode\n' });
           } else if (args[0] === '--version') {
-            cb(null, { stdout: '0.5.0\n' });
-          } else if (args[0] === 'auth') {
-            cb(null, { stdout: 'authenticated\n' });
+            callback(null, { stdout: '0.5.0\n' });
+          } else if (args[0] === 'run' && args[1] === '--format') {
+            // Auth check via run command succeeds
+            callback(null, { stdout: '{"type":"result"}\n' });
           }
         },
       );
@@ -621,13 +624,16 @@ describe('OpenCodeDriver', () => {
 
     it('returns authenticated: false when auth check fails', async () => {
       mockExecFile.mockImplementation(
-        (cmd: string, args: string[], cb: (err: Error | null, result?: { stdout: string }) => void) => {
+        (cmd: string, args: string[], optsOrCb: unknown, cb?: (err: Error | null, result?: { stdout: string }) => void) => {
+          // Handle both (cmd, args, callback) and (cmd, args, options, callback) signatures
+          const callback = cb ?? (optsOrCb as (err: Error | null, result?: { stdout: string }) => void);
           if (cmd === 'which') {
-            cb(null, { stdout: '/usr/local/bin/opencode\n' });
+            callback(null, { stdout: '/usr/local/bin/opencode\n' });
           } else if (args[0] === '--version') {
-            cb(null, { stdout: '0.5.0\n' });
-          } else if (args[0] === 'auth') {
-            cb(new Error('not authenticated'));
+            callback(null, { stdout: '0.5.0\n' });
+          } else if (args[0] === 'run' && args[1] === '--format') {
+            // Auth check via run command fails
+            callback(new Error('not authenticated'));
           }
         },
       );
@@ -652,8 +658,8 @@ describe('OpenCodeDriver', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'opencode',
-        ['--model', 'gpt-4o', '--cwd', '/my/project', 'hello'],
-        { stdio: ['ignore', 'pipe', 'pipe'] },
+        ['run', '--format', 'json', '--model', 'gpt-4o', 'hello'],
+        { stdio: ['ignore', 'pipe', 'pipe'], cwd: '/my/project' },
       );
     });
   });
@@ -693,7 +699,7 @@ describe('OpenCodeDriver', () => {
   });
 
   describe('dispatch — no model or cwd in opts', () => {
-    it('does not pass --model or --cwd when opts omit them', async () => {
+    it('does not pass --model and uses empty cwd when opts omit them', async () => {
       const { proc } = createMockProcess(
         ['{"type":"result","cost_usd":0.01,"session_id":"s"}'],
         0,
@@ -706,8 +712,8 @@ describe('OpenCodeDriver', () => {
 
       expect(mockSpawn).toHaveBeenCalledWith(
         'opencode',
-        ['hello'],
-        { stdio: ['ignore', 'pipe', 'pipe'] },
+        ['run', '--format', 'json', 'hello'],
+        { stdio: ['ignore', 'pipe', 'pipe'], cwd: '' },
       );
     });
   });

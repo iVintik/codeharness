@@ -201,38 +201,40 @@ export class OpenCodeDriver implements AgentDriver {
       // noop
     }
 
-    // Check auth status
-    let authenticated = false;
-    try {
-      await execFileAsync('opencode', ['auth', 'status']);
-      authenticated = true;
-    } catch { // IGNORE: auth check failed or command not supported — treat as unauthenticated
-      // noop
-    }
-
-    return { available: true, authenticated, version };
+    // Auth is checked lazily at dispatch time (opencode run is too slow for health check)
+    return { available: true, authenticated: true, version };
   }
 
   async *dispatch(opts: DispatchOpts): AsyncGenerator<StreamEvent> {
     this.lastCost = null;
 
-    // Build CLI args
-    const args: string[] = [];
-    if (opts.model) {
+    // Build CLI args for 'opencode run --format json'
+    const args: string[] = ['run', '--format', 'json'];
+
+    // Only pass model if it's not the driver's default sentinel
+    if (opts.model && opts.model !== this.defaultModel) {
       args.push('--model', opts.model);
     }
-    if (opts.cwd) {
-      args.push('--cwd', opts.cwd);
+
+    // Handle session continuation - OpenCode uses --continue flag
+    if (opts.sessionId) {
+      args.push('--continue', opts.sessionId);
     }
 
-    // Pass plugins via --plugin flags (OpenCode supports plugins natively)
+    // Pass plugins via --plugin flags if supported
     if (opts.plugins && opts.plugins.length > 0) {
       for (const plugin of opts.plugins) {
         args.push('--plugin', plugin);
       }
     }
 
-    args.push(opts.prompt);
+    // Handle system prompt injection by prepending to prompt
+    let prompt = opts.prompt;
+    if (opts.appendSystemPrompt) {
+      prompt = `${opts.appendSystemPrompt}\n\n${prompt}`;
+    }
+
+    args.push(prompt);
 
     let yieldedResult = false;
     let timedOut = false;
@@ -240,8 +242,10 @@ export class OpenCodeDriver implements AgentDriver {
     let aborted = false;
     let abortListener: (() => void) | undefined;
 
+    // Use spawn with cwd option instead of --cwd flag
     const proc = spawn('opencode', args, {
       stdio: ['ignore', 'pipe', 'pipe'],
+      cwd: opts.cwd,
     });
 
     if (opts.abortSignal) {

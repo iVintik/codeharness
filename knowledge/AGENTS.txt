@@ -1,6 +1,6 @@
 # knowledge/
 
-Plugin knowledge files loaded into the agent's context. Each file teaches the agent a specific capability or pattern.
+Repo-local knowledge files that any compatible coding agent can load into context. Each file teaches one capability or operating pattern.
 
 ## Key Files
 
@@ -15,5 +15,5 @@ Plugin knowledge files loaded into the agent's context. Each file teaches the ag
 
 - Knowledge files are markdown, no frontmatter needed
 - Each file covers one topic — keep focused
-- Files are loaded automatically by the plugin system
+- Prefer guidance that works in both Claude Code and Codex unless integration details differ
 - Max recommended size: ~3KB per file (keeps context manageable)

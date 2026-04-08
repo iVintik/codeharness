@@ -160,6 +160,7 @@ export interface EngineResult {
   durationMs: number;
   finalPhase?: string;
   persistenceState?: 'cleared' | 'preserved';
+  haltReason?: string;
 }
 
 export interface DispatchInput {

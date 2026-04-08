@@ -12,8 +12,12 @@ export const TASK_PROMPTS: Record<string, (key: string) => string> = {
   'deploy': (key) => key === '__sprint__'
     ? `Deploy the entire sprint. Provision Docker environment, start all containers, verify health across all services. This runs ONCE after all epics are complete. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`
     : `Provision the Docker environment for epic ${key}. Check for docker-compose.yml, start containers, verify health. Wrap report in <deploy-report>...</deploy-report> tags with status, containers, URLs, credentials, health.`,
-  'verify': (key) => key === '__sprint__'
-    ? `Verify ALL stories across ALL epics in this sprint. For EACH story's ACs: run the verification commands specified in AC comments (npm run build, npx vitest run, wc -l, grep, etc.), observe output, determine pass/fail. Budget: max 2 commands per AC. After checking ALL ACs, output your verdict.
+  'verify': (key) => key === '__sprint__' || key === '__run__'
+    ? `Verify ALL stories across ALL epics in this sprint. Story files are located in:
+- Story specs: _bmad-output/stories/*.md or story-files/*.md
+- Implementation artifacts: _bmad-output/implementation-artifacts/*.md
+
+For EACH story's ACs: run the verification commands specified in AC comments (npm run build, npx vitest run, wc -l, grep, etc.), observe output, determine pass/fail. Budget: max 2 commands per AC. After checking ALL ACs, output your verdict.
 
 CRITICAL — your response MUST end with exactly one of these XML tags:
 <verdict>pass</verdict> if ALL ACs passed

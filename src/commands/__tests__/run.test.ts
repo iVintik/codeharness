@@ -400,6 +400,7 @@ describe('run command', () => {
         storiesProcessed: 1,
         errors: [{ taskName: 'implement', storyKey: '1-1-story', code: 'UNKNOWN', message: 'dispatch failed' }],
         durationMs: 5000,
+        haltReason: undefined,
       });
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
@@ -407,6 +408,25 @@ describe('run command', () => {
 
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Workflow failed'));
       expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('dispatch failed'));
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('includes halt reason when workflow stops without dispatch errors', async () => {
+      mockPaths({ '.claude': true });
+      readSprintStatusMock.mockReturnValue({ '1-1-story': 'checked' });
+      executeWorkflowMock.mockResolvedValue({
+        success: false,
+        tasksCompleted: 31,
+        storiesProcessed: 3,
+        errors: [],
+        durationMs: 60000,
+        haltReason: 'score-stagnation',
+      });
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await runCommand();
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Workflow failed [score-stagnation]'));
       expect(process.exitCode).toBe(1);
     });
 

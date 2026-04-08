@@ -498,5 +498,10 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
     durationMs: Date.now() - startMs,
     finalPhase: state.phase,
     persistenceState,
+    haltReason: state.phase === 'circuit-breaker'
+      ? (state.circuit_breaker.reason ?? 'circuit-breaker')
+      : state.phase === 'max-iterations'
+        ? 'max-iterations'
+        : undefined,
   };
 }

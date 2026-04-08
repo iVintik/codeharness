@@ -374,7 +374,8 @@ export function registerRunCommand(program: Command): void {
           } else if (result.success) {
             ok(`Workflow completed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, $${totalCostUsd.toFixed(2)} spent in ${formatElapsed(result.durationMs)}`, outputOpts);
           } else {
-            fail(`Workflow failed — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, $${totalCostUsd.toFixed(2)} spent, ${result.errors.length} error(s) in ${formatElapsed(result.durationMs)}`, outputOpts);
+            const haltSuffix = result.haltReason ? ` [${result.haltReason}]` : '';
+            fail(`Workflow failed${haltSuffix} — ${result.storiesProcessed} stories processed, ${result.tasksCompleted} tasks completed, $${totalCostUsd.toFixed(2)} spent, ${result.errors.length} error(s) in ${formatElapsed(result.durationMs)}`, outputOpts);
             for (const err of result.errors) {
               info(`  ${err.taskName}/${err.storyKey}: [${err.code}] ${err.message}`, outputOpts);
             }

@@ -11,10 +11,11 @@
  */
 
 import { createHash } from 'node:crypto';
-import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { warn } from './output.js';
-import type { CheckpointEntry, EngineConfig } from './workflow-types.js';
+import type { EngineConfig } from './workflow-types.js';
+export { appendCheckpoint, clearCheckpointLog, loadCheckpointLog } from './workflow-checkpoint-log.js';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -27,13 +28,11 @@ export interface XStateWorkflowSnapshot {
   savedAt: string;
 }
 
-
 // ─── Constants ───────────────────────────────────────────────────────
 
 const STATE_DIR = '.codeharness';
 const SNAPSHOT_FILE = 'workflow-snapshot.json';
 const OLD_YAML_FILE = 'workflow-state.yaml';
-const CHECKPOINT_FILE = 'workflow-checkpoints.jsonl';
 
 // ─── Config Hash ─────────────────────────────────────────────────────
 
@@ -202,62 +201,6 @@ export function clearSnapshot(projectDir?: string): void {
   }
 }
 
-// ─── Checkpoint Log ──────────────────────────────────────────────────
-
-/**
- * Append one checkpoint entry to the JSONL checkpoint log.
- * Creates .codeharness/ dir if missing.
- * Each write is a complete JSON line — crash-safe append-only format.
- */
-export function appendCheckpoint(entry: CheckpointEntry, projectDir?: string): void {
-  const baseDir = projectDir ?? process.cwd();
-  const stateDir = join(baseDir, STATE_DIR);
-  mkdirSync(stateDir, { recursive: true });
-  const checkpointPath = join(stateDir, CHECKPOINT_FILE);
-  appendFileSync(checkpointPath, JSON.stringify(entry) + '\n', 'utf-8');
-}
-
-/**
- * Load all checkpoint entries from the JSONL log.
- * Skips blank lines and corrupt (non-JSON) lines with a warning.
- * Returns empty array if file does not exist.
- */
-export function loadCheckpointLog(projectDir?: string): CheckpointEntry[] {
-  const baseDir = projectDir ?? process.cwd();
-  const checkpointPath = join(baseDir, STATE_DIR, CHECKPOINT_FILE);
-  if (!existsSync(checkpointPath)) return [];
-  let raw: string;
-  try {
-    raw = readFileSync(checkpointPath, 'utf-8');
-  } catch { // IGNORE: unreadable file — treat as no checkpoints
-    warn('workflow-persistence: Could not read workflow-checkpoints.jsonl — starting with no checkpoints');
-    return [];
-  }
-  const entries: CheckpointEntry[] = [];
-  for (const line of raw.split('\n')) {
-    if (!line.trim()) continue;
-    try {
-      entries.push(JSON.parse(line) as CheckpointEntry);
-    } catch { // IGNORE: corrupt line — skip with warning, do not crash
-      warn(`workflow-persistence: corrupt checkpoint entry skipped (invalid JSON): ${line.slice(0, 80)}`);
-    }
-  }
-  return entries;
-}
-
-/**
- * Delete the checkpoint log after successful workflow completion.
- * Best-effort: swallows errors.
- */
-export function clearCheckpointLog(projectDir?: string): void {
-  const baseDir = projectDir ?? process.cwd();
-  const checkpointPath = join(baseDir, STATE_DIR, CHECKPOINT_FILE);
-  try {
-    if (existsSync(checkpointPath)) unlinkSync(checkpointPath);
-  } catch { // IGNORE: best-effort cleanup
-  }
-}
-
 // ─── Cleanup Utilities ───────────────────────────────────────────────
 
 /**
@@ -288,6 +231,7 @@ export function cleanStaleTmpFiles(projectDir?: string): void {
 export function clearAllPersistence(projectDir?: string): { snapshotCleared: boolean; checkpointCleared: boolean } {
   cleanStaleTmpFiles(projectDir);
   const baseDir = projectDir ?? process.cwd();
+  const checkpointPath = join(baseDir, STATE_DIR, 'workflow-checkpoints.jsonl');
   let snapshotCleared = false;
   let checkpointCleared = false;
 
@@ -301,7 +245,6 @@ export function clearAllPersistence(projectDir?: string): { snapshotCleared: boo
   }
 
   try {
-    const checkpointPath = join(baseDir, STATE_DIR, CHECKPOINT_FILE);
     if (existsSync(checkpointPath)) {
       unlinkSync(checkpointPath);
       checkpointCleared = true;

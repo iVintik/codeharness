@@ -2388,6 +2388,27 @@ describe('persistence cleanup (story 26-4)', () => {
     expect(mockDriverDispatch).not.toHaveBeenCalled();
   });
 
+  it('restarts fresh instead of early-returning when completed phase still has checked stories', async () => {
+    mockReadWorkflowState.mockReturnValue(makeDefaultState({ phase: 'completed' }));
+    mockParse.mockReturnValue({ development_status: { '26-1-xstate-snapshot-persistence': 'checked' } });
+
+    const result = await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({
+        tasks: { deploy: makeTask() },
+        flow: [],
+        sprintFlow: ['deploy'],
+      }),
+    }));
+
+    expect(result.success).toBe(true);
+    expect(result.tasksCompleted).toBe(1);
+    expect(mockClearAllPersistence).toHaveBeenCalledWith('/project');
+    expect(mockDriverDispatch).toHaveBeenCalled();
+    expect(mockInfo).toHaveBeenCalledWith(
+      expect.stringContaining('restarting fresh for sprint-level verification'),
+    );
+  });
+
   it('no snapshot + orphaned checkpoint entries: log is cleared and run starts fresh (AC #6)', async () => {
     // Story 26-4 AC6: when no snapshot exists but a checkpoint log is present,
     // the checkpoint log is orphaned stale state and must be cleared so the run

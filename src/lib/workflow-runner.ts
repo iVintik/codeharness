@@ -2,7 +2,7 @@
 import { createActor } from 'xstate';
 import { warn, info } from './output.js';
 import { checkCapabilityConflicts } from './agents/capability-check.js';
-import { readWorkflowState, writeWorkflowState } from './workflow-state.js';
+import { getDefaultWorkflowState, readWorkflowState, writeWorkflowState } from './workflow-state.js';
 import { saveSnapshot, loadSnapshot, snapshotFileExists, clearSnapshot, computeConfigHash, loadCheckpointLog, clearCheckpointLog, clearAllPersistence, cleanStaleTmpFiles, isRestorableXStateSnapshot } from './workflow-persistence.js';
 import type { EngineConfig, EngineEvent, RunMachineContext, EngineResult, EngineError, GateConfig, WorkItem } from './workflow-types.js';
 import { isGateConfig } from './workflow-types.js';
@@ -167,10 +167,16 @@ export async function runWorkflowActor(config: EngineConfig): Promise<EngineResu
   const projectDir = config.projectDir ?? process.cwd();
   cleanStaleTmpFiles(projectDir);
   let state = readWorkflowState(projectDir);
+  const checkedStoriesAtStart = loadCheckedStories(config.sprintStatusPath);
   if (state.phase === 'completed') {
     // Previous run completed — clear any stale persistence and no-op.
     clearAllPersistence(projectDir);
+    if (checkedStoriesAtStart.length > 0) {
+      info(`workflow-runner: Found ${checkedStoriesAtStart.length} checked stor${checkedStoriesAtStart.length === 1 ? 'y' : 'ies'} after a completed run — restarting fresh for sprint-level verification`);
+      state = getDefaultWorkflowState();
+    } else {
     return { success: true, tasksCompleted: 0, storiesProcessed: 0, errors: [], durationMs: 0, finalPhase: 'completed', persistenceState: 'cleared' };
+    }
   }
   // Capture phase BEFORE overwriting — used later to emit resume-context log only
   // when we actually resume from a snapshot (not when we start fresh). Emitting

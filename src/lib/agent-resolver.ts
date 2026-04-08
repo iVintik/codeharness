@@ -79,8 +79,6 @@ export class AgentResolveError extends Error {
 // --- Constants ---
 
 const TEMPLATES_DIR = resolve(getPackageRoot(), 'templates/agents');
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
-
 // --- Input Validation ---
 
 const SAFE_NAME_RE = /^[a-zA-Z0-9_-]+$/;

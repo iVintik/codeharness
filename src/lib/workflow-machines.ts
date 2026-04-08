@@ -1,9 +1,11 @@
 import { setup, assign, fromPromise, createActor } from 'xstate';
+import { join } from 'node:path';
 import { warn } from './output.js';
 import { DispatchError } from './agent-dispatch.js';
 import type { StreamEvent } from './agents/stream-parser.js';
 import type { SubagentDefinition } from './agent-resolver.js';
 import type { ResolvedTask, LoopBlock } from './workflow-parser.js';
+import { getStoryFilePath } from './bmad.js';
 import { parseVerdict } from './verdict-parser.js';
 import { evaluateProgress } from './circuit-breaker.js';
 import { writeWorkflowState } from './workflow-state.js';
@@ -65,8 +67,22 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
     for (const item of items) {
       if (isLoopTaskCompleted(currentState, taskName, item.key, currentState.iteration)) { warn(`workflow-machine: skipping completed task ${taskName} for ${item.key}`); continue; }
       const prompt = lastVerdict ? buildRetryPrompt(item.key, lastVerdict.findings) : undefined;
+      const storyFiles = !storyFlowTasks?.has(taskName) && task.source_access === false
+        ? workItems.map((workItem) => join(projectDir, getStoryFilePath(workItem.key)))
+        : undefined;
       try {
-        const dr = await dispatchTaskCore({ task, taskName, storyKey: item.key, definition, config, workflowState: currentState, previousContract: lastContract, onStreamEvent, customPrompt: prompt });
+        const dr = await dispatchTaskCore({
+          task,
+          taskName,
+          storyKey: item.key,
+          definition,
+          config,
+          workflowState: currentState,
+          previousContract: lastContract,
+          onStreamEvent,
+          customPrompt: prompt,
+          storyFiles,
+        });
         currentState = dr.updatedState; lastContract = dr.contract; accumulatedCostUsd += dr.contract?.cost_usd ?? 0; tasksCompleted++;
         if (taskName === lastAgentTaskInLoop) {
           // Parse verdict from XML tags. One format everywhere.
@@ -164,4 +180,3 @@ export async function dispatchTask(task: ResolvedTask, taskName: string, storyKe
   const result = await dispatchTaskCore({ task, taskName, storyKey, definition, config, workflowState: state, previousContract: previousOutputContract ?? null, customPrompt });
   return result.updatedState;
 }
-

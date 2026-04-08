@@ -2498,6 +2498,7 @@ describe('persistence cleanup (story 26-4)', () => {
   it('retries failed sprint deploy via following gate fix tasks before promotion', async () => {
     mockLoadSnapshot.mockReturnValue(null);
     mockUpdateStoryStatus.mockReset();
+    mockDriverDispatch.mockReset();
     mockParse.mockReturnValue({
       development_status: {
         '26-1-xstate-snapshot-persistence': 'checked',
@@ -2507,7 +2508,7 @@ describe('persistence cleanup (story 26-4)', () => {
 
     let deployAttempts = 0;
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Verify the stories for epic')) {
+      if (opts.prompt.includes('Verify ALL stories across ALL epics in this sprint.')) {
         return makeDriverStream('<evidence ac="1" status="pass">ok</evidence><verdict>pass</verdict>', 'sess-verify');
       }
       if (opts.prompt.includes('Deploy the entire sprint.')) {
@@ -2540,6 +2541,46 @@ describe('persistence cleanup (story 26-4)', () => {
     expect(mockUpdateStoryStatus).toHaveBeenCalledWith('26-2-snapshot-resume-config-hash-validation', 'done');
   });
 
+  it('passes checked story files into sprint-level verify workspace for __run__', async () => {
+    mockLoadSnapshot.mockReturnValue(null);
+    mockDriverDispatch.mockReset();
+    mockParse.mockReturnValue({
+      development_status: {
+        '26-1-xstate-snapshot-persistence': 'checked',
+        '26-2-snapshot-resume-config-hash-validation': 'checked',
+      },
+    });
+
+    mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
+      if (opts.prompt.includes('Verify ALL stories across ALL epics in this sprint.')) {
+        return makeDriverStream('<evidence ac="1" status="pass">ok</evidence><verdict>pass</verdict>', 'sess-verify');
+      }
+      return makeDriverStream('ok', 'sess-generic');
+    });
+
+    await runWorkflowActor(makeConfig({
+      workflow: makeWorkflow({
+        tasks: {
+          implement: makeTask(),
+          retry: makeTask(),
+          document: makeTask(),
+          deploy: makeTask(),
+          verify: makeTask({ source_access: false }),
+        },
+        flow: ['implement'],
+        sprintFlow: [{ gate: 'verification', check: ['verify'], fix: ['retry', 'document', 'deploy'], max_retries: 1 } as GateConfig],
+      }),
+    }));
+
+    expect(mockCreateIsolatedWorkspace).toHaveBeenCalledWith({
+      runId: 'run-001',
+      storyFiles: [
+        '/project/_bmad-output/implementation-artifacts/26-1-xstate-snapshot-persistence.md',
+        '/project/_bmad-output/implementation-artifacts/26-2-snapshot-resume-config-hash-validation.md',
+      ],
+    });
+  });
+
   it('fails sprint run when deploy remediation exhausts retries', async () => {
     mockLoadSnapshot.mockReturnValue(null);
     mockUpdateStoryStatus.mockReset();
@@ -2550,7 +2591,7 @@ describe('persistence cleanup (story 26-4)', () => {
     });
 
     mockDriverDispatch.mockImplementation((opts: { prompt: string }) => {
-      if (opts.prompt.includes('Verify the stories for epic')) {
+      if (opts.prompt.includes('Verify ALL stories across ALL epics in this sprint.')) {
         return makeDriverStream('<evidence ac="1" status="pass">ok</evidence><verdict>pass</verdict>', 'sess-verify');
       }
       if (opts.prompt.includes('Deploy the entire sprint.')) {

@@ -551,13 +551,13 @@ describe('dispatchTask', () => {
     expect(mockWorkspace.cleanup).toHaveBeenCalled();
   });
 
-  it('constructs per-run prompt for sentinel key', async () => {
+  it('constructs per-run prompt for __run__ sentinel key', async () => {
     const task = makeTask();
     const definition = makeDefinition();
     const state = makeDefaultState();
     const config = makeConfig();
 
-    await dispatchTask(task, 'verify', '__sprint__', definition, state, config);
+    await dispatchTask(task, 'verify', '__run__', definition, state, config);
 
     expect(mockDriverDispatch).toHaveBeenCalledWith(
       expect.objectContaining({

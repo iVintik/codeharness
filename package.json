@@ -1,8 +1,8 @@
 {
   "name": "codeharness",
-  "version": "0.41.20",
+  "version": "0.41.22",
   "type": "module",
-  "description": "CLI for codeharness — makes autonomous coding agents produce software that actually works",
+  "description": "CLI for codeharness \u2014 makes autonomous coding agents produce software that actually works",
   "bin": {
     "codeharness": "dist/index.js"
   },

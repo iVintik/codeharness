@@ -886,9 +886,9 @@ replace:
     const result = resolveWorkflow({ cwd: testDir });
 
     // workflow fully replaced — simplified structure with just 2 story steps
-    const wf = result.workflow as import('../workflow-execution.js').ForEachBlock;
+    const wf = result.workflow as import('../workflow-parser.js').ForEachBlock;
     expect(wf.for_each).toBe('epic');
-    const storyBlock = wf.steps[0] as import('../workflow-execution.js').ForEachBlock;
+    const storyBlock = wf.steps[0] as import('../workflow-parser.js').ForEachBlock;
     expect(storyBlock.for_each).toBe('story');
     expect(storyBlock.steps).toEqual(['implement', 'verify']);
     expect(wf.steps).toHaveLength(1);

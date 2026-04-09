@@ -2,8 +2,10 @@
 
 import { assign, createActor, fromPromise, setup, waitFor } from 'xstate';
 import { DispatchError } from './agent-dispatch.js';
-import { handleDispatchError, HALT_ERROR_CODES, isEngineError } from './workflow-compiler.js';
+import { handleDispatchError } from './workflow-error-utils.js';
+import { HALT_ERROR_CODES } from './workflow-compiler.js';
 import type { EngineError, EpicContext, RunContext } from './workflow-types.js';
+import { isEngineError } from './workflow-types.js';
 import { epicMachine, type EpicOutput } from './workflow-epic-machine.js';
 
 export type RunOutput = Pick<RunContext, 'workflowState' | 'errors' | 'tasksCompleted' | 'storiesProcessed' | 'lastContract' | 'accumulatedCostUsd' | 'halted'>;

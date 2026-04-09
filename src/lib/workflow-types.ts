@@ -71,6 +71,7 @@ export interface TaskCheckpoint {
   task_name: string;
   story_key: string;
   completed_at: string;
+  run_id?: string;
   session_id?: string;
   error?: boolean;
   error_message?: string;
@@ -173,6 +174,7 @@ export interface DispatchInput {
   previousContract: OutputContract | null;
   onStreamEvent?: (event: StreamEvent, driverName?: string) => void;
   storyFiles?: string[];
+  acStoryFiles?: string[];
   customPrompt?: string;
   accumulatedCostUsd?: number;
 }

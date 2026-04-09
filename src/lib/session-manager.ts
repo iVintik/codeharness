@@ -9,6 +9,7 @@ export type SessionBoundary = 'fresh' | 'continue';
 export interface SessionLookupKey {
   taskName: string;
   storyKey: string;
+  runId?: string;
 }
 
 // --- Functions ---
@@ -36,7 +37,7 @@ export function resolveSessionId(
     return undefined;
   }
 
-  return getLastSessionId(state, key.taskName, key.storyKey);
+  return getLastSessionId(state, key.taskName, key.storyKey, key.runId);
 }
 
 /**
@@ -64,6 +65,7 @@ export function recordSessionId(
     task_name: key.taskName,
     story_key: key.storyKey,
     completed_at: new Date().toISOString(),
+    run_id: key.runId,
     session_id: sessionId,
   };
 
@@ -85,12 +87,14 @@ export function getLastSessionId(
   state: WorkflowState,
   taskName: string,
   storyKey: string,
+  runId?: string,
 ): string | undefined {
   const tasks = state.tasks_completed;
 
   for (let i = tasks.length - 1; i >= 0; i--) {
     const cp = tasks[i];
-    if (cp.task_name === taskName && cp.story_key === storyKey && cp.session_id !== undefined) {
+    const sameRun = runId === undefined || cp.run_id === undefined || cp.run_id === runId;
+    if (sameRun && cp.task_name === taskName && cp.story_key === storyKey && cp.session_id !== undefined) {
       return cp.session_id;
     }
   }

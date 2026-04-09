@@ -112,11 +112,11 @@ function propagateVerifyFlags(taskName: string, contract: OutputContract | null,
 
 // ─── Core Dispatch Function ──────────────────────────────────────────
 export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOutput> {
-  const { task, taskName, storyKey, definition, config, workflowState, previousContract, onStreamEvent, storyFiles, customPrompt } = input;
+  const { task, taskName, storyKey, definition, config, workflowState, previousContract, onStreamEvent, storyFiles, acStoryFiles, customPrompt } = input;
   const projectDir = config.projectDir ?? process.cwd();
   const traceId = generateTraceId(config.runId, workflowState.iteration, taskName);
   const tracePrompt = formatTracePrompt(traceId);
-  const sessionKey: SessionLookupKey = { taskName, storyKey };
+  const sessionKey: SessionLookupKey = { taskName, storyKey, runId: config.runId };
   const sessionId = resolveSessionId(task.session, sessionKey, workflowState);
   const driverName = task.driver ?? 'codex';
   const driver = getDriver(driverName);
@@ -219,7 +219,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
     contract = {
       version: 1, taskName, storyId: storyKey, driver: driverName, model,
       timestamp: new Date().toISOString(), cost_usd: cost > 0 ? cost : null, duration_ms: durationMs,
-      changedFiles: [...new Set(changedFiles)], testResults: normalizeTestResults(output, taskName), output, acceptanceCriteria: getPendingAcceptanceCriteria(taskName, storyKey, projectDir, storyFiles),
+      changedFiles: [...new Set(changedFiles)], testResults: normalizeTestResults(output, taskName), output, acceptanceCriteria: getPendingAcceptanceCriteria(taskName, storyKey, projectDir, acStoryFiles ?? storyFiles),
     };
     writeOutputContract(contract, join(projectDir, '.codeharness', 'contracts'));
   } catch (err: unknown) {

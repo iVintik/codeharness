@@ -82,9 +82,9 @@ function getHarnessFileLines(agentRuntime: AgentRuntime): string[] {
   ];
 
   if (agentRuntime === 'codex') {
-    lines.push('- Install BMAD with `npx bmad-method install --yes --modules bmm --tools none` for Codex');
+    lines.push('- Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools none` for Codex');
   } else {
-    lines.push('- Install BMAD with `npx bmad-method install --yes --modules bmm --tools claude-code` for Claude Code');
+    lines.push('- Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools claude-code` for Claude Code');
   }
 
   lines.push('');

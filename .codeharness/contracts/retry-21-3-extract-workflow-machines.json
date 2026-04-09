@@ -2,20 +2,79 @@
   "version": 1,
   "taskName": "retry",
   "storyId": "21-3-extract-workflow-machines",
-  "driver": "claude-code",
-  "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-05T13:50:00.398Z",
-  "cost_usd": 0.8056528499999999,
-  "duration_ms": 261577,
-  "changedFiles": [
-    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts",
-    "/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts",
-    "/Users/ivintik/dev/personal/codeharness/src/lib/AGENTS.md",
-    "/Users/ivintik/dev/personal/codeharness/verification/21-3-extract-workflow-machines-proof.md",
-    "/Users/ivintik/dev/personal/codeharness/docs/exec-plans/active/21-3-extract-workflow-machines.md",
-    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-21-3-extract-workflow-machines.json"
-  ],
+  "driver": "codex",
+  "model": "gpt-5.4",
+  "timestamp": "2026-04-09T04:16:55.301Z",
+  "cost_usd": null,
+  "duration_ms": 371560,
+  "changedFiles": [],
   "testResults": null,
-  "output": "Now I have the full picture. The review failed with 3 issues to fix. Let me examine the current state of the files.Now let me check the workflow-machines.ts imports to understand the full picture:Now I have everything I need. Let me fix all three issues:\n\n**Issue 1**: Move `WorkItem` + `EngineError` to `workflow-types.ts`, re-export from `workflow-compiler.ts`  \n**Issue 2**: Create missing verification proof + exec-plan  \n**Issue 3**: Update `AGENTS.md` for `workflow-machines.ts`Now fix issue 1 — move `WorkItem` and `EngineError` to `workflow-types.ts` and re-export from `workflow-compiler.ts`:Now update `workflow-compiler.ts` to import `WorkItem`/`EngineError` from `workflow-types.ts` and re-export them:Now remove the now-duplicate interface definitions in `workflow-compiler.ts`:Now verify the build passes:Build passes. Now run the targeted tests:Tests pass. Now check the circular dependency situation:No errors. Now fix issue 3 — update `AGENTS.md`:Now create the exec-plan and proof documents. Let me look at an existing exec-plan for format reference:Let me run the AC checks to generate real evidence for the proof:All 4977 tests pass. Now create the proof document:Now create the exec-plan:Now write a contract for this retry task and run a final build check:Now write the retry contract:Done. Here's what the retry fixed:\n\n**Issue 1 — Architecture violation (AD6)**  \n`WorkItem` and `EngineError` were defined in `workflow-compiler.ts` but imported by `workflow-types.ts`, inverting the intended dependency direction. Fixed by moving the interface definitions to `workflow-types.ts` (the base layer) and adding `export type { WorkItem, EngineError } from './workflow-types.js'` in `workflow-compiler.ts` as a re-export. All existing import paths continue to resolve unchanged.\n\n**Issue 2 — Missing verification artifacts**  \nCreated `verification/21-3-extract-workflow-machines-proof.md` with real evidence for all 13 ACs (build output, test counts, line counts, grep checks).\n\n**Issue 3 — Stale AGENTS.md**  \nUpdated `src/lib/AGENTS.md` to add `workflow-machines.ts` entry and update both `workflow-types.ts` and `workflow-machine.ts` descriptions to reflect post-extraction state.\n\nAlso created `docs/exec-plans/active/21-3-extract-workflow-machines.md` per documentation requirements.\n\n**Verification:** Build exits 0, 4977 tests pass (0 failures), all AC structural checks green.",
-  "acceptanceCriteria": []
+  "output": "I’m treating this as an in-repo operational task: identify the existing retry execution path for story `21-3-extract-workflow-machines`, run that task against the current harness state, and then verify what changed.The repo already has the internal dispatch surface compiled, and this story appears in the current sprint artifacts. I’m narrowing to the specific contract/state files for `21-3` so I can replay the retry task with the same workflow inputs instead of guessing.`21-3` already has a prior failed review contract and an existing retry contract file from a previous pass. I’m reading the current retry contract and the live source around the reported findings so I can tell whether a fresh retry is still needed and then run it through the same internal path.The old retry contract exists, but the current story state still shows an aborted `retry` entry from April 9. I’m checking the compiled module exports and the config-loading helpers next so I can replay only this story’s `retry` task against the current workspace state, not the historical April 5 run.I have enough of the internal surface now. I’m launching a one-off `dispatchTaskCore` run for `retry/21-3-extract-workflow-machines` using the current workflow state, the `dev` agent template, and the existing failing review contract as prior context.The first launch failed before dispatch because the temporary script imported `yaml` outside the repo module resolution path. I’m rerunning with a self-contained script: the `retry` task config is trivial, and the `dev` agent instructions can be built directly from the embedded template content.The second launch reached `dispatchTaskCore`, but the standalone chunk doesn’t bootstrap the driver registry. I’m locating the driver-registration module and will rerun with that initialization loaded so the retry uses the actual `codex` driver instead of a mocked path.I found the bootstrap hook: `createProgram()` registers all drivers without parsing CLI args when `VITEST=1`. I’m rerunning the same one-off dispatch with that initialization in place.The retry is now in the live driver call. I’m polling the same session rather than restarting it, so any contract or workflow-state writes will come from the real run.There’s still no terminal output, which means the run is past bootstrap and sitting in the actual agent dispatch. I’m giving it more time before I inspect the contract/state files for completion.The harness session handle isn’t exposing child output, so I’m checking the spawned processes directly to see whether `codex` is still active or whether the retry already exited and only the wrapper session is stale.The live run has already touched workflow state, so the dispatch is real. I’m checking the latest checkpoint entries now; if the retry has already terminated, the contract/state files will show it before the wrapper session returns.The retry completed cleanly. I’m reading the new contract and the latest workflow checkpoint now to confirm exactly what this run wrote and whether it changed any files.The retry wrote a fresh contract and checkpoint. I’m doing one last sanity pass on the specific artifact files it claims to have updated so I can report the exact outcome, including the caveat about `verification/` being ignored.Executed `retry` for `21-3-extract-workflow-machines` through the internal dispatch path. It completed and wrote a new retry contract at [.codeharness/contracts/retry-21-3-extract-workflow-machines.json](/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-21-3-extract-workflow-machines.json) with timestamp `2026-04-09T04:16:24.364Z`, and appended the successful checkpoint in [.codeharness/workflow-state.yaml](/Users/ivintik/dev/personal/codeharness/.codeharness/workflow-state.yaml).\n\nThis retry did not change runtime code. It treated Story 21-3 as a historical record repair because current `master` has already moved past the old `workflow-machine.ts` architecture. The run updated the exec plan at [docs/exec-plans/active/21-3-extract-workflow-machines.md](/Users/ivintik/dev/personal/codeharness/docs/exec-plans/active/21-3-extract-workflow-machines.md), created the proof at [verification/21-3-extract-workflow-machines-proof.md](/Users/ivintik/dev/personal/codeharness/verification/21-3-extract-workflow-machines-proof.md), and recorded that `runMachine`/`epicMachine` now live in [src/lib/workflow-run-machine.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-run-machine.ts) and [src/lib/workflow-epic-machine.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-epic-machine.ts), not a deleted shim.\n\nCaveats: the retry contract reports `changedFiles: []`, but `git status` shows changes in the retry contract, workflow state, and exec plan; the proof file exists locally under `verification/` but remains ignored by git in this repo. No build or test suite was run in this retry because the agent chose artifact repair rather than code changes.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with zero errors in stdout/stderr. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** the pass count is ≥4976 with zero failures — no regressions from the extraction. <!-- verification: `npx vitest run` exits 0; pass count >= 4976 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** the file `src/lib/workflow-machines.ts` exists, **When** its line count is measured via `wc -l`, **Then** it contains ≤500 lines (imports, whitespace, and comments included). <!-- verification: `wc -l src/lib/workflow-machines.ts` shows number <= 500 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** the monolith `src/lib/workflow-machine.ts` was 977 lines before this extraction, **When** its current line count is measured via `wc -l`, **Then** it contains ≤350 lines (at least 620 lines fewer than before). <!-- verification: `wc -l src/lib/workflow-machine.ts` shows number <= 350 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** `workflow-machines.ts` is the new module, **When** its contents are searched for references to `workflow-machine` (singular, the monolith) via `grep -c \"from.*workflow-machine\\b[^s]\" src/lib/workflow-machines.ts`, **Then** the count is 0 — no circular dependency back to the monolith. <!-- verification: `grep -cE \"from.*workflow-machine\\b[^s]\" src/lib/workflow-machines.ts` outputs 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** `workflow-machine.ts` consumes machines from the new module, **When** its imports are searched via `grep 'workflow-machines' src/lib/workflow-machine.ts`, **Then** at least one import line from `./workflow-machines.js` is present. <!-- verification: `grep 'workflow-machines' src/lib/workflow-machine.ts` shows at least one import line -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** the test suite includes loop-related tests, **When** they are run via `npx vitest run -t 'loop'`, **Then** all matching tests pass — the extracted `loopMachine` and `executeLoopBlock` work identically to before. <!-- verification: `npx vitest run -t 'loop'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** the test suite includes epic-related tests, **When** they are run via `npx vitest run -t 'epic'`, **Then** all matching tests pass — the extracted `epicMachine` and `epicStepActor` work identically to before. <!-- verification: `npx vitest run -t 'epic'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the test suite includes run/workflow tests, **When** they are run via `npx vitest run -t 'run'`, **Then** all matching tests pass — the extracted `runMachine` works identically to before. <!-- verification: `npx vitest run -t 'run'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the project linter is run on the new file via `npx eslint src/lib/workflow-machines.ts`, **When** linting completes, **Then** it exits 0 with zero errors and zero warnings. <!-- verification: `npx eslint src/lib/workflow-machines.ts` exits 0 with empty output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the TypeScript compiler is run via `npx tsc --noEmit`, **When** type-checking completes, **Then** zero errors reference `workflow-machines.ts`. Pre-existing type errors in other files are acceptable, but the new file must introduce no new ones. <!-- verification: `npx tsc --noEmit 2>&1 | grep 'workflow-machines'` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `workflow-machines.ts` contains XState machine definitions, **When** its imports are inspected via `grep \"^import\" src/lib/workflow-machines.ts`, **Then** it imports only from allowed modules: `xstate`, `node:fs`, `node:path`, `workflow-types`, `workflow-compiler`, `workflow-actors`, `workflow-state`, `workflow-parser`, `verdict-parser`, `circuit-breaker`, `agent-dispatch`, `agent-resolver`, `agents/stream-parser`, and `output.js`. It does NOT import from `workflow-machine.ts` (the monolith), `agents/drivers/`, or `agents/capability-check`. <!-- verification: `grep \"^import\" src/lib/workflow-machines.ts` shows only allowed modules; `grep -cE \"from.*workflow-machine\\b[^s]|agents/drivers|capability-check\" src/lib/workflow-machines.ts` outputs 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC13",
+      "description": "**Given** all downstream consumers of `executeLoopBlock`, `dispatchTask`, and machine-related exports, **When** the project is built and tests run, **Then** no consumer needs to change its import path — re-exports from `workflow-machine.ts` preserve backward compatibility. <!-- verification: `npm run build && npx vitest run` exits 0 (proves re-exports work) -->",
+      "status": "pending"
+    }
+  ]
 }

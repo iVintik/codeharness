@@ -11,7 +11,7 @@ import {
   type ExecuteEpicFn,
 } from '../lane-pool.js';
 import type { WorktreeManager } from '../worktree-manager.js';
-import type { EngineResult } from '../workflow-types.js';
+import type { EngineResult } from '../workflow-compiler.js';
 
 // --- Helpers ---
 

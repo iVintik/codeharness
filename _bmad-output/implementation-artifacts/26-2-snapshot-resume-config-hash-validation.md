@@ -215,14 +215,14 @@ Everything else (save, clear, corrupt handling) was built in 26-1.
 <!-- CODEHARNESS-PATCH-START:story-verification -->
 ## Verification Requirements
 
-- [ ] Showboat proof document created (verification/26-2-snapshot-resume-config-hash-validation-proof.md)
+- [x] Showboat proof document created (verification/26-2-snapshot-resume-config-hash-validation-proof.md)
 - [ ] All acceptance criteria verified with real-world evidence via docker exec
 - [ ] Test coverage meets target (100%)
 
 ## Documentation Requirements
 
 - [ ] Relevant AGENTS.md files updated
-- [ ] Exec-plan created in docs/exec-plans/active/26-2-snapshot-resume-config-hash-validation.md
+- [x] Exec-plan created in docs/exec-plans/active/26-2-snapshot-resume-config-hash-validation.md
 
 ## Testing Requirements
 
@@ -264,5 +264,6 @@ No issues encountered. Implementation was pre-existing.
 ## Change Log
 
 - 2026-04-08: Verified and confirmed story 26-2 implementation complete — config-hash resume, mismatch discard, corrupt-file fresh-start, subscribe-on-resume, cleanup/preservation, multi-resume chain all implemented and tested (47 unit tests)
+- 2026-04-08: Added missing proof + exec-plan artifacts so story documentation reflects the implemented runtime behavior
 
 </story-spec>

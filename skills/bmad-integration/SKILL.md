@@ -39,6 +39,6 @@ Patches use idempotent markers (NFR19):
 
 When BMAD is installed for Codex or another runtime without first-party BMAD tool integration:
 
-1. Install BMAD with `npx bmad-method install --yes --modules bmm --tools none`
+1. Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools none`
 2. Treat `_bmad/` as the workflow artifact source of truth
 3. Use this repo's `AGENTS.md`, `commands/`, and `skills/` files as the runnable agent-facing surface

@@ -2,11 +2,10 @@
 
 import { assign } from 'xstate';
 import type { WorkflowState, TaskCheckpoint } from './workflow-state.js';
-import { DispatchError } from './agent-dispatch.js';
-import { WorkflowError, isEngineError, isGateConfig, isForEachConfig } from './workflow-types.js';
+import { isEngineError, isGateConfig, isForEachConfig } from './workflow-types.js';
 import type { EvaluatorVerdict, WorkItem, EngineError, ResolvedTask, StoryContext, DispatchInput, NullTaskInput, DispatchOutput, GateConfig, GateContext, ForEachConfig, FlowStep, IterationContext, CompiledInvokeState, CompiledGateState, CompiledForEachState } from './workflow-types.js';
 export { isEngineError, isLoopBlock } from './workflow-types.js';
-export type { OutputContract, DriverHealth, WorkItem, EngineError, EngineResult, LoopBlockResult } from './workflow-types.js';
+export type { EngineResult } from './workflow-types.js';
 
 export const HALT_ERROR_CODES = new Set(['RATE_LIMIT', 'NETWORK', 'SDK_INIT']);
 export const DEFAULT_MAX_ITERATIONS = 5;
@@ -131,13 +130,6 @@ export function recordErrorInState(state: WorkflowState, taskName: string, story
     error: true, error_message: error.message, error_code: error.code,
   };
   return { ...state, phase: 'error', tasks_completed: [...state.tasks_completed, errorCheckpoint] };
-}
-
-export function handleDispatchError(err: unknown, taskName: string, storyKey: string): EngineError {
-  if (err instanceof WorkflowError) return err;
-  if (err instanceof DispatchError) return new WorkflowError(err.message, err.code, taskName, storyKey);
-  const message = err instanceof Error ? err.message : String(err);
-  return new WorkflowError(message, 'UNKNOWN', taskName, storyKey);
 }
 
 export function compileStep(

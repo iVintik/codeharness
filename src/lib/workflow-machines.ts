@@ -11,9 +11,10 @@ import { evaluateProgress } from './circuit-breaker.js';
 import { writeWorkflowState } from './workflow-state.js';
 import type { WorkflowState, EvaluatorScore } from './workflow-state.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
-import type { EngineConfig, LoopMachineContext } from './workflow-types.js';
-import { HALT_ERROR_CODES, DEFAULT_MAX_ITERATIONS, isLoopTaskCompleted, buildRetryPrompt, getFailedItems, recordErrorInState, isEngineError, handleDispatchError } from './workflow-compiler.js';
-import type { WorkItem, LoopBlockResult, OutputContract } from './workflow-compiler.js';
+import { handleDispatchError } from './workflow-error-utils.js';
+import type { EngineConfig, LoopMachineContext, WorkItem, LoopBlockResult, OutputContract } from './workflow-types.js';
+import { HALT_ERROR_CODES, DEFAULT_MAX_ITERATIONS, isLoopTaskCompleted, buildRetryPrompt, getFailedItems, recordErrorInState } from './workflow-compiler.js';
+import { isEngineError } from './workflow-types.js';
 
 const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineContext }): Promise<LoopMachineContext> => {
   const { loopBlock, config, workItems, storyFlowTasks, onStreamEvent } = input;

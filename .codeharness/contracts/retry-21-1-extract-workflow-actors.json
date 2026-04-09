@@ -2,16 +2,64 @@
   "version": 1,
   "taskName": "retry",
   "storyId": "21-1-extract-workflow-actors",
-  "driver": "claude-code",
-  "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-05T12:38:01.589Z",
-  "cost_usd": 0.3743613,
-  "duration_ms": 137028,
-  "changedFiles": [
-    "/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-21-1-extract-workflow-actors.json",
-    "/Users/ivintik/dev/personal/codeharness/.codeharness/workflow-state.yaml"
-  ],
+  "driver": "codex",
+  "model": "gpt-5.4",
+  "timestamp": "2026-04-09T04:02:50.562Z",
+  "cost_usd": null,
+  "duration_ms": 466921,
+  "changedFiles": [],
   "testResults": null,
-  "output": "Now I understand the state. The workflow is on iteration 4, and the `check` task (Codex) just finished — it fixed the AC metadata bug in contracts. Next task is `retry` for story 21-1-extract-workflow-actors. I need to verify all 10 ACs and update the contract.All 10 ACs pass. Now update the retry contract with verified results and record the task in workflow-state.yaml.Now record this task completion in the workflow state:**retry task complete** — all 10 ACs verified:\n\n| AC | Check | Result |\n|----|-------|--------|\n| 1 | `npm run build` exits 0 | ✅ |\n| 2 | 4983 tests, zero failures | ✅ 190 files |\n| 3 | `workflow-actors.ts` ≤200 lines | ✅ 197 lines |\n| 4 | `workflow-machine.ts` ≤1276 lines | ✅ 1107 lines |\n| 5 | No circular dep back to workflow-machine | ✅ 0 matches |\n| 6 | workflow-machine imports from workflow-actors | ✅ 2 import lines |\n| 7 | Dispatch tests: 11+ files, 140+ tests | ✅ exact match |\n| 8 | Null tests: 66+ files, 254+ tests | ✅ exact match |\n| 9 | eslint exits 0 | ✅ clean |\n| 10 | tsc --noEmit no workflow-actors errors | ✅ 0 errors |\n\nContract updated with all ACs marked `pass`. Workflow state recorded as iteration 4 retry complete. Next task in the flow is `review`.",
-  "acceptanceCriteria": []
+  "output": "I’m treating this as an operational repo task: find how `retry` is implemented for a story, execute it for `21-1-extract-workflow-actors`, and verify the resulting state.I found existing uncommitted changes, mostly harness state and generated artifacts. I’m leaving them intact and only using the repo’s retry workflow for the requested story.The repo already has a prior `retry` contract for this story, so I’m checking the current workflow state before I run anything again. If the harness still queues `retry` for `21-1`, I’ll execute the same task path rather than guessing.`21-1` is marked `checked` with 20 attempts, and the current workflow log shows a later aborted `retry` dispatch for that story on April 9, 2026. I’m locating the command path that replays a single workflow task so I can run the intended operation, not just inspect old artifacts.There’s no CLI `retry` subcommand anymore; retry is now an internal workflow task. I’m switching to the engine internals the same way the runner does: load the workflow config, resolve the `retry` task definition, load the prior contract, and dispatch that single task for `21-1`.I have the pieces now. The cleanest way to execute one internal task is a short Node entrypoint that uses the same modules as `run.ts`; no repo code changes, just one in-process dispatch of the `retry` task against the current workflow and prior review contract.I’m doing one preflight build check before dispatching, because the single-task runner will import compiled modules if they exist. After that I’ll invoke `retry` directly with the story’s failed `review` contract as context.The build is finishing its type output now. Once it completes cleanly, I’ll dispatch the task through the compiled engine modules so the run uses the same code path as the harness.I’ve confirmed the environment can import TypeScript directly under Node 22. I’m launching the single-task dispatch now; if this fails, it will be a real runtime/auth/task failure from the engine path, not a guessed wrapper.The direct TS import path failed because the source files use compiled `.js` specifiers internally. I’m switching to the built bundle exports in `dist/`, which avoids that resolution mismatch.The built bundles don’t expose the workflow parser and agent resolver as public imports, so I’m using a temporary Node loader to map internal `src/*.js` specifiers back to their `.ts` source files. That keeps the execution path on the real engine code without touching the repo.The loader got far enough to expose the next real blocker: the source parser imports JSON schema modules in a way Node won’t accept without extra loader work. Rather than keep widening the loader surface, I’m trimming scope further and resolving only the `retry` task and `dev` agent data needed for this one dispatch.I can avoid the workflow parser entirely. `dispatchTaskCore()` only needs the task config, the compiled agent definition, the prior contract, and the current workflow state, so I’m rerunning with a minimal engine config and the embedded `dev` agent template.The engine is now failing at the actual driver registry boundary: no drivers are registered in this one-off process. I’m wiring the same built-in driver registration that the CLI gets during startup, then rerunning the task.The only missing piece was driver bootstrap. I’m rerunning with the built-in drivers registered exactly the way `codeharness drivers` does it.The task is actually running through the Codex driver now. I’m waiting on the dispatch result so I can report whether `retry` completed or failed and what artifact it wrote.The Codex retry dispatch is still active. I’m letting it run rather than interrupting, since the task timeout is 15 minutes and there’s no sign of an immediate boot failure now.The retry run hasn’t produced a result yet, which usually means the driver is still inside the model session rather than failing fast. I’m checking the live process tree in parallel so I can tell whether it’s genuinely working or just stuck.The retry dispatch completed successfully after about 133 seconds. I’m checking exactly which harness artifacts changed so I can report the execution result precisely.The engine recorded a clean `retry` completion for `21-1` at `2026-04-09T04:01:43Z`, replacing the earlier aborted checkpoint from the same day. I’m pulling the retry contract’s closing summary so I can report what the task says it actually did.The retry contract reports actual code changes and focused verification, so I’m checking the worktree directly for those touched files rather than relying on the contract’s empty `changedFiles` field.The retry task changed five source/test files and claims focused verification passed. I’m rerunning the same focused test command and build locally so I can confirm the task outcome rather than just trusting the generated contract.The focused tests passed. I’m waiting on the TypeScript declaration build to finish, then I’ll summarize the retry execution and the exact files it changed.Executed `retry` for `21-1-extract-workflow-actors` through the internal workflow engine path. The dispatch completed successfully at `2026-04-09T04:01:43Z` and rewrote the retry contract at [.codeharness/contracts/retry-21-1-extract-workflow-actors.json](/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-21-1-extract-workflow-actors.json).\n\nThe task changed the retry fix itself in [workflow-types.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-types.ts), [workflow-actors.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-actors.ts), [workflow-epic-machine.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-epic-machine.ts), and added regression coverage in [workflow-actors.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-actors.test.ts) and [workflow-epic-machine.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-epic-machine.test.ts). The fix separates isolated workspace guide files from the real story files used for acceptance-criteria derivation.\n\nI verified the result locally:\n- `npm run test:unit -- src/lib/__tests__/workflow-actors.test.ts src/lib/__tests__/workflow-epic-machine.test.ts` passed: 88/88 tests\n- `npm run build` passed\n\nThe run also updated harness state artifacts, including [.codeharness/workflow-state.yaml](/Users/ivintik/dev/personal/codeharness/.codeharness/workflow-state.yaml), [.codeharness/workflow-snapshot.json](/Users/ivintik/dev/personal/codeharness/.codeharness/workflow-snapshot.json), [.codeharness/workflow-checkpoints.jsonl](/Users/ivintik/dev/personal/codeharness/.codeharness/workflow-checkpoints.jsonl), [sprint-state.json](/Users/ivintik/dev/personal/codeharness/sprint-state.json), and [_bmad-output/implementation-artifacts/sprint-status.yaml](/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml). I did not commit or push.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with zero errors in stdout/stderr. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** 4976+ tests pass with zero failures — no regressions from the extraction. <!-- verification: `npx vitest run` exits 0; pass count >= 4976 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** the file `src/lib/workflow-actors.ts` exists, **When** its line count is measured via `wc -l`, **Then** it contains <=200 lines (imports, whitespace, and comments included). If the raw extraction exceeds 200 lines, constants like `TASK_PROMPTS` or `FILE_WRITE_TOOL_NAMES` must be moved to a separate module (e.g. `workflow-constants.ts`) to bring the count under budget. <!-- verification: `wc -l src/lib/workflow-actors.ts` shows number <= 200 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** the original monolith `src/lib/workflow-machine.ts` was 1426 lines, **When** its current line count is measured via `wc -l`, **Then** it contains <=1276 lines (at least 150 lines fewer than the original). <!-- verification: `wc -l src/lib/workflow-machine.ts` shows number <= 1276 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** `workflow-actors.ts` is the new module, **When** its contents are searched for references to `workflow-machine` via `grep -c 'workflow-machine' src/lib/workflow-actors.ts`, **Then** the count is 0 — no circular dependency back to the monolith. <!-- verification: `grep -c 'workflow-machine' src/lib/workflow-actors.ts` outputs 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** `workflow-machine.ts` consumes actors from the new module, **When** its imports are searched via `grep 'workflow-actors' src/lib/workflow-machine.ts`, **Then** at least one import line from `./workflow-actors.js` is present. <!-- verification: `grep 'workflow-actors' src/lib/workflow-machine.ts` shows at least one import line -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** the test suite includes dispatch-related tests, **When** they are run via `npx vitest run -t 'dispatch'`, **Then** all matching tests pass (11+ test files, 140+ tests) — the extracted `dispatchTaskCore` function works identically to before. <!-- verification: `npx vitest run -t 'dispatch'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** the test suite includes null-task-related tests, **When** they are run via `npx vitest run -t 'null'`, **Then** all matching tests pass (66+ test files, 254+ tests) — the extracted `nullTaskCore` function works identically to before. <!-- verification: `npx vitest run -t 'null'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the project linter is run on the new file via `npx eslint src/lib/workflow-actors.ts`, **When** linting completes, **Then** it exits 0 with zero errors and zero warnings. <!-- verification: `npx eslint src/lib/workflow-actors.ts` exits 0 with empty output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the TypeScript compiler is run via `npx tsc --noEmit`, **When** type-checking completes, **Then** zero errors reference `workflow-actors.ts`. Pre-existing type errors in other files are acceptable, but the new file must introduce no new ones. <!-- verification: `npx tsc --noEmit 2>&1 | grep 'workflow-actors'` produces no output -->",
+      "status": "pending"
+    }
+  ]
 }

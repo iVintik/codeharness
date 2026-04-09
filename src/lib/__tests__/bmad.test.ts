@@ -141,7 +141,7 @@ describe('installBmad', () => {
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'npx',
       ['bmad-method', 'install', '--yes', '--directory', testDir, '--modules', 'bmm', '--tools', 'claude-code'],
-      expect.objectContaining({ cwd: testDir, stdio: 'pipe', timeout: 120_000 }),
+      expect.objectContaining({ cwd: testDir, stdio: ['ignore', 'pipe', 'pipe'], timeout: 180_000 }),
     );
     expect(result.status).toBe('installed');
   });
@@ -156,7 +156,7 @@ describe('installBmad', () => {
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'npx',
       ['bmad-method', 'install', '--yes', '--directory', testDir, '--modules', 'bmm', '--tools', 'none'],
-      expect.objectContaining({ cwd: testDir, stdio: 'pipe', timeout: 120_000 }),
+      expect.objectContaining({ cwd: testDir, stdio: ['ignore', 'pipe', 'pipe'], timeout: 180_000 }),
     );
   });
 

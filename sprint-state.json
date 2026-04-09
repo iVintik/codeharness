@@ -2,152 +2,152 @@
   "version": 2,
   "sprint": {
     "total": 33,
-    "done": 30,
-    "failed": 1,
+    "done": 33,
+    "failed": 0,
     "blocked": 0,
     "inProgress": null
   },
   "stories": {
     "21-1-extract-workflow-actors": {
-      "status": "done",
+      "status": "checked",
       "attempts": 20,
       "lastAttempt": "2026-04-05T12:42:08.940Z",
       "lastError": null
     },
     "21-2-extract-workflow-compiler": {
-      "status": "done",
+      "status": "checked",
       "attempts": 8,
       "lastAttempt": "2026-04-05T13:06:38.810Z",
       "lastError": null
     },
     "21-3-extract-workflow-machines": {
-      "status": "done",
+      "status": "checked",
       "attempts": 8,
       "lastAttempt": "2026-04-05T13:52:54.923Z",
       "lastError": null
     },
     "21-4-extract-workflow-runner": {
-      "status": "done",
+      "status": "checked",
       "attempts": 8,
       "lastAttempt": "2026-04-05T14:23:28.749Z",
       "lastError": null
     },
     "21-5-delete-workflow-machine-and-hierarchical-flow": {
-      "status": "done",
+      "status": "checked",
       "attempts": 12,
       "lastAttempt": "2026-04-05T15:35:34.515Z",
       "lastError": null
     },
     "21-6-migrate-test-imports": {
-      "status": "done",
+      "status": "checked",
       "attempts": 9,
       "lastAttempt": "2026-04-05T15:54:35.761Z",
       "lastError": null
     },
     "21-7-dedicated-test-files-per-module": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T16:28:40.818Z",
       "lastError": null
     },
     "22-1-parse-for-each-blocks": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T16:57:21.796Z",
       "lastError": null
     },
     "22-2-parse-named-gate-blocks": {
-      "status": "done",
+      "status": "checked",
       "attempts": 13,
       "lastAttempt": "2026-04-05T17:32:10.551Z",
       "lastError": null
     },
     "22-3-update-default-yaml-to-new-format": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T17:47:20.596Z",
       "lastError": null
     },
     "23-1-dispatch-actor-module": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T18:10:15.295Z",
       "lastError": null
     },
     "23-2-null-task-actor": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T18:39:13.897Z",
       "lastError": null
     },
     "23-3-contract-chaining-verify-flag-propagation": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T18:56:44.567Z",
       "lastError": null
     },
     "23-4-error-classification-workflow-error": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T19:17:21.733Z",
       "lastError": null
     },
     "24-1-shared-types-module": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T19:57:11.633Z",
       "lastError": null
     },
     "24-2-compile-task-steps-to-invoke-states": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T20:16:18.831Z",
       "lastError": null
     },
     "24-3-compile-gate-blocks-to-compound-states": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T20:40:07.007Z",
       "lastError": null
     },
     "24-4-compile-for-each-blocks-to-iteration-states": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T21:03:59.764Z",
       "lastError": null
     },
     "24-5-compile-flow-recursive-entry-point": {
-      "status": "done",
+      "status": "checked",
       "attempts": 7,
       "lastAttempt": "2026-04-05T21:23:55.612Z",
       "lastError": null
     },
     "25-1-gate-machine": {
-      "status": "done",
+      "status": "checked",
       "attempts": 19,
       "lastAttempt": "2026-04-06T14:54:19.000Z",
       "lastError": null
     },
     "25-2-story-machine": {
-      "status": "done",
+      "status": "checked",
       "attempts": 18,
       "lastAttempt": "2026-04-06T14:54:19.000Z",
       "lastError": null
     },
     "25-3-epic-machine-for-each-story-iteration": {
-      "status": "done",
+      "status": "checked",
       "attempts": 18,
       "lastAttempt": "2026-04-06T14:54:19.000Z",
       "lastError": null
     },
     "25-4-run-machine-for-each-epic-iteration": {
-      "status": "done",
+      "status": "checked",
       "attempts": 18,
       "lastAttempt": "2026-04-06T14:54:19.000Z",
       "lastError": null
     },
     "25-5-wire-run-workflow-actor-to-compiled-machines": {
-      "status": "done",
+      "status": "checked",
       "attempts": 18,
       "lastAttempt": "2026-04-06T14:54:19.000Z",
       "lastError": null
@@ -165,13 +165,13 @@
       "lastError": null
     },
     "26-3-semantic-checkpoint-log": {
-      "status": "done",
+      "status": "checked",
       "attempts": 0,
       "lastAttempt": "2026-04-07T03:25:00.333Z",
       "lastError": null
     },
     "26-4-clear-persistence-on-completion": {
-      "status": "done",
+      "status": "checked",
       "attempts": 0,
       "lastAttempt": "2026-04-07T03:30:15.610Z",
       "lastError": null
@@ -183,25 +183,25 @@
       "lastError": null
     },
     "27-2-derive-position-from-snapshot-state-path": {
-      "status": "done",
+      "status": "checked",
       "attempts": 0,
       "lastAttempt": "2026-04-07T03:51:25.420Z",
       "lastError": null
     },
     "27-3-wire-inspect-api-to-visualizer": {
-      "status": "done",
+      "status": "checked",
       "attempts": 0,
       "lastAttempt": "2026-04-07T04:01:48.900Z",
       "lastError": null
     },
     "27-4-sideband-streaming-to-tui": {
-      "status": "done",
+      "status": "checked",
       "attempts": 0,
       "lastAttempt": "2026-04-07T04:14:40.534Z",
       "lastError": null
     },
     "27-5-simplify-run-ts-remove-hand-tracked-state": {
-      "status": "done",
+      "status": "checked",
       "attempts": 0,
       "lastAttempt": "2026-04-07T04:28:06.530Z",
       "lastError": null
@@ -212,44 +212,44 @@
   "epics": {
     "epic-21": {
       "name": "File Decomposition & Migration",
-      "status": "done",
+      "status": "in-progress",
       "storiesTotal": 7,
-      "storiesDone": 7
+      "storiesDone": 0
     },
     "epic-22": {
       "name": "Flow Configuration Format & Parser",
-      "status": "done",
+      "status": "in-progress",
       "storiesTotal": 3,
-      "storiesDone": 3
+      "storiesDone": 0
     },
     "epic-23": {
       "name": "Dispatch & Null Task Actors",
-      "status": "done",
+      "status": "in-progress",
       "storiesTotal": 4,
-      "storiesDone": 4
+      "storiesDone": 0
     },
     "epic-24": {
       "name": "Workflow Compiler",
-      "status": "done",
+      "status": "in-progress",
       "storiesTotal": 5,
-      "storiesDone": 5
+      "storiesDone": 0
     },
     "epic-25": {
-      "status": "done",
+      "status": "in-progress",
       "storiesTotal": 5,
-      "storiesDone": 5
+      "storiesDone": 0
     },
     "epic-26": {
       "name": "Persistence & Resume",
       "status": "in-progress",
       "storiesTotal": 4,
-      "storiesDone": 2
+      "storiesDone": 0
     },
     "epic-27": {
       "name": "TUI Visualization & Integration",
       "status": "in-progress",
       "storiesTotal": 5,
-      "storiesDone": 4
+      "storiesDone": 0
     }
   },
   "session": {

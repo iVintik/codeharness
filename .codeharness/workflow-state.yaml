@@ -1,302 +1,1139 @@
 workflow_name: create-story -> implement -> document
-started: 2026-04-07T19:57:35.115Z
+started: 2026-04-08T14:42:46.368Z
 iteration: 1
 phase: error
 tasks_completed:
   - task_name: create-story
     story_key: 26-1-xstate-snapshot-persistence
-    completed_at: 2026-04-08T06:33:31.935Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.444Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:34:46.449Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:34:46.449Z
-  - task_name: story-task
-    story_key: story-19-1
-    completed_at: 2026-04-08T06:34:46.450Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:34:46.451Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.465Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.479Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:34:46.482Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:34:46.486Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:34:46.490Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:34:46.490Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:34:46.490Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:34:46.491Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:34:46.491Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:34:46.492Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:34:46.498Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:34:46.503Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.788Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.794Z
-  - task_name: story-task
-    story_key: story-2
-    completed_at: 2026-04-08T06:34:46.794Z
-  - task_name: story-task
-    story_key: story-3
-    completed_at: 2026-04-08T06:34:46.794Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.795Z
-  - task_name: story-task
-    story_key: story-2
-    completed_at: 2026-04-08T06:34:46.796Z
-  - task_name: story-task
-    story_key: story-3
-    completed_at: 2026-04-08T06:34:46.796Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.796Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.797Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.798Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.817Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.835Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:34:46.840Z
-  - task_name: story-task
-    story_key: story-abc
-    completed_at: 2026-04-08T06:34:46.841Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.301Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:48:52.305Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:48:52.306Z
-  - task_name: story-task
-    story_key: story-19-1
-    completed_at: 2026-04-08T06:48:52.310Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:48:52.312Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.328Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.346Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:48:52.358Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:48:52.362Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:48:52.367Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:48:52.369Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:48:52.370Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:48:52.380Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:48:52.381Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:48:52.381Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:48:52.385Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:48:52.386Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.855Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.863Z
-  - task_name: story-task
-    story_key: story-2
-    completed_at: 2026-04-08T06:48:52.865Z
-  - task_name: story-task
-    story_key: story-3
-    completed_at: 2026-04-08T06:48:52.866Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.869Z
-  - task_name: story-task
-    story_key: story-2
-    completed_at: 2026-04-08T06:48:52.870Z
-  - task_name: story-task
-    story_key: story-3
-    completed_at: 2026-04-08T06:48:52.870Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.876Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.882Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.886Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.904Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.922Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:48:52.939Z
-  - task_name: story-task
-    story_key: story-abc
-    completed_at: 2026-04-08T06:48:52.940Z
+    completed_at: 2026-04-08T15:28:36.990Z
   - task_name: implement
     story_key: 26-1-xstate-snapshot-persistence
-    completed_at: 2026-04-08T06:49:14.179Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.163Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:49:49.167Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:49:49.168Z
-  - task_name: story-task
-    story_key: story-19-1
-    completed_at: 2026-04-08T06:49:49.169Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:49:49.172Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.189Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.205Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:49:49.206Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:49:49.207Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:49:49.208Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:49:49.208Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:49:49.208Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:49:49.209Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:49:49.209Z
-  - task_name: story-task
-    story_key: story-18-1
-    completed_at: 2026-04-08T06:49:49.211Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:49:49.212Z
-  - task_name: story-task
-    story_key: story-17-1
-    completed_at: 2026-04-08T06:49:49.212Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.612Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.618Z
-  - task_name: story-task
-    story_key: story-2
-    completed_at: 2026-04-08T06:49:49.618Z
-  - task_name: story-task
-    story_key: story-3
-    completed_at: 2026-04-08T06:49:49.623Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.624Z
-  - task_name: story-task
-    story_key: story-2
-    completed_at: 2026-04-08T06:49:49.625Z
-  - task_name: story-task
-    story_key: story-3
-    completed_at: 2026-04-08T06:49:49.625Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.626Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.628Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.631Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.669Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.685Z
-  - task_name: story-task
-    story_key: story-1
-    completed_at: 2026-04-08T06:49:49.690Z
-  - task_name: story-task
-    story_key: story-abc
-    completed_at: 2026-04-08T06:49:49.691Z
+    completed_at: 2026-04-08T15:30:03.847Z
+  - task_name: check
+    story_key: 26-1-xstate-snapshot-persistence:quality
+    completed_at: 2026-04-08T15:30:50.682Z
+  - task_name: review
+    story_key: 26-1-xstate-snapshot-persistence:quality
+    completed_at: 2026-04-08T15:34:28.857Z
+  - task_name: quality
+    story_key: 26-1-xstate-snapshot-persistence
+    completed_at: 2026-04-08T15:34:28.859Z
+  - task_name: document
+    story_key: 26-1-xstate-snapshot-persistence
+    completed_at: 2026-04-08T15:35:31.095Z
+  - task_name: create-story
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-08T15:40:40.916Z
+  - task_name: implement
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-08T15:42:51.729Z
+  - task_name: check
+    story_key: 26-2-snapshot-resume-config-hash-validation:quality
+    completed_at: 2026-04-08T15:43:45.180Z
+  - task_name: review
+    story_key: 26-2-snapshot-resume-config-hash-validation:quality
+    completed_at: 2026-04-08T15:46:05.122Z
+  - task_name: quality
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-08T15:46:05.124Z
+  - task_name: document
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-08T15:46:46.828Z
+  - task_name: story_flow
+    story_key: __epic_26__
+    completed_at: 2026-04-08T15:46:46.834Z
+  - task_name: retro
+    story_key: __epic_26__
+    completed_at: 2026-04-08T15:49:33.240Z
+  - task_name: create-story
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-08T15:53:15.508Z
+  - task_name: implement
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-08T15:54:38.154Z
+  - task_name: check
+    story_key: 27-1-pure-visualizer-function:quality
+    completed_at: 2026-04-08T15:55:31.096Z
+  - task_name: review
+    story_key: 27-1-pure-visualizer-function:quality
+    completed_at: 2026-04-08T15:58:13.408Z
+  - task_name: quality
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-08T15:58:13.410Z
+  - task_name: document
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-08T15:59:01.769Z
+  - task_name: story_flow
+    story_key: __epic_27__
+    completed_at: 2026-04-08T15:59:01.774Z
+  - task_name: retro
+    story_key: __epic_27__
+    completed_at: 2026-04-08T16:05:56.613Z
+  - task_name: deploy
+    story_key: __sprint__
+    completed_at: 2026-04-08T16:07:49.343Z
   - task_name: verify
     story_key: __run__
-    completed_at: 2026-04-08T07:06:35.420Z
+    completed_at: 2026-04-08T16:15:42.905Z
+  - task_name: retry
+    story_key: 26-1-xstate-snapshot-persistence
+    completed_at: 2026-04-08T16:17:05.523Z
+  - task_name: retry
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-08T16:17:57.508Z
+  - task_name: retry
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-08T16:18:52.869Z
+  - task_name: deploy
+    story_key: __run__
+    completed_at: 2026-04-08T16:24:55.837Z
+  - task_name: verify
+    story_key: __run__
+    completed_at: 2026-04-08T16:32:50.820Z
+  - task_name: retry
+    story_key: 26-1-xstate-snapshot-persistence
+    completed_at: 2026-04-08T16:35:07.541Z
+  - task_name: retry
+    story_key: 26-2-snapshot-resume-config-hash-validation
+    completed_at: 2026-04-08T16:36:25.014Z
+  - task_name: retry
+    story_key: 27-1-pure-visualizer-function
+    completed_at: 2026-04-08T16:37:23.012Z
+  - task_name: deploy
+    story_key: __run__
+    completed_at: 2026-04-08T16:42:53.577Z
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-09T03:17:42.501Z
     error: true
     error_message: Dispatch aborted
     error_code: UNKNOWN
-  - task_name: verify
-    story_key: __run__
-    completed_at: 2026-04-08T08:30:16.128Z
+  - task_name: retry
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-09T03:17:42.504Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-09T03:17:42.506Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-09T03:17:42.508Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-09T03:17:42.510Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-09T03:17:42.512Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-09T03:17:42.514Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-09T03:17:42.515Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-2-parse-named-gate-blocks
+    completed_at: 2026-04-09T03:17:42.518Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-3-update-default-yaml-to-new-format
+    completed_at: 2026-04-09T03:17:42.520Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-1-dispatch-actor-module
+    completed_at: 2026-04-09T03:17:42.522Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-2-null-task-actor
+    completed_at: 2026-04-09T03:17:42.524Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-3-contract-chaining-verify-flag-propagation
+    completed_at: 2026-04-09T03:17:42.525Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-4-error-classification-workflow-error
+    completed_at: 2026-04-09T03:17:42.526Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-1-shared-types-module
+    completed_at: 2026-04-09T03:17:42.527Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-2-compile-task-steps-to-invoke-states
+    completed_at: 2026-04-09T03:17:42.529Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-3-compile-gate-blocks-to-compound-states
+    completed_at: 2026-04-09T03:17:42.530Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-4-compile-for-each-blocks-to-iteration-states
+    completed_at: 2026-04-09T03:17:42.531Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-5-compile-flow-recursive-entry-point
+    completed_at: 2026-04-09T03:17:42.533Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-1-gate-machine
+    completed_at: 2026-04-09T03:17:42.534Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-2-story-machine
+    completed_at: 2026-04-09T03:17:42.535Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-3-epic-machine-for-each-story-iteration
+    completed_at: 2026-04-09T03:17:42.536Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-4-run-machine-for-each-epic-iteration
+    completed_at: 2026-04-09T03:17:42.537Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-5-wire-run-workflow-actor-to-compiled-machines
+    completed_at: 2026-04-09T03:17:42.538Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-09T03:17:42.540Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-09T03:17:42.541Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-09T03:17:42.543Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-09T03:17:42.544Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-09T03:17:42.546Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-09T03:17:42.547Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-09T03:17:42.548Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-09T03:17:42.550Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-09T03:17:42.551Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-09T03:17:42.552Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-09T03:17:42.553Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-09T03:17:42.555Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-09T03:17:42.557Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-09T03:17:42.558Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-2-parse-named-gate-blocks
+    completed_at: 2026-04-09T03:17:42.559Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-3-update-default-yaml-to-new-format
+    completed_at: 2026-04-09T03:17:42.560Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-1-dispatch-actor-module
+    completed_at: 2026-04-09T03:17:42.562Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-2-null-task-actor
+    completed_at: 2026-04-09T03:17:42.563Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-3-contract-chaining-verify-flag-propagation
+    completed_at: 2026-04-09T03:17:42.564Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-4-error-classification-workflow-error
+    completed_at: 2026-04-09T03:17:42.565Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-1-shared-types-module
+    completed_at: 2026-04-09T03:17:42.567Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-2-compile-task-steps-to-invoke-states
+    completed_at: 2026-04-09T03:17:42.569Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-3-compile-gate-blocks-to-compound-states
+    completed_at: 2026-04-09T03:17:42.570Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-4-compile-for-each-blocks-to-iteration-states
+    completed_at: 2026-04-09T03:17:42.571Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-5-compile-flow-recursive-entry-point
+    completed_at: 2026-04-09T03:17:42.572Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-1-gate-machine
+    completed_at: 2026-04-09T03:17:42.574Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-2-story-machine
+    completed_at: 2026-04-09T03:17:42.575Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-3-epic-machine-for-each-story-iteration
+    completed_at: 2026-04-09T03:17:42.576Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-4-run-machine-for-each-epic-iteration
+    completed_at: 2026-04-09T03:17:42.578Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-5-wire-run-workflow-actor-to-compiled-machines
+    completed_at: 2026-04-09T03:17:42.579Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-09T03:17:42.581Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-09T03:17:42.582Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-09T03:17:42.584Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-09T03:17:42.585Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-09T03:17:42.586Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-09T03:17:42.588Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-09T04:02:50.562Z
+  - task_name: retry
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-09T04:10:43.724Z
+  - task_name: retry
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-09T04:16:55.301Z
+  - task_name: retry
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-09T04:24:24.303Z
+  - task_name: retry
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-09T04:35:10.370Z
+  - task_name: retry
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-09T04:37:43.473Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-09T04:37:43.479Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-09T04:37:43.482Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-2-parse-named-gate-blocks
+    completed_at: 2026-04-09T04:37:43.484Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-3-update-default-yaml-to-new-format
+    completed_at: 2026-04-09T04:37:43.486Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-1-dispatch-actor-module
+    completed_at: 2026-04-09T04:37:43.489Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-2-null-task-actor
+    completed_at: 2026-04-09T04:37:43.490Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-3-contract-chaining-verify-flag-propagation
+    completed_at: 2026-04-09T04:37:43.492Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-4-error-classification-workflow-error
+    completed_at: 2026-04-09T04:37:43.494Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-1-shared-types-module
+    completed_at: 2026-04-09T04:37:43.496Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-2-compile-task-steps-to-invoke-states
+    completed_at: 2026-04-09T04:37:43.498Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-3-compile-gate-blocks-to-compound-states
+    completed_at: 2026-04-09T04:37:43.499Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-4-compile-for-each-blocks-to-iteration-states
+    completed_at: 2026-04-09T04:37:43.501Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-5-compile-flow-recursive-entry-point
+    completed_at: 2026-04-09T04:37:43.503Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-1-gate-machine
+    completed_at: 2026-04-09T04:37:43.505Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-2-story-machine
+    completed_at: 2026-04-09T04:37:43.507Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-3-epic-machine-for-each-story-iteration
+    completed_at: 2026-04-09T04:37:43.509Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-4-run-machine-for-each-epic-iteration
+    completed_at: 2026-04-09T04:37:43.510Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-5-wire-run-workflow-actor-to-compiled-machines
+    completed_at: 2026-04-09T04:37:43.512Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-09T04:37:43.514Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-09T04:37:43.516Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-09T04:37:43.518Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-09T04:37:43.520Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-09T04:37:43.522Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-09T04:37:43.523Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-09T04:37:43.525Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-09T04:37:43.527Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-09T04:37:43.529Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-09T04:37:43.531Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-09T04:37:43.533Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-09T04:37:43.534Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-09T04:37:43.537Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-09T04:37:43.539Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-2-parse-named-gate-blocks
+    completed_at: 2026-04-09T04:37:43.540Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-3-update-default-yaml-to-new-format
+    completed_at: 2026-04-09T04:37:43.542Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-1-dispatch-actor-module
+    completed_at: 2026-04-09T04:37:43.544Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-2-null-task-actor
+    completed_at: 2026-04-09T04:37:43.547Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-3-contract-chaining-verify-flag-propagation
+    completed_at: 2026-04-09T04:37:43.548Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-4-error-classification-workflow-error
+    completed_at: 2026-04-09T04:37:43.550Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-1-shared-types-module
+    completed_at: 2026-04-09T04:37:43.552Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-2-compile-task-steps-to-invoke-states
+    completed_at: 2026-04-09T04:37:43.554Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-3-compile-gate-blocks-to-compound-states
+    completed_at: 2026-04-09T04:37:43.556Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-4-compile-for-each-blocks-to-iteration-states
+    completed_at: 2026-04-09T04:37:43.558Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-5-compile-flow-recursive-entry-point
+    completed_at: 2026-04-09T04:37:43.560Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-1-gate-machine
+    completed_at: 2026-04-09T04:37:43.562Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-2-story-machine
+    completed_at: 2026-04-09T04:37:43.564Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-3-epic-machine-for-each-story-iteration
+    completed_at: 2026-04-09T04:37:43.566Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-4-run-machine-for-each-epic-iteration
+    completed_at: 2026-04-09T04:37:43.568Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-5-wire-run-workflow-actor-to-compiled-machines
+    completed_at: 2026-04-09T04:37:43.570Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-09T04:37:43.572Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-09T04:37:43.574Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-09T04:37:43.576Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-09T04:37:43.579Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-09T04:37:43.581Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-09T04:37:43.583Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-09T04:37:43.586Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-09T04:37:43.588Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-09T04:37:43.591Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-2-parse-named-gate-blocks
+    completed_at: 2026-04-09T04:37:43.593Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 22-3-update-default-yaml-to-new-format
+    completed_at: 2026-04-09T04:37:43.595Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-1-dispatch-actor-module
+    completed_at: 2026-04-09T04:37:43.597Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-2-null-task-actor
+    completed_at: 2026-04-09T04:37:43.599Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-3-contract-chaining-verify-flag-propagation
+    completed_at: 2026-04-09T04:37:43.601Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 23-4-error-classification-workflow-error
+    completed_at: 2026-04-09T04:37:43.603Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-1-shared-types-module
+    completed_at: 2026-04-09T04:37:43.606Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-2-compile-task-steps-to-invoke-states
+    completed_at: 2026-04-09T04:37:43.608Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-3-compile-gate-blocks-to-compound-states
+    completed_at: 2026-04-09T04:37:43.610Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-4-compile-for-each-blocks-to-iteration-states
+    completed_at: 2026-04-09T04:37:43.613Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 24-5-compile-flow-recursive-entry-point
+    completed_at: 2026-04-09T04:37:43.615Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-1-gate-machine
+    completed_at: 2026-04-09T04:37:43.617Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-2-story-machine
+    completed_at: 2026-04-09T04:37:43.620Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-3-epic-machine-for-each-story-iteration
+    completed_at: 2026-04-09T04:37:43.622Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-4-run-machine-for-each-epic-iteration
+    completed_at: 2026-04-09T04:37:43.624Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 25-5-wire-run-workflow-actor-to-compiled-machines
+    completed_at: 2026-04-09T04:37:43.627Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-09T04:37:43.630Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-09T04:37:43.633Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-09T04:37:43.636Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-09T04:37:43.639Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-09T04:37:43.642Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: retry
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-09T04:37:43.644Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-1-extract-workflow-actors
+    completed_at: 2026-04-09T04:37:43.647Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-2-extract-workflow-compiler
+    completed_at: 2026-04-09T04:37:43.649Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-3-extract-workflow-machines
+    completed_at: 2026-04-09T04:37:43.651Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-4-extract-workflow-runner
+    completed_at: 2026-04-09T04:37:43.654Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-5-delete-workflow-machine-and-hierarchical-flow
+    completed_at: 2026-04-09T04:37:43.657Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-6-migrate-test-imports
+    completed_at: 2026-04-09T04:37:43.659Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 21-7-dedicated-test-files-per-module
+    completed_at: 2026-04-09T04:37:43.661Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-1-parse-for-each-blocks
+    completed_at: 2026-04-09T04:37:43.664Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-2-parse-named-gate-blocks
+    completed_at: 2026-04-09T04:37:43.666Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 22-3-update-default-yaml-to-new-format
+    completed_at: 2026-04-09T04:37:43.669Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-1-dispatch-actor-module
+    completed_at: 2026-04-09T04:37:43.671Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-2-null-task-actor
+    completed_at: 2026-04-09T04:37:43.674Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-3-contract-chaining-verify-flag-propagation
+    completed_at: 2026-04-09T04:37:43.676Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 23-4-error-classification-workflow-error
+    completed_at: 2026-04-09T04:37:43.679Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-1-shared-types-module
+    completed_at: 2026-04-09T04:37:43.681Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-2-compile-task-steps-to-invoke-states
+    completed_at: 2026-04-09T04:37:43.683Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-3-compile-gate-blocks-to-compound-states
+    completed_at: 2026-04-09T04:37:43.686Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-4-compile-for-each-blocks-to-iteration-states
+    completed_at: 2026-04-09T04:37:43.689Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 24-5-compile-flow-recursive-entry-point
+    completed_at: 2026-04-09T04:37:43.691Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-1-gate-machine
+    completed_at: 2026-04-09T04:37:43.694Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-2-story-machine
+    completed_at: 2026-04-09T04:37:43.697Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-3-epic-machine-for-each-story-iteration
+    completed_at: 2026-04-09T04:37:43.700Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-4-run-machine-for-each-epic-iteration
+    completed_at: 2026-04-09T04:37:43.703Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 25-5-wire-run-workflow-actor-to-compiled-machines
+    completed_at: 2026-04-09T04:37:43.705Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 26-3-semantic-checkpoint-log
+    completed_at: 2026-04-09T04:37:43.708Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 26-4-clear-persistence-on-completion
+    completed_at: 2026-04-09T04:37:43.711Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-2-derive-position-from-snapshot-state-path
+    completed_at: 2026-04-09T04:37:43.714Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-3-wire-inspect-api-to-visualizer
+    completed_at: 2026-04-09T04:37:43.716Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-4-sideband-streaming-to-tui
+    completed_at: 2026-04-09T04:37:43.719Z
+    error: true
+    error_message: Dispatch aborted
+    error_code: UNKNOWN
+  - task_name: document
+    story_key: 27-5-simplify-run-ts-remove-hand-tracked-state
+    completed_at: 2026-04-09T04:37:43.722Z
     error: true
     error_message: Dispatch aborted
     error_code: UNKNOWN
@@ -306,11 +1143,25 @@ circuit_breaker:
   reason: null
   score_history: []
 trace_ids:
-  - ch-run-1775594117251-2-retry
-  - ch-run-1775594117251-2-deploy
-  - ch-run-1775594117251-3-verify
-  - ch-run-1775594117251-3-retry
-  - ch-run-1775594117251-3-deploy
-  - ch-run-1775630009159-3-create-story
-  - ch-run-1775630819965-0-implement
-  - ch-run-1775630819965-0-check
+  - ch-run-1775659366348-0-create-story
+  - ch-run-1775659366348-0-implement
+  - ch-run-1775659366348-0-check
+  - ch-run-1775659366348-0-review
+  - ch-run-1775659366348-1-document
+  - ch-run-1775659366348-1-create-story
+  - ch-run-1775659366348-1-implement
+  - ch-run-1775659366348-0-check
+  - ch-run-1775659366348-0-review
+  - ch-run-1775659366348-1-document
+  - ch-run-1775659366348-1-retro
+  - ch-run-1775659366348-1-create-story
+  - ch-run-1775659366348-1-implement
+  - ch-run-1775659366348-0-check
+  - ch-run-1775659366348-0-review
+  - ch-run-1775659366348-1-document
+  - ch-run-1775659366348-1-retro
+  - ch-run-1775706902931-1-retry
+  - ch-run-1775706902931-1-retry
+  - ch-run-1775706902931-1-retry
+  - ch-run-1775706902931-1-retry
+  - ch-run-1775706902931-1-retry

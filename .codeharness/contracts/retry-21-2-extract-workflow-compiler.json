@@ -2,13 +2,74 @@
   "version": 1,
   "taskName": "retry",
   "storyId": "21-2-extract-workflow-compiler",
-  "driver": "claude-code",
-  "model": "claude-sonnet-4-6",
-  "timestamp": "2026-04-05T13:03:38.565Z",
-  "cost_usd": 0.1302324,
-  "duration_ms": 232780,
+  "driver": "codex",
+  "model": "gpt-5.4",
+  "timestamp": "2026-04-09T04:10:43.724Z",
+  "cost_usd": null,
+  "duration_ms": 473148,
   "changedFiles": [],
   "testResults": null,
-  "output": "Updated the retry in the workflow extraction boundary.\n\n`/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machine.ts` now imports the extracted constants/helpers and the `DriverHealth` / `OutputContract` types from `/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts`, so the direct `./agents/types.js` import is gone from the machine layer. In `/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts`, `handleDispatchError` is back to strict `instanceof DispatchError` handling instead of duck-typing.\n\nThe unrelated edits in `/Users/ivintik/dev/personal/codeharness/src/modules/verify/proof.ts` and `/Users/ivintik/dev/personal/codeharness/src/modules/verify/__tests__/verify-blackbox.test.ts` were restored to `HEAD`; they no longer show in `git diff`.\n\nValidation passed with `npx vitest run src/lib/__tests__/workflow-machine.test.ts` and `npm run build`.\n\nChanges are local. Codex did not push. Sandbox blocked `.git/index.lock` writes during restore, so reverts were applied via file-content overwrite from `git show HEAD`.",
-  "acceptanceCriteria": []
+  "output": "I’m treating this as an operational repo task: find the current `retry` path for story `21-2-extract-workflow-compiler`, execute that task through the harness, and verify what state changed.I found a dirty worktree with existing harness state and unrelated source edits. I’m leaving those intact and narrowing to the internal workflow path that actually dispatches a single `retry` task for `21-2`.The workflow template confirms `retry` is just another internal task, not a public CLI command. Next I’m reading the existing contracts and current sprint/workflow state so I can dispatch the same task with the right prior context instead of guessing.I have the dispatch surface now. `retry` needs the resolved workflow task, the `dev` agent definition, current workflow state, and the prior failing contract so the prompt includes the review findings that triggered the retry.The source tree can’t be imported directly because TS files still reference `.js` module specifiers. I’m switching to the compiled `dist/` path the harness already expects, which means a fresh build first and then a one-off internal dispatch against the built modules.The JS bundle is already emitted, and the type-build phase is still finishing. Once that settles, I’ll use the compiled modules to replay only `retry` for `21-2` with the existing review contract as input.I don’t need the full runner anymore. For a one-off replay, the minimal path is `dispatchTaskCore` plus a hand-built `retry` task config and resolved `dev` agent definition that matches the default workflow. I’m extracting those values from the repo rather than driving the whole sprint.There are no project or user patches for the `dev` agent, so the embedded template is the effective definition. I’m checking the current sprint metadata for `21-2` and then I can dispatch with a fully accurate minimal config.I’m executing the retry now through the compiled dispatch path. This is a real task run: if it fails here, it will be due to the actual driver/runtime/task behavior, not a dry-run wrapper.The first launch hit the bundled CLI bootstrap, not the dispatch path. I’m rerunning with `VITEST=1` so the module loads without parsing argv, then the same internal dispatch can proceed.The retry dispatch is live now. I’m polling the task rather than restarting anything so the contract and workflow-state writes come from the real run if it completes.The driver hasn’t emitted a terminal result yet, which is normal for a live `retry` run. I’m leaving it in place and checking for completion rather than interrupting and creating another abort artifact.The task is still in the driver call. There’s no sign of a fast bootstrap failure, so I’m giving it more time before I decide whether this is a genuine long-running retry or a stuck driver session.The retry completed successfully through the internal dispatch path and wrote a new `retry` contract. I’m reading the resulting contract and diffs now to confirm what it changed and whether the claimed verification actually ran cleanly.Executed `retry` for `21-2-extract-workflow-compiler` through the internal workflow dispatch path, not a dry run. The new retry contract was written at [.codeharness/contracts/retry-21-2-extract-workflow-compiler.json](/Users/ivintik/dev/personal/codeharness/.codeharness/contracts/retry-21-2-extract-workflow-compiler.json), timestamped `2026-04-09T04:09:46.538Z`, and the workflow checkpoint was appended in [.codeharness/workflow-state.yaml](/Users/ivintik/dev/personal/codeharness/.codeharness/workflow-state.yaml).\n\nThe retry run reported it fixed the compiler boundary issue by removing `handleDispatchError` from [src/lib/workflow-compiler.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-compiler.ts), adding [src/lib/workflow-error-utils.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-error-utils.ts), updating machine-layer imports in [src/lib/workflow-machines.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-machines.ts), [src/lib/workflow-run-machine.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-run-machine.ts), [src/lib/workflow-epic-machine.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-epic-machine.ts), and [src/lib/workflow-story-machine.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-story-machine.ts), plus test updates in [src/lib/__tests__/workflow-compiler.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-compiler.test.ts) and [src/lib/__tests__/workflow-machines.test.ts](/Users/ivintik/dev/personal/codeharness/src/lib/__tests__/workflow-machines.test.ts). It also changed [src/modules/sprint/state.ts](/Users/ivintik/dev/personal/codeharness/src/modules/sprint/state.ts) and [src/lib/AGENTS.md](/Users/ivintik/dev/personal/codeharness/src/lib/AGENTS.md).\n\nCurrent repo state from that retry:\n- Modified tracked files: compiler/machine/test files above.\n- New untracked file: [src/lib/workflow-error-utils.ts](/Users/ivintik/dev/personal/codeharness/src/lib/workflow-error-utils.ts).\n- `sprint-state.json` did not move the story forward; `21-2-extract-workflow-compiler` is still `checked` with `attempts: 8`.\n\nThe retry contract says these passed during the run: `npx eslint src/ --fix`, `npx eslint src/`, `npm run build`, `npx vitest run`. I did not rerun those independently after the retry completed.",
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "description": "**Given** the project is built via `npm run build`, **When** the build completes, **Then** it exits 0 with zero errors in stdout/stderr. <!-- verification: `npm run build` exits 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC2",
+      "description": "**Given** the full test suite is run via `npx vitest run`, **When** all tests complete, **Then** 4976+ tests pass with zero failures — no regressions from the extraction. <!-- verification: `npx vitest run` exits 0; pass count >= 4976 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC3",
+      "description": "**Given** the file `src/lib/workflow-compiler.ts` exists, **When** its line count is measured via `wc -l`, **Then** it contains ≤200 lines (imports, whitespace, and comments included). <!-- verification: `wc -l src/lib/workflow-compiler.ts` shows number <= 200 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC4",
+      "description": "**Given** the monolith `src/lib/workflow-machine.ts` was 1107 lines before this extraction, **When** its current line count is measured via `wc -l`, **Then** it contains ≤980 lines (at least 120 lines fewer than before). <!-- verification: `wc -l src/lib/workflow-machine.ts` shows number <= 980 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC5",
+      "description": "**Given** `workflow-compiler.ts` is the new module, **When** its contents are searched for references to `workflow-machine` via `grep -c 'workflow-machine' src/lib/workflow-compiler.ts`, **Then** the count is 0 — no circular dependency back to the monolith. <!-- verification: `grep -c 'workflow-machine' src/lib/workflow-compiler.ts` outputs 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC6",
+      "description": "**Given** `workflow-compiler.ts` is the new module, **When** its contents are searched for references to `workflow-actors` via `grep -c 'workflow-actors' src/lib/workflow-compiler.ts`, **Then** the count is 0 — no dependency on the actors module. <!-- verification: `grep -c 'workflow-actors' src/lib/workflow-compiler.ts` outputs 0 -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC7",
+      "description": "**Given** `workflow-machine.ts` consumes helpers from the new module, **When** its imports are searched via `grep 'workflow-compiler' src/lib/workflow-machine.ts`, **Then** at least one import line from `./workflow-compiler.js` is present. <!-- verification: `grep 'workflow-compiler' src/lib/workflow-machine.ts` shows at least one import line -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC8",
+      "description": "**Given** the test suite includes task-completion-related tests, **When** they are run via `npx vitest run -t 'completed'`, **Then** all matching tests pass — the extracted `isTaskCompleted` and `isLoopTaskCompleted` functions work identically to before. <!-- verification: `npx vitest run -t 'completed'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC9",
+      "description": "**Given** the test suite includes retry/verdict-related tests, **When** they are run via `npx vitest run -t 'retry\\|verdict\\|failed'`, **Then** all matching tests pass — the extracted `buildRetryPrompt`, `buildAllUnknownVerdict`, and `getFailedItems` functions work identically to before. <!-- verification: `npx vitest run -t 'retry|verdict|failed'` exits 0 with 0 failures -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC10",
+      "description": "**Given** the project linter is run on the new file via `npx eslint src/lib/workflow-compiler.ts`, **When** linting completes, **Then** it exits 0 with zero errors and zero warnings. <!-- verification: `npx eslint src/lib/workflow-compiler.ts` exits 0 with empty output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC11",
+      "description": "**Given** the TypeScript compiler is run via `npx tsc --noEmit`, **When** type-checking completes, **Then** zero errors reference `workflow-compiler.ts`. Pre-existing type errors in other files are acceptable, but the new file must introduce no new ones. <!-- verification: `npx tsc --noEmit 2>&1 | grep 'workflow-compiler'` produces no output -->",
+      "status": "pending"
+    },
+    {
+      "id": "AC12",
+      "description": "**Given** `workflow-compiler.ts` contains only pure functions, **When** its imports are inspected, **Then** it imports only from `workflow-parser.ts` (for `FlowStep`/`LoopBlock` types), `workflow-state.ts` (for `WorkflowState`/`TaskCheckpoint` types), `verdict-parser.ts` (for `EvaluatorVerdict` type), and `workflow-types.ts` (for interface types) — no imports from `xstate`, `node:fs`, `node:path`, or any agent/driver/dispatch modules. <!-- verification: `grep \"^import\" src/lib/workflow-compiler.ts` shows only type imports from parser/state/verdict/types modules; `grep -c 'xstate\\|node:fs\\|node:path\\|agent-dispatch\\|drivers' src/lib/workflow-compiler.ts` outputs 0 -->",
+      "status": "pending"
+    }
+  ]
 }

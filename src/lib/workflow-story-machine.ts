@@ -3,7 +3,8 @@
 import { setup, assign, fromPromise, createActor, waitFor } from 'xstate';
 import { DispatchError } from './agent-dispatch.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
-import { HALT_ERROR_CODES, handleDispatchError, isTaskCompleted, recordErrorInState } from './workflow-compiler.js';
+import { handleDispatchError } from './workflow-error-utils.js';
+import { HALT_ERROR_CODES, isTaskCompleted, recordErrorInState } from './workflow-compiler.js';
 import { warn, info } from './output.js';
 import { appendCheckpoint } from './workflow-persistence.js';
 import { writeWorkflowState } from './workflow-state.js';

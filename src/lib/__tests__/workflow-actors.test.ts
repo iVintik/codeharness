@@ -790,6 +790,23 @@ describe('dispatchTaskCore (story 23-1)', () => {
     expect(capturedContract?.driver).toBe('codex');
   });
 
+  it('AC5: uses acStoryFiles for contract acceptance criteria when provided', async () => {
+    await dispatchTaskCore(makeDispatchInput({
+      taskName: 'verify',
+      storyKey: '__epic_21__',
+      task: makeTask({ source_access: false }),
+      storyFiles: ['/tmp/guide-1.md', '/tmp/guide-2.md'],
+      acStoryFiles: ['/project/_bmad-output/implementation-artifacts/21-1-a.md'],
+    }));
+
+    expect(mockGetPendingAcceptanceCriteria).toHaveBeenCalledWith(
+      'verify',
+      '__epic_21__',
+      '/project',
+      ['/project/_bmad-output/implementation-artifacts/21-1-a.md'],
+    );
+  });
+
   // AC6: driver errors are classified into typed codes
   it('AC6: RATE_LIMIT category maps to RATE_LIMIT DispatchError code', async () => {
     mockDriverDispatch.mockImplementation(() =>

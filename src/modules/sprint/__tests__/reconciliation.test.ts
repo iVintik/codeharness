@@ -327,7 +327,7 @@ describe('reconcileState', () => {
       expect(afterContent).toBe(beforeContent);
     });
 
-    it('reopens done stories without verification evidence back to checked', () => {
+    it('preserves legacy done stories without forcing them back to checked', () => {
       const state = makeState({
         stories: {
           '9-1-stale': {
@@ -345,10 +345,10 @@ describe('reconcileState', () => {
       expect(result.success).toBe(true);
       if (!result.success) return;
 
-      expect(result.data.corrections).toContain('reopened unverified story 9-1-stale: done→checked');
+      expect(result.data.corrections).not.toContain('reopened unverified story 9-1-stale: done→checked');
       const updated = readState();
-      expect(updated.stories['9-1-stale'].status).toBe('checked');
-      expect(updated.epics['epic-9'].status).toBe('in-progress');
+      expect(updated.stories['9-1-stale'].status).toBe('done');
+      expect(updated.epics['epic-9'].status).toBe('done');
     });
   });
 

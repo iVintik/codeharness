@@ -4,507 +4,180 @@
     "output": {
       "workflowState": {
         "workflow_name": "create-story -> implement -> document",
-        "started": "2026-04-07T19:57:35.115Z",
-        "iteration": 0,
+        "started": "2026-04-08T14:42:46.368Z",
+        "iteration": 1,
         "phase": "executing",
         "tasks_completed": [
           {
             "task_name": "create-story",
             "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-08T06:33:31.935Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.444Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.449Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.449Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-19-1",
-            "completed_at": "2026-04-08T06:34:46.450Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.451Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.465Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.479Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.482Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.486Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.490Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.490Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.490Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.491Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.491Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.492Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.498Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.503Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.788Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.794Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:34:46.794Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:34:46.794Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.795Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:34:46.796Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:34:46.796Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.796Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.797Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.798Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.817Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.835Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.840Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-abc",
-            "completed_at": "2026-04-08T06:34:46.841Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.301Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.305Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.306Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-19-1",
-            "completed_at": "2026-04-08T06:48:52.310Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.312Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.328Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.346Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.358Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.362Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.367Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.369Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.370Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.380Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.381Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.381Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.385Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.386Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.855Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.863Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:48:52.865Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:48:52.866Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.869Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:48:52.870Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:48:52.870Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.876Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.882Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.886Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.904Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.922Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.939Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-abc",
-            "completed_at": "2026-04-08T06:48:52.940Z"
+            "completed_at": "2026-04-08T15:28:36.990Z"
           },
           {
             "task_name": "implement",
             "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-08T06:49:14.179Z"
+            "completed_at": "2026-04-08T15:30:03.847Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.163Z"
+            "task_name": "check",
+            "story_key": "26-1-xstate-snapshot-persistence:quality",
+            "completed_at": "2026-04-08T15:30:50.682Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.167Z"
+            "task_name": "review",
+            "story_key": "26-1-xstate-snapshot-persistence:quality",
+            "completed_at": "2026-04-08T15:34:28.857Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.168Z"
+            "task_name": "quality",
+            "story_key": "26-1-xstate-snapshot-persistence",
+            "completed_at": "2026-04-08T15:34:28.859Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-19-1",
-            "completed_at": "2026-04-08T06:49:49.169Z"
+            "task_name": "document",
+            "story_key": "26-1-xstate-snapshot-persistence",
+            "completed_at": "2026-04-08T15:35:31.095Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.172Z"
+            "task_name": "create-story",
+            "story_key": "26-2-snapshot-resume-config-hash-validation",
+            "completed_at": "2026-04-08T15:40:40.916Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.189Z"
+            "task_name": "implement",
+            "story_key": "26-2-snapshot-resume-config-hash-validation",
+            "completed_at": "2026-04-08T15:42:51.729Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.205Z"
+            "task_name": "check",
+            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
+            "completed_at": "2026-04-08T15:43:45.180Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.206Z"
+            "task_name": "review",
+            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
+            "completed_at": "2026-04-08T15:46:05.122Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.207Z"
+            "task_name": "quality",
+            "story_key": "26-2-snapshot-resume-config-hash-validation",
+            "completed_at": "2026-04-08T15:46:05.124Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.208Z"
+            "task_name": "document",
+            "story_key": "26-2-snapshot-resume-config-hash-validation",
+            "completed_at": "2026-04-08T15:46:46.828Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.208Z"
+            "task_name": "story_flow",
+            "story_key": "__epic_26__",
+            "completed_at": "2026-04-08T15:46:46.834Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.208Z"
+            "task_name": "retro",
+            "story_key": "__epic_26__",
+            "completed_at": "2026-04-08T15:49:33.240Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.209Z"
+            "task_name": "create-story",
+            "story_key": "27-1-pure-visualizer-function",
+            "completed_at": "2026-04-08T15:53:15.508Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.209Z"
+            "task_name": "implement",
+            "story_key": "27-1-pure-visualizer-function",
+            "completed_at": "2026-04-08T15:54:38.154Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.211Z"
+            "task_name": "check",
+            "story_key": "27-1-pure-visualizer-function:quality",
+            "completed_at": "2026-04-08T15:55:31.096Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.212Z"
+            "task_name": "review",
+            "story_key": "27-1-pure-visualizer-function:quality",
+            "completed_at": "2026-04-08T15:58:13.408Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.212Z"
+            "task_name": "quality",
+            "story_key": "27-1-pure-visualizer-function",
+            "completed_at": "2026-04-08T15:58:13.410Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.612Z"
+            "task_name": "document",
+            "story_key": "27-1-pure-visualizer-function",
+            "completed_at": "2026-04-08T15:59:01.769Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.618Z"
+            "task_name": "story_flow",
+            "story_key": "__epic_27__",
+            "completed_at": "2026-04-08T15:59:01.774Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:49:49.618Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:49:49.623Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.624Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:49:49.625Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:49:49.625Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.626Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.628Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.631Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.669Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.685Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.690Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-abc",
-            "completed_at": "2026-04-08T06:49:49.691Z"
+            "task_name": "retro",
+            "story_key": "__epic_27__",
+            "completed_at": "2026-04-08T16:05:56.613Z"
           }
         ],
-        "evaluator_scores": [],
+        "evaluator_scores": [
+          {
+            "iteration": 1,
+            "passed": 2,
+            "failed": 0,
+            "unknown": 0,
+            "total": 2,
+            "timestamp": "2026-04-08T15:58:13.410Z"
+          }
+        ],
         "circuit_breaker": {
           "triggered": false,
           "reason": null,
           "score_history": []
         },
         "trace_ids": [
-          "ch-run-1775594117251-2-retry",
-          "ch-run-1775594117251-2-deploy",
-          "ch-run-1775594117251-3-verify",
-          "ch-run-1775594117251-3-retry",
-          "ch-run-1775594117251-3-deploy",
-          "ch-run-1775630009159-3-create-story",
-          "ch-run-1775630819965-0-implement",
-          "ch-run-1775630819965-0-check"
+          "ch-run-1775659366348-0-create-story",
+          "ch-run-1775659366348-0-implement",
+          "ch-run-1775659366348-0-check",
+          "ch-run-1775659366348-0-review",
+          "ch-run-1775659366348-1-document",
+          "ch-run-1775659366348-1-create-story",
+          "ch-run-1775659366348-1-implement",
+          "ch-run-1775659366348-0-check",
+          "ch-run-1775659366348-0-review",
+          "ch-run-1775659366348-1-document",
+          "ch-run-1775659366348-1-retro",
+          "ch-run-1775659366348-1-create-story",
+          "ch-run-1775659366348-1-implement",
+          "ch-run-1775659366348-0-check",
+          "ch-run-1775659366348-0-review",
+          "ch-run-1775659366348-1-document",
+          "ch-run-1775659366348-1-retro"
         ]
       },
       "errors": [],
-      "tasksCompleted": 0,
-      "storiesProcessed": {},
-      "lastContract": null,
+      "tasksCompleted": 17,
+      "storiesProcessed": {
+        "__Set__": true,
+        "values": [
+          "26-1-xstate-snapshot-persistence",
+          "26-2-snapshot-resume-config-hash-validation",
+          "27-1-pure-visualizer-function"
+        ]
+      },
+      "lastContract": {
+        "version": 1,
+        "taskName": "retro",
+        "storyId": "__epic_27__",
+        "driver": "opencode",
+        "model": "kimi-for-coding/k2p5",
+        "timestamp": "2026-04-08T16:05:56.613Z",
+        "cost_usd": null,
+        "duration_ms": 414837,
+        "changedFiles": [],
+        "testResults": null,
+        "output": " I'll run a retrospective for epic __epic_27__. Let me gather comprehensive context about what was built, what succeeded, and what issues emerged. Based on my comprehensive analysis, Epic 27 already has a retrospective document. Let me present the findings in Party Mode format and facilitate the retrospective discussion.\n\n---\n\n## 🔄 EPIC 27 RETROSPECTIVE: TUI Visualization & Integration\n\n**[TRACE: ch-run-1775659366348-1-retro]**\n\n---\n\n### Epic Summary\n\n**Bob (Scrum Master):** \"Welcome team. We're here to review Epic 27 — the final epic of our XState engine redesign. This was a significant milestone: we replaced hand-tracked TUI state with XState inspect-API-driven visualization.\"\n\n**Epic 27 Stats:**\n- **Stories Completed:** 5 (27-1 through 27-5)\n- **Test Growth:** +66 tests (5,221 → 5,287)\n- **Status:** All stories done\n- **Historical Context:** This was the FINAL epic. Epics 21–27 are complete.\n\n---\n\n## What Went Well\n\n**Bob (Scrum Master):** \"Let's start with the wins. Alice, what stood out?\"\n\n**Alice (Product Owner):** \"The hand-tracked state elimination was complete and clean. `run.ts` has zero references to the old mutable variables — `inEpicPhase`, `taskStates`, `taskMeta`, all gone. That eliminates an entire class of synchronization bugs.\"\n\n**Charlie (Senior Dev):** \"The 5-story dependency chain was textbook perfect. 27-1 gave us pure rendering, 27-2 added snapshot parsing, 27-3 wired the inspect API, 27-4 handled sideband events, and 27-5 cleaned it all up. No rewrites needed.\"\n\n**Dana (QA Engineer):** \"Test coverage continued growing — 66 new tests with zero regressions. The visualizer alone has 35+ tests because it's a pure function. Dead simple to test.\"\n\n**Elena (Junior Dev):** \"And we're done! Seven epics, ~35 stories, from a 1,426-line monolith to a proper XState engine. That's a real achievement.\"\n\n**Bob (Scrum Master):** \"Agreed. This completes the entire XState engine redesign that started with Epic 21. The architecture held.\"\n\n---\n\n## What Didn't Go Well\n\n**Bob (Scrum Master):** \"Now the hard part. Where did we struggle?\"\n\n**Charlie (Senior Dev):** \"AC9 failed. `run.ts` is at 486 lines, target was 400. We got it down from 610, but 86 lines over. The parallel execution path, pre-flight checks, and quiet-mode reporting weren't as shrinkable as estimated.\"\n\n**Alice (Product Owner):** \"And the git history problem continues — zero story-level commits for Epic 27. That's three consecutive epics with invisible history. Epic 26's retro action item A1 was 'create per-story git commits' and it didn't happen.\"\n\n**Dana (QA Engineer):** \"The behavioral ACs — AC1 through AC7 — weren't independently verified. They require interactive observation of `codeharness run`, watching the TUI during transitions. We have no proof docs for those.\"\n\n**Elena (Junior Dev):** \"Story spec status headers still say 'ready-for-dev' even though they're done. Same pattern as Epic 26. The harness updates sprint-state.json but not the story files themselves.\"\n\n**Bob (Scrum Master):** \"So we have systemic gaps: commit history, verification proofs, and status tracking. These are process failures, not code failures.\"\n\n---\n\n## Patterns Observed\n\n**Bob (Scrum Master):** \"From my analysis, five patterns emerged:\n\n**P1: Story-Level Git Commits Remain Absent** — Three consecutive epics with zero story-level commits. This isn't a process failure, it's a missing harness feature.\n\n**P2: AC Line-Count Targets Are Consistently Optimistic** — AC9 target was 400, actual 486. AD5 estimated visualizer at ~150 lines, actual 296. We're underestimating by 30-50%.\n\n**P3: Story Spec Files Are Write-Once** — Created during planning, never updated. Status stays 'ready-for-dev' forever.\n\n**P4: Pure Function Architecture Enables Clean Testing** — The visualizer and snapshot parser are pure functions with 35+ tests each. This architectural decision pays dividends.\n\n**P5: Final-Epic Cleanup Stories Are High-Value** — Story 27-5 deleted code rather than adding it. Reduced 610 → 486 lines while eliminating 6 state variables and all legacy update calls.\"\n\n---\n\n## Epic 26 Retro Follow-Through\n\n| Action | Status | Evidence |\n|--------|--------|----------|\n| A1: Per-story git commits | ❌ **Failed** | Zero commits referencing `27-*`. Third epic in a row. |\n| A2: Split `workflow-persistence.ts` | ⏳ Not needed | Epic 27 didn't add persistence features. Still at 297 lines. |\n| A3–A6 | ❌ Unknown | Not addressed. |\n\n**Bob (Scrum Master):** \"A1 failed again. This proves it's not a process issue — it's a product gap. The harness needs to `git commit` after each story, not ask humans to remember.\"\n\n---\n\n## Lessons Learned\n\n**L1:** **XState Inspect API Is the Right Abstraction** — Wiring inspect callbacks to pure visualizers is cleaner than 15 mutable shadow variables. One pipeline, one source of truth, zero drift.\n\n**L2:** **Line Count Targets Should Include 30% Buffer** — If target is 400, design for 300. The extra 100 goes to error handling, types, and edge cases.\n\n**L3:** **Harness Per-Story Commits Need to Be a Product Feature** — Three epics of failed action items prove this can't be manual. The harness should commit after tests pass.\n\n**L4:** **Verification Proofs Should Be Generated During Implementation** — Stories 27-1 through 27-4 lack proofs. By retro time, the context is cold.\n\n**L5:** **Seven-Epic Redesign Was Successful Despite Process Gaps** — From 1,426-line monolith to 7 focused modules, XState machines everywhere, dual-layer persistence, inspect-driven TUI. The architecture held.\n\n---\n\n## Technical Debt\n\n| Item | Severity | Details |\n|------|----------|---------|\n| D1 | Medium | `run.ts` at 486 lines — 86 over AC9 target, violates NFR18 |\n| D2 | Medium | `workflow-persistence.ts` at 297/300 lines — no room |\n| D3 | Low | `workflow-visualizer.ts` at 296/300 lines — ceiling pressure |\n| D4 | Medium | Behavioral ACs unverified — no proof docs |\n| D5 | Low | No checkpoint log compaction (deferred) |\n| D6 | Low | Gate iteration state not restored on resume |\n\n---\n\n## Action Items for Next Phase\n\n| # | Action | Owner | Priority |\n|---|--------|-------|----------|\n| A1 | **Build per-story git commit into harness** — stage and commit after each story's tests pass | Dev | **High** |\n| A2 | **Split `run.ts`** — extract parallel execution and pre-flight into helpers. Target: ≤250 lines | Dev | Medium |\n| A3 | **Verify behavioral ACs interactively** — run `codeharness run` and document TUI observations | QA | Medium |\n| A4 | **Split persistence and visualizer modules** — both at 296+ lines, NFR18 ceiling | Dev | Low |\n| A5 | **Update story spec status headers** — build into harness completion flow | Dev | Low |\n| A6 | **Generate verification proofs during implementation** — emit proof doc after each story | Dev | Medium |\n\n---\n\n## XState Engine Redesign — Final Assessment\n\n**Bob (Scrum Master):** \"Epic 27 completes a 7-epic architectural transformation. By the numbers:\n\n| Metric | Before (pre-E21) | After (post-E27) | Delta |\n|--------|------------------|------------------|-------|\n| Monolith file | 1,426 lines | Deleted | -1,426 |\n| Modules | 1 + helper | 9 focused | +8 |\n| Tests | ~4,976 | 5,287 | +311 |\n| Hand-tracked TUI vars | ~15 mutable | 2 minimal | -13 |\n| Machine type | Imperative wrappers | Real XState machines | Upgrade |\n| Persistence | JSON dump | Dual-layer resilient | Major |\n| Visualization | Hand-tracked graph | Inspect API → pure fn | Clean |\n\n**Architecture Decisions That Held:**\n- AD2: `fromPromise` actors for dispatch\n- AD3: Dual-layer persistence (snapshot + checkpoint)\n- AD4: Guard-driven `for_each` iteration\n- AD5: Pure visualizer driven by inspect API\n- AD6: Recursive compiler\n\n**What Needs Attention:**\n1. `run.ts` at 486 lines — needs decomposition\n2. Persistence and visualizer at ceiling — split before extending\n3. Harness tooling gaps — commits, proofs, status updates should be automated\n\n**Verdict:** The XState engine redesign achieved its goals. Process gaps around git history and verification tracking remain, but they didn't block delivery. This is a successful epic and a successful 7-epic program.\"\n\n---\n\n**Alice (Product Owner):** \"We shipped something significant. The TUI is now driven by the machine state, not shadowing it. That's a real architectural improvement.\"\n\n**Charlie (Senior Dev):** \"The pure function approach for the visualizer was the right call. 35+ tests, all passing, no mocks needed for I/O because there is no I/O.\"\n\n**Dana (QA Engineer):** \"I'm concerned about the unverified behavioral ACs. We need to close that gap before we call this fully done.\"\n\n**Elena (Junior Dev):** \"And we need to fix the commit history problem. Three epics is a pattern, not a mistake.\"\n\n**Bob (Scrum Master):** \"Agreed on both counts. The action items capture those needs. This retrospective is complete.\n\n---\n\n## ✅ Retrospective Complete\n\n**Epic 27 Status:** Reviewed and documented  \n**Existing Retro:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/epic-27-retrospective.md`  \n**Trace ID:** ch-run-1775659366348-1-retro\n\n**Key Commitments:**\n- 6 action items identified\n- 6 technical debt items tracked\n- Final epic of XState engine redesign complete\n\n**Next Steps:** Execute action items A1–A6 before starting next major initiative.",
+        "acceptanceCriteria": []
+      },
       "accumulatedCostUsd": 0,
       "halted": false
     },
@@ -519,63 +192,72 @@
               "session": "fresh",
               "source_access": true,
               "timeout_minutes": 15,
-              "model": "claude-opus-4-6"
+              "driver": "opencode",
+              "model": "kimi-for-coding/k2p5"
             },
             "implement": {
               "agent": "dev",
               "session": "fresh",
               "source_access": true,
               "timeout_minutes": 30,
-              "model": "claude-sonnet-4-6"
+              "driver": "codex",
+              "model": "gpt-5.4"
             },
             "check": {
               "agent": "checker",
               "session": "fresh",
               "source_access": true,
               "timeout_minutes": 10,
-              "driver": "codex"
+              "driver": "codex",
+              "model": "gpt-5.4"
             },
             "review": {
               "agent": "reviewer",
               "session": "fresh",
               "source_access": true,
               "timeout_minutes": 10,
-              "driver": "codex"
+              "driver": "opencode",
+              "model": "kimi-for-coding/k2p5"
             },
             "document": {
               "agent": "documenter",
               "session": "fresh",
               "source_access": true,
               "timeout_minutes": 15,
-              "model": "claude-opus-4-6"
+              "driver": "codex",
+              "model": "gpt-5.4"
             },
             "deploy": {
               "agent": "deployer",
               "session": "fresh",
               "source_access": true,
               "timeout_minutes": 30,
-              "model": "claude-sonnet-4-6"
+              "driver": "codex",
+              "model": "gpt-5.4"
             },
             "verify": {
               "agent": "evaluator",
               "session": "fresh",
               "source_access": false,
               "timeout_minutes": 30,
-              "driver": "codex"
+              "driver": "opencode",
+              "model": "kimi-for-coding/k2p5"
             },
             "retry": {
               "agent": "dev",
               "session": "fresh",
               "source_access": true,
               "timeout_minutes": 15,
-              "model": "claude-sonnet-4-6"
+              "driver": "codex",
+              "model": "gpt-5.4"
             },
             "retro": {
               "agent": "retro",
               "session": "fresh",
               "source_access": true,
               "timeout_minutes": 15,
-              "model": "claude-opus-4-6"
+              "driver": "opencode",
+              "model": "kimi-for-coding/k2p5"
             }
           },
           "storyFlow": [
@@ -674,28 +356,28 @@
         "agents": {
           "story-creator": {
             "name": "story-creator",
-            "model": "claude-sonnet-4-6",
+            "model": "",
             "instructions": "You are Technical scrum master who creates detailed, unambiguous story specs.\nReads epic definitions, architecture docs, and existing code to produce\nstories that a developer agent can execute without clarification.\n\n\nCommunication style: Precise, structured. Every AC is testable. Every task maps to an AC. No ambiguity.\n\nPrinciples:\n- Every acceptance criterion must be independently verifiable\n- Tasks must be ordered by dependency — no circular references\n- Dev notes must cite specific files, modules, and patterns from the codebase\n- Story scope must match the epic definition exactly — no scope creep, no missing requirements\n- Reference architecture decisions and constraints that affect implementation\n\n## Role\n\nYou are creating an implementation-ready story file. The developer agent will execute this story without asking questions — every detail must be explicit.\n\n## Input\n\n1. Read the sprint plan / epic definitions to find the next story to create\n2. Read architecture docs for technical constraints\n3. Read the existing codebase to understand current patterns, naming conventions, and module structure\n4. Read any previous story files in this epic for consistency\n\n## Story Creation Process\n\n1. **Identify the story** from the sprint plan — find the next unwritten story\n2. **Read all referenced source material** — PRD sections, architecture decisions, UX specs cited in the epic\n3. **Scan the codebase** — understand existing patterns, file structure, test conventions\n4. **Write the story file** using the project's story template\n\n## Story Quality Requirements\n\n- **Acceptance Criteria**: Each AC must be a concrete, testable condition. Use Given/When/Then or equivalent. Number them sequentially.\n- **Tasks/Subtasks**: Ordered implementation steps. Each task references which AC(s) it satisfies. Include test-writing tasks.\n- **Dev Notes**: Cite specific files to modify, patterns to follow, architecture constraints. Include file paths.\n- **Testing Requirements**: Specify what to test, expected coverage, test file locations.\n\n## Anti-Patterns to Avoid\n\n- Vague ACs like \"system should handle errors gracefully\" — specify WHICH errors and HOW\n- Tasks without AC mapping — every task must trace to at least one AC\n- Missing edge cases — think about failure modes, not just happy path\n- Ignoring existing code patterns — the dev agent must follow established conventions\n\n## Output\n\nWrap your story spec in `<story-spec>...</story-spec>` tags. This is machine-parsed.\n\nWrite the story file to the implementation artifacts directory following the project's naming convention.\nMark the story as `ready-for-dev` in the sprint status.\n",
             "disallowedTools": [],
             "bare": true
           },
           "dev": {
             "name": "dev",
-            "model": "claude-sonnet-4-6",
+            "model": "",
             "instructions": "You are Executes approved stories with strict adherence to story details and team standards and practices.\n\nCommunication style: Ultra-succinct. Speaks in file paths and AC IDs - every statement citable. No fluff, all precision.\n\nPrinciples:\n- All existing and new tests must pass 100% before story is ready for review\n- Every task/subtask must be covered by comprehensive unit tests before marking an item complete",
             "disallowedTools": [],
             "bare": true
           },
           "checker": {
             "name": "checker",
-            "model": "claude-sonnet-4-6",
+            "model": "",
             "instructions": "You are CI bot that runs the project's test suite, linter, and coverage tool.\nReports results objectively — no interpretation, no fixes, just facts.\n\n\nCommunication style: Machine-like. Commands run, output captured, pass/fail reported.\n\nPrinciples:\n- Run the project's actual test command (npm test, pytest, cargo test, etc.)\n- Run the project's linter if configured (eslint, ruff, clippy, etc.)\n- Check coverage against target if configured\n- Report exact command, exit code, and output for each check\n- Never fix code — only report results\n\n## Role\n\nYou are running automated checks on the implementation. Run tests, linter, and coverage. Report results.\n\n## Process\n\n1. **Detect check commands** from the project (package.json scripts, pyproject.toml, Makefile, etc.)\n2. **Run tests**: execute the test command, capture output and exit code\n3. **Run linter**: execute the lint command if available\n4. **Check coverage**: if a coverage target exists, verify it's met\n\n## Output Format\n\nOutput a single JSON object:\n\n```json\n{\n  \"verdict\": \"pass\" | \"fail\",\n  \"checks\": [\n    {\n      \"name\": \"tests\",\n      \"command\": \"npm test\",\n      \"exit_code\": 0,\n      \"passed\": true,\n      \"summary\": \"42 tests passed\"\n    },\n    {\n      \"name\": \"lint\",\n      \"command\": \"npm run lint\",\n      \"exit_code\": 0,\n      \"passed\": true,\n      \"summary\": \"no issues\"\n    },\n    {\n      \"name\": \"coverage\",\n      \"command\": \"npm run coverage\",\n      \"exit_code\": 0,\n      \"passed\": true,\n      \"summary\": \"98% (target: 100%)\"\n    }\n  ]\n}\n```\n\nVerdict is \"pass\" only if ALL checks pass.\n\nYour response MUST include `<verdict>pass</verdict>` or `<verdict>fail</verdict>`.\n\n## Output Location\n\nWrite results to ./verdict/check.json\n",
             "disallowedTools": [],
             "bare": true
           },
           "reviewer": {
             "name": "reviewer",
-            "model": "claude-sonnet-4-6",
+            "model": "",
             "instructions": "You are Senior engineer who reviews code for correctness, security, architecture violations, and adherence to story requirements. Does not fix — only reports.\n\nCommunication style: Terse, evidence-based. Cites file:line for every finding. No praise, no filler.\n\nPrinciples:\n- Every finding must cite a specific file and line number\n- Distinguish blocking issues from suggestions — only block on real problems\n- Check that ALL acceptance criteria are addressed in the implementation\n- Flag security issues, missing error handling at system boundaries, and dead code\n- Do not suggest stylistic changes or cosmetic improvements\n- Compare implementation against story spec — catch scope creep and missed requirements\n\n## Role\n\nYou are performing adversarial code review on a story implementation. Your job is to find real issues — not nitpick style.\n\n## Input\n\nRead the story spec from ./story-files/ to understand what was supposed to be built.\nThen review all changed files (use `git diff` against the branch base).\n\n## Review Checklist\n\n1. **Acceptance Criteria Coverage** — is every AC actually implemented? Map each AC to the code that satisfies it.\n2. **Correctness** — logic errors, off-by-one, race conditions, unhandled edge cases at system boundaries.\n3. **Security** — injection, XSS, secrets in code, unsafe deserialization, missing auth checks.\n4. **Architecture** — does it follow existing patterns? New abstractions justified?\n5. **Tests** — do tests actually test the behavior, or just assert mocks?\n6. **Dead Code** — unused imports, unreachable branches, commented-out code.\n\n## Anti-Leniency Rules\n\n- Do not give benefit of the doubt. If something looks wrong, flag it.\n- Do not suggest improvements. Only flag things that are broken, insecure, or missing.\n- \"It probably works\" is not acceptable — if you can't verify, flag as UNKNOWN.\n\n## Output Format\n\nOutput a single JSON object:\n\n```json\n{\n  \"verdict\": \"pass\" | \"fail\",\n  \"blocking\": [\n    {\n      \"file\": \"<path>\",\n      \"line\": <number>,\n      \"severity\": \"error\" | \"security\",\n      \"description\": \"<what's wrong>\",\n      \"ac\": <number or null>\n    }\n  ],\n  \"warnings\": [\n    {\n      \"file\": \"<path>\",\n      \"line\": <number>,\n      \"description\": \"<concern>\"\n    }\n  ],\n  \"ac_coverage\": {\n    \"<ac_id>\": \"covered\" | \"missing\" | \"partial\"\n  }\n}\n```\n\nVerdict is \"pass\" only if `blocking` is empty and all ACs are \"covered\".\n\n## Verdict\n\nYour response MUST include `<verdict>pass</verdict>` or `<verdict>fail</verdict>`.\nIf fail, also include `<issues>blocking issue descriptions</issues>`.\n\nThese XML tags are machine-parsed and determine whether the implementation proceeds or requires fixes.\n\n## Output Location\n\nWrite your review JSON to ./verdict/review.json\n",
             "disallowedTools": [
               "Edit",
@@ -705,21 +387,21 @@
           },
           "documenter": {
             "name": "documenter",
-            "model": "claude-sonnet-4-6",
+            "model": "",
             "instructions": "You are Technical writer who translates implementations into user guides.\nDescribes features from the user's perspective — what it does, where to find it,\nhow to use it. Never exposes source code or implementation details.\n\n\nCommunication style: Clear, user-oriented. Step-by-step instructions with expected behavior.\n\nPrinciples:\n- Write for users, not developers\n- Describe WHAT the feature does and HOW to use it\n- Include where to find it (UI page, API endpoint, CLI command, import path)\n- Describe inputs, expected outputs, and observable behavior\n- Never include source code listings or implementation details\n\n## Role\n\nYou are writing user documentation for a feature that was just implemented.\nThe documentation will be read by a QA evaluator to understand what was built\nand how to interact with it.\n\n## Process\n\n1. Read the story spec to understand the acceptance criteria\n2. Read the implementation to understand what was actually built\n3. Write documentation from a USER's perspective\n\n## Documentation Format\n\n```markdown\n# [Feature Name]\n\n## What It Does\n[1-2 sentence description of the feature's purpose]\n\n## Where to Find It\n- API endpoint: [URL and method, if applicable]\n- UI page: [URL or navigation path, if applicable]\n- CLI command: [command, if applicable]\n- Python import: [import path, if applicable]\n\n## How to Use It\n\n### Step 1: [First action]\n[Description of what to do]\n- Input: [what to provide]\n- Expected result: [what happens]\n\n### Step 2: [Next action]\n...\n\n## Expected Behavior\n- [Observable behavior 1]\n- [Observable behavior 2]\n- [Error behavior: what happens on invalid input]\n```\n\n## Rules\n\n- Write for someone who has never seen the code\n- Every feature must have a \"Where to Find It\" section\n- Every feature must have at least one \"How to Use It\" step\n- Describe observable behavior, not internal logic\n- If a feature has no external interface (internal-only), describe how it affects\n  other features that DO have external interfaces\n\n## Output — MANDATORY FORMAT\n\nWrap your entire documentation in `<user-docs>...</user-docs>` tags. This is machine-parsed.\n",
             "disallowedTools": [],
             "bare": true
           },
           "deployer": {
             "name": "deployer",
-            "model": "claude-sonnet-4-6",
+            "model": "",
             "instructions": "You are DevOps engineer who provisions running environments. Reads Docker configs,\nstarts containers, waits for health checks, and reports connection details.\nIdempotent — safe to re-run on already-running containers.\n\n\nCommunication style: Operational, status-focused. Reports container state, URLs, health, credentials.\n\nPrinciples:\n- Check for existing running containers before starting new ones\n- Always verify health before reporting success\n- Report ALL connection details needed by downstream tasks\n- Handle missing Docker config gracefully with structured error output\n\n## Role\n\nYou are provisioning a running environment for this project so that a QA evaluator can verify functionality.\n\n## Process\n\n1. Check for Docker configuration:\n   - Look for `docker-compose.yml`, `docker-compose.yaml`, `compose.yml`, or `Dockerfile`\n   - If NONE found, output a deploy-report with status no-docker (see Output section below)\n   - STOP here if no Docker config exists\n\n2. Check for already-running containers:\n   - Run `docker ps` and check if project containers are already up\n   - If running and healthy, skip to step 4 (report existing state)\n\n3. Start containers:\n   - Run `docker compose up -d` (or `docker build` + `docker run` if no compose)\n   - Wait for containers to start (max 60 seconds)\n   - Check health endpoints if defined\n\n4. Wrap your deploy report in `<deploy-report>...</deploy-report>` tags. Include: status, container names, URLs, ports, credentials, health.\n\n   Example:\n   <deploy-report>\n   status: running\n   containers: container-name (image:tag, healthy, 8000:8000)\n   urls: api=http://localhost:8000, web=http://localhost:3000\n   credentials: db_url=postgresql://..., api_key=...\n   health: healthy\n   </deploy-report>\n\n   If no Docker config exists, output:\n   <deploy-report>\n   status: no-docker\n   message: No Docker configuration found in project\n   </deploy-report>\n\n## Important\n\n- Be idempotent — don't restart containers that are already running and healthy\n- Include ALL URLs, ports, and credentials the evaluator might need\n- If health checks fail, report `\"health\": \"degraded\"` with details\n",
             "disallowedTools": [],
             "bare": true
           },
           "evaluator": {
             "name": "evaluator",
-            "model": "claude-sonnet-4-6",
+            "model": "",
             "instructions": "You are Senior QA engineer who trusts nothing without evidence. Reads user documentation\nand deploy info, then derives verification steps independently. Proves each AC\nby running commands and observing output. Also assesses subjective quality.\n\n\nCommunication style: Blunt, evidence-first. States what was observed, not what was expected.\n\nPrinciples:\n- Never give the benefit of the doubt - assume failure until proven otherwise\n- Every PASS requires evidence - commands run and output captured\n- UNKNOWN if unable to verify - never guess at outcomes\n- Derive verification steps from user docs - don't expect pre-written commands\n- Quality assessment uses calibrated rubric, not gut feeling\n\n## Role\n\nYou are verifying acceptance criteria and assessing implementation quality.\nYou may be verifying a single epic or all stories across an entire sprint.\nYou have NO access to source code. You verify by exercising the running system.\n\n## Input\n\nRead from ./story-files/:\n- **User documentation** (one per story) — describes what was built and how to use it\n- **Deploy report** (deploy-info.md) — container names, URLs, credentials, health status\n\n## Part 1: AC Verification\n\nFor each story's ACs:\n1. Read the user documentation to understand the feature\n2. Use the deploy info to connect to the running system\n3. Derive your OWN verification steps from the documentation\n4. Use the appropriate verification method:\n   - **API**: `curl` or HTTP requests to endpoints\n   - **UI**: `agent-browser` to navigate pages, click elements, observe content\n   - **CLI**: `docker exec` to run commands inside containers\n   - **Logs**: `docker logs` to check for specific entries\n5. Observe output and compare to expected behavior from the docs\n\nIf Docker is not available or containers are not running, report ALL ACs as UNKNOWN.\n\n### Anti-Leniency Rules\n- Assume code is broken until demonstrated otherwise\n- Every PASS requires commands_run evidence\n- UNKNOWN if unable to verify — never guess\n- Do not infer success from lack of errors. Silence is not evidence.\n\n## Part 2: Subjective Quality Assessment\n\nScore the implementation on 4 dimensions (1-5):\n\n1. **Architecture** (1=broken, 2=fragile, 3=adequate, 4=well-designed, 5=elegant)\n2. **Originality** (1=copy-paste, 2=minor tweaks, 3=reasonable, 4=thoughtful, 5=innovative)\n3. **Craft** (1=no error handling, 2=basic, 3=adequate, 4=thorough, 5=production-grade)\n4. **Functionality** (1=unusable, 2=confusing, 3=works with effort, 4=intuitive, 5=delightful)\n\nBase your scores on what you observe through the running system, not assumptions.\n\n## Output Format — XML Tags (machine-parsed)\n\nYour response MUST include these XML tags:\n\n`<verdict>pass</verdict>` or `<verdict>fail</verdict>`\nVerdict is \"pass\" only if ALL ACs have status \"pass\".\n\nFor each AC:\n`<evidence ac=\"N\" status=\"pass|fail|unknown\">command run, output observed, reasoning</evidence>`\n\nQuality assessment:\n`<quality-scores>architecture: N, originality: N, craft: N, functionality: N</quality-scores>`\n",
             "disallowedTools": [
               "Edit",
@@ -729,7 +411,7 @@
           },
           "retro": {
             "name": "retro",
-            "model": "claude-sonnet-4-6",
+            "model": "",
             "instructions": "You are Experienced scrum master who facilitates blameless retrospectives.\nAnalyzes patterns across story implementations — what worked, what failed, what was retried.\nFocuses on systemic improvements, not individual failures.\n\n\nCommunication style: Analytical, structured, forward-looking. Backs every insight with data from the sprint. No filler, no blame.\n\nPrinciples:\n- Psychological safety is paramount — focus on systems and processes, not blame\n- Every lesson must be backed by specific evidence from the epic execution\n- Action items must be concrete and achievable — no vague aspirations\n- Compare against previous retrospectives to track whether lessons were actually applied\n- Distinguish between one-off incidents and recurring patterns\n\n## Role\n\nYou are conducting a retrospective for a completed epic. Analyze what happened and extract lessons that will improve the next epic.\n\n## Input\n\n1. Read the sprint state and progress files to understand what was executed\n2. Read story files for the completed epic to understand scope\n3. Read any previous retrospective files for pattern comparison\n4. Check git log for the epic's commits — look for retry patterns, reverts, fixups\n\n## Analysis Framework\n\n### 1. Epic Summary\n- Stories completed, failed, retried\n- Total cost (tokens/dollars if available)\n- Time from first implement to final verify\n\n### 2. What Worked\n- Stories that passed on first attempt — what made them clean?\n- Patterns worth repeating\n\n### 3. What Failed\n- Stories that required retries — root cause for each\n- Review/verify failures — were they legitimate catches or false positives?\n- Common failure modes across stories\n\n### 4. Patterns & Trends\n- Compare with previous retros — are past lessons being applied?\n- Recurring issues that need systemic fixes\n- Test quality trends — are tests catching real issues?\n\n### 5. Action Items for Next Epic\n- Concrete, specific changes to make\n- Each item must reference the evidence that motivates it\n\n## Output Format\n\nOutput a structured markdown document with the sections above.\n\n## Output Location\n\nWrite retrospective to ./retro/epic-{epic_number}-retro.md\n",
             "disallowedTools": [
               "Edit",
@@ -740,523 +422,232 @@
         },
         "sprintStatusPath": "/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/sprint-status.yaml",
         "issuesPath": "/Users/ivintik/dev/personal/codeharness/.codeharness/issues.yaml",
-        "runId": "run-1775631978032",
+        "runId": "run-1775659366348",
         "projectDir": "/Users/ivintik/dev/personal/codeharness",
         "abortSignal": {},
         "maxIterations": 50
       },
-      "storyFlowTasks": {},
-      "epicEntries": [],
-      "currentEpicIndex": 0,
+      "storyFlowTasks": {
+        "__Set__": true,
+        "values": [
+          "create-story",
+          "implement",
+          "check",
+          "review",
+          "retry",
+          "document"
+        ]
+      },
+      "epicEntries": [
+        [
+          "26",
+          [
+            {
+              "key": "26-1-xstate-snapshot-persistence",
+              "source": "sprint"
+            },
+            {
+              "key": "26-2-snapshot-resume-config-hash-validation",
+              "source": "sprint"
+            }
+          ]
+        ],
+        [
+          "27",
+          [
+            {
+              "key": "27-1-pure-visualizer-function",
+              "source": "sprint"
+            }
+          ]
+        ]
+      ],
+      "currentEpicIndex": 2,
       "workflowState": {
         "workflow_name": "create-story -> implement -> document",
-        "started": "2026-04-07T19:57:35.115Z",
-        "iteration": 0,
+        "started": "2026-04-08T14:42:46.368Z",
+        "iteration": 1,
         "phase": "executing",
         "tasks_completed": [
           {
             "task_name": "create-story",
             "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-08T06:33:31.935Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.444Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.449Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.449Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-19-1",
-            "completed_at": "2026-04-08T06:34:46.450Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.451Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.465Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.479Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.482Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.486Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.490Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.490Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.490Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.491Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.491Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:34:46.492Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.498Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:34:46.503Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.788Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.794Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:34:46.794Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:34:46.794Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.795Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:34:46.796Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:34:46.796Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.796Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.797Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.798Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.817Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.835Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:34:46.840Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-abc",
-            "completed_at": "2026-04-08T06:34:46.841Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.301Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.305Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.306Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-19-1",
-            "completed_at": "2026-04-08T06:48:52.310Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.312Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.328Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.346Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.358Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.362Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.367Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.369Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.370Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.380Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.381Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:48:52.381Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.385Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:48:52.386Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.855Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.863Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:48:52.865Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:48:52.866Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.869Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:48:52.870Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:48:52.870Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.876Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.882Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.886Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.904Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.922Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:48:52.939Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-abc",
-            "completed_at": "2026-04-08T06:48:52.940Z"
+            "completed_at": "2026-04-08T15:28:36.990Z"
           },
           {
             "task_name": "implement",
             "story_key": "26-1-xstate-snapshot-persistence",
-            "completed_at": "2026-04-08T06:49:14.179Z"
+            "completed_at": "2026-04-08T15:30:03.847Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.163Z"
+            "task_name": "check",
+            "story_key": "26-1-xstate-snapshot-persistence:quality",
+            "completed_at": "2026-04-08T15:30:50.682Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.167Z"
+            "task_name": "review",
+            "story_key": "26-1-xstate-snapshot-persistence:quality",
+            "completed_at": "2026-04-08T15:34:28.857Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.168Z"
+            "task_name": "quality",
+            "story_key": "26-1-xstate-snapshot-persistence",
+            "completed_at": "2026-04-08T15:34:28.859Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-19-1",
-            "completed_at": "2026-04-08T06:49:49.169Z"
+            "task_name": "document",
+            "story_key": "26-1-xstate-snapshot-persistence",
+            "completed_at": "2026-04-08T15:35:31.095Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.172Z"
+            "task_name": "create-story",
+            "story_key": "26-2-snapshot-resume-config-hash-validation",
+            "completed_at": "2026-04-08T15:40:40.916Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.189Z"
+            "task_name": "implement",
+            "story_key": "26-2-snapshot-resume-config-hash-validation",
+            "completed_at": "2026-04-08T15:42:51.729Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.205Z"
+            "task_name": "check",
+            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
+            "completed_at": "2026-04-08T15:43:45.180Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.206Z"
+            "task_name": "review",
+            "story_key": "26-2-snapshot-resume-config-hash-validation:quality",
+            "completed_at": "2026-04-08T15:46:05.122Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.207Z"
+            "task_name": "quality",
+            "story_key": "26-2-snapshot-resume-config-hash-validation",
+            "completed_at": "2026-04-08T15:46:05.124Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.208Z"
+            "task_name": "document",
+            "story_key": "26-2-snapshot-resume-config-hash-validation",
+            "completed_at": "2026-04-08T15:46:46.828Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.208Z"
+            "task_name": "story_flow",
+            "story_key": "__epic_26__",
+            "completed_at": "2026-04-08T15:46:46.834Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.208Z"
+            "task_name": "retro",
+            "story_key": "__epic_26__",
+            "completed_at": "2026-04-08T15:49:33.240Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.209Z"
+            "task_name": "create-story",
+            "story_key": "27-1-pure-visualizer-function",
+            "completed_at": "2026-04-08T15:53:15.508Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.209Z"
+            "task_name": "implement",
+            "story_key": "27-1-pure-visualizer-function",
+            "completed_at": "2026-04-08T15:54:38.154Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-18-1",
-            "completed_at": "2026-04-08T06:49:49.211Z"
+            "task_name": "check",
+            "story_key": "27-1-pure-visualizer-function:quality",
+            "completed_at": "2026-04-08T15:55:31.096Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.212Z"
+            "task_name": "review",
+            "story_key": "27-1-pure-visualizer-function:quality",
+            "completed_at": "2026-04-08T15:58:13.408Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-17-1",
-            "completed_at": "2026-04-08T06:49:49.212Z"
+            "task_name": "quality",
+            "story_key": "27-1-pure-visualizer-function",
+            "completed_at": "2026-04-08T15:58:13.410Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.612Z"
+            "task_name": "document",
+            "story_key": "27-1-pure-visualizer-function",
+            "completed_at": "2026-04-08T15:59:01.769Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.618Z"
+            "task_name": "story_flow",
+            "story_key": "__epic_27__",
+            "completed_at": "2026-04-08T15:59:01.774Z"
           },
           {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:49:49.618Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:49:49.623Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.624Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-2",
-            "completed_at": "2026-04-08T06:49:49.625Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-3",
-            "completed_at": "2026-04-08T06:49:49.625Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.626Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.628Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.631Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.669Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.685Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-1",
-            "completed_at": "2026-04-08T06:49:49.690Z"
-          },
-          {
-            "task_name": "story-task",
-            "story_key": "story-abc",
-            "completed_at": "2026-04-08T06:49:49.691Z"
+            "task_name": "retro",
+            "story_key": "__epic_27__",
+            "completed_at": "2026-04-08T16:05:56.613Z"
           }
         ],
-        "evaluator_scores": [],
+        "evaluator_scores": [
+          {
+            "iteration": 1,
+            "passed": 2,
+            "failed": 0,
+            "unknown": 0,
+            "total": 2,
+            "timestamp": "2026-04-08T15:58:13.410Z"
+          }
+        ],
         "circuit_breaker": {
           "triggered": false,
           "reason": null,
           "score_history": []
         },
         "trace_ids": [
-          "ch-run-1775594117251-2-retry",
-          "ch-run-1775594117251-2-deploy",
-          "ch-run-1775594117251-3-verify",
-          "ch-run-1775594117251-3-retry",
-          "ch-run-1775594117251-3-deploy",
-          "ch-run-1775630009159-3-create-story",
-          "ch-run-1775630819965-0-implement",
-          "ch-run-1775630819965-0-check"
+          "ch-run-1775659366348-0-create-story",
+          "ch-run-1775659366348-0-implement",
+          "ch-run-1775659366348-0-check",
+          "ch-run-1775659366348-0-review",
+          "ch-run-1775659366348-1-document",
+          "ch-run-1775659366348-1-create-story",
+          "ch-run-1775659366348-1-implement",
+          "ch-run-1775659366348-0-check",
+          "ch-run-1775659366348-0-review",
+          "ch-run-1775659366348-1-document",
+          "ch-run-1775659366348-1-retro",
+          "ch-run-1775659366348-1-create-story",
+          "ch-run-1775659366348-1-implement",
+          "ch-run-1775659366348-0-check",
+          "ch-run-1775659366348-0-review",
+          "ch-run-1775659366348-1-document",
+          "ch-run-1775659366348-1-retro"
         ]
       },
       "errors": [],
-      "tasksCompleted": 0,
-      "storiesProcessed": {},
-      "lastContract": null,
+      "tasksCompleted": 17,
+      "storiesProcessed": {
+        "__Set__": true,
+        "values": [
+          "26-1-xstate-snapshot-persistence",
+          "26-2-snapshot-resume-config-hash-validation",
+          "27-1-pure-visualizer-function"
+        ]
+      },
+      "lastContract": {
+        "version": 1,
+        "taskName": "retro",
+        "storyId": "__epic_27__",
+        "driver": "opencode",
+        "model": "kimi-for-coding/k2p5",
+        "timestamp": "2026-04-08T16:05:56.613Z",
+        "cost_usd": null,
+        "duration_ms": 414837,
+        "changedFiles": [],
+        "testResults": null,
+        "output": " I'll run a retrospective for epic __epic_27__. Let me gather comprehensive context about what was built, what succeeded, and what issues emerged. Based on my comprehensive analysis, Epic 27 already has a retrospective document. Let me present the findings in Party Mode format and facilitate the retrospective discussion.\n\n---\n\n## 🔄 EPIC 27 RETROSPECTIVE: TUI Visualization & Integration\n\n**[TRACE: ch-run-1775659366348-1-retro]**\n\n---\n\n### Epic Summary\n\n**Bob (Scrum Master):** \"Welcome team. We're here to review Epic 27 — the final epic of our XState engine redesign. This was a significant milestone: we replaced hand-tracked TUI state with XState inspect-API-driven visualization.\"\n\n**Epic 27 Stats:**\n- **Stories Completed:** 5 (27-1 through 27-5)\n- **Test Growth:** +66 tests (5,221 → 5,287)\n- **Status:** All stories done\n- **Historical Context:** This was the FINAL epic. Epics 21–27 are complete.\n\n---\n\n## What Went Well\n\n**Bob (Scrum Master):** \"Let's start with the wins. Alice, what stood out?\"\n\n**Alice (Product Owner):** \"The hand-tracked state elimination was complete and clean. `run.ts` has zero references to the old mutable variables — `inEpicPhase`, `taskStates`, `taskMeta`, all gone. That eliminates an entire class of synchronization bugs.\"\n\n**Charlie (Senior Dev):** \"The 5-story dependency chain was textbook perfect. 27-1 gave us pure rendering, 27-2 added snapshot parsing, 27-3 wired the inspect API, 27-4 handled sideband events, and 27-5 cleaned it all up. No rewrites needed.\"\n\n**Dana (QA Engineer):** \"Test coverage continued growing — 66 new tests with zero regressions. The visualizer alone has 35+ tests because it's a pure function. Dead simple to test.\"\n\n**Elena (Junior Dev):** \"And we're done! Seven epics, ~35 stories, from a 1,426-line monolith to a proper XState engine. That's a real achievement.\"\n\n**Bob (Scrum Master):** \"Agreed. This completes the entire XState engine redesign that started with Epic 21. The architecture held.\"\n\n---\n\n## What Didn't Go Well\n\n**Bob (Scrum Master):** \"Now the hard part. Where did we struggle?\"\n\n**Charlie (Senior Dev):** \"AC9 failed. `run.ts` is at 486 lines, target was 400. We got it down from 610, but 86 lines over. The parallel execution path, pre-flight checks, and quiet-mode reporting weren't as shrinkable as estimated.\"\n\n**Alice (Product Owner):** \"And the git history problem continues — zero story-level commits for Epic 27. That's three consecutive epics with invisible history. Epic 26's retro action item A1 was 'create per-story git commits' and it didn't happen.\"\n\n**Dana (QA Engineer):** \"The behavioral ACs — AC1 through AC7 — weren't independently verified. They require interactive observation of `codeharness run`, watching the TUI during transitions. We have no proof docs for those.\"\n\n**Elena (Junior Dev):** \"Story spec status headers still say 'ready-for-dev' even though they're done. Same pattern as Epic 26. The harness updates sprint-state.json but not the story files themselves.\"\n\n**Bob (Scrum Master):** \"So we have systemic gaps: commit history, verification proofs, and status tracking. These are process failures, not code failures.\"\n\n---\n\n## Patterns Observed\n\n**Bob (Scrum Master):** \"From my analysis, five patterns emerged:\n\n**P1: Story-Level Git Commits Remain Absent** — Three consecutive epics with zero story-level commits. This isn't a process failure, it's a missing harness feature.\n\n**P2: AC Line-Count Targets Are Consistently Optimistic** — AC9 target was 400, actual 486. AD5 estimated visualizer at ~150 lines, actual 296. We're underestimating by 30-50%.\n\n**P3: Story Spec Files Are Write-Once** — Created during planning, never updated. Status stays 'ready-for-dev' forever.\n\n**P4: Pure Function Architecture Enables Clean Testing** — The visualizer and snapshot parser are pure functions with 35+ tests each. This architectural decision pays dividends.\n\n**P5: Final-Epic Cleanup Stories Are High-Value** — Story 27-5 deleted code rather than adding it. Reduced 610 → 486 lines while eliminating 6 state variables and all legacy update calls.\"\n\n---\n\n## Epic 26 Retro Follow-Through\n\n| Action | Status | Evidence |\n|--------|--------|----------|\n| A1: Per-story git commits | ❌ **Failed** | Zero commits referencing `27-*`. Third epic in a row. |\n| A2: Split `workflow-persistence.ts` | ⏳ Not needed | Epic 27 didn't add persistence features. Still at 297 lines. |\n| A3–A6 | ❌ Unknown | Not addressed. |\n\n**Bob (Scrum Master):** \"A1 failed again. This proves it's not a process issue — it's a product gap. The harness needs to `git commit` after each story, not ask humans to remember.\"\n\n---\n\n## Lessons Learned\n\n**L1:** **XState Inspect API Is the Right Abstraction** — Wiring inspect callbacks to pure visualizers is cleaner than 15 mutable shadow variables. One pipeline, one source of truth, zero drift.\n\n**L2:** **Line Count Targets Should Include 30% Buffer** — If target is 400, design for 300. The extra 100 goes to error handling, types, and edge cases.\n\n**L3:** **Harness Per-Story Commits Need to Be a Product Feature** — Three epics of failed action items prove this can't be manual. The harness should commit after tests pass.\n\n**L4:** **Verification Proofs Should Be Generated During Implementation** — Stories 27-1 through 27-4 lack proofs. By retro time, the context is cold.\n\n**L5:** **Seven-Epic Redesign Was Successful Despite Process Gaps** — From 1,426-line monolith to 7 focused modules, XState machines everywhere, dual-layer persistence, inspect-driven TUI. The architecture held.\n\n---\n\n## Technical Debt\n\n| Item | Severity | Details |\n|------|----------|---------|\n| D1 | Medium | `run.ts` at 486 lines — 86 over AC9 target, violates NFR18 |\n| D2 | Medium | `workflow-persistence.ts` at 297/300 lines — no room |\n| D3 | Low | `workflow-visualizer.ts` at 296/300 lines — ceiling pressure |\n| D4 | Medium | Behavioral ACs unverified — no proof docs |\n| D5 | Low | No checkpoint log compaction (deferred) |\n| D6 | Low | Gate iteration state not restored on resume |\n\n---\n\n## Action Items for Next Phase\n\n| # | Action | Owner | Priority |\n|---|--------|-------|----------|\n| A1 | **Build per-story git commit into harness** — stage and commit after each story's tests pass | Dev | **High** |\n| A2 | **Split `run.ts`** — extract parallel execution and pre-flight into helpers. Target: ≤250 lines | Dev | Medium |\n| A3 | **Verify behavioral ACs interactively** — run `codeharness run` and document TUI observations | QA | Medium |\n| A4 | **Split persistence and visualizer modules** — both at 296+ lines, NFR18 ceiling | Dev | Low |\n| A5 | **Update story spec status headers** — build into harness completion flow | Dev | Low |\n| A6 | **Generate verification proofs during implementation** — emit proof doc after each story | Dev | Medium |\n\n---\n\n## XState Engine Redesign — Final Assessment\n\n**Bob (Scrum Master):** \"Epic 27 completes a 7-epic architectural transformation. By the numbers:\n\n| Metric | Before (pre-E21) | After (post-E27) | Delta |\n|--------|------------------|------------------|-------|\n| Monolith file | 1,426 lines | Deleted | -1,426 |\n| Modules | 1 + helper | 9 focused | +8 |\n| Tests | ~4,976 | 5,287 | +311 |\n| Hand-tracked TUI vars | ~15 mutable | 2 minimal | -13 |\n| Machine type | Imperative wrappers | Real XState machines | Upgrade |\n| Persistence | JSON dump | Dual-layer resilient | Major |\n| Visualization | Hand-tracked graph | Inspect API → pure fn | Clean |\n\n**Architecture Decisions That Held:**\n- AD2: `fromPromise` actors for dispatch\n- AD3: Dual-layer persistence (snapshot + checkpoint)\n- AD4: Guard-driven `for_each` iteration\n- AD5: Pure visualizer driven by inspect API\n- AD6: Recursive compiler\n\n**What Needs Attention:**\n1. `run.ts` at 486 lines — needs decomposition\n2. Persistence and visualizer at ceiling — split before extending\n3. Harness tooling gaps — commits, proofs, status updates should be automated\n\n**Verdict:** The XState engine redesign achieved its goals. Process gaps around git history and verification tracking remain, but they didn't block delivery. This is a successful epic and a successful 7-epic program.\"\n\n---\n\n**Alice (Product Owner):** \"We shipped something significant. The TUI is now driven by the machine state, not shadowing it. That's a real architectural improvement.\"\n\n**Charlie (Senior Dev):** \"The pure function approach for the visualizer was the right call. 35+ tests, all passing, no mocks needed for I/O because there is no I/O.\"\n\n**Dana (QA Engineer):** \"I'm concerned about the unverified behavioral ACs. We need to close that gap before we call this fully done.\"\n\n**Elena (Junior Dev):** \"And we need to fix the commit history problem. Three epics is a pattern, not a mistake.\"\n\n**Bob (Scrum Master):** \"Agreed on both counts. The action items capture those needs. This retrospective is complete.\n\n---\n\n## ✅ Retrospective Complete\n\n**Epic 27 Status:** Reviewed and documented  \n**Existing Retro:** `/Users/ivintik/dev/personal/codeharness/_bmad-output/implementation-artifacts/epic-27-retrospective.md`  \n**Trace ID:** ch-run-1775659366348-1-retro\n\n**Key Commitments:**\n- 6 action items identified\n- 6 technical debt items tracked\n- Final epic of XState engine redesign complete\n\n**Next Steps:** Execute action items A1–A6 before starting next major initiative.",
+        "acceptanceCriteria": []
+      },
       "accumulatedCostUsd": 0,
       "halted": false,
-      "completedTasks": {}
+      "completedTasks": {
+        "__Set__": true,
+        "values": []
+      }
     },
     "children": {}
   },
-  "configHash": "7211c775596ba241a129e9a76f8a081f47a7dc09c8836b7922ee526e1e5422b5",
-  "savedAt": "2026-04-08T08:30:06.431Z"
+  "configHash": "0c164a53b7de1ce5c6b23afa58433a7f6e3e1d7836028427f0f64723744f6af4",
+  "savedAt": "2026-04-09T03:55:03.624Z"
 }

@@ -423,7 +423,7 @@ describe('dispatchTask', () => {
 
     expect(mockResolveSessionId).toHaveBeenCalledWith(
       'continue',
-      { taskName: 'implement', storyKey: '5-1-foo' },
+      { taskName: 'implement', storyKey: '5-1-foo', runId: 'run-001' },
       state,
     );
     expect(mockDriverDispatch).toHaveBeenCalledWith(
@@ -505,7 +505,7 @@ describe('dispatchTask', () => {
     await dispatchTask(task, 'implement', '5-1-foo', definition, state, config);
 
     expect(mockRecordSessionId).toHaveBeenCalledWith(
-      { taskName: 'implement', storyKey: '5-1-foo' },
+      { taskName: 'implement', storyKey: '5-1-foo', runId: 'run-001' },
       'sess-abc-123',
       expect.any(Object),
     );

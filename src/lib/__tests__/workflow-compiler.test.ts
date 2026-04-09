@@ -18,12 +18,12 @@ import {
   isLoopBlock,
   recordErrorInState,
   isEngineError,
-  handleDispatchError,
   compileStep,
   compileGate,
   compileForEach,
   compileFlow,
 } from '../workflow-compiler.js';
+import { handleDispatchError } from '../workflow-error-utils.js';
 import { DispatchError } from '../agent-dispatch.js';
 import { WorkflowError } from '../workflow-types.js';
 import type { WorkItem } from '../workflow-types.js';

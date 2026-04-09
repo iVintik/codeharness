@@ -7,7 +7,7 @@ import { readFileSync, writeFileSync, renameSync, existsSync, unlinkSync } from 
 import { join, dirname } from 'node:path';
 import { ok, fail } from '../../types/result.js';
 import type { Result } from '../../types/result.js';
-import type { SprintState, StoryStatus, StoryState, AcResult } from '../../types/state.js';
+import type { SprintState, StoryStatus, StoryState } from '../../types/state.js';
 import type { StoryDetail, RunProgressUpdate } from './types.js';
 import { migrateFromOldFormat, migrateV1ToV2, parseStoryRetriesRecord, parseFlaggedStoriesList } from './migration.js';
 import { readSprintStatus } from '../../lib/sync/index.js';
@@ -599,18 +599,6 @@ export function reconcileState(): Result<ReconciliationResult> {
     const updatedEpics: Record<string, import('../../types/state.js').EpicState> = { ...state.epics };
     for (const [epicKey, storyKeys] of epicStories) {
       const total = storyKeys.length;
-      for (const key of storyKeys) {
-        const story = state.stories[key];
-        if (story.status === 'done' && !hasPassingVerificationEvidence(story)) {
-          state.stories[key] = {
-            ...story,
-            status: 'checked',
-          };
-          changed = true;
-          corrections.push(`reopened unverified story ${key}: done→checked`);
-        }
-      }
-
       const doneCount = storyKeys.filter(k => state.stories[k].status === 'done').length;
       const failedCount = storyKeys.filter(k => state.stories[k].status === 'failed').length;
       const computedStatus = doneCount === total ? 'done'

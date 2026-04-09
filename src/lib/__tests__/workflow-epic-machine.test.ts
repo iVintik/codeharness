@@ -257,6 +257,32 @@ describe('epicMachine', () => {
     expect(calls[1]).toBe('__epic_17__');
   });
 
+  it('epic isolated task passes guide files for workspace input and story files for AC derivation', async () => {
+    mockDispatchTaskCore.mockResolvedValueOnce(makeOut());
+    const input = makeEpicInput({
+      epicItems: [
+        { key: '21-1-alpha', source: 'sprint' },
+        { key: '21-2-beta', source: 'sprint' },
+      ],
+      epicFlow: ['deploy'],
+    });
+    input.config.workflow.tasks.deploy = { agent: 'test-agent', session: 'fresh', source_access: false };
+
+    const { snap } = await run(input);
+
+    expect(snap.value).toBe('done');
+    expect(mockDispatchTaskCore).toHaveBeenCalledTimes(1);
+    expect(mockDispatchTaskCore.mock.calls[0][0]).toMatchObject({
+      taskName: 'deploy',
+      storyKey: '__epic_17__',
+      storyFiles: expect.any(Array),
+      acStoryFiles: [
+        '_bmad-output/implementation-artifacts/21-1-alpha.md',
+        '_bmad-output/implementation-artifacts/21-2-beta.md',
+      ],
+    });
+  });
+
   it('epic with epic-level gate after stories: gate invoked, output merged, epic reaches done', async () => {
     // story-task passes, then gate check-task passes
     mockDispatchTaskCore

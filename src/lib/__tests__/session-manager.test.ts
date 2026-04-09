@@ -88,6 +88,27 @@ describe('session-manager', () => {
       expect(result).toBe('sess-abc-123');
     });
 
+    it('prefers a session from the same run when runId is provided', () => {
+      const state = makeState([
+        makeCheckpoint({ run_id: 'run-old', session_id: 'sess-old' }),
+        makeCheckpoint({ run_id: 'run-new', session_id: 'sess-new' }),
+      ]);
+
+      const result = resolveSessionId('continue', makeKey({ runId: 'run-new' }), state);
+
+      expect(result).toBe('sess-new');
+    });
+
+    it('does not resume a session from a different run when all checkpoints are run-scoped', () => {
+      const state = makeState([
+        makeCheckpoint({ run_id: 'run-old', session_id: 'sess-old' }),
+      ]);
+
+      const result = resolveSessionId('continue', makeKey({ runId: 'run-new' }), state);
+
+      expect(result).toBeUndefined();
+    });
+
     it('returns most recent session ID when multiple checkpoints exist (loop iterations)', () => {
       const state = makeState([
         makeCheckpoint({
@@ -177,6 +198,7 @@ describe('session-manager', () => {
 
       expect(newState.tasks_completed).toHaveLength(1);
       expect(newState.tasks_completed[0].session_id).toBe('sess-new-123');
+      expect(newState.tasks_completed[0].run_id).toBeUndefined();
       expect(newState.tasks_completed[0].task_name).toBe('implement-feature');
       expect(newState.tasks_completed[0].story_key).toBe('4-2-session-boundary');
       expect(newState.tasks_completed[0].completed_at).toBeTruthy();
@@ -200,6 +222,14 @@ describe('session-manager', () => {
       expect(newState.tasks_completed).toHaveLength(2);
       expect(newState.tasks_completed[0].session_id).toBe('sess-existing');
       expect(newState.tasks_completed[1].session_id).toBe('sess-appended');
+    });
+
+    it('records run_id on the checkpoint when provided', () => {
+      const originalState = makeState([]);
+
+      const newState = recordSessionId(makeKey({ runId: 'run-123' }), 'sess-new-123', originalState);
+
+      expect(newState.tasks_completed[0].run_id).toBe('run-123');
     });
 
     it('throws when sessionId is empty string', () => {

@@ -139,9 +139,20 @@ export function installBmad(dir?: string, agentRuntime: AgentRuntime = 'claude-c
   const cmdStr = getBmadInstallCommand(root, agentRuntime);
   try {
     execFileSync('npx', cmdArgs, {
-      stdio: 'pipe',
-      timeout: 120_000, // 2 min — npx may need to download the package first time
+      // stdin ignored to force non-interactive mode - BMAD v6 uses @clack/prompts which
+      // can still prompt even with --yes flag (see BMAD issues #1803, #1962)
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 180_000, // 3 min — npx may need to download the package first time
       cwd: root,
+      env: {
+        ...process.env,
+        // Force CI mode to suppress any remaining interactive prompts
+        CI: '1',
+        // Disable colors to avoid TUI rendering issues
+        FORCE_COLOR: '0',
+        // Ensure no TTY detection tricks work
+        TERM: 'dumb',
+      },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

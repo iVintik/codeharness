@@ -1,60 +1,60 @@
 # codeharness Sprint Status (auto-generated from sprint-state.json)
-# generated: 2026-04-08
+# generated: 2026-04-09
 # This file is a derived view — do NOT edit manually.
 # Source of truth: sprint-state.json
 
 development_status:
 
   # Epic 21
-  epic-21: done
-  21-1-extract-workflow-actors: done
-  21-2-extract-workflow-compiler: done
-  21-3-extract-workflow-machines: done
-  21-4-extract-workflow-runner: done
-  21-5-delete-workflow-machine-and-hierarchical-flow: done
-  21-6-migrate-test-imports: done
-  21-7-dedicated-test-files-per-module: done
+  epic-21: backlog
+  21-1-extract-workflow-actors: checked
+  21-2-extract-workflow-compiler: checked
+  21-3-extract-workflow-machines: checked
+  21-4-extract-workflow-runner: checked
+  21-5-delete-workflow-machine-and-hierarchical-flow: checked
+  21-6-migrate-test-imports: checked
+  21-7-dedicated-test-files-per-module: checked
 
   # Epic 22
-  epic-22: done
-  22-1-parse-for-each-blocks: done
-  22-2-parse-named-gate-blocks: done
-  22-3-update-default-yaml-to-new-format: done
+  epic-22: backlog
+  22-1-parse-for-each-blocks: checked
+  22-2-parse-named-gate-blocks: checked
+  22-3-update-default-yaml-to-new-format: checked
 
   # Epic 23
-  epic-23: done
-  23-1-dispatch-actor-module: done
-  23-2-null-task-actor: done
-  23-3-contract-chaining-verify-flag-propagation: done
-  23-4-error-classification-workflow-error: done
+  epic-23: backlog
+  23-1-dispatch-actor-module: checked
+  23-2-null-task-actor: checked
+  23-3-contract-chaining-verify-flag-propagation: checked
+  23-4-error-classification-workflow-error: checked
 
   # Epic 24
-  epic-24: done
-  24-1-shared-types-module: done
-  24-2-compile-task-steps-to-invoke-states: done
-  24-3-compile-gate-blocks-to-compound-states: done
-  24-4-compile-for-each-blocks-to-iteration-states: done
-  24-5-compile-flow-recursive-entry-point: done
+  epic-24: backlog
+  24-1-shared-types-module: checked
+  24-2-compile-task-steps-to-invoke-states: checked
+  24-3-compile-gate-blocks-to-compound-states: checked
+  24-4-compile-for-each-blocks-to-iteration-states: checked
+  24-5-compile-flow-recursive-entry-point: checked
 
   # Epic 25
-  epic-25: done
-  25-1-gate-machine: done
-  25-2-story-machine: done
-  25-3-epic-machine-for-each-story-iteration: done
-  25-4-run-machine-for-each-epic-iteration: done
-  25-5-wire-run-workflow-actor-to-compiled-machines: done
+  epic-25: backlog
+  25-1-gate-machine: checked
+  25-2-story-machine: checked
+  25-3-epic-machine-for-each-story-iteration: checked
+  25-4-run-machine-for-each-epic-iteration: checked
+  25-5-wire-run-workflow-actor-to-compiled-machines: checked
 
   # Epic 26
   epic-26: backlog
   26-1-xstate-snapshot-persistence: checked
   26-2-snapshot-resume-config-hash-validation: checked
-  26-3-semantic-checkpoint-log: done
-  26-4-clear-persistence-on-completion: done
+  26-3-semantic-checkpoint-log: checked
+  26-4-clear-persistence-on-completion: checked
 
   # Epic 27
   epic-27: backlog
   27-1-pure-visualizer-function: checked
-  27-2-derive-position-from-snapshot-state-path: done
-  27-3-wire-inspect-api-to-visualizer: done
-  27-4-sideband-streaming-to-tui: done
-  27-5-simplify-run-ts-remove-hand-tracked-state: done
+  27-2-derive-position-from-snapshot-state-path: checked
+  27-3-wire-inspect-api-to-visualizer: checked
+  27-4-sideband-streaming-to-tui: checked
+  27-5-simplify-run-ts-remove-hand-tracked-state: checked

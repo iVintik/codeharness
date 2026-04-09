@@ -2,22 +2,49 @@
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { validateWorkflowSchema } from './schema-validate.js';
-import {
-  resolveExecutionConfig,
-  validateReferentialIntegrity,
-  HierarchicalFlowError,
-  type ExecutionConfig,
-  type ResolvedTask,
-  type FlowStep,
-  type ForEachBlock,
-  type ForEachFlowStep,
-  type GateBlock,
-} from './workflow-execution.js';
-import type { ResolvedWorkflow } from './workflow-types.js';
+import { validateReferentialIntegrity } from './workflow-execution.js';
+import type {
+  ExecutionConfig as WorkflowExecutionConfig,
+  FlowStep as WorkflowFlowStep,
+  GateConfig,
+  ForEachConfig,
+  LoopBlock,
+  ResolvedTask,
+  ResolvedWorkflow,
+} from './workflow-types.js';
 
-// Re-export base types; workflow-execution.ts and workflow-types.ts are the canonical sources.
-export type { ResolvedTask, LoopBlock, FlowStep, ForEachBlock, ForEachFlowStep, GateBlock } from './workflow-execution.js';
+// Re-export base types; workflow-parser.ts is the public compatibility surface.
+export type { ResolvedTask, LoopBlock } from './workflow-types.js';
+export type ForEachBlock = ForEachConfig;
+export type GateBlock = GateConfig;
+export type FlowStep = WorkflowFlowStep;
+export type ForEachFlowStep = string | ForEachBlock | GateBlock;
 export type { ResolvedWorkflow } from './workflow-types.js';
+export type ExecutionConfig = WorkflowExecutionConfig;
+
+export interface HierarchicalFlow {
+  execution: ExecutionConfig;
+  storyFlow: FlowStep[];
+  epicFlow: FlowStep[];
+  tasks: Record<string, ResolvedTask>;
+}
+
+/** Built-in epic flow step names that do not need entries in `tasks:`. */
+export const BUILTIN_EPIC_FLOW_TASKS = new Set(['merge', 'validate', 'story_flow']);
+
+/** Default execution configuration values. */
+export const EXECUTION_DEFAULTS: ExecutionConfig = {
+  max_parallel: 1,
+  isolation: 'none',
+  merge_strategy: 'merge-commit',
+  epic_strategy: 'sequential',
+  story_strategy: 'sequential',
+};
+
+const VALID_ISOLATION = new Set<string>(['worktree', 'none']);
+const VALID_MERGE_STRATEGY = new Set<string>(['rebase', 'merge-commit']);
+const VALID_EPIC_STRATEGY = new Set<string>(['parallel', 'sequential']);
+const VALID_STORY_STRATEGY = new Set<string>(['sequential', 'parallel']);
 
 // --- Error Class ---
 
@@ -29,6 +56,116 @@ export class WorkflowParseError extends Error {
     this.name = 'WorkflowParseError';
     this.errors = errors ?? [];
   }
+}
+
+export class HierarchicalFlowError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'HierarchicalFlowError';
+  }
+}
+
+export function resolveExecutionConfig(raw: Record<string, unknown>): ExecutionConfig {
+  const maxParallel = raw.max_parallel;
+  if (maxParallel !== undefined && (typeof maxParallel !== 'number' || !Number.isInteger(maxParallel) || maxParallel < 1)) {
+    throw new HierarchicalFlowError(
+      `Invalid execution.max_parallel: expected positive integer, got ${JSON.stringify(maxParallel)}`,
+    );
+  }
+
+  if (raw.isolation !== undefined && !VALID_ISOLATION.has(String(raw.isolation))) {
+    throw new HierarchicalFlowError(
+      `Invalid execution.isolation: expected "worktree" or "none", got ${JSON.stringify(raw.isolation)}`,
+    );
+  }
+
+  if (raw.merge_strategy !== undefined && !VALID_MERGE_STRATEGY.has(String(raw.merge_strategy))) {
+    throw new HierarchicalFlowError(
+      `Invalid execution.merge_strategy: expected "rebase" or "merge-commit", got ${JSON.stringify(raw.merge_strategy)}`,
+    );
+  }
+
+  if (raw.epic_strategy !== undefined && !VALID_EPIC_STRATEGY.has(String(raw.epic_strategy))) {
+    throw new HierarchicalFlowError(
+      `Invalid execution.epic_strategy: expected "parallel" or "sequential", got ${JSON.stringify(raw.epic_strategy)}`,
+    );
+  }
+
+  if (raw.story_strategy !== undefined && !VALID_STORY_STRATEGY.has(String(raw.story_strategy))) {
+    throw new HierarchicalFlowError(
+      `Invalid execution.story_strategy: expected "sequential" or "parallel", got ${JSON.stringify(raw.story_strategy)}`,
+    );
+  }
+
+  return {
+    max_parallel: (maxParallel as number) ?? EXECUTION_DEFAULTS.max_parallel,
+    isolation: (raw.isolation as ExecutionConfig['isolation']) ?? EXECUTION_DEFAULTS.isolation,
+    merge_strategy: (raw.merge_strategy as ExecutionConfig['merge_strategy']) ?? EXECUTION_DEFAULTS.merge_strategy,
+    epic_strategy: (raw.epic_strategy as ExecutionConfig['epic_strategy']) ?? EXECUTION_DEFAULTS.epic_strategy,
+    story_strategy: (raw.story_strategy as ExecutionConfig['story_strategy']) ?? EXECUTION_DEFAULTS.story_strategy,
+  };
+}
+
+function normalizeFlowArray(raw: unknown): FlowStep[] {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) {
+    throw new HierarchicalFlowError(
+      `Expected flow to be an array, got ${typeof raw}`,
+    );
+  }
+  return raw.map((step: unknown, i: number) => {
+    if (typeof step === 'string') return step;
+    if (typeof step === 'object' && step !== null && 'loop' in step) {
+      const loopVal = (step as Record<string, unknown>).loop;
+      if (!Array.isArray(loopVal) || !loopVal.every((v) => typeof v === 'string')) {
+        throw new HierarchicalFlowError(
+          `Invalid loop block at index ${i}: "loop" must be an array of strings`,
+        );
+      }
+      return step as LoopBlock;
+    }
+    throw new HierarchicalFlowError(
+      `Invalid flow step at index ${i}: expected string or loop block, got ${JSON.stringify(step)}`,
+    );
+  });
+}
+
+export function resolveHierarchicalFlow(
+  parsed: Record<string, unknown>,
+  resolvedTasks: Record<string, ResolvedTask>,
+): HierarchicalFlow {
+  const hasStoryFlow = 'story_flow' in parsed && parsed.story_flow !== undefined;
+  const hasEpicFlow = 'epic_flow' in parsed && parsed.epic_flow !== undefined;
+
+  if (!hasStoryFlow) {
+    throw new HierarchicalFlowError('Workflow must define "story_flow"');
+  }
+  if (!hasEpicFlow) {
+    throw new HierarchicalFlowError('Workflow must define "epic_flow"');
+  }
+
+  const rawExecution = (parsed.execution != null && typeof parsed.execution === 'object')
+    ? parsed.execution as Record<string, unknown>
+    : {};
+  const execution = resolveExecutionConfig(rawExecution);
+
+  const storyFlow = normalizeFlowArray(parsed.story_flow);
+  const epicFlow = normalizeFlowArray(parsed.epic_flow);
+  const storyFlowRefs = epicFlow.filter((step) => step === 'story_flow');
+
+  if (storyFlowRefs.length === 0) {
+    throw new HierarchicalFlowError('epic_flow must contain a "story_flow" reference');
+  }
+  if (storyFlowRefs.length > 1) {
+    throw new HierarchicalFlowError('epic_flow must contain exactly one "story_flow" reference');
+  }
+
+  return {
+    execution,
+    storyFlow,
+    epicFlow,
+    tasks: resolvedTasks,
+  };
 }
 
 // --- for_each Parser ---
@@ -146,7 +283,7 @@ function deriveFlowsFromForEach(workflowBlock: ForEachBlock): { storyFlow: FlowS
     // Top-level is sprint-level — find for_each: epic inside, rest is sprint-level
     for (const step of topSteps) {
       if (typeof step === 'object' && step !== null && 'for_each' in step) {
-        const nested = step as ForEachBlock;
+        const nested = step as unknown as ForEachBlock;
         if (nested.for_each === 'epic') {
           extractEpicSteps(nested.steps, storyFlow, epicFlow);
         }
@@ -167,7 +304,7 @@ function extractEpicSteps(steps: FlowStep[], storyFlow: FlowStep[], epicFlow: Fl
     if (typeof step === 'string') {
       epicFlow.push(step);
     } else if (typeof step === 'object' && step !== null && 'for_each' in step) {
-      const nested = step as ForEachBlock;
+      const nested = step as unknown as ForEachBlock;
       if (nested.for_each === 'story') {
         epicFlow.push('story_flow');
         for (const storyStep of nested.steps) {
@@ -348,13 +485,6 @@ export function parseWorkflow(filePath: string): ResolvedWorkflow {
 
 // --- Re-exports ---
 
-export type { ExecutionConfig, HierarchicalFlow } from './workflow-execution.js';
-export {
-  BUILTIN_EPIC_FLOW_TASKS,
-  EXECUTION_DEFAULTS,
-  HierarchicalFlowError,
-  resolveHierarchicalFlow,
-} from './workflow-execution.js';
 export type { WorkflowPatch } from './workflow-resolver.js';
 export {
   loadWorkflowPatch,

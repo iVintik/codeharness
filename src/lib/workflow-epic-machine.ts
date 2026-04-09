@@ -4,16 +4,18 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { join } from 'node:path';
 import { assign, createActor, fromPromise, setup, waitFor } from 'xstate';
 import { DispatchError } from './agent-dispatch.js';
+import { getStoryFilePath } from './bmad.js';
 import { evaluateProgress } from './circuit-breaker.js';
 import { warn } from './output.js';
 import { extractTag, parseVerdict } from './verdict-parser.js';
 import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
-import { buildRetryPrompt, DEFAULT_MAX_ITERATIONS, handleDispatchError, HALT_ERROR_CODES, isEngineError, isLoopTaskCompleted, isTaskCompleted, recordErrorInState } from './workflow-compiler.js';
-import { BUILTIN_EPIC_FLOW_TASKS } from './workflow-execution.js';
+import { handleDispatchError } from './workflow-error-utils.js';
+import { buildRetryPrompt, DEFAULT_MAX_ITERATIONS, HALT_ERROR_CODES, isLoopTaskCompleted, isTaskCompleted, recordErrorInState } from './workflow-compiler.js';
+import { BUILTIN_EPIC_FLOW_TASKS } from './workflow-parser.js';
 import { gateMachine, type GateOutput } from './workflow-gate-machine.js';
 import { writeWorkflowState } from './workflow-state.js';
 import { storyMachine } from './workflow-story-machine.js';
-import { isGateConfig, isLoopBlock } from './workflow-types.js';
+import { isEngineError, isGateConfig, isLoopBlock } from './workflow-types.js';
 import type { DispatchOutput, EngineError, EpicContext, GateContext, StoryFlowInput, StoryFlowOutput, WorkItem } from './workflow-types.js';
 
 export type EpicOutput = Pick<EpicContext, 'workflowState' | 'errors' | 'tasksCompleted' | 'storiesProcessed' | 'lastContract' | 'accumulatedCostUsd' | 'halted'>;
@@ -39,6 +41,10 @@ function collectGuideFiles(items: WorkItem[], epicSentinel: string, projectDir: 
     } catch { /* IGNORE: individual guide extraction is best effort */ }
   }
   return guideFiles;
+}
+
+function collectEpicStoryFiles(items: WorkItem[]): string[] {
+  return items.map((item) => getStoryFilePath(item.key));
 }
 
 function cleanupGuideFiles(projectDir: string): void {
@@ -216,8 +222,9 @@ const epicStepActor = fromPromise(async ({ input, signal }: { input: EpicContext
       const definition = ctx.config.agents[task.agent];
       if (!definition) { warn(`epic-machine: agent "${task.agent}" not found for "${step}", skipping`); return ctx; }
       const guideFiles = task.source_access === false ? collectGuideFiles(ctx.epicItems, epicSentinel, projectDir) : [];
+      const acStoryFiles = task.source_access === false ? collectEpicStoryFiles(ctx.epicItems) : undefined;
       try {
-        out = await dispatchTaskCore({ task, taskName: step, storyKey: epicSentinel, definition, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd, storyFiles: guideFiles });
+        out = await dispatchTaskCore({ task, taskName: step, storyKey: epicSentinel, definition, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd, storyFiles: guideFiles, acStoryFiles });
       } finally {
         if (guideFiles.length > 0) cleanupGuideFiles(projectDir);
       }

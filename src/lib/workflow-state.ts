@@ -117,6 +117,7 @@ function isValidWorkflowState(value: unknown): value is WorkflowState {
     if (typeof tc.task_name !== 'string') return false;
     if (typeof tc.story_key !== 'string') return false;
     if (typeof tc.completed_at !== 'string') return false;
+    if (tc.run_id !== undefined && typeof tc.run_id !== 'string') return false;
     if (tc.session_id !== undefined && typeof tc.session_id !== 'string') return false;
     if (tc.error !== undefined && typeof tc.error !== 'boolean') return false;
   }

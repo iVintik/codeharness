@@ -501,7 +501,7 @@ describe('loadWorkItems', () => {
     ]);
   });
 
-  it('excludes checked stories from normal work items', () => {
+  it('includes checked stories in work items so story retries do not mis-complete epics', () => {
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue('yaml content');
     mockParse.mockReturnValue({
@@ -514,6 +514,7 @@ describe('loadWorkItems', () => {
     const items = loadWorkItems('/path/sprint-status.yaml');
 
     expect(items).toEqual([
+      { key: '5-1-foo', source: 'sprint' },
       { key: '5-2-bar', source: 'sprint' },
     ]);
   });
@@ -2703,7 +2704,7 @@ describe('synthetic workflow-viz interceptor (story 27-5)', () => {
     expect(implementStep?.status).toBe('active');
   });
 
-  it('workflow-viz synthetic position uses sprintFlow for checked-only sprint tasks', async () => {
+  it('workflow-viz synthetic position uses sprintFlow only for actual sprint dispatches', async () => {
     const cfg = makeConfig({
       workflow: makeWorkflow({
         tasks: {
@@ -2723,9 +2724,7 @@ describe('synthetic workflow-viz interceptor (story 27-5)', () => {
     expect(deployPos?.steps.find((s) => s.name === 'deploy')?.status).toBe('active');
 
     const retryPos = buildSyntheticPosition('26-1-xstate-snapshot-persistence', 'retry', [], cfg);
-    expect(retryPos).not.toBeNull();
-    expect(retryPos?.level).toBe('run');
-    expect(retryPos?.steps.find((s) => s.name === 'verification')?.status).toBe('active');
+    expect(retryPos).toBeNull();
   });
 
   it('does not emit synthetic workflow-viz when onEvent is not set', async () => {

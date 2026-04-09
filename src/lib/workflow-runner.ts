@@ -27,7 +27,9 @@ function warnSnapshotSaveFailure(stage: 'transition' | 'terminal', error: unknow
  *  Pure, no I/O, returns null on miss. */
 function buildSyntheticPosition(sk: string, tn: string, ee: Array<[string, WorkItem[]]>, cfg: EngineConfig): WorkflowPosition | null {
   try {
+    const isSprintDispatch = sk === '__run__' || sk === '__sprint__';
     const sprintFlowMatch = (() => {
+      if (!isSprintDispatch) return null;
       for (const step of cfg.workflow.sprintFlow) {
         if (typeof step === 'string' && step === tn) {
           return { flow: cfg.workflow.sprintFlow, activeName: tn, level: 'run' as const };

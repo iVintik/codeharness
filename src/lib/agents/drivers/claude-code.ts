@@ -1,7 +1,7 @@
 /**
  * Claude Code Driver — in-process driver using the Agent SDK.
  *
- * Unlike CLI-wrapped drivers (Codex, OpenCode), this driver calls the
+ * Unlike CLI-wrapped drivers (OpenCode), this driver calls the
  * Agent SDK `query()` function directly. No process spawning needed.
  *
  * @see architecture-multi-framework.md — Decision 1: Driver Interface Design

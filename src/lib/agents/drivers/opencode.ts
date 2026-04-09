@@ -192,8 +192,8 @@ export function parseLine(line: string): StreamEvent[] {
  * Spawns `opencode` CLI via child_process.spawn, parses stdout line-by-line
  * into StreamEvent objects. Stateless between dispatches except `lastCost`.
  *
- * Key differences from CodexDriver:
- * - Supports plugins via `--plugin` flags (CodexDriver warns and ignores)
+ * Key features:
+ * - Supports plugins via `--plugin` flags
  * - Default model is 'gpt-5.4' (OpenCode's GPT-5.4 model)
  * - Install instructions point to https://opencode.ai
  */

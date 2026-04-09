@@ -118,7 +118,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
   const tracePrompt = formatTracePrompt(traceId);
   const sessionKey: SessionLookupKey = { taskName, storyKey, runId: config.runId };
   const sessionId = resolveSessionId(task.session, sessionKey, workflowState);
-  const driverName = task.driver ?? 'codex';
+  const driverName = task.driver ?? 'opencode';
   const driver = getDriver(driverName);
   const model = resolveModel(task, { model: definition.model }, driver);
 

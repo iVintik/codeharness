@@ -1,7 +1,7 @@
 /**
  * AgentDriver abstraction types.
  *
- * Defines the contract that all agent drivers (Claude Code, Codex, OpenCode)
+ * Defines the contract that all agent drivers (Claude Code, OpenCode)
  * must implement. See architecture-multi-framework.md Decision 1.
  */
 

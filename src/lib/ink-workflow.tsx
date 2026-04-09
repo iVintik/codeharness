@@ -59,7 +59,6 @@ function driverLabel(driver?: string): string {
   if (driver.includes('opus')) return 'opus';
   if (driver.includes('sonnet')) return 'snnt';
   if (driver.includes('haiku')) return 'haiku';
-  if (driver === 'codex' || driver === 'codex-mini') return 'cdx';
   if (driver === 'claude-code') return 'cc';
   if (driver === 'opencode') return 'oc';
   return driver.slice(0, 4);

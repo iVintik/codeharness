@@ -2703,6 +2703,31 @@ describe('synthetic workflow-viz interceptor (story 27-5)', () => {
     expect(implementStep?.status).toBe('active');
   });
 
+  it('workflow-viz synthetic position uses sprintFlow for checked-only sprint tasks', async () => {
+    const cfg = makeConfig({
+      workflow: makeWorkflow({
+        tasks: {
+          retry: makeTask(),
+          document: makeTask(),
+          deploy: makeTask(),
+          verify: makeTask({ source_access: false }),
+        },
+        flow: ['implement'],
+        sprintFlow: ['deploy', { gate: 'verification', check: ['verify'], fix: ['retry', 'document', 'deploy'], max_retries: 3 } as GateConfig],
+      }),
+    });
+
+    const deployPos = buildSyntheticPosition('__run__', 'deploy', [], cfg);
+    expect(deployPos).not.toBeNull();
+    expect(deployPos?.level).toBe('run');
+    expect(deployPos?.steps.find((s) => s.name === 'deploy')?.status).toBe('active');
+
+    const retryPos = buildSyntheticPosition('26-1-xstate-snapshot-persistence', 'retry', [], cfg);
+    expect(retryPos).not.toBeNull();
+    expect(retryPos?.level).toBe('run');
+    expect(retryPos?.steps.find((s) => s.name === 'verification')?.status).toBe('active');
+  });
+
   it('does not emit synthetic workflow-viz when onEvent is not set', async () => {
     // Verify no crash when onEvent is absent
     mockParse.mockReturnValue({ development_status: { '3-1-foo': 'ready-for-dev' } });

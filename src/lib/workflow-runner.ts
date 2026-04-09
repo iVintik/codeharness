@@ -27,6 +27,29 @@ function warnSnapshotSaveFailure(stage: 'transition' | 'terminal', error: unknow
  *  Pure, no I/O, returns null on miss. */
 function buildSyntheticPosition(sk: string, tn: string, ee: Array<[string, WorkItem[]]>, cfg: EngineConfig): WorkflowPosition | null {
   try {
+    const sprintFlowMatch = (() => {
+      for (const step of cfg.workflow.sprintFlow) {
+        if (typeof step === 'string' && step === tn) {
+          return { flow: cfg.workflow.sprintFlow, activeName: tn, level: 'run' as const };
+        }
+        if (isGateConfig(step) && (step.check.includes(tn) || step.fix.includes(tn))) {
+          return { flow: cfg.workflow.sprintFlow, activeName: step.gate, level: 'run' as const };
+        }
+      }
+      return null;
+    })();
+    if (sprintFlowMatch) {
+      const ai = sprintFlowMatch.flow
+        .map((s) => typeof s === 'string' ? s : isGateConfig(s) ? s.gate : null)
+        .indexOf(sprintFlowMatch.activeName);
+      if (ai < 0) return null;
+      const steps = sprintFlowMatch.flow.reduce<WorkflowPosition['steps']>((acc, step, i) => {
+        const name = typeof step === 'string' ? step : isGateConfig(step) ? step.gate : null;
+        if (!name) return acc;
+        return [...acc, { name, status: (i < ai ? 'done' : i === ai ? 'active' : 'pending'), ...(isGateConfig(step) ? { isGate: true } : {}) }];
+      }, []);
+      return { level: 'run', steps, activeStepIndex: ai };
+    }
     // Classify dispatch type from storyKey shape
     const colonIdx = sk.indexOf(':');
     const isGate = colonIdx >= 0;

@@ -19,6 +19,8 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
   const { loopBlock, config, workItems, storyFlowTasks, onStreamEvent } = input;
   const { errors } = input;
   let { currentState, tasksCompleted, lastContract, lastVerdict, accumulatedCostUsd } = input;
+  const tasksCompletedAtStart = tasksCompleted;
+  const errorsAtStart = errors.length;
   const projectDir = config.projectDir ?? process.cwd();
   const RUN_SENTINEL = '__run__';
   const verdictTaskNames = input.verdictTaskNames ?? new Set<string>();
@@ -104,7 +106,12 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
     }
     if (haltedInLoop) break;
   }
-  if (tasksCompleted === 0 && !haltedInLoop && errors.length > 0) { warn(`workflow-machine: loop iteration produced zero completions with ${errors.length} error(s) — halting to prevent infinite loop`); haltedInLoop = true; }
+  const completionsThisIteration = tasksCompleted - tasksCompletedAtStart;
+  const newErrorsThisIteration = errors.length - errorsAtStart;
+  if (completionsThisIteration === 0 && !haltedInLoop && newErrorsThisIteration > 0) {
+    warn(`workflow-machine: loop iteration produced zero completions with ${newErrorsThisIteration} new error(s) — halting to prevent infinite loop`);
+    haltedInLoop = true;
+  }
   return { ...input, currentState, errors, tasksCompleted, halted: haltedInLoop, lastContract, lastVerdict, accumulatedCostUsd };
 });
 

@@ -969,6 +969,40 @@ describe('loop block execution', () => {
     expect(result.success).toBe(false);
     expect(mockDriverDispatch).toHaveBeenCalledTimes(10);
   });
+
+  it('does not halt a skip-only iteration just because prior loop errors exist', async () => {
+    const { executeLoopBlock } = await import('../workflow-machines.js');
+    const loopBlock = { loop: ['retry'] };
+    const state = makeDefaultState({
+      iteration: 1,
+      tasks_completed: [
+        {
+          task_name: 'retry',
+          story_key: '26-1-xstate-snapshot-persistence',
+          completed_at: '2026-04-08T00:00:00.000Z',
+        },
+      ],
+    });
+    const config = makeConfig({
+      workflow: makeWorkflow({
+        tasks: { retry: makeTask() },
+        flow: [{ loop: ['retry'] }],
+      }),
+    });
+
+    const result = await executeLoopBlock(
+      loopBlock,
+      state,
+      config,
+      [{ key: '26-1-xstate-snapshot-persistence', source: 'sprint' }],
+      null,
+      new Set(['retry']),
+    );
+
+    expect(result.halted).toBe(false);
+    expect(result.errors).toHaveLength(0);
+    expect(result.tasksCompleted).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe('output contract writing (story 13-3)', () => {

@@ -8,7 +8,7 @@ import { warn } from './output.js';
 const BMAD_MODULES = 'bmm';
 
 function getBmadToolTarget(agentRuntime: AgentRuntime): string {
-  return agentRuntime === 'codex' ? 'none' : 'claude-code';
+  return agentRuntime === 'claude-code' ? 'claude-code' : 'none';
 }
 
 function getBmadInstallArgs(root: string, agentRuntime: AgentRuntime): string[] {

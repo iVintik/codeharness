@@ -81,8 +81,8 @@ function getHarnessFileLines(agentRuntime: AgentRuntime): string[] {
     '- `skills/` contains focused harness skills and operating procedures',
   ];
 
-  if (agentRuntime === 'codex') {
-    lines.push('- Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools none` for Codex');
+  if (agentRuntime === 'opencode') {
+    lines.push('- Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools none` for OpenCode');
   } else {
     lines.push('- Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools claude-code` for Claude Code');
   }

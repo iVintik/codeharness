@@ -194,12 +194,12 @@ export function parseLine(line: string): StreamEvent[] {
  *
  * Key differences from CodexDriver:
  * - Supports plugins via `--plugin` flags (CodexDriver warns and ignores)
- * - Default model is 'default' (inherits from OpenCode's own config)
+ * - Default model is 'gpt-5.4' (OpenCode's GPT-5.4 model)
  * - Install instructions point to https://opencode.ai
  */
 export class OpenCodeDriver implements AgentDriver {
   readonly name = 'opencode' as const;
-  readonly defaultModel = 'default' as const;
+  readonly defaultModel = 'gpt-5.4' as const;
   readonly capabilities: DriverCapabilities = {
     supportsPlugins: true,
     supportsStreaming: true,

@@ -35,9 +35,9 @@ Patches use idempotent markers (NFR19):
 <!-- CODEHARNESS-PATCH-END:{name} -->
 ```
 
-## Codex And Non-BMAD IDEs
+## OpenCode And Non-BMAD IDEs
 
-When BMAD is installed for Codex or another runtime without first-party BMAD tool integration:
+When BMAD is installed for OpenCode or another runtime without first-party BMAD tool integration:
 
 1. Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools none`
 2. Treat `_bmad/` as the workflow artifact source of truth

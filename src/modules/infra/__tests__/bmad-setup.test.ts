@@ -60,10 +60,10 @@ describe('setupBmad', () => {
     expect(mockInstallBmad).toHaveBeenCalledWith('/tmp/test', 'claude-code');
   });
 
-  it('passes codex runtime through to BMAD install', () => {
-    const result = setupBmad({ projectDir: '/tmp/test', isJson: false, agentRuntime: 'codex' });
+  it('passes opencode runtime through to BMAD install', () => {
+    const result = setupBmad({ projectDir: '/tmp/test', isJson: false, agentRuntime: 'opencode' });
     expect(result.success).toBe(true);
-    expect(mockInstallBmad).toHaveBeenCalledWith('/tmp/test', 'codex');
+    expect(mockInstallBmad).toHaveBeenCalledWith('/tmp/test', 'opencode');
   });
 
   it('verifies patches when already installed', () => {

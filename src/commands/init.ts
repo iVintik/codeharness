@@ -15,7 +15,7 @@ export {
 
 interface CommandInitOptions {
   agentRuntime?: AgentRuntime;
-  codex?: boolean;
+  opencode?: boolean;
   frontend: boolean;
   database: boolean;
   api: boolean;
@@ -33,8 +33,8 @@ export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('Initialize the harness in a project')
-    .option('--agent-runtime <runtime>', 'Agent runtime: claude-code or codex')
-    .option('--codex', 'Shortcut for --agent-runtime codex', false)
+    .option('--agent-runtime <runtime>', 'Agent runtime: claude-code or opencode')
+    .option('--opencode', 'Shortcut for --agent-runtime opencode', false)
     .option('--no-frontend', 'Disable frontend enforcement')
     .option('--no-database', 'Disable database enforcement')
     .option('--no-api', 'Disable API enforcement')
@@ -49,7 +49,7 @@ export function registerInitCommand(program: Command): void {
     .action(async (options: CommandInitOptions, cmd: Command) => {
       const globalOpts = cmd.optsWithGlobals() as { json?: boolean };
       const isJson = globalOpts.json === true;
-      const agentRuntime = options.codex ? 'codex' : options.agentRuntime;
+      const agentRuntime = options.opencode ? 'opencode' : options.agentRuntime;
 
       const result = await initProject({
         projectDir: process.cwd(),

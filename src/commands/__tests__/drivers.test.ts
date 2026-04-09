@@ -32,14 +32,13 @@ describe('codeharness drivers command', () => {
     const { stdout } = await runCli(['drivers']);
     const parsed = JSON.parse(stdout);
     expect(parsed).toHaveProperty('claude-code');
-    expect(parsed).toHaveProperty('codex');
     expect(parsed).toHaveProperty('opencode');
   });
 
   it('each driver entry has defaultModel, capabilities, and description', async () => {
     const { stdout } = await runCli(['drivers']);
     const parsed = JSON.parse(stdout);
-    for (const name of ['claude-code', 'codex', 'opencode']) {
+    for (const name of ['claude-code', 'opencode']) {
       expect(parsed[name]).toHaveProperty('defaultModel');
       expect(parsed[name]).toHaveProperty('capabilities');
       expect(parsed[name]).toHaveProperty('description');
@@ -53,7 +52,6 @@ describe('codeharness drivers command', () => {
     const { stdout } = await runCli(['drivers']);
     const parsed = JSON.parse(stdout);
     expect(parsed['claude-code'].capabilities.costTier).toBe(3);
-    expect(parsed['codex'].capabilities.costTier).toBe(1);
     expect(parsed['opencode'].capabilities.costTier).toBe(2);
   });
 

@@ -357,14 +357,14 @@ describe('init command — AGENTS.md generation', () => {
     expect(content).toContain('--tools claude-code');
   });
 
-  it('generates Codex-specific AGENTS.md guidance with --codex', async () => {
+  it('generates OpenCode-specific AGENTS.md guidance with --opencode', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
 
-    await runCli(['init', '--codex']);
+    await runCli(['init', '--opencode']);
 
     const content = readFileSync(join(testDir, 'AGENTS.md'), 'utf-8');
     expect(content).toContain('--tools none');
-    expect(mockInstallBmad).toHaveBeenLastCalledWith(process.cwd(), 'codex');
+    expect(mockInstallBmad).toHaveBeenLastCalledWith(process.cwd(), 'opencode');
   });
 
   it('AGENTS.md content is under 100 lines', () => {

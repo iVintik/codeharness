@@ -121,8 +121,8 @@ describe('OpenCodeDriver', () => {
       expect(driver.name).toBe('opencode');
     });
 
-    it('has defaultModel "default"', () => {
-      expect(driver.defaultModel).toBe('default');
+    it('has defaultModel "gpt-5.4"', () => {
+      expect(driver.defaultModel).toBe('gpt-5.4');
     });
 
     it('has correct capabilities', () => {

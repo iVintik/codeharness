@@ -146,13 +146,13 @@ describe('installBmad', () => {
     expect(result.status).toBe('installed');
   });
 
-  it('uses --tools none for codex installs', () => {
+  it('uses --tools none for opencode installs', () => {
     mockExecFileSync.mockImplementation(() => {
       mkdirSync(join(testDir, '_bmad'), { recursive: true });
       return Buffer.from('');
     });
 
-    installBmad(testDir, 'codex');
+    installBmad(testDir, 'opencode');
     expect(mockExecFileSync).toHaveBeenCalledWith(
       'npx',
       ['bmad-method', 'install', '--yes', '--directory', testDir, '--modules', 'bmm', '--tools', 'none'],

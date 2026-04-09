@@ -199,7 +199,7 @@ describe('generateAgentsMdContent', () => {
   });
 
   it('includes Codex BMAD guidance when requested', () => {
-    const content = generateAgentsMdContent(testDir, 'nodejs', 'codex');
+    const content = generateAgentsMdContent(testDir, 'nodejs', 'opencode');
     expect(content).toContain('## Harness Files');
     expect(content).toContain('--tools none');
   });

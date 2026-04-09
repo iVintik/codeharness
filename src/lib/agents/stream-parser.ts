@@ -32,6 +32,11 @@ export interface TextEvent {
   readonly text: string;
 }
 
+export interface LogEvent {
+  readonly type: 'log';
+  readonly text: string;
+}
+
 export interface RetryEvent {
   readonly type: 'retry';
   readonly attempt: number;
@@ -56,6 +61,7 @@ export type StreamEvent =
   | ToolInputEvent
   | ToolCompleteEvent
   | TextEvent
+  | LogEvent
   | RetryEvent
   | ResultEvent;
 

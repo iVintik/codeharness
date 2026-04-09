@@ -8,9 +8,10 @@ export interface ToolStartEvent { readonly type: 'tool-start'; readonly name: st
 export interface ToolInputEvent { readonly type: 'tool-input'; readonly partial: string }
 export interface ToolCompleteEvent { readonly type: 'tool-complete' }
 export interface TextEvent { readonly type: 'text'; readonly text: string }
+export interface LogEvent { readonly type: 'log'; readonly text: string }
 export interface RetryEvent { readonly type: 'retry'; readonly attempt: number; readonly delay: number }
 export interface ResultEvent { readonly type: 'result'; readonly cost: number; readonly sessionId: string; readonly cost_usd?: number | null; readonly error?: string; readonly errorCategory?: ErrorCategory }
-export type StreamEvent = ToolStartEvent | ToolInputEvent | ToolCompleteEvent | TextEvent | RetryEvent | ResultEvent;
+export type StreamEvent = ToolStartEvent | ToolInputEvent | ToolCompleteEvent | TextEvent | LogEvent | RetryEvent | ResultEvent;
 
 export interface TestResults { readonly passed: number; readonly failed: number; readonly coverage: number | null }
 export interface ACStatus { readonly id: string; readonly description: string; readonly status: string }

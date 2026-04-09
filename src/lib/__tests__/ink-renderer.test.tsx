@@ -1157,4 +1157,15 @@ describe('sideband streaming to TUI — renderer (story 27-4)', () => {
     expect(state.workflowVizLine).toBe('viz-snapshot-1');
     expect(state.lastThought).toBe('streaming text chunk');
   });
+
+  it('appends log events to completed activity without clobbering lastThought', () => {
+    handle = startRenderer({ _forceTTY: true });
+
+    handle.update({ type: 'text', text: 'thinking' });
+    handle.update({ type: 'log', text: 'Connecting to OpenCode session…' });
+
+    const state = handle._getState!();
+    expect(state.lastThought).toBe('thinking');
+    expect(state.completedTools.some((entry) => entry.isText && entry.args.includes('Connecting to OpenCode session'))).toBe(true);
+  });
 });

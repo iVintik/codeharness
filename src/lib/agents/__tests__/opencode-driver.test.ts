@@ -161,6 +161,28 @@ describe('OpenCodeDriver', () => {
       expect(event).toEqual([{ type: 'text', text: 'Hello' }]);
     });
 
+    it('parses official opencode step_finish stop event as final result', () => {
+      const event = parseLine('{"type":"step_finish","sessionID":"ses-123","part":{"type":"step-finish","reason":"stop","sessionID":"ses-123","cost":0.25}}');
+      expect(event).toEqual([{
+        type: 'result',
+        cost: 0.25,
+        sessionId: 'ses-123',
+        cost_usd: 0.25,
+      }]);
+    });
+
+    it('parses opencode error event into failed result', () => {
+      const event = parseLine('{"type":"error","sessionID":"ses-123","error":{"name":"APIError","data":{"message":"Rate limit exceeded"}}}');
+      expect(event).toEqual([{
+        type: 'result',
+        cost: 0,
+        sessionId: 'ses-123',
+        cost_usd: null,
+        error: 'Rate limit exceeded',
+        errorCategory: 'RATE_LIMIT',
+      }]);
+    });
+
     it('parses current opencode tool_use completed shape into tool lifecycle events', () => {
       const event = parseLine('{"type":"tool_use","part":{"type":"tool","tool":"read_file","callID":"c1","state":{"status":"completed","input":{"path":"/a"}}}}');
       expect(event).toEqual([
@@ -200,8 +222,8 @@ describe('OpenCodeDriver', () => {
       expect(parseLine('   ')).toEqual([]);
     });
 
-    it('returns null for invalid JSON', () => {
-      expect(parseLine('not valid json {{{')).toEqual([]);
+    it('preserves invalid JSON as log visibility event', () => {
+      expect(parseLine('not valid json {{{')).toEqual([{ type: 'log', text: 'not valid json {{{' }]);
     });
 
     it('returns null for unrecognized type', () => {
@@ -552,7 +574,7 @@ describe('OpenCodeDriver', () => {
   });
 
   describe('dispatch — unparseable lines (AC #2)', () => {
-    it('skips unparseable lines without polluting terminal output', async () => {
+    it('surfaces unparseable lines as log events for visibility', async () => {
       const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
       const lines = [
         ...UNPARSEABLE_LINES,
@@ -563,9 +585,13 @@ describe('OpenCodeDriver', () => {
 
       const events = await collectEvents(driver.dispatch(makeOpts()));
 
-      // Only the result event should be yielded
-      expect(events).toHaveLength(1);
-      expect(events[0].type).toBe('result');
+      expect(events.slice(0, 4)).toEqual([
+        { type: 'log', text: 'Starting opencode v0.5.0...' },
+        { type: 'log', text: 'Connecting to API endpoint...' },
+        { type: 'log', text: '[progress] Analyzing codebase...' },
+        { type: 'log', text: 'not valid json {{{' },
+      ]);
+      expect(events[events.length - 1]).toMatchObject({ type: 'result', sessionId: 's1' });
 
       // Unparseable lines should be silently skipped.
       expect(debugSpy).not.toHaveBeenCalled();

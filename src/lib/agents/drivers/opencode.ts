@@ -93,7 +93,7 @@ export function parseLine(line: string): StreamEvent[] {
   try {
     parsed = JSON.parse(trimmed) as Record<string, unknown>;
   } catch { // IGNORE: malformed JSON in CLI output — skip unparseable lines
-    return [];
+    return [{ type: 'log', text: trimmed }];
   }
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -170,9 +170,40 @@ export function parseLine(line: string): StreamEvent[] {
     return [];
   }
 
+  if (type === 'step_finish') {
+    const part = parsed.part as Record<string, unknown> | undefined;
+    const reason = part?.reason;
+    const sessionId = firstString(part?.sessionID, parsed.sessionID, parsed.session_id);
+    const cost = firstNumber(part?.cost, parsed.cost_usd, parsed.total_cost_usd);
+    if (reason === 'stop') {
+      return [{
+        type: 'result',
+        cost: cost ?? 0,
+        sessionId: sessionId ?? '',
+        cost_usd: cost ?? null,
+      }];
+    }
+    return [];
+  }
+
+  if (type === 'error') {
+    const error = parsed.error as Record<string, unknown> | undefined;
+    const data = error?.data as Record<string, unknown> | undefined;
+    const sessionId = firstString(parsed.sessionID, parsed.session_id);
+    const message = firstString(data?.message, error?.message, error?.name) ?? 'OpenCode error';
+    return [{
+      type: 'result',
+      cost: 0,
+      sessionId: sessionId ?? '',
+      cost_usd: null,
+      error: message,
+      errorCategory: classifyError(message),
+    }];
+  }
+
   if (type === 'result') {
-    const costUsd = parsed.cost_usd;
-    const sessionId = parsed.session_id;
+    const costUsd = firstNumber(parsed.cost_usd, parsed.total_cost_usd);
+    const sessionId = firstString(parsed.session_id, parsed.sessionID);
     return [{
       type: 'result',
       cost: typeof costUsd === 'number' ? costUsd : 0,
@@ -182,6 +213,20 @@ export function parseLine(line: string): StreamEvent[] {
   }
 
   return [];
+}
+
+function firstString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value === 'string' && value.length > 0) return value;
+  }
+  return undefined;
+}
+
+function firstNumber(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  return undefined;
 }
 
 // --- Driver Implementation ---

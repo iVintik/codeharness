@@ -233,6 +233,21 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     return ids;
   }
 
+  function appendTextLog(text: string, lane?: LaneState): void {
+    const entry: CompletedToolEntry = { name: '', args: text, isText: true };
+    if (lane) {
+      const updated = [...lane.completedTools, entry];
+      lane.completedTools = updated.length > MAX_COMPLETED_TOOLS
+        ? updated.slice(updated.length - MAX_COMPLETED_TOOLS)
+        : updated;
+      return;
+    }
+    const updated = [...state.completedTools, entry];
+    state.completedTools = updated.length > MAX_COMPLETED_TOOLS
+      ? updated.slice(updated.length - MAX_COMPLETED_TOOLS)
+      : updated;
+  }
+
   function update(event: StreamEvent, driverName?: string, laneId?: string): void {
     if (cleaned) return;
 
@@ -265,6 +280,11 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
 
         case 'text':
           ls.lastThought = event.text;
+          ls.retryInfo = null;
+          break;
+
+        case 'log':
+          appendTextLog(event.text, ls);
           ls.retryInfo = null;
           break;
 
@@ -342,12 +362,14 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
       case 'text':
         // Add previous thought to completed log before replacing
         if (state.lastThought) {
-          const textEntry: CompletedToolEntry = { name: '', args: state.lastThought, isText: true };
-          const updated = [...state.completedTools, textEntry];
-          state.completedTools = updated.length > MAX_COMPLETED_TOOLS
-            ? updated.slice(updated.length - MAX_COMPLETED_TOOLS) : updated;
+          appendTextLog(state.lastThought);
         }
         state.lastThought = event.text;
+        state.retryInfo = null;
+        break;
+
+      case 'log':
+        appendTextLog(event.text);
         state.retryInfo = null;
         break;
 

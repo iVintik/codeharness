@@ -8,6 +8,7 @@
     "version",
     "taskName",
     "storyId",
+    "targetScope",
     "driver",
     "model",
     "timestamp",
@@ -30,6 +31,11 @@
     "storyId": {
       "type": "string",
       "description": "Story identifier this task belongs to"
+    },
+    "targetScope": {
+      "type": "string",
+      "enum": ["story", "epic", "run"],
+      "description": "Execution scope for this contract"
     },
     "driver": {
       "type": "string",

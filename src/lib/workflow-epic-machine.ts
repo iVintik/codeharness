@@ -17,6 +17,7 @@ import { writeWorkflowState } from './workflow-state.js';
 import { storyMachine } from './workflow-story-machine.js';
 import { isEngineError, isGateConfig, isLoopBlock } from './workflow-types.js';
 import type { DispatchOutput, EngineError, EpicContext, GateContext, StoryFlowInput, StoryFlowOutput, WorkItem } from './workflow-types.js';
+import { normalizeExecutionTarget } from './workflow-target.js';
 
 export type EpicOutput = Pick<EpicContext, 'workflowState' | 'errors' | 'tasksCompleted' | 'storiesProcessed' | 'lastContract' | 'accumulatedCostUsd' | 'halted'>;
 
@@ -76,8 +77,8 @@ async function runEpicLoop(ctx: EpicContext, loop: string[], epicSentinel: strin
         const customPrompt = (ctx.storyFlowTasks.has(taskName) && verdict !== null) ? buildRetryPrompt(item.key, verdict.findings) : undefined;
         try {
           const out = task.agent === null
-            ? await nullTaskCore({ task, taskName, storyKey: item.key, config: ctx.config, workflowState, previousContract: lastContract, accumulatedCostUsd })
-            : await dispatchTaskCore({ task, taskName, storyKey: item.key, definition: ctx.config.agents[task.agent], config: ctx.config, workflowState, previousContract: lastContract, accumulatedCostUsd, customPrompt });
+            ? await nullTaskCore({ task, taskName, storyKey: item.key, target: normalizeExecutionTarget(item.key), config: ctx.config, workflowState, previousContract: lastContract, accumulatedCostUsd })
+            : await dispatchTaskCore({ task, taskName, storyKey: item.key, target: normalizeExecutionTarget(item.key), definition: ctx.config.agents[task.agent], config: ctx.config, workflowState, previousContract: lastContract, accumulatedCostUsd, customPrompt });
           workflowState = { ...out.updatedState, iteration: workflowState.iteration, evaluator_scores: workflowState.evaluator_scores, circuit_breaker: workflowState.circuit_breaker };
           lastContract = out.contract;
           accumulatedCostUsd += out.cost;
@@ -204,7 +205,7 @@ const epicStepActor = fromPromise(async ({ input, signal }: { input: EpicContext
     };
     writeWorkflowState(workflowState, projectDir);
     if (ctx.config.onEvent) {
-      ctx.config.onEvent({ type: 'dispatch-end', taskName: step, storyKey: epicSentinel, elapsedMs: 0, costUsd: 0 });
+      ctx.config.onEvent({ type: 'dispatch-end', taskName: step, storyKey: epicSentinel, elapsedMs: 0, costUsd: 0, targetScope: 'epic' });
     }
     return { ...ctx, workflowState };
   }
@@ -217,14 +218,14 @@ const epicStepActor = fromPromise(async ({ input, signal }: { input: EpicContext
   try {
     let out: DispatchOutput;
     if (task.agent === null) {
-      out = await nullTaskCore({ task, taskName: step, storyKey: epicSentinel, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd });
+      out = await nullTaskCore({ task, taskName: step, storyKey: epicSentinel, target: { scope: 'epic', key: epicSentinel }, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd });
     } else {
       const definition = ctx.config.agents[task.agent];
       if (!definition) { warn(`epic-machine: agent "${task.agent}" not found for "${step}", skipping`); return ctx; }
       const guideFiles = task.source_access === false ? collectGuideFiles(ctx.epicItems, epicSentinel, projectDir) : [];
       const acStoryFiles = task.source_access === false ? collectEpicStoryFiles(ctx.epicItems) : undefined;
       try {
-        out = await dispatchTaskCore({ task, taskName: step, storyKey: epicSentinel, definition, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd, storyFiles: guideFiles, acStoryFiles });
+        out = await dispatchTaskCore({ task, taskName: step, storyKey: epicSentinel, target: { scope: 'epic', key: epicSentinel }, definition, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd, storyFiles: guideFiles, acStoryFiles });
       } finally {
         if (guideFiles.length > 0) cleanupGuideFiles(projectDir);
       }

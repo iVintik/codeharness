@@ -17,9 +17,10 @@ import { formatCoverageContextMessage } from './evaluator.js';
 import { writeWorkflowState, type WorkflowState, type TaskCheckpoint } from './workflow-state.js';
 import { WorkflowError } from './workflow-types.js';
 import type { DispatchInput, DispatchOutput, NullTaskInput } from './workflow-types.js';
-import { TASK_PROMPTS, FILE_WRITE_TOOL_NAMES } from './workflow-constants.js';
+import { buildTaskPrompt, FILE_WRITE_TOOL_NAMES } from './workflow-constants.js';
 import { getPendingAcceptanceCriteria } from './workflow-contracts.js';
 import { parseTestOutput } from './cross-worktree-validator.js';
+import { normalizeExecutionTarget } from './workflow-target.js';
 
 // ─── Coverage Deduplication ──────────────────────────────────────────
 export function buildCoverageDeduplicationContext(contract: OutputContract | null, projectDir: string): string | null {
@@ -44,6 +45,7 @@ function normalizeTestResults(output: string, taskName: string) {
 export async function nullTaskCore(input: NullTaskInput): Promise<DispatchOutput> {
   const { task: _task, taskName, storyKey, config, workflowState, previousContract, accumulatedCostUsd } = input;
   const projectDir = config.projectDir ?? process.cwd();
+  const target = normalizeExecutionTarget(storyKey, input.target);
   const handler = getNullTask(taskName);
   if (!handler) {
     const registered = listNullTasks();
@@ -56,7 +58,7 @@ export async function nullTaskCore(input: NullTaskInput): Promise<DispatchOutput
   }
   const startMs = Date.now();
   const workflowStartMs = workflowState.started ? new Date(workflowState.started).getTime() : startMs;
-  const ctx: TaskContext = { storyKey, taskName, cost: accumulatedCostUsd, durationMs: startMs - workflowStartMs, outputContract: previousContract, projectDir };
+  const ctx: TaskContext = { storyKey, targetScope: target.scope, taskName, cost: accumulatedCostUsd, durationMs: startMs - workflowStartMs, outputContract: previousContract, projectDir };
   let result: NullTaskResult;
   try { result = await handler(ctx); } catch (err: unknown) {
     throw new WorkflowError(
@@ -80,7 +82,7 @@ export async function nullTaskCore(input: NullTaskInput): Promise<DispatchOutput
   let contract: OutputContract | null = null;
   try {
     contract = {
-      version: 1, taskName, storyId: storyKey, driver: 'engine', model: 'null',
+      version: 1, taskName, storyId: storyKey, targetScope: target.scope, driver: 'engine', model: 'null',
       timestamp: new Date().toISOString(), cost_usd: 0, duration_ms: durationMs,
       changedFiles: [], testResults: null, output: result.output ?? '', acceptanceCriteria: [],
     };
@@ -114,6 +116,7 @@ function propagateVerifyFlags(taskName: string, contract: OutputContract | null,
 export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOutput> {
   const { task, taskName, storyKey, definition, config, workflowState, previousContract, onStreamEvent, storyFiles, acStoryFiles, customPrompt } = input;
   const projectDir = config.projectDir ?? process.cwd();
+  const target = normalizeExecutionTarget(storyKey, input.target);
   const traceId = generateTraceId(config.runId, workflowState.iteration, taskName);
   const tracePrompt = formatTracePrompt(traceId);
   const sessionKey: SessionLookupKey = { taskName, storyKey, runId: config.runId };
@@ -124,7 +127,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
 
   let cwd: string;
   let workspace: Awaited<ReturnType<typeof createIsolatedWorkspace>> | null = null;
-  if (task.source_access === false) {
+  if (task.source_access === false && target.scope !== 'run') {
     try {
       workspace = await createIsolatedWorkspace({ runId: config.runId, storyFiles: storyFiles ?? [] });
       cwd = workspace?.toDispatchOptions()?.cwd ?? projectDir;
@@ -133,7 +136,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
     cwd = projectDir;
   }
 
-  const basePrompt = customPrompt ?? (TASK_PROMPTS[taskName]?.(storyKey) ?? `Execute task "${taskName}" for story ${storyKey}`);
+  const basePrompt = customPrompt ?? buildTaskPrompt(taskName, target);
   let prompt = buildPromptWithContractContext(basePrompt, previousContract);
   const coverageDedup = buildCoverageDeduplicationContext(previousContract, projectDir);
   if (coverageDedup) prompt = `${prompt}\n\n${coverageDedup}`;
@@ -154,7 +157,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
   };
 
   const emit = config.onEvent;
-  if (emit) emit({ type: 'dispatch-start', taskName, storyKey, driverName, model });
+  if (emit) emit({ type: 'dispatch-start', taskName, storyKey, driverName, model, targetScope: target.scope });
 
   let output = '';
   let resultSessionId = '';
@@ -168,7 +171,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
   try {
     for await (const event of driver.dispatch(dispatchOpts)) {
       if (onStreamEvent) onStreamEvent(event, driverName);
-      if (emit) emit({ type: 'stream-event', taskName, storyKey, driverName, streamEvent: event });
+      if (emit) emit({ type: 'stream-event', taskName, storyKey, driverName, streamEvent: event, targetScope: target.scope });
       if (event.type === 'text') output += event.text;
       if (event.type === 'tool-start') { const ts = event as ToolStartEvent; activeToolName = ts.name; activeToolInput = ''; }
       if (event.type === 'tool-input') activeToolInput += event.partial;
@@ -193,7 +196,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
   }
 
   const elapsedMs = Date.now() - startMs;
-  if (emit) emit({ type: 'dispatch-end', taskName, storyKey, driverName, elapsedMs, costUsd: cost });
+  if (emit) emit({ type: 'dispatch-end', taskName, storyKey, driverName, elapsedMs, costUsd: cost, targetScope: target.scope });
 
   if (errorEvent) {
     const categoryToCode: Record<string, string> = {
@@ -217,7 +220,7 @@ export async function dispatchTaskCore(input: DispatchInput): Promise<DispatchOu
   let contract: OutputContract | null = null;
   try {
     contract = {
-      version: 1, taskName, storyId: storyKey, driver: driverName, model,
+      version: 1, taskName, storyId: storyKey, targetScope: target.scope, driver: driverName, model,
       timestamp: new Date().toISOString(), cost_usd: cost > 0 ? cost : null, duration_ms: durationMs,
       changedFiles: [...new Set(changedFiles)], testResults: normalizeTestResults(output, taskName), output, acceptanceCriteria: getPendingAcceptanceCriteria(taskName, storyKey, projectDir, acStoryFiles ?? storyFiles),
     };

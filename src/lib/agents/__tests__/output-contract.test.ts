@@ -17,6 +17,7 @@ function makeContract(overrides: Partial<OutputContract> = {}): OutputContract {
     version: 1,
     taskName: 'implement',
     storyId: '13-1',
+    targetScope: 'story',
     driver: 'claude-code',
     model: 'opus-4',
     timestamp: '2026-04-03T12:00:00Z',
@@ -45,7 +46,7 @@ describe('output-contract', () => {
 
   // AC #1, #2: writeOutputContract creates file at correct path
   it('writes contract to {taskName}-{storyId}.json', () => {
-    const contract = makeContract();
+    const contract = makeContract({ targetScope: 'story' });
     writeOutputContract(contract, tmpDir);
 
     const expectedFile = join(tmpDir, 'implement-13-1.json');
@@ -72,6 +73,7 @@ describe('output-contract', () => {
     expect(result!.version).toBe(1);
     expect(result!.taskName).toBe('implement');
     expect(result!.storyId).toBe('13-1');
+    expect(result!.targetScope).toBe('story');
     expect(result!.driver).toBe('claude-code');
     expect(result!.model).toBe('opus-4');
     expect(result!.timestamp).toBe('2026-04-03T12:00:00Z');
@@ -388,13 +390,14 @@ describe('output-contract', () => {
 
     it('appends formatted context with separator when contract is provided', () => {
       const base = 'Implement story 13-2';
-      const contract = makeContract();
+      const contract = makeContract({ targetScope: 'run' });
       const result = buildPromptWithContractContext(base, contract);
 
       expect(result).toContain(base);
       expect(result).toContain('---');
       expect(result).toContain('## Previous Task Context');
       expect(result).toContain('### Context from Previous Task');
+      expect(result).toContain('- **Scope:** run');
     });
 
     it('preserves the base prompt at the beginning', () => {

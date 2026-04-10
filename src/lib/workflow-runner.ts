@@ -11,6 +11,7 @@ import { dispatchTaskCore, nullTaskCore } from './workflow-actors.js';
 import { runMachine, type RunOutput } from './workflow-run-machine.js';
 import { snapshotToPosition, visualize, type WorkflowPosition } from './workflow-visualizer.js';
 import { loadCheckedStories } from './workflow-work-items.js';
+import { normalizeExecutionTarget } from './workflow-target.js';
 
 // Re-export public helpers so existing imports from workflow-runner continue to work.
 export { loadWorkItems, loadCheckedStories } from './workflow-work-items.js';
@@ -153,8 +154,8 @@ async function runRetriableSprintTask(
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const result = task.agent === null
-        ? await nullTaskCore({ task, taskName: step, storyKey: '__sprint__', config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd: 0 })
-        : await dispatchTaskCore({ task, taskName: step, storyKey: '__sprint__', definition: definition!, config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd: 0 });
+        ? await nullTaskCore({ task, taskName: step, storyKey: '__sprint__', target: normalizeExecutionTarget('__sprint__'), config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd: 0 })
+        : await dispatchTaskCore({ task, taskName: step, storyKey: '__sprint__', target: normalizeExecutionTarget('__sprint__'), definition: definition!, config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd: 0 });
       currentState = result.updatedState;
       lastContract = result.contract;
       tasksCompleted++;

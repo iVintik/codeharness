@@ -2542,7 +2542,7 @@ describe('persistence cleanup (story 26-4)', () => {
     expect(mockUpdateStoryStatus).toHaveBeenCalledWith('26-2-snapshot-resume-config-hash-validation', 'done');
   });
 
-  it('passes checked story files into sprint-level verify workspace for __run__', async () => {
+  it('passes checked story files into sprint-level verify prompt context without isolated story workspace', async () => {
     mockLoadSnapshot.mockReturnValue(null);
     mockDriverDispatch.mockReset();
     mockParse.mockReturnValue({
@@ -2573,13 +2573,11 @@ describe('persistence cleanup (story 26-4)', () => {
       }),
     }));
 
-    expect(mockCreateIsolatedWorkspace).toHaveBeenCalledWith({
-      runId: 'run-001',
-      storyFiles: [
-        '/project/_bmad-output/implementation-artifacts/26-1-xstate-snapshot-persistence.md',
-        '/project/_bmad-output/implementation-artifacts/26-2-snapshot-resume-config-hash-validation.md',
-      ],
-    });
+    expect(mockCreateIsolatedWorkspace).not.toHaveBeenCalled();
+    expect(mockDriverDispatch).toHaveBeenCalledWith(expect.objectContaining({
+      cwd: '/project',
+      prompt: expect.stringContaining('Verify ALL stories across ALL epics in this sprint.'),
+    }));
   });
 
   it('fails sprint run when deploy remediation exhausts retries', async () => {

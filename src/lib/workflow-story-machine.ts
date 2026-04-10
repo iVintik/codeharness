@@ -12,6 +12,7 @@ import { gateMachine } from './workflow-gate-machine.js';
 import type { GateOutput } from './workflow-gate-machine.js';
 import { isGateConfig } from './workflow-types.js';
 import type { StoryContext, StoryFlowInput, StoryFlowOutput, GateContext, DispatchOutput } from './workflow-types.js';
+import { normalizeExecutionTarget } from './workflow-target.js';
 
 // ─── Story Step Actor ─────────────────────────────────────────────────────────
 
@@ -112,14 +113,14 @@ const storyStepActor = fromPromise(async ({ input, signal }: { input: StoryConte
 
       const projectDir = ctx.config.projectDir ?? process.cwd();
       let out: DispatchOutput;
-      try {
-        if (task.agent === null) {
-          out = await nullTaskCore({ task, taskName, storyKey, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd });
-        } else {
-          const definition = ctx.config.agents[task.agent];
-          if (!definition) { warn(`story-machine: agent "${task.agent}" not found for "${taskName}", skipping`); continue; }
-          out = await dispatchTaskCore({ task, taskName, storyKey, definition, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd });
-        }
+        try {
+          if (task.agent === null) {
+            out = await nullTaskCore({ task, taskName, storyKey, target: normalizeExecutionTarget(storyKey), config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd });
+          } else {
+            const definition = ctx.config.agents[task.agent];
+            if (!definition) { warn(`story-machine: agent "${task.agent}" not found for "${taskName}", skipping`); continue; }
+            out = await dispatchTaskCore({ task, taskName, storyKey, target: normalizeExecutionTarget(storyKey), definition, config: ctx.config, workflowState: ctx.workflowState, previousContract: ctx.lastContract, accumulatedCostUsd: ctx.accumulatedCostUsd });
+          }
         // Append checkpoint entry after successful task completion
         try {
           appendCheckpoint({ storyKey, taskName, completedAt: new Date().toISOString() }, projectDir);

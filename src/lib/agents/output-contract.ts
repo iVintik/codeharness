@@ -103,8 +103,9 @@ export function formatContractAsPromptContext(contract: OutputContract): string 
   const durationStr = `${(contract.duration_ms / 1000).toFixed(1)}s`;
   sections.push(
     `### Context from Previous Task\n` +
-    `- **Task:** ${contract.taskName}\n` +
-    `- **Driver:** ${contract.driver}\n` +
+      `- **Task:** ${contract.taskName}\n` +
+      `- **Scope:** ${contract.targetScope ?? 'story'}\n` +
+      `- **Driver:** ${contract.driver}\n` +
     `- **Model:** ${contract.model}\n` +
     `- **Cost:** ${costStr}\n` +
     `- **Duration:** ${durationStr}\n` +

@@ -460,7 +460,7 @@ describe('dispatchTask', () => {
     const state = makeDefaultState();
     const config = makeConfig();
 
-    await dispatchTask(task, 'verify', '__run__', definition, state, config);
+    await dispatchTask(task, 'verify', '5-1-foo', definition, state, config);
 
     expect(mockCreateIsolatedWorkspace).toHaveBeenCalledWith({
       runId: 'run-001',
@@ -528,7 +528,7 @@ describe('dispatchTask', () => {
     expect(writtenState.tasks_completed[0].story_key).toBe('5-1-foo');
   });
 
-  it('cleans up workspace on dispatch error when source_access is false', async () => {
+  it('cleans up isolated workspace on story-scope dispatch error when source_access is false', async () => {
     const mockWorkspace = {
       dir: '/tmp/test',
       storyFilesDir: '/tmp/test/story-files',
@@ -545,10 +545,22 @@ describe('dispatchTask', () => {
     const config = makeConfig();
 
     await expect(
-      dispatchTask(task, 'verify', '__run__', definition, state, config),
+      dispatchTask(task, 'verify', '5-1-foo', definition, state, config),
     ).rejects.toThrow('dispatch failed');
 
     expect(mockWorkspace.cleanup).toHaveBeenCalled();
+  });
+
+  it('uses project cwd for run-scope verify even when source_access is false', async () => {
+    const task = makeTask({ source_access: false });
+    const definition = makeDefinition();
+    const state = makeDefaultState();
+    const config = makeConfig();
+
+    await dispatchTask(task, 'verify', '__run__', definition, state, config);
+
+    expect(mockCreateIsolatedWorkspace).not.toHaveBeenCalled();
+    expect(mockDriverDispatch).toHaveBeenCalledWith(expect.objectContaining({ cwd: '/project' }));
   });
 
   it('constructs per-run prompt for __run__ sentinel key', async () => {
@@ -1452,7 +1464,7 @@ describe('dispatchTask driver integration', () => {
     expect((mockDriverDispatch.mock.calls[0][0] as Record<string, unknown>).timeout).toBe(1800000);
   });
 
-  it('passes sourceAccess=false when task.source_access is false', async () => {
+  it('passes sourceAccess=false and keeps project cwd for run-scope verify', async () => {
     const workspace = {
       dir: '/tmp/codeharness-verify-run-001',
       storyFilesDir: '/tmp/codeharness-verify-run-001/story-files',
@@ -1474,7 +1486,7 @@ describe('dispatchTask driver integration', () => {
     expect(mockDriverDispatch).toHaveBeenCalledWith(
       expect.objectContaining({
         sourceAccess: false,
-        cwd: '/tmp/codeharness-verify-run-001',
+        cwd: '/project',
       }),
     );
   });

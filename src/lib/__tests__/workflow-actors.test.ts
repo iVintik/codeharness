@@ -807,6 +807,23 @@ describe('dispatchTaskCore (story 23-1)', () => {
     );
   });
 
+  it('AC5: writes run-scoped contracts for __run__ dispatches', async () => {
+    let capturedContract: Record<string, unknown> | null = null;
+    mockWriteOutputContract.mockImplementation((contract: Record<string, unknown>) => {
+      capturedContract = { ...contract };
+    });
+
+    await dispatchTaskCore(makeDispatchInput({
+      taskName: 'verify',
+      storyKey: '__run__',
+      task: makeTask({ source_access: false }),
+    }));
+
+    expect(capturedContract?.storyId).toBe('__run__');
+    expect(capturedContract?.targetScope).toBe('run');
+    expect(mockCreateIsolatedWorkspace).not.toHaveBeenCalled();
+  });
+
   // AC6: driver errors are classified into typed codes
   it('AC6: RATE_LIMIT category maps to RATE_LIMIT DispatchError code', async () => {
     mockDriverDispatch.mockImplementation(() =>

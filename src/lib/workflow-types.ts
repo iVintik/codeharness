@@ -2,6 +2,12 @@
 
 export type ErrorCategory = 'RATE_LIMIT' | 'NETWORK' | 'AUTH' | 'TIMEOUT' | 'UNKNOWN';
 export type GatePassStrategy = 'consensus' | 'all_pass' | 'majority' | 'any_pass';
+export type ExecutionScope = 'story' | 'epic' | 'run';
+
+export interface ExecutionTarget {
+  readonly scope: ExecutionScope;
+  readonly key: string;
+}
 
 export interface DriverHealth { readonly available: boolean; readonly authenticated: boolean; readonly version: string | null; readonly error?: string }
 export interface ToolStartEvent { readonly type: 'tool-start'; readonly name: string; readonly id: string }
@@ -19,6 +25,7 @@ export interface OutputContract {
   readonly version: number;
   readonly taskName: string;
   readonly storyId: string;
+  readonly targetScope?: ExecutionScope;
   readonly driver: string;
   readonly model: string;
   readonly timestamp: string;
@@ -138,6 +145,7 @@ export interface EngineEvent {
   error?: { code: string; message: string };
   elapsedMs?: number;
   costUsd?: number;
+  targetScope?: ExecutionScope;
   /** Pre-rendered single-line ANSI visualization string (workflow-viz events). */
   vizString?: string;
   /** Raw workflow position snapshot (workflow-viz events). Typed as unknown to avoid circular import with workflow-visualizer.ts. Cast to WorkflowPosition when consuming. */
@@ -169,6 +177,7 @@ export interface DispatchInput {
   task: ResolvedTask;
   taskName: string;
   storyKey: string;
+  target?: ExecutionTarget;
   definition: SubagentDefinition;
   config: EngineConfig;
   workflowState: WorkflowState;
@@ -191,6 +200,7 @@ export interface NullTaskInput {
   task: ResolvedTask;
   taskName: string;
   storyKey: string;
+  target?: ExecutionTarget;
   config: EngineConfig;
   workflowState: WorkflowState;
   previousContract: OutputContract | null;

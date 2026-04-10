@@ -2,6 +2,7 @@
 
 import { assign } from 'xstate';
 import type { WorkflowState, TaskCheckpoint } from './workflow-state.js';
+import { normalizeExecutionTarget } from './workflow-target.js';
 import { isEngineError, isGateConfig, isForEachConfig } from './workflow-types.js';
 import type { EvaluatorVerdict, WorkItem, EngineError, ResolvedTask, StoryContext, DispatchInput, NullTaskInput, DispatchOutput, GateConfig, GateContext, ForEachConfig, FlowStep, IterationContext, CompiledInvokeState, CompiledGateState, CompiledForEachState } from './workflow-types.js';
 export { isEngineError, isLoopBlock } from './workflow-types.js';
@@ -42,16 +43,16 @@ function getCachedStepInput(task: ResolvedTask, step: string): (args: { context:
   let byStep = stepInputCache.get(task);
   if (!byStep) stepInputCache.set(task, (byStep = new Map()));
   return getOrCreate(byStep, step, () => task.agent === null
-    ? ({ context }: { context: StoryContext }): NullTaskInput => ({ task, taskName: step, storyKey: context.item.key, config: context.config, workflowState: context.workflowState, previousContract: context.lastContract, accumulatedCostUsd: context.accumulatedCostUsd })
-    : ({ context }: { context: StoryContext }): DispatchInput => ({ task, taskName: step, storyKey: context.item.key, definition: context.config.agents[task.agent as string], config: context.config, workflowState: context.workflowState, previousContract: context.lastContract, accumulatedCostUsd: context.accumulatedCostUsd }));
+    ? ({ context }: { context: StoryContext }): NullTaskInput => ({ task, taskName: step, storyKey: context.item.key, target: normalizeExecutionTarget(context.item.key), config: context.config, workflowState: context.workflowState, previousContract: context.lastContract, accumulatedCostUsd: context.accumulatedCostUsd })
+    : ({ context }: { context: StoryContext }): DispatchInput => ({ task, taskName: step, storyKey: context.item.key, target: normalizeExecutionTarget(context.item.key), definition: context.config.agents[task.agent as string], config: context.config, workflowState: context.workflowState, previousContract: context.lastContract, accumulatedCostUsd: context.accumulatedCostUsd }));
 }
 
 function getCachedGateInput(task: ResolvedTask, taskName: string): (args: { context: GateContext }) => DispatchInput | NullTaskInput {
   let byStep = gateInputCache.get(task);
   if (!byStep) gateInputCache.set(task, (byStep = new Map()));
   return getOrCreate(byStep, taskName, () => task.agent === null
-    ? ({ context }: { context: GateContext }): NullTaskInput => ({ task, taskName, storyKey: context.parentItemKey ? `${context.parentItemKey}:${context.gate.gate}` : context.gate.gate, config: context.config, workflowState: context.workflowState, previousContract: context.lastContract, accumulatedCostUsd: context.accumulatedCostUsd })
-    : ({ context }: { context: GateContext }): DispatchInput => ({ task, taskName, storyKey: context.parentItemKey ? `${context.parentItemKey}:${context.gate.gate}` : context.gate.gate, definition: context.config.agents[task.agent as string], config: context.config, workflowState: context.workflowState, previousContract: context.lastContract, accumulatedCostUsd: context.accumulatedCostUsd }));
+    ? ({ context }: { context: GateContext }): NullTaskInput => ({ task, taskName, storyKey: context.parentItemKey ? `${context.parentItemKey}:${context.gate.gate}` : context.gate.gate, target: normalizeExecutionTarget(context.parentItemKey ? `${context.parentItemKey}:${context.gate.gate}` : context.gate.gate), config: context.config, workflowState: context.workflowState, previousContract: context.lastContract, accumulatedCostUsd: context.accumulatedCostUsd })
+    : ({ context }: { context: GateContext }): DispatchInput => ({ task, taskName, storyKey: context.parentItemKey ? `${context.parentItemKey}:${context.gate.gate}` : context.gate.gate, target: normalizeExecutionTarget(context.parentItemKey ? `${context.parentItemKey}:${context.gate.gate}` : context.gate.gate), definition: context.config.agents[task.agent as string], config: context.config, workflowState: context.workflowState, previousContract: context.lastContract, accumulatedCostUsd: context.accumulatedCostUsd }));
 }
 
 function getStepHaltErrorAssign(step: string) {

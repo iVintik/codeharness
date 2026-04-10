@@ -160,6 +160,15 @@ describe('telemetry-writer', () => {
       await writeTelemetryEntry(ctx);
       const entry: TelemetryEntry = JSON.parse(readTelemetryFile(tmpDir).trim());
       expect(entry.epicId).toBe('unknown');
+      expect(entry.targetScope).toBe('run');
+    });
+
+    it('preserves explicit epic scope in telemetry entries', async () => {
+      const ctx = makeCtx({ projectDir: tmpDir, storyKey: '__epic_3__', targetScope: 'epic' });
+      await writeTelemetryEntry(ctx);
+      const entry: TelemetryEntry = JSON.parse(readTelemetryFile(tmpDir).trim());
+      expect(entry.targetScope).toBe('epic');
+      expect(entry.epicId).toBe('3');
     });
 
     it('multiple sequential writes produce multiple lines', async () => {

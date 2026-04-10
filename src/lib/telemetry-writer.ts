@@ -13,6 +13,7 @@ import { join } from 'node:path';
 
 import type { ACStatus, TestResults } from './agents/types.js';
 import type { TaskContext, NullTaskResult } from './null-task-registry.js';
+import { inferExecutionScope } from './workflow-target.js';
 
 // --- Interfaces ---
 
@@ -38,6 +39,7 @@ export interface TelemetryEntry {
   version: 1;
   timestamp: string;
   storyKey: string;
+  targetScope: 'story' | 'epic' | 'run';
   epicId: string;
   duration_ms: number;
   cost_usd: number | null;
@@ -60,8 +62,9 @@ const TELEMETRY_FILE = 'telemetry.jsonl';
  * Pattern: `{epicNum}-{storyNum}-{slug}` -> `{epicNum}`.
  * Sentinel `__run__` -> `"unknown"`.
  */
-function extractEpicId(storyKey: string): string {
-  if (storyKey === '__run__') return 'unknown';
+function extractEpicId(storyKey: string, scope: 'story' | 'epic' | 'run'): string {
+  if (scope === 'run') return 'unknown';
+  if (scope === 'epic' && storyKey.startsWith('__epic_')) return storyKey.replace('__epic_', '').replace(/__$/, '');
   const dash = storyKey.indexOf('-');
   if (dash === -1) return storyKey;
   return storyKey.slice(0, dash);
@@ -74,13 +77,15 @@ function extractEpicId(storyKey: string): string {
  * Creates the `.codeharness/` directory if it does not exist.
  */
 export async function writeTelemetryEntry(ctx: TaskContext): Promise<NullTaskResult> {
-  const epicId = extractEpicId(ctx.storyKey);
+  const targetScope = ctx.targetScope ?? inferExecutionScope(ctx.storyKey);
+  const epicId = extractEpicId(ctx.storyKey, targetScope);
   const contract = ctx.outputContract;
 
   const entry: TelemetryEntry = {
     version: 1,
     timestamp: new Date().toISOString(),
     storyKey: ctx.storyKey,
+    targetScope,
     epicId,
     duration_ms: ctx.durationMs,
     cost_usd: ctx.cost ?? null,

@@ -15,6 +15,7 @@ import { handleDispatchError } from './workflow-error-utils.js';
 import type { EngineConfig, LoopMachineContext, WorkItem, LoopBlockResult, OutputContract } from './workflow-types.js';
 import { HALT_ERROR_CODES, DEFAULT_MAX_ITERATIONS, isLoopTaskCompleted, buildRetryPrompt, getFailedItems, recordErrorInState } from './workflow-compiler.js';
 import { isEngineError } from './workflow-types.js';
+import { normalizeExecutionTarget } from './workflow-target.js';
 
 const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineContext }): Promise<LoopMachineContext> => {
   const { loopBlock, config, workItems, storyFlowTasks, onStreamEvent } = input;
@@ -55,7 +56,7 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
       for (const item of items) {
         if (isLoopTaskCompleted(currentState, taskName, item.key, currentState.iteration)) { warn(`workflow-machine: skipping completed task ${taskName} for ${item.key}`); continue; }
         try {
-          const nr = await nullTaskCore({ task, taskName, storyKey: item.key, config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd });
+          const nr = await nullTaskCore({ task, taskName, storyKey: item.key, target: normalizeExecutionTarget(item.key), config, workflowState: currentState, previousContract: lastContract, accumulatedCostUsd });
           currentState = nr.updatedState; lastContract = nr.contract; tasksCompleted++;
         } catch (err: unknown) { // IGNORE: null task error — record and continue
           const engineError = isEngineError(err) ? err : handleDispatchError(err, taskName, item.key);
@@ -78,6 +79,7 @@ const loopIterationActor = fromPromise(async ({ input }: { input: LoopMachineCon
           task,
           taskName,
           storyKey: item.key,
+          target: normalizeExecutionTarget(item.key),
           definition,
           config,
           workflowState: currentState,
@@ -185,6 +187,6 @@ export async function executeLoopBlock(loopBlock: LoopBlock, state: WorkflowStat
 }
 
 export async function dispatchTask(task: ResolvedTask, taskName: string, storyKey: string, definition: SubagentDefinition, state: WorkflowState, config: EngineConfig, customPrompt?: string, previousOutputContract?: OutputContract): Promise<WorkflowState> {
-  const result = await dispatchTaskCore({ task, taskName, storyKey, definition, config, workflowState: state, previousContract: previousOutputContract ?? null, customPrompt });
+  const result = await dispatchTaskCore({ task, taskName, storyKey, target: normalizeExecutionTarget(storyKey), definition, config, workflowState: state, previousContract: previousOutputContract ?? null, customPrompt });
   return result.updatedState;
 }

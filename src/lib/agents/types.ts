@@ -54,6 +54,7 @@ export interface CapabilityWarning {
  * 5. Everything else -> UNKNOWN
  */
 export type ErrorCategory = 'RATE_LIMIT' | 'NETWORK' | 'AUTH' | 'TIMEOUT' | 'UNKNOWN';
+export type ExecutionScope = 'story' | 'epic' | 'run';
 
 /**
  * Test results summary for an output contract.
@@ -80,6 +81,7 @@ export interface OutputContract {
   readonly version: number;
   readonly taskName: string;
   readonly storyId: string;
+  readonly targetScope?: ExecutionScope;
   readonly driver: string;
   readonly model: string;
   readonly timestamp: string;

@@ -13,6 +13,7 @@ import { readWorkflowState, writeWorkflowState } from '../lib/workflow-state.js'
 import { WorktreeManager } from '../lib/worktree-manager.js';
 import { LanePool } from '../lib/lane-pool.js';
 import { startRenderer } from '../lib/ink-renderer.js';
+import { inferExecutionScope } from '../lib/workflow-target.js';
 import type { EpicDescriptor, ExecuteEpicFn, LaneEvent } from '../lib/lane-pool.js';
 import type { EngineConfig, EngineEvent } from '../lib/workflow-types.js';
 import type { SubagentDefinition } from '../lib/agent-resolver.js';
@@ -44,9 +45,10 @@ export function buildEpicDescriptors(state: SprintState): EpicDescriptor[] {
 }
 
 /** Translate sentinel story keys to readable display names. */
-function toDisplayKey(storyKey: string): string {
-  if (storyKey.startsWith('__epic_')) return `Epic ${storyKey.replace('__epic_', '').replace('__', '')}`;
-  if (storyKey === '__run__') return 'Run';
+function toDisplayKey(storyKey: string, targetScope?: 'story' | 'epic' | 'run'): string {
+  const scope = targetScope ?? inferExecutionScope(storyKey);
+  if (scope === 'epic' && storyKey.startsWith('__epic_')) return `Epic ${storyKey.replace('__epic_', '').replace('__', '')}`;
+  if (scope === 'run') return 'Run';
   return storyKey;
 }
 
@@ -245,7 +247,7 @@ export function registerRunCommand(program: Command): void {
           renderer.updateWorkflowRow(event.vizString);
         }
         if (event.type === 'dispatch-start') {
-          renderer.updateSprintState({ storyKey: toDisplayKey(event.storyKey), phase: event.taskName, done: storiesDone, total: counts.total, totalCost: totalCostUsd });
+          renderer.updateSprintState({ storyKey: toDisplayKey(event.storyKey, event.targetScope), phase: event.taskName, done: storiesDone, total: counts.total, totalCost: totalCostUsd });
           // Gate tasks use namespaced keys like "27-4-foo:quality" — resolve to base for story list
           const baseKey = toBaseStoryKey(event.storyKey);
           const idx = storyEntries.findIndex(s => s.key === baseKey);

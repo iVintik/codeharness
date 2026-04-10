@@ -10,6 +10,7 @@
  */
 
 import type { OutputContract } from './agents/types.js';
+import type { ExecutionScope } from './workflow-types.js';
 import { writeTelemetryEntry } from './telemetry-writer.js';
 
 // --- Interfaces ---
@@ -20,6 +21,8 @@ import { writeTelemetryEntry } from './telemetry-writer.js';
 export interface TaskContext {
   /** Story key (e.g., "16-2-engine-handled-null-tasks") or "__run__" for per-run. */
   storyKey: string;
+  /** Explicit execution scope for this task context. */
+  targetScope?: ExecutionScope;
   /** Task name (e.g., "telemetry"). */
   taskName: string;
   /** Accumulated cost from previous tasks (USD). */

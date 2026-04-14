@@ -1,0 +1,17 @@
+{
+  "description": "codeharness version-lock hook — keeps the globally installed CLI in sync with this plugin version on every session start.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ${CLAUDE_PLUGIN_ROOT}/hooks/ensure-cli-version.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

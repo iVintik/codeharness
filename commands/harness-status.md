@@ -8,11 +8,11 @@ Show the current state of the harness — health, enforcement config, sprint pro
 
 ## Step 1: Gather Status
 
-Run the CLI status command. Always invoke via `npx --yes codeharness@latest`
-so the plugin and binary stay in lockstep — never call a bare `codeharness`.
+Run the CLI status command. The plugin's SessionStart hook ensures the
+`codeharness` binary is at the correct version for this plugin release.
 
 ```bash
-npx --yes codeharness@latest status
+codeharness status
 ```
 
 The output follows the `git status` model:

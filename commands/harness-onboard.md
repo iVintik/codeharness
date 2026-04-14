@@ -8,14 +8,15 @@ Scan an existing project for harness compliance gaps and generate an executable 
 
 ## Step 1: Verify the CLI is reachable
 
-`npx` resolves the latest published CLI from npm on demand. Nothing to build —
-just confirm the binary runs:
+The plugin's SessionStart hook version-locks the `codeharness` binary. Just
+confirm it runs:
 
 ```bash
-npx --yes codeharness@latest --version
+codeharness --version
 ```
 
-If this fails, check npm connectivity and node ≥22 before proceeding.
+If this fails, node ≥22 is missing or the session-start version-lock hook
+didn't fire. Check `CODEHARNESS_NO_AUTO_INSTALL` isn't set and retry.
 
 ## Step 2: Run Full Onboarding Scan
 
@@ -24,7 +25,7 @@ Always invoke via `npx --yes codeharness@latest` so the plugin and CLI stay
 in lockstep — never call a bare `codeharness`.
 
 ```bash
-npx --yes codeharness@latest onboard epic --force-scan --auto-approve
+codeharness onboard epic --force-scan --auto-approve
 ```
 
 This runs ALL phases:

@@ -8,13 +8,14 @@ Initialize codeharness in the current project. The CLI does the heavy lifting �
 
 ## Step 1: Run the CLI
 
-Always invoke the CLI via `npx --yes codeharness@latest …` so the plugin and the
-binary can never drift out of sync. `npx` pulls the latest published version
-from npm on first call and caches it — subsequent runs in the same shell are
-instant. Never call a plain `codeharness` shell alias.
+Run the canonical `codeharness` binary. The plugin's SessionStart hook
+version-locks the CLI on each session — if the installed `codeharness`
+version doesn't match this plugin's version, the hook upgrades it via
+`npm install -g codeharness@<version>` before the first command runs.
+Users can opt out with `CODEHARNESS_NO_AUTO_INSTALL=1`.
 
 ```bash
-npx --yes codeharness@latest init --json
+codeharness init --json
 ```
 
 The CLI handles:
@@ -24,6 +25,7 @@ The CLI handles:
 - State file creation
 - Documentation scaffold
 - Workflow template generation
+- BMAD harness patch application (marker-based, idempotent)
 
 Parse the JSON output to understand what happened. The output includes `status`, `stack`, `stacks`, `dependencies`, `docker`, `otlp`, `documentation`, and `workflow` fields.
 
@@ -73,8 +75,7 @@ BMAD install — do NOT edit `_bmad/` files by hand.
 
 ## Step 3: Report
 
-Read the version from `npx --yes codeharness@latest --version` for the report
-header. Output:
+Read the version from `codeharness --version` for the report header. Output:
 
 ```
 Harness Init — codeharness v{version}
@@ -105,5 +106,5 @@ under "Next steps:" in addition to the `/codeharness:harness-run` line.
 3. **Do NOT check Docker, Showboat, Semgrep, BATS individually** — the CLI checks them all in batch
 4. **Do NOT install tools into the project's .venv** — the CLI uses system-level installers
 5. **Do NOT generate compose files** — the CLI manages the shared observability stack
-6. **Do NOT hardcode version numbers** — read from `npx --yes codeharness@latest --version`
-7. **Do NOT call `codeharness` as a bare command** — always use `npx --yes codeharness@latest …` so the plugin and CLI stay in lockstep
+6. **Do NOT hardcode version numbers** — read from `codeharness --version`
+7. **Do NOT manually upgrade the CLI** — the plugin's SessionStart hook version-locks it

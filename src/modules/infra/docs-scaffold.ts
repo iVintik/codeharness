@@ -9,7 +9,7 @@
  *
  * Non-destructive: existing AGENTS.md / CLAUDE.md files are appended to (not
  * overwritten) if they lack a `docs/index.md` reference. README.md is never
- * touched — that is the BMAD tech-writer's job (run `/bmad-bmm-document-project`).
+ * touched — that is the BMAD tech-writer's job (run `/codeharness:harness-docs`).
  */
 
 import { existsSync, readFileSync } from 'node:fs';
@@ -100,7 +100,7 @@ export function getCoverageTool(stack: string | null): 'c8' | 'coverage.py' | 'c
 /**
  * Generate a placeholder `docs/index.md` matching the BMAD
  * `document-project` index template. Sections are present but marked
- * as TBD so `/bmad-bmm-document-project` can populate them on a later run.
+ * as TBD so `/codeharness:harness-docs` can populate them on a later run.
  */
 export function generateDocsIndexContent(projectName: string, stackLabel: string): string {
   return [
@@ -143,7 +143,7 @@ export function generateDocsIndexContent(projectName: string, stackLabel: string
     '',
     '---',
     '',
-    '_This index is a placeholder. Run `/bmad-bmm-document-project` (BMAD tech-writer)',
+    '_This index is a placeholder. Run `/codeharness:harness-docs` (BMAD tech-writer)',
     'to scan the codebase and populate it with real content._',
     '',
   ].join('\n');
@@ -161,7 +161,7 @@ export function generateAgentFileContent(projectName: string, stackLabel: string
     DOC_REFERENCE_MARKER,
     `- [Documentation Index](./${DOCS_INDEX_PATH}) — entry point for project docs.`,
     '  Start here before making changes. If sections are marked _(To be generated)_,',
-    '  run `/bmad-bmm-document-project` (BMAD tech-writer) to populate them.',
+    '  run `/codeharness:harness-docs` (BMAD tech-writer) to populate them.',
     '',
     '## Conventions',
     '',
@@ -181,7 +181,7 @@ export function docReferenceAppendBlock(): string {
     DOC_REFERENCE_MARKER,
     `- [Documentation Index](./${DOCS_INDEX_PATH}) — entry point for project docs.`,
     '  Start here before making changes. If sections are marked _(To be generated)_,',
-    '  run `/bmad-bmm-document-project` (BMAD tech-writer) to populate them.',
+    '  run `/codeharness:harness-docs` (BMAD tech-writer) to populate them.',
     '',
   ].join('\n');
 }

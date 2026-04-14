@@ -36,9 +36,9 @@ function failResult(opts: InitOptions, error: string): InitResult {
 function defaultNextSteps(): InitResult['next_steps'] {
   return [
     {
-      id: 'document-project',
-      description: 'Populate docs/ and write README.md from the actual codebase (BMAD tech-writer)',
-      command: '/bmad-bmm-document-project',
+      id: 'harness-docs',
+      description: 'Populate docs/ and write README.md from the actual codebase (codeharness wraps BMAD tech-writer)',
+      command: '/codeharness:harness-docs',
     },
     {
       id: 'harness-run',

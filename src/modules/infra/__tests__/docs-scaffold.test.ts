@@ -128,9 +128,9 @@ describe('generateDocsIndexContent', () => {
     expect(content).toContain('Generated Documentation');
   });
 
-  it('recommends running /bmad-bmm-document-project', () => {
+  it('recommends running /codeharness:harness-docs', () => {
     const content = generateDocsIndexContent('x', 'Node.js');
-    expect(content).toContain('/bmad-bmm-document-project');
+    expect(content).toContain('/codeharness:harness-docs');
   });
 
   it('does NOT dump codeharness CLI help', () => {
@@ -148,9 +148,9 @@ describe('generateAgentFileContent', () => {
     expect(content).toContain('docs/index.md');
   });
 
-  it('recommends /bmad-bmm-document-project', () => {
+  it('recommends /codeharness:harness-docs', () => {
     const content = generateAgentFileContent('my-sdk', 'Python');
-    expect(content).toContain('/bmad-bmm-document-project');
+    expect(content).toContain('/codeharness:harness-docs');
   });
 
   it('does NOT hardcode src/ layout', () => {
@@ -296,7 +296,7 @@ describe('scaffoldDocs', () => {
   it('creates index.md placeholder with document-project recommendation', async () => {
     await scaffoldDocs({ projectDir: testDir, stack: 'nodejs', isJson: false });
     const content = readFileSync(join(testDir, 'docs', 'index.md'), 'utf-8');
-    expect(content).toContain('/bmad-bmm-document-project');
+    expect(content).toContain('/codeharness:harness-docs');
     expect(content).toContain('_(To be generated)_');
   });
 });

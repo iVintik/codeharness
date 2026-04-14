@@ -89,15 +89,15 @@ Harness Init — codeharness v{version}
 [OK] Config: .claude/codeharness.local.md
 
 Next steps:
-  → Run /bmad-bmm-document-project (BMAD tech-writer) to populate docs/ and write README.md
+  → Run /codeharness:harness-docs to populate docs/ and write README.md
   → Run /codeharness:harness-run to start autonomous execution
 ```
 
-The `/bmad-bmm-document-project` recommendation is REQUIRED — docs/index.md is only a
-placeholder until the tech-writer workflow scans the real codebase. Skipping
-this step leaves `_(To be generated)_` markers throughout docs/. If the JSON
-output's `next_steps` array contains entries, render each one as a bullet
-under "Next steps:" in addition to the `/codeharness:harness-run` line.
+The `/codeharness:harness-docs` recommendation is REQUIRED — `docs/index.md`
+is only a placeholder until that skill runs a scan-driven documentation
+pass. Skipping this step leaves `_(To be generated)_` markers throughout
+`docs/` and means no `README.md` at the project root. Render each entry
+from the JSON output's `next_steps` array as a bullet under "Next steps:".
 
 ## Critical Rules
 

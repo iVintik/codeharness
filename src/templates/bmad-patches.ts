@@ -105,6 +105,18 @@ export function sprintPlanningRetroPatch(): string {
   return sprintBeadsPatch();
 }
 
+export function docsReadmeGenerationPatch(): string {
+  return readPatchFile('docs', 'readme-generation') ?? `## Codeharness Documentation Targets (README + docs/index.md)
+
+After the project scan is complete, generate or update \`{project-root}/README.md\`
+alongside \`{project_knowledge}/index.md\`. README must have: project name + one-line
+description, overview, tech stack, getting started commands, project structure,
+documentation section linking docs/index.md. Use managed markers
+\`<!-- codeharness:readme -->\` / \`<!-- /codeharness:readme -->\` so updates are
+non-destructive. \`docs/index.md\` must link back to \`../README.md\`. Never embed
+codeharness CLI help. Never hardcode project structure — use real scan data.`;
+}
+
 /**
  * Maps patch names to their template functions.
  */
@@ -115,4 +127,5 @@ export const PATCH_TEMPLATES: Record<string, () => string> = {
   'retro-enforcement': retroEnforcementPatch,
   'sprint-beads': sprintBeadsPatch,
   'sprint-retro': sprintPlanningRetroPatch,
+  'docs-readme-generation': docsReadmeGenerationPatch,
 };

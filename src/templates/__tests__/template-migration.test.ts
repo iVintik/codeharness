@@ -194,27 +194,8 @@ describe('Ralph prompt static file matches old PROMPT_TEMPLATE', () => {
   });
 });
 
-// ─── README template equivalence ─────────────────────────────────────────────
-
-describe('README static file matches old readmeTemplate() structure', () => {
-  it('readme.md.tmpl contains expected placeholders', () => {
-    const raw = readFileSync(resolve(packageRoot, 'templates/docs/readme.md.tmpl'), 'utf-8');
-    expect(raw).toContain('{{PROJECT_NAME}}');
-    expect(raw).toContain('{{INSTALL_COMMAND}}');
-    expect(raw).toContain('{{CLI_HELP_OUTPUT}}');
-  });
-
-  it('readme.md.tmpl renders with project values', () => {
-    const content = renderTemplateFile('templates/docs/readme.md.tmpl', {
-      PROJECT_NAME: 'my-app',
-      INSTALL_COMMAND: 'npm install -g codeharness',
-      CLI_HELP_OUTPUT: 'Usage: codeharness [options]',
-    });
-    expect(content).toContain('# my-app');
-    expect(content).toContain('npm install -g codeharness');
-    expect(content).toContain('Usage: codeharness [options]');
-  });
-});
+// README template removed: README authorship moved to the BMAD
+// document-project workflow (see patches/docs/readme-generation.md).
 
 // ─── Template directory structure ────────────────────────────────────────────
 
@@ -239,11 +220,6 @@ describe('Template directory structure (AC1)', () => {
 
   it('templates/prompts/ contains ralph-prompt.md', () => {
     const content = readFileSync(resolve(templateDir, 'prompts', 'ralph-prompt.md'), 'utf-8');
-    expect(content.length).toBeGreaterThan(0);
-  });
-
-  it('templates/docs/ contains readme.md.tmpl', () => {
-    const content = readFileSync(resolve(templateDir, 'docs', 'readme.md.tmpl'), 'utf-8');
     expect(content.length).toBeGreaterThan(0);
   });
 
@@ -296,15 +272,5 @@ describe('TypeScript generators use renderTemplateFile() (AC2)', () => {
     expect(result).toBe(fileContent);
   });
 
-  it('readmeTemplate uses static file with interpolation', async () => {
-    const { readmeTemplate } = await import('../readme.js');
-    const result = readmeTemplate({
-      projectName: 'test-app',
-      stack: 'nodejs',
-      cliHelpOutput: 'Usage: codeharness [options]',
-    });
-    expect(result).toContain('# test-app');
-    expect(result).toContain('npm install -g codeharness');
-    expect(result).toContain('Usage: codeharness [options]');
-  });
+  // readmeTemplate removed — README generation lives in the BMAD document-project workflow now.
 });

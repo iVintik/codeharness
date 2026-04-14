@@ -1,21 +1,35 @@
 /**
  * Documentation scaffolding for project initialization.
- * Generates AGENTS.md, docs/ directory structure, and README.md.
+ *
+ * Produces:
+ * - `docs/index.md` — placeholder mirroring the BMAD `document-project` index
+ *   template structure so the tech-writer workflow can fill it in later.
+ * - `AGENTS.md` — minimal agent-facing entry point pointing at `docs/index.md`.
+ * - `CLAUDE.md` — same reference for Claude Code's primary instruction file.
+ *
+ * Non-destructive: existing AGENTS.md / CLAUDE.md files are appended to (not
+ * overwritten) if they lack a `docs/index.md` reference. README.md is never
+ * touched — that is the BMAD tech-writer's job (run `/document-project`).
  */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { ok as okOutput } from '../../lib/output.js';
-import { generateFile } from '../../lib/templates.js';
-import { readmeTemplate } from '../../templates/readme.js';
+import { ok as okOutput, info } from '../../lib/output.js';
+import { generateFile, appendFile } from '../../lib/templates.js';
 import type { Result } from '../../types/result.js';
 import { ok, fail } from '../../types/result.js';
-import type { AgentRuntime, InitDocumentationResult } from './types.js';
+import type { InitDocumentationResult } from './types.js';
 import type { StackDetection } from '../../lib/stacks/index.js';
 import { getStackProvider } from '../../lib/stacks/index.js';
 import type { StackName } from '../../lib/stacks/index.js';
 
 const DO_NOT_EDIT_HEADER = '<!-- DO NOT EDIT MANUALLY -->\n';
+const DOCS_INDEX_PATH = 'docs/index.md';
+
+/** Marker block added to AGENTS.md / CLAUDE.md. Detected to avoid duplicate appends. */
+const DOC_REFERENCE_MARKER = '<!-- codeharness:docs-index -->';
+
+// ─── Project metadata helpers ───────────────────────────────────────
 
 export function getProjectName(projectDir: string): string {
   try {
@@ -30,7 +44,6 @@ export function getProjectName(projectDir: string): string {
     // IGNORE: package.json may not exist or be malformed
   }
 
-  // Cargo.toml fallback for Rust projects
   try {
     const cargoPath = join(projectDir, 'Cargo.toml');
     if (existsSync(cargoPath)) {
@@ -47,6 +60,17 @@ export function getProjectName(projectDir: string): string {
     // IGNORE: Cargo.toml may not exist or be malformed
   }
 
+  try {
+    const pyprojectPath = join(projectDir, 'pyproject.toml');
+    if (existsSync(pyprojectPath)) {
+      const content = readFileSync(pyprojectPath, 'utf-8');
+      const nameMatch = content.match(/^\s*name\s*=\s*["']([^"']+)["']/m);
+      if (nameMatch) return nameMatch[1];
+    }
+  } catch {
+    // IGNORE: pyproject.toml may not exist or be malformed
+  }
+
   return basename(projectDir);
 }
 
@@ -60,7 +84,6 @@ export function getStackLabel(stack: string | string[] | null): string {
   return provider ? provider.displayName : 'Unknown';
 }
 
-/** Coverage tool name mapping for state file (uses state-format names, not provider CoverageToolName). */
 const STATE_COVERAGE_TOOLS: Record<string, 'c8' | 'coverage.py' | 'cargo-tarpaulin'> = {
   nodejs: 'c8',
   python: 'coverage.py',
@@ -72,259 +95,180 @@ export function getCoverageTool(stack: string | null): 'c8' | 'coverage.py' | 'c
   return STATE_COVERAGE_TOOLS[stack] ?? 'c8';
 }
 
-function getHarnessFileLines(agentRuntime: AgentRuntime): string[] {
-  const lines = [
-    '## Harness Files',
-    '',
-    '- `AGENTS.md` is the primary repo-local instruction file for coding agents',
-    '- `commands/` contains harness command playbooks the agent can read and execute directly',
-    '- `skills/` contains focused harness skills and operating procedures',
-  ];
+// ─── Content generators ────────────────────────────────────────────
 
-  if (agentRuntime === 'opencode') {
-    lines.push('- Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools none` for OpenCode');
-  } else {
-    lines.push('- Install BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools claude-code` for Claude Code');
-  }
-
-  lines.push('');
-  return lines;
-}
-
-export function generateAgentsMdContent(
-  projectDir: string,
-  stack: string | StackDetection[] | null,
-  agentRuntime: AgentRuntime = 'claude-code',
-): string {
-  // Multi-stack path: StackDetection[] with more than one entry
-  if (Array.isArray(stack) && stack.length > 1) {
-    return generateMultiStackAgentsMd(projectDir, stack, agentRuntime);
-  }
-  // Single-element array: unwrap to string for backward-compatible single-stack output
-  if (Array.isArray(stack)) {
-    stack = stack.length === 1 ? stack[0].stack : null;
-  }
-
-  // Single-stack path: string | null (backward compat)
-  const projectName = basename(projectDir);
-  const provider = stack ? getStackProvider(stack as StackName) : undefined;
-  const stackLabel = provider ? stackDisplayName(stack!) : 'Unknown';
-
-  const lines = [
-    `# ${projectName}`,
-    '',
-    '## Stack',
-    '',
-    `- **Language/Runtime:** ${stackLabel}`,
-    '',
-    '## Build & Test Commands',
-    '',
-  ];
-
-  if (provider) {
-    appendBuildTestCommands(lines, provider.name, '');
-  } else {
-    lines.push('```bash', '# No recognized stack — add build/test commands here', '```');
-  }
-
-  lines.push(
-    '',
-    '## Project Structure',
-    '',
-    '```',
-    `${projectName}/`,
-    '├── src/           # Source code',
-    '├── tests/         # Test files',
-    '├── docs/          # Documentation',
-    '└── .claude/       # Codeharness state',
-    '```',
-    '',
-    '## Conventions',
-    '',
-    '- All changes must pass tests before commit',
-    '- Maintain test coverage targets',
-    '- Follow existing code style and patterns',
-  );
-
-  lines.push(...getHarnessFileLines(agentRuntime));
-
-  return lines.join('\n');
-}
-
-/** Maps stack identifier to short display name for AGENTS.md generation (no parenthetical). */
-function stackDisplayName(stack: string): string {
-  const provider = getStackProvider(stack as StackName);
-  if (!provider) return 'Unknown';
-  // Strip parenthetical qualifiers like " (package.json)" or " (Cargo.toml)"
-  return provider.displayName.replace(/ \(.*\)$/, '');
-}
-
-/** Build/test commands per stack, keyed by provider name. Uses provider methods. */
-function appendBuildTestCommands(lines: string[], stack: string, prefix: string): void {
-  const provider = getStackProvider(stack as StackName);
-  if (!provider) return;
-  const buildCmds = provider.getBuildCommands();
-  const testCmds = provider.getTestCommands();
-  lines.push('```bash');
-  for (const cmd of buildCmds) {
-    lines.push(`${prefix}${cmd}`);
-  }
-  for (const cmd of testCmds) {
-    lines.push(`${prefix}${cmd}`);
-  }
-  lines.push('```');
-}
-
-function generateMultiStackAgentsMd(
-  projectDir: string,
-  stacks: StackDetection[],
-  agentRuntime: AgentRuntime,
-): string {
-  const projectName = basename(projectDir);
-  const stackNames = stacks.map(s => stackDisplayName(s.stack));
-
-  const lines = [
-    `# ${projectName}`,
-    '',
-    '## Stack',
-    '',
-    `- **Language/Runtime:** ${stackNames.join(' + ')}`,
-    '',
-    '## Build & Test Commands',
-    '',
-  ];
-
-  for (const detection of stacks) {
-    const label = stackDisplayName(detection.stack);
-    const heading = detection.dir === '.' ? `### ${label}` : `### ${label} (${detection.dir}/)`;
-    const prefix = detection.dir === '.' ? '' : `cd ${detection.dir} && `;
-
-    lines.push(heading, '');
-
-    appendBuildTestCommands(lines, detection.stack, prefix);
-
-    lines.push('');
-  }
-
-  lines.push(
-    '## Project Structure',
-    '',
-    '```',
-    `${projectName}/`,
-    '├── src/           # Source code',
-    '├── tests/         # Test files',
-    '├── docs/          # Documentation',
-    '└── .claude/       # Codeharness state',
-    '```',
-    '',
-    '## Conventions',
-    '',
-    '- All changes must pass tests before commit',
-    '- Maintain test coverage targets',
-    '- Follow existing code style and patterns',
-  );
-
-  lines.push(...getHarnessFileLines(agentRuntime));
-
-  return lines.join('\n');
-}
-
-export function generateDocsIndexContent(): string {
+/**
+ * Generate a placeholder `docs/index.md` matching the BMAD
+ * `document-project` index template. Sections are present but marked
+ * as TBD so `/document-project` can populate them on a later run.
+ */
+export function generateDocsIndexContent(projectName: string, stackLabel: string): string {
   return [
-    '# Project Documentation',
+    `# ${projectName} Documentation Index`,
     '',
-    '## Planning Artifacts',
-    '- [Product Requirements](../_bmad-output/planning-artifacts/prd.md)',
-    '- [Architecture](../_bmad-output/planning-artifacts/architecture.md)',
-    '- [Epics & Stories](../_bmad-output/planning-artifacts/epics.md)',
+    `**Type:** _(To be generated)_`,
+    `**Primary Language:** ${stackLabel}`,
+    `**Architecture:** _(To be generated)_`,
+    `**Last Updated:** _(To be generated)_`,
     '',
-    '## Execution',
-    '- [Active Exec Plans](exec-plans/active/)',
-    '- [Completed Exec Plans](exec-plans/completed/)',
+    '## Project Overview',
     '',
-    '## Quality',
-    '- [Quality Reports](quality/)',
-    '- [Generated Reports](generated/)',
+    '_(To be generated)_',
+    '',
+    '## Quick Reference',
+    '',
+    '- **Tech Stack:** _(To be generated)_',
+    '- **Entry Point:** _(To be generated)_',
+    '- **Architecture Pattern:** _(To be generated)_',
+    '',
+    '## Generated Documentation',
+    '',
+    '### Core Documentation',
+    '',
+    '- [Project Overview](./project-overview.md) _(To be generated)_',
+    '- [Source Tree Analysis](./source-tree-analysis.md) _(To be generated)_',
+    '- [Architecture](./architecture.md) _(To be generated)_',
+    '- [Component Inventory](./component-inventory.md) _(To be generated)_',
+    '- [Development Guide](./development-guide.md) _(To be generated)_',
+    '',
+    '## Getting Started',
+    '',
+    '_(To be generated)_',
+    '',
+    '## For AI-Assisted Development',
+    '',
+    'When working on this codebase, start by reading the sections above. Once',
+    'populated, they describe the architecture, entry points, and conventions',
+    'needed to make informed changes.',
+    '',
+    '---',
+    '',
+    '_This index is a placeholder. Run `/document-project` (BMAD tech-writer)',
+    'to scan the codebase and populate it with real content._',
     '',
   ].join('\n');
 }
+
+/** Agent-facing instruction file body used when AGENTS.md / CLAUDE.md don't exist. */
+export function generateAgentFileContent(projectName: string, stackLabel: string): string {
+  return [
+    `# ${projectName}`,
+    '',
+    `**Language/Runtime:** ${stackLabel}`,
+    '',
+    '## Documentation',
+    '',
+    DOC_REFERENCE_MARKER,
+    `- [Documentation Index](./${DOCS_INDEX_PATH}) — entry point for project docs.`,
+    '  Start here before making changes. If sections are marked _(To be generated)_,',
+    '  run `/document-project` (BMAD tech-writer) to populate them.',
+    '',
+    '## Conventions',
+    '',
+    '- Read the documentation index before making non-trivial changes.',
+    '- All changes must pass tests before commit.',
+    '- Follow existing code style and patterns.',
+    '',
+  ].join('\n');
+}
+
+/** Appended block used when AGENTS.md / CLAUDE.md already exist but lack a reference. */
+export function docReferenceAppendBlock(): string {
+  return [
+    '',
+    '## Documentation',
+    '',
+    DOC_REFERENCE_MARKER,
+    `- [Documentation Index](./${DOCS_INDEX_PATH}) — entry point for project docs.`,
+    '  Start here before making changes. If sections are marked _(To be generated)_,',
+    '  run `/document-project` (BMAD tech-writer) to populate them.',
+    '',
+  ].join('\n');
+}
+
+// ─── Non-destructive file updater ──────────────────────────────────
+
+/**
+ * Create the target file with fresh content, or append a documentation-index
+ * reference block if the file exists but lacks one. Never overwrites existing
+ * content. Returns 'created', 'updated', or 'unchanged'.
+ */
+export function ensureAgentFile(
+  filePath: string,
+  projectName: string,
+  stackLabel: string,
+): 'created' | 'updated' | 'unchanged' {
+  if (!existsSync(filePath)) {
+    generateFile(filePath, generateAgentFileContent(projectName, stackLabel));
+    return 'created';
+  }
+
+  const existing = readFileSync(filePath, 'utf-8');
+  if (existing.includes(DOC_REFERENCE_MARKER) || existing.includes(DOCS_INDEX_PATH)) {
+    return 'unchanged';
+  }
+
+  appendFile(filePath, docReferenceAppendBlock());
+  return 'updated';
+}
+
+// ─── scaffoldDocs ──────────────────────────────────────────────────
 
 interface ScaffoldDocsOptions {
   readonly projectDir: string;
   readonly stack: string | null;
   readonly stacks?: StackDetection[];
-  readonly agentRuntime?: AgentRuntime;
   readonly isJson: boolean;
 }
 
 export async function scaffoldDocs(opts: ScaffoldDocsOptions): Promise<Result<InitDocumentationResult>> {
   try {
-    let agentsMd: 'created' | 'exists' | 'skipped' = 'skipped';
+    const projectName = getProjectName(opts.projectDir);
+    const stackArg = opts.stacks && opts.stacks.length > 1 ? opts.stacks.map((s) => s.stack) : opts.stack;
+    const stackLabel = getStackLabel(stackArg);
+
+    // docs/ scaffold — write index.md + exec-plans + quality placeholders
     let docsScaffold: 'created' | 'exists' | 'skipped' = 'skipped';
-    let readme: 'created' | 'exists' | 'skipped' = 'skipped';
-
-    // AGENTS.md
-    const agentsMdPath = join(opts.projectDir, 'AGENTS.md');
-    if (!existsSync(agentsMdPath)) {
-      const stackArg = opts.stacks && opts.stacks.length > 1 ? opts.stacks : opts.stack;
-      const content = generateAgentsMdContent(opts.projectDir, stackArg, opts.agentRuntime ?? 'claude-code');
-      generateFile(agentsMdPath, content);
-      agentsMd = 'created';
-    } else {
-      agentsMd = 'exists';
-    }
-
-    // docs/ scaffold
     const docsDir = join(opts.projectDir, 'docs');
+    const indexPath = join(docsDir, 'index.md');
     if (!existsSync(docsDir)) {
-      generateFile(join(docsDir, 'index.md'), generateDocsIndexContent());
+      generateFile(indexPath, generateDocsIndexContent(projectName, stackLabel));
       generateFile(join(docsDir, 'exec-plans', 'active', '.gitkeep'), '');
       generateFile(join(docsDir, 'exec-plans', 'completed', '.gitkeep'), '');
       generateFile(join(docsDir, 'quality', '.gitkeep'), DO_NOT_EDIT_HEADER);
       generateFile(join(docsDir, 'generated', '.gitkeep'), DO_NOT_EDIT_HEADER);
       docsScaffold = 'created';
+    } else if (!existsSync(indexPath)) {
+      // docs/ exists but no index — add a placeholder index without touching siblings
+      generateFile(indexPath, generateDocsIndexContent(projectName, stackLabel));
+      docsScaffold = 'created';
     } else {
       docsScaffold = 'exists';
     }
 
-    // README.md
-    const readmePath = join(opts.projectDir, 'README.md');
-    if (!existsSync(readmePath)) {
-      let cliHelpOutput = '';
-      try {
-        const { execFileSync } = await import('node:child_process');
-        cliHelpOutput = execFileSync(process.execPath, [process.argv[1], '--help'], {
-          stdio: 'pipe',
-          timeout: 10_000,
-        }).toString();
-      } catch {
-        // IGNORE: CLI help may not be available during init
-        cliHelpOutput = 'Run: codeharness --help';
-      }
+    // AGENTS.md + CLAUDE.md — non-destructive
+    const agentsMd = ensureAgentFile(join(opts.projectDir, 'AGENTS.md'), projectName, stackLabel);
+    const claudeMd = ensureAgentFile(join(opts.projectDir, 'CLAUDE.md'), projectName, stackLabel);
 
-      const readmeStack = opts.stacks && opts.stacks.length > 1
-        ? opts.stacks.map(s => s.stack)
-        : opts.stack;
-      const readmeContent = readmeTemplate({
-        projectName: getProjectName(opts.projectDir),
-        stack: readmeStack,
-        cliHelpOutput,
-      });
-      generateFile(readmePath, readmeContent);
-      readme = 'created';
-    } else {
-      readme = 'exists';
-    }
-
-    const result: InitDocumentationResult = { agents_md: agentsMd, docs_scaffold: docsScaffold, readme };
+    const result: InitDocumentationResult = {
+      agents_md: agentsMd,
+      claude_md: claudeMd,
+      docs_scaffold: docsScaffold,
+    };
 
     if (!opts.isJson) {
-      if (result.agents_md === 'created' || result.docs_scaffold === 'created') {
-        okOutput('Documentation: AGENTS.md + docs/ scaffold created');
+      if (docsScaffold === 'created') {
+        okOutput('Documentation: docs/ scaffold + index.md placeholder created');
       }
-      if (result.readme === 'created') {
-        okOutput('Documentation: README.md created');
-      }
+      if (agentsMd === 'created') okOutput('Documentation: AGENTS.md created');
+      else if (agentsMd === 'updated') okOutput('Documentation: AGENTS.md updated with docs/index.md reference');
+      if (claudeMd === 'created') okOutput('Documentation: CLAUDE.md created');
+      else if (claudeMd === 'updated') okOutput('Documentation: CLAUDE.md updated with docs/index.md reference');
+
+      info('');
+      info('Next step: populate docs/ and README.md from your actual code by running:');
+      info('  /document-project   (BMAD tech-writer)');
+      info('');
     }
 
     return ok(result);

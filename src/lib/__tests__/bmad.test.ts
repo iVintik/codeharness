@@ -262,7 +262,7 @@ describe('applyAllPatches', () => {
     createBmadWorkflowFiles(testDir);
 
     const results = applyAllPatches(testDir);
-    expect(results).toHaveLength(6);
+    expect(results).toHaveLength(7);
     for (const r of results) {
       expect(r.applied).toBe(false);
       expect(r.error).toContain('Patch engine removed');
@@ -277,7 +277,7 @@ describe('applyAllPatches', () => {
     const results = applyAllPatches(testDir);
     consoleSpy.mockRestore();
 
-    expect(results).toHaveLength(6);
+    expect(results).toHaveLength(7);
     for (const r of results) {
       expect(r.applied).toBe(false);
       expect(r.error).toContain('File not found');

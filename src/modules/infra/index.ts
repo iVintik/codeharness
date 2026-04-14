@@ -13,10 +13,11 @@ import { createObservabilityBackend } from './observability.js';
 export type { AgentRuntime, InitOptions, InitResult, StackStatus };
 export type { InitDockerResult, InitBmadResult, InitBeadsResult, InitDocumentationResult } from './types.js';
 export type { StackDetectionResult, PortConflictResult, CleanupResult } from './types.js';
-// Re-export doc helpers for backward compatibility
+// Re-export doc helpers for consumers
 export {
-  generateAgentsMdContent,
+  generateAgentFileContent,
   generateDocsIndexContent,
+  ensureAgentFile,
   getCoverageTool,
   getStackLabel,
   getProjectName,

@@ -60,9 +60,9 @@ export interface InitBmadResult {
 
 /** Documentation scaffold result */
 export interface InitDocumentationResult {
-  readonly agents_md: 'created' | 'exists' | 'skipped';
+  readonly agents_md: 'created' | 'updated' | 'unchanged' | 'skipped';
+  readonly claude_md: 'created' | 'updated' | 'unchanged' | 'skipped';
   readonly docs_scaffold: 'created' | 'exists' | 'skipped';
-  readonly readme: 'created' | 'exists' | 'skipped';
 }
 
 /** Result of project initialization */

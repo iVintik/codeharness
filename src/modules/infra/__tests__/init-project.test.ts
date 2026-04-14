@@ -103,10 +103,6 @@ vi.mock('../../../lib/templates.js', async () => {
   };
 });
 
-vi.mock('../../../templates/readme.js', () => ({
-  readmeTemplate: vi.fn(() => '# README'),
-}));
-
 import { isDockerAvailable } from '../../../lib/docker/index.js';
 import { installAllDependencies, CriticalDependencyError } from '../../../lib/deps.js';
 import { readState, writeState, getDefaultState } from '../../../lib/state.js';
@@ -243,7 +239,7 @@ describe('initProject — idempotent re-run', () => {
     });
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data.documentation.agents_md).toBe('exists');
+      expect(result.data.documentation.agents_md).toBe('unchanged');
     }
   });
 

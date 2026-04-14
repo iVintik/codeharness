@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Command } from 'commander';
-import { registerInitCommand, generateAgentsMdContent, generateDocsIndexContent, getCoverageTool, getStackLabel, getProjectName } from '../init.js';
+import { registerInitCommand, generateAgentFileContent, generateDocsIndexContent, getCoverageTool, getStackLabel, getProjectName } from '../init.js';
 import { readState, writeState, getDefaultState } from '../../lib/state.js';
 
 // Mock the stacks module (wrap real implementation for overridability)
@@ -342,45 +342,58 @@ describe('init command — state file creation', () => {
   });
 });
 
-describe('init command — AGENTS.md generation', () => {
-  it('generates AGENTS.md when not present', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
+describe('init command — AGENTS.md / CLAUDE.md generation', () => {
+  it('generates AGENTS.md and CLAUDE.md pointing at docs/index.md', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{"name": "my-proj"}');
 
     await runCli(['init']);
 
     const agentsPath = join(testDir, 'AGENTS.md');
+    const claudePath = join(testDir, 'CLAUDE.md');
     expect(existsSync(agentsPath)).toBe(true);
-    const content = readFileSync(agentsPath, 'utf-8');
-    expect(content).toContain('Node.js');
-    expect(content).toContain('npm');
-    expect(content).toContain('## Harness Files');
-    expect(content).toContain('--tools claude-code');
+    expect(existsSync(claudePath)).toBe(true);
+    const agentsContent = readFileSync(agentsPath, 'utf-8');
+    expect(agentsContent).toContain('my-proj');
+    expect(agentsContent).toContain('docs/index.md');
+    expect(agentsContent).toContain('/document-project');
+    // Regression guards: no codeharness-internal bullets, no hardcoded src/ tree
+    expect(agentsContent).not.toContain('## Harness Files');
+    expect(agentsContent).not.toMatch(/├── src\//);
   });
 
-  it('generates OpenCode-specific AGENTS.md guidance with --opencode', async () => {
+  it('passes opencode runtime to BMAD install', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
-
     await runCli(['init', '--opencode']);
-
-    const content = readFileSync(join(testDir, 'AGENTS.md'), 'utf-8');
-    expect(content).toContain('--tools none');
     expect(mockInstallBmad).toHaveBeenLastCalledWith(process.cwd(), 'opencode');
   });
 
   it('AGENTS.md content is under 100 lines', () => {
-    const content = generateAgentsMdContent('/tmp/test-project', 'nodejs');
+    const content = generateAgentFileContent('test-project', 'Node.js');
     const lines = content.split('\n');
     expect(lines.length).toBeLessThanOrEqual(100);
   });
 
-  it('does not overwrite existing AGENTS.md', async () => {
+  it('preserves existing AGENTS.md body and appends docs reference', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     writeFileSync(join(testDir, 'AGENTS.md'), 'custom content');
 
     await runCli(['init']);
 
     const content = readFileSync(join(testDir, 'AGENTS.md'), 'utf-8');
-    expect(content).toBe('custom content');
+    expect(content).toContain('custom content');
+    expect(content).toContain('docs/index.md');
+  });
+
+  it('preserves existing CLAUDE.md body and appends docs reference', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+    writeFileSync(join(testDir, 'CLAUDE.md'), '# my claude rules\n\nno emojis.\n');
+
+    await runCli(['init']);
+
+    const content = readFileSync(join(testDir, 'CLAUDE.md'), 'utf-8');
+    expect(content).toContain('my claude rules');
+    expect(content).toContain('no emojis');
+    expect(content).toContain('docs/index.md');
   });
 });
 
@@ -397,14 +410,15 @@ describe('init command — docs/ scaffold', () => {
     expect(existsSync(join(testDir, 'docs', 'generated', '.gitkeep'))).toBe(true);
   });
 
-  it('docs/index.md references artifacts by relative path', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
+  it('docs/index.md is a placeholder recommending document-project', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{"name": "proj"}');
 
     await runCli(['init']);
 
     const indexContent = readFileSync(join(testDir, 'docs', 'index.md'), 'utf-8');
-    expect(indexContent).toContain('../_bmad-output/planning-artifacts/prd.md');
-    expect(indexContent).toContain('exec-plans/active/');
+    expect(indexContent).toContain('proj Documentation Index');
+    expect(indexContent).toContain('/document-project');
+    expect(indexContent).toContain('_(To be generated)_');
   });
 
   it('generated files include DO NOT EDIT header', async () => {
@@ -419,7 +433,7 @@ describe('init command — docs/ scaffold', () => {
     expect(generatedKeep).toContain('<!-- DO NOT EDIT MANUALLY -->');
   });
 
-  it('does not overwrite existing docs/', async () => {
+  it('preserves existing docs/ files and still writes index.md placeholder', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     mkdirSync(join(testDir, 'docs'), { recursive: true });
     writeFileSync(join(testDir, 'docs', 'custom.md'), 'custom');
@@ -427,34 +441,30 @@ describe('init command — docs/ scaffold', () => {
     await runCli(['init']);
 
     expect(readFileSync(join(testDir, 'docs', 'custom.md'), 'utf-8')).toBe('custom');
-    expect(existsSync(join(testDir, 'docs', 'index.md'))).toBe(false);
+    // index.md is still written so BMAD document-project has a target
+    expect(existsSync(join(testDir, 'docs', 'index.md'))).toBe(true);
   });
 
-  it('prints documentation creation message', async () => {
+  it('prints documentation creation messages', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
 
     const { stdout } = await runCli(['init']);
-    expect(stdout).toContain('[OK] Documentation: AGENTS.md + docs/ scaffold created');
+    expect(stdout).toContain('[OK] Documentation: docs/ scaffold');
+    expect(stdout).toContain('AGENTS.md created');
+    expect(stdout).toContain('CLAUDE.md created');
   });
 });
 
-describe('init command — README.md generation', () => {
-  it('creates README.md when not present', async () => {
+describe('init command — README.md handling', () => {
+  it('does NOT create README.md (delegated to BMAD document-project)', async () => {
     writeFileSync(join(testDir, 'package.json'), '{"name": "my-test-project"}');
 
     await runCli(['init']);
 
-    const readmePath = join(testDir, 'README.md');
-    expect(existsSync(readmePath)).toBe(true);
-    const content = readFileSync(readmePath, 'utf-8');
-    expect(content).toContain('# my-test-project');
-    expect(content).toContain('## Quick Start');
-    expect(content).toContain('## Installation');
-    expect(content).toContain('## Usage');
-    expect(content).toContain('## CLI Reference');
+    expect(existsSync(join(testDir, 'README.md'))).toBe(false);
   });
 
-  it('does not overwrite existing README.md', async () => {
+  it('does NOT touch existing README.md', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
     writeFileSync(join(testDir, 'README.md'), 'my custom readme');
 
@@ -462,52 +472,6 @@ describe('init command — README.md generation', () => {
 
     const content = readFileSync(join(testDir, 'README.md'), 'utf-8');
     expect(content).toBe('my custom readme');
-  });
-
-  it('includes install command in Quick Start', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{"name": "test-pkg"}');
-
-    await runCli(['init']);
-
-    const content = readFileSync(join(testDir, 'README.md'), 'utf-8');
-    expect(content).toContain('npm install -g codeharness');
-    expect(content).toContain('codeharness init');
-    expect(content).toContain('codeharness status');
-  });
-
-  it('uses directory basename when package.json has no name', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-
-    await runCli(['init']);
-
-    const content = readFileSync(join(testDir, 'README.md'), 'utf-8');
-    // Project name should be the temp dir basename
-    expect(content).toMatch(/^# .+/m);
-  });
-
-  it('JSON output includes readme status as created', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{"name": "test-proj"}');
-
-    const { stdout } = await runCli(['--json', 'init']);
-
-    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
-    expect(jsonLine).toBeDefined();
-    const parsed = JSON.parse(jsonLine!);
-    expect(parsed.documentation.readme).toBe('created');
-  });
-
-  it('JSON output includes readme status as exists when README already present', async () => {
-    writeFileSync(join(testDir, 'package.json'), '{}');
-    writeFileSync(join(testDir, 'README.md'), '# existing');
-
-    // Need to do a fresh init (not re-run) for this test
-    // The idempotent check would short-circuit, so we skip the state
-    const { stdout } = await runCli(['--json', 'init']);
-
-    const jsonLine = stdout.split('\n').find(l => l.startsWith('{'));
-    expect(jsonLine).toBeDefined();
-    const parsed = JSON.parse(jsonLine!);
-    expect(parsed.documentation.readme).toBe('exists');
   });
 });
 
@@ -628,8 +592,9 @@ describe('init command — JSON output', () => {
     expect(parsed.enforcement.frontend).toBe(true);
     expect(parsed.documentation).toBeDefined();
     expect(parsed.documentation.agents_md).toBe('created');
+    expect(parsed.documentation.claude_md).toBe('created');
     expect(parsed.documentation.docs_scaffold).toBe('created');
-    expect(parsed.documentation.readme).toBe('created');
+    expect(parsed.documentation.readme).toBeUndefined();
   });
 
   it('JSON output fails with docker object when Docker unavailable and observability ON', async () => {
@@ -664,9 +629,9 @@ describe('init command — JSON output', () => {
     const parsed = JSON.parse(jsonLine!);
 
     expect(parsed.status).toBe('ok');
-    expect(parsed.documentation.agents_md).toBe('exists');
+    expect(parsed.documentation.agents_md).toBe('unchanged');
+    expect(parsed.documentation.claude_md).toBe('unchanged');
     expect(parsed.documentation.docs_scaffold).toBe('exists');
-    expect(parsed.documentation.readme).toBe('exists');
   });
 
   it('JSON re-run output includes docker object from existing state (AC 7)', async () => {
@@ -731,25 +696,25 @@ describe('init command — helper functions', () => {
     expect(getStackLabel(null)).toBe('Unknown');
   });
 
-  it('generateDocsIndexContent references planning artifacts', () => {
-    const content = generateDocsIndexContent();
-    expect(content).toContain('Planning Artifacts');
-    expect(content).toContain('exec-plans/active/');
-    expect(content).toContain('quality/');
-    expect(content).toContain('generated/');
+  it('generateDocsIndexContent recommends document-project workflow', () => {
+    const content = generateDocsIndexContent('my-project', 'Node.js');
+    expect(content).toContain('my-project Documentation Index');
+    expect(content).toContain('**Primary Language:** Node.js');
+    expect(content).toContain('/document-project');
+    expect(content).toContain('_(To be generated)_');
   });
 
-  it('generateAgentsMdContent for python project', () => {
-    const content = generateAgentsMdContent('/tmp/my-project', 'python');
+  it('generateAgentFileContent references docs/index.md', () => {
+    const content = generateAgentFileContent('my-project', 'Python');
+    expect(content).toContain('my-project');
     expect(content).toContain('Python');
-    expect(content).toContain('pip install');
-    expect(content).toContain('pytest');
+    expect(content).toContain('docs/index.md');
+    expect(content).toContain('/document-project');
   });
 
-  it('generateAgentsMdContent for unknown stack', () => {
-    const content = generateAgentsMdContent('/tmp/my-project', null);
+  it('generateAgentFileContent handles unknown stack', () => {
+    const content = generateAgentFileContent('my-project', 'Unknown');
     expect(content).toContain('Unknown');
-    expect(content).toContain('add build/test commands here');
   });
 });
 
@@ -797,8 +762,10 @@ describe('init command — dependency install', () => {
     const parsed = JSON.parse(jsonLine!);
     expect(parsed.status).toBe('fail');
     expect(parsed.error).toContain('showboat');
-    // When init aborts before reaching documentation scaffold, readme should be 'skipped'
-    expect(parsed.documentation.readme).toBe('skipped');
+    // When init aborts before reaching documentation scaffold, all doc outputs remain 'skipped'
+    expect(parsed.documentation.agents_md).toBe('skipped');
+    expect(parsed.documentation.claude_md).toBe('skipped');
+    expect(parsed.documentation.docs_scaffold).toBe('skipped');
   });
 
   it('continues init when non-critical dependency fails', async () => {

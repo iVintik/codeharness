@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +20,12 @@ export function getPackageRoot(): string {
 export function generateFile(targetPath: string, content: string): void {
   mkdirSync(dirname(targetPath), { recursive: true });
   writeFileSync(targetPath, content, 'utf-8');
+}
+
+/** Append content to an existing file. Creates parent dirs if missing. */
+export function appendFile(targetPath: string, content: string): void {
+  mkdirSync(dirname(targetPath), { recursive: true });
+  appendFileSync(targetPath, content, 'utf-8');
 }
 
 /**

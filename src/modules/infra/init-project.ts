@@ -28,7 +28,7 @@ function failResult(opts: InitOptions, error: string): InitResult {
   return {
     status: 'fail', stack: null, stacks: [], error,
     enforcement: { frontend: opts.frontend, database: opts.database, api: opts.api },
-    documentation: { agents_md: 'skipped', docs_scaffold: 'skipped', readme: 'skipped' },
+    documentation: { agents_md: 'skipped', claude_md: 'skipped', docs_scaffold: 'skipped' },
   };
 }
 
@@ -54,7 +54,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   const result: InitResult = {
     status: 'ok', stack: null, stacks: [],
     enforcement: { frontend: opts.frontend, database: opts.database, api: opts.api },
-    documentation: { agents_md: 'skipped', docs_scaffold: 'skipped', readme: 'skipped' },
+    documentation: { agents_md: 'skipped', claude_md: 'skipped', docs_scaffold: 'skipped' },
   };
 
   // --- Idempotent re-run check ---
@@ -164,7 +164,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   if (!isJson) okOutput('State file: .claude/codeharness.local.md created');
 
   // --- Documentation scaffold ---
-  const docsResult = await scaffoldDocs({ projectDir, stack, stacks: allStacks, agentRuntime, isJson });
+  const docsResult = await scaffoldDocs({ projectDir, stack, stacks: allStacks, isJson });
   if (isOk(docsResult)) result.documentation = docsResult.data;
 
   // --- Store observability backend choice ---
@@ -249,7 +249,7 @@ function handleRerun(opts: InitOptions, result: InitResult): Result<InitResult> 
     result.stack = existingState.stack;
     result.stacks = existingState.stacks ?? [];
     result.enforcement = existingState.enforcement;
-    result.documentation = { agents_md: 'exists', docs_scaffold: 'exists', readme: 'exists' };
+    result.documentation = { agents_md: 'unchanged', claude_md: 'unchanged', docs_scaffold: 'exists' };
     // Check workflow file status on re-run (respect --force)
     const workflowRelPath = '.codeharness/workflows/default.yaml';
     const workflowPath = join(projectDir, workflowRelPath);

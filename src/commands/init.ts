@@ -4,10 +4,11 @@ import { initProject } from '../modules/infra/index.js';
 import type { AgentRuntime } from '../modules/infra/index.js';
 import { isOk } from '../types/result.js';
 
-// Re-export helpers for backward compatibility (used by existing tests)
+// Re-export helpers for consumers
 export {
-  generateAgentsMdContent,
+  generateAgentFileContent,
   generateDocsIndexContent,
+  ensureAgentFile,
   getCoverageTool,
   getStackLabel,
   getProjectName,

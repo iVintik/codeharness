@@ -561,18 +561,39 @@ describe('init command — idempotent re-run', () => {
     expect(parsed.bmad.patches_applied).toBeDefined();
   });
 
-  it('does not regenerate docs on re-run', async () => {
+  it('preserves user AGENTS.md content on re-run but heals missing docs reference', async () => {
     writeFileSync(join(testDir, 'package.json'), '{}');
 
     await runCli(['init']);
 
-    // Modify AGENTS.md
-    writeFileSync(join(testDir, 'AGENTS.md'), 'modified');
+    // User replaces AGENTS.md with their own content (no docs reference)
+    writeFileSync(join(testDir, 'AGENTS.md'), '# custom instructions');
 
-    // Re-run
+    // Re-run — non-destructive scaffold runs, original body preserved,
+    // reference block appended because the marker was missing.
     await runCli(['init']);
 
-    expect(readFileSync(join(testDir, 'AGENTS.md'), 'utf-8')).toBe('modified');
+    const content = readFileSync(join(testDir, 'AGENTS.md'), 'utf-8');
+    expect(content).toContain('# custom instructions');
+    expect(content).toContain('docs/index.md');
+  });
+
+  it('heals missing CLAUDE.md and docs/index.md on re-run', async () => {
+    writeFileSync(join(testDir, 'package.json'), '{}');
+
+    await runCli(['init']);
+
+    // Simulate pre-fix state: delete CLAUDE.md and docs/index.md
+    rmSync(join(testDir, 'CLAUDE.md'), { force: true });
+    rmSync(join(testDir, 'docs', 'index.md'), { force: true });
+
+    // Re-run should recreate them without touching other files
+    await runCli(['init']);
+
+    expect(existsSync(join(testDir, 'CLAUDE.md'))).toBe(true);
+    expect(existsSync(join(testDir, 'docs', 'index.md'))).toBe(true);
+    const indexContent = readFileSync(join(testDir, 'docs', 'index.md'), 'utf-8');
+    expect(indexContent).toContain('/document-project');
   });
 });
 

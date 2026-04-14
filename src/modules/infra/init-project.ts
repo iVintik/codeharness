@@ -58,7 +58,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   };
 
   // --- Idempotent re-run check ---
-  const rerunResult = handleRerun(opts, result);
+  const rerunResult = await handleRerun(opts, result);
   if (rerunResult !== null) return rerunResult;
 
   // --- Observability backend validation ---
@@ -235,7 +235,7 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   return ok(result);
 }
 
-function handleRerun(opts: InitOptions, result: InitResult): Result<InitResult> | null {
+async function handleRerun(opts: InitOptions, result: InitResult): Promise<Result<InitResult> | null> {
   const { projectDir, json: isJson = false } = opts;
   if (!existsSync(getStatePath(projectDir))) return null;
 
@@ -249,7 +249,16 @@ function handleRerun(opts: InitOptions, result: InitResult): Result<InitResult> 
     result.stack = existingState.stack;
     result.stacks = existingState.stacks ?? [];
     result.enforcement = existingState.enforcement;
-    result.documentation = { agents_md: 'unchanged', claude_md: 'unchanged', docs_scaffold: 'exists' };
+    // Run docs scaffold — it's non-destructive and self-healing:
+    // creates missing docs/index.md, missing AGENTS.md / CLAUDE.md, and appends
+    // the docs-index reference block when absent. Existing content is preserved.
+    const primaryStack = existingState.stack ?? null;
+    const rerunDocsResult = await scaffoldDocs({ projectDir, stack: primaryStack, isJson });
+    if (isOk(rerunDocsResult)) {
+      result.documentation = rerunDocsResult.data;
+    } else {
+      result.documentation = { agents_md: 'unchanged', claude_md: 'unchanged', docs_scaffold: 'exists' };
+    }
     // Check workflow file status on re-run (respect --force)
     const workflowRelPath = '.codeharness/workflows/default.yaml';
     const workflowPath = join(projectDir, workflowRelPath);

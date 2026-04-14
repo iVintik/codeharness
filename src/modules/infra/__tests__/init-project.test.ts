@@ -84,12 +84,19 @@ vi.mock('../../../lib/observability/index.js', () => ({
 }));
 
 vi.mock('../../../lib/templates.js', async () => {
-  const { readFileSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const { readFileSync, writeFileSync, appendFileSync, mkdirSync } = await vi.importActual<typeof import('node:fs')>('node:fs');
   const { resolve, dirname } = await vi.importActual<typeof import('node:path')>('node:path');
   const { fileURLToPath } = await vi.importActual<typeof import('node:url')>('node:url');
   const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
   return {
-    generateFile: vi.fn(),
+    generateFile: vi.fn((path: string, content: string) => {
+      mkdirSync(dirname(path), { recursive: true });
+      writeFileSync(path, content);
+    }),
+    appendFile: vi.fn((path: string, content: string) => {
+      mkdirSync(dirname(path), { recursive: true });
+      appendFileSync(path, content);
+    }),
     renderTemplate(template: string, vars: Record<string, string>): string {
       return template.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => vars[key] ?? match);
     },

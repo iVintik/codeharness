@@ -262,7 +262,7 @@ describe('applyAllPatches', () => {
     const results = applyAllPatches(testDir, { silent: true });
     consoleSpy.mockRestore();
 
-    expect(results).toHaveLength(7);
+    expect(results).toHaveLength(8);
     for (const r of results) {
       expect(r.applied).toBe(true);
       expect(r.updated).toBe(false); // fresh apply, not update
@@ -302,7 +302,7 @@ describe('applyAllPatches', () => {
     const results = applyAllPatches(testDir);
     consoleSpy.mockRestore();
 
-    expect(results).toHaveLength(7);
+    expect(results).toHaveLength(8);
     for (const r of results) {
       expect(r.applied).toBe(false);
       expect(r.error).toContain('File not found');

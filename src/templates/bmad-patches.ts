@@ -105,6 +105,28 @@ export function sprintPlanningRetroPatch(): string {
   return sprintBeadsPatch();
 }
 
+export function docsUpdateModePatch(): string {
+  return readPatchFile('docs', 'update-mode') ?? `## Codeharness Extension: Update Mode
+
+Add a fourth "Update changed files only" option to the document-project
+router's Step 3 menu. Update mode is a diff-aware refresh:
+
+1. Find files changed since index.md last updated (git log or mtime fallback).
+2. Only re-read those files.
+3. Update only the doc sections that reference them.
+4. Preserve every other section and codeharness-managed markers.
+
+Decision tree for Step 3:
+  1 → workflow_mode = "update" (diff-aware refresh, new)
+  2 → workflow_mode = "full_rescan" (existing behavior)
+  3 → workflow_mode = "deep_dive" (existing behavior)
+  4 → Cancel
+
+Update mode should also refresh README.md managed blocks when tech stack,
+entry points, or key features change. Never rewrite docs top-to-bottom in
+update mode — the diff is the point.`;
+}
+
 export function docsReadmeGenerationPatch(): string {
   return readPatchFile('docs', 'readme-generation') ?? `## Codeharness Documentation Targets (README + docs/index.md)
 
@@ -142,4 +164,5 @@ export const PATCH_TEMPLATES: Record<string, () => string> = {
   'sprint-beads': sprintBeadsPatch,
   'sprint-retro': sprintPlanningRetroPatch,
   'docs-readme-generation': docsReadmeGenerationPatch,
+  'docs-update-mode': docsUpdateModePatch,
 };

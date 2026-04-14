@@ -65,6 +65,7 @@ export const PATCH_TARGETS: Record<string, string> = {
   'sprint-beads': 'bmm/workflows/4-implementation/sprint-planning/checklist.md',
   'sprint-retro': 'bmm/workflows/4-implementation/sprint-planning/instructions.md',
   'docs-readme-generation': 'bmm/workflows/document-project/workflows/full-scan-instructions.md',
+  'docs-update-mode': 'bmm/workflows/document-project/instructions.md',
 };
 
 /**

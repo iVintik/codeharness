@@ -3,7 +3,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AgentRuntime } from '../modules/infra/index.js';
 import { PATCH_TEMPLATES } from '../templates/bmad-patches.js';
-import { warn } from './output.js';
+import { warn, ok as okOutput } from './output.js';
+import { applyPatch } from './patch-engine.js';
 
 const BMAD_MODULES = 'bmm';
 
@@ -211,15 +212,18 @@ export function applyAllPatches(dir?: string, options?: { silent?: boolean }): P
     }
 
     try {
-      // TODO: v2 workflow-engine (Epic 5) — patch engine removed, applyPatch no longer available
-      // For now, patches are not applied. The patch engine will be rebuilt in the v2 architecture.
-      const _patchContent = templateFn();
+      const patchContent = templateFn();
+      const applied = applyPatch(targetFile, patchName, patchContent);
+      if (!silent) {
+        okOutput(applied.updated
+          ? `BMAD patch updated: ${patchName} → ${relativePath}`
+          : `BMAD patch applied: ${patchName} → ${relativePath}`);
+      }
       results.push({
         patchName,
         targetFile,
-        applied: false,
-        updated: false,
-        error: 'Patch engine removed (Story 1.2) — pending v2 rebuild',
+        applied: applied.applied,
+        updated: applied.updated,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);

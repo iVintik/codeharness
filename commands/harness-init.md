@@ -39,29 +39,37 @@ If the state file already exists (re-init), the CLI handles preservation of enfo
 
 Pass user preferences as CLI flags.
 
-## Step 2: BMAD Installation & Patches
+## Step 2: BMAD Installation
 
-The CLI does NOT handle BMAD installation or patch application. This is your responsibility.
+The CLI applies harness patches to `_bmad/` automatically on every init — you
+do NOT need to read `templates/bmad-patches/` manually or inject markers by
+hand. The CLI uses `src/lib/patch-engine.ts` with
+`<!-- CODEHARNESS-PATCH-START/END:{name} -->` markers and is fully idempotent:
+fresh apply on first run, in-place update on subsequent runs.
 
-### Check for existing BMAD
+### Install BMAD when missing
 
-1. If `_bmad/` directory exists → preserve it, apply patches
-2. If NO `_bmad/` → run `npx bmad-method install --yes --directory . --modules bmm --tools none`
+If `_bmad/` does not exist in the project, install it before re-running init:
 
-Use `--tools none` for OpenCode and other non-BMAD-native agent runtimes. codeharness exposes the runnable instructions through repo-local `AGENTS.md`, `commands/`, and `skills/` instead of relying on BMAD to generate IDE-specific command wrappers.
-
-### Apply Harness Patches
-
-Read each patch template from the codeharness plugin's `templates/bmad-patches/` directory. Check if the patch marker already exists in the target file before applying.
-
-Each patch is wrapped with markers:
-```
-<!-- CODEHARNESS-PATCH-START:{patch_name} -->
-{patch content}
-<!-- CODEHARNESS-PATCH-END:{patch_name} -->
+```bash
+npx bmad-method install --yes --directory . --modules bmm --tools none
 ```
 
-If markers already exist, skip that patch. Patches are idempotent.
+Use `--tools none` for OpenCode and other non-BMAD-native runtimes. Then
+re-run `npx --yes codeharness@latest init --json` — the CLI will detect the
+new `_bmad/` tree and apply all harness patches on that run.
+
+### Verifying patches landed
+
+Parse the JSON output's `bmad.patches_applied` array. Each entry looks like:
+
+```json
+{ "patchName": "docs-readme-generation", "applied": true, "updated": false }
+```
+
+`applied: false` with `error: "File not found: …"` means the BMAD install is
+missing the target file (common with skeletal standalone installs). Fix the
+BMAD install — do NOT edit `_bmad/` files by hand.
 
 ## Step 3: Report
 

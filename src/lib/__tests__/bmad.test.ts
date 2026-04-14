@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -255,17 +255,42 @@ describe('applyAllPatches', () => {
     }
   }
 
-  // Patch engine removed (Story 1.2) — applyAllPatches now returns applied:false for all patches.
-  // These tests verify the no-op behavior.
-
-  it('returns applied:false with removal message for all patches (patch engine removed)', () => {
+  it('applies all patches to fresh target files and persists markers', () => {
     createBmadWorkflowFiles(testDir);
 
-    const results = applyAllPatches(testDir);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const results = applyAllPatches(testDir, { silent: true });
+    consoleSpy.mockRestore();
+
     expect(results).toHaveLength(7);
     for (const r of results) {
-      expect(r.applied).toBe(false);
-      expect(r.error).toContain('Patch engine removed');
+      expect(r.applied).toBe(true);
+      expect(r.updated).toBe(false); // fresh apply, not update
+      expect(r.error).toBeUndefined();
+      // Verify markers landed in the target file
+      const content = readFileSync(r.targetFile, 'utf-8');
+      expect(content).toContain(`CODEHARNESS-PATCH-START:${r.patchName}`);
+      expect(content).toContain(`CODEHARNESS-PATCH-END:${r.patchName}`);
+    }
+  });
+
+  it('reapplying is idempotent — second run updates markers in place', () => {
+    createBmadWorkflowFiles(testDir);
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    applyAllPatches(testDir, { silent: true });
+    const second = applyAllPatches(testDir, { silent: true });
+    consoleSpy.mockRestore();
+
+    for (const r of second) {
+      expect(r.applied).toBe(true);
+      expect(r.updated).toBe(true); // markers existed, content replaced between them
+    }
+    // Target files should not have duplicate markers
+    for (const r of second) {
+      const content = readFileSync(r.targetFile, 'utf-8');
+      const startMatches = content.match(new RegExp(`CODEHARNESS-PATCH-START:${r.patchName}`, 'g'));
+      expect(startMatches?.length).toBe(1);
     }
   });
 

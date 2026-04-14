@@ -247,8 +247,10 @@ describe('detectBmalph', () => {
 
 describe('applyAllPatches', () => {
   function createBmadWorkflowFiles(dir: string): void {
+    // PATCH_TARGETS are project-relative (v6.3.0 `.claude/skills/bmad-*/`
+    // layout); resolve directly against `dir`, no _bmad/ prefix.
     for (const relativePath of Object.values(PATCH_TARGETS)) {
-      const fullPath = join(dir, '_bmad', relativePath);
+      const fullPath = join(dir, relativePath);
       const parentDir = fullPath.replace(/\/[^/]+$/, '');
       mkdirSync(parentDir, { recursive: true });
       writeFileSync(fullPath, `# Workflow file\n\nSome existing content.\n`);
@@ -295,7 +297,7 @@ describe('applyAllPatches', () => {
   });
 
   it('handles missing target files gracefully with warning', () => {
-    mkdirSync(join(testDir, '_bmad'), { recursive: true });
+    mkdirSync(join(testDir, '.claude', 'skills'), { recursive: true });
     // Don't create any workflow files
 
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});

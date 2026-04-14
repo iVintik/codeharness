@@ -8,11 +8,47 @@ import {
   applyAllPatches,
   detectBmadVersion,
   detectBmalph,
+  type PatchResult,
 } from '../../lib/bmad.js';
 import { ok as okOutput, fail as failOutput, info, warn } from '../../lib/output.js';
+import { basename } from 'node:path';
 import type { Result } from '../../types/result.js';
 import { ok } from '../../types/result.js';
-import type { AgentRuntime, InitBmadResult } from './types.js';
+import type { AgentRuntime, InitBmadResult, PatchStatus } from './types.js';
+
+/** Convert raw PatchResult[] from the engine into PatchStatus[] for JSON output. */
+function buildPatchStatuses(raw: PatchResult[], projectDir: string): PatchStatus[] {
+  return raw.map((r) => {
+    // Trim the projectDir prefix so the target reads as a _bmad-relative path.
+    const target = r.targetFile.startsWith(projectDir)
+      ? r.targetFile.slice(projectDir.length + 1)
+      : r.targetFile;
+    const status: PatchStatus = {
+      name: r.patchName,
+      target,
+      applied: r.applied,
+      updated: r.updated,
+    };
+    if (r.error) (status as { error?: string }).error = r.error;
+    return status;
+  });
+}
+
+/** Emit a WARN line for each failed patch so users see which targets were missing. */
+function warnOnFailedPatches(patches: PatchStatus[], isJson: boolean): void {
+  if (isJson) return;
+  const failed = patches.filter((p) => !p.applied);
+  if (failed.length === 0) return;
+  warn(`BMAD: ${failed.length}/${patches.length} harness patches could NOT be applied:`);
+  for (const f of failed) {
+    warn(`  - ${f.name} → ${f.target}: ${f.error ?? 'unknown error'}`);
+  }
+  warn('  Common cause: BMAD install is missing the target workflow files.');
+  warn('  Fix: reinstall BMAD with `npx bmad-method install --yes --directory . --modules bmm --tools claude-code`');
+  warn('  Then re-run `codeharness init`.');
+  // Silence unused import warning in non-json mode
+  void basename;
+}
 
 interface BmadSetupOptions {
   readonly projectDir: string;
@@ -33,32 +69,42 @@ export function setupBmad(opts: BmadSetupOptions): Result<InitBmadResult> {
     if (bmadAlreadyInstalled) {
       const version = detectBmadVersion(opts.projectDir);
       const patchResults = applyAllPatches(opts.projectDir, { silent: opts.isJson });
-      const patchNames = patchResults.filter(r => r.applied).map(r => r.patchName);
+      const patches = buildPatchStatuses(patchResults, opts.projectDir);
+      const patchNames = patches.filter(p => p.applied).map(p => p.name);
+      const patchesFailed = patches.filter(p => !p.applied);
 
       bmadResult = {
         status: 'already-installed',
         version,
         patches_applied: patchNames,
+        patches,
+        patches_failed: patchesFailed,
         bmalph_detected: false,
       };
 
       if (!opts.isJson) {
-        info('BMAD: already installed, patches verified');
+        info(`BMAD: already installed, ${patchNames.length}/${patches.length} patches applied`);
+        warnOnFailedPatches(patches, opts.isJson);
       }
     } else {
       const installResult = installBmad(opts.projectDir, agentRuntime);
       const patchResults = applyAllPatches(opts.projectDir, { silent: opts.isJson });
-      const patchNames = patchResults.filter(r => r.applied).map(r => r.patchName);
+      const patches = buildPatchStatuses(patchResults, opts.projectDir);
+      const patchNames = patches.filter(p => p.applied).map(p => p.name);
+      const patchesFailed = patches.filter(p => !p.applied);
 
       bmadResult = {
         status: installResult.status,
         version: installResult.version,
         patches_applied: patchNames,
+        patches,
+        patches_failed: patchesFailed,
         bmalph_detected: false,
       };
 
       if (!opts.isJson) {
-        okOutput(`BMAD: installed (v${installResult.version ?? 'unknown'}), harness patches applied`);
+        okOutput(`BMAD: installed (v${installResult.version ?? 'unknown'}), ${patchNames.length}/${patches.length} harness patches applied`);
+        warnOnFailedPatches(patches, opts.isJson);
       }
     }
 
@@ -78,6 +124,8 @@ export function setupBmad(opts: BmadSetupOptions): Result<InitBmadResult> {
       status: 'failed',
       version: null,
       patches_applied: [],
+      patches: [],
+      patches_failed: [],
       bmalph_detected: false,
       error: message,
     };
@@ -99,17 +147,22 @@ export function verifyBmadOnRerun(projectDir: string, isJson: boolean): InitBmad
   }
   try {
     const patchResults = applyAllPatches(projectDir, { silent: isJson });
-    const patchNames = patchResults.filter(r => r.applied).map(r => r.patchName);
+    const patches = buildPatchStatuses(patchResults, projectDir);
+    const patchNames = patches.filter(p => p.applied).map(p => p.name);
+    const patchesFailed = patches.filter(p => !p.applied);
     const version = detectBmadVersion(projectDir);
     const bmalpHDetection = detectBmalph(projectDir);
     const result: InitBmadResult = {
       status: 'already-installed',
       version,
       patches_applied: patchNames,
+      patches,
+      patches_failed: patchesFailed,
       bmalph_detected: bmalpHDetection.detected,
     };
     if (!isJson) {
-      info('BMAD: already installed, patches verified');
+      info(`BMAD: already installed, ${patchNames.length}/${patches.length} patches applied`);
+      warnOnFailedPatches(patches, isJson);
       if (bmalpHDetection.detected) {
         warn('bmalph detected — superseded files noted for cleanup');
       }

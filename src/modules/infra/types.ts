@@ -49,11 +49,23 @@ export interface InitBeadsResult {
   readonly message?: string;
 }
 
+/** Per-patch result rendered in the JSON output so users can see which
+ * BMAD target files were updated vs skipped and why. */
+export interface PatchStatus {
+  readonly name: string;
+  readonly target: string;
+  readonly applied: boolean;
+  readonly updated: boolean;
+  readonly error?: string;
+}
+
 /** BMAD result shape within InitResult */
 export interface InitBmadResult {
   readonly status: 'installed' | 'already-installed' | 'patched' | 'failed';
   readonly version: string | null;
   readonly patches_applied: string[];
+  readonly patches: PatchStatus[];
+  readonly patches_failed: PatchStatus[];
   readonly bmalph_detected: boolean;
   readonly error?: string;
 }

@@ -55,17 +55,21 @@ export interface PatchResult {
 }
 
 /**
- * Maps each patch name to its target file path relative to `_bmad/`.
+ * Project-relative paths to BMAD workflow files patched by codeharness.
+ * Targets BMAD 6.3.0+ `.claude/skills/bmad-*` layout. Older BMAD releases
+ * stored workflow definitions under `_bmad/bmm/workflows` which no longer
+ * exist after `bmad-method install`, hence the migration to skill paths.
+ * Resolution happens in `applyAllPatches` via `join(root, relativePath)`.
  */
 export const PATCH_TARGETS: Record<string, string> = {
-  'story-verification': 'bmm/workflows/4-implementation/create-story/template.md',
-  'dev-enforcement': 'bmm/workflows/4-implementation/dev-story/instructions.xml',
-  'review-enforcement': 'bmm/workflows/4-implementation/code-review/instructions.xml',
-  'retro-enforcement': 'bmm/workflows/4-implementation/retrospective/instructions.md',
-  'sprint-beads': 'bmm/workflows/4-implementation/sprint-planning/checklist.md',
-  'sprint-retro': 'bmm/workflows/4-implementation/sprint-planning/instructions.md',
-  'docs-readme-generation': 'bmm/workflows/document-project/workflows/full-scan-instructions.md',
-  'docs-update-mode': 'bmm/workflows/document-project/instructions.md',
+  'story-verification': '.claude/skills/bmad-create-story/template.md',
+  'dev-enforcement': '.claude/skills/bmad-dev-story/workflow.md',
+  'review-enforcement': '.claude/skills/bmad-code-review/workflow.md',
+  'retro-enforcement': '.claude/skills/bmad-retrospective/workflow.md',
+  'sprint-beads': '.claude/skills/bmad-sprint-planning/checklist.md',
+  'sprint-retro': '.claude/skills/bmad-sprint-planning/workflow.md',
+  'docs-readme-generation': '.claude/skills/bmad-document-project/workflows/full-scan-instructions.md',
+  'docs-update-mode': '.claude/skills/bmad-document-project/instructions.md',
 };
 
 /**
@@ -83,7 +87,25 @@ export function isBmadInstalled(dir?: string): boolean {
 export function detectBmadVersion(dir?: string): string | null {
   const root = dir ?? process.cwd();
 
-  // Try core/module.yaml first (BMAD v6+ format)
+  // BMAD v6.3.0+ format: version lives under `installation.version` in
+  // the installer manifest. This is the canonical source for the installed
+  // release — read it first so freshly-installed _bmad/ directories report
+  // the right version.
+  const manifestPath = join(root, '_bmad', '_config', 'manifest.yaml');
+  if (existsSync(manifestPath)) {
+    try {
+      const content = readFileSync(manifestPath, 'utf-8');
+      // Match the installation.version line (first `version:` in the file
+      // after the `installation:` key). Intentionally greedy-free to stop
+      // before per-module versions appear under `modules:`.
+      const match = content.match(/installation:\s*\n(?:\s+.*\n)*?\s+version:\s*["']?([^\s"']+)["']?/);
+      if (match) return match[1];
+    } catch {
+      // IGNORE: manifest may be unreadable, fall through
+    }
+  }
+
+  // Pre-6.3 core/module.yaml format
   const moduleYamlPath = join(root, '_bmad', 'core', 'module.yaml');
   if (existsSync(moduleYamlPath)) {
     try {
@@ -186,7 +208,9 @@ export function applyAllPatches(dir?: string, options?: { silent?: boolean }): P
   const results: PatchResult[] = [];
 
   for (const [patchName, relativePath] of Object.entries(PATCH_TARGETS)) {
-    const targetFile = join(root, '_bmad', relativePath);
+    // Targets are now project-relative (e.g. `.claude/skills/bmad-*/workflow.md`)
+    // following BMAD 6.3.0's skill-layout install. Resolve against root directly.
+    const targetFile = join(root, relativePath);
 
     if (!existsSync(targetFile)) {
       if (!silent) warn(`Patch target not found: ${relativePath}`);

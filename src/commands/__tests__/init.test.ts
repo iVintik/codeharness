@@ -538,7 +538,7 @@ describe('init command — idempotent re-run', () => {
 
     // Second run — should verify BMAD patches
     const { stdout } = await runCli(['init']);
-    expect(stdout).toContain('[INFO] BMAD: already installed, patches verified');
+    expect(stdout).toContain('[INFO] BMAD: already installed');
     expect(mockApplyAllPatches).toHaveBeenCalled();
   });
 
@@ -1016,7 +1016,7 @@ describe('init command — BMAD installation', () => {
 
     const { stdout } = await runCli(['init']);
     expect(mockInstallBmad).toHaveBeenCalled();
-    expect(stdout).toContain('[OK] BMAD: installed (v6.0.0), harness patches applied');
+    expect(stdout).toContain('BMAD: installed (v6.0.0)');
   });
 
   it('skips BMAD install when _bmad/ already exists', async () => {
@@ -1026,7 +1026,7 @@ describe('init command — BMAD installation', () => {
 
     const { stdout } = await runCli(['init']);
     expect(mockInstallBmad).not.toHaveBeenCalled();
-    expect(stdout).toContain('[INFO] BMAD: already installed, patches verified');
+    expect(stdout).toContain('[INFO] BMAD: already installed');
   });
 
   it('applies patches after BMAD install', async () => {

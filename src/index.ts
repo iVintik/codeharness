@@ -24,6 +24,7 @@ import { registerAuditCommand } from './commands/audit.js';
 import { registerStatsCommand } from './commands/stats.js';
 import { registerIssueCommand } from './commands/issue.js';
 import { registerGateCommand } from './commands/gate.js';
+import { checkForUpdate } from './lib/update-check.js';
 
 // Library exports — types available to consumers importing from 'codeharness'
 export type { StreamEvent, ToolStartEvent, ToolInputEvent, ToolCompleteEvent, TextEvent, RetryEvent, ResultEvent } from './lib/workflow-types.js';
@@ -72,6 +73,10 @@ export function createProgram(): Command {
 
 // Only parse when running as CLI entry point, not when imported in tests
 if (!process.env['VITEST']) {
+  // Non-blocking update check: fires before parse, uses cached result when
+  // fresh, fetches in background when stale. Never awaits, never throws.
+  void checkForUpdate({ currentVersion: VERSION });
+
   const program = createProgram();
   program.parse(process.argv);
 }

@@ -84,7 +84,19 @@ export interface InitResult {
   workflow?: { status: 'created' | 'exists' | 'overwritten'; path: string };
   dockerfile?: { generated: boolean; stack: string; stacks: string[] };
   docker?: InitDockerResult | null;
+  /** Recommended follow-up commands for the user / skill to render. */
+  next_steps?: NextStep[];
   error?: string;
+}
+
+/** A recommended follow-up action after init. */
+export interface NextStep {
+  /** Short machine-readable ID (e.g. 'document-project', 'harness-run'). */
+  readonly id: string;
+  /** Human-readable description. */
+  readonly description: string;
+  /** Command the user should invoke, as a single string. */
+  readonly command: string;
 }
 
 /** Status of the infrastructure stack */

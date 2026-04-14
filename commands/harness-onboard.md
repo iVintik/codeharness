@@ -6,22 +6,25 @@ description: Scan an existing project and generate an onboarding plan to bring i
 
 Scan an existing project for harness compliance gaps and generate an executable onboarding plan. Produces new stories for coverage, documentation, and observability gaps (appended to sprint-status.yaml).
 
-## Step 1: Build the CLI
+## Step 1: Verify the CLI is reachable
 
-Ensure the CLI is up to date before scanning:
+`npx` resolves the latest published CLI from npm on demand. Nothing to build —
+just confirm the binary runs:
 
 ```bash
-npm run build
+npx --yes codeharness@latest --version
 ```
 
-If the build fails, fix the errors before proceeding.
+If this fails, check npm connectivity and node ≥22 before proceeding.
 
 ## Step 2: Run Full Onboarding Scan
 
-Run the comprehensive TypeScript scanner with `--force-scan` and `--auto-approve`:
+Run the comprehensive TypeScript scanner with `--force-scan` and `--auto-approve`.
+Always invoke via `npx --yes codeharness@latest` so the plugin and CLI stay
+in lockstep — never call a bare `codeharness`.
 
 ```bash
-codeharness onboard epic --force-scan --auto-approve
+npx --yes codeharness@latest onboard epic --force-scan --auto-approve
 ```
 
 This runs ALL phases:

@@ -355,7 +355,7 @@ describe('init command — AGENTS.md / CLAUDE.md generation', () => {
     const agentsContent = readFileSync(agentsPath, 'utf-8');
     expect(agentsContent).toContain('my-proj');
     expect(agentsContent).toContain('docs/index.md');
-    expect(agentsContent).toContain('/document-project');
+    expect(agentsContent).toContain('/bmad-bmm-document-project');
     // Regression guards: no codeharness-internal bullets, no hardcoded src/ tree
     expect(agentsContent).not.toContain('## Harness Files');
     expect(agentsContent).not.toMatch(/├── src\//);
@@ -417,7 +417,7 @@ describe('init command — docs/ scaffold', () => {
 
     const indexContent = readFileSync(join(testDir, 'docs', 'index.md'), 'utf-8');
     expect(indexContent).toContain('proj Documentation Index');
-    expect(indexContent).toContain('/document-project');
+    expect(indexContent).toContain('/bmad-bmm-document-project');
     expect(indexContent).toContain('_(To be generated)_');
   });
 
@@ -593,7 +593,7 @@ describe('init command — idempotent re-run', () => {
     expect(existsSync(join(testDir, 'CLAUDE.md'))).toBe(true);
     expect(existsSync(join(testDir, 'docs', 'index.md'))).toBe(true);
     const indexContent = readFileSync(join(testDir, 'docs', 'index.md'), 'utf-8');
-    expect(indexContent).toContain('/document-project');
+    expect(indexContent).toContain('/bmad-bmm-document-project');
   });
 });
 
@@ -721,7 +721,7 @@ describe('init command — helper functions', () => {
     const content = generateDocsIndexContent('my-project', 'Node.js');
     expect(content).toContain('my-project Documentation Index');
     expect(content).toContain('**Primary Language:** Node.js');
-    expect(content).toContain('/document-project');
+    expect(content).toContain('/bmad-bmm-document-project');
     expect(content).toContain('_(To be generated)_');
   });
 
@@ -730,7 +730,7 @@ describe('init command — helper functions', () => {
     expect(content).toContain('my-project');
     expect(content).toContain('Python');
     expect(content).toContain('docs/index.md');
-    expect(content).toContain('/document-project');
+    expect(content).toContain('/bmad-bmm-document-project');
   });
 
   it('generateAgentFileContent handles unknown stack', () => {

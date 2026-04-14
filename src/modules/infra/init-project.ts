@@ -32,6 +32,35 @@ function failResult(opts: InitOptions, error: string): InitResult {
   };
 }
 
+/** Default next-step recommendations surfaced to the user after a successful init. */
+function defaultNextSteps(): InitResult['next_steps'] {
+  return [
+    {
+      id: 'document-project',
+      description: 'Populate docs/ and write README.md from the actual codebase (BMAD tech-writer)',
+      command: '/bmad-bmm-document-project',
+    },
+    {
+      id: 'harness-run',
+      description: 'Start autonomous execution',
+      command: '/codeharness:harness-run',
+    },
+  ];
+}
+
+/** Emit the Next Steps block to stdout in human mode. No-op in json mode. */
+function emitNextSteps(result: InitResult, isJson: boolean): void {
+  if (isJson) return;
+  const steps = result.next_steps ?? [];
+  if (steps.length === 0) return;
+  info('');
+  info('Next steps:');
+  for (const step of steps) {
+    info(`  → ${step.command}  — ${step.description}`);
+  }
+  info('');
+}
+
 /** Output error and set exit code for validation/critical failures */
 function emitError(error: string, isJson: boolean): void {
   if (isJson) { jsonOutput({ status: 'fail', error }); } else { failOutput(error); }
@@ -176,11 +205,13 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
     result.otlp = { status: 'skipped', packages_installed: false, start_script_patched: false, env_vars_configured: false };
     if (!isJson) info('Observability: disabled (--observability-backend none)');
     // Skip enforcement summary for 'none' — jump to end
+    result.next_steps = defaultNextSteps();
     if (!isJson) {
       const e = state.enforcement;
       const fmt = (v: boolean): string => v ? 'ON' : 'OFF';
       okOutput(`Enforcement: frontend:${fmt(e.frontend)} database:${fmt(e.database)} api:${fmt(e.api)} observability:OFF`);
       info('Harness initialized. Run: codeharness bridge --epics <path>');
+      emitNextSteps(result, isJson);
     }
     if (isJson) jsonOutput(result as unknown as Record<string, unknown>);
     return ok(result);
@@ -223,12 +254,14 @@ async function initProjectInner(opts: InitOptions): Promise<Result<InitResult>> 
   });
   if (isOk(dockerSetup)) result.docker = dockerSetup.data.docker;
 
-  // --- Enforcement summary ---
+  // --- Enforcement summary + next steps ---
+  result.next_steps = defaultNextSteps();
   if (!isJson) {
     const e = state.enforcement;
     const fmt = (v: boolean): string => v ? 'ON' : 'OFF';
     okOutput(`Enforcement: frontend:${fmt(e.frontend)} database:${fmt(e.database)} api:${fmt(e.api)} observability:ON`);
     info('Harness initialized. Run: codeharness bridge --epics <path>');
+    emitNextSteps(result, isJson);
   }
   if (isJson) jsonOutput(result as unknown as Record<string, unknown>);
 
@@ -284,8 +317,14 @@ async function handleRerun(opts: InitOptions, result: InitResult): Promise<Resul
       : null;
     const bmadResult = verifyBmadOnRerun(projectDir, isJson);
     if (bmadResult) result.bmad = bmadResult;
-    if (isJson) { jsonOutput(result as unknown as Record<string, unknown>); }
-    else { info('Harness already initialized — verifying configuration'); okOutput('Configuration verified'); }
+    result.next_steps = defaultNextSteps();
+    if (isJson) {
+      jsonOutput(result as unknown as Record<string, unknown>);
+    } else {
+      info('Harness already initialized — verifying configuration');
+      okOutput('Configuration verified');
+      emitNextSteps(result, isJson);
+    }
     return ok(result);
   } catch {
     // IGNORE: re-init check may fail, non-fatal

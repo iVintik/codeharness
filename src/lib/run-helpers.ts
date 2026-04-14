@@ -8,10 +8,7 @@
  * Ralph-specific functions removed in Story 1.2 — workflow engine pending (Epic 5).
  */
 
-import { StringDecoder } from 'node:string_decoder';
-import { parseStreamLine } from './agents/stream-parser.js';
-import type { StreamEvent } from './agents/stream-parser.js';
-import type { StoryStatusEntry, StoryStatusValue, StoryMessage } from './ink-components.js';
+import type { StoryStatusEntry, StoryStatusValue } from './ink-components.js';
 
 // --- Story Counting ---
 
@@ -112,36 +109,3 @@ export function mapSprintStatuses(statuses: Record<string, string>): StoryStatus
   return entries;
 }
 
-// --- Line Processor (extracted from run.ts for testability) ---
-
-export interface LineProcessorCallbacks {
-  onEvent: (event: StreamEvent) => void;
-  onMessage?: (msg: StoryMessage) => void;
-  onIteration?: (iteration: number) => void;
-}
-
-/**
- * Creates a Buffer-to-lines processor that splits on newlines, handles
- * partial-line buffering across chunk boundaries, and feeds complete
- * lines through the stream parser.
- *
- * Ralph message parsing removed in Story 1.2 — workflow engine pending (Epic 5).
- */
-export function createLineProcessor(
-  callbacks: LineProcessorCallbacks,
-): (data: Buffer) => void {
-  let partial = '';
-  const decoder = new StringDecoder('utf8');
-  return (data: Buffer): void => {
-    const text = partial + decoder.write(data);
-    const parts = text.split('\n');
-    partial = parts.pop() ?? '';
-    for (const line of parts) {
-      if (line.trim().length === 0) continue;
-      const event = parseStreamLine(line);
-      if (event) {
-        callbacks.onEvent(event);
-      }
-    }
-  };
-}

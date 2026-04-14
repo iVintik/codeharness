@@ -10,14 +10,14 @@ tasks:
     agent: dev
     session: fresh
     source_access: true
-    driver: codex
+    driver: opencode
     model: gpt-5.4
     timeout_minutes: 30
   check:
     agent: checker
     session: fresh
     source_access: true
-    driver: codex
+    driver: opencode
     model: gpt-5.4
     timeout_minutes: 10
   review:
@@ -31,14 +31,14 @@ tasks:
     agent: documenter
     session: fresh
     source_access: true
-    driver: codex
+    driver: opencode
     model: gpt-5.4
     timeout_minutes: 15
   deploy:
     agent: deployer
     session: fresh
     source_access: true
-    driver: codex
+    driver: opencode
     model: gpt-5.4
     timeout_minutes: 30
   verify:
@@ -52,7 +52,7 @@ tasks:
     agent: dev
     session: fresh
     source_access: true
-    driver: codex
+    driver: opencode
     model: gpt-5.4
     timeout_minutes: 15
   retro:
@@ -65,7 +65,7 @@ tasks:
 
 # Default driver and model for any task without explicit configuration
 defaults:
-  driver: codex
+  driver: opencode
   model: gpt-5.4
 
 workflow:

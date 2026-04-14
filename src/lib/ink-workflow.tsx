@@ -97,11 +97,9 @@ function loopIteration(tasks: string[], taskStates: Record<string, TaskNodeState
 function _collectTaskNames(flow: FlowStep[]): string[] {
   const names: string[] = [];
   for (const step of flow) {
-    if (isLoopBlock(step)) {
-      names.push(...step.loop);
-    } else {
-      names.push(step);
-    }
+    if (typeof step === 'string') names.push(step);
+    else if (isLoopBlock(step)) names.push(...step.loop);
+    // Gate/forEach blocks contribute no simple task names
   }
   return names;
 }

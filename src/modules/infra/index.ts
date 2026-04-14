@@ -4,7 +4,7 @@
 
 import type { Result } from '../../types/result.js';
 import type { ObservabilityBackend } from '../../types/observability.js';
-import type { InitOptions, InitResult, StackStatus, CleanupResult } from './types.js';
+import type { AgentRuntime, InitOptions, InitResult, StackStatus, CleanupResult } from './types.js';
 import { initProject as initProjectImpl } from './init-project.js';
 import { ensureStack as ensureStackImpl, detectRunningStack, detectPortConflicts } from './stack-management.js';
 import { cleanupContainers as cleanupContainersImpl } from './container-cleanup.js';

@@ -65,20 +65,20 @@ describe('default embedded workflow', () => {
       expect(task.model).toBe('kimi-for-coding/k2p5');
     });
 
-    it('implement task uses codex driver with gpt-5.4 model', () => {
+    it('implement task uses opencode driver with gpt-5.4 model', () => {
       const task = workflow.tasks.implement;
       expect(task.agent).toBe('dev');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
-      expect(task.driver).toBe('codex');
+      expect(task.driver).toBe('opencode');
       expect(task.model).toBe('gpt-5.4');
     });
 
-    it('check task uses checker agent with codex driver and gpt-5.4 model', () => {
+    it('check task uses checker agent with opencode driver and gpt-5.4 model', () => {
       const task = workflow.tasks.check;
       expect(task.agent).toBe('checker');
       expect(task.source_access).toBe(true);
-      expect(task.driver).toBe('codex');
+      expect(task.driver).toBe('opencode');
       expect(task.model).toBe('gpt-5.4');
     });
 
@@ -99,12 +99,12 @@ describe('default embedded workflow', () => {
       expect(task.model).toBe('kimi-for-coding/k2p5');
     });
 
-    it('retry task uses codex driver with gpt-5.4 model', () => {
+    it('retry task uses opencode driver with gpt-5.4 model', () => {
       const task = workflow.tasks.retry;
       expect(task.agent).toBe('dev');
       expect(task.session).toBe('fresh');
       expect(task.source_access).toBe(true);
-      expect(task.driver).toBe('codex');
+      expect(task.driver).toBe('opencode');
       expect(task.model).toBe('gpt-5.4');
     });
 
@@ -116,27 +116,27 @@ describe('default embedded workflow', () => {
       expect(task.model).toBe('kimi-for-coding/k2p5');
     });
 
-    it('document task uses codex driver with gpt-5.4 model', () => {
+    it('document task uses opencode driver with gpt-5.4 model', () => {
       const task = workflow.tasks.document;
       expect(task.agent).toBe('documenter');
       expect(task.source_access).toBe(true);
-      expect(task.driver).toBe('codex');
+      expect(task.driver).toBe('opencode');
       expect(task.model).toBe('gpt-5.4');
     });
 
-    it('deploy task uses codex driver with gpt-5.4 model', () => {
+    it('deploy task uses opencode driver with gpt-5.4 model', () => {
       const task = workflow.tasks.deploy;
       expect(task.agent).toBe('deployer');
       expect(task.source_access).toBe(true);
-      expect(task.driver).toBe('codex');
+      expect(task.driver).toBe('opencode');
       expect(task.model).toBe('gpt-5.4');
     });
 
-    it('defaults section sets codex driver and gpt-5.4 as fallback', () => {
+    it('defaults section sets opencode driver and gpt-5.4 as fallback', () => {
       // Read raw YAML to verify defaults section exists
       const raw = readFileSync(defaultWorkflowPath, 'utf-8');
       expect(raw).toContain('defaults:');
-      expect(raw).toContain('driver: codex');
+      expect(raw).toContain('driver: opencode');
       expect(raw).toContain('model: gpt-5.4');
     });
   });

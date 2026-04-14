@@ -27,7 +27,7 @@
   },
   "license": "MIT",
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsup",
@@ -38,13 +38,12 @@
     "lint:sizes": "bash scripts/check-file-sizes.sh"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.90",
     "@inkjs/ui": "^2.0.0",
     "ajv": "^8.18.0",
     "commander": "^14.0.3",
     "ink": "^6.8.0",
     "react": "^19.2.4",
-    "xstate": "^5.30.0",
+    "lilflow": "^0.1.1",
     "yaml": "^2.8.2"
   },
   "devDependencies": {

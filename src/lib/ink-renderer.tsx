@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { render as inkRender } from 'ink';
-import type { StreamEvent } from './agents/stream-parser.js';
+import type { StreamEvent } from './workflow-types.js';
 import { formatElapsed } from './run-helpers.js';
 import {
   App,
@@ -22,9 +22,15 @@ import {
   type TaskNodeState,
   type TaskNodeMeta,
 } from './ink-components.js';
-import type { FlowStep } from './workflow-parser.js';
-import type { LaneEvent } from './lane-pool.js';
+import type { FlowStep } from './workflow-types.js';
 import type { MergeState } from './ink-merge-status.js';
+
+/** Lane events — deprecated (worktree-based parallelism removed; flow handles parallelism natively). */
+export type LaneEvent =
+  | { type: 'lane-started'; epicId: string; laneIndex: number }
+  | { type: 'lane-completed'; epicId: string; laneIndex: number }
+  | { type: 'lane-failed'; epicId: string; laneIndex: number; error: string }
+  | { type: 'epic-queued'; epicId: string };
 
 // --- Public Types ---
 
@@ -233,7 +239,7 @@ export function startRenderer(options?: RendererOptions): RendererHandle {
     return ids;
   }
 
-  function appendTextLog(text: string, lane?: LaneState): void {
+  function appendTextLog(text: string, lane?: LaneActivityState): void {
     const entry: CompletedToolEntry = { name: '', args: text, isText: true };
     if (lane) {
       const updated = [...lane.completedTools, entry];

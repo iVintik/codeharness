@@ -23,11 +23,10 @@ import { registerObservabilityGateCommand } from './commands/observability-gate.
 import { registerAuditCommand } from './commands/audit.js';
 import { registerStatsCommand } from './commands/stats.js';
 import { registerIssueCommand } from './commands/issue.js';
-import { registerDriversCommand, ensureDriversRegistered } from './commands/drivers.js';
+import { registerGateCommand } from './commands/gate.js';
 
-// Library exports — available to consumers via `import { parseStreamLine } from 'codeharness'`
-export { parseStreamLine } from './lib/agents/stream-parser.js';
-export type { StreamEvent, ToolStartEvent, ToolInputEvent, ToolCompleteEvent, TextEvent, RetryEvent, ResultEvent } from './lib/agents/stream-parser.js';
+// Library exports — types available to consumers importing from 'codeharness'
+export type { StreamEvent, ToolStartEvent, ToolInputEvent, ToolCompleteEvent, TextEvent, RetryEvent, ResultEvent } from './lib/workflow-types.js';
 
 declare const __PKG_VERSION__: string;
 const VERSION = typeof __PKG_VERSION__ !== 'undefined' ? __PKG_VERSION__ : '0.0.0-dev';
@@ -66,10 +65,7 @@ export function createProgram(): Command {
   registerAuditCommand(program);
   registerStatsCommand(program);
   registerIssueCommand(program);
-  registerDriversCommand(program);
-
-  // Register built-in drivers so all commands (run, verify, etc.) can use them
-  ensureDriversRegistered();
+  registerGateCommand(program);
 
   return program;
 }

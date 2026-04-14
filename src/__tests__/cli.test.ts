@@ -25,9 +25,8 @@ describe('CLI entry point', () => {
       (c) => c.name() !== 'help'
     );
     const names = commands.map(c => c.name()).sort();
-    // retry command removed (Story 1.2) — merged into workflow-state (Epic 5)
     expect(names).toEqual([
-      'audit', 'bridge', 'coverage', 'doc-health', 'drivers', 'github-import', 'init', 'issue', 'observability-gate', 'onboard', 'progress', 'query', 'retro-import', 'run', 'stack', 'state', 'stats', 'status', 'sync', 'teardown', 'timeout-report', 'validate', 'validate-state', 'verify', 'verify-env',
+      'audit', 'bridge', 'coverage', 'doc-health', 'gate', 'github-import', 'init', 'issue', 'observability-gate', 'onboard', 'progress', 'query', 'retro-import', 'run', 'stack', 'state', 'stats', 'status', 'sync', 'teardown', 'timeout-report', 'validate', 'validate-state', 'verify', 'verify-env',
     ]);
   });
 

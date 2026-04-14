@@ -5,7 +5,7 @@
  * NFR18: ≤ 300 lines. NFR8: ≤ 120 chars max width.
  */
 
-import type { ResolvedWorkflow } from './workflow-types.js';
+import type { ResolvedWorkflow, FlowStep } from './workflow-types.js';
 import { isGateConfig } from './workflow-types.js';
 
 // ─── Visualizer types ────────────────────────────────────────────────────────

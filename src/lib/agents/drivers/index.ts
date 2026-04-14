@@ -1,8 +1,0 @@
-/**
- * Barrel file for drivers subsystem.
- * Re-exports all public symbols from the driver factory.
- */
-
-export { getDriver, registerDriver, listDrivers, resetDrivers, suggestCheaperDriver } from './factory.js';
-export { ClaudeCodeDriver } from './claude-code.js';
-export { OpenCodeDriver } from './opencode.js';

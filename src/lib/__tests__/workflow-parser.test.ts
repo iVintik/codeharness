@@ -15,8 +15,11 @@ import {
   type WorkflowPatch,
   type GateBlock,
 } from '../workflow-parser.js';
-import { registerDriver, resetDrivers } from '../agents/drivers/factory.js';
-import type { AgentDriver } from '../agents/types.js';
+// Driver registry removed — flow validates providers against its built-in list.
+// Test shims below are no-ops kept for backwards-compatible test structure.
+function registerDriver(_driver: unknown): void { /* noop */ }
+function resetDrivers(): void { /* noop */ }
+type AgentDriver = { name: string; defaultModel: string; capabilities: Record<string, boolean> };
 
 let testDir: string;
 
@@ -411,12 +414,12 @@ workflow:
       expect(result.tasks.implement.plugins).toBeUndefined();
     });
 
-    it('task with driver: codex parses into ResolvedTask.driver === "codex" (AC #3)', () => {
+    it('task with driver: opencode parses into ResolvedTask.driver === "codex" (AC #3)', () => {
       const yaml = `
 tasks:
   implement:
     agent: dev
-    driver: codex
+    driver: opencode
 workflow:
   for_each: epic
   steps:
@@ -427,7 +430,7 @@ workflow:
       const filePath = writeYaml('driver.yaml', yaml);
       const result = parseWorkflow(filePath);
 
-      expect(result.tasks.implement.driver).toBe('codex');
+      expect(result.tasks.implement.driver).toBe('opencode');
       expect(result.tasks.implement.model).toBeUndefined();
       expect(result.tasks.implement.plugins).toBeUndefined();
     });
@@ -478,8 +481,8 @@ workflow:
 tasks:
   implement:
     agent: dev
-    driver: codex
-    model: codex-mini
+    driver: opencode
+    model: gpt-5.4
     plugins:
       - gstack
 workflow:
@@ -492,8 +495,8 @@ workflow:
       const filePath = writeYaml('all-new.yaml', yaml);
       const result = parseWorkflow(filePath);
 
-      expect(result.tasks.implement.driver).toBe('codex');
-      expect(result.tasks.implement.model).toBe('codex-mini');
+      expect(result.tasks.implement.driver).toBe('opencode');
+      expect(result.tasks.implement.model).toBe('gpt-5.4');
       expect(result.tasks.implement.plugins).toEqual(['gstack']);
     });
 
@@ -571,8 +574,8 @@ workflow:
 tasks:
   implement:
     agent: dev
-    driver: codex
-    model: codex-mini
+    driver: opencode
+    model: gpt-5.4
     plugins:
       - gstack
 workflow:
@@ -586,7 +589,7 @@ workflow:
       // Should NOT throw — new fields are recognized by schema
       const result = parseWorkflow(filePath);
       expect(result.tasks.implement.agent).toBe('dev');
-      expect(result.tasks.implement.driver).toBe('codex');
+      expect(result.tasks.implement.driver).toBe('opencode');
     });
 
     it('ResolvedTask type exposes optional driver, model, plugins fields (AC #4)', () => {
@@ -850,8 +853,8 @@ extends: embedded://default
 overrides:
   tasks:
     implement:
-      driver: codex
-      model: codex-mini
+      driver: opencode
+      model: gpt-5.4
       plugins:
         - gstack
 `;
@@ -859,8 +862,8 @@ overrides:
 
     const result = resolveWorkflow({ cwd: testDir });
 
-    expect(result.tasks.implement.driver).toBe('codex');
-    expect(result.tasks.implement.model).toBe('codex-mini');
+    expect(result.tasks.implement.driver).toBe('opencode');
+    expect(result.tasks.implement.model).toBe('gpt-5.4');
     expect(result.tasks.implement.plugins).toEqual(['gstack']);
     // Preserved from base
     expect(result.tasks.implement.agent).toBe('dev');
@@ -1256,9 +1259,6 @@ describe('referential integrity validation', () => {
       name,
       defaultModel: 'test-model',
       capabilities: { streaming: false, tools: false, subagents: false, computerUse: false },
-      async healthCheck() { return { status: 'healthy' as const, driver: name }; },
-      async *dispatch() { /* empty */ },
-      getLastCost() { return null; },
     };
   }
 
@@ -1287,14 +1287,12 @@ workflow:
       expect(result.tasks.implement.driver).toBe('claude-code');
     });
 
-    it('workflow with driver: nonexistent throws WorkflowParseError with helpful message (AC #1)', () => {
-      registerDriver(mockDriver('claude-code'));
-
+    it('workflow with unsupported driver throws WorkflowParseError with helpful message (AC #1)', () => {
       const yaml = `
 tasks:
   implement:
     agent: dev
-    driver: codex
+    driver: bogus-provider
 workflow:
   for_each: epic
   steps:
@@ -1311,19 +1309,18 @@ workflow:
         const pe = err as WorkflowParseError;
         expect(pe.message).toContain('Referential integrity errors');
         expect(pe.errors.some((e) => e.path === '/tasks/implement/driver')).toBe(true);
-        expect(pe.errors.some((e) => e.message.includes('codex'))).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('bogus-provider'))).toBe(true);
         expect(pe.errors.some((e) => e.message.includes('implement'))).toBe(true);
-        expect(pe.errors.some((e) => e.message.includes('claude-code'))).toBe(true);
+        expect(pe.errors.some((e) => e.message.includes('opencode'))).toBe(true);
       }
     });
 
-    it('driver validation is skipped when registry is empty (AC #4, Task 4)', () => {
-      // No drivers registered — validation should be skipped
+    it('opencode is a valid provider', () => {
       const yaml = `
 tasks:
   implement:
     agent: dev
-    driver: any-driver-name
+    driver: opencode
 workflow:
   for_each: epic
   steps:
@@ -1331,9 +1328,9 @@ workflow:
       steps:
         - implement
 `;
-      const filePath = writeYaml('empty-registry.yaml', yaml);
+      const filePath = writeYaml('opencode-driver.yaml', yaml);
       const result = parseWorkflow(filePath);
-      expect(result.tasks.implement.driver).toBe('any-driver-name');
+      expect(result.tasks.implement.driver).toBe('opencode');
     });
   });
 
@@ -1847,11 +1844,11 @@ tasks:
     source_access: true
   check:
     agent: checker
-    driver: codex
+    driver: opencode
     source_access: true
   review:
     agent: reviewer
-    driver: codex
+    driver: opencode
     source_access: true
   retry:
     agent: dev

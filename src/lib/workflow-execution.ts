@@ -1,7 +1,9 @@
 /** Referential integrity and flow validation helpers used by workflow parsing. */
-import { listDrivers } from './agents/drivers/factory.js';
 import { listEmbeddedAgents, resolveAgent, AgentResolveError } from './agent-resolver.js';
 import type { ForEachConfig, GateConfig } from './workflow-types.js';
+
+/** Providers supported by flow's native agent step type. */
+const SUPPORTED_PROVIDERS = new Set(['opencode', 'claude-code']);
 
 export type ForEachBlock = ForEachConfig;
 export type GateBlock = GateConfig;
@@ -60,16 +62,14 @@ export function validateReferentialIntegrity(
   data: { tasks: Record<string, Record<string, unknown>> },
   errors: Array<{ path: string; message: string }>,
 ): void {
-  const registeredDrivers = listDrivers();
-  const driverRegistryPopulated = registeredDrivers.length > 0;
   const embeddedAgents = listEmbeddedAgents();
 
   for (const [taskName, task] of Object.entries(data.tasks)) {
-    if (task.driver !== undefined && typeof task.driver === 'string' && driverRegistryPopulated) {
-      if (!registeredDrivers.includes(task.driver)) {
+    if (task.driver !== undefined && typeof task.driver === 'string') {
+      if (!SUPPORTED_PROVIDERS.has(task.driver)) {
         errors.push({
           path: `/tasks/${taskName}/driver`,
-          message: `Driver "${task.driver}" not found in task "${taskName}". Registered drivers: ${registeredDrivers.join(', ')}`,
+          message: `Driver "${task.driver}" not supported in task "${taskName}". Supported: ${[...SUPPORTED_PROVIDERS].join(', ')}`,
         });
       }
     }

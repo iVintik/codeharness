@@ -109,12 +109,26 @@ export function docsReadmeGenerationPatch(): string {
   return readPatchFile('docs', 'readme-generation') ?? `## Codeharness Documentation Targets (README + docs/index.md)
 
 After the project scan is complete, generate or update \`{project-root}/README.md\`
-alongside \`{project_knowledge}/index.md\`. README must have: project name + one-line
-description, overview, tech stack, getting started commands, project structure,
-documentation section linking docs/index.md. Use managed markers
-\`<!-- codeharness:readme -->\` / \`<!-- /codeharness:readme -->\` so updates are
-non-destructive. \`docs/index.md\` must link back to \`../README.md\`. Never embed
-codeharness CLI help. Never hardcode project structure — use real scan data.`;
+alongside \`{project_knowledge}/index.md\`. README must contain, in order:
+
+1. Project name + one-line description.
+2. **What it does** — 3-6 sentences covering problem, audience, primary capability.
+3. **Key features** — 4-8 bullets, each tied to a real scanned subpackage.
+4. **Tech stack** — languages, frameworks, runtimes, optional extras.
+5. **Getting started** — EXACTLY one install command, one run command, one
+   expected-output block. No forks, no "alternatively", no lists of variants.
+   Pick the happy path that works for the most users with the fewest prerequisites.
+6. **Usage** — 3-6 everyday recipes (run as service, use as library, process
+   batch, etc.), each with a short heading, 1-2 sentence description, and a
+   minimal snippet. All commands/symbols must be real.
+7. **Project structure** — tight annotated tree from source-tree-analysis.md.
+8. **Documentation** — link docs/index.md plus key generated docs.
+9. **Contributing / License** — preserve existing if present.
+
+Use managed markers \`<!-- codeharness:readme -->\` / \`<!-- /codeharness:readme -->\`
+so updates are non-destructive. \`docs/index.md\` must link back to \`../README.md\`.
+Never embed codeharness CLI help. Never hardcode project structure — use real
+scan data. Never invent features or APIs.`;
 }
 
 /**
